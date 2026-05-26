@@ -1,0 +1,206 @@
+[
+{
+  "model": "sessions.session",
+  "pk": "s51vai3mk6yryhhajym1pv28yvg7p7du",
+  "fields": {
+    "session_data": ".eJxVjDkOwjAQAP-yNbK8xldS0ucN0a4PHEC2FCcV4u8oUgpoZ0bzhpn2rcx7T-u8RBgB4fLLmMIz1UPEB9V7E6HVbV1YHIk4bRdTi-l1O9u_QaFeYISMnjmQ0d7j4LPUZFHTIJOKUSl21pAzyDrm7IJHq6xEeWUXnPVBZwefL9yNN3Q:1wPrLn:l14UFCkJiC8cJ8fC-dWz9GWHoRzxsRamQisIl6itxQs",
+    "expire_date": "2026-06-04T00:33:23.891Z"
+  }
+},
+{
+  "model": "usuarios.usuario",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$MKxtOB1AzRvmdfLs8gCYCC$cj8kgkDMzSsj0Z/XINbvcIcESpAe0WdZYmzQvh1s0VU=",
+    "last_login": "2026-05-21T00:33:23.868Z",
+    "is_superuser": true,
+    "username": "jose",
+    "first_name": "",
+    "last_name": "",
+    "email": "jfgoitiac@gmail.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-05-21T00:32:39.613Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "usuarios.usuario",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$cxusIPecKzc0kHWKLnMV5W$Deo7/7l0TDwFTrUiqV2MXpsDlZlYiDUASDw5JY5a5gI=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "director",
+    "first_name": "",
+    "last_name": "",
+    "email": "director@octopus.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-21T00:45:37.240Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 1,
+  "fields": {
+    "usuario": 1,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-21T00:34:25.944Z",
+    "ip_address": null,
+    "detalles": "El usuario jose ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 2,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-21T00:47:12.620Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 3,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-21T00:49:44.740Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 4,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-21T15:10:52.536Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 5,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-21T15:34:17.239Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 6,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-21T18:59:54.066Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 7,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-22T21:16:37.019Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 8,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-22T22:18:56.163Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 9,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-22T23:21:42.854Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema con éxito."
+  }
+},
+{
+  "model": "usuarios.logauditoria",
+  "pk": 10,
+  "fields": {
+    "usuario": 2,
+    "accion": "INICIO_SESION",
+    "modulo": "SEGURIDAD",
+    "fecha_hora": "2026-05-23T05:04:56.494Z",
+    "ip_address": null,
+    "detalles": "El usuario director ha ingresado al sistema con éxito."
+  }
+},
+{
+  "model": "authentication.perfilusuario",
+  "pk": 1,
+  "fields": {
+    "user": 1,
+    "rol": "cajero",
+    "esta_activo": true
+  }
+},
+{
+  "model": "authentication.perfilusuario",
+  "pk": 2,
+  "fields": {
+    "user": 2,
+    "rol": "director",
+    "esta_activo": true
+  }
+},
+{
+  "model": "cobranza.parametroglobal",
+  "pk": 1,
+  "fields": {
+    "clave": "monto_mensualidad_defecto",
+    "valor": "30",
+    "descripcion": "Monto base de mensualidad"
+  }
+},
+{
+  "model": "rrhh.empleado",
+  "pk": 1,
+  "fields": {
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "cedula": "12345678",
+    "cargo": "Profesor",
+    "sueldo_base": "300.00",
+    "fecha_contratacion": "2026-05-23",
+    "activo": true
+  }
+}
+]

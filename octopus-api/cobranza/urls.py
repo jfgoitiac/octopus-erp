@@ -1,0 +1,34 @@
+from django.urls import path
+from .views import (
+    ActualizarMensualidadesView,
+    AuditoriaDiariaView,
+    BancoDetailView,
+    BancosAdminView,
+    BancosListView,
+    BuscarAlumnoCobranzaView,
+    ConfiguracionCobranzaView,
+    DashboardStatsView,
+    ExportarAuditoriaExcelView,
+    GenerarAnualidadView,
+    HistoricoMensualView,
+    ReciboView,
+    RegistrarPagoView,
+    SincronizarTasaView,
+)
+
+urlpatterns = [
+    path('sincronizar-tasa/',          SincronizarTasaView.as_view(),          name='sincronizar-tasa'),
+    path('stats/',                     DashboardStatsView.as_view(),           name='cobranza-stats'),
+    path('bancos/',                    BancosListView.as_view(),               name='bancos-list'),
+    path('buscar/<str:cedula>/',       BuscarAlumnoCobranzaView.as_view(),     name='buscar-alumno-cobranza'),
+    path('registrar-pago/',            RegistrarPagoView.as_view(),            name='registrar-pago'),
+    path('recibo/<int:pago_id>/',      ReciboView.as_view(),                   name='recibo-pago'),
+    path('auditoria-diaria/',          AuditoriaDiariaView.as_view(),          name='auditoria-diaria'),
+    path('configuracion/',             ConfiguracionCobranzaView.as_view(),    name='cobranza-configuracion'),
+    path('actualizar-mensualidades/',  ActualizarMensualidadesView.as_view(),  name='actualizar-mensualidades'),
+    path('generar-anualidad/',         GenerarAnualidadView.as_view(),         name='generar-anualidad'),
+    path('bancos/admin/',              BancosAdminView.as_view(),              name='bancos-admin'),
+    path('bancos/admin/<int:pk>/',     BancoDetailView.as_view(),              name='banco-detail'),
+    path('exportar-excel/',            ExportarAuditoriaExcelView.as_view(),   name='exportar-auditoria-excel'),
+    path('historico-mensual/',         HistoricoMensualView.as_view(),         name='historico-mensual'),
+]

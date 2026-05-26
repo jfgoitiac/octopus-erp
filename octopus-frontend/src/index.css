@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --pb:        #0fa3b1;
+  --pb-light:  #e8f8fa;
+  --pb-mid:    #0c828d;
+  --jet:       #2b303a;
+  --jet-mid:   #41495a;
+  --jet-light: #f0f2f4;
+  --red:       #9e2b25;
+  --red-light: #faebea;
+  --ash:       #9a8c98;
+  --ash-light: #f3f1f3;
+  --porcelain: #fffffa;
+  --bg:        #f3f3ee;
+  --border:    rgba(43,48,58,0.10);
+  --border-md: rgba(43,48,58,0.16);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--bg);
+  color: var(--jet);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02","cv03","cv04","cv11";
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--jet);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--pb); border-radius: 20px; opacity: 0.4; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+button, a { transition: all 0.15s ease-in-out; }
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.anim-slide-in {
+  animation: slideInLeft 0.22s ease both;
+}
+
+.anim-fade-up {
+  animation: fadeUp 0.22s ease both;
+}

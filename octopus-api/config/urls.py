@@ -1,0 +1,21 @@
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import path, include
+from rest_framework_simplejwt.views import TokenRefreshView
+from authentication.views import LoginView
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/token/', LoginView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/authentication/', include('authentication.urls')),
+    path('api/usuarios/', include('usuarios.urls')),
+    path('api/secretaria/', include('secretaria.urls')),
+    path('api/cobranza/', include('cobranza.urls')),
+    path('api/nomina/', include('nomina.urls')),
+    path('api/rrhh/', include('rrhh.urls')),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
