@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
 import { Search, User, DollarSign, X, Save, Calendar, Settings, History, RefreshCcw, ExternalLink, Edit2, UserCircle, GraduationCap, Trash2, Loader2, PlusCircle, FileText, UserCheck, UserMinus, Info, Download } from 'lucide-react';
+import DatePickerES from '../components/DatePickerES';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/apiClient';
 import { AuthContext } from '../context/AuthContext';
@@ -796,7 +797,7 @@ const ListaAlumnos = () => {
                                     </div>
                                     <div>
                                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha de Nacimiento</label>
-                                        <input type="date" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} value={editForm.fecha_nacimiento} onChange={(e) => setEditForm({...editForm, fecha_nacimiento: e.target.value})} />
+                                        <DatePickerES className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} value={editForm.fecha_nacimiento} onChange={(e) => setEditForm({...editForm, fecha_nacimiento: e.target.value})} />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Género</label>
@@ -895,7 +896,7 @@ const ListaAlumnos = () => {
                                     </div>
                                     <div>
                                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha Nacimiento</label>
-                                        <input type="date" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} required onChange={(e) => setRegisterForm({...registerForm, fecha_nacimiento: e.target.value})} />
+                                        <DatePickerES className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} required onChange={(e) => setRegisterForm({...registerForm, fecha_nacimiento: e.target.value})} />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Género</label>

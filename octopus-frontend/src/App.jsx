@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
 import Cobranza from './pages/Cobranza';
 import CobranzaDashboard from './pages/CobranzaDashboard';
+import Comprobantes from './pages/Comprobantes';
 import Inscripciones from './pages/Inscripciones';
 import ListaAlumnos from './pages/ListaAlumnos';
 import Nomina from './pages/Nomina';
@@ -93,6 +94,12 @@ function App() {
           <Route path="cobranza" element={
             <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza', 'cajero']}>
               <Cobranza />
+            </ProtectedRoute>
+          } />
+
+          <Route path="comprobantes" element={
+            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza', 'cajero']}>
+              <Comprobantes />
             </ProtectedRoute>
           } />
 

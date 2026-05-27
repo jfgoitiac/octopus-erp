@@ -4,6 +4,7 @@ import {
     RefreshCcw, CheckCircle, X, Info, Loader2, BarChart3, Clock,
     Building, Plus, Pencil, Trash2, Briefcase
 } from 'lucide-react';
+import DatePickerES from '../components/DatePickerES';
 
 const TIPO_LABELS = {
     general:        'General',
@@ -359,309 +360,409 @@ const Configuracion = () => {
     );
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn pb-20">
-            <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"> {/* CORRECCIÓN 6: Header de página */}
-                <div> 
-                    <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Configuración del Sistema</h2>
-                    <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>Gestión de períodos escolares, inscripciones y parámetros de cobro.</p>
+        <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-20">
+
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl" style={{ background: 'var(--pb-light)' }}>
+                        <Settings size={20} style={{ color: 'var(--pb)' }} />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold" style={{ color: 'var(--jet)' }}>Configuración del Sistema</h2>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>Períodos escolares, inscripciones y parámetros de cobro</p>
+                    </div>
                 </div>
-                {/* CORRECCIÓN 4: Botón secundario */}
-                <button onClick={fetchData} disabled={loading}
-                    className="flex items-center justify-center gap-2 p-2 rounded-lg transition-all disabled:opacity-50"
-                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                    <RefreshCcw size={16} className={loading ? 'animate-spin' : ''} />
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    {config?.periodo_escolar_activo && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                            style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                            {config.periodo_escolar_activo}
+                        </span>
+                    )}
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                        style={config?.inscripciones_abiertas
+                            ? { background: '#dcfce7', color: '#16a34a' }
+                            : { background: 'var(--red-light)', color: 'var(--red)' }}>
+                        {config?.inscripciones_abiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}
+                    </span>
+                    <button onClick={fetchData} disabled={loading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: 'var(--porcelain)' }}>
+                        <RefreshCcw size={13} className={loading ? 'animate-spin' : ''} />
+                        Actualizar
+                    </button>
+                </div>
             </div>
 
-            <form onSubmit={handleSaveConfig} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}> {/* CORRECCIÓN 7: Card principal */}
-                        <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
-                            <Calendar size={20} />
-                            <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Panel Año Escolar</h3>
+            {/* Main Form Grid */}
+            <form onSubmit={handleSaveConfig} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Left Column */}
+                <div className="lg:col-span-2 space-y-5">
+
+                    {/* Año Escolar */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                <Calendar size={15} style={{ color: 'var(--pb)' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Año Escolar</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="md:col-span-2">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Período Activo</label> {/* CORRECCIÓN 2: Label estándar */}
-                                <input type="text" name="periodo_escolar_activo" value={config?.periodo_escolar_activo || ''} onChange={handleConfigChange} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Período Activo</label>
+                                <input type="text" name="periodo_escolar_activo" value={config?.periodo_escolar_activo || ''} onChange={handleConfigChange}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-medium"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
                             </div>
-                            <div key="fecha_inicio_ano">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha Inicio Año</label> {/* CORRECCIÓN 2: Label estándar */}
-                                <input type="date" name="fecha_inicio_ano_escolar" value={config?.fecha_inicio_ano_escolar || ''} onChange={handleConfigChange} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio del Año</label>
+                                    <DatePickerES name="fecha_inicio_ano_escolar" value={config?.fecha_inicio_ano_escolar || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fin del Año</label>
+                                    <DatePickerES name="fecha_fin_ano_escolar" value={config?.fecha_fin_ano_escolar || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                </div>
                             </div>
-                            <div key="fecha_fin_ano">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha Fin Año</label> {/* CORRECCIÓN 2: Label estándar */}
-                                <input type="date" name="fecha_fin_ano_escolar" value={config?.fecha_fin_ano_escolar || ''} onChange={handleConfigChange} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
-                            <button type="button" onClick={() => setShowPromoModal(true)}
-                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all" style={{ background: 'var(--jet)' }}>
-                                <UserPlus size={16} /> Promover Alumnos {/* Acción especial */}
-                            </button>
                         </div>
                     </div>
 
-                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}> {/* CORRECCIÓN 7: Card principal */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
-                                <CheckCircle size={20} />
-                                <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Proceso de Inscripción</h3>
+                    {/* Inscripciones */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded-lg" style={{ background: '#dcfce7' }}>
+                                    <CheckCircle size={15} style={{ color: '#16a34a' }} />
+                                </div>
+                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Proceso de Inscripción</h3>
                             </div>
-                            {/* Badge de estado de inscripciones */}
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider`} style={config?.inscripciones_abiertas ? { background: '#dcfce7', color: '#16a34a' } : { background: 'var(--red-light)', color: 'var(--red)' }}>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                style={config?.inscripciones_abiertas
+                                    ? { background: '#dcfce7', color: '#16a34a' }
+                                    : { background: 'var(--red-light)', color: 'var(--red)' }}>
                                 {config?.inscripciones_abiertas ? 'Abiertas' : 'Cerradas'}
                             </span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div key="fecha_inicio_ins">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio Inscripciones</label> {/* CORRECCIÓN 2: Label estándar */}
-                                <input type="date" name="fecha_inicio_inscripciones" value={config?.fecha_inicio_inscripciones || ''} onChange={handleConfigChange} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
-                            </div>
-                            <div key="fecha_fin_ins">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Cierre Inscripciones</label> {/* CORRECCIÓN 2: Label estándar */}
-                                <input type="date" name="fecha_fin_inscripciones" value={config?.fecha_fin_inscripciones || ''} onChange={handleConfigChange} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
+                        <div className="p-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio Inscripciones</label>
+                                    <DatePickerES name="fecha_inicio_inscripciones" value={config?.fecha_inicio_inscripciones || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Cierre Inscripciones</label>
+                                    <DatePickerES name="fecha_fin_inscripciones" value={config?.fecha_fin_inscripciones || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
-                                <BarChart3 size={20} />
-                                <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Control de Cupos</h3>
+                    {/* Control de Cupos */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                    <BarChart3 size={15} style={{ color: 'var(--pb)' }} />
+                                </div>
+                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Control de Cupos</h3>
                             </div>
                             <button type="button" onClick={openCreateGrado}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
                                 style={{ background: 'var(--pb)' }}>
-                                <Plus size={14} /> Agregar Grado
+                                <Plus size={13} /> Agregar Grado
                             </button>
                         </div>
                         {grados.length === 0 ? (
-                            <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>No hay grados configurados.</p>
+                            <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
+                                <BarChart3 size={30} className="mb-2 opacity-20" />
+                                <p className="text-sm">No hay grados configurados.</p>
+                            </div>
                         ) : (
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr>
-                                    {['Grado', 'Progreso', 'Límite', 'Acciones'].map(h => (
-                                        <th key={h} className={`px-4 py-3 text-[11px] uppercase tracking-widest ${h === 'Límite' ? 'text-right' : ''}`}
-                                            style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {grados?.map((g) => {
-                                    const pct = Math.min(100, (g?.cupos_utilizados / (g?.cupos_maximos || 1)) * 100);
-                                    return (
-                                        <tr key={g.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                                            <td className="px-4 py-4 text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                                {g?.grado_seccion}
-                                            </td>
-                                            <td className="px-4 py-4 w-1/3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--ash-light)' }}>
-                                                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct > 90 ? 'var(--red)' : 'var(--pb)' }} />
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                        {['Grado', 'Ocupación', 'Límite', 'Acciones'].map(h => (
+                                            <th key={h} className="px-5 py-3 text-[11px] uppercase tracking-widest"
+                                                style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {grados?.map((g) => {
+                                        const pct = Math.min(100, (g?.cupos_utilizados / (g?.cupos_maximos || 1)) * 100);
+                                        const isOver = pct > 90;
+                                        return (
+                                            <tr key={g.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                                <td className="px-5 py-3.5 text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                    {g?.grado_seccion}
+                                                </td>
+                                                <td className="px-5 py-3.5 w-1/3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--ash-light)' }}>
+                                                            <div className="h-full rounded-full transition-all"
+                                                                style={{ width: `${pct}%`, background: isOver ? 'var(--red)' : 'var(--pb)' }} />
+                                                        </div>
+                                                        <span className="text-[11px] font-semibold w-12 text-right"
+                                                            style={{ color: isOver ? 'var(--red)' : 'var(--ash)' }}>
+                                                            {g?.cupos_utilizados}/{g?.cupos_maximos}
+                                                        </span>
                                                     </div>
-                                                    <span className="text-[10px] font-bold" style={{ color: 'var(--ash)' }}>{g?.cupos_utilizados}/{g?.cupos_maximos}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-4 text-right">
-                                                <input type="number" defaultValue={g.cupos_maximos} onBlur={(e) => handleUpdateCupos(g.id, parseInt(e.target.value))}
-                                                    className="w-16 px-2 py-1 rounded-lg text-xs font-bold text-center outline-none"
-                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <button type="button" onClick={() => openEditGrado(g)}
-                                                        className="p-1.5 rounded-lg transition-all"
-                                                        style={{ color: 'var(--pb)', border: '0.5px solid var(--border-md)' }}
-                                                        title="Editar">
-                                                        <Pencil size={14} />
-                                                    </button>
-                                                    <button type="button" onClick={() => confirmarEliminarGrado(g)}
-                                                        className="p-1.5 rounded-lg transition-all"
-                                                        style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
-                                                        title="Eliminar">
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <input type="number" defaultValue={g.cupos_maximos}
+                                                        onBlur={(e) => handleUpdateCupos(g.id, parseInt(e.target.value))}
+                                                        className="w-16 px-2 py-1.5 rounded-lg text-xs font-bold text-center outline-none"
+                                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button type="button" onClick={() => openEditGrado(g)}
+                                                            className="p-1.5 rounded-lg"
+                                                            style={{ color: 'var(--pb)', background: 'var(--pb-light)' }}
+                                                            title="Editar">
+                                                            <Pencil size={13} />
+                                                        </button>
+                                                        <button type="button" onClick={() => confirmarEliminarGrado(g)}
+                                                            className="p-1.5 rounded-lg"
+                                                            style={{ color: 'var(--red)', background: 'var(--red-light)' }}
+                                                            title="Eliminar">
+                                                            <Trash2 size={13} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         )}
                     </div>
                 </div>
 
-                <div className="space-y-6 self-start sticky" style={{ top: '66px' }}>
-                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                        <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
-                            <Clock size={20} />
-                            <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Panel Cobros</h3>
+                {/* Right Sidebar */}
+                <div className="space-y-5 self-start sticky" style={{ top: '66px' }}>
+
+                    {/* Panel Cobros */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <div className="p-1.5 rounded-lg" style={{ background: '#fef9c3' }}>
+                                <Clock size={15} style={{ color: '#ca8a04' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Panel de Cobros</h3>
                         </div>
-                        <div className="space-y-4">
+                        <div className="p-5 space-y-4">
                             <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Día Límite de Pago</label> {/* CORRECCIÓN 2: Label estándar */}
-                                <input type="number" name="dia_limite_pago" value={config?.dia_limite_pago || 5} onChange={handleConfigChange} className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Día Límite de Pago</label>
+                                <input type="number" name="dia_limite_pago" value={config?.dia_limite_pago || 5} onChange={handleConfigChange}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Notificaciones</span>
                                 <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="notificaciones_activas" className="sr-only peer" checked={config?.notificaciones_activas || false} onChange={handleConfigChange} />
-                                    <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ background: config?.notificaciones_activas ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                    <input type="checkbox" name="notificaciones_activas" className="sr-only peer"
+                                        checked={config?.notificaciones_activas || false} onChange={handleConfigChange} />
+                                    <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                        style={{ background: config?.notificaciones_activas ? 'var(--pb)' : 'var(--ash-light)' }}></div>
                                 </label>
                             </div>
+                            <button type="submit" disabled={saving}
+                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50"
+                                style={{ background: 'var(--pb)' }}>
+                                {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                                Guardar Configuración
+                            </button>
                         </div>
-                        <button type="submit" disabled={saving}
-                            className="flex items-center justify-center gap-2 w-full py-3 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50" style={{ background: 'var(--pb)' }}>
-                            {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar Configuración {/* CORRECCIÓN 3: Botón primario */}
-                        </button>
+                    </div>
+
+                    {/* Zona Crítica: Promover Alumnos */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3 flex items-center gap-2" style={{ background: 'var(--red-light)', borderBottom: '0.5px solid var(--border-md)' }}>
+                            <AlertTriangle size={13} style={{ color: 'var(--red)' }} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--red)' }}>Zona Crítica</span>
+                        </div>
+                        <div className="p-5 space-y-3">
+                            <p className="text-xs leading-relaxed" style={{ color: 'var(--ash)' }}>
+                                Mueve todos los alumnos activos al grado siguiente para iniciar el nuevo período escolar.
+                            </p>
+                            <button type="button" onClick={() => setShowPromoModal(true)}
+                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white"
+                                style={{ background: 'var(--jet)' }}>
+                                <UserPlus size={15} /> Promover Alumnos
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>
 
-            {/* ── Bancos y Medios de Pago ── */}
-            <div className="rounded-xl p-5 space-y-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Building size={20} style={{ color: 'var(--pb)' }} />
-                        <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Bancos y Medios de Pago</h3>
+            {/* Bottom Sections: side by side on large screens */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {/* Bancos y Medios de Pago */}
+                <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                <Building size={15} style={{ color: 'var(--pb)' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Bancos y Medios de Pago</h3>
+                        </div>
+                        <button type="button" onClick={openCreateModal}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                            style={{ background: 'var(--pb)' }}>
+                            <Plus size={13} /> Agregar
+                        </button>
                     </div>
-                    <button type="button" onClick={openCreateModal}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-                        style={{ background: 'var(--pb)' }}>
-                        <Plus size={14} /> Agregar Banco
-                    </button>
+                    {bancosLoading ? (
+                        <div className="flex justify-center py-10">
+                            <Loader2 className="animate-spin" size={22} style={{ color: 'var(--pb)' }} />
+                        </div>
+                    ) : bancos.length === 0 ? (
+                        <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
+                            <Building size={30} className="mb-2 opacity-20" />
+                            <p className="text-sm">No hay bancos registrados.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                        {['Banco / Tipo', 'Estado', ''].map((h, i) => (
+                                            <th key={i} className="px-5 py-3 text-[11px] uppercase tracking-widest"
+                                                style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bancos.map(banco => (
+                                        <tr key={banco.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                            <td className="px-5 py-3.5">
+                                                <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{banco.nombre}</p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-[10px]" style={{ color: 'var(--ash)' }}>{banco.numero_cuenta || '—'}</span>
+                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                                                        style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                                        {TIPO_LABELS[banco.tipo] || banco.tipo}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" className="sr-only peer" checked={banco.activo}
+                                                        onChange={() => handleToggleActivo(banco)} />
+                                                    <div className="w-10 h-5 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"
+                                                        style={{ background: banco.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                                </label>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-1.5 justify-end">
+                                                    <button type="button" onClick={() => openEditModal(banco)}
+                                                        className="p-1.5 rounded-lg"
+                                                        style={{ color: 'var(--pb)', background: 'var(--pb-light)' }}
+                                                        title="Editar">
+                                                        <Pencil size={13} />
+                                                    </button>
+                                                    <button type="button" onClick={() => handleDeleteBanco(banco.id)}
+                                                        className="p-1.5 rounded-lg"
+                                                        style={{ color: 'var(--red)', background: 'var(--red-light)' }}
+                                                        title="Eliminar">
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
-                {bancosLoading ? (
-                    <div className="flex justify-center py-6">
-                        <Loader2 className="animate-spin" size={24} style={{ color: 'var(--pb)' }} />
+                {/* Tipos de Cargo */}
+                <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                <Briefcase size={15} style={{ color: 'var(--pb)' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Tipos de Cargo</h3>
+                        </div>
+                        <button type="button" onClick={openCreateTipoCargo}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                            style={{ background: 'var(--pb)' }}>
+                            <Plus size={13} /> Agregar
+                        </button>
                     </div>
-                ) : bancos.length === 0 ? (
-                    <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>No hay bancos registrados.</p>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr>
-                                    {['Banco', 'N° Cuenta', 'Tipo', 'Estado', 'Acciones'].map(h => (
-                                        <th key={h} className="px-4 py-3 text-[11px] uppercase tracking-widest"
-                                            style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {bancos.map(banco => (
-                                    <tr key={banco.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                                        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>{banco.nombre}</td>
-                                        <td className="px-4 py-3 text-sm" style={{ color: 'var(--ash)' }}>{banco.numero_cuenta || '—'}</td>
-                                        <td className="px-4 py-3">
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                                                style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                                {TIPO_LABELS[banco.tipo] || banco.tipo}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" className="sr-only peer" checked={banco.activo}
-                                                    onChange={() => handleToggleActivo(banco)} />
-                                                <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
-                                                    style={{ background: banco.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
-                                            </label>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <button type="button" onClick={() => openEditModal(banco)}
-                                                    className="p-1.5 rounded-lg transition-all"
-                                                    style={{ color: 'var(--pb)', border: '0.5px solid var(--border-md)' }}
-                                                    title="Editar">
-                                                    <Pencil size={14} />
-                                                </button>
-                                                <button type="button" onClick={() => handleDeleteBanco(banco.id)}
-                                                    className="p-1.5 rounded-lg transition-all"
-                                                    style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
-                                                    title="Eliminar">
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        </td>
+                    {tiposCargoLoading ? (
+                        <div className="flex justify-center py-10">
+                            <Loader2 className="animate-spin" size={22} style={{ color: 'var(--pb)' }} />
+                        </div>
+                    ) : tiposCargo.length === 0 ? (
+                        <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
+                            <Briefcase size={30} className="mb-2 opacity-20" />
+                            <p className="text-sm">No hay tipos de cargo registrados.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                        {['Cargo', 'Estado', ''].map((h, i) => (
+                                            <th key={i} className="px-5 py-3 text-[11px] uppercase tracking-widest"
+                                                style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
+                                        ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* ── Tipos de Cargo de Trabajadores ── */}
-            <div className="rounded-xl p-5 space-y-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Briefcase size={20} style={{ color: 'var(--pb)' }} />
-                        <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Tipos de Cargo de Trabajadores</h3>
-                    </div>
-                    <button type="button" onClick={openCreateTipoCargo}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-                        style={{ background: 'var(--pb)' }}>
-                        <Plus size={14} /> Agregar Cargo
-                    </button>
+                                </thead>
+                                <tbody>
+                                    {tiposCargo.map(tipo => (
+                                        <tr key={tipo.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                            <td className="px-5 py-3.5">
+                                                <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{tipo.nombre}</p>
+                                                {tipo.descripcion && (
+                                                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--ash)' }}>{tipo.descripcion}</p>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                                    style={tipo.activo
+                                                        ? { background: '#dcfce7', color: '#16a34a' }
+                                                        : { background: 'var(--red-light)', color: 'var(--red)' }}>
+                                                    {tipo.activo ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-1.5 justify-end">
+                                                    <button type="button" onClick={() => openEditTipoCargo(tipo)}
+                                                        className="p-1.5 rounded-lg"
+                                                        style={{ color: 'var(--pb)', background: 'var(--pb-light)' }}
+                                                        title="Editar">
+                                                        <Pencil size={13} />
+                                                    </button>
+                                                    <button type="button" onClick={() => confirmarEliminarTipo(tipo)}
+                                                        className="p-1.5 rounded-lg"
+                                                        style={{ color: 'var(--red)', background: 'var(--red-light)' }}
+                                                        title="Eliminar">
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
-
-                {tiposCargoLoading ? (
-                    <div className="flex justify-center py-6">
-                        <Loader2 className="animate-spin" size={24} style={{ color: 'var(--pb)' }} />
-                    </div>
-                ) : tiposCargo.length === 0 ? (
-                    <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>No hay tipos de cargo registrados.</p>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr>
-                                    {['Cargo', 'Descripción', 'Estado', 'Acciones'].map(h => (
-                                        <th key={h} className="px-4 py-3 text-[11px] uppercase tracking-widest"
-                                            style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {tiposCargo.map(tipo => (
-                                    <tr key={tipo.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                                        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>{tipo.nombre}</td>
-                                        <td className="px-4 py-3 text-sm" style={{ color: 'var(--ash)' }}>{tipo.descripcion || '—'}</td>
-                                        <td className="px-4 py-3">
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                                                style={tipo.activo
-                                                    ? { background: '#dcfce7', color: '#16a34a' }
-                                                    : { background: 'var(--red-light)', color: 'var(--red)' }}>
-                                                {tipo.activo ? 'Activo' : 'Inactivo'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <button type="button" onClick={() => openEditTipoCargo(tipo)}
-                                                    className="p-1.5 rounded-lg transition-all"
-                                                    style={{ color: 'var(--pb)', border: '0.5px solid var(--border-md)' }}
-                                                    title="Editar">
-                                                    <Pencil size={14} />
-                                                </button>
-                                                <button type="button" onClick={() => confirmarEliminarTipo(tipo)}
-                                                    className="p-1.5 rounded-lg transition-all"
-                                                    style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
-                                                    title="Eliminar">
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
             </div>
 
             {showGradoModal && (
@@ -891,17 +992,33 @@ const Configuracion = () => {
             {showPromoModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
                     <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="p-8 flex flex-col items-center text-center" style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                            <AlertTriangle size={32} className="mb-4" />
-                            <h3 className="text-lg font-bold tracking-tight">Confirmar Promoción</h3>
-                            <p className="text-sm mt-2 opacity-80">Se moverán todos los alumnos al grado superior del período <b>{periodoDestino}</b>.</p>
+                        <div className="px-6 py-5 flex flex-col items-center text-center" style={{ background: 'var(--red-light)', borderBottom: '0.5px solid var(--border-md)' }}>
+                            <div className="p-3 rounded-full mb-3" style={{ background: 'rgba(220,38,38,0.12)' }}>
+                                <AlertTriangle size={24} style={{ color: 'var(--red)' }} />
+                            </div>
+                            <h3 className="text-base font-bold" style={{ color: 'var(--jet)' }}>Confirmar Promoción Masiva</h3>
+                            <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--ash)' }}>
+                                Se moverán todos los alumnos activos al grado superior para el período <b style={{ color: 'var(--jet)' }}>{periodoDestino}</b>. Esta acción no se puede deshacer.
+                            </p>
                         </div>
-                        <div className="p-8 space-y-6">
-                            <input type="text" value={periodoDestino} onChange={(e) => setPeriodoDestino(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-octopus-blue outline-none font-bold text-center text-xl" />
-                            <div className="flex gap-4">
-                                <button onClick={() => setShowPromoModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">Cancelar</button>
-                                <button onClick={handlePromote} disabled={promoting} className="flex-[2] py-4 bg-rose-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2">
-                                    {promoting ? <Loader2 className="animate-spin" /> : <UserPlus size={20} />} Iniciar Proceso
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Período Destino</label>
+                                <input type="text" value={periodoDestino} onChange={(e) => setPeriodoDestino(e.target.value)}
+                                    className="w-full px-3 py-2.5 rounded-lg outline-none font-bold text-center text-base"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setShowPromoModal(false)}
+                                    className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                    style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                    Cancelar
+                                </button>
+                                <button type="button" onClick={handlePromote} disabled={promoting}
+                                    className="flex-[2] py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                    style={{ background: 'var(--red)' }}>
+                                    {promoting ? <Loader2 className="animate-spin" size={16} /> : <UserPlus size={16} />}
+                                    Iniciar Proceso
                                 </button>
                             </div>
                         </div>

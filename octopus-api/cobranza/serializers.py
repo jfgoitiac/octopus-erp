@@ -39,12 +39,64 @@ class PagoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pago
         fields = [
-            'id', 'alumno', 'nombre_alumno', 'apellido_alumno', 'usuario_receptor', 'cajero',
-            'operacion_uuid', 'banco_receptor', 'banco_nombre', 'metodo_pago', 'concepto',
-            'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago', 'referencia', 'estatus',
-            'observaciones', 'representante_documento', 'representante_nombre'
+            'id', 'factura_id', 'alumno', 'nombre_alumno', 'apellido_alumno',
+            'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
+            'metodo_pago', 'concepto', 'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago',
+            'referencia', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'
         ]
-        read_only_fields = ['monto_ves', 'fecha_pago', 'tasa_aplicada']
+        read_only_fields = ['factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada']
+
+
+class DesglosePagoSerializer(serializers.ModelSerializer):
+    metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
+    banco_nombre = serializers.ReadOnlyField(source='banco_receptor.nombre', allow_null=True)
+
+    class Meta:
+        model = Pago
+        fields = ['id', 'factura_id', 'metodo_pago', 'metodo_pago_display', 'banco_nombre',
+                  'monto_usd', 'monto_ves', 'tasa_aplicada', 'referencia']
+
+
+class ComprobanteSerializer(serializers.ModelSerializer):
+    nombre_alumno = serializers.ReadOnlyField(source='alumno.nombre')
+    apellido_alumno = serializers.ReadOnlyField(source='alumno.apellido')
+    cedula_escolar = serializers.ReadOnlyField(source='alumno.cedula_escolar')
+    grado = serializers.ReadOnlyField(source='alumno.grado_seccion')
+    cajero = serializers.ReadOnlyField(source='usuario_receptor.username')
+    banco_nombre = serializers.ReadOnlyField(source='banco_receptor.nombre', allow_null=True)
+    metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
+    concepto_display = serializers.CharField(source='get_concepto_display', read_only=True)
+    estatus_display = serializers.CharField(source='get_estatus_display', read_only=True)
+    desglose_pagos = serializers.SerializerMethodField()
+    total_ves = serializers.SerializerMethodField()
+    total_usd = serializers.SerializerMethodField()
+
+    def get_desglose_pagos(self, obj):
+        hermanos = Pago.objects.filter(
+            operacion_uuid=obj.operacion_uuid
+        ).select_related('banco_receptor').order_by('id')
+        return DesglosePagoSerializer(hermanos, many=True).data
+
+    def get_total_ves(self, obj):
+        from django.db.models import Sum
+        total = Pago.objects.filter(operacion_uuid=obj.operacion_uuid).aggregate(t=Sum('monto_ves'))['t']
+        return str(total or obj.monto_ves)
+
+    def get_total_usd(self, obj):
+        from django.db.models import Sum
+        total = Pago.objects.filter(operacion_uuid=obj.operacion_uuid).aggregate(t=Sum('monto_usd'))['t']
+        return str(total or obj.monto_usd)
+
+    class Meta:
+        model = Pago
+        fields = [
+            'id', 'factura_id', 'nombre_alumno', 'apellido_alumno', 'cedula_escolar', 'grado',
+            'cajero', 'banco_nombre', 'metodo_pago', 'metodo_pago_display', 'concepto',
+            'concepto_display', 'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago',
+            'referencia', 'estatus', 'estatus_display', 'observaciones',
+            'representante_documento', 'representante_nombre',
+            'desglose_pagos', 'total_ves', 'total_usd',
+        ]
 
 class PagoCreateSerializer(serializers.Serializer):
     alumno_id = serializers.IntegerField()

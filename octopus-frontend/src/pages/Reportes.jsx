@@ -3,6 +3,7 @@ import {
     Download, DollarSign, Wallet, Hash, Loader2,
     Search, FileSpreadsheet, CalendarDays, TrendingUp,
 } from 'lucide-react';
+import DatePickerES from '../components/DatePickerES';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
@@ -155,8 +156,7 @@ const Reportes = () => {
                 <div className="flex flex-wrap items-end gap-3 mb-6">
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
-                        <input
-                            type="date"
+                        <DatePickerES
                             value={fechaInicio}
                             onChange={e => setFechaInicio(e.target.value)}
                             className="px-3 py-2 rounded-lg text-sm outline-none"
@@ -165,8 +165,7 @@ const Reportes = () => {
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
-                        <input
-                            type="date"
+                        <DatePickerES
                             value={fechaFin}
                             onChange={e => setFechaFin(e.target.value)}
                             className="px-3 py-2 rounded-lg text-sm outline-none"

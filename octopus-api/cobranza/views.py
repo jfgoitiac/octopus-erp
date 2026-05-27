@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Q
 from .models import BancoInstitucional, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
-from .serializers import BancoInstitucionalSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
+from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector
 from usuarios.models import LogAuditoria
@@ -366,18 +366,23 @@ class ReciboView(APIView):
 
     def get(self, request, pago_id):
         try:
-            pago = Pago.objects.select_related(
-                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-            ).get(id=pago_id)
+            pago_ref = Pago.objects.get(id=pago_id)
         except Pago.DoesNotExist:
             return Response({"error": "Pago no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
+        pagos = list(
+            Pago.objects.filter(operacion_uuid=pago_ref.operacion_uuid).select_related(
+                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
+            ).order_by('id')
+        )
+
         try:
-            pdf_buffer = generar_pdf_recibo(pago)
+            pdf_buffer = generar_pdf_recibo(pagos)
+            factura_label = pagos[0].factura_id or f"{pago_id:06d}"
             return FileResponse(
                 pdf_buffer,
                 as_attachment=False,
-                filename=f"Recibo_Pago_{pago_id:06d}.pdf",
+                filename=f"Recibo_{factura_label}.pdf",
                 content_type='application/pdf'
             )
         except Exception as e:
@@ -710,3 +715,112 @@ class BancoDetailView(APIView):
             )
         banco.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CONSULTA DE COMPROBANTES / FACTURAS
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ConsultaComprobantesView(APIView):
+    """
+    Módulo de consulta de comprobantes de pago con filtros y paginación.
+    Soporta búsqueda por factura_id, alumno, cédula, fechas, método, concepto y estatus.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from datetime import datetime
+
+        qs = Pago.objects.select_related(
+            'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
+        ).order_by('-fecha_pago')
+
+        factura_id = request.query_params.get('factura_id', '').strip()
+        if factura_id:
+            qs = qs.filter(factura_id__icontains=factura_id)
+
+        cedula = request.query_params.get('cedula', '').strip()
+        if cedula:
+            qs = qs.filter(alumno__cedula_escolar__icontains=cedula)
+
+        alumno_nombre = request.query_params.get('alumno_nombre', '').strip()
+        if alumno_nombre:
+            qs = qs.filter(
+                Q(alumno__nombre__icontains=alumno_nombre) |
+                Q(alumno__apellido__icontains=alumno_nombre)
+            )
+
+        fi_str = request.query_params.get('fecha_inicio', '').strip()
+        ff_str = request.query_params.get('fecha_fin', '').strip()
+        try:
+            if fi_str:
+                fi = datetime.strptime(fi_str, '%Y-%m-%d').date()
+                qs = qs.filter(fecha_pago__date__gte=fi)
+            if ff_str:
+                ff = datetime.strptime(ff_str, '%Y-%m-%d').date()
+                qs = qs.filter(fecha_pago__date__lte=ff)
+        except ValueError:
+            return Response(
+                {"error": "Formato de fecha inválido. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        metodo = request.query_params.get('metodo_pago', '').strip()
+        if metodo:
+            qs = qs.filter(metodo_pago=metodo)
+
+        concepto = request.query_params.get('concepto', '').strip()
+        if concepto:
+            qs = qs.filter(concepto=concepto)
+
+        estatus = request.query_params.get('estatus', '').strip()
+        if estatus:
+            qs = qs.filter(estatus=estatus)
+
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 20))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 20
+
+        from django.db.models import Min, Max
+
+        # Agrupa por operacion_uuid; un pago representante por operación
+        groups = (
+            qs.values('operacion_uuid')
+            .annotate(rep_id=Min('id'), max_fecha=Max('fecha_pago'))
+            .order_by('-max_fecha')
+        )
+        total = groups.count()
+        offset = (page - 1) * page_size
+        page_groups = groups[offset:offset + page_size]
+        rep_ids = [g['rep_id'] for g in page_groups]
+
+        pagos_dict = {
+            p.id: p for p in Pago.objects.filter(id__in=rep_ids).select_related(
+                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
+            )
+        }
+        pagos = [pagos_dict[rid] for rid in rep_ids if rid in pagos_dict]
+
+        return Response({
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size if total else 1,
+            'results': ComprobanteSerializer(pagos, many=True).data,
+        })
+
+
+class ComprobanteDetalleView(APIView):
+    """Retorna el detalle de un comprobante por su factura_id."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, factura_id):
+        try:
+            pago = Pago.objects.select_related(
+                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
+            ).get(factura_id=factura_id)
+        except Pago.DoesNotExist:
+            return Response({"error": "Comprobante no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(ComprobanteSerializer(pago).data)

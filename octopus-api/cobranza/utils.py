@@ -178,7 +178,8 @@ def generar_pdf_recibo(pago):
     c.setFont("Helvetica-Bold", 12)
     c.drawRightString(width - 0.8 * inch, height - 1 * inch, "RECIBO DE PAGO")
     c.setFont("Helvetica-Bold", 14)
-    c.drawRightString(width - 0.8 * inch, height - 1.25 * inch, f"Nº {pago.id:06d}")
+    factura_label = pago.factura_id if pago.factura_id else f"Nº {pago.id:06d}"
+    c.drawRightString(width - 0.8 * inch, height - 1.25 * inch, factura_label)
     
     c.setStrokeColor(octopus_gold)
     c.setLineWidth(2)
@@ -241,7 +242,8 @@ def generar_pdf_recibo(pago):
     
     c.setFont("Helvetica", 7)
     c.setFillColor(HexColor("#94a3b8"))
-    c.drawCentredString(width / 2, 1.0 * inch, f"Cajero: {pago.usuario_receptor.username.upper()} | ID de Auditoría: {pago.id}-{int(pago.fecha_pago.timestamp())}")
+    factura_audit = pago.factura_id or f"{pago.id:06d}"
+    c.drawCentredString(width / 2, 1.0 * inch, f"Cajero: {pago.usuario_receptor.username.upper()} | Recibo: {factura_audit} | ID Auditoría: {pago.id}-{int(pago.fecha_pago.timestamp())}")
 
     c.showPage()
     c.save()

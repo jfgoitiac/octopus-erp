@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ShieldCheck, Calendar, RefreshCcw, Search, Filter, Clock, ArrowUpRight, Wallet, Banknote, ListChecks, Download, AlertCircle, Loader2 } from 'lucide-react';
+import DatePickerES from '../components/DatePickerES';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
@@ -153,12 +154,12 @@ const Auditoria = () => {
                 <div className="flex flex-wrap items-end gap-2">
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
-                        <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
+                        <DatePickerES value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
                             className="px-2 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} />
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
-                        <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
+                        <DatePickerES value={fechaFin} onChange={e => setFechaFin(e.target.value)}
                             className="px-2 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} />
                     </div>
                     <button onClick={() => fetchAuditoria(true)} disabled={refreshing}

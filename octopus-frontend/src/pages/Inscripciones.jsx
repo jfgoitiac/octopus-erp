@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    User, UserPlus, GraduationCap, CheckCircle2, ArrowRight, ArrowLeft, 
+import {
+    User, UserPlus, GraduationCap, CheckCircle2, ArrowRight, ArrowLeft,
     FileText, AlertCircle, Loader2, Search, Check, Info, X
 } from 'lucide-react';
+import DatePickerES from '../components/DatePickerES';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
@@ -304,8 +305,7 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                         ))}
                         <div>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha de Nacimiento</label>
-                            <input 
-                                type="date"
+                            <DatePickerES
                                 name="fecha_nacimiento"
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                 style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}

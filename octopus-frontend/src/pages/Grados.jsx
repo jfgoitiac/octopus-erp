@@ -153,7 +153,16 @@ export default function Grados() {
 
       <div className="flex gap-5 items-start">
         {/* ── Panel izquierdo: tarjetas de grados ─────────────────────── */}
-        <div className="flex flex-col gap-2" style={{ width: 240, flexShrink: 0 }}>
+        <div
+          className="flex flex-col gap-2 rounded-xl p-3"
+          style={{
+            width: 240,
+            flexShrink: 0,
+            background: 'var(--porcelain)',
+            border: '0.5px solid var(--border-md)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
           <p className="text-xs font-semibold uppercase tracking-widest px-1 mb-1" style={{ color: 'var(--ash)' }}>
             Seleccionar Grado
           </p>
@@ -219,23 +228,23 @@ export default function Grados() {
             </div>
           ) : (
             <>
-              {/* Barra de controles */}
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Título del grado */}
-                <div className="flex items-center gap-2 mr-auto">
-                  <GraduationCap size={16} style={{ color: 'var(--pb)' }} />
-                  <span className="font-semibold text-base" style={{ color: 'var(--jet)' }}>
-                    {nombreGradoCompleto(gradoSeleccionado)}
+              {/* Barra de controles — fila 1: título */}
+              <div className="flex items-center gap-2">
+                <GraduationCap size={16} style={{ color: 'var(--pb)' }} />
+                <span className="font-semibold text-base" style={{ color: 'var(--jet)' }}>
+                  {nombreGradoCompleto(gradoSeleccionado)}
+                </span>
+                {!loadingAlumnos && (
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
+                    {alumnosFiltrados.length} alumno{alumnosFiltrados.length !== 1 ? 's' : ''}
                   </span>
-                  {!loadingAlumnos && (
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-                      {alumnosFiltrados.length} alumno{alumnosFiltrados.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
+                )}
+              </div>
 
+              {/* Barra de controles — fila 2: acciones */}
+              <div className="flex items-center gap-3">
                 {/* Búsqueda rápida */}
-                <div className="relative">
+                <div className="relative mr-auto">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                   <input
                     type="text"
@@ -332,7 +341,7 @@ export default function Grados() {
                       {alumnosFiltrados.map((alumno, idx) => (
                         <tr
                           key={alumno.id}
-                          style={{ borderBottom: '0.5px solid var(--border-md)' }}
+                          style={{ borderBottom: idx < alumnosFiltrados.length - 1 ? '0.5px solid var(--border-md)' : 'none' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--ash-light)'; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                         >

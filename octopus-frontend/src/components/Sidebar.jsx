@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, Octagon, ShieldCheck,
-  Loader2, Banknote, Monitor, Contact, AlertTriangle, GraduationCap
+  Loader2, Banknote, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText
 } from 'lucide-react';
 
 const navSections = [
@@ -22,9 +22,10 @@ const navSections = [
   {
     label: 'Finanzas',
     items: [
-      { name: 'Cobranza', path: '/cobranza', icon: Calculator, roles: ['director','cobranza','administrador','cajero'] },
-      { name: 'Reportes', path: '/reportes', icon: BarChart3,  roles: ['director','cobranza','administrador'] },
-      { name: 'Nómina',   path: '/nomina',   icon: Banknote,   roles: ['director','administrador'] },
+      { name: 'Cobranza',      path: '/cobranza',      icon: Calculator,   roles: ['director','cobranza','administrador','cajero'] },
+      { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero','sistemas'] },
+      { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
+      { name: 'Nómina',        path: '/nomina',        icon: Banknote,     roles: ['director','administrador'] },
     ],
   },
   {

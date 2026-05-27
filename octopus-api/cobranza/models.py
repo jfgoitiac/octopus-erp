@@ -95,15 +95,16 @@ class Pago(models.Model):
     alumno = models.ForeignKey(Alumno, on_delete=models.PROTECT, related_name='pagos')
     usuario_receptor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     operacion_uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
+    factura_id = models.CharField(max_length=20, unique=True, null=True, blank=True, editable=False, db_index=True)
     banco_receptor = models.ForeignKey(BancoInstitucional, on_delete=models.PROTECT, null=True, blank=True)
     metodo_pago = models.CharField(max_length=20, choices=METODOS)
     concepto = models.CharField(max_length=20, choices=CONCEPTOS, default='mensualidad')
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text="Monto captado en divisas")
     tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text="Tasa BCV del momento de la transacción")
     monto_ves = models.DecimalField(
-        max_digits=20, 
-        decimal_places=2, 
-        editable=False, 
+        max_digits=20,
+        decimal_places=2,
+        editable=False,
         help_text="Equivalente contable en Bolívares"
     )
     fecha_pago = models.DateTimeField(auto_now_add=True)
@@ -111,8 +112,8 @@ class Pago(models.Model):
     observaciones = models.TextField(blank=True, null=True)
     representante_documento = models.CharField(max_length=30, blank=True, null=True)
     estatus = models.CharField(
-        max_length=20, 
-        choices=ESTATUS_PAGO, 
+        max_length=20,
+        choices=ESTATUS_PAGO,
         default='completado',
         db_index=True # Mejora: Indexado para reportes de auditoría rápidos
     )
@@ -159,27 +160,33 @@ class Pago(models.Model):
         Lógica unificada de guardado: Generación de referencia para efectivo,
         validación de limpieza y cálculo de conversión VES.
         """
+        is_new = self.pk is None
+
         # 1. Referencia automática para efectivo en divisas
         if self.metodo_pago == 'efectivo' and not self.referencia:
             self.referencia = f"EFECT-{uuid.uuid4().hex[:8].upper()}"
-            
+
         # 2. Validación (ejecuta clean())
         self.full_clean()
 
         # Asegurar precisión decimal para los valores almacenados
-        # Calculate monto_ves if monto_usd is provided and monto_ves is not, or vice-versa
         if self.monto_usd and not self.monto_ves:
             self.monto_ves = (self.monto_usd * self.tasa_aplicada).quantize(Decimal('0.01'))
         elif self.monto_ves and not self.monto_usd:
-            # This case is less common for incoming payments, but ensures consistency
             self.monto_usd = (self.monto_ves / self.tasa_aplicada).quantize(Decimal('0.01'))
-        
-        # Ensure all monetary values are quantized
+
         self.monto_usd = Decimal(str(self.monto_usd)).quantize(Decimal('0.01'))
         self.monto_ves = Decimal(str(self.monto_ves)).quantize(Decimal('0.01'))
         self.tasa_aplicada = Decimal(str(self.tasa_aplicada or 0)).quantize(Decimal('0.0001'))
 
         super().save(*args, **kwargs)
+
+        # 3. Generar factura_id después del primer guardado (requiere pk)
+        if is_new and not self.factura_id:
+            from django.utils import timezone as tz
+            year = self.fecha_pago.year if self.fecha_pago else tz.now().year
+            self.factura_id = f"REC-{year}-{self.id:08d}"
+            Pago.objects.filter(pk=self.pk).update(factura_id=self.factura_id)
 class Mensualidad(models.Model):
     MESES = [
         (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
