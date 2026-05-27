@@ -70,9 +70,26 @@ const StackedBar = ({ used, max, height = 10 }) => {
 };
 
 // ─── KPI card ─────────────────────────────────────────────────────────────────
-const KpiCard = ({ icon: Icon, label, value, sub, accent, iconBg, iconColor }) => (
-    <div className="rounded-xl p-4 flex flex-col gap-2"
-        style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', borderLeft: `3px solid ${accent}` }}>
+const KpiCard = ({ icon: Icon, label, value, sub, accent, iconBg, iconColor, delay = 0 }) => (
+    <div
+        className="rounded-xl p-4 flex flex-col gap-2 anim-scale-in card-lift cursor-default"
+        style={{
+            background: 'var(--porcelain)',
+            border: '0.5px solid var(--border-md)',
+            borderLeft: `3px solid ${accent}`,
+            animationDelay: `${delay}ms`,
+        }}
+        onMouseEnter={e => {
+            e.currentTarget.style.boxShadow = `0 8px 28px ${accent}28, 0 2px 8px ${accent}14`;
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.borderColor = `${accent}55`;
+        }}
+        onMouseLeave={e => {
+            e.currentTarget.style.boxShadow = '';
+            e.currentTarget.style.transform = '';
+            e.currentTarget.style.borderColor = '';
+        }}
+    >
         <div className="flex items-start justify-between">
             <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>{label}</span>
             <div className="p-1.5 rounded-lg" style={{ background: iconBg, color: iconColor }}>
@@ -155,26 +172,26 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 <KpiCard icon={Users}        label="Alumnos activos"  value={fmt(s.total_activos ?? 0)}
                     sub={`${fmt(s.inactivos ?? 0)} retirados`}
-                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" />
+                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={0} />
                 <KpiCard icon={CheckCircle}  label="Solventes"        value={fmt(s.solventes ?? 0)}
-                    accent="#16a34a" iconBg="#dcfce7" iconColor="#16a34a" />
+                    accent="#16a34a" iconBg="#dcfce7" iconColor="#16a34a" delay={60} />
                 <KpiCard icon={AlertTriangle} label="En mora"         value={fmt(s.morosos ?? 0)}
-                    accent="#dc2626" iconBg="var(--red-light)" iconColor="#dc2626" />
+                    accent="#dc2626" iconBg="var(--red-light)" iconColor="#dc2626" delay={120} />
                 <KpiCard icon={Award}        label="Becados"          value={fmt(s.becados ?? 0)}
-                    accent="#7c3aed" iconBg="#ede9fe" iconColor="#7c3aed" />
+                    accent="#7c3aed" iconBg="#ede9fe" iconColor="#7c3aed" delay={180} />
                 <KpiCard icon={UserMinus}    label="Retirados"        value={fmt(s.inactivos ?? 0)}
-                    accent="#6b7280" iconBg="var(--ash-light)" iconColor="#6b7280" />
+                    accent="#6b7280" iconBg="var(--ash-light)" iconColor="#6b7280" delay={240} />
                 <KpiCard icon={TrendingUp}   label="Tasa BCV"         value={tasaDisplay}
                     sub={today}
-                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" />
+                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={300} />
             </div>
 
             {/* ── Row 2: charts + cobranza ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* Distribución financiera — donut */}
-                <div className="rounded-xl p-4 flex flex-col"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                <div className="rounded-xl p-4 flex flex-col anim-scale-in card-lift"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '80ms' }}>
                     <SectionTitle>Estado financiero</SectionTitle>
                     <div className="flex justify-center flex-1 items-center">
                         <DonutChart data={financialData} size={180} thickness={30} />
@@ -183,8 +200,8 @@ const Dashboard = () => {
                 </div>
 
                 {/* Distribución por género */}
-                <div className="rounded-xl p-4 flex flex-col"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                <div className="rounded-xl p-4 flex flex-col anim-scale-in card-lift"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '160ms' }}>
                     <SectionTitle>Distribución por género</SectionTitle>
                     <div className="flex justify-center my-4">
                         <DonutChart data={genderData} size={180} thickness={30} />
@@ -204,8 +221,8 @@ const Dashboard = () => {
                 </div>
 
                 {/* Cobranza del día */}
-                <div className="rounded-xl p-4 flex flex-col gap-3"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                <div className="rounded-xl p-4 flex flex-col gap-3 anim-scale-in card-lift"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '240ms' }}>
                     <SectionTitle>Cobranza hoy</SectionTitle>
                     {[
                         { icon: DollarSign, label: 'Total USD cobrado',  value: `$${fmt(s.cobrado_hoy_usd ?? 0, 2)}`,    color: '#16a34a', bg: '#dcfce7' },
@@ -213,7 +230,10 @@ const Dashboard = () => {
                         { icon: BookOpen,   label: 'Pagos procesados',   value: fmt(s.pagos_hoy_count ?? 0),              color: '#7c3aed', bg: '#ede9fe' },
                     ].map(({ icon: Icon, label, value, color, bg }) => (
                         <div key={label} className="flex items-center gap-3 rounded-lg px-3 py-3"
-                            style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                            style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', transition: 'box-shadow 0.2s ease' }}
+                            onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 4px 16px ${color}20`; }}
+                            onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; }}
+                        >
                             <div className="p-2 rounded-lg flex-shrink-0" style={{ background: bg, color }}>
                                 <Icon size={15} />
                             </div>
@@ -231,8 +251,8 @@ const Dashboard = () => {
 
             {/* ── Row 3: grade occupancy ── */}
             {gradeData.length > 0 && (
-                <div className="rounded-xl p-4"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                <div className="rounded-xl p-4 anim-scale-in card-lift"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '320ms' }}>
                     <SectionTitle>Ocupación por grado</SectionTitle>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-3">
                         {gradeData.map(g => {

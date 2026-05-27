@@ -30,6 +30,7 @@ const CONCEPTOS = [
 
 const esDivisa    = (m) => ['zelle', 'efectivo'].includes(m);
 const esBolivares = (m) => ['transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves'].includes(m);
+const esCash      = (m) => ['efectivo', 'efectivo_ves'].includes(m);
 const requiereBanco = (m) => m && !['efectivo', 'efectivo_ves'].includes(m);
 
 const crearLinea = () => ({
@@ -42,6 +43,28 @@ const crearLinea = () => ({
 });
 
 const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocus, max }) => {
+    const handleChange = (e) => {
+        const digits = e.target.value.replace(/\D/g, '');
+        if (!digits || parseInt(digits, 10) === 0) { onChange(''); return; }
+        let num = parseInt(digits, 10) / 100;
+        if (max !== undefined && max > 0 && num > max) num = parseFloat(max.toFixed(2));
+        onChange(num.toFixed(2));
+    };
+    return (
+        <input
+            type="text"
+            inputMode="numeric"
+            className={className}
+            style={style}
+            placeholder={placeholder ?? '0.00'}
+            value={value}
+            onChange={handleChange}
+            autoFocus={autoFocus}
+        />
+    );
+};
 
 const openPdfBlob = (blobData, filename) => {
     try {
@@ -110,6 +133,8 @@ const Cobranza = () => {
     const totalGenUSD = selectedMens.length > 0 ? mensUSD : totalUSD;
     const totalGenVES = selectedMens.length > 0 ? mensUSD * tasa : totalVES;
     const saldoVES   = Math.max(0, deudaVES - pagoVES);
+    const vueltoVES  = deudaVES > 0 ? Math.max(0, pagoVES - deudaVES) : 0;
+    const vueltoUSD  = tasa > 0 ? vueltoVES / tasa : 0;
     const pct        = deudaVES > 0 ? Math.min(100, Math.round((pagoVES / deudaVES) * 100)) : 0;
 
     const buscarAlumno = async (val) => {
@@ -510,16 +535,12 @@ const Cobranza = () => {
                                                 style={{ color: 'var(--ash)' }}>
                                                 {esDivisa(l.metodo_pago) ? '$' : 'Bs.'}
                                             </span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                max={maxForLine(i)}
+                                            <DecimalInput
                                                 className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm font-semibold outline-none"
                                                 style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                                 value={esDivisa(l.metodo_pago) ? l.monto_usd : l.monto_ves}
-                                                onChange={e => actualizarLinea(i, esDivisa(l.metodo_pago) ? 'monto_usd' : 'monto_ves', e.target.value)}
-                                                placeholder="0.00"
+                                                onChange={v => actualizarLinea(i, esDivisa(l.metodo_pago) ? 'monto_usd' : 'monto_ves', v)}
+                                                max={esCash(l.metodo_pago) ? undefined : maxForLine(i)}
                                                 autoFocus={i === 0}
                                             />
                                         </div>
@@ -534,6 +555,15 @@ const Cobranza = () => {
                                                 ≈ $ {fmt(parseFloat(l.monto_ves) / tasa)}
                                             </p>
                                         )}
+                                        {/* Límite visible para métodos no efectivo */}
+                                        {!esCash(l.metodo_pago) && deudaVES > 0 && (() => {
+                                            const mx = maxForLine(i);
+                                            return mx !== undefined && mx > 0 ? (
+                                                <p className="text-[10px] mt-1 font-medium" style={{ color: 'var(--ash)' }}>
+                                                    Máx: {esDivisa(l.metodo_pago) ? `$${fmt(mx)}` : `Bs. ${fmt(mx)}`}
+                                                </p>
+                                            ) : null;
+                                        })()}
                                     </div>
                                 </div>
 
@@ -575,8 +605,8 @@ const Cobranza = () => {
                 </div>
 
                 {/* ── Resumen (2/5) ── */}
-                <div className="lg:col-span-2 space-y-4 self-start sticky top-4">
-                    <div className="rounded-xl p-4 sticky top-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <div className="lg:col-span-2 space-y-4 self-start sticky" style={{ top: '66px' }}>
+                    <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                         <p className="text-[11px] uppercase tracking-widest font-semibold mb-4 pb-2"
                             style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border)' }}>
                             Resumen del pago
@@ -629,11 +659,26 @@ const Cobranza = () => {
                                 <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--ash)' }}>
                                     <span>{pct}% cubierto</span>
                                     {saldoVES > 0 && <span className="font-medium" style={{ color: 'var(--red)' }}>Falta: Bs. {fmt(saldoVES)}</span>}
-                                    {saldoVES === 0 && <span className="font-medium" style={{ color: '#16a34a' }}>✓ Completo</span>}
+                                    {saldoVES === 0 && vueltoVES === 0 && <span className="font-medium" style={{ color: '#16a34a' }}>✓ Completo</span>}
                                 </div>
                                 <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: 'var(--border)' }}>
                                     <div className="h-full transition-all duration-500 rounded-full"
                                         style={{ width: `${pct}%`, background: pct >= 100 ? '#16a34a' : 'var(--pb)' }} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Vuelto */}
+                        {vueltoVES > 0 && (
+                            <div className="mb-4 p-3 rounded-lg" style={{ background: '#fefce8', border: '1px solid #fbbf24' }}>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: '#92400e' }}>
+                                            Vuelto a entregar
+                                        </p>
+                                        <p className="text-[10px] mt-0.5" style={{ color: '#b45309' }}>≈ ${fmt(vueltoUSD)}</p>
+                                    </div>
+                                    <span className="text-lg font-bold" style={{ color: '#b45309' }}>Bs. {fmt(vueltoVES)}</span>
                                 </div>
                             </div>
                         )}

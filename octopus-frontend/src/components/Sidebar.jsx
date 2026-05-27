@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, Octagon, ShieldCheck,
-  Loader2, Banknote, Monitor, Contact, AlertTriangle
+  Loader2, Banknote, Monitor, Contact, AlertTriangle, GraduationCap
 } from 'lucide-react';
 
 const navSections = [
@@ -16,6 +16,7 @@ const navSections = [
       { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','sistemas'] },
       { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero'] },
       { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria'] },
+      { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria','docente'] },
     ],
   },
   {
@@ -70,26 +71,33 @@ const Sidebar = () => {
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-4 py-[18px]"
+        className="flex items-center gap-3 px-4 py-[18px] relative overflow-hidden"
         style={{ borderBottom: '0.5px solid var(--border)' }}
       >
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--pb)' }}>
+        {/* Fondo decorativo sutil */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 120% 100% at -10% 50%, var(--pb) 0%, transparent 65%)' }}
+        />
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 glow-pulse"
+          style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}
+        >
           <Octagon size={15} color="#fff" />
         </div>
         <div>
-          <p className="text-sm font-medium leading-none" style={{ color: 'var(--jet)' }}>Octopus</p>
+          <p className="text-sm font-semibold leading-none text-gradient">Octopus</p>
           <p className="text-[10px] tracking-widest mt-0.5" style={{ color: 'var(--ash)' }}>ERP v2</p>
         </div>
       </div>
 
       {/* Usuario */}
       <div
-        className="mx-2.5 my-2.5 p-3 rounded-xl flex items-center gap-2.5"
-        style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
+        className="mx-2.5 my-2.5 p-3 rounded-xl flex items-center gap-2.5 glass"
       >
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0"
-          style={{ background: 'var(--pb)' }}
+          style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)', boxShadow: '0 2px 8px rgba(15,163,177,0.35)' }}
         >
           {initials}
         </div>
@@ -133,28 +141,61 @@ const Sidebar = () => {
                     <Link
                       key={item.name}
                       to={item.path}
-                      className="anim-fade-up flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all relative overflow-hidden"
+                      className="anim-fade-up flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm relative overflow-hidden"
                       style={{
                         animationDelay: `${sIdx * 60 + iIdx * 35}ms`,
+                        transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease',
                         ...(isActive
-                          ? { background: 'var(--pb)', color: '#fff', fontWeight: 500 }
-                          : { color: 'var(--ash)' })
+                          ? {
+                              background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
+                              color: '#fff',
+                              fontWeight: 500,
+                              transform: 'translateX(3px)',
+                              boxShadow: '0 4px 14px rgba(15,163,177,0.35), 0 1px 4px rgba(15,163,177,0.2)',
+                            }
+                          : { color: 'var(--ash)', transform: 'translateX(0)' })
                       }}
                       onMouseEnter={e => {
                         if (!isActive) {
                           e.currentTarget.style.background = 'var(--ash-light)';
                           e.currentTarget.style.color = 'var(--jet)';
-                          e.currentTarget.style.paddingLeft = '14px';
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
                         }
                       }}
                       onMouseLeave={e => {
                         if (!isActive) {
                           e.currentTarget.style.background = 'transparent';
                           e.currentTarget.style.color = 'var(--ash)';
-                          e.currentTarget.style.paddingLeft = '12px';
+                          e.currentTarget.style.transform = 'translateX(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }
+                      }}
+                      onMouseDown={e => {
+                        e.currentTarget.style.transform = 'translateX(2px) scale(0.96)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      onMouseUp={e => {
+                        if (!isActive) {
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                        } else {
+                          e.currentTarget.style.transform = 'translateX(3px)';
+                          e.currentTarget.style.boxShadow = '0 3px 10px rgba(0,0,0,0.18)';
                         }
                       }}
                     >
+                      {isActive && (
+                        <span
+                          className="absolute left-0 top-1/2 rounded-r-full"
+                          style={{
+                            width: 3,
+                            height: '60%',
+                            background: 'rgba(255,255,255,0.7)',
+                            transform: 'translateY(-50%)',
+                          }}
+                        />
+                      )}
                       <Icon size={15} />
                       <span>{item.name}</span>
                     </Link>
@@ -170,10 +211,12 @@ const Sidebar = () => {
       <div className="p-2" style={{ borderTop: '0.5px solid var(--border)' }}>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2.5 w-full px-4 py-2 rounded-lg text-sm transition-all"
-          style={{ color: 'var(--ash)' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-light)'; e.currentTarget.style.color = 'var(--red)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; }}
+          className="flex items-center gap-2.5 w-full px-4 py-2 rounded-lg text-sm"
+          style={{ color: 'var(--ash)', transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-light)'; e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; e.currentTarget.style.transform = 'translateX(0)'; }}
+          onMouseDown={e => { e.currentTarget.style.transform = 'translateX(2px) scale(0.96)'; }}
+          onMouseUp={e => { e.currentTarget.style.transform = 'translateX(4px)'; }}
         >
           <LogOut size={15} />
           <span>Cerrar sesión</span>

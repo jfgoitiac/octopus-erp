@@ -118,11 +118,12 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     def backup(self, request):
         """
         Genera un volcado SQL de la base de datos SQLite y lo sirve para descarga.
-        Restringido exclusivamente a superusuarios.
+        Restringido a roles director, administrador y sistemas.
         """
-        if not request.user.is_superuser:
+        rol = getattr(request.user.perfil, 'rol', None) if hasattr(request.user, 'perfil') else None
+        if not (request.user.is_superuser or rol in ('director', 'administrador', 'sistemas')):
             return Response(
-                {"error": "Esta acción requiere privilegios de superusuario."}, 
+                {"error": "No tienes permisos para generar un respaldo."},
                 status=status.HTTP_403_FORBIDDEN
             )
 

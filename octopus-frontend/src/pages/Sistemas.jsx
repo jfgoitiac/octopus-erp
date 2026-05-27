@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
     ShieldAlert, UserPlus, Key, Trash2, Settings,
-    User, Mail, Lock, X, Eye, EyeOff, Loader2, RefreshCcw
+    User, Mail, Lock, X, Eye, EyeOff, Loader2, RefreshCcw, UserCog
 } from 'lucide-react';
 import axiosInstance from '../api/apiClient';
 import { AuthContext } from '../context/AuthContext';
@@ -19,6 +19,9 @@ const Sistemas = () => {
     const [userToDelete, setUserToDelete] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+    const [showEditRolModal, setShowEditRolModal] = useState(false);
+    const [userToEditRol, setUserToEditRol]       = useState(null);
+    const [newRol, setNewRol]                     = useState('cajero');
     const [loading, setLoading]           = useState(false);
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [formData, setFormData]         = useState({
@@ -73,6 +76,29 @@ const Sistemas = () => {
             toast.success("Usuario creado exitosamente");
         } catch (err) {
             const errorMsg = err.response?.data?.error || err.response?.data?.detail || "Error al crear el usuario";
+            toast.error(errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleOpenEditRolModal = (u) => {
+        setUserToEditRol(u);
+        setNewRol(u.perfil?.rol || 'cajero');
+        setShowEditRolModal(true);
+    };
+
+    const handleConfirmEditRol = async (e) => {
+        e.preventDefault();
+        if (!userToEditRol) return;
+        setLoading(true);
+        try {
+            await axiosInstance.patch(`authentication/users/${userToEditRol.id}/`, { rol: newRol });
+            toast.success("Rol actualizado correctamente");
+            setShowEditRolModal(false);
+            fetchUsers();
+        } catch (err) {
+            const errorMsg = err.response?.data?.error || err.response?.data?.detail || "Error al actualizar el rol";
             toast.error(errorMsg);
         } finally {
             setLoading(false);
@@ -153,11 +179,14 @@ const Sistemas = () => {
     const handleSyncBCV = async () => {
         setLoading(true);
         try {
-            const res = await axiosInstance.post('cobranza/sincronizar-tasa/', {});
-            toast.success(`Tasa actualizada a Bs. ${res.data.valor}`);
-        } catch (err) {
-            const errorMsg = err.response?.data?.error || err.response?.data?.detail || "No se pudo sincronizar la tasa cambiaria";
-            toast.error(errorMsg);
+            await toast.promise(
+                axiosInstance.post('cobranza/sincronizar-tasa/', {}),
+                {
+                    pending: 'Sincronizando tasa BCV...',
+                    success: { render: ({ data }) => `Tasa actualizada a Bs. ${data.data.valor}` },
+                    error:   { render: ({ data }) => data?.response?.data?.error || data?.response?.data?.detail || 'No se pudo sincronizar la tasa cambiaria' },
+                }
+            );
         } finally {
             setLoading(false);
         }
@@ -245,6 +274,13 @@ const Sistemas = () => {
                                 </td>
                                 <td className="px-4 py-3"> {/* Botones de acción */}
                                     <div className="flex gap-3">
+                                        <button onClick={() => handleOpenEditRolModal(u)}
+                                            title="Editar rol" className="transition-colors"
+                                            style={{ color: 'var(--ash)' }}
+                                            onMouseEnter={e => e.currentTarget.style.color = 'var(--pb)'}
+                                            onMouseLeave={e => e.currentTarget.style.color = 'var(--ash)'}>
+                                            <UserCog size={16} />
+                                        </button>
                                         <button onClick={() => handleOpenResetModal(u)}
                                             title="Resetear clave" className="transition-colors"
                                             style={{ color: 'var(--ash)' }}
@@ -453,6 +489,60 @@ const Sistemas = () => {
                                     style={{ background: 'var(--pb)' }}>
                                     {loading ? <Loader2 className="animate-spin" size={15} /> : <Key size={15} />}
                                     {loading ? 'Procesando...' : 'Cambiar clave'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Edición de Rol */}
+            {showEditRolModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
+                    style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--porcelain)' }}>
+                        <div className="flex justify-between items-center px-5 py-4"
+                            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+                            <div>
+                                <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                    Editar rol
+                                </h3>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
+                                    Usuario: <span className="font-bold">{userToEditRol?.username}</span>
+                                </p>
+                            </div>
+                            <button onClick={() => setShowEditRolModal(false)} style={{ color: 'var(--ash)' }}>
+                                <X size={17} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleConfirmEditRol} className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                    style={{ color: 'var(--ash)' }}>Nuevo Rol</label>
+                                <select value={newRol}
+                                    onChange={e => setNewRol(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none appearance-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                    <option value="cajero">Cajero — Cobranzas y Arqueos</option>
+                                    <option value="secretaria">Secretaria — Alumnos e Inscripciones</option>
+                                    <option value="sistemas">Sistemas — Gestión de IT</option>
+                                    <option value="director">Director — Control Total</option>
+                                    <option value="administrador">Administrador — Acceso completo</option>
+                                </select>
+                            </div>
+
+                            <div className="flex gap-2 pt-1">
+                                <button type="button" onClick={() => setShowEditRolModal(false)} disabled={loading}
+                                    className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={loading}
+                                    className="flex-1 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                    style={{ background: 'var(--pb)' }}>
+                                    {loading ? <Loader2 className="animate-spin" size={15} /> : <UserCog size={15} />}
+                                    {loading ? 'Guardando...' : 'Guardar cambio'}
                                 </button>
                             </div>
                         </form>

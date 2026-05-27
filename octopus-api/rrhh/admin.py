@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Empleado
+from .models import Empleado, TipoCargo
+
+
+@admin.register(TipoCargo)
+class TipoCargoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion', 'activo')
+    list_filter = ('activo',)
+    search_fields = ('nombre',)
 
 @admin.register(Empleado)
 class EmpleadoAdmin(admin.ModelAdmin):

@@ -1,5 +1,20 @@
 from django.db import models
 
+
+class TipoCargo(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.CharField(max_length=255, blank=True, default='')
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Tipo de Cargo"
+        verbose_name_plural = "Tipos de Cargo"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
 class Empleado(models.Model):
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)

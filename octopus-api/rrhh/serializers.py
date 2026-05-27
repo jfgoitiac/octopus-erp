@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import Empleado
+from .models import Empleado, TipoCargo
+
+
+class TipoCargoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoCargo
+        fields = '__all__'
+
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     class Meta:

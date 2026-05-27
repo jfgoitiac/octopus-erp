@@ -646,6 +646,244 @@ class LogAuditoriaListView(APIView):
 
 
 # ─────────────────────────────────────────────
+# MÓDULO DE GRADOS / MATRÍCULA POR GRADO
+# ─────────────────────────────────────────────
+_NOMBRES_GRADO = {
+    '1er Grado': 'Primer Grado',
+    '2do Grado': 'Segundo Grado',
+    '3er Grado': 'Tercer Grado',
+    '4to Grado': 'Cuarto Grado',
+    '5to Grado': 'Quinto Grado',
+    '6to Grado': 'Sexto Grado',
+    '1er Año':   'Primer Año',
+    '2do Año':   'Segundo Año',
+    '3er Año':   'Tercer Año',
+    '4to Año':   'Cuarto Año',
+    '5to Año':   'Quinto Año',
+}
+
+def _nombre_grado_completo(grado_seccion):
+    """Devuelve el nombre completo del grado, conservando la sección si existe."""
+    partes = grado_seccion.split(' - ', 1)
+    nombre = _NOMBRES_GRADO.get(partes[0].strip(), partes[0].strip())
+    return f"{nombre} - {partes[1].strip()}" if len(partes) > 1 else nombre
+
+
+class GradosListView(APIView):
+    """Lista todos los grados activos con cantidad de alumnos inscritos."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        grados = (
+            Alumno.objects
+            .filter(activo=True)
+            .exclude(grado_seccion__isnull=True)
+            .exclude(grado_seccion='')
+            .values('grado_seccion')
+            .annotate(total_alumnos=Count('id'))
+            .order_by('grado_seccion')
+        )
+        return Response(list(grados))
+
+
+class MatriculaGradoView(APIView):
+    """Devuelve la lista de alumnos de un grado con orden configurable."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        grado  = request.query_params.get('grado', '').strip()
+        orden  = request.query_params.get('orden', 'apellido')  # 'apellido' | 'cedula'
+
+        if not grado:
+            return Response({"error": "Debe especificar el parámetro 'grado'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = (
+            Alumno.objects
+            .filter(activo=True, grado_seccion=grado)
+            .select_related('representante')
+        )
+
+        if orden == 'cedula':
+            qs = qs.order_by('cedula_escolar')
+        else:
+            qs = qs.order_by('apellido', 'nombre')
+
+        data = [
+            {
+                'id':               a.id,
+                'cedula_escolar':   a.cedula_escolar,
+                'nombre':           a.nombre,
+                'apellido':         a.apellido,
+                'genero':           a.genero,
+                'grado_seccion':    a.grado_seccion,
+                'estatus_financiero': a.estatus_financiero,
+                'representante_nombre': f"{a.representante.nombre} {a.representante.apellido}" if a.representante else '',
+                'representante_telefono': a.representante.telefono if a.representante else '',
+            }
+            for a in qs
+        ]
+        return Response({'grado': grado, 'total': len(data), 'alumnos': data})
+
+
+class ExportarMatriculaGradoExcelView(APIView):
+    """Exporta la matrícula de un grado a Excel."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from cobranza.exports import ExcelExporter
+
+        grado = request.query_params.get('grado', '').strip()
+        orden = request.query_params.get('orden', 'apellido')
+
+        if not grado:
+            return Response({"error": "Debe especificar el parámetro 'grado'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Alumno.objects.filter(activo=True, grado_seccion=grado).select_related('representante')
+        qs = qs.order_by('cedula_escolar') if orden == 'cedula' else qs.order_by('apellido', 'nombre')
+
+        # Construir manualmente para agregar numeración y encabezado de grado
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        nombre_completo = _nombre_grado_completo(grado)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Matrícula"
+
+        title_font  = Font(bold=True, size=13)
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill("solid", fgColor="1E3A5F")
+        center      = Alignment(horizontal="center")
+
+        ws.merge_cells('A1:D1')
+        ws['A1'] = f"Matrícula — {nombre_completo}"
+        ws['A1'].font      = title_font
+        ws['A1'].alignment = center
+
+        ws.merge_cells('A2:D2')
+        ws['A2'] = f"Generado: {timezone.now().strftime('%d/%m/%Y %H:%M')}"
+        ws['A2'].alignment = center
+
+        headers = ['N°', 'Cédula Escolar', 'Nombres', 'Apellidos']
+        ws.append([])
+        ws.append(headers)
+        header_row = ws.max_row
+        for cell in ws[header_row]:
+            cell.font      = header_font
+            cell.fill      = header_fill
+            cell.alignment = center
+
+        for idx, alumno in enumerate(qs, start=1):
+            ws.append([
+                idx,
+                alumno.cedula_escolar,
+                alumno.nombre,
+                alumno.apellido,
+            ])
+
+        col_widths = [5, 18, 24, 24]
+        for i, w in enumerate(col_widths, start=1):
+            ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        nombre_archivo = grado.replace(' ', '_').replace('/', '-')
+        timestamp = timezone.now().strftime('%Y-%m-%d_%H%M')
+        response['Content-Disposition'] = f'attachment; filename="matricula_{nombre_archivo}_{timestamp}.xlsx"'
+        wb.save(response)
+        return response
+
+
+class ExportarMatriculaGradoPDFView(APIView):
+    """Exporta la matrícula de un grado a PDF con reportlab."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from django.http import HttpResponse
+        from django.utils import timezone
+        import io
+
+        grado = request.query_params.get('grado', '').strip()
+        orden = request.query_params.get('orden', 'apellido')
+
+        if not grado:
+            return Response({"error": "Debe especificar el parámetro 'grado'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Alumno.objects.filter(activo=True, grado_seccion=grado).select_related('representante')
+        qs = qs.order_by('cedula_escolar') if orden == 'cedula' else qs.order_by('apellido', 'nombre')
+
+        nombre_completo = _nombre_grado_completo(grado)
+
+        buffer = io.BytesIO()
+        doc    = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1.5*cm, bottomMargin=1.5*cm, leftMargin=2*cm, rightMargin=2*cm)
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle('title', parent=styles['Title'], fontSize=14, spaceAfter=4, alignment=TA_CENTER)
+        sub_style   = ParagraphStyle('sub',   parent=styles['Normal'], fontSize=9, spaceAfter=12, alignment=TA_CENTER, textColor=colors.HexColor('#666666'))
+
+        primary_color = colors.HexColor('#1E3A5F')
+
+        elements = [
+            Paragraph(f"Lista de Matrícula — {nombre_completo}", title_style),
+            Paragraph(f"Orden: {'Por Cédula' if orden == 'cedula' else 'Alfabético'} &nbsp;|&nbsp; Generado: {timezone.now().strftime('%d/%m/%Y %H:%M')}", sub_style),
+            Spacer(1, 0.3*cm),
+        ]
+
+        table_data = [['N°', 'Cédula Escolar', 'Nombres', 'Apellidos']]
+        for idx, alumno in enumerate(qs, start=1):
+            table_data.append([
+                str(idx),
+                alumno.cedula_escolar or '',
+                alumno.nombre,
+                alumno.apellido,
+            ])
+
+        col_widths = [1.2*cm, 4*cm, 6.5*cm, 6.5*cm]
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            # Encabezado
+            ('BACKGROUND',   (0, 0), (-1, 0),  primary_color),
+            ('TEXTCOLOR',    (0, 0), (-1, 0),  colors.white),
+            ('FONTNAME',     (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTSIZE',     (0, 0), (-1, 0),  9),
+            ('ALIGN',        (0, 0), (-1, 0),  'CENTER'),
+            ('BOTTOMPADDING',(0, 0), (-1, 0),  7),
+            ('TOPPADDING',   (0, 0), (-1, 0),  7),
+            # Filas de datos
+            ('FONTNAME',     (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',     (0, 1), (-1, -1), 9),
+            ('ALIGN',        (0, 1), (0, -1),  'CENTER'),
+            ('ALIGN',        (1, 1), (1, -1),  'CENTER'),
+            ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
+            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F7FB')]),
+            ('TOPPADDING',   (0, 1), (-1, -1), 5),
+            ('BOTTOMPADDING',(0, 1), (-1, -1), 5),
+            ('GRID',         (0, 0), (-1, -1), 0.4, colors.HexColor('#CCCCCC')),
+        ]))
+        elements.append(table)
+
+        # Pie de página con total
+        elements.append(Spacer(1, 0.5*cm))
+        elements.append(Paragraph(f"Total de alumnos: {len(table_data) - 1}", sub_style))
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        nombre_archivo = grado.replace(' ', '_').replace('/', '-')
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="matricula_{nombre_archivo}.pdf"'
+        return response
+
+
+# ─────────────────────────────────────────────
 # REPRESENTANTES — CRUD COMPLETO
 # ─────────────────────────────────────────────
 class RepresentanteViewSet(viewsets.ModelViewSet):

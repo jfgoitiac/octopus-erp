@@ -5,10 +5,16 @@ from django.http import HttpResponse
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 
-from .models import Empleado
-from .serializers import EmpleadoSerializer
+from .models import Empleado, TipoCargo
+from .serializers import EmpleadoSerializer, TipoCargoSerializer
 from cobranza.models import TasaCambio
 from authentication.views import IsSystemAdminOrDirector
+
+
+class TipoCargoViewSet(viewsets.ModelViewSet):
+    queryset = TipoCargo.objects.all()
+    serializer_class = TipoCargoSerializer
+    permission_classes = [IsSystemAdminOrDirector]
 
 
 class EmpleadoViewSet(viewsets.ModelViewSet):

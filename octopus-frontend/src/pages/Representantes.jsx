@@ -323,7 +323,7 @@ const Representantes = () => {
             {selectedRep && (
                 <div
                     className="w-72 flex-shrink-0 rounded-xl flex flex-col"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', maxHeight: 'calc(100vh - 66px)', overflowY: 'auto', position: 'sticky', top: '50px', alignSelf: 'flex-start' }}
                 >
                     {/* Cabecera */}
                     <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '0.5px solid var(--border-md)' }}>

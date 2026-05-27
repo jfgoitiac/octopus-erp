@@ -4,6 +4,8 @@ from .views import (
     AlumnoListView, BienNacionalViewSet, ConfiguracionGradoViewSet,
     ConfiguracionSistemaView, ComprobanteInscripcionView,
     ExportarAlumnosExcelView,
+    GradosListView, MatriculaGradoView,
+    ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
     InscripcionExistenteView, InscripcionNuevaView, LogAuditoriaListView,
     PromocionAlumnosView, RepresentanteAlumnosView, RepresentanteViewSet,
     buscar_representante_por_cedula,
@@ -36,4 +38,10 @@ urlpatterns = [
 
     # Exportaciones Excel
     path('exportar-alumnos-excel/',               ExportarAlumnosExcelView.as_view(),     name='exportar-alumnos-excel'),
+
+    # Módulo de Grados
+    path('grados/',                               GradosListView.as_view(),               name='grados-lista'),
+    path('matricula-grado/',                      MatriculaGradoView.as_view(),           name='matricula-grado'),
+    path('matricula-grado/exportar-excel/',       ExportarMatriculaGradoExcelView.as_view(), name='matricula-grado-excel'),
+    path('matricula-grado/exportar-pdf/',         ExportarMatriculaGradoPDFView.as_view(),   name='matricula-grado-pdf'),
 ]

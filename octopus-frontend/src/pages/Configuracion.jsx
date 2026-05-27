@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import {
     Settings, Calendar, UserPlus, AlertTriangle, Save,
     RefreshCcw, CheckCircle, X, Info, Loader2, BarChart3, Clock,
-    Building, Plus, Pencil, Trash2
+    Building, Plus, Pencil, Trash2, Briefcase
 } from 'lucide-react';
 
 const TIPO_LABELS = {
@@ -36,6 +36,24 @@ const Configuracion = () => {
     const [showPromoModal, setShowPromoModal] = useState(false);
     const [periodoDestino, setPeriodoDestino] = useState('');
     const [promoting, setPromoting] = useState(false);
+
+    // Grados CRUD state
+    const [showGradoModal, setShowGradoModal] = useState(false);
+    const [gradoEditando, setGradoEditando] = useState(null);
+    const [gradoForm, setGradoForm] = useState({ grado_seccion: '', cupos_maximos: 30 });
+    const [gradoSaving, setGradoSaving] = useState(false);
+    const [showDeleteGradoModal, setShowDeleteGradoModal] = useState(false);
+    const [gradoAEliminar, setGradoAEliminar] = useState(null);
+
+    // Tipos de cargo state
+    const [tiposCargo, setTiposCargo] = useState([]);
+    const [tiposCargoLoading, setTiposCargoLoading] = useState(false);
+    const [showTipoCargoModal, setShowTipoCargoModal] = useState(false);
+    const [tipoCargoEditando, setTipoCargoEditando] = useState(null);
+    const [tipoCargoForm, setTipoCargoForm] = useState({ nombre: '', descripcion: '', activo: true });
+    const [tipoCargoSaving, setTipoCargoSaving] = useState(false);
+    const [showDeleteTipoModal, setShowDeleteTipoModal] = useState(false);
+    const [tipoCargoAEliminar, setTipoCargoAEliminar] = useState(null);
 
     // Bank management state
     const [bancos, setBancos] = useState([]);
@@ -115,6 +133,58 @@ const Configuracion = () => {
         }
     };
 
+    const openCreateGrado = () => {
+        setGradoEditando(null);
+        setGradoForm({ grado_seccion: '', cupos_maximos: 30 });
+        setShowGradoModal(true);
+    };
+
+    const openEditGrado = (grado) => {
+        setGradoEditando(grado);
+        setGradoForm({ grado_seccion: grado.grado_seccion, cupos_maximos: grado.cupos_maximos });
+        setShowGradoModal(true);
+    };
+
+    const handleSaveGrado = async () => {
+        if (!gradoForm.grado_seccion.trim()) { toast.error("El nombre del grado es requerido."); return; }
+        setGradoSaving(true);
+        try {
+            if (gradoEditando) {
+                await axiosInstance.patch(`secretaria/configuracion-grados/${gradoEditando.id}/`, gradoForm);
+                toast.success("Grado actualizado.");
+            } else {
+                await axiosInstance.post('secretaria/configuracion-grados/', gradoForm);
+                toast.success("Grado agregado.");
+            }
+            setShowGradoModal(false);
+            fetchData();
+        } catch (err) {
+            const msg = err.response?.data?.grado_seccion?.[0] || err.response?.data?.detail || "Error al guardar el grado.";
+            toast.error(msg);
+        } finally {
+            setGradoSaving(false);
+        }
+    };
+
+    const confirmarEliminarGrado = (grado) => {
+        setGradoAEliminar(grado);
+        setShowDeleteGradoModal(true);
+    };
+
+    const handleDeleteGrado = async () => {
+        if (!gradoAEliminar) return;
+        try {
+            await axiosInstance.delete(`secretaria/configuracion-grados/${gradoAEliminar.id}/`);
+            toast.success("Grado eliminado.");
+            setShowDeleteGradoModal(false);
+            setGradoAEliminar(null);
+            fetchData();
+        } catch (err) {
+            const msg = err.response?.data?.detail || "No se pudo eliminar el grado.";
+            toast.error(msg);
+        }
+    };
+
     const handlePromote = async () => {
         setPromoting(true);
         try {
@@ -129,6 +199,72 @@ const Configuracion = () => {
             toast.error(msg);
         } finally {
             setPromoting(false);
+        }
+    };
+
+    const fetchTiposCargo = useCallback(async () => {
+        setTiposCargoLoading(true);
+        try {
+            const res = await axiosInstance.get('rrhh/tipos-cargo/');
+            setTiposCargo(res.data || []);
+        } catch {
+            toast.error("No se pudieron cargar los tipos de cargo.");
+        } finally {
+            setTiposCargoLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchTiposCargo(); }, [fetchTiposCargo]);
+
+    const openCreateTipoCargo = () => {
+        setTipoCargoEditando(null);
+        setTipoCargoForm({ nombre: '', descripcion: '', activo: true });
+        setShowTipoCargoModal(true);
+    };
+
+    const openEditTipoCargo = (tipo) => {
+        setTipoCargoEditando(tipo);
+        setTipoCargoForm({ nombre: tipo.nombre, descripcion: tipo.descripcion || '', activo: tipo.activo });
+        setShowTipoCargoModal(true);
+    };
+
+    const handleSaveTipoCargo = async () => {
+        if (!tipoCargoForm.nombre.trim()) { toast.error("El nombre del cargo es requerido."); return; }
+        setTipoCargoSaving(true);
+        try {
+            if (tipoCargoEditando) {
+                await axiosInstance.patch(`rrhh/tipos-cargo/${tipoCargoEditando.id}/`, tipoCargoForm);
+                toast.success("Tipo de cargo actualizado.");
+            } else {
+                await axiosInstance.post('rrhh/tipos-cargo/', tipoCargoForm);
+                toast.success("Tipo de cargo agregado.");
+            }
+            setShowTipoCargoModal(false);
+            fetchTiposCargo();
+        } catch (err) {
+            const msg = err.response?.data?.nombre?.[0] || err.response?.data?.detail || "Error al guardar el tipo de cargo.";
+            toast.error(msg);
+        } finally {
+            setTipoCargoSaving(false);
+        }
+    };
+
+    const confirmarEliminarTipo = (tipo) => {
+        setTipoCargoAEliminar(tipo);
+        setShowDeleteTipoModal(true);
+    };
+
+    const handleDeleteTipoCargo = async () => {
+        if (!tipoCargoAEliminar) return;
+        try {
+            await axiosInstance.delete(`rrhh/tipos-cargo/${tipoCargoAEliminar.id}/`);
+            toast.success("Tipo de cargo eliminado.");
+            setShowDeleteTipoModal(false);
+            setTipoCargoAEliminar(null);
+            fetchTiposCargo();
+        } catch (err) {
+            const msg = err.response?.data?.detail || "No se pudo eliminar el tipo de cargo.";
+            toast.error(msg);
         }
     };
 
@@ -289,15 +425,25 @@ const Configuracion = () => {
                         </div>
                     </div>
 
-                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}> {/* CORRECCIÓN 7: Card principal */}
-                        <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
-                            <BarChart3 size={20} />
-                            <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Control de Cupos</h3>
+                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
+                                <BarChart3 size={20} />
+                                <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Control de Cupos</h3>
+                            </div>
+                            <button type="button" onClick={openCreateGrado}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+                                style={{ background: 'var(--pb)' }}>
+                                <Plus size={14} /> Agregar Grado
+                            </button>
                         </div>
+                        {grados.length === 0 ? (
+                            <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>No hay grados configurados.</p>
+                        ) : (
                         <table className="w-full text-left">
                             <thead>
-                                <tr> {/* CORRECCIÓN 8: Headers de tabla */}
-                                    {['Grado', 'Progreso', 'Límite'].map(h => (
+                                <tr>
+                                    {['Grado', 'Progreso', 'Límite', 'Acciones'].map(h => (
                                         <th key={h} className={`px-4 py-3 text-[11px] uppercase tracking-widest ${h === 'Límite' ? 'text-right' : ''}`}
                                             style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>{h}</th>
                                     ))}
@@ -307,12 +453,9 @@ const Configuracion = () => {
                                 {grados?.map((g) => {
                                     const pct = Math.min(100, (g?.cupos_utilizados / (g?.cupos_maximos || 1)) * 100);
                                     return (
-                                        <tr key={g.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}> {/* CORRECCIÓN 9: Filas de tabla */}
+                                        <tr key={g.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
                                             <td className="px-4 py-4 text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                                <div className="flex flex-col">
-                                                    <span>{g?.grado_seccion?.split(' - ')[0]}</span>
-                                                    <span className="text-[10px] text-slate-400 font-normal uppercase tracking-widest">Sección Única</span>
-                                                </div>
+                                                {g?.grado_seccion}
                                             </td>
                                             <td className="px-4 py-4 w-1/3">
                                                 <div className="flex items-center gap-3">
@@ -323,20 +466,37 @@ const Configuracion = () => {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4 text-right">
-                                                <input type="number" defaultValue={g.cupos_maximos} onBlur={(e) => handleUpdateCupos(g.id, parseInt(e.target.value))} 
-                                                    className="w-16 px-2 py-1 rounded-lg text-xs font-bold text-center outline-none" 
-                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} /> {/* CORRECCIÓN 1: Input estándar */}
+                                                <input type="number" defaultValue={g.cupos_maximos} onBlur={(e) => handleUpdateCupos(g.id, parseInt(e.target.value))}
+                                                    className="w-16 px-2 py-1 rounded-lg text-xs font-bold text-center outline-none"
+                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <button type="button" onClick={() => openEditGrado(g)}
+                                                        className="p-1.5 rounded-lg transition-all"
+                                                        style={{ color: 'var(--pb)', border: '0.5px solid var(--border-md)' }}
+                                                        title="Editar">
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button type="button" onClick={() => confirmarEliminarGrado(g)}
+                                                        className="p-1.5 rounded-lg transition-all"
+                                                        style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
+                                                        title="Eliminar">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
                                 })}
                             </tbody>
                         </table>
+                        )}
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="rounded-xl p-5 space-y-6 sticky top-8" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}> {/* CORRECCIÓN 7: Card principal */}
+                <div className="space-y-6 self-start sticky" style={{ top: '66px' }}>
+                    <div className="rounded-xl p-5 space-y-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                         <div className="flex items-center gap-3" style={{ color: 'var(--pb)' }}>
                             <Clock size={20} />
                             <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Panel Cobros</h3>
@@ -435,6 +595,230 @@ const Configuracion = () => {
                     </div>
                 )}
             </div>
+
+            {/* ── Tipos de Cargo de Trabajadores ── */}
+            <div className="rounded-xl p-5 space-y-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Briefcase size={20} style={{ color: 'var(--pb)' }} />
+                        <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Tipos de Cargo de Trabajadores</h3>
+                    </div>
+                    <button type="button" onClick={openCreateTipoCargo}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+                        style={{ background: 'var(--pb)' }}>
+                        <Plus size={14} /> Agregar Cargo
+                    </button>
+                </div>
+
+                {tiposCargoLoading ? (
+                    <div className="flex justify-center py-6">
+                        <Loader2 className="animate-spin" size={24} style={{ color: 'var(--pb)' }} />
+                    </div>
+                ) : tiposCargo.length === 0 ? (
+                    <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>No hay tipos de cargo registrados.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr>
+                                    {['Cargo', 'Descripción', 'Estado', 'Acciones'].map(h => (
+                                        <th key={h} className="px-4 py-3 text-[11px] uppercase tracking-widest"
+                                            style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {tiposCargo.map(tipo => (
+                                    <tr key={tipo.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>{tipo.nombre}</td>
+                                        <td className="px-4 py-3 text-sm" style={{ color: 'var(--ash)' }}>{tipo.descripcion || '—'}</td>
+                                        <td className="px-4 py-3">
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                                style={tipo.activo
+                                                    ? { background: '#dcfce7', color: '#16a34a' }
+                                                    : { background: 'var(--red-light)', color: 'var(--red)' }}>
+                                                {tipo.activo ? 'Activo' : 'Inactivo'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                <button type="button" onClick={() => openEditTipoCargo(tipo)}
+                                                    className="p-1.5 rounded-lg transition-all"
+                                                    style={{ color: 'var(--pb)', border: '0.5px solid var(--border-md)' }}
+                                                    title="Editar">
+                                                    <Pencil size={14} />
+                                                </button>
+                                                <button type="button" onClick={() => confirmarEliminarTipo(tipo)}
+                                                    className="p-1.5 rounded-lg transition-all"
+                                                    style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
+                                                    title="Eliminar">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {showGradoModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
+                                <BarChart3 size={18} />
+                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
+                                    {gradoEditando ? 'Editar Grado' : 'Agregar Grado'}
+                                </h3>
+                            </div>
+                            <button type="button" onClick={() => setShowGradoModal(false)}>
+                                <X size={18} style={{ color: 'var(--ash)' }} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Grado *</label>
+                                <input type="text" value={gradoForm.grado_seccion}
+                                    onChange={e => setGradoForm(p => ({ ...p, grado_seccion: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    placeholder="Ej. Sala de 4, Kinder primera etapa, 1er Grado" />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Cupos Máximos</label>
+                                <input type="number" value={gradoForm.cupos_maximos} min={1}
+                                    onChange={e => setGradoForm(p => ({ ...p, cupos_maximos: parseInt(e.target.value) || 1 }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 px-6 pb-6">
+                            <button type="button" onClick={() => setShowGradoModal(false)}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleSaveGrado} disabled={gradoSaving}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                style={{ background: 'var(--pb)' }}>
+                                {gradoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteGradoModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="p-6 flex flex-col items-center text-center" style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                            <AlertTriangle size={28} className="mb-3" />
+                            <h3 className="text-base font-bold">Eliminar Grado</h3>
+                            <p className="text-sm mt-1 opacity-80">¿Eliminar <b>{gradoAEliminar?.grado_seccion}</b>? Esta acción no se puede deshacer.</p>
+                        </div>
+                        <div className="flex gap-3 p-6">
+                            <button type="button" onClick={() => { setShowDeleteGradoModal(false); setGradoAEliminar(null); }}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleDeleteGrado}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                style={{ background: 'var(--red)' }}>
+                                <Trash2 size={16} /> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showTipoCargoModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
+                                <Briefcase size={18} />
+                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
+                                    {tipoCargoEditando ? 'Editar Tipo de Cargo' : 'Agregar Tipo de Cargo'}
+                                </h3>
+                            </div>
+                            <button type="button" onClick={() => setShowTipoCargoModal(false)}>
+                                <X size={18} style={{ color: 'var(--ash)' }} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Cargo *</label>
+                                <input type="text" value={tipoCargoForm.nombre}
+                                    onChange={e => setTipoCargoForm(p => ({ ...p, nombre: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    placeholder="Ej. Profesor, Administrativo" />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Descripción</label>
+                                <input type="text" value={tipoCargoForm.descripcion}
+                                    onChange={e => setTipoCargoForm(p => ({ ...p, descripcion: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    placeholder="Opcional" />
+                            </div>
+                            {tipoCargoEditando && (
+                                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                    <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" className="sr-only peer" checked={tipoCargoForm.activo}
+                                            onChange={e => setTipoCargoForm(p => ({ ...p, activo: e.target.checked }))} />
+                                        <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                            style={{ background: tipoCargoForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                    </label>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-3 px-6 pb-6">
+                            <button type="button" onClick={() => setShowTipoCargoModal(false)}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleSaveTipoCargo} disabled={tipoCargoSaving}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                style={{ background: 'var(--pb)' }}>
+                                {tipoCargoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteTipoModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="p-6 flex flex-col items-center text-center" style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                            <AlertTriangle size={28} className="mb-3" />
+                            <h3 className="text-base font-bold">Eliminar Tipo de Cargo</h3>
+                            <p className="text-sm mt-1 opacity-80">¿Eliminar <b>{tipoCargoAEliminar?.nombre}</b>? Esta acción no se puede deshacer.</p>
+                        </div>
+                        <div className="flex gap-3 p-6">
+                            <button type="button" onClick={() => { setShowDeleteTipoModal(false); setTipoCargoAEliminar(null); }}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleDeleteTipoCargo}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                style={{ background: 'var(--red)' }}>
+                                <Trash2 size={16} /> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showBancoModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>

@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { ToastContainer } from 'react-toastify';
 import Cobranza from './pages/Cobranza';
 import CobranzaDashboard from './pages/CobranzaDashboard';
 import Inscripciones from './pages/Inscripciones';
@@ -16,6 +17,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Representantes from './pages/Representantes';
 import Morosos from './pages/Morosos';
+import Grados from './pages/Grados';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, loading } = useContext(AuthContext);
@@ -96,6 +98,8 @@ function App() {
 
           <Route path="alumnos" element={<ListaAlumnos />} />
 
+          <Route path="grados" element={<Grados />} />
+
           <Route path="morosos" element={
             <ProtectedRoute allowedRoles={['director', 'administrador', 'secretaria', 'cajero', 'sistemas']}>
               <Morosos />
@@ -133,6 +137,27 @@ function App() {
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        toastStyle={{
+          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+          fontSize: '13px',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(43,48,58,0.13)',
+          border: '0.5px solid rgba(43,48,58,0.10)',
+          color: '#2b303a',
+          background: '#fffffa',
+          minWidth: '280px',
+        }}
+        progressStyle={{ background: '#0fa3b1' }}
+      />
     </Router>
   );
 }

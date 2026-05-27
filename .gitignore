@@ -21,6 +21,9 @@ yarn-error.log*
 # Archivos grandes
 *.zip
 
+# Claude Code
+.claude/
+
 # IDEs y Sistema
 .vscode/
 .idea/

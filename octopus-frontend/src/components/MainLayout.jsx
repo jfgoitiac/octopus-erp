@@ -36,8 +36,8 @@ const MainLayout = () => {
       <div className="flex-1 flex flex-col ml-52">
         {/* Topbar */}
         <header
-          className="sticky top-0 z-40 h-[50px] flex items-center justify-between px-5"
-          style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}
+          className="sticky top-0 z-40 h-[50px] flex items-center justify-between px-5 glass"
+          style={{ borderBottom: '0.5px solid var(--border-md)' }}
         >
           <h1 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>{title}</h1>
 
