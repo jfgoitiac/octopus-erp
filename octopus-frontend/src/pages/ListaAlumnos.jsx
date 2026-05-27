@@ -21,6 +21,7 @@ const ListaAlumnos = () => {
     const { tasa, loading: loadingTasa, refetch: refetchTasa } = useTasaBCV();
     const [saving, setSaving] = useState(false);
     const [montoDefecto, setMontoDefecto] = useState('35.00');
+    const [montoInscripcion, setMontoInscripcion] = useState('50.00');
     const [showConfig, setShowConfig] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editModalLoading, setEditModalLoading] = useState(false);
@@ -68,6 +69,7 @@ const ListaAlumnos = () => {
             ]);
             setAlumnos(resAlumnos?.data || []);
             setMontoDefecto(resConfig?.data?.monto_defecto || '35.00');
+            setMontoInscripcion(resConfig?.data?.monto_inscripcion || '50.00');
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || "Error al conectar con el servidor.";
             toast.error(msg);
@@ -153,9 +155,12 @@ const ListaAlumnos = () => {
 
     const handleSaveConfig = async () => {
         try {
-            await axiosInstance.post('cobranza/configuracion/', { monto_defecto: montoDefecto });
+            await axiosInstance.post('cobranza/configuracion/', {
+                monto_defecto: montoDefecto,
+                monto_inscripcion: montoInscripcion,
+            });
             setShowConfig(false);
-            toast.success("Monto por defecto actualizado globalmente.");
+            toast.success("Configuración actualizada globalmente.");
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || "Error al guardar configuración";
             toast.error(msg);
@@ -494,15 +499,21 @@ const ListaAlumnos = () => {
                             <span className="text-sm font-bold">Configuración</span>
                         </button>
                         {showConfig && (
-                            <div className="absolute right-0 mt-2 w-64 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 z-50 animate-fadeIn">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Monto Default Mensual ($)</label>
-                                <div className="flex gap-2">
-                                    <input type="number" step="0.01" 
-                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none" 
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} 
-                                        value={montoDefecto} onChange={(e) => setMontoDefecto(e.target.value)} />
-                                    <button onClick={handleSaveConfig} className="p-2 rounded-lg text-white" style={{ background: 'var(--pb)' }}><Save size={16} /></button>
-                                </div>
+                            <div className="absolute right-0 mt-2 w-72 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 z-50 animate-fadeIn">
+                                <p className="text-[11px] uppercase tracking-widest font-bold mb-3" style={{ color: 'var(--ash)' }}>Montos Globales</p>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Mensualidad ($)</label>
+                                <input type="number" step="0.01"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    value={montoDefecto} onChange={(e) => setMontoDefecto(e.target.value)} />
+                                <label className="block text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Inscripción ($)</label>
+                                <input type="number" step="0.01"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    value={montoInscripcion} onChange={(e) => setMontoInscripcion(e.target.value)} />
+                                <button onClick={handleSaveConfig} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm font-medium" style={{ background: 'var(--pb)' }}>
+                                    <Save size={14} /> Guardar
+                                </button>
                             </div>
                         )}
                     </div>

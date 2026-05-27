@@ -154,96 +154,188 @@ def sincronizar_tasa_bcv() -> Decimal:
 # GENERACIÓN DE DOCUMENTOS PDF (REPORTLAB)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def generar_pdf_recibo(pago):
+def generar_pdf_recibo(pagos):
     """
-    Genera un comprobante de pago profesional en formato PDF.
+    Genera comprobante de pago en PDF.
+    Acepta lista de pagos (operación multipago) o un único pago.
+    Monto principal en Bolívares; USD es referencial.
     """
+    if not isinstance(pagos, (list, tuple)) and hasattr(pagos, 'alumno'):
+        pagos = [pagos]
+    pagos = list(pagos)
+    pago = pagos[0]
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
-    
+
     octopus_blue = HexColor("#1e293b")
     octopus_gold = HexColor("#f59e0b")
+    ash = HexColor("#64748b")
+    border_light = HexColor("#e2e8f0")
+    row_alt = HexColor("#f8fafc")
 
+    # ── Cabecera ──────────────────────────────────────────────────────────────
     c.setFillColor(octopus_blue)
     c.setFont("Helvetica-Bold", 16)
     c.drawString(0.8 * inch, height - 1 * inch, "UNIDAD EDUCATIVA COLEGIO OCTOPUS")
-    
-    c.setFillColor(HexColor("#64748b"))
+
+    c.setFillColor(ash)
     c.setFont("Helvetica", 9)
     c.drawString(0.8 * inch, height - 1.2 * inch, "RIF: J-00000000-0")
     c.drawString(0.8 * inch, height - 1.35 * inch, "Coro, Edo. Falcón, Venezuela.")
-    
+
     c.setFillColor(octopus_blue)
     c.setFont("Helvetica-Bold", 12)
     c.drawRightString(width - 0.8 * inch, height - 1 * inch, "RECIBO DE PAGO")
     c.setFont("Helvetica-Bold", 14)
     factura_label = pago.factura_id if pago.factura_id else f"Nº {pago.id:06d}"
     c.drawRightString(width - 0.8 * inch, height - 1.25 * inch, factura_label)
-    
+
     c.setStrokeColor(octopus_gold)
     c.setLineWidth(2)
     c.line(0.8 * inch, height - 1.6 * inch, width - 0.8 * inch, height - 1.6 * inch)
 
+    # ── Datos del alumno / representante ──────────────────────────────────────
     c.setFillColor(octopus_blue)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(0.8 * inch, height - 2.0 * inch, "DATOS DEL ALUMNO / REPRESENTANTE")
-    
+
     c.setFont("Helvetica", 10)
-    c.setFillColor(HexColor("#1e293b"))
-    c.drawString(0.8 * inch, height - 2.25 * inch, f"Estudiante: {pago.alumno.nombre} {pago.alumno.apellido}")
-    c.drawString(0.8 * inch, height - 2.45 * inch, f"Cédula Escolar: {getattr(pago.alumno, 'cedula_escolar', 'Sin Cédula')}")
-    c.drawString(0.8 * inch, height - 2.65 * inch, f"Nivel: {getattr(pago.alumno, 'grado_seccion', 'N/D')}")
-    c.drawString(0.8 * inch, height - 2.85 * inch, f"Representante: {pago.representante_nombre or getattr(pago.alumno.representante, 'nombre', '')} {getattr(pago.alumno.representante, 'apellido', '')}")
-    c.drawString(0.8 * inch, height - 3.05 * inch, f"Documento Representante: {pago.representante_documento or getattr(pago.alumno.representante, 'cedula', 'N/D')}")
-
-    c.drawRightString(width - 0.8 * inch, height - 2.25 * inch, f"Fecha: {pago.fecha_pago.strftime('%d/%m/%Y')}")
-    c.drawRightString(width - 0.8 * inch, height - 2.45 * inch, f"Hora: {pago.fecha_pago.strftime('%H:%M %p')}")
-
-    c.setFillColor(HexColor("#f1f5f9"))
-    c.rect(0.8 * inch, height - 3.3 * inch, width - 1.6 * inch, 0.3 * inch, fill=1, stroke=0)
-    
     c.setFillColor(octopus_blue)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(1.0 * inch, height - 3.2 * inch, "DESCRIPCIÓN DEL CONCEPTO")
-    c.drawRightString(width - 1.0 * inch, height - 3.2 * inch, "MONTO USD")
+    c.drawString(0.8 * inch, height - 2.25 * inch,
+                 f"Estudiante: {pago.alumno.nombre} {pago.alumno.apellido}")
+    c.drawString(0.8 * inch, height - 2.45 * inch,
+                 f"Cédula Escolar: {getattr(pago.alumno, 'cedula_escolar', 'Sin Cédula')}")
+    c.drawString(0.8 * inch, height - 2.65 * inch,
+                 f"Nivel: {getattr(pago.alumno, 'grado_seccion', 'N/D')}")
+    rep_nombre = (pago.representante_nombre or
+                  f"{getattr(pago.alumno.representante, 'nombre', '')} "
+                  f"{getattr(pago.alumno.representante, 'apellido', '')}").strip()
+    rep_doc = (pago.representante_documento or
+               getattr(pago.alumno.representante, 'cedula', 'N/D'))
+    c.drawString(0.8 * inch, height - 2.85 * inch, f"Representante: {rep_nombre}")
+    c.drawString(0.8 * inch, height - 3.05 * inch, f"Documento Representante: {rep_doc}")
 
-    c.setFont("Helvetica", 11)
-    c.drawString(1.0 * inch, height - 3.6 * inch, f"{pago.get_concepto_display().upper()}")
-    c.drawRightString(width - 1.0 * inch, height - 3.6 * inch, f"$ {pago.monto_usd:,.2f}")
-    
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawString(1.0 * inch, height - 3.8 * inch, f"Método: {pago.get_metodo_pago_display()} | Ref: {pago.referencia or 'N/A'}")
+    c.drawRightString(width - 0.8 * inch, height - 2.25 * inch,
+                      f"Fecha: {pago.fecha_pago.strftime('%d/%m/%Y')}")
+    c.drawRightString(width - 0.8 * inch, height - 2.45 * inch,
+                      f"Hora: {pago.fecha_pago.strftime('%H:%M')}")
+    c.drawRightString(width - 0.8 * inch, height - 2.65 * inch,
+                      f"Concepto: {pago.get_concepto_display()}")
 
-    c.setStrokeColor(HexColor("#e2e8f0"))
-    c.setLineWidth(1)
-    c.line(0.8 * inch, height - 4.2 * inch, width - 0.8 * inch, height - 4.2 * inch)
+    # ── Encabezado tabla de desglose ──────────────────────────────────────────
+    tabla_top = height - 3.45 * inch
+    col_metodo = 0.8 * inch
+    col_ref    = 3.2 * inch
+    col_ves    = width - 1.8 * inch
+    col_usd    = width - 0.8 * inch
 
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(0.8 * inch, height - 4.6 * inch, "TOTAL A PAGAR (BOLÍVARES):")
-    c.drawRightString(width - 0.8 * inch, height - 4.6 * inch, f"Bs. {pago.monto_ves:,.2f}")
-    
+    c.setFillColor(octopus_blue)
+    c.rect(col_metodo, tabla_top, width - 1.6 * inch, 0.28 * inch, fill=1, stroke=0)
+
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(col_metodo + 0.1 * inch, tabla_top + 0.08 * inch, "MÉTODO DE PAGO")
+    c.drawString(col_ref + 0.05 * inch,   tabla_top + 0.08 * inch, "REFERENCIA")
+    c.drawRightString(col_ves,             tabla_top + 0.08 * inch, "MONTO Bs.")
+    c.drawRightString(col_usd,             tabla_top + 0.08 * inch, "(Ref. USD)")
+
+    # ── Filas de desglose ─────────────────────────────────────────────────────
+    fila_h = 0.32 * inch
+    y = tabla_top - fila_h
+    total_ves = Decimal('0.00')
+    total_usd = Decimal('0.00')
+
+    for idx, p in enumerate(pagos):
+        if idx % 2 == 0:
+            c.setFillColor(row_alt)
+            c.rect(col_metodo, y, width - 1.6 * inch, fila_h, fill=1, stroke=0)
+
+        c.setFillColor(octopus_blue)
+        c.setFont("Helvetica", 9)
+        if p.metodo_pago == 'efectivo':
+            metodo_txt = "Efectivo 2"
+        elif p.metodo_pago == 'zelle':
+            metodo_txt = "Transferencia 2"
+        else:
+            metodo_txt = p.get_metodo_pago_display()
+        if p.banco_receptor:
+            metodo_txt += f" – {p.banco_receptor.nombre}"
+        c.drawString(col_metodo + 0.1 * inch, y + 0.11 * inch, metodo_txt)
+        c.drawString(col_ref + 0.05 * inch,   y + 0.11 * inch, p.referencia or "N/A")
+
+        c.setFont("Helvetica-Bold", 9)
+        c.drawRightString(col_ves, y + 0.11 * inch, f"Bs. {p.monto_ves:,.2f}")
+
+        c.setFont("Helvetica", 8)
+        c.setFillColor(ash)
+        c.drawRightString(col_usd, y + 0.11 * inch, f"$ {p.monto_usd:,.2f}")
+
+        c.setStrokeColor(border_light)
+        c.setLineWidth(0.5)
+        c.line(col_metodo, y, col_usd, y)
+
+        total_ves += Decimal(str(p.monto_ves))
+        total_usd += Decimal(str(p.monto_usd))
+        y -= fila_h
+
+    # ── Fila total ────────────────────────────────────────────────────────────
+    c.setStrokeColor(octopus_gold)
+    c.setLineWidth(1.5)
+    c.line(col_metodo, y + fila_h, col_usd, y + fila_h)
+
+    c.setFillColor(HexColor("#f0f9ff"))
+    c.rect(col_metodo, y, width - 1.6 * inch, fila_h, fill=1, stroke=0)
+
+    c.setFillColor(octopus_blue)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(col_metodo + 0.1 * inch, y + 0.09 * inch, "TOTAL A PAGAR (BOLÍVARES):")
+    c.drawRightString(col_ves, y + 0.09 * inch, f"Bs. {total_ves:,.2f}")
+
     c.setFont("Helvetica", 9)
-    c.setFillColor(HexColor("#64748b"))
-    c.drawString(0.8 * inch, height - 4.8 * inch, f"* Tasa de cambio oficial BCV aplicada: Bs. {pago.tasa_aplicada}")
+    c.setFillColor(ash)
+    c.drawRightString(col_usd, y + 0.09 * inch, f"$ {total_usd:,.2f}")
+
+    # ── Nota de tasa ──────────────────────────────────────────────────────────
+    nota_y = y - 0.35 * inch
+    c.setFont("Helvetica-Oblique", 8)
+    c.setFillColor(ash)
+    tasa_label = f"Bs. {pago.tasa_aplicada}" if pago.tasa_aplicada else "N/D"
+    c.drawString(col_metodo, nota_y,
+                 f"* Tasa BCV aplicada: {tasa_label}  –  El monto en USD es referencial.")
+
+    # ── Firmas ────────────────────────────────────────────────────────────────
+    c.setStrokeColor(border_light)
+    c.setLineWidth(1)
+    c.line(0.8 * inch, 2.8 * inch, width - 0.8 * inch, 2.8 * inch)
 
     c.setDash(1, 2)
-    c.line(1.5 * inch, 2.5 * inch, 3.5 * inch, 2.5 * inch)
-    c.line(width - 1.5 * inch, 2.5 * inch, width - 3.5 * inch, 2.5 * inch)
+    c.line(1.5 * inch, 2.4 * inch, 3.5 * inch, 2.4 * inch)
+    c.line(width - 1.5 * inch, 2.4 * inch, width - 3.5 * inch, 2.4 * inch)
     c.setDash(1, 0)
-    
-    c.setFont("Helvetica", 8)
-    c.drawCentredString(2.5 * inch, 2.3 * inch, "Firma del Representante")
-    c.drawCentredString(width - 2.5 * inch, 2.3 * inch, "Sello y Firma Autorizada")
 
+    c.setFont("Helvetica", 8)
+    c.setFillColor(ash)
+    c.drawCentredString(2.5 * inch,         2.25 * inch, "Firma del Representante")
+    c.drawCentredString(width - 2.5 * inch, 2.25 * inch, "Sello y Firma Autorizada")
+
+    # ── Pie de página ─────────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 7)
     c.setFillColor(octopus_blue)
-    c.drawCentredString(width / 2, 1.2 * inch, "ESTE DOCUMENTO NO TIENE VALIDEZ FISCAL SI NO POSEE EL SELLO HÚMEDO DE LA INSTITUCIÓN")
-    
+    c.drawCentredString(
+        width / 2, 1.2 * inch,
+        "ESTE DOCUMENTO NO TIENE VALIDEZ FISCAL SI NO POSEE EL SELLO HÚMEDO DE LA INSTITUCIÓN"
+    )
+
     c.setFont("Helvetica", 7)
     c.setFillColor(HexColor("#94a3b8"))
     factura_audit = pago.factura_id or f"{pago.id:06d}"
-    c.drawCentredString(width / 2, 1.0 * inch, f"Cajero: {pago.usuario_receptor.username.upper()} | Recibo: {factura_audit} | ID Auditoría: {pago.id}-{int(pago.fecha_pago.timestamp())}")
+    c.drawCentredString(
+        width / 2, 1.0 * inch,
+        f"Cajero: {pago.usuario_receptor.username.upper()} | "
+        f"Factura: {factura_audit} | ID Auditoría: {pago.id}-{int(pago.fecha_pago.timestamp())}"
+    )
 
     c.showPage()
     c.save()

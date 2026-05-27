@@ -184,8 +184,10 @@ class Pago(models.Model):
         # 3. Generar factura_id después del primer guardado (requiere pk)
         if is_new and not self.factura_id:
             from django.utils import timezone as tz
-            year = self.fecha_pago.year if self.fecha_pago else tz.now().year
-            self.factura_id = f"REC-{year}-{self.id:08d}"
+            fecha = self.fecha_pago if self.fecha_pago else tz.now()
+            date_prefix = fecha.strftime('%Y%m%d')
+            count = Pago.objects.filter(factura_id__startswith=date_prefix).count()
+            self.factura_id = f"{date_prefix}{count + 1:04d}"
             Pago.objects.filter(pk=self.pk).update(factura_id=self.factura_id)
 class Mensualidad(models.Model):
     MESES = [
@@ -208,6 +210,22 @@ class Mensualidad(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - {self.get_mes_display()} {self.anio} - {'Pagado' if self.pagado else 'Pendiente'}"
+
+
+class CuotaInscripcion(models.Model):
+    alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE, related_name='cuotas_inscripcion')
+    periodo_escolar = models.CharField(max_length=20)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    pagado = models.BooleanField(default=False)
+    fecha_pago = models.DateTimeField(blank=True, null=True)
+    pagos = models.ManyToManyField(Pago, blank=True, related_name='cuotas_inscripcion_pagadas')
+
+    class Meta:
+        unique_together = ('alumno', 'periodo_escolar')
+        ordering = ['-periodo_escolar']
+
+    def __str__(self):
+        return f"{self.alumno.nombre} - Inscripción {self.periodo_escolar} - {'Pagada' if self.pagado else 'Pendiente'}"
 
 
 class CierreCaja(models.Model):

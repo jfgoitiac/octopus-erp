@@ -100,6 +100,8 @@ const Cobranza = () => {
     const [alumnosRep, setAlumnosRep]             = useState([]);
     const [mensualidades, setMensualidades]       = useState([]);
     const [selectedMens, setSelectedMens]         = useState([]);
+    const [cuotasInscripcion, setCuotasInscripcion] = useState([]);
+    const [selectedCuotas, setSelectedCuotas]     = useState([]);
     const [concepto, setConcepto]                 = useState('mensualidad');
     const [lineas, setLineas]                     = useState([crearLinea()]);
     const [bancos, setBancos]                     = useState([]);
@@ -128,10 +130,18 @@ const Cobranza = () => {
             return s + (m ? parseFloat(m.monto_usd) || 0 : 0);
         }, 0), [mensualidades, selectedMens]);
 
-    const deudaVES   = selectedMens.length > 0 ? mensUSD * tasa : 0;
+    const cuotasUSD = useMemo(() =>
+        selectedCuotas.reduce((s, id) => {
+            const c = cuotasInscripcion.find(x => x.id === id);
+            return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
+        }, 0), [cuotasInscripcion, selectedCuotas]);
+
+    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0;
+    const totalSelUSD  = mensUSD + cuotasUSD;
+    const deudaVES   = haySeleccion ? totalSelUSD * tasa : 0;
     const pagoVES    = totalVES;
-    const totalGenUSD = selectedMens.length > 0 ? mensUSD : totalUSD;
-    const totalGenVES = selectedMens.length > 0 ? mensUSD * tasa : totalVES;
+    const totalGenUSD = haySeleccion ? totalSelUSD : totalUSD;
+    const totalGenVES = haySeleccion ? totalSelUSD * tasa : totalVES;
     const saldoVES   = Math.max(0, deudaVES - pagoVES);
     const vueltoVES  = deudaVES > 0 ? Math.max(0, pagoVES - deudaVES) : 0;
     const vueltoUSD  = tasa > 0 ? vueltoVES / tasa : 0;
@@ -145,21 +155,28 @@ const Cobranza = () => {
                 setRepresentanteNombre(res.data.representante?.nombre || '');
                 setAlumnosRep(res.data.alumnos || []);
                 setSelectedMens([]);
+                setSelectedCuotas([]);
                 if (res.data.id) {
                     setNombreAlumno(res.data.nombre);
                     setEstatusFinanciero(res.data.estatus);
                     setAlumnoId(res.data.id);
                     setMensualidades(res.data.mensualidades_pendientes || []);
+                    setCuotasInscripcion(res.data.cuotas_inscripcion_pendientes || []);
                 } else {
-                    setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null); setMensualidades([]);
+                    setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
+                    setMensualidades([]); setCuotasInscripcion([]);
                 }
             } catch {
                 setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
-                setEstatusFinanciero(''); setAlumnoId(null); setMensualidades([]); setSelectedMens([]);
+                setEstatusFinanciero(''); setAlumnoId(null);
+                setMensualidades([]); setCuotasInscripcion([]);
+                setSelectedMens([]); setSelectedCuotas([]);
             }
         } else {
             setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
-            setEstatusFinanciero(''); setAlumnoId(null); setMensualidades([]); setSelectedMens([]);
+            setEstatusFinanciero(''); setAlumnoId(null);
+            setMensualidades([]); setCuotasInscripcion([]);
+            setSelectedMens([]); setSelectedCuotas([]);
         }
     };
 
@@ -180,11 +197,16 @@ const Cobranza = () => {
         setEstatusFinanciero(alu.estatus);
         setAlumnoId(alu.id);
         setMensualidades(alu.mensualidades_pendientes || []);
+        setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
         setSelectedMens([]);
+        setSelectedCuotas([]);
     };
 
     const toggleMens = (id) =>
         setSelectedMens(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+    const toggleCuota = (id) =>
+        setSelectedCuotas(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
     const actualizarLinea = (idx, field, val) =>
         setLineas(p => p.map((l, i) => i === idx ? { ...l, [field]: val } : l));
@@ -204,6 +226,7 @@ const Cobranza = () => {
                 representante_documento: cedula,
                 representante_nombre: representanteNombre,
                 mensualidad_ids: selectedMens,
+                cuota_inscripcion_ids: selectedCuotas,
                 pagos: lineas.map(l => ({
                     metodo_pago: l.metodo_pago,
                     concepto,
@@ -230,6 +253,7 @@ const Cobranza = () => {
                 setCedula(''); setNombreAlumno(''); setEstatusFinanciero('');
                 setAlumnoId(null); setRepresentanteNombre(''); setAlumnosRep([]);
                 setLineas([crearLinea()]); setMensualidades([]); setSelectedMens([]);
+                setCuotasInscripcion([]); setSelectedCuotas([]);
                 setStep(1);
             }
         } catch (err) {
@@ -314,6 +338,43 @@ const Cobranza = () => {
                         </div>
                     </div>
 
+                    {/* Cuotas de inscripción pendientes */}
+                    {alumnoId && cuotasInscripcion.length > 0 && (
+                        <div className="rounded-xl p-4" style={{ border: '1.5px solid #f59e0b44', background: '#fffbeb' }}>
+                            <p className="text-[11px] uppercase tracking-widest mb-3 font-bold" style={{ color: '#b45309' }}>
+                                Cuota de Inscripción pendiente
+                            </p>
+                            <div className="space-y-2">
+                                {cuotasInscripcion.map(c => (
+                                    <label
+                                        key={c.id}
+                                        className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
+                                        style={{
+                                            border: selectedCuotas.includes(c.id) ? '1.5px solid #f59e0b' : '0.5px solid #fde68a',
+                                            background: selectedCuotas.includes(c.id) ? '#fef3c7' : '#fff',
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedCuotas.includes(c.id)}
+                                                onChange={() => toggleCuota(c.id)}
+                                                style={{ accentColor: '#f59e0b', width: 15, height: 15 }}
+                                            />
+                                            <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                Inscripción {c.periodo_escolar}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
+                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Mensualidades */}
                     {alumnoId && (
                         <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -365,7 +426,10 @@ const Cobranza = () => {
                                 <button
                                     type="button"
                                     onClick={() => setStep(2)}
-                                    disabled={!alumnoId || (mensualidades.length > 0 && selectedMens.length === 0)}
+                                    disabled={!alumnoId || (
+                                        (mensualidades.length > 0 || cuotasInscripcion.length > 0) &&
+                                        selectedMens.length === 0 && selectedCuotas.length === 0
+                                    )}
                                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}
                                 >

@@ -240,6 +240,16 @@ class Inscripcion(models.Model):
     )
 
     def clean(self):
+        # Evitar inscripción duplicada para el mismo alumno y período
+        qs = Inscripcion.objects.filter(alumno=self.alumno, periodo_escolar=self.periodo_escolar)
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        if qs.exists():
+            raise ValidationError(
+                f"{self.alumno.nombre} {self.alumno.apellido} ya tiene una inscripción "
+                f"registrada para el período {self.periodo_escolar}."
+            )
+
         try:
             config = ConfiguracionGrado.objects.get(grado_seccion=self.grado_seccion)
             if config.cupos_disponibles <= 0:

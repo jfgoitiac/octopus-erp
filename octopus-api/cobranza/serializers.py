@@ -112,6 +112,11 @@ class PagoCreateSerializer(serializers.Serializer):
         required=False,
         allow_empty=True
     )
+    cuota_inscripcion_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True
+    )
     operacion_uuid = serializers.UUIDField(required=False)
 
     def validate(self, data):

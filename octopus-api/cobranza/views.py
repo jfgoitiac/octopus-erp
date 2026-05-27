@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Q
-from .models import BancoInstitucional, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
+from .models import BancoInstitucional, CuotaInscripcion, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
 from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector
@@ -205,14 +205,20 @@ class BuscarAlumnoCobranzaView(APIView):
             .values('id', 'mes', 'anio', 'monto_usd')
             .order_by('anio', 'mes')
         )
+        cuotas_inscripcion = list(
+            CuotaInscripcion.objects.filter(alumno=alumno, pagado=False)
+            .values('id', 'periodo_escolar', 'monto_usd')
+            .order_by('-periodo_escolar')
+        )
         return {
-            'id':                       alumno.id,
-            'nombre':                   alumno.nombre,
-            'nombre_completo':          f"{alumno.nombre} {alumno.apellido}",
-            'cedula_escolar':           alumno.cedula_escolar,
-            'grado':                    alumno.grado_seccion or 'Sin grado',
-            'estatus':                  alumno.estatus_financiero,
-            'mensualidades_pendientes': mensualidades,
+            'id':                           alumno.id,
+            'nombre':                       alumno.nombre,
+            'nombre_completo':              f"{alumno.nombre} {alumno.apellido}",
+            'cedula_escolar':               alumno.cedula_escolar,
+            'grado':                        alumno.grado_seccion or 'Sin grado',
+            'estatus':                      alumno.estatus_financiero,
+            'mensualidades_pendientes':     mensualidades,
+            'cuotas_inscripcion_pendientes': cuotas_inscripcion,
         }
 
     def _rep_data(self, rep):
@@ -338,6 +344,17 @@ class RegistrarPagoView(APIView):
 
             alumno.estatus_financiero = 'solvente'
             alumno.save(update_fields=['estatus_financiero'])
+
+        cuota_inscripcion_ids = data.get('cuota_inscripcion_ids', [])
+        if cuota_inscripcion_ids:
+            CuotaInscripcion.objects.filter(
+                id__in=cuota_inscripcion_ids, alumno=alumno
+            ).update(pagado=True, fecha_pago=timezone.now())
+
+            for pago in pagos_creados:
+                pago.cuotas_inscripcion_pagadas.set(
+                    CuotaInscripcion.objects.filter(id__in=cuota_inscripcion_ids, alumno=alumno)
+                )
 
         LogAuditoria.objects.create(
             usuario=request.user,
@@ -556,16 +573,30 @@ class ConfiguracionCobranzaView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        param = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()
-        return Response({'monto_defecto': param.valor if param else '35.00'})
+        param_mens = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()
+        param_insc = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
+        return Response({
+            'monto_defecto': param_mens.valor if param_mens else '35.00',
+            'monto_inscripcion': param_insc.valor if param_insc else '50.00',
+        })
 
     def post(self, request):
-        monto = request.data.get('monto_defecto', '35.00')
-        ParametroGlobal.objects.update_or_create(
-            clave="MONTO_MENSUALIDAD_DEFECTO",
-            defaults={'valor': str(monto), 'descripcion': 'Monto base mensualidad por defecto'}
-        )
-        return Response({'monto_defecto': monto})
+        monto = request.data.get('monto_defecto')
+        monto_insc = request.data.get('monto_inscripcion')
+        response_data = {}
+        if monto is not None:
+            ParametroGlobal.objects.update_or_create(
+                clave="MONTO_MENSUALIDAD_DEFECTO",
+                defaults={'valor': str(monto), 'descripcion': 'Monto base mensualidad por defecto'}
+            )
+            response_data['monto_defecto'] = monto
+        if monto_insc is not None:
+            ParametroGlobal.objects.update_or_create(
+                clave="MONTO_INSCRIPCION_DEFECTO",
+                defaults={'valor': str(monto_insc), 'descripcion': 'Monto base cuota de inscripción por defecto'}
+            )
+            response_data['monto_inscripcion'] = monto_insc
+        return Response(response_data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

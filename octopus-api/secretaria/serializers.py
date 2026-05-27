@@ -243,6 +243,27 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     defaults={**alumno_data, 'representante': representante}
                 )
 
+                # 2b. Validar que no exista inscripción previa para el mismo período
+                periodo = validated_data.get('periodo_escolar')
+                if Inscripcion.objects.filter(alumno=alumno, periodo_escolar=periodo).exists():
+                    raise serializers.ValidationError({
+                        "non_field_errors": [
+                            f"{alumno.nombre} {alumno.apellido} ya está inscrito/a para el período {periodo}."
+                        ]
+                    })
+
+                # 2c. Validar que no tenga cuotas de inscripción impagas
+                from cobranza.models import CuotaInscripcion, ParametroGlobal
+                cuota_impaga = CuotaInscripcion.objects.filter(alumno=alumno, pagado=False).first()
+                if cuota_impaga:
+                    raise serializers.ValidationError({
+                        "non_field_errors": [
+                            f"{alumno.nombre} {alumno.apellido} tiene una cuota de inscripción pendiente "
+                            f"del período {cuota_impaga.periodo_escolar} (${cuota_impaga.monto_usd}). "
+                            "Debe cancelarla antes de realizar una nueva inscripción."
+                        ]
+                    })
+
                 # 3. Módulo de Inscripción (Asignación de Grado y Estatus)
                 # Al estar dentro de with transaction.atomic(), cualquier error aquí revierte al alumno y representante.
                 inscripcion = Inscripcion.objects.create(
@@ -250,6 +271,17 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     alumno=alumno,
                     **validated_data
                 )
+
+                # 4. Cargar cuota de inscripción automáticamente
+                from decimal import Decimal
+                param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
+                monto_insc = Decimal(param.valor) if param and param.valor else Decimal('50.00')
+                CuotaInscripcion.objects.get_or_create(
+                    alumno=alumno,
+                    periodo_escolar=inscripcion.periodo_escolar,
+                    defaults={'monto_usd': monto_insc}
+                )
+
                 return inscripcion
 
             except DjangoValidationError as e:
