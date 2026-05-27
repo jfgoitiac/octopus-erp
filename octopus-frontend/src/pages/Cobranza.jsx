@@ -147,31 +147,37 @@ const Cobranza = () => {
     const vueltoUSD  = tasa > 0 ? vueltoVES / tasa : 0;
     const pct        = deudaVES > 0 ? Math.min(100, Math.round((pagoVES / deudaVES) * 100)) : 0;
 
-    const buscarAlumno = async (val) => {
+    const buscarAlumno = (val) => {
         setCedula(val);
+        clearTimeout(searchRef.current);
         if (val.length > 6) {
-            try {
-                const res = await axiosInstance.get(`cobranza/buscar/${val}/`);
-                setRepresentanteNombre(res.data.representante?.nombre || '');
-                setAlumnosRep(res.data.alumnos || []);
-                setSelectedMens([]);
-                setSelectedCuotas([]);
-                if (res.data.id) {
-                    setNombreAlumno(res.data.nombre);
-                    setEstatusFinanciero(res.data.estatus);
-                    setAlumnoId(res.data.id);
-                    setMensualidades(res.data.mensualidades_pendientes || []);
-                    setCuotasInscripcion(res.data.cuotas_inscripcion_pendientes || []);
-                } else {
-                    setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
+            searchRef.current = setTimeout(async () => {
+                try {
+                    const res = await axiosInstance.get(`cobranza/buscar/${val}/`);
+                    const alumnos = res.data.alumnos || [];
+                    setRepresentanteNombre(res.data.representante?.nombre || '');
+                    setAlumnosRep(alumnos);
+                    setSelectedMens([]);
+                    setSelectedCuotas([]);
+                    // Si hay exactamente un alumno, seleccionarlo automáticamente
+                    if (alumnos.length === 1) {
+                        const alu = alumnos[0];
+                        setNombreAlumno(alu.nombre_completo || alu.nombre);
+                        setEstatusFinanciero(alu.estatus);
+                        setAlumnoId(alu.id);
+                        setMensualidades(alu.mensualidades_pendientes || []);
+                        setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
+                    } else {
+                        setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
+                        setMensualidades([]); setCuotasInscripcion([]);
+                    }
+                } catch {
+                    setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
+                    setEstatusFinanciero(''); setAlumnoId(null);
                     setMensualidades([]); setCuotasInscripcion([]);
+                    setSelectedMens([]); setSelectedCuotas([]);
                 }
-            } catch {
-                setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
-                setEstatusFinanciero(''); setAlumnoId(null);
-                setMensualidades([]); setCuotasInscripcion([]);
-                setSelectedMens([]); setSelectedCuotas([]);
-            }
+            }, 350);
         } else {
             setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
             setEstatusFinanciero(''); setAlumnoId(null);

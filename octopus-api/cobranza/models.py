@@ -151,8 +151,12 @@ class Pago(models.Model):
 
         if self.monto_usd is not None and self.tasa_aplicada is not None and self.monto_ves is not None:
             if self.tasa_aplicada > 0:
-                if self.monto_usd > 0:
-                    # Pago en divisas: VES se derivó de USD×tasa → verificar en esa dirección
+                # Determinar dirección según método de pago para evitar error de redondeo inverso
+                metodo = getattr(self, 'metodo_pago', None)
+                pago_en_divisas = metodo in ('efectivo', 'zelle')
+
+                if pago_en_divisas and self.monto_usd > 0:
+                    # USD primario: VES debe derivarse de USD × tasa
                     monto_esperado_ves = (self.monto_usd * self.tasa_aplicada).quantize(Decimal('0.01'))
                     if abs(self.monto_ves - monto_esperado_ves) > Decimal('0.05'):
                         raise ValidationError({
@@ -162,8 +166,8 @@ class Pago(models.Model):
                                 f"Diferencia: {abs(self.monto_ves - monto_esperado_ves)}."
                             )
                         })
-                elif self.monto_ves > 0:
-                    # Pago en bolívares: USD se derivó de VES/tasa → verificar en esa dirección
+                elif not pago_en_divisas and self.monto_ves > 0:
+                    # VES primario: USD debe derivarse de VES / tasa
                     monto_esperado_usd = (self.monto_ves / self.tasa_aplicada).quantize(Decimal('0.01'))
                     if abs(self.monto_usd - monto_esperado_usd) > Decimal('0.05'):
                         raise ValidationError({

@@ -223,7 +223,7 @@ const Nomina = () => {
         });
 
         if (pagos.length === 0) {
-            toast.warn('Ingresa al menos un monto mayor a 0 para generar el archivo.');
+            toast.warning('Ingresa al menos un monto mayor a 0 para generar el archivo.');
             return;
         }
 
