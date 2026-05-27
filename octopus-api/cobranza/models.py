@@ -118,6 +118,16 @@ class Pago(models.Model):
         db_index=True # Mejora: Indexado para reportes de auditoría rápidos
     )
     representante_nombre = models.CharField(max_length=150, blank=True, null=True)
+    vuelto_usd = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=Decimal('0.00'), null=True, blank=True,
+        help_text="Vuelto entregado al representante en USD"
+    )
+    vuelto_ves = models.DecimalField(
+        max_digits=20, decimal_places=2,
+        default=Decimal('0.00'), null=True, blank=True,
+        help_text="Vuelto entregado al representante en Bolívares"
+    )
 
     class Meta:
         constraints = [
@@ -132,7 +142,6 @@ class Pago(models.Model):
         return f"Pago {self.id} - {self.alumno.nombre} ({self.monto_usd} USD) - {self.operacion_uuid}"
     
     def clean(self):
-        # Validación extra de seguridad: evitar referencias duplicadas ignorando espacios
         ref_limpia = self.referencia.strip() if self.referencia else None
         if ref_limpia:
             if Pago.objects.filter(referencia=ref_limpia, estatus='completado').exclude(pk=self.pk).exists():
@@ -140,20 +149,30 @@ class Pago(models.Model):
                     'referencia': f"Error Crítico: La referencia {ref_limpia} ya fue procesada anteriormente."
                 })
 
-        # Validación de integridad matemática: Consistencia entre USD, Tasa y VES
-        # Se tolera un margen de error centesimal (0.05 VES) para compensar redondeos en la UI.
         if self.monto_usd is not None and self.tasa_aplicada is not None and self.monto_ves is not None:
-            monto_esperado_ves = (self.monto_usd * self.tasa_aplicada).quantize(Decimal('0.01'))
-            discrepancia = abs(self.monto_ves - monto_esperado_ves)
-
-            if discrepancia > Decimal('0.05'):
-                raise ValidationError({
-                    'monto_ves': (
-                        f"Discrepancia de integridad: El monto en bolívares ({self.monto_ves}) "
-                        f"no coincide con el cálculo esperado ({monto_esperado_ves}) según la "
-                        f"tasa aplicada ({self.tasa_aplicada}). Diferencia: {discrepancia}."
-                    )
-                })
+            if self.tasa_aplicada > 0:
+                if self.monto_usd > 0:
+                    # Pago en divisas: VES se derivó de USD×tasa → verificar en esa dirección
+                    monto_esperado_ves = (self.monto_usd * self.tasa_aplicada).quantize(Decimal('0.01'))
+                    if abs(self.monto_ves - monto_esperado_ves) > Decimal('0.05'):
+                        raise ValidationError({
+                            'monto_ves': (
+                                f"Discrepancia de integridad: El monto en bolívares ({self.monto_ves}) "
+                                f"no coincide con el cálculo esperado ({monto_esperado_ves}). "
+                                f"Diferencia: {abs(self.monto_ves - monto_esperado_ves)}."
+                            )
+                        })
+                elif self.monto_ves > 0:
+                    # Pago en bolívares: USD se derivó de VES/tasa → verificar en esa dirección
+                    monto_esperado_usd = (self.monto_ves / self.tasa_aplicada).quantize(Decimal('0.01'))
+                    if abs(self.monto_usd - monto_esperado_usd) > Decimal('0.05'):
+                        raise ValidationError({
+                            'monto_usd': (
+                                f"Discrepancia de integridad: El equivalente en USD ({self.monto_usd}) "
+                                f"no coincide con el cálculo esperado ({monto_esperado_usd}). "
+                                f"Diferencia: {abs(self.monto_usd - monto_esperado_usd)}."
+                            )
+                        })
 
     def save(self, *args, **kwargs):
         """

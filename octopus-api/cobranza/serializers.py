@@ -118,6 +118,8 @@ class PagoCreateSerializer(serializers.Serializer):
         allow_empty=True
     )
     operacion_uuid = serializers.UUIDField(required=False)
+    vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
+    vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
 
     def validate(self, data):
         try:

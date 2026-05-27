@@ -285,6 +285,8 @@ class RegistrarPagoView(APIView):
         alumno = data['alumno']
         tasa   = data['tasa']
         concepto = data.get('concepto', 'mensualidad')
+        vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
+        vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
 
         pagos_creados = []
         for pago_item in data['pagos']:
@@ -308,6 +310,7 @@ class RegistrarPagoView(APIView):
                 except BancoInstitucional.DoesNotExist:
                     pass
 
+            es_primer_pago = len(pagos_creados) == 0
             pago = Pago(
                 alumno=alumno,
                 usuario_receptor=request.user,
@@ -321,6 +324,8 @@ class RegistrarPagoView(APIView):
                 observaciones=pago_item.get('observaciones', '') or '',
                 representante_documento=data.get('representante_documento', '') or '',
                 representante_nombre=data.get('representante_nombre', '') or '',
+                vuelto_usd=vuelto_usd if es_primer_pago else Decimal('0.00'),
+                vuelto_ves=vuelto_ves if es_primer_pago else Decimal('0.00'),
             )
             pago.save()
             pagos_creados.append(pago)

@@ -154,6 +154,25 @@ def sincronizar_tasa_bcv() -> Decimal:
 # GENERACIÓN DE DOCUMENTOS PDF (REPORTLAB)
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _get_config_colegio():
+    """Retorna los datos del colegio desde ConfiguracionSistema o valores por defecto."""
+    from secretaria.models import ConfiguracionSistema
+    cfg = ConfiguracionSistema.objects.order_by('id').first()
+    if cfg:
+        nombre = cfg.nombre_colegio or "UNIDAD EDUCATIVA"
+        rif = f"RIF: {cfg.rif}" if cfg.rif else ""
+        partes_dir = []
+        if cfg.direccion_colegio:
+            partes_dir.append(cfg.direccion_colegio)
+        if cfg.municipio and cfg.estado_colegio:
+            partes_dir.append(f"{cfg.municipio}, Edo. {cfg.estado_colegio}, Venezuela.")
+        elif cfg.municipio or cfg.estado_colegio:
+            partes_dir.append(f"{cfg.municipio or cfg.estado_colegio}, Venezuela.")
+        direccion = " | ".join(partes_dir) if partes_dir else ""
+        return nombre, rif, direccion
+    return "UNIDAD EDUCATIVA", "", ""
+
+
 def generar_pdf_recibo(pagos):
     """
     Genera comprobante de pago en PDF.
@@ -164,6 +183,8 @@ def generar_pdf_recibo(pagos):
         pagos = [pagos]
     pagos = list(pagos)
     pago = pagos[0]
+
+    nombre_colegio, rif_colegio, dir_colegio = _get_config_colegio()
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -178,12 +199,16 @@ def generar_pdf_recibo(pagos):
     # ── Cabecera ──────────────────────────────────────────────────────────────
     c.setFillColor(octopus_blue)
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(0.8 * inch, height - 1 * inch, "UNIDAD EDUCATIVA COLEGIO OCTOPUS")
+    c.drawString(0.8 * inch, height - 1 * inch, nombre_colegio.upper())
 
     c.setFillColor(ash)
     c.setFont("Helvetica", 9)
-    c.drawString(0.8 * inch, height - 1.2 * inch, "RIF: J-00000000-0")
-    c.drawString(0.8 * inch, height - 1.35 * inch, "Coro, Edo. Falcón, Venezuela.")
+    linea_y = height - 1.2 * inch
+    if rif_colegio:
+        c.drawString(0.8 * inch, linea_y, rif_colegio)
+        linea_y -= 0.15 * inch
+    if dir_colegio:
+        c.drawString(0.8 * inch, linea_y, dir_colegio)
 
     c.setFillColor(octopus_blue)
     c.setFont("Helvetica-Bold", 12)
@@ -297,8 +322,31 @@ def generar_pdf_recibo(pagos):
     c.setFillColor(ash)
     c.drawRightString(col_usd, y + 0.09 * inch, f"$ {total_usd:,.2f}")
 
+    # ── Vuelto (si aplica) ────────────────────────────────────────────────────
+    vuelto_usd = pago.vuelto_usd or Decimal('0.00')
+    vuelto_ves = pago.vuelto_ves or Decimal('0.00')
+    if vuelto_usd > 0 or vuelto_ves > 0:
+        vuelta_y = y - 0.15 * inch
+        c.setFillColor(HexColor("#fef9c3"))
+        c.rect(col_metodo, vuelta_y - 0.05 * inch, width - 1.6 * inch, 0.38 * inch, fill=1, stroke=0)
+        c.setStrokeColor(HexColor("#fbbf24"))
+        c.setLineWidth(1)
+        c.rect(col_metodo, vuelta_y - 0.05 * inch, width - 1.6 * inch, 0.38 * inch, fill=0, stroke=1)
+
+        c.setFillColor(HexColor("#92400e"))
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(col_metodo + 0.1 * inch, vuelta_y + 0.09 * inch, "VUELTO A ENTREGAR:")
+        c.setFont("Helvetica-Bold", 10)
+        c.drawRightString(col_ves, vuelta_y + 0.09 * inch, f"Bs. {vuelto_ves:,.2f}")
+        c.setFont("Helvetica", 8)
+        c.setFillColor(HexColor("#b45309"))
+        c.drawRightString(col_usd, vuelta_y + 0.09 * inch, f"$ {vuelto_usd:,.2f}")
+        y = vuelta_y - 0.15 * inch
+    else:
+        y = y - 0.10 * inch
+
     # ── Nota de tasa ──────────────────────────────────────────────────────────
-    nota_y = y - 0.35 * inch
+    nota_y = y - 0.25 * inch
     c.setFont("Helvetica-Oblique", 8)
     c.setFillColor(ash)
     tasa_label = f"Bs. {pago.tasa_aplicada}" if pago.tasa_aplicada else "N/D"
@@ -347,6 +395,8 @@ def generar_pdf_inscripcion(inscripcion):
     """
     Genera comprobante de inscripción en PDF con ReportLab.
     """
+    nombre_colegio, rif_colegio, dir_colegio = _get_config_colegio()
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -357,12 +407,16 @@ def generar_pdf_inscripcion(inscripcion):
 
     c.setFillColor(jet)
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(0.8 * inch, height - 1.0 * inch, "UNIDAD EDUCATIVA COLEGIO OCTOPUS")
+    c.drawString(0.8 * inch, height - 1.0 * inch, nombre_colegio.upper())
 
     c.setFillColor(ash)
     c.setFont("Helvetica", 9)
-    c.drawString(0.8 * inch, height - 1.2 * inch, "RIF: J-00000000-0")
-    c.drawString(0.8 * inch, height - 1.35 * inch, "Coro, Edo. Falcón, Venezuela.")
+    linea_y = height - 1.2 * inch
+    if rif_colegio:
+        c.drawString(0.8 * inch, linea_y, rif_colegio)
+        linea_y -= 0.15 * inch
+    if dir_colegio:
+        c.drawString(0.8 * inch, linea_y, dir_colegio)
 
     c.setFillColor(jet)
     c.setFont("Helvetica-Bold", 13)

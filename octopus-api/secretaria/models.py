@@ -9,6 +9,16 @@ from django.db.models import F
 # CONFIGURACIÓN GLOBAL DEL SISTEMA (NUEVO)
 # ─────────────────────────────────────────────
 class ConfiguracionSistema(models.Model):  # NUEVO
+    # Datos del colegio
+    nombre_colegio   = models.CharField(max_length=200, blank=True, default='')
+    rif              = models.CharField(max_length=20, blank=True, default='')
+    direccion_colegio = models.TextField(blank=True, default='')
+    telefono_colegio  = models.CharField(max_length=20, blank=True, default='')
+    correo_colegio    = models.EmailField(blank=True, default='')
+    municipio         = models.CharField(max_length=100, blank=True, default='')
+    estado_colegio    = models.CharField(max_length=100, blank=True, default='')
+
+    # Períodos escolares
     fecha_inicio_inscripciones = models.DateField()
     fecha_fin_inscripciones    = models.DateField()
     fecha_inicio_ano_escolar   = models.DateField()

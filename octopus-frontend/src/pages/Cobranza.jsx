@@ -227,6 +227,8 @@ const Cobranza = () => {
                 representante_nombre: representanteNombre,
                 mensualidad_ids: selectedMens,
                 cuota_inscripcion_ids: selectedCuotas,
+                vuelto_usd: parseFloat(vueltoUSD.toFixed(2)),
+                vuelto_ves: parseFloat(vueltoVES.toFixed(2)),
                 pagos: lineas.map(l => ({
                     metodo_pago: l.metodo_pago,
                     concepto,
@@ -257,7 +259,10 @@ const Cobranza = () => {
                 setStep(1);
             }
         } catch (err) {
-            const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar el pago.';
+            const data = err.response?.data;
+            const msg = data?.error || data?.detail
+                || (typeof data === 'object' ? Object.values(data).flat().join(' ') : null)
+                || 'Error al registrar el pago.';
             toast.error(msg);
         } finally {
             setLoading(false);

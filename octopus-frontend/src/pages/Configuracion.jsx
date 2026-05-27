@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import {
     Settings, Calendar, UserPlus, AlertTriangle, Save,
     RefreshCcw, CheckCircle, X, Info, Loader2, BarChart3, Clock,
-    Building, Plus, Pencil, Trash2, Briefcase
+    Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark
 } from 'lucide-react';
 import DatePickerES from '../components/DatePickerES';
 
@@ -22,6 +22,13 @@ const Configuracion = () => {
 
     // Estados locales
     const [config, setConfig] = useState({
+        nombre_colegio: '',
+        rif: '',
+        direccion_colegio: '',
+        telefono_colegio: '',
+        correo_colegio: '',
+        municipio: '',
+        estado_colegio: '',
         fecha_inicio_inscripciones: '',
         fecha_fin_inscripciones: '',
         fecha_inicio_ano_escolar: '',
@@ -63,6 +70,16 @@ const Configuracion = () => {
     const [bancoEditando, setBancoEditando] = useState(null);
     const [bancoForm, setBancoForm] = useState({ nombre: '', numero_cuenta: '', tipo: 'general', activo: true });
     const [bancoSaving, setBancoSaving] = useState(false);
+
+    // Bancos de Nómina state
+    const [bancosNomina, setBancosNomina] = useState([]);
+    const [bancosNominaLoading, setBancosNominaLoading] = useState(false);
+    const [showBancoNominaModal, setShowBancoNominaModal] = useState(false);
+    const [bancoNominaEditando, setBancoNominaEditando] = useState(null);
+    const [bancoNominaForm, setBancoNominaForm] = useState({ nombre: '', activo: true });
+    const [bancoNominaSaving, setBancoNominaSaving] = useState(false);
+    const [showDeleteBancoNominaModal, setShowDeleteBancoNominaModal] = useState(false);
+    const [bancoNominaAEliminar, setBancoNominaAEliminar] = useState(null);
 
     // Carga de datos inicial
     const fetchData = useCallback(async () => {
@@ -269,6 +286,72 @@ const Configuracion = () => {
         }
     };
 
+    const fetchBancosNomina = useCallback(async () => {
+        setBancosNominaLoading(true);
+        try {
+            const res = await axiosInstance.get('rrhh/bancos-nomina/');
+            setBancosNomina(res.data || []);
+        } catch {
+            toast.error("No se pudieron cargar los bancos de nómina.");
+        } finally {
+            setBancosNominaLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchBancosNomina(); }, [fetchBancosNomina]);
+
+    const openCreateBancoNomina = () => {
+        setBancoNominaEditando(null);
+        setBancoNominaForm({ nombre: '', activo: true });
+        setShowBancoNominaModal(true);
+    };
+
+    const openEditBancoNomina = (banco) => {
+        setBancoNominaEditando(banco);
+        setBancoNominaForm({ nombre: banco.nombre, activo: banco.activo });
+        setShowBancoNominaModal(true);
+    };
+
+    const handleSaveBancoNomina = async () => {
+        if (!bancoNominaForm.nombre.trim()) { toast.error("El nombre del banco es requerido."); return; }
+        setBancoNominaSaving(true);
+        try {
+            if (bancoNominaEditando) {
+                await axiosInstance.patch(`rrhh/bancos-nomina/${bancoNominaEditando.id}/`, bancoNominaForm);
+                toast.success("Banco de nómina actualizado.");
+            } else {
+                await axiosInstance.post('rrhh/bancos-nomina/', bancoNominaForm);
+                toast.success("Banco de nómina agregado.");
+            }
+            setShowBancoNominaModal(false);
+            fetchBancosNomina();
+        } catch (err) {
+            const msg = err.response?.data?.nombre?.[0] || err.response?.data?.detail || "Error al guardar el banco.";
+            toast.error(msg);
+        } finally {
+            setBancoNominaSaving(false);
+        }
+    };
+
+    const confirmarEliminarBancoNomina = (banco) => {
+        setBancoNominaAEliminar(banco);
+        setShowDeleteBancoNominaModal(true);
+    };
+
+    const handleDeleteBancoNomina = async () => {
+        if (!bancoNominaAEliminar) return;
+        try {
+            await axiosInstance.delete(`rrhh/bancos-nomina/${bancoNominaAEliminar.id}/`);
+            toast.success("Banco de nómina eliminado.");
+            setShowDeleteBancoNominaModal(false);
+            setBancoNominaAEliminar(null);
+            fetchBancosNomina();
+        } catch (err) {
+            const msg = err.response?.data?.detail || "No se pudo eliminar el banco.";
+            toast.error(msg);
+        }
+    };
+
     const fetchBancos = useCallback(async () => {
         setBancosLoading(true);
         try {
@@ -400,6 +483,79 @@ const Configuracion = () => {
 
                 {/* Left Column */}
                 <div className="lg:col-span-2 space-y-5">
+
+                    {/* Datos del Colegio */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                <School size={15} style={{ color: 'var(--pb)' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Datos del Colegio</h3>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="col-span-2">
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Colegio</label>
+                                    <input type="text" name="nombre_colegio" value={config?.nombre_colegio || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        placeholder="Ej. U.E. Mi Colegio" />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>RIF</label>
+                                    <input type="text" name="rif" value={config?.rif || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        placeholder="Ej. J-12345678-9" />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Teléfono</label>
+                                    <div className="relative">
+                                        <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
+                                        <input type="text" name="telefono_colegio" value={config?.telefono_colegio || ''} onChange={handleConfigChange}
+                                            className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none"
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            placeholder="Ej. 0212-1234567" />
+                                    </div>
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Correo Electrónico</label>
+                                    <div className="relative">
+                                        <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
+                                        <input type="email" name="correo_colegio" value={config?.correo_colegio || ''} onChange={handleConfigChange}
+                                            className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none"
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            placeholder="Ej. info@colegio.edu.ve" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Municipio</label>
+                                    <input type="text" name="municipio" value={config?.municipio || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        placeholder="Ej. Sucre" />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Estado</label>
+                                    <input type="text" name="estado_colegio" value={config?.estado_colegio || ''} onChange={handleConfigChange}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        placeholder="Ej. Miranda" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Dirección</label>
+                                    <div className="relative">
+                                        <MapPin size={13} className="absolute left-3 top-3" style={{ color: 'var(--ash)' }} />
+                                        <textarea name="direccion_colegio" value={config?.direccion_colegio || ''} onChange={handleConfigChange}
+                                            rows={2}
+                                            className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none resize-none"
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            placeholder="Dirección completa del colegio" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Año Escolar */}
                     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -605,8 +761,8 @@ const Configuracion = () => {
                 </div>
             </form>
 
-            {/* Bottom Sections: side by side on large screens */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bottom Sections: three columns on large screens */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Bancos y Medios de Pago */}
                 <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -673,6 +829,79 @@ const Configuracion = () => {
                                                         <Pencil size={13} />
                                                     </button>
                                                     <button type="button" onClick={() => handleDeleteBanco(banco.id)}
+                                                        className="p-1.5 rounded-lg"
+                                                        style={{ color: 'var(--red)', background: 'var(--red-light)' }}
+                                                        title="Eliminar">
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Bancos de Nómina */}
+                <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                <Landmark size={15} style={{ color: 'var(--pb)' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Bancos de Nómina</h3>
+                        </div>
+                        <button type="button" onClick={openCreateBancoNomina}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                            style={{ background: 'var(--pb)' }}>
+                            <Plus size={13} /> Agregar
+                        </button>
+                    </div>
+                    {bancosNominaLoading ? (
+                        <div className="flex justify-center py-10">
+                            <Loader2 className="animate-spin" size={22} style={{ color: 'var(--pb)' }} />
+                        </div>
+                    ) : bancosNomina.length === 0 ? (
+                        <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
+                            <Landmark size={30} className="mb-2 opacity-20" />
+                            <p className="text-sm">No hay bancos de nómina registrados.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                        {['Banco', 'Estado', ''].map((h, i) => (
+                                            <th key={i} className="px-5 py-3 text-[11px] uppercase tracking-widest"
+                                                style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bancosNomina.map(banco => (
+                                        <tr key={banco.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                            <td className="px-5 py-3.5">
+                                                <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{banco.nombre}</p>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                                    style={banco.activo
+                                                        ? { background: '#dcfce7', color: '#16a34a' }
+                                                        : { background: 'var(--red-light)', color: 'var(--red)' }}>
+                                                    {banco.activo ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center gap-1.5 justify-end">
+                                                    <button type="button" onClick={() => openEditBancoNomina(banco)}
+                                                        className="p-1.5 rounded-lg"
+                                                        style={{ color: 'var(--pb)', background: 'var(--pb-light)' }}
+                                                        title="Editar">
+                                                        <Pencil size={13} />
+                                                    </button>
+                                                    <button type="button" onClick={() => confirmarEliminarBancoNomina(banco)}
                                                         className="p-1.5 rounded-lg"
                                                         style={{ color: 'var(--red)', background: 'var(--red-light)' }}
                                                         title="Eliminar">
@@ -983,6 +1212,82 @@ const Configuracion = () => {
                                 style={{ background: 'var(--pb)' }}>
                                 {bancoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showBancoNominaModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
+                                <Landmark size={18} />
+                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
+                                    {bancoNominaEditando ? 'Editar Banco de Nómina' : 'Agregar Banco de Nómina'}
+                                </h3>
+                            </div>
+                            <button type="button" onClick={() => setShowBancoNominaModal(false)}>
+                                <X size={18} style={{ color: 'var(--ash)' }} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Banco *</label>
+                                <input type="text" value={bancoNominaForm.nombre}
+                                    onChange={e => setBancoNominaForm(p => ({ ...p, nombre: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    placeholder="Ej. Banesco, Mercantil, BNC" />
+                            </div>
+                            {bancoNominaEditando && (
+                                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                    <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" className="sr-only peer" checked={bancoNominaForm.activo}
+                                            onChange={e => setBancoNominaForm(p => ({ ...p, activo: e.target.checked }))} />
+                                        <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                            style={{ background: bancoNominaForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                    </label>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-3 px-6 pb-6">
+                            <button type="button" onClick={() => setShowBancoNominaModal(false)}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleSaveBancoNomina} disabled={bancoNominaSaving}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                style={{ background: 'var(--pb)' }}>
+                                {bancoNominaSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteBancoNominaModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="p-6 flex flex-col items-center text-center" style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                            <AlertTriangle size={28} className="mb-3" />
+                            <h3 className="text-base font-bold">Eliminar Banco de Nómina</h3>
+                            <p className="text-sm mt-1 opacity-80">¿Eliminar <b>{bancoNominaAEliminar?.nombre}</b>? Esta acción no se puede deshacer.</p>
+                        </div>
+                        <div className="flex gap-3 p-6">
+                            <button type="button" onClick={() => { setShowDeleteBancoNominaModal(false); setBancoNominaAEliminar(null); }}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleDeleteBancoNomina}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                style={{ background: 'var(--red)' }}>
+                                <Trash2 size={16} /> Eliminar
                             </button>
                         </div>
                     </div>

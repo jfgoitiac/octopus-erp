@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Empleado, TipoCargo
+from .models import Empleado, TipoCargo, BancoNomina
 
 
 class TipoCargoSerializer(serializers.ModelSerializer):
@@ -8,7 +8,15 @@ class TipoCargoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class BancoNominaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BancoNomina
+        fields = '__all__'
+
+
 class EmpleadoSerializer(serializers.ModelSerializer):
+    banco_nombre = serializers.CharField(source='banco.nombre', read_only=True)
+
     class Meta:
         model = Empleado
         fields = '__all__'

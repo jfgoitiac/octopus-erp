@@ -907,7 +907,7 @@ const ListaAlumnos = () => {
                                     </div>
                                     <div>
                                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha Nacimiento</label>
-                                        <DatePickerES className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} required onChange={(e) => setRegisterForm({...registerForm, fecha_nacimiento: e.target.value})} />
+                                        <DatePickerES className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} value={registerForm.fecha_nacimiento} required onChange={(e) => setRegisterForm({...registerForm, fecha_nacimiento: e.target.value})} />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Género</label>
