@@ -9,6 +9,7 @@ import axiosInstance from '../api/apiClient';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { useTasaBCV } from './useTasaBCV';
+import { printReciboCobranza } from '../utils/printReciboCobranza';
 
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
@@ -66,26 +67,6 @@ const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocu
     );
 };
 
-const openPdfBlob = (blobData, filename) => {
-    try {
-        const blob = new Blob([blobData], { type: 'application/pdf' });
-        const url  = URL.createObjectURL(blob);
-        // Intentar abrir en nueva pestaña
-        const newTab = window.open(url, '_blank', 'noopener,noreferrer');
-        if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
-            // Si el navegador bloqueó la pestaña, descargar directamente
-            const a = Object.assign(document.createElement('a'), {
-                href: url, download: filename || 'comprobante.pdf',
-            });
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (e) {
-        console.error('Error abriendo PDF:', e);
-    }
-};
 
 const Cobranza = () => {
     const { user } = useContext(AuthContext);
@@ -95,6 +76,7 @@ const Cobranza = () => {
     const [cedula, setCedula]       = useState('');
     const [alumnoId, setAlumnoId]   = useState(null);
     const [nombreAlumno, setNombreAlumno]         = useState('');
+    const [gradoAlumno,  setGradoAlumno]          = useState('');
     const [estatusFinanciero, setEstatusFinanciero] = useState('');
     const [representanteNombre, setRepresentanteNombre] = useState('');
     const [alumnosRep, setAlumnosRep]             = useState([]);
@@ -106,6 +88,9 @@ const Cobranza = () => {
     const [lineas, setLineas]                     = useState([crearLinea()]);
     const [bancos, setBancos]                     = useState([]);
     const [loading, setLoading]                   = useState(false);
+    const [mensualidadesFuturas, setMensualidadesFuturas] = useState([]);
+    const [selectedFuturas, setSelectedFuturas]   = useState([]);
+    const [montosParciales, setMontosParciales]   = useState({}); // id → monto_usd string override
 
     const searchRef = useRef(null);
 
@@ -127,8 +112,10 @@ const Cobranza = () => {
     const mensUSD = useMemo(() =>
         selectedMens.reduce((s, id) => {
             const m = mensualidades.find(x => x.id === id);
-            return s + (m ? parseFloat(m.monto_usd) || 0 : 0);
-        }, 0), [mensualidades, selectedMens]);
+            if (!m) return s;
+            const ov = montosParciales[id];
+            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0);
+        }, 0), [mensualidades, selectedMens, montosParciales]);
 
     const cuotasUSD = useMemo(() =>
         selectedCuotas.reduce((s, id) => {
@@ -136,8 +123,16 @@ const Cobranza = () => {
             return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
         }, 0), [cuotasInscripcion, selectedCuotas]);
 
-    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0;
-    const totalSelUSD  = mensUSD + cuotasUSD;
+    const futurasUSD = useMemo(() =>
+        selectedFuturas.reduce((s, id) => {
+            const m = mensualidadesFuturas.find(x => x.id === id);
+            if (!m) return s;
+            const ov = montosParciales[id];
+            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0);
+        }, 0), [mensualidadesFuturas, selectedFuturas, montosParciales]);
+
+    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0 || selectedFuturas.length > 0;
+    const totalSelUSD  = mensUSD + cuotasUSD + futurasUSD;
     const deudaVES   = haySeleccion ? totalSelUSD * tasa : 0;
     const pagoVES    = totalVES;
     const totalGenUSD = haySeleccion ? totalSelUSD : totalUSD;
@@ -146,6 +141,28 @@ const Cobranza = () => {
     const vueltoVES  = deudaVES > 0 ? Math.max(0, pagoVES - deudaVES) : 0;
     const vueltoUSD  = tasa > 0 ? vueltoVES / tasa : 0;
     const pct        = deudaVES > 0 ? Math.min(100, Math.round((pagoVES / deudaVES) * 100)) : 0;
+
+    const todosDivisas    = lineas.length > 0 && lineas.every(l => esDivisa(l.metodo_pago));
+    const hayAdelantos    = selectedFuturas.length > 0;
+
+    // Auto-convertir líneas a dólares cuando se seleccionan adelantos
+    useEffect(() => {
+        if (hayAdelantos) {
+            setLineas(p => p.map(l =>
+                esDivisa(l.metodo_pago) ? l : { ...l, metodo_pago: 'efectivo', banco_receptor_id: '', monto_ves: '' }
+            ));
+        }
+    }, [hayAdelantos]);
+    const hayParciales    = selectedMens.some(id => {
+        const m  = mensualidades.find(x => x.id === id);
+        const ov = montosParciales[id];
+        return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+    }) || selectedFuturas.some(id => {
+        const m  = mensualidadesFuturas.find(x => x.id === id);
+        const ov = montosParciales[id];
+        return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+    });
+    const requiereDivisas = hayAdelantos || hayParciales;
 
     const buscarAlumno = (val) => {
         setCedula(val);
@@ -157,32 +174,33 @@ const Cobranza = () => {
                     const alumnos = res.data.alumnos || [];
                     setRepresentanteNombre(res.data.representante?.nombre || '');
                     setAlumnosRep(alumnos);
-                    setSelectedMens([]);
-                    setSelectedCuotas([]);
+                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
                     // Si hay exactamente un alumno, seleccionarlo automáticamente
                     if (alumnos.length === 1) {
                         const alu = alumnos[0];
                         setNombreAlumno(alu.nombre_completo || alu.nombre);
+                        setGradoAlumno(alu.grado || '');
                         setEstatusFinanciero(alu.estatus);
                         setAlumnoId(alu.id);
                         setMensualidades(alu.mensualidades_pendientes || []);
                         setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
+                        setMensualidadesFuturas(alu.mensualidades_futuras || []);
                     } else {
                         setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
-                        setMensualidades([]); setCuotasInscripcion([]);
+                        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
                     }
                 } catch {
                     setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
                     setEstatusFinanciero(''); setAlumnoId(null);
-                    setMensualidades([]); setCuotasInscripcion([]);
-                    setSelectedMens([]); setSelectedCuotas([]);
+                    setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
+                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
                 }
             }, 350);
         } else {
             setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
             setEstatusFinanciero(''); setAlumnoId(null);
-            setMensualidades([]); setCuotasInscripcion([]);
-            setSelectedMens([]); setSelectedCuotas([]);
+            setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
+            setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
         }
     };
 
@@ -200,13 +218,23 @@ const Cobranza = () => {
     const selAlumno = (alu) => {
         setCedula(alu.cedula_escolar);
         setNombreAlumno(alu.nombre_completo || alu.nombre);
+        setGradoAlumno(alu.grado || '');
         setEstatusFinanciero(alu.estatus);
         setAlumnoId(alu.id);
         setMensualidades(alu.mensualidades_pendientes || []);
         setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
+        setMensualidadesFuturas(alu.mensualidades_futuras || []);
         setSelectedMens([]);
         setSelectedCuotas([]);
+        setSelectedFuturas([]);
+        setMontosParciales({});
     };
+
+    const toggleFutura = (id) =>
+        setSelectedFuturas(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+    const setMontoParcial = (id, val) =>
+        setMontosParciales(p => ({ ...p, [id]: val }));
 
     const toggleMens = (id) =>
         setSelectedMens(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
@@ -220,18 +248,33 @@ const Cobranza = () => {
     const handleSubmit = async (e) => {
         e?.preventDefault();
         if (!alumnoId) { toast.error('Selecciona un alumno primero.'); return; }
+        if (requiereDivisas && !todosDivisas) {
+            toast.error('Los adelantos y pagos parciales requieren Efectivo USD o Zelle como método de pago.');
+            return;
+        }
         if (deudaVES > 0 && pagoVES < deudaVES - 0.01) {
             toast.error(`Monto insuficiente. Se requieren al menos Bs. ${fmt(deudaVES)}.`);
             return;
         }
         setLoading(true);
         try {
+            const buildMontoPago = (id, lista) => {
+                const m  = lista.find(x => x.id === id);
+                const ov = montosParciales[id];
+                return parseFloat(ov !== undefined && ov !== '' ? ov : (m?.monto_usd || 0));
+            };
             const res = await axiosInstance.post('cobranza/registrar-pago/', {
                 alumno_id: alumnoId,
                 concepto,
                 representante_documento: cedula,
                 representante_nombre: representanteNombre,
                 mensualidad_ids: selectedMens,
+                mensualidades_pago: selectedMens.map(id => ({
+                    id, monto_usd: buildMontoPago(id, mensualidades),
+                })),
+                mensualidades_adelanto: selectedFuturas.map(id => ({
+                    id, monto_usd: buildMontoPago(id, mensualidadesFuturas),
+                })),
                 cuota_inscripcion_ids: selectedCuotas,
                 vuelto_usd: parseFloat(vueltoUSD.toFixed(2)),
                 vuelto_ves: parseFloat(vueltoVES.toFixed(2)),
@@ -249,19 +292,86 @@ const Cobranza = () => {
             if (res.status === 201) {
                 toast.success('¡Pago registrado correctamente!');
                 const pagosCreados = res.data.pagos;
-                if (pagosCreados?.length > 0) {
-                    const pagoId = pagosCreados[0].id;
-                    try {
-                        const pdf = await axiosInstance.get(`cobranza/recibo/${pagoId}/`, { responseType: 'blob' });
-                        openPdfBlob(pdf.data, `Recibo_${pagoId}.pdf`);
-                    } catch {
-                        toast.warning('Pago guardado. El comprobante no pudo abrirse, búscalo en el historial.');
-                    }
+
+                // Construir ítems del recibo
+                const itemsRecibo = [];
+                selectedMens.forEach(id => {
+                    const m  = mensualidades.find(x => x.id === id);
+                    if (!m) return;
+                    const ov = montosParciales[id];
+                    const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
+                    const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                    itemsRecibo.push({
+                        concepto: 'MENSUALIDAD',
+                        descripcion: `${m.mes} ${m.anio}${parcial ? ' (PARCIAL)' : ''}`,
+                        monto_usd: monto.toFixed(2),
+                        monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
+                    });
+                });
+                selectedFuturas.forEach(id => {
+                    const m  = mensualidadesFuturas.find(x => x.id === id);
+                    if (!m) return;
+                    const ov = montosParciales[id];
+                    const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
+                    const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                    itemsRecibo.push({
+                        concepto: 'ADELANTO',
+                        descripcion: `${m.mes} ${m.anio}${parcial ? ' (PARCIAL)' : ''}`,
+                        monto_usd: monto.toFixed(2),
+                        monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
+                    });
+                });
+                selectedCuotas.forEach(id => {
+                    const c = cuotasInscripcion.find(x => x.id === id);
+                    if (c) itemsRecibo.push({
+                        concepto: 'INSCRIPCIÓN',
+                        descripcion: `Período ${c.periodo_escolar}`,
+                        monto_usd: c.monto_usd,
+                        monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
+                    });
+                });
+                if (itemsRecibo.length === 0) {
+                    const conceptoLabel = CONCEPTOS.find(c => c.value === concepto)?.label.toUpperCase() || concepto.toUpperCase();
+                    itemsRecibo.push({
+                        concepto: conceptoLabel,
+                        descripcion: '',
+                        monto_usd: totalUSD.toFixed(2),
+                        monto_ves: totalVES.toFixed(2),
+                    });
                 }
-                setCedula(''); setNombreAlumno(''); setEstatusFinanciero('');
+
+                // Construir formas de pago (siempre en Bs.)
+                const pagosRecibo = lineas.map(l => ({
+                    metodo: METODOS_PAGO.find(m => m.value === l.metodo_pago)?.label || l.metodo_pago,
+                    banco:  bancos.find(b => String(b.id) === String(l.banco_receptor_id))?.nombre || '',
+                    referencia: l.referencia || '',
+                    monto: esDivisa(l.metodo_pago)
+                        ? (tasa > 0 ? (parseFloat(l.monto_usd) * tasa).toFixed(2) : '')
+                        : l.monto_ves,
+                }));
+
+                const ahora = new Date();
+                const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+                printReciboCobranza({
+                    nroControl:       pagosCreados?.[0]?.factura_id || (pagosCreados?.[0]?.id ? String(pagosCreados[0].id).padStart(6, '0') : '—'),
+                    mes:              meses[ahora.getMonth()],
+                    año:              String(ahora.getFullYear()),
+                    fechaPago:        ahora.toLocaleDateString('es-VE'),
+                    nombreEstudiante: nombreAlumno,
+                    grado:            gradoAlumno,
+                    representante:    representanteNombre,
+                    ciRepresentante:  cedula,
+                    cajero:           user?.username || user?.perfil?.nombre || '',
+                    tasa,
+                    items:            itemsRecibo,
+                    pagos:            pagosRecibo,
+                });
+
+                setCedula(''); setNombreAlumno(''); setGradoAlumno(''); setEstatusFinanciero('');
                 setAlumnoId(null); setRepresentanteNombre(''); setAlumnosRep([]);
                 setLineas([crearLinea()]); setMensualidades([]); setSelectedMens([]);
                 setCuotasInscripcion([]); setSelectedCuotas([]);
+                setMensualidadesFuturas([]); setSelectedFuturas([]); setMontosParciales({});
                 setStep(1);
             }
         } catch (err) {
@@ -399,32 +509,137 @@ const Cobranza = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {mensualidades.map(m => (
-                                        <label
-                                            key={m.id}
-                                            className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
-                                            style={{
-                                                border: selectedMens.includes(m.id) ? '1.5px solid var(--pb)' : '0.5px solid var(--border)',
-                                                background: selectedMens.includes(m.id) ? 'var(--pb-light)' : 'var(--bg)',
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedMens.includes(m.id)}
-                                                    onChange={() => toggleMens(m.id)}
-                                                    style={{ accentColor: 'var(--pb)', width: 15, height: 15 }}
-                                                />
-                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                                    {m.mes} {m.anio}
-                                                </span>
+                                    {mensualidades.map(m => {
+                                        const isSel   = selectedMens.includes(m.id);
+                                        const ov      = montosParciales[m.id];
+                                        const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                        return (
+                                            <div key={m.id}>
+                                                <label
+                                                    className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                                    style={{
+                                                        border: isSel ? '1.5px solid var(--pb)' : '0.5px solid var(--border)',
+                                                        background: isSel ? 'var(--pb-light)' : 'var(--bg)',
+                                                        borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSel}
+                                                            onChange={() => toggleMens(m.id)}
+                                                            style={{ accentColor: 'var(--pb)', width: 15, height: 15 }}
+                                                        />
+                                                        <div>
+                                                            <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{m.mes} {m.anio}</span>
+                                                            {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
+                                                        <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
+                                                    </div>
+                                                </label>
+                                                {isSel && (
+                                                    <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
+                                                        style={{ background: 'var(--pb-light)', borderLeft: '1.5px solid var(--pb)', borderRight: '1.5px solid var(--pb)', borderBottom: '1.5px solid var(--pb)' }}>
+                                                        <span className="text-[10px] font-medium flex-1" style={{ color: 'var(--pb)' }}>Monto a abonar (USD):</span>
+                                                        <div className="relative">
+                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                                                            <DecimalInput
+                                                                className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
+                                                                style={{ border: '1px solid var(--pb)', background: '#fff', color: 'var(--jet)' }}
+                                                                value={ov !== undefined ? ov : m.monto_usd}
+                                                                onChange={v => setMontoParcial(m.id, v)}
+                                                                max={parseFloat(m.monto_usd)}
+                                                            />
+                                                        </div>
+                                                        {parcial && (
+                                                            <button type="button"
+                                                                onClick={() => setMontoParcial(m.id, m.monto_usd)}
+                                                                className="text-[10px] px-2 py-1 rounded-md"
+                                                                style={{ background: 'var(--pb)', color: '#fff' }}>
+                                                                Completo
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
-                                                <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
-                                            </div>
-                                        </label>
-                                    ))}
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Mensualidades futuras (adelantos) */}
+                            {mensualidadesFuturas.length > 0 && (
+                                <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--border)' }}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#7c3aed', color: '#fff' }}>ADELANTO</span>
+                                        <p className="text-[11px] uppercase tracking-widest" style={{ color: '#7c3aed' }}>Mensualidades futuras</p>
+                                    </div>
+                                    <p className="text-[10px] mb-2 px-2 py-1.5 rounded-md flex items-center gap-1" style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                                        <DollarSign size={10} /> Solo disponible pagando con Efectivo USD o Zelle
+                                    </p>
+                                    <div className="space-y-2">
+                                        {mensualidadesFuturas.map(m => {
+                                            const isSel   = selectedFuturas.includes(m.id);
+                                            const ov      = montosParciales[m.id];
+                                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                            return (
+                                                <div key={m.id}>
+                                                    <label
+                                                        className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                                        style={{
+                                                            border: isSel ? '1.5px solid #7c3aed' : '0.5px solid #d8b4fe',
+                                                            background: isSel ? '#ede9fe' : '#faf5ff',
+                                                            borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSel}
+                                                                onChange={() => toggleFutura(m.id)}
+                                                                style={{ accentColor: '#7c3aed', width: 15, height: 15 }}
+                                                            />
+                                                            <div>
+                                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{m.mes} {m.anio}</span>
+                                                                {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
+                                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
+                                                        </div>
+                                                    </label>
+                                                    {isSel && (
+                                                        <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
+                                                            style={{ background: '#ede9fe', borderLeft: '1.5px solid #7c3aed', borderRight: '1.5px solid #7c3aed', borderBottom: '1.5px solid #7c3aed' }}>
+                                                            <span className="text-[10px] font-medium flex-1" style={{ color: '#7c3aed' }}>Monto a abonar (USD):</span>
+                                                            <div className="relative">
+                                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                                                                <DecimalInput
+                                                                    className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
+                                                                    style={{ border: '1px solid #7c3aed', background: '#fff', color: 'var(--jet)' }}
+                                                                    value={ov !== undefined ? ov : m.monto_usd}
+                                                                    onChange={v => setMontoParcial(m.id, v)}
+                                                                    max={parseFloat(m.monto_usd)}
+                                                                />
+                                                            </div>
+                                                            {parcial && (
+                                                                <button type="button"
+                                                                    onClick={() => setMontoParcial(m.id, m.monto_usd)}
+                                                                    className="text-[10px] px-2 py-1 rounded-md"
+                                                                    style={{ background: '#7c3aed', color: '#fff' }}>
+                                                                    Completo
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
 
@@ -439,7 +654,7 @@ const Cobranza = () => {
                                     onClick={() => setStep(2)}
                                     disabled={!alumnoId || (
                                         (mensualidades.length > 0 || cuotasInscripcion.length > 0) &&
-                                        selectedMens.length === 0 && selectedCuotas.length === 0
+                                        !haySeleccion
                                     )}
                                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}
@@ -501,6 +716,23 @@ const Cobranza = () => {
                 </button>
             </div>
 
+            {/* Banner divisas requeridas */}
+            {requiereDivisas && (
+                <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
+                    style={{ background: todosDivisas ? '#ede9fe' : '#fef2f2', border: `1px solid ${todosDivisas ? '#7c3aed' : '#ef4444'}` }}>
+                    <DollarSign size={16} style={{ color: todosDivisas ? '#7c3aed' : '#ef4444' }} />
+                    <div className="flex-1">
+                        <p className="text-xs font-bold" style={{ color: todosDivisas ? '#7c3aed' : '#ef4444' }}>
+                            {hayAdelantos ? 'Adelanto de mensualidades' : 'Pago parcial'}
+                            {' — solo se acepta pago en divisas'}
+                        </p>
+                        <p className="text-[10px]" style={{ color: todosDivisas ? '#7c3aed' : '#ef4444' }}>
+                            {todosDivisas ? 'Método válido: Efectivo USD o Zelle ✓' : 'Cambia el método de pago a Efectivo USD o Zelle'}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
                 {/* ── Formulario (3/5) ── */}
@@ -524,7 +756,9 @@ const Cobranza = () => {
                                         color: concepto === c.value ? 'var(--pb)' : 'var(--ash)',
                                     }}
                                 >
-                                    {c.label}
+                                    {c.value === 'mensualidad' && selectedMens.length === 1
+                                        ? (() => { const m = mensualidades.find(x => x.id === selectedMens[0]); return m ? `${c.label} ${m.mes} ${m.anio}` : c.label; })()
+                                        : c.label}
                                 </button>
                             ))}
                         </div>
@@ -532,11 +766,24 @@ const Cobranza = () => {
 
                     {/* Mensualidades seleccionadas (recordatorio) */}
                     {selectedMens.length > 0 && (
-                        <div className="rounded-xl px-4 py-3 flex items-center gap-2" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--pb)' }}>
-                            <CheckCircle2 size={14} style={{ color: 'var(--pb)' }} />
-                            <span className="text-xs font-medium" style={{ color: 'var(--pb)' }}>
-                                {selectedMens.length} mensualidad{selectedMens.length > 1 ? 'es' : ''} seleccionada{selectedMens.length > 1 ? 's' : ''} · Total: ${fmt(mensUSD)} (Bs. {fmt(mensUSD * tasa)})
-                            </span>
+                        <div className="rounded-xl px-4 py-3" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--pb)' }}>
+                            <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle2 size={14} style={{ color: 'var(--pb)' }} />
+                                <span className="text-xs font-semibold" style={{ color: 'var(--pb)' }}>
+                                    {selectedMens.length} mensualidad{selectedMens.length > 1 ? 'es' : ''} seleccionada{selectedMens.length > 1 ? 's' : ''} · Total: ${fmt(mensUSD)} (Bs. {fmt(mensUSD * tasa)})
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1 pl-5">
+                                {selectedMens.map(id => {
+                                    const m = mensualidades.find(x => x.id === id);
+                                    return m ? (
+                                        <span key={id} className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                                            style={{ background: 'var(--pb)', color: '#fff' }}>
+                                            Mensualidad {m.mes} {m.anio}
+                                        </span>
+                                    ) : null;
+                                })}
+                            </div>
                         </div>
                     )}
 
@@ -580,22 +827,33 @@ const Cobranza = () => {
                                 <div className="mb-3">
                                     <label className="block text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Método de pago</label>
                                     <div className="grid grid-cols-3 gap-1.5">
-                                        {METODOS_PAGO.map(m => (
-                                            <button
-                                                key={m.value}
-                                                type="button"
-                                                onClick={() => actualizarLinea(i, 'metodo_pago', m.value)}
-                                                className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-[10px] font-medium transition-all"
-                                                style={{
-                                                    border: l.metodo_pago === m.value ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
-                                                    background: l.metodo_pago === m.value ? 'var(--pb-light)' : 'var(--porcelain)',
-                                                    color: l.metodo_pago === m.value ? 'var(--pb)' : 'var(--ash)',
-                                                }}
-                                            >
-                                                <span className="text-base">{metodoPagoIcons[m.value]}</span>
-                                                <span className="text-center leading-tight">{m.label}</span>
-                                            </button>
-                                        ))}
+                                        {METODOS_PAGO.map(m => {
+                                            const bloqueado = requiereDivisas && !esDivisa(m.value);
+                                            return (
+                                                <button
+                                                    key={m.value}
+                                                    type="button"
+                                                    disabled={bloqueado}
+                                                    onClick={() => !bloqueado && setLineas(p => p.map((l, j) => j !== i ? l : {
+                                                        ...l,
+                                                        metodo_pago: m.value,
+                                                        banco_receptor_id: requiereBanco(m.value) ? l.banco_receptor_id : '',
+                                                    }))}
+                                                    title={bloqueado ? 'Los adelantos solo se pagan en USD' : undefined}
+                                                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-[10px] font-medium transition-all"
+                                                    style={{
+                                                        border: l.metodo_pago === m.value ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
+                                                        background: bloqueado ? 'var(--border)' : l.metodo_pago === m.value ? 'var(--pb-light)' : 'var(--porcelain)',
+                                                        color: bloqueado ? 'var(--border-md)' : l.metodo_pago === m.value ? 'var(--pb)' : 'var(--ash)',
+                                                        cursor: bloqueado ? 'not-allowed' : 'pointer',
+                                                        opacity: bloqueado ? 0.45 : 1,
+                                                    }}
+                                                >
+                                                    <span className="text-base">{metodoPagoIcons[m.value]}</span>
+                                                    <span className="text-center leading-tight">{m.label}</span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -699,19 +957,44 @@ const Cobranza = () => {
                             </div>
                         </div>
 
-                        {/* Mensualidades */}
+                        {/* Mensualidades pendientes */}
                         {selectedMens.length > 0 && (
                             <div className="mb-3 space-y-1">
                                 <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Períodos</p>
                                 {selectedMens.map(id => {
-                                    const m = mensualidades.find(x => x.id === id);
-                                    return m ? (
+                                    const m  = mensualidades.find(x => x.id === id);
+                                    if (!m) return null;
+                                    const ov = montosParciales[id];
+                                    const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
+                                    const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                    return (
                                         <div key={id} className="flex justify-between text-xs px-2 py-1 rounded-md"
                                             style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                            <span>{m.mes} {m.anio}</span>
-                                            <span className="font-semibold">${fmt(m.monto_usd)}</span>
+                                            <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                            <span className="font-semibold">${fmt(monto)}</span>
                                         </div>
-                                    ) : null;
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Adelantos */}
+                        {selectedFuturas.length > 0 && (
+                            <div className="mb-3 space-y-1">
+                                <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#7c3aed' }}>Adelantos</p>
+                                {selectedFuturas.map(id => {
+                                    const m  = mensualidadesFuturas.find(x => x.id === id);
+                                    if (!m) return null;
+                                    const ov = montosParciales[id];
+                                    const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
+                                    const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                    return (
+                                        <div key={id} className="flex justify-between text-xs px-2 py-1 rounded-md"
+                                            style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                                            <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                            <span className="font-semibold">${fmt(monto)}</span>
+                                        </div>
+                                    );
                                 })}
                             </div>
                         )}

@@ -191,17 +191,55 @@ class DashboardStatsView(APIView):
 class BuscarAlumnoCobranzaView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    MES_NOMBRES = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre',
+    }
+
     def _alumno_data(self, alumno):
         from datetime import date as _date
         hoy = _date.today()
-        mensualidades = list(
-            Mensualidad.objects.filter(
-                alumno=alumno,
-                pagado=False,
-            ).filter(
-                Q(anio__lt=hoy.year) |
-                Q(anio=hoy.year, mes__lte=hoy.month)
-            )
+
+        # Determinar año escolar vigente (Sep-Jul spanning dos años)
+        if hoy.month >= 9:
+            year1, year2 = hoy.year, hoy.year + 1
+        else:
+            year1, year2 = hoy.year - 1, hoy.year
+
+        school_months = [(m, year1) for m in range(9, 13)] + [(m, year2) for m in range(1, 8)]
+
+        # Auto-crear meses futuros del año escolar que no existan aún
+        param = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()
+        monto_defecto = Decimal(param.valor) if param and param.valor else Decimal('35.00')
+        for mes_num, anio in school_months:
+            is_future = anio > hoy.year or (anio == hoy.year and mes_num > hoy.month)
+            if is_future:
+                Mensualidad.objects.get_or_create(
+                    alumno=alumno, mes=mes_num, anio=anio,
+                    defaults={'monto_usd': monto_defecto, 'pagado': False},
+                )
+
+        def to_list(qs):
+            return [
+                {
+                    'id':        row['id'],
+                    'mes':       self.MES_NOMBRES.get(row['mes'], str(row['mes'])),
+                    'anio':      row['anio'],
+                    'monto_usd': str(row['monto_usd']),
+                }
+                for row in qs
+            ]
+
+        mensualidades = to_list(
+            Mensualidad.objects.filter(alumno=alumno, pagado=False)
+            .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
+            .values('id', 'mes', 'anio', 'monto_usd')
+            .order_by('anio', 'mes')
+        )
+        mensualidades_futuras = to_list(
+            Mensualidad.objects.filter(alumno=alumno, pagado=False)
+            .filter(Q(anio__gt=hoy.year) | Q(anio=hoy.year, mes__gt=hoy.month))
             .values('id', 'mes', 'anio', 'monto_usd')
             .order_by('anio', 'mes')
         )
@@ -211,13 +249,14 @@ class BuscarAlumnoCobranzaView(APIView):
             .order_by('-periodo_escolar')
         )
         return {
-            'id':                           alumno.id,
-            'nombre':                       alumno.nombre,
-            'nombre_completo':              f"{alumno.nombre} {alumno.apellido}",
-            'cedula_escolar':               alumno.cedula_escolar,
-            'grado':                        alumno.grado_seccion or 'Sin grado',
-            'estatus':                      alumno.estatus_financiero,
-            'mensualidades_pendientes':     mensualidades,
+            'id':                            alumno.id,
+            'nombre':                        alumno.nombre,
+            'nombre_completo':               f"{alumno.nombre} {alumno.apellido}",
+            'cedula_escolar':                alumno.cedula_escolar,
+            'grado':                         alumno.grado_seccion or 'Sin grado',
+            'estatus':                       alumno.estatus_financiero,
+            'mensualidades_pendientes':      mensualidades,
+            'mensualidades_futuras':         mensualidades_futuras,
             'cuotas_inscripcion_pendientes': cuotas_inscripcion,
         }
 

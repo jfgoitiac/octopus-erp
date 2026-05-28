@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import {
     Settings, Calendar, UserPlus, AlertTriangle, Save,
     RefreshCcw, CheckCircle, X, Info, Loader2, BarChart3, Clock,
-    Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark
+    Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark,
+    Image, Upload, Trash
 } from 'lucide-react';
 import DatePickerES from '../components/DatePickerES';
 
@@ -71,6 +72,11 @@ const Configuracion = () => {
     const [bancoForm, setBancoForm] = useState({ nombre: '', numero_cuenta: '', tipo: 'general', activo: true });
     const [bancoSaving, setBancoSaving] = useState(false);
 
+    // Logos del recibo state
+    const [logosRecibo, setLogosRecibo] = useState({ logoColegio: null, logoAvec: null });
+    const [showLogosModal, setShowLogosModal] = useState(false);
+    const [logosForm, setLogosForm] = useState({ logoColegio: null, logoAvec: null });
+
     // Bancos de Nómina state
     const [bancosNomina, setBancosNomina] = useState([]);
     const [bancosNominaLoading, setBancosNominaLoading] = useState(false);
@@ -113,6 +119,57 @@ const Configuracion = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem('octopus_logos_recibo');
+            if (stored) setLogosRecibo(JSON.parse(stored));
+        } catch {}
+    }, []);
+
+    const compressImage = (dataUrl, maxSize = 180) => new Promise(resolve => {
+        const img = new window.Image();
+        img.onload = () => {
+            const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.src = dataUrl;
+    });
+
+    const handleLogosUpload = (field, e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async ev => {
+            const compressed = await compressImage(ev.target.result);
+            setLogosForm(p => ({ ...p, [field]: compressed }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const openLogosModal = () => {
+        setLogosForm({ ...logosRecibo });
+        setShowLogosModal(true);
+    };
+
+    const handleSaveLogos = () => {
+        try {
+            localStorage.setItem('octopus_logos_recibo', JSON.stringify(logosForm));
+            setLogosRecibo({ ...logosForm });
+            setShowLogosModal(false);
+            toast.success("Logos del recibo actualizados.");
+        } catch {
+            toast.error("No se pudieron guardar los logos. Intente con imágenes de menor resolución.");
+        }
+    };
+
+    const handleRemoveLogo = (field) => {
+        setLogosForm(p => ({ ...p, [field]: null }));
+    };
 
     const handleConfigChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -761,6 +818,52 @@ const Configuracion = () => {
                 </div>
             </form>
 
+            {/* Logos del Recibo */}
+            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                            <Image size={15} style={{ color: 'var(--pb)' }} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Logos del Recibo de Pago</h3>
+                            <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Se mostrarán automáticamente en el encabezado del recibo</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={openLogosModal}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                        style={{ background: 'var(--pb)' }}>
+                        <Pencil size={13} /> Configurar
+                    </button>
+                </div>
+                <div className="p-5">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="flex flex-col items-center gap-3">
+                            <p className="text-[11px] uppercase tracking-widest self-start" style={{ color: 'var(--ash)' }}>Logo Colegio</p>
+                            {logosRecibo.logoColegio
+                                ? <img src={logosRecibo.logoColegio} alt="Logo Colegio" className="w-20 h-20 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                : <div className="w-20 h-20 rounded-lg flex flex-col items-center justify-center gap-1"
+                                    style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                    <Image size={20} className="opacity-30" />
+                                    <span className="text-[10px]">Sin logo</span>
+                                </div>
+                            }
+                        </div>
+                        <div className="flex flex-col items-center gap-3">
+                            <p className="text-[11px] uppercase tracking-widest self-start" style={{ color: 'var(--ash)' }}>Logo AVEC</p>
+                            {logosRecibo.logoAvec
+                                ? <img src={logosRecibo.logoAvec} alt="Logo AVEC" className="w-20 h-20 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                : <div className="w-20 h-20 rounded-lg flex flex-col items-center justify-center gap-1"
+                                    style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                    <Image size={20} className="opacity-30" />
+                                    <span className="text-[10px]">Sin logo</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Bottom Sections: three columns on large screens */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -993,6 +1096,72 @@ const Configuracion = () => {
                     )}
                 </div>
             </div>
+
+            {showLogosModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
+                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                            <div className="flex items-center gap-2">
+                                <Image size={18} style={{ color: 'var(--pb)' }} />
+                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Configurar Logos del Recibo</h3>
+                            </div>
+                            <button type="button" onClick={() => setShowLogosModal(false)}>
+                                <X size={18} style={{ color: 'var(--ash)' }} />
+                            </button>
+                        </div>
+                        <div className="p-6 grid grid-cols-2 gap-6">
+                            {[
+                                { field: 'logoColegio', label: 'Logo Colegio' },
+                                { field: 'logoAvec', label: 'Logo AVEC' },
+                            ].map(({ field, label }) => (
+                                <div key={field} className="flex flex-col items-center gap-3">
+                                    <p className="text-[11px] uppercase tracking-widest font-semibold self-start" style={{ color: 'var(--ash)' }}>{label}</p>
+                                    <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                                        {logosForm[field]
+                                            ? <img src={logosForm[field]} alt={label} className="w-24 h-24 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                            : <div className="w-24 h-24 rounded-lg flex flex-col items-center justify-center gap-2"
+                                                style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                                <Image size={28} className="opacity-25" />
+                                                <span className="text-[10px]">Sin imagen</span>
+                                            </div>
+                                        }
+                                        <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
+                                            style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
+                                            <Upload size={13} />
+                                            {logosForm[field] ? 'Cambiar imagen' : 'Subir imagen'}
+                                            <input type="file" accept="image/*" className="hidden" onChange={e => handleLogosUpload(field, e)} />
+                                        </label>
+                                        {logosForm[field] && (
+                                            <button type="button" onClick={() => handleRemoveLogo(field)}
+                                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
+                                                style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
+                                                <Trash size={13} /> Eliminar
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="px-6 pb-6">
+                            <p className="text-[11px] mb-4 px-3 py-2 rounded-lg" style={{ color: 'var(--ash)', background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                Los logos se guardan localmente en este navegador y se cargan automáticamente al generar recibos de pago.
+                            </p>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setShowLogosModal(false)}
+                                    className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                    style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                    Cancelar
+                                </button>
+                                <button type="button" onClick={handleSaveLogos}
+                                    className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                    style={{ background: 'var(--pb)' }}>
+                                    <Save size={16} /> Guardar logos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showGradoModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>

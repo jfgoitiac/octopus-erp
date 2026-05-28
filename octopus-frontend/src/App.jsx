@@ -20,6 +20,7 @@ import Representantes from './pages/Representantes';
 import Morosos from './pages/Morosos';
 import Grados from './pages/Grados';
 import Conciliador from './pages/Conciliador';
+import Recibos from './pages/Recibos';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, loading } = useContext(AuthContext);
@@ -129,6 +130,13 @@ function App() {
           } />
 
           <Route path="nomina" element={<Nomina />} />
+
+          <Route path="recibos" element={
+            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
+              <Recibos />
+            </ProtectedRoute>
+          } />
+
 
           <Route path="conciliador" element={
             <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza']}>
