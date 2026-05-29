@@ -71,7 +71,6 @@ apiClient.interceptors.response.use(
     }
 
     try {
-      // Intentar renovar el access token
       const res = await axios.post('http://127.0.0.1:8000/api/token/refresh/', {
         refresh: refreshToken,
       });
@@ -82,12 +81,10 @@ apiClient.interceptors.response.use(
 
       processQueue(null, newAccessToken);
 
-      // Reintentar el request original con el nuevo token
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       return apiClient(originalRequest);
 
     } catch (refreshError) {
-      // Refresh falló — sesión expirada, redirigir al login
       processQueue(refreshError, null);
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');

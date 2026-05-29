@@ -26,9 +26,8 @@ const ListaAlumnos = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editModalLoading, setEditModalLoading] = useState(false);
     
-    // Definición de permisos basada en el contexto del usuario
-    const isSecretaria = user && ['director', 'administrador', 'secretaria', 'sistemas'].includes(user.rol);
-    const isCajero = user && ['director', 'administrador', 'cajero'].includes(user.rol);
+    const isSecretaria = user && ['director', 'administrador', 'secretaria', 'sistemas'].includes(user?.rol);
+    const isCajero = user && ['director', 'administrador', 'cajero'].includes(user?.rol);
 
     // Estados para Nuevas Funcionalidades
     const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -83,8 +82,6 @@ const ListaAlumnos = () => {
         try {
             const res = await axiosInstance.get(`cobranza/buscar/${cedula}/`);
             if (res.data.representante) {
-                console.log("Datos crudos del representante recuperado:", res.data.representante);
-
                 const rep = res.data.representante;
 
                 setRegisterForm(prev => ({
@@ -283,10 +280,6 @@ const ListaAlumnos = () => {
             setShowEditModal(false);
             toast.success("Información actualizada correctamente.");
         } catch (err) {
-            // Inyección de Debug para capturar errores de validación de DRF
-            console.error("Detalle exacto del error 400:", JSON.stringify(err.response?.data, null, 2));
-            
-            // Procesamiento de errores de validación detallados
             let msg = err.response?.data?.error || err.response?.data?.detail;
             if (!msg && err.response?.data && typeof err.response.data === 'object') {
                 msg = Object.entries(err.response.data)
@@ -323,8 +316,7 @@ const ListaAlumnos = () => {
             handleCloseRegisterModal();
             fetchData();
         } catch (err) {
-            console.log("Errores del backend:", err.response?.data);
-            const msg = err.response?.data?.error 
+            const msg = err.response?.data?.error
                 || err.response?.data?.detail 
                 || (err.response?.data && typeof err.response.data === 'object' ? Object.values(err.response.data).flat().join(' ') : null)
                 || "Error de conexión o datos inválidos al registrar.";

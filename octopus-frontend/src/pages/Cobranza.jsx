@@ -386,7 +386,7 @@ const Cobranza = () => {
     };
 
     const isAuthorized = user && ['director', 'administrador', 'cajero', 'cobranza'].includes(
-        (user?.perfil?.rol || user?.rol || '').toLowerCase()
+        (user?.rol || '').toLowerCase()
     );
 
     if (!isAuthorized) return (

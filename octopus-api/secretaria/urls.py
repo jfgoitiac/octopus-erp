@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AlumnoListView, BienNacionalViewSet, ConfiguracionGradoViewSet,
     ConfiguracionSistemaView, ComprobanteInscripcionView,
-    ExportarAlumnosExcelView,
+    ExportarAlumnosExcelView, ExportarRepresentantesExcelView,
     GradosListView, MatriculaGradoView,
     ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
     InscripcionExistenteView, InscripcionNuevaView, LogAuditoriaListView,
@@ -37,7 +37,8 @@ urlpatterns = [
     path('auditoria/',                            LogAuditoriaListView.as_view(),         name='auditoria-lista'),
 
     # Exportaciones Excel
-    path('exportar-alumnos-excel/',               ExportarAlumnosExcelView.as_view(),     name='exportar-alumnos-excel'),
+    path('exportar-alumnos-excel/',               ExportarAlumnosExcelView.as_view(),         name='exportar-alumnos-excel'),
+    path('exportar-representantes-excel/',        ExportarRepresentantesExcelView.as_view(),  name='exportar-representantes-excel'),
 
     # Módulo de Grados
     path('grados/',                               GradosListView.as_view(),               name='grados-lista'),

@@ -66,9 +66,8 @@ const Auditoria = () => {
                     new Date(b.fecha_hora || b.fecha) - new Date(a.fecha_hora || a.fecha)
                 )
             );
-        } catch (err) {
+        } catch {
             setError('No se pudo sincronizar el historial de auditoría.');
-            console.error(err);
         } finally {
             setLoading(false);
             setRefreshing(false);

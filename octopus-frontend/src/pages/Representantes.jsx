@@ -8,8 +8,7 @@ const FORM_EMPTY = { nombre: '', apellido: '', cedula: '', telefono: '', correo:
 
 const Representantes = () => {
     const { user } = useContext(AuthContext);
-    const rawRole = user?.perfil?.rol || user?.rol || user?.data?.rol || user?.user?.rol || '';
-    const userRole = rawRole.toLowerCase().trim();
+    const userRole = (user?.rol || '').toLowerCase().trim();
     const canWrite = ['director', 'administrador', 'secretaria'].includes(userRole);
 
     const [representantes, setRepresentantes] = useState([]);
@@ -56,8 +55,9 @@ const Representantes = () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast.success('Archivo Excel descargado.');
-        } catch {
-            toast.error('No se pudo generar el Excel.');
+        } catch (err) {
+            const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo generar el Excel.';
+            toast.error(msg);
         } finally {
             setExportingExcel(false);
         }

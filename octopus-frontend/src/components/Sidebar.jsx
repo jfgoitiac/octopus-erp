@@ -45,16 +45,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // CORREGIDO: Extracción robusta y normalización del rol a minúsculas
-  const rawRole =
-    user?.perfil?.rol ||
-    user?.rol ||
-    user?.data?.rol ||
-    user?.user?.rol ||
-    localStorage.getItem('user_role') ||
-    '';
-    
-  const userRole = rawRole.toLowerCase().trim();
+  const userRole = (user?.rol || '').toLowerCase().trim();
   const initials = (user?.username || 'U').slice(0, 2).toUpperCase();
 
   const handleLogout = () => { logout(); navigate('/login'); };

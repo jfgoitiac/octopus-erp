@@ -15,10 +15,9 @@ export const AuthProvider = ({ children }) => {
             const isExpired = decoded.exp && decoded.exp * 1000 <= Date.now();
             if (isExpired) return null;
             
-            // Normalizamos el objeto de usuario
-            return { 
-                username: decoded.username || 'Usuario', 
-                rol: decoded.rol || 'cajero' 
+            return {
+                username: decoded.username || 'Usuario',
+                rol: decoded.rol || 'cajero'
             };
         } catch (error) {
             console.error("Error decodificando token:", error);
@@ -33,28 +32,24 @@ export const AuthProvider = ({ children }) => {
             if (userData) {
                 setUser(userData);
             } else {
-                localStorage.clear();
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
             }
         }
         setLoading(false);
     }, []);
 
     const login = async (username, password) => {
-        try {
-            const res = await axiosInstance.post('token/', { username, password });
-            localStorage.setItem('access_token', res.data.access);
-            localStorage.setItem('refresh_token', res.data.refresh);
-            
-            // Intentamos sacar el rol del token recién generado
-            const userData = extractUserData(res.data.access);
-            setUser(userData);
-        } catch (error) {
-            throw error;
-        }
+        const res = await axiosInstance.post('token/', { username, password });
+        localStorage.setItem('access_token', res.data.access);
+        localStorage.setItem('refresh_token', res.data.refresh);
+        const userData = extractUserData(res.data.access);
+        setUser(userData);
     };
 
     const logout = () => {
-        localStorage.clear();
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         setUser(null);
     };
 

@@ -31,9 +31,7 @@ const Login = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
-            {/* CORRECCIÓN 7: Card principal */}
             <div className="max-w-md w-full rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
-                {/* Encabezado con Identidad Visual */}
                 <div className="p-8 text-center" style={{ background: 'var(--jet)' }}>
                     <div className="inline-flex p-3 rounded-xl backdrop-blur-sm mb-4" style={{ background: 'rgba(255,255,255,0.1)' }}>
                         <Octagon size={48} style={{ color: 'var(--pb)' }} />
@@ -42,9 +40,7 @@ const Login = () => {
                     <p className="text-xs uppercase tracking-widest mt-1" style={{ color: 'var(--ash)' }}>Gestión Escolar</p>
                 </div>
 
-                {/* Formulario */}
                 <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    {/* CORRECCIÓN 10: Alerta de error */}
                     {error && (
                         <div className="p-3 rounded-xl flex items-start gap-2 text-sm"
                              style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
@@ -54,7 +50,6 @@ const Login = () => {
                     )}
 
                     <div>
-                        {/* CORRECCIÓN 2: Label estándar */}
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Usuario</label>
                         <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={16} />
@@ -71,7 +66,6 @@ const Login = () => {
                     </div>
 
                     <div>
-                        {/* CORRECCIÓN 2: Label estándar */}
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Contraseña</label>
                         <div className="relative">
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={16} />
@@ -87,7 +81,6 @@ const Login = () => {
                         </div>
                     </div>
 
-                    {/* CORRECCIÓN 3: Botón primario */}
                     <button type="submit" disabled={isSubmitting}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50"
                         style={{ background: 'var(--pb)' }}>

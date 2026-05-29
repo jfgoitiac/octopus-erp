@@ -1,19 +1,18 @@
-import apiClient from '../api/apiClient';
+import apiClient from './apiClient';
 
 export const secretariaService = {
-  // Gestión de Bienes Nacionales (Inventario)
   async getInventario() {
-    const response = await apiClient.get('/secretaria/inventario/');
+    const response = await apiClient.get('secretaria/bienes/');
     return response.data;
   },
 
   async registrarBien(datos) {
-    const response = await apiClient.post('/secretaria/inventario/', datos);
+    const response = await apiClient.post('secretaria/bienes/', datos);
     return response.data;
   },
 
   async buscarAlumno(cedula) {
-    const response = await apiClient.get(`/cobranza/buscar-alumno/${cedula}/`);
+    const response = await apiClient.get(`cobranza/buscar/${cedula}/`);
     return response.data;
   }
 };

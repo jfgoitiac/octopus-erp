@@ -301,7 +301,7 @@ const Morosos = () => {
                                             onClick={() => navigate('/cobranza')}
                                             className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg transition-all"
                                             style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px solid var(--pb)' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--pb)' || (e.currentTarget.style.color = '#fff')}
+                                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--pb)'; e.currentTarget.style.color = '#fff'; }}
                                             onMouseLeave={e => { e.currentTarget.style.background = 'var(--pb-light)'; e.currentTarget.style.color = 'var(--pb-mid)'; }}
                                             title="Ir a cobranza"
                                         >

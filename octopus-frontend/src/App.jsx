@@ -38,25 +38,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Si no se requieren roles específicos, dejar pasar
   if (!allowedRoles) {
     return children;
   }
 
-  // 1. Extraemos el rol con tu ráfaga de opciones de seguridad
-  const rawRole =
-    user?.perfil?.rol ||
-    user?.rol ||
-    user?.data?.rol ||
-    user?.user?.rol ||
-    localStorage.getItem('user_role') ||
-    '';
-
-  // 2. PARCHE DE SEGURIDAD: Convertimos a minúsculas y limpiamos espacios vacíos
-  const userRole = rawRole.toLowerCase().trim();
-
-  console.log("Usuario en AuthContext:", user);
-  console.log("Rol extraído y normalizado:", userRole);
+  const userRole = (user?.rol || '').toLowerCase().trim();
 
   if (!allowedRoles.includes(userRole)) {
     return <Navigate to="/" replace />;
@@ -122,7 +108,6 @@ function App() {
           } />
           <Route path="reportes" element={<Reportes />} />
 
-          {/* CORREGIDO: Se incluye al 'director' en los roles permitidos */}
           <Route path="sistemas" element={
             <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
               <Sistemas />

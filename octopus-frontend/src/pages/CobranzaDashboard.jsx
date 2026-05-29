@@ -26,11 +26,10 @@ const CobranzaDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const res = await axiosInstance.get('/cobranza/stats/');
+      const res = await axiosInstance.get('cobranza/stats/');
       setStats(res.data);
-    } catch (err) {
-      console.error("Error fetching stats", err);
-      // No hay manejo de error visible al usuario, solo en consola. Podría añadirse un toast.
+    } catch {
+      // stats son informativos; el fallo silencioso es aceptable
     }
   };
 
@@ -38,7 +37,7 @@ const CobranzaDashboard = () => {
     if (e.key === 'Enter' && searchTerm) {
       setLoading(true);
       try {
-        const res = await axiosInstance.get(`/cobranza/buscar/${searchTerm}/`);
+        const res = await axiosInstance.get(`cobranza/buscar/${searchTerm}/`);
         setSearchResult(res.data);
       } catch (err) {
         setSearchResult(null);
@@ -51,8 +50,7 @@ const CobranzaDashboard = () => {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6"> {/* CORRECCIÓN 6: Header de página */}
-        <div>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">        <div>
           <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Octopus Finance</h2>
           <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>Control de cobranza y mensualidades</p>
         </div>
@@ -100,8 +98,7 @@ const CobranzaDashboard = () => {
                 </div>
                 {/* Badges de estatus */}
                 <span className="px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider"
-                      style={{ background: alu.estatus === 'solvente' ? '#dcfce7' : 'var(--red-light)', color: alu.estatus === 'solvente' ? '#16a34a' : 'var(--red)' }}> {/* Colores de éxito/error */}
-                  {alu.estatus}
+                      style={{ background: alu.estatus === 'solvente' ? '#dcfce7' : 'var(--red-light)', color: alu.estatus === 'solvente' ? '#16a34a' : 'var(--red)' }}>                  {alu.estatus}
                 </span>
               </div>
               
@@ -115,8 +112,7 @@ const CobranzaDashboard = () => {
                 </thead>
                 <tbody>
                     {alu.mensualidades_pendientes.map((m) => (
-                    <tr key={m.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}> {/* CORRECCIÓN 9: Filas de tabla */}
-                      <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>{m.mes} {m.anio}</td>
+                    <tr key={m.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>                      <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>{m.mes} {m.anio}</td>
                       <td className="px-5 py-3 text-sm font-mono" style={{ color: 'var(--jet)' }}>${(Number(m.monto_usd) || 0).toFixed(2)}</td>
                       <td className="px-5 py-3">
                         <span className="text-[10px] font-bold uppercase flex items-center gap-1" style={{ color: 'var(--red)' }}>

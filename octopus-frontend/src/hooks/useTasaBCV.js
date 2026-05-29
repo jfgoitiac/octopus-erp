@@ -25,9 +25,8 @@ export const useTasaBCV = () => {
                 setUltimaActualizacion(new Date());
                 setError(null);
             }
-        } catch (err) {
+        } catch {
             setError('Tasa no actualizada');
-            console.error('Fallo al refrescar tasa BCV:', err);
         } finally {
             setLoading(false);
         }

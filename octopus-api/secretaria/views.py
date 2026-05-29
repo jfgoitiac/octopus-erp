@@ -544,6 +544,46 @@ class ExportarAlumnosExcelView(APIView):
         return ExcelExporter.export(qs, columns, 'lista_alumnos')
 
 
+class ExportarRepresentantesExcelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from cobranza.exports import ExcelExporter
+        from django.db.models import Q as DQ
+
+        buscar    = request.query_params.get('buscar', '').strip()
+        min_hijos = request.query_params.get('min_hijos', '')
+
+        qs = Representante.objects.annotate(
+            cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True))
+        ).order_by('apellido', 'nombre')
+
+        if buscar:
+            qs = qs.filter(
+                DQ(cedula__icontains=buscar)   |
+                DQ(nombre__icontains=buscar)   |
+                DQ(apellido__icontains=buscar) |
+                DQ(correo__icontains=buscar)
+            )
+        if min_hijos:
+            try:
+                qs = qs.filter(cantidad_alumnos__gte=int(min_hijos))
+            except ValueError:
+                pass
+
+        columns = [
+            ('Cédula',          'cedula'),
+            ('Nombre',          'nombre'),
+            ('Apellido',        'apellido'),
+            ('Teléfono',        'telefono'),
+            ('Correo',          'correo'),
+            ('Dirección',       'direccion'),
+            ('Alumnos activos', lambda x: x.cantidad_alumnos),
+        ]
+
+        return ExcelExporter.export(qs, columns, 'lista_representantes')
+
+
 # ─────────────────────────────────────────────
 # REPRESENTANTE
 # ─────────────────────────────────────────────

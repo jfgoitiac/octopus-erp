@@ -110,7 +110,6 @@ const Configuracion = () => {
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || "Error al cargar la configuración maestra.";
             toast.error(msg);
-            console.error("Error fetching config:", err);
         } finally {
             setLoading(false);
         }
