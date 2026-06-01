@@ -1,10 +1,13 @@
 import { useContext } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useSede } from '../context/SedeContext';
+import SedeSwitcher from './SedeSwitcher';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, Octagon, ShieldCheck,
-  Loader2, Banknote, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText
+  Loader2, Banknote, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
+  BookOpen, CalendarCheck, Clock, Building2, Bell
 } from 'lucide-react';
 
 const navSections = [
@@ -31,10 +34,27 @@ const navSections = [
     ],
   },
   {
+    label: 'Académico',
+    items: [
+      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'sistemas', 'administrador', 'secretaria'] },
+      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director', 'administrador'] },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'administrador', 'secretaria'] },
+      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas', 'administrador'] },
+    ],
+  },
+  {
+    label: 'Multi-Sede',
+    items: [
+      { name: 'Dashboard Sedes', path: '/multisede',       icon: Building2, roles: ['directivo_red','director'] },
+      { name: 'Gestión de Sedes', path: '/multisede/sedes', icon: Building2, roles: ['directivo_red'] },
+    ],
+  },
+  {
     label: 'Sistema',
     items: [
       { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas','administrador'] },
-      { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas','administrador'] }, 
+      { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas','administrador'] },
+      { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas','administrador'] },
       { name: 'Auditoría', path: '/auditoria', icon: ShieldCheck, roles: ['director','sistemas','administrador'] },
     ],
   },
@@ -42,6 +62,7 @@ const navSections = [
 
 const Sidebar = () => {
   const { user, logout, loading } = useContext(AuthContext);
+  const { sedes, sedeActiva, cambiarSede } = useSede();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -107,6 +128,11 @@ const Sidebar = () => {
           </span>
         </div>
       </div>
+
+      {/* Selector de sede (solo si hay más de 1) */}
+      {sedes.length > 1 && (
+        <SedeSwitcher sedes={sedes} sedeActiva={sedeActiva} onCambiar={cambiarSede} />
+      )}
 
       {/* Navegación */}
       <nav className="flex-1 overflow-y-auto px-2 pb-2 custom-scrollbar">

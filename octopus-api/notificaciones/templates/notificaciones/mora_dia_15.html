@@ -1,0 +1,37 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a Director/a,</p>
+
+<div class="alert alert-red">
+  <strong>ALERTA DE MOROSIDAD — Dia 15:</strong> El alumno
+  <strong>{{ nombre_alumno }}</strong> tiene la mensualidad de
+  {{ mes_nombre }} {{ anio }} sin cancelar luego de <strong>{{ dias_mora }} dias</strong>.
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Se le notifica para que tome las acciones pertinentes. A continuacion los datos
+  del representante para contacto directo.
+</p>
+
+<table class="data">
+  <tr><th colspan="2" style="background:#fef2f2; color:#991b1b;">Datos del Representante</th></tr>
+  <tr><th>Nombre</th><td>{{ nombre_representante }}</td></tr>
+  <tr><th>Cedula</th><td>{{ cedula_representante }}</td></tr>
+  <tr><th>Telefono</th><td>{{ telefono_representante }}</td></tr>
+  <tr><th>Correo</th><td>{{ correo_representante }}</td></tr>
+</table>
+
+<table class="data">
+  <tr><th colspan="2" style="background:#fef2f2; color:#991b1b;">Datos del Alumno y Deuda</th></tr>
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Grado / Seccion</th><td>{{ grado }}</td></tr>
+  <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
+  <tr><th>Monto adeudado</th><td><strong style="color:#ef4444;">${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Dias de mora</th><td><strong style="color:#ef4444;">{{ dias_mora }} dias</strong></td></tr>
+</table>
+
+<p style="font-size:13px; color:#888; margin-top:16px;">
+  Se recomienda contactar directamente al representante para gestionar el pago o
+  acordar un plan de regularizacion.
+</p>
+{% endblock %}

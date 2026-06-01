@@ -899,3 +899,60 @@ class ComprobanteDetalleView(APIView):
         except Pago.DoesNotExist:
             return Response({"error": "Comprobante no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(ComprobanteSerializer(pago).data)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LISTADO DE PAGOS CON FILTROS AVANZADOS
+# ──────────────────────────────────────────────────────────────────────────────
+
+from .filters import MensualidadFilter, PagoFilter
+
+
+class PagosListView(APIView):
+    """
+    Lista de pagos con filtros avanzados vía query params.
+
+    Parámetros de filtro:
+      alumno_id, grado_seccion, fecha_desde, fecha_hasta,
+      metodo_pago, estatus, concepto, monto_min, monto_max,
+      representante_documento
+
+    Paginación:
+      page (default 1), page_size (default 25, máx 100)
+
+    Roles permitidos: director, sistemas, administrador, cobranza, cajero.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+
+    def get(self, request):
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        if not request.user.is_superuser and rol not in self.ROLES_PERMITIDOS:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        filterset = PagoFilter(
+            request.query_params,
+            queryset=Pago.objects.select_related('alumno').order_by('-fecha_pago'),
+        )
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            page      = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 25))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 25
+
+        qs    = filterset.qs
+        total = qs.count()
+        pagos = qs[(page - 1) * page_size: page * page_size]
+
+        return Response({
+            'total':       total,
+            'page':        page,
+            'page_size':   page_size,
+            'total_pages': max(1, (total + page_size - 1) // page_size),
+            'results':     PagoSerializer(pagos, many=True).data,
+        })

@@ -1,0 +1,29 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Le informamos que la factura de mensualidad para <strong>{{ nombre_alumno }}</strong>
+  ({{ grado }}) correspondiente a <strong>{{ mes_nombre }} {{ anio }}</strong>
+  ya ha sido generada y esta disponible para su pago.
+</p>
+
+<div class="monto">${{ monto_usd }} USD</div>
+<p class="monto-label">Monto a cancelar — {{ mes_nombre }} {{ anio }}</p>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Grado / Seccion</th><td>{{ grado }}</td></tr>
+  <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
+  <tr><th>Monto</th><td><strong>${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Fecha limite</th><td>{{ fecha_limite }}</td></tr>
+</table>
+
+<div class="alert alert-blue">
+  Puede realizar su pago de forma segura a traves del portal de representantes o
+  acercarse a la administracion del plantel.
+</div>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ir al Portal</a>
+</div>
+{% endblock %}

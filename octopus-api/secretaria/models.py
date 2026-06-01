@@ -27,6 +27,11 @@ class ConfiguracionSistema(models.Model):  # NUEVO
     dia_limite_pago            = models.PositiveSmallIntegerField(default=5)
     notificaciones_activas     = models.BooleanField(default=True)
 
+    # Personalización visual del portal de representantes
+    color_primario   = models.CharField(max_length=7, default='#0fa3b1', help_text='Color hex, ej: #0fa3b1')
+    color_secundario = models.CharField(max_length=7, default='#1f3864', help_text='Color hex secundario')
+    logo_url         = models.URLField(blank=True, default='', help_text='URL del logo del colegio (externo)')
+
     class Meta:
         verbose_name = "Configuración del Sistema"
 
@@ -118,6 +123,15 @@ class Alumno(models.Model):
     activo        = models.BooleanField(default=True)
     fecha_retiro  = models.DateTimeField(null=True, blank=True)
     motivo_retiro = models.TextField(blank=True, default='')
+
+    # Multi-sede
+    sede = models.ForeignKey(
+        'multisede.Sede',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='alumnos',
+        verbose_name='Sede',
+    )
 
     # Managers
     objects = AlumnoManager()       # Por defecto: solo activos

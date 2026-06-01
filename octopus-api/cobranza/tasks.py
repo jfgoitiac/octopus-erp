@@ -2,7 +2,7 @@ import logging
 from celery import shared_task
 from django.db import transaction
 from django.core.cache import cache
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from .utils import _obtener_tasa_por_scraping_bcv
 from secretaria.models import Alumno
 from django.contrib.auth import get_user_model
@@ -31,7 +31,11 @@ def sincronizar_tasa_con_blindaje():
                 # Asegura consistencia: aunque no haya cambio en TasaCambio,
                 # ParametroGlobal puede estar en 0 por corrupción de datos
                 param = ParametroGlobal.objects.filter(clave="TASA_BCV_ACTUAL").first()
-                param_valor = Decimal(param.valor) if param and param.valor else Decimal('0')
+                try:
+                    param_valor = Decimal(param.valor) if param and param.valor else Decimal('0')
+                except (InvalidOperation, TypeError):
+                    param_valor = Decimal('0')
+                    logger.warning("Valor de TASA_BCV_ACTUAL no era numérico. Reiniciando a 0.")
 
                 if param_valor != tasa_extraida:
                     logger.warning(
@@ -77,15 +81,16 @@ def sincronizar_tasa_con_blindaje():
             system_user = User.objects.filter(is_superuser=True).first()
             tasa_anterior_log = ultima_tasa_reg.valor_bs if ultima_tasa_reg else Decimal('0')
 
-            LogAuditoria.objects.create(
-                usuario=system_user,
-                accion="SINCRONIZACION_AUTOMATICA_TASAS",
-                modulo="COBRANZA",
-                detalles=(
-                    f"¡Cambio detectado en BCV! "
-                    f"Actualizado de {tasa_anterior_log} a {tasa_extraida} VES."
+            if system_user:
+                LogAuditoria.objects.create(
+                    usuario=system_user,
+                    accion="SINCRONIZACION_AUTOMATICA_TASAS",
+                    modulo="COBRANZA",
+                    detalles=(
+                        f"¡Cambio detectado en BCV! "
+                        f"Actualizado de {tasa_anterior_log} a {tasa_extraida} VES."
+                    )
                 )
-            )
 
         logger.warning(
             f"¡Cambio de tasa detectado en BCV! "
@@ -105,12 +110,12 @@ def actualizar_tasa_bcv_automatica(self):
     """
     logger.info("Iniciando tarea programada de actualización de tasa BCV...")
     try:
-        # Paso A: Obtener tasa externa [NUEVO]
-        from .utils import _obtener_tasa_por_scraping_bcv
+        # Paso A: Obtener tasa externa (importada al inicio del archivo)
         tasa_bcv = _obtener_tasa_por_scraping_bcv()
 
         # Paso B: Obtener tasa interna actual de referencia [NUEVO]
-        ultima_tasa_reg = TasaCambio.objects.first()
+        # Usamos order_by('-id') para asegurar que obtenemos la más reciente, no la primera creada
+        ultima_tasa_reg = TasaCambio.objects.order_by('-id').first()
         tasa_interna = ultima_tasa_reg.valor_bs if ultima_tasa_reg else Decimal('0')
 
         # Paso C: Comparar y actuar [NUEVO]
@@ -178,8 +183,10 @@ def verificar_solvencia_estudiantil_automatica():
                 iter(alumno.mensualidades_mes_actual), None
             )
 
+            # SEGURIDAD: dia_limite_pago puede ser None. Usamos 5 como default para evitar TypeError
+            dia_limite = getattr(alumno, 'dia_limite_pago', None) or 5
             debe_estar_en_mora = (
-                hoy.day > alumno.dia_limite_pago and
+                hoy.day > dia_limite and
                 (not mensualidad_actual or not mensualidad_actual.pagado)
             )
 

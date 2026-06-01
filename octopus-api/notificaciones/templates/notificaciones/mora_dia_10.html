@@ -1,0 +1,35 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+
+<div class="alert alert-red">
+  <strong>AVISO IMPORTANTE:</strong> La mensualidad de {{ mes_nombre }} {{ anio }}
+  de <strong>{{ nombre_alumno }}</strong> lleva <strong>{{ dias_mora }} dias</strong>
+  sin ser cancelada.
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Este es el segundo aviso. Le solicitamos atender este pago a la brevedad posible
+  para evitar que se restrinja el acceso a los servicios escolares.
+</p>
+
+<div style="text-align:center; margin: 28px 0;">
+  <div style="font-size:52px; font-weight:700; color:#ef4444;">{{ dias_mora }}</div>
+  <div style="font-size:14px; color:#888; margin-top:4px;">dias de mora</div>
+</div>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Grado / Seccion</th><td>{{ grado }}</td></tr>
+  <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
+  <tr><th>Monto adeudado</th><td><strong style="color:#ef4444;">${{ monto_usd }} USD</strong></td></tr>
+</table>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn" style="background-color:#ef4444;">Regularizar Pago</a>
+</div>
+
+<p style="font-size:13px; color:#888; margin-top:24px; text-align:center;">
+  Si necesita un plan de pago o tiene alguna consulta, por favor comuniquese con la administracion.
+</p>
+{% endblock %}

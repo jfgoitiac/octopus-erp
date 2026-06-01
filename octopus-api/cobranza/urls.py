@@ -13,6 +13,7 @@ from .views import (
     ExportarAuditoriaExcelView,
     GenerarAnualidadView,
     HistoricoMensualView,
+    PagosListView,
     ReciboView,
     RegistrarPagoView,
     SincronizarTasaView,
@@ -35,4 +36,5 @@ urlpatterns = [
     path('historico-mensual/',             HistoricoMensualView.as_view(),         name='historico-mensual'),
     path('comprobantes/',                  ConsultaComprobantesView.as_view(),     name='consulta-comprobantes'),
     path('comprobantes/<str:factura_id>/', ComprobanteDetalleView.as_view(),       name='comprobante-detalle'),
+    path('pagos/lista/',                   PagosListView.as_view(),                name='pagos-lista'),
 ]

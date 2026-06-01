@@ -1,0 +1,32 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+
+<div class="alert alert-green">
+  <strong>Pago confirmado exitosamente.</strong> Gracias por mantener su cuenta al dia.
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Hemos registrado su pago correctamente. A continuacion el resumen de la transaccion:
+</p>
+
+<div class="monto">${{ monto_usd }} USD</div>
+<p class="monto-label">Pago confirmado — {{ mes_nombre }} {{ anio }}</p>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
+  <tr><th>Monto pagado</th><td><strong>${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Metodo de pago</th><td>{{ metodo_pago }}</td></tr>
+  <tr><th>Numero de referencia</th><td><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px;">{{ referencia }}</code></td></tr>
+</table>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Puede consultar el historial completo de sus pagos en el portal de representantes.
+  Guarde este correo como comprobante de su transaccion.
+</p>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ver Historial de Pagos</a>
+</div>
+{% endblock %}

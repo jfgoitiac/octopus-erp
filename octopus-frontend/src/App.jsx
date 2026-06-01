@@ -1,7 +1,11 @@
-import { useContext } from 'react';
+import { useContext, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
+import { PortalAuthProvider } from './portal/context/PortalAuthContext';
+import { SedeProvider } from './context/SedeContext';
+import PortalProtectedRoute from './portal/components/PortalProtectedRoute';
+import PortalLayout from './portal/components/PortalLayout';
 import Cobranza from './pages/Cobranza';
 import CobranzaDashboard from './pages/CobranzaDashboard';
 import Comprobantes from './pages/Comprobantes';
@@ -21,6 +25,24 @@ import Morosos from './pages/Morosos';
 import Grados from './pages/Grados';
 import Conciliador from './pages/Conciliador';
 import Recibos from './pages/Recibos';
+import Notas from './pages/Notas';
+import Boletin from './pages/Boletin';
+import Asistencia from './pages/Asistencia';
+import Horarios from './pages/Horarios';
+
+// Portal de Representantes — lazy loaded
+const PortalLogin = lazy(() => import('./portal/pages/PortalLogin'));
+const PortalDashboard = lazy(() => import('./portal/pages/PortalDashboard'));
+const PortalHistorialPagos = lazy(() => import('./portal/pages/PortalHistorialPagos'));
+const PortalCambiarContrasena = lazy(() => import('./portal/pages/PortalCambiarContrasena'));
+
+// Multi-Sede — lazy loaded
+const MultiSedeDashboard = lazy(() => import('./pages/MultiSedeDashboard'));
+const SedeDetalle = lazy(() => import('./pages/SedeDetalle'));
+const GestionSedes = lazy(() => import('./pages/GestionSedes'));
+
+// Configuración de Notificaciones — lazy loaded
+const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, user, loading } = useContext(AuthContext);
@@ -53,8 +75,29 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function App() {
   return (
+    <SedeProvider>
+    <PortalAuthProvider>
     <Router>
+      <Suspense fallback={
+        <div className="flex justify-center items-center h-screen">
+          <Loader2 className="animate-spin" size={28} style={{ color: '#0fa3b1' }} />
+        </div>
+      }>
       <Routes>
+        {/* ── Rutas del Portal de Representantes ── */}
+        <Route path="/portal/login" element={<PortalLogin />} />
+        <Route
+          path="/portal"
+          element={
+            <PortalProtectedRoute>
+              <PortalLayout />
+            </PortalProtectedRoute>
+          }
+        >
+          <Route index element={<PortalDashboard />} />
+          <Route path="historial" element={<PortalHistorialPagos />} />
+          <Route path="cambiar-contrasena" element={<PortalCambiarContrasena />} />
+        </Route>
         <Route path="/login" element={<Login />} />
 
         <Route
@@ -140,10 +183,56 @@ function App() {
               <Configuracion />
             </ProtectedRoute>
           } />
+
+          <Route path="configuracion/notificaciones" element={
+            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
+              <ConfiguracionNotificaciones />
+            </ProtectedRoute>
+          } />
+
+          {/* ── Módulo Académico ── */}
+          <Route path="notas" element={
+            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'secretaria']}>
+              <Notas />
+            </ProtectedRoute>
+          } />
+          <Route path="boletin" element={
+            <ProtectedRoute allowedRoles={['director', 'administrador']}>
+              <Boletin />
+            </ProtectedRoute>
+          } />
+          <Route path="asistencia" element={
+            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'secretaria']}>
+              <Asistencia />
+            </ProtectedRoute>
+          } />
+          <Route path="horarios" element={
+            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
+              <Horarios />
+            </ProtectedRoute>
+          } />
+
+          {/* ── Módulo Multi-Sede ── */}
+          <Route path="multisede" element={
+            <ProtectedRoute allowedRoles={['directivo_red','director']}>
+              <MultiSedeDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="multisede/sedes" element={
+            <ProtectedRoute allowedRoles={['directivo_red']}>
+              <GestionSedes />
+            </ProtectedRoute>
+          } />
+          <Route path="multisede/:sedeId" element={
+            <ProtectedRoute allowedRoles={['directivo_red','director']}>
+              <SedeDetalle />
+            </ProtectedRoute>
+          } />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </Suspense>
 
       <ToastContainer
         position="bottom-right"
@@ -151,21 +240,14 @@ function App() {
         hideProgressBar={false}
         newestOnTop
         closeOnClick
-        pauseOnHover
+        pauseOnFocusLoss
         draggable
-        toastStyle={{
-          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-          fontSize: '13px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 16px rgba(43,48,58,0.13)',
-          border: '0.5px solid rgba(43,48,58,0.10)',
-          color: '#2b303a',
-          background: '#fffffa',
-          minWidth: '280px',
-        }}
-        progressStyle={{ background: '#0fa3b1' }}
+        pauseOnHover
+        theme="light"
       />
     </Router>
+    </PortalAuthProvider>
+    </SedeProvider>
   );
 }
 

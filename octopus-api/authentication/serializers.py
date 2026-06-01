@@ -24,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ['id', 'username', 'email', 'password', 'perfil', 'rol', 'permissions_context', 'last_login']
+        fields = ['id', 'username', 'email', 'password', 'is_active', 'perfil', 'rol', 'permissions_context', 'last_login']
         extra_kwargs = {'password': {'write_only': True}}
 
     def get_permissions_context(self, obj):

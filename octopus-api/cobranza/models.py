@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 import uuid
 
+from simple_history.models import HistoricalRecords
+
 class ParametroGlobal(models.Model):
     """Almacena configuraciones globales como el monto base de mensualidad"""
     clave = models.CharField(max_length=50, unique=True)
@@ -128,6 +130,17 @@ class Pago(models.Model):
         default=Decimal('0.00'), null=True, blank=True,
         help_text="Vuelto entregado al representante en Bolívares"
     )
+    # Multi-sede
+    sede = models.ForeignKey(
+        'multisede.Sede',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pagos',
+        verbose_name='Sede',
+    )
+
+    # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores
+    history = HistoricalRecords()
 
     class Meta:
         constraints = [
@@ -226,6 +239,8 @@ class Mensualidad(models.Model):
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='mensualidades_pagadas')
+    # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores
+    history = HistoricalRecords()
 
     class Meta:
         unique_together = ('alumno', 'mes', 'anio')

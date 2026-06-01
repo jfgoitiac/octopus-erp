@@ -15,6 +15,9 @@ urlpatterns = [
     path('api/cobranza/', include('cobranza.urls')),
     path('api/nomina/', include('nomina.urls')),
     path('api/rrhh/', include('rrhh.urls')),
+    path('api/portal/', include('portal.urls')),
+    path('api/academico/', include('academico.urls')),
+    path('api/multisede/', include('multisede.urls')),
 ]
 
 if settings.DEBUG:

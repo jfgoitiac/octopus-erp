@@ -1,0 +1,34 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Bienvenido/a, <strong>{{ nombre_representante }}</strong>.</p>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Su cuenta de acceso al Portal de Representantes de <strong>{{ nombre_colegio }}</strong>
+  ha sido activada. A partir de ahora puede consultar el estado financiero de sus
+  representados, ver facturas, realizar pagos en linea y subir comprobantes de
+  transferencia directamente desde su telefono o computadora.
+</p>
+
+<div class="alert alert-green">
+  <strong>Sus credenciales de acceso:</strong>
+</div>
+
+<table class="data">
+  <tr><th>Usuario</th><td><strong>{{ cedula }}</strong></td></tr>
+  <tr><th>Contrasena inicial</th><td><strong>{{ contrasena_inicial }}</strong></td></tr>
+</table>
+
+<div class="alert alert-yellow">
+  Por seguridad, le recomendamos cambiar su contrasena la primera vez que ingrese.
+  Puede hacerlo desde la seccion <em>"Mi Perfil"</em> dentro del portal.
+</div>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ingresar al Portal</a>
+</div>
+
+<p style="font-size:13px; color:#888; margin-top:24px;">
+  Si no solicit&oacute; este acceso, por favor comuniquese de inmediato con la administracion
+  del plantel para desactivar su cuenta.
+</p>
+{% endblock %}

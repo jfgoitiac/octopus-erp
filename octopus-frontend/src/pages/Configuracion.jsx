@@ -3,7 +3,7 @@ import {
     Settings, Calendar, UserPlus, AlertTriangle, Save,
     RefreshCcw, CheckCircle, X, Info, Loader2, BarChart3, Clock,
     Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark,
-    Image, Upload, Trash
+    Image, Upload, Trash, MessageCircle, Bell, CheckCircle2, XCircle
 } from 'lucide-react';
 import DatePickerES from '../components/DatePickerES';
 
@@ -37,7 +37,10 @@ const Configuracion = () => {
         periodo_escolar_activo: '',
         dia_limite_pago: 5,
         notificaciones_activas: true,
-        inscripciones_abiertas: false
+        inscripciones_abiertas: false,
+        color_primario: '#0fa3b1',
+        color_secundario: '#1f3864',
+        logo_url: ''
     });
     const [grados, setGrados] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -87,6 +90,16 @@ const Configuracion = () => {
     const [showDeleteBancoNominaModal, setShowDeleteBancoNominaModal] = useState(false);
     const [bancoNominaAEliminar, setBancoNominaAEliminar] = useState(null);
 
+
+    // Notificaciones state
+    const [configNotif, setConfigNotif] = useState(null);
+    const [logsNotif, setLogsNotif] = useState({ total: 0, results: [] });
+    const [pruebaForm, setPruebaForm] = useState({ canal: 'email', destino: '', mensaje: '' });
+    const [pruebaCargando, setPruebaCargando] = useState(false);
+    const [pruebaResultado, setPruebaResultado] = useState(null);
+    const [logsFiltro, setLogsFiltro] = useState({ canal: '', estado: '', page: 1 });
+    const [logsLoading, setLogsLoading] = useState(false);
+
     // Carga de datos inicial
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -97,6 +110,7 @@ const Configuracion = () => {
             ]);
             setConfig(resConfig?.data || {});
             setGrados(resGrados?.data || []);
+            cargarConfigNotificaciones();
             
             // Sugerir próximo período escolar
             if (resConfig?.data?.periodo_escolar_activo) {
@@ -340,6 +354,46 @@ const Configuracion = () => {
             const msg = err.response?.data?.detail || "No se pudo eliminar el tipo de cargo.";
             toast.error(msg);
         }
+    };
+
+
+    const cargarConfigNotificaciones = async (canalFiltro = '', estadoFiltro = '', page = 1) => {
+        setLogsLoading(true);
+        try {
+            const [cfgRes, logsRes] = await Promise.all([
+                axiosInstance.get('notificaciones/configuracion/'),
+                axiosInstance.get(`notificaciones/logs/?canal=${canalFiltro}&estado=${estadoFiltro}&page=${page}&page_size=20`),
+            ]);
+            setConfigNotif(cfgRes.data);
+            setLogsNotif(logsRes.data);
+        } catch { /* silencioso */ }
+        finally { setLogsLoading(false); }
+    };
+
+    const handleEnviarPrueba = async (e) => {
+        e.preventDefault();
+        setPruebaCargando(true);
+        setPruebaResultado(null);
+        try {
+            const res = await axiosInstance.post('notificaciones/probar/', pruebaForm);
+            setPruebaResultado({ ok: true, data: res.data.resultados });
+            toast.success('Mensaje de prueba enviado');
+        } catch (err) {
+            setPruebaResultado({ ok: false, error: err.response?.data?.error || 'Error al enviar' });
+            toast.error('Error al enviar prueba');
+        } finally {
+            setPruebaCargando(false);
+        }
+    };
+
+    const aplicarFiltrosLogs = () => {
+        cargarConfigNotificaciones(logsFiltro.canal, logsFiltro.estado, 1);
+        setLogsFiltro(p => ({ ...p, page: 1 }));
+    };
+
+    const cambiarPaginaLogs = (nueva) => {
+        setLogsFiltro(p => ({ ...p, page: nueva }));
+        cargarConfigNotificaciones(logsFiltro.canal, logsFiltro.estado, nueva);
     };
 
     const fetchBancosNomina = useCallback(async () => {
@@ -607,6 +661,72 @@ const Configuracion = () => {
                                             className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none resize-none"
                                             style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                             placeholder="Dirección completa del colegio" />
+                                    </div>
+                                </div>
+
+                                {/* ── Personalización visual del portal ── */}
+                                <div className="col-span-2 pt-2" style={{ borderTop: '0.5px solid var(--border-md)' }}>
+                                    <p className="text-[11px] uppercase tracking-widest mb-3 font-medium" style={{ color: 'var(--pb)' }}>Personalización visual del portal</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                                        {/* Color primario */}
+                                        <div>
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Color Primario</label>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" name="color_primario" value={config?.color_primario || '#0fa3b1'} onChange={handleConfigChange}
+                                                    className="h-9 w-10 rounded cursor-pointer border-0 p-0.5"
+                                                    style={{ border: '0.5px solid var(--border-md)' }} />
+                                                <input type="text" name="color_primario" value={config?.color_primario || '#0fa3b1'} onChange={handleConfigChange}
+                                                    maxLength={7}
+                                                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                    placeholder="#0fa3b1" />
+                                            </div>
+                                        </div>
+
+                                        {/* Color secundario */}
+                                        <div>
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Color Secundario</label>
+                                            <div className="flex items-center gap-2">
+                                                <input type="color" name="color_secundario" value={config?.color_secundario || '#1f3864'} onChange={handleConfigChange}
+                                                    className="h-9 w-10 rounded cursor-pointer border-0 p-0.5"
+                                                    style={{ border: '0.5px solid var(--border-md)' }} />
+                                                <input type="text" name="color_secundario" value={config?.color_secundario || '#1f3864'} onChange={handleConfigChange}
+                                                    maxLength={7}
+                                                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                    placeholder="#1f3864" />
+                                            </div>
+                                        </div>
+
+                                        {/* Logo URL */}
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>URL del Logo</label>
+                                            <input type="url" name="logo_url" value={config?.logo_url || ''} onChange={handleConfigChange}
+                                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                placeholder="https://ejemplo.com/logo.png" />
+                                            {config?.logo_url && (
+                                                <div className="mt-2 flex items-center gap-3">
+                                                    <img src={config.logo_url} alt="Preview logo"
+                                                        className="h-10 w-auto object-contain rounded border"
+                                                        style={{ border: '0.5px solid var(--border-md)' }}
+                                                        onError={e => { e.target.style.display = 'none'; }} />
+                                                    <span className="text-xs" style={{ color: 'var(--ash)' }}>Vista previa del logo</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Botón vista previa del portal */}
+                                        <div className="sm:col-span-2">
+                                            <button type="button"
+                                                onClick={() => window.open('/portal', '_blank')}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                                style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                                Vista previa del portal
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1093,6 +1213,265 @@ const Configuracion = () => {
                             </table>
                         </div>
                     )}
+                </div>
+            </div>
+
+
+            {/* ── Panel de Notificaciones ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                    <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                        <Bell size={15} style={{ color: 'var(--pb)' }} />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Notificaciones</h3>
+                        <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Estado de canales, pruebas de envío e historial</p>
+                    </div>
+                </div>
+
+                <div className="p-5 space-y-6">
+
+                    {/* Parte 1 — Estado de canales */}
+                    {configNotif && (
+                        <div>
+                            <p className="text-[11px] uppercase tracking-widest mb-3 font-medium" style={{ color: 'var(--pb)' }}>Estado de canales</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Card Email */}
+                                <div className="border rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Mail size={18} className="text-[#0fa3b1]" />
+                                        <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Email</span>
+                                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${
+                                            configNotif.email?.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                            {configNotif.email?.activo ? 'Activo' : 'Solo consola'}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1 text-xs" style={{ color: 'var(--ash)' }}>
+                                        <p>Backend: <span style={{ color: 'var(--jet)' }}>{configNotif.email?.backend || '—'}</span></p>
+                                        <p>Host: <span style={{ color: 'var(--jet)' }}>{configNotif.email?.host || '—'}</span></p>
+                                        <p>Desde: <span style={{ color: 'var(--jet)' }}>{configNotif.email?.from || '—'}</span></p>
+                                    </div>
+                                </div>
+                                {/* Card WhatsApp */}
+                                <div className="border rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <MessageCircle size={18} className="text-green-600" />
+                                        <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>WhatsApp</span>
+                                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${
+                                            configNotif.whatsapp?.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                                        }`}>
+                                            {configNotif.whatsapp?.activo ? configNotif.whatsapp?.proveedor : 'No configurado'}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1 text-xs" style={{ color: 'var(--ash)' }}>
+                                        <p>Twilio: <span className={configNotif.whatsapp?.twilio_configurado ? 'text-green-600' : 'text-gray-400'}>
+                                            {configNotif.whatsapp?.twilio_configurado ? '✓ Configurado' : '✗ Sin configurar'}
+                                        </span></p>
+                                        <p>Meta Business: <span className={configNotif.whatsapp?.meta_configurado ? 'text-green-600' : 'text-gray-400'}>
+                                            {configNotif.whatsapp?.meta_configurado ? '✓ Configurado' : '✗ Sin configurar'}
+                                        </span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Parte 2 — Enviar mensaje de prueba */}
+                    <div style={{ borderTop: '0.5px solid var(--border-md)', paddingTop: '1.25rem' }}>
+                        <p className="text-[11px] uppercase tracking-widest mb-3 font-medium" style={{ color: 'var(--pb)' }}>Enviar mensaje de prueba</p>
+                        <form onSubmit={handleEnviarPrueba} className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Canal</label>
+                                    <select
+                                        value={pruebaForm.canal}
+                                        onChange={e => setPruebaForm(p => ({ ...p, canal: e.target.value }))}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                        <option value="email">Email</option>
+                                        <option value="whatsapp">WhatsApp</option>
+                                        <option value="ambos">Ambos</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                        {pruebaForm.canal === 'whatsapp' ? 'Número de teléfono' : 'Correo electrónico'}
+                                    </label>
+                                    <input
+                                        type={pruebaForm.canal === 'whatsapp' ? 'tel' : 'email'}
+                                        value={pruebaForm.destino}
+                                        onChange={e => setPruebaForm(p => ({ ...p, destino: e.target.value }))}
+                                        placeholder={pruebaForm.canal === 'whatsapp' ? '+58 4XX XXXXXXX' : 'correo@ejemplo.com'}
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        required />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Mensaje (opcional — usa el predeterminado si se omite)</label>
+                                <textarea
+                                    value={pruebaForm.mensaje}
+                                    onChange={e => setPruebaForm(p => ({ ...p, mensaje: e.target.value }))}
+                                    rows={2}
+                                    placeholder="Mensaje de prueba desde el sistema Octopus..."
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                            </div>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <button type="submit" disabled={pruebaCargando}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                                    style={{ background: 'var(--pb)' }}>
+                                    {pruebaCargando ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />}
+                                    Enviar prueba
+                                </button>
+                                {pruebaResultado && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {pruebaResultado.ok ? (
+                                            Object.entries(pruebaResultado.data || {}).map(([canal, estado]) => (
+                                                <span key={canal} className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium ${
+                                                    estado === 'enviado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {estado === 'enviado'
+                                                        ? <CheckCircle2 size={12} />
+                                                        : <XCircle size={12} />}
+                                                    {canal}: {estado}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-red-100 text-red-700">
+                                                <XCircle size={12} /> {pruebaResultado.error}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* Parte 3 — Historial de notificaciones */}
+                    <div style={{ borderTop: '0.5px solid var(--border-md)', paddingTop: '1.25rem' }}>
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--pb)' }}>Historial de notificaciones</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <select
+                                    value={logsFiltro.canal}
+                                    onChange={e => setLogsFiltro(p => ({ ...p, canal: e.target.value }))}
+                                    className="px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                    <option value="">Todos los canales</option>
+                                    <option value="email">Email</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                </select>
+                                <select
+                                    value={logsFiltro.estado}
+                                    onChange={e => setLogsFiltro(p => ({ ...p, estado: e.target.value }))}
+                                    className="px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                    <option value="">Todos los estados</option>
+                                    <option value="enviado">Enviado</option>
+                                    <option value="fallido">Fallido</option>
+                                    <option value="pendiente">Pendiente</option>
+                                </select>
+                                <button type="button" onClick={aplicarFiltrosLogs}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                                    style={{ background: 'var(--pb)' }}>
+                                    Aplicar
+                                </button>
+                            </div>
+                        </div>
+
+                        {logsLoading ? (
+                            <div className="flex justify-center py-8">
+                                <Loader2 className="animate-spin" size={22} style={{ color: 'var(--pb)' }} />
+                            </div>
+                        ) : (logsNotif.results || []).length === 0 ? (
+                            <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
+                                <Bell size={30} className="mb-2 opacity-20" />
+                                <p className="text-sm">No hay notificaciones registradas.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto rounded-xl" style={{ border: '0.5px solid var(--border-md)' }}>
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                            {['Fecha', 'Canal', 'Tipo', 'Destinatario', 'Estado', 'Proveedor'].map(h => (
+                                                <th key={h} className="px-4 py-3 text-[11px] uppercase tracking-widest whitespace-nowrap"
+                                                    style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(logsNotif.results || []).map((log, idx) => (
+                                            <tr key={log.id ?? idx} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                                                <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>
+                                                    {log.fecha ? new Date(log.fecha).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                                        log.canal === 'email'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        {log.canal === 'email' ? 'Email' : 'WhatsApp'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-xs" style={{ color: 'var(--jet)' }}>
+                                                    {log.tipo || '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-xs" style={{ color: 'var(--jet)' }}>
+                                                    {log.destinatario || '—'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`flex items-center gap-1 w-fit text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                                        log.estado === 'enviado'
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : log.estado === 'fallido'
+                                                                ? 'bg-red-100 text-red-700'
+                                                                : 'bg-yellow-100 text-yellow-700'
+                                                    }`}>
+                                                        {log.estado === 'enviado' && <CheckCircle2 size={10} />}
+                                                        {log.estado === 'fallido' && <XCircle size={10} />}
+                                                        {log.estado === 'pendiente' && <Clock size={10} />}
+                                                        {log.estado || '—'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-xs" style={{ color: 'var(--ash)' }}>
+                                                    {log.proveedor || '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Paginación */}
+                        {(logsNotif.total > 20) && (
+                            <div className="flex items-center justify-between mt-3">
+                                <span className="text-xs" style={{ color: 'var(--ash)' }}>
+                                    {logsNotif.total} registros — página {logsFiltro.page} de {Math.ceil(logsNotif.total / 20)}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button type="button"
+                                        disabled={logsFiltro.page <= 1}
+                                        onClick={() => cambiarPaginaLogs(logsFiltro.page - 1)}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
+                                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: 'var(--bg)' }}>
+                                        Anterior
+                                    </button>
+                                    <button type="button"
+                                        disabled={logsFiltro.page >= Math.ceil(logsNotif.total / 20)}
+                                        onClick={() => cambiarPaginaLogs(logsFiltro.page + 1)}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
+                                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: 'var(--bg)' }}>
+                                        Siguiente
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
 

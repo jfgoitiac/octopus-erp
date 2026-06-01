@@ -1,0 +1,31 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+
+<div class="alert alert-yellow">
+  <strong>Recordatorio:</strong> La mensualidad de {{ mes_nombre }} {{ anio }}
+  para <strong>{{ nombre_alumno }}</strong> aun no ha sido cancelada.
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Queremos recordarle que tiene un pago pendiente. Regularizar su cuenta a tiempo
+  le permite evitar recargos y mantener los servicios escolares sin interrupciones.
+</p>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Grado / Seccion</th><td>{{ grado }}</td></tr>
+  <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
+  <tr><th>Monto pendiente</th><td><strong>${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Dias de atraso</th><td><span style="color:#f59e0b;font-weight:700;">{{ dias_mora }} dias</span></td></tr>
+</table>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Pagar Ahora</a>
+</div>
+
+<p style="font-size:13px; color:#888; margin-top:24px;">
+  Si ya realizo el pago, por favor ignore este mensaje o comuniquese con administracion
+  para confirmar la acreditacion.
+</p>
+{% endblock %}
