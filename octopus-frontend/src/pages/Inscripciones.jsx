@@ -3,9 +3,19 @@ import {
     User, UserPlus, GraduationCap, CheckCircle2, ArrowRight, ArrowLeft,
     FileText, AlertCircle, Loader2, Search, Check, Info, X
 } from 'lucide-react';
+import { format, parseISO, isValid } from 'date-fns';
+import { es } from 'date-fns/locale';
 import DatePickerES from '../components/DatePickerES';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+
+// --- HELPERS ---
+
+const formatFecha = (fecha) => {
+    if (!fecha) return '—';
+    const parsed = parseISO(fecha);
+    return isValid(parsed) ? format(parsed, "d 'de' MMMM 'de' yyyy", { locale: es }) : fecha;
+};
 
 // --- SUBCOMPONENTES INTERNOS ---
 
@@ -18,17 +28,17 @@ const BarraProgreso = ({ pasoActual }) => {
     ];
 
     return (
-        <div className="w-full max-w-4xl mx-auto mb-12">
+        <nav aria-label="Progreso de inscripción" className="w-full max-w-4xl mx-auto mb-12">
             <div className="flex items-center justify-between relative">
                 {/* Línea conectora de fondo */}
                 <div className="absolute top-1/2 left-0 w-full h-0.5 -translate-y-1/2 z-0" style={{ background: 'var(--border-md)' }}></div>
-                
+
                 {/* Línea conectora activa */}
-                <div 
-                    className="absolute top-1/2 left-0 h-0.5 -translate-y-1/2 z-0 transition-all duration-500" 
-                    style={{ 
-                        background: 'var(--pb)', 
-                        width: `${((pasoActual - 1) / (pasos.length - 1)) * 100}%` 
+                <div
+                    className="absolute top-1/2 left-0 h-0.5 -translate-y-1/2 z-0 transition-all duration-500"
+                    style={{
+                        background: 'var(--pb)',
+                        width: `${((pasoActual - 1) / (pasos.length - 1)) * 100}%`
                     }}
                 ></div>
 
@@ -37,10 +47,14 @@ const BarraProgreso = ({ pasoActual }) => {
                     const isCompletado = pasoActual > p.num;
 
                     return (
-                        <div key={p.num} className="relative z-10 flex flex-col items-center">
-                            <div 
+                        <div
+                            key={p.num}
+                            className="relative z-10 flex flex-col items-center"
+                            aria-current={isActivo ? 'step' : undefined}
+                        >
+                            <div
                                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isActivo ? 'scale-110 shadow-lg' : ''}`}
-                                style={{ 
+                                style={{
                                     background: isCompletado ? 'var(--pb-light)' : (isActivo ? 'var(--pb)' : 'var(--porcelain)'),
                                     border: isActivo ? 'none' : '2px solid var(--border-md)',
                                     color: isCompletado || isActivo ? (isActivo ? 'var(--pb)' : '#fff') : 'var(--ash)'
@@ -48,8 +62,9 @@ const BarraProgreso = ({ pasoActual }) => {
                             >
                                 {isCompletado ? <Check size={18} /> : <p.icon size={18} />}
                             </div>
-                            <span 
-                                className="absolute -bottom-7 text-[10px] uppercase tracking-widest whitespace-nowrap font-black"
+                            {/* Oculto en pantallas muy pequeñas para evitar superposición */}
+                            <span
+                                className="hidden sm:block absolute -bottom-7 text-[10px] uppercase tracking-widest whitespace-nowrap font-black"
                                 style={{ color: isActivo ? 'var(--jet)' : 'var(--ash)' }}
                             >
                                 {p.label}
@@ -58,8 +73,15 @@ const BarraProgreso = ({ pasoActual }) => {
                     );
                 })}
             </div>
-        </div>
+        </nav>
     );
+};
+
+const LABELS_REP = {
+    nombre: 'Nombre',
+    apellido: 'Apellido',
+    telefono: 'Teléfono',
+    correo: 'Correo electrónico',
 };
 
 const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
@@ -67,37 +89,35 @@ const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
     const [repBuscado, setRepBuscado] = useState(false);
     const [cedulaInput, setCedulaInput] = useState(datos.representante?.cedula || '');
 
+    // Debounce: busca cuando la cédula supera 6 caracteres
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (cedulaInput.length > 6) buscarRep();
+        if (cedulaInput.length <= 6) return;
+        const timeoutId = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const res = await axiosInstance.get(`secretaria/representante/${cedulaInput}/`);
+                if (res.data.existe) {
+                    setDatos(prev => ({
+                        ...prev,
+                        representante: res.data,
+                        esRepresentanteNuevo: false,
+                    }));
+                } else {
+                    setDatos(prev => ({
+                        ...prev,
+                        representante: { ...prev.representante, cedula: cedulaInput, nombre: '', apellido: '', telefono: '', correo: '', direccion: '' },
+                        esRepresentanteNuevo: true,
+                    }));
+                }
+                setRepBuscado(true);
+            } catch {
+                toast.error("Error al consultar representante");
+            } finally {
+                setLoading(false);
+            }
         }, 600);
         return () => clearTimeout(timeoutId);
-    }, [cedulaInput]);
-
-    const buscarRep = async () => {
-        setLoading(true);
-        try {
-            const res = await axiosInstance.get(`secretaria/representante/${cedulaInput}/`);
-            if (res.data.existe) {
-                setDatos(prev => ({ 
-                    ...prev, 
-                    representante: res.data, 
-                    esRepresentanteNuevo: false 
-                }));
-            } else {
-                setDatos(prev => ({ 
-                    ...prev, 
-                    representante: { ...prev.representante, cedula: cedulaInput, nombre: '', apellido: '', telefono: '', correo: '', direccion: '' }, 
-                    esRepresentanteNuevo: true 
-                }));
-            }
-            setRepBuscado(true);
-        } catch (err) {
-            toast.error("Error al consultar representante");
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [cedulaInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleFormChange = (e) => {
         const { name, value } = e.target;
@@ -122,7 +142,7 @@ const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Documento de Identidad</label>
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={20} />
-                    <input 
+                    <input
                         type="text"
                         placeholder="V-12345678"
                         className="w-full pl-12 pr-4 py-4 rounded-2xl text-lg font-bold outline-none transition-all"
@@ -145,10 +165,12 @@ const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {['nombre', 'apellido', 'telefono', 'correo'].map(field => (
                                     <div key={field}>
-                                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>{field}</label>
+                                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                            {LABELS_REP[field]}
+                                        </label>
                                         <input
                                             name={field}
-                                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" 
+                                            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                             style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
                                             value={datos.representante[field] || ''}
                                             onChange={handleFormChange}
@@ -157,7 +179,7 @@ const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                                 ))}
                                 <div className="md:col-span-2">
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Dirección de habitación</label>
-                                    <textarea 
+                                    <textarea
                                         name="direccion"
                                         rows="2"
                                         className="w-full p-3 rounded-xl text-sm outline-none resize-none"
@@ -182,9 +204,9 @@ const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                             <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>Registrado</span>
                         </div>
                     )}
-                    
+
                     <div className="flex justify-end mt-8">
-                        <button 
+                        <button
                             disabled={!esValido()}
                             onClick={onContinuar}
                             className="px-10 py-4 rounded-2xl text-sm font-medium text-white flex items-center gap-2 transition-all disabled:opacity-50"
@@ -199,6 +221,20 @@ const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
     );
 };
 
+const LABELS_ALUMNO = {
+    nombre: 'Nombre',
+    apellido: 'Apellido',
+    cedula_escolar: 'Cédula Escolar',
+};
+
+const SkeletonCard = () => (
+    <div className="p-6 rounded-2xl animate-pulse" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+        <div className="h-4 w-3/4 rounded-lg mb-2" style={{ background: 'var(--border-md)' }} />
+        <div className="h-3 w-1/2 rounded-lg mb-4" style={{ background: 'var(--border-md)' }} />
+        <div className="h-3 w-1/4 rounded-md" style={{ background: 'var(--border-md)' }} />
+    </div>
+);
+
 const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     const [alumnos, setAlumnos] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -209,7 +245,7 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         try {
             const res = await axiosInstance.get(`secretaria/alumnos/?buscar=${datos.representante.cedula}`);
             setAlumnos(res.data || []);
-        } catch (err) {
+        } catch {
             toast.error("Error al cargar alumnos vinculados");
         } finally {
             setLoading(false);
@@ -247,7 +283,7 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div 
+                <div
                     onClick={handleActivarNuevo}
                     className="p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center gap-3 cursor-pointer transition-all"
                     style={{ borderColor: showFormNuevo ? 'var(--pb)' : 'var(--border-md)', background: showFormNuevo ? 'var(--pb-light)' : 'transparent' }}
@@ -257,15 +293,16 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                 </div>
 
                 {loading ? (
-                    <div className="col-span-2 p-10 flex justify-center"><Loader2 className="animate-spin" style={{ color: 'var(--pb)' }} /></div>
+                    Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
                 ) : alumnos.map(alu => {
                     const isSelected = datos.alumno?.id === alu.id && !showFormNuevo;
+                    const yaInscrito = alu.estado_inscripcion === 'inscrito';
                     return (
                         <div
-                            key={alu.id} 
-                            onClick={() => handleSelectExistente(alu)}
-                            className="p-6 rounded-2xl transition-all cursor-pointer relative overflow-hidden"
-                            style={{ 
+                            key={alu.id}
+                            onClick={() => !yaInscrito && handleSelectExistente(alu)}
+                            className={`p-6 rounded-2xl transition-all relative overflow-hidden ${yaInscrito ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            style={{
                                 border: isSelected ? '2px solid var(--pb)' : '0.5px solid var(--border-md)',
                                 background: isSelected ? 'var(--pb-light)' : 'var(--porcelain)'
                             }}
@@ -276,7 +313,7 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                                 <span className="text-[10px] px-2 py-0.5 rounded-md" style={{ background: 'var(--border)', color: 'var(--ash)' }}>
                                     {(alu.grado_seccion || 'No inscrito').split(' - ')[0]}
                                 </span>
-                                {alu.estado_inscripcion === 'inscrito' && (
+                                {yaInscrito && (
                                     <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600">
                                         <AlertCircle size={12} /> Ya inscrito
                                     </span>
@@ -293,10 +330,12 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {['nombre', 'apellido', 'cedula_escolar'].map(field => (
                             <div key={field}>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>{field.replace('_', ' ')}</label>
-                                <input 
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    {LABELS_ALUMNO[field]}
+                                </label>
+                                <input
                                     name={field}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" 
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                     style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
                                     value={datos.alumno[field] || ''}
                                     onChange={handleNewAlumnoChange}
@@ -315,7 +354,7 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                         </div>
                         <div>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Género</label>
-                            <select 
+                            <select
                                 name="genero"
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                 style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
@@ -347,6 +386,13 @@ const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     );
 };
 
+const SkeletonGrado = () => (
+    <div className="p-5 rounded-2xl animate-pulse" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+        <div className="h-4 w-2/3 rounded-lg mb-3" style={{ background: 'var(--border-md)' }} />
+        <div className="h-2 w-full rounded-full" style={{ background: 'var(--border-md)' }} />
+    </div>
+);
+
 const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) => {
     const [grados, setGrados] = useState([]);
     const [config, setConfig] = useState(null);
@@ -361,19 +407,28 @@ const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) => {
                 ]);
                 setGrados(resG.data || []);
                 setConfig(resC.data);
-                setDatos(prev => ({ ...prev, periodo_escolar: resC.data?.periodo_escolar_activo || '2025-2026' }));
-            } catch (err) {
+                setDatos(prev => ({ ...prev, periodo_escolar: resC.data?.periodo_escolar_activo || '' }));
+            } catch {
                 toast.error("Error al cargar parámetros");
             } finally {
                 setLoading(false);
             }
         };
         fetchInfo();
-    }, [setDatos]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const seleccionado = grados.find(g => g.grado_seccion === datos.grado_seccion);
 
-    if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin" size={36} style={{ color: 'var(--pb)' }} /></div>;
+    if (loading) return (
+        <div className="max-w-5xl mx-auto space-y-10 animate-fadeIn">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Array.from({ length: 6 }).map((_, i) => <SkeletonGrado key={i} />)}
+                </div>
+                <div className="p-8 rounded-2xl animate-pulse" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', height: '220px' }} />
+            </div>
+        </div>
+    );
 
     return (
         <div className="max-w-5xl mx-auto space-y-10 animate-fadeIn">
@@ -385,11 +440,11 @@ const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) => {
                             const lleno = g.cupos_disponibles <= 0;
                             const pct = (g.cupos_utilizados / g.cupos_maximos) * 100;
                             return (
-                                <div 
+                                <div
                                     key={g.id}
                                     onClick={() => !lleno && setDatos(prev => ({ ...prev, grado_seccion: g.grado_seccion }))}
                                     className={`p-5 rounded-2xl border transition-all relative ${lleno ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
-                                    style={{ 
+                                    style={{
                                         border: datos.grado_seccion === g.grado_seccion ? '2px solid var(--pb)' : '0.5px solid var(--border-md)',
                                         background: datos.grado_seccion === g.grado_seccion ? 'var(--pb-light)' : 'var(--porcelain)'
                                     }}
@@ -417,12 +472,12 @@ const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) => {
                                 <label className="text-[11px] uppercase tracking-widest mb-1.5 block" style={{ color: 'var(--ash)' }}>Tipo de Ingreso</label>
                                 <div className="flex gap-2">
                                     {['nuevo', 'regular'].map(t => (
-                                        <button 
+                                        <button
                                             key={t}
                                             onClick={() => setDatos(prev => ({ ...prev, tipo_ingreso: t }))}
                                             className="flex-1 py-2 rounded-lg text-xs font-medium uppercase transition-all"
-                                            style={{ 
-                                                background: datos.tipo_ingreso === t ? 'var(--pb)' : 'var(--porcelain)', 
+                                            style={{
+                                                background: datos.tipo_ingreso === t ? 'var(--pb)' : 'var(--porcelain)',
                                                 color: datos.tipo_ingreso === t ? '#fff' : 'var(--ash)',
                                                 border: '0.5px solid var(--border-md)'
                                             }}
@@ -440,7 +495,10 @@ const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) => {
                             </div>
                             <div className="flex items-center justify-between p-4 rounded-xl border" style={{ background: 'var(--porcelain)', borderColor: 'var(--border-md)' }}>
                                 <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>Documentos completos</span>
-                                <button 
+                                <button
+                                    role="switch"
+                                    aria-checked={datos.documentos_completos}
+                                    aria-label="Documentos completos"
                                     onClick={() => setDatos(prev => ({ ...prev, documentos_completos: !prev.documentos_completos }))}
                                     className="w-12 h-6 rounded-full transition-all relative"
                                     style={{ background: datos.documentos_completos ? 'var(--pb)' : 'var(--border-md)' }}
@@ -481,7 +539,7 @@ const PasoConfirmacion = ({ datos, onContinuar, onVolver, cargando }) => {
                     </div>
                     <Info size={32} className="opacity-40" />
                 </div>
-                
+
                 <div className="p-8 space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <section className="space-y-3">
@@ -493,7 +551,9 @@ const PasoConfirmacion = ({ datos, onContinuar, onVolver, cargando }) => {
                         <section className="space-y-3">
                             <h4 className="text-[11px] uppercase tracking-widest pb-1.5 border-b" style={{ color: 'var(--ash)', borderColor: 'var(--border-md)' }}>Estudiante</h4>
                             <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{datos.alumno?.nombre} {datos.alumno?.apellido}</p>
-                            <p className="text-xs" style={{ color: 'var(--ash)' }}>F. Nacimiento: {datos.alumno?.fecha_nacimiento}</p>
+                            <p className="text-xs" style={{ color: 'var(--ash)' }}>
+                                F. Nacimiento: {formatFecha(datos.alumno?.fecha_nacimiento)}
+                            </p>
                             <p className="text-xs" style={{ color: 'var(--ash)' }}>Género: {datos.alumno?.genero}</p>
                         </section>
                         <section className="md:col-span-2 p-5 rounded-xl flex items-center justify-between" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--border-md)' }}>
@@ -509,7 +569,7 @@ const PasoConfirmacion = ({ datos, onContinuar, onVolver, cargando }) => {
                     </div>
 
                     <div className="flex flex-col gap-3 pt-4">
-                        <button 
+                        <button
                             disabled={cargando}
                             onClick={onContinuar}
                             className="w-full py-3.5 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
@@ -528,53 +588,72 @@ const PasoConfirmacion = ({ datos, onContinuar, onVolver, cargando }) => {
     );
 };
 
-const PantallaExito = ({ alumno, grado, onReiniciar, onDescargar }) => (
-    <div className="max-w-md mx-auto py-16 text-center space-y-6 animate-fadeIn">
-        <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-            <CheckCircle2 size={48} />
+const PantallaExito = ({ alumno, grado, onReiniciar, onDescargar }) => {
+    const [descargando, setDescargando] = useState(false);
+
+    const handleDescargar = async () => {
+        setDescargando(true);
+        try {
+            await onDescargar();
+        } finally {
+            setDescargando(false);
+        }
+    };
+
+    return (
+        <div className="max-w-md mx-auto py-16 text-center space-y-6 animate-fadeIn">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                <CheckCircle2 size={48} />
+            </div>
+            <div>
+                <h2 className="text-2xl font-medium tracking-tight" style={{ color: 'var(--jet)' }}>¡Inscripción Exitosa!</h2>
+                <p className="mt-2 text-sm" style={{ color: 'var(--ash)' }}>
+                    El estudiante <span className="font-medium" style={{ color: 'var(--jet)' }}>{alumno}</span> ha sido registrado correctamente en <span className="font-medium" style={{ color: 'var(--jet)' }}>{grado.split(' - ')[0]}</span>.
+                </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-4">
+                <button
+                    disabled={descargando}
+                    onClick={handleDescargar}
+                    className="w-full py-3 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-70"
+                    style={{ background: 'var(--pb)' }}
+                >
+                    {descargando
+                        ? <><Loader2 className="animate-spin" size={16} /> Generando comprobante...</>
+                        : <><FileText size={16} /> Ver Comprobante PDF</>
+                    }
+                </button>
+                <button
+                    onClick={onReiniciar}
+                    className="w-full py-3 rounded-xl text-sm font-medium transition-all"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                >
+                    Nueva Inscripción
+                </button>
+            </div>
         </div>
-        <div>
-            <h2 className="text-2xl font-medium tracking-tight" style={{ color: 'var(--jet)' }}>¡Inscripción Exitosa!</h2>
-            <p className="mt-2 text-sm" style={{ color: 'var(--ash)' }}>
-                El estudiante <span className="font-medium" style={{ color: 'var(--jet)' }}>{alumno}</span> ha sido registrado correctamente en <span className="font-medium" style={{ color: 'var(--jet)' }}>{grado.split(' - ')[0]}</span>.
-            </p>
-        </div>
-        <div className="flex flex-col gap-2 pt-4">
-            <button 
-                onClick={onDescargar}
-                className="w-full py-3 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2 transition-all"
-                style={{ background: 'var(--pb)' }}
-            >
-                <FileText size={16} /> Ver Comprobante PDF
-            </button>
-            <button 
-                onClick={onReiniciar}
-                className="w-full py-3 rounded-xl text-sm font-medium transition-all"
-                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-            >
-                Nueva Inscripción
-            </button>
-        </div>
-    </div>
-);
+    );
+};
 
 // --- COMPONENTE PRINCIPAL ---
+
+const ESTADO_INICIAL = {
+    representante: null,
+    esRepresentanteNuevo: false,
+    alumno: null,
+    esAlumnoNuevo: false,
+    grado_seccion: '',
+    tipo_ingreso: 'nuevo',
+    documentos_completos: false,
+    periodo_escolar: '',
+    inscripcion_id: null,
+};
 
 const Inscripciones = () => {
     const [paso, setPaso] = useState(1);
     const [loading, setLoading] = useState(false);
     const [exito, setExito] = useState(false);
-    const [datos, setDatos] = useState({
-        representante: null,
-        esRepresentanteNuevo: false,
-        alumno: null,
-        esAlumnoNuevo: false,
-        grado_seccion: '',
-        tipo_ingreso: 'nuevo',
-        documentos_completos: false,
-        periodo_escolar: '2025-2026',
-        inscripcion_id: null,
-    });
+    const [datos, setDatos] = useState(ESTADO_INICIAL);
 
     const descargarPDF = async (id) => {
         const targetId = id || datos.inscripcion_id;
@@ -616,10 +695,7 @@ const Inscripciones = () => {
             const payload = {
                 alumno: {
                     ...datos.alumno,
-                    representante: {
-                        ...datos.representante,
-                        direccion: datos.representante.direccion
-                    }
+                    representante: { ...datos.representante },
                 },
                 grado_seccion: datos.grado_seccion,
                 tipo_ingreso: datos.tipo_ingreso,
@@ -628,12 +704,10 @@ const Inscripciones = () => {
             };
 
             const res = await axiosInstance.post('secretaria/inscripcion-nueva/', payload);
-            
+
             if (res.status === 201) {
-                const id = res.data.inscripcion_id;
-                setDatos(prev => ({ ...prev, inscripcion_id: id }));
+                setDatos(prev => ({ ...prev, inscripcion_id: res.data.inscripcion_id }));
                 setExito(true);
-                descargarPDF(id);
             }
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al procesar inscripción';
@@ -646,17 +720,7 @@ const Inscripciones = () => {
     const reiniciar = () => {
         setPaso(1);
         setExito(false);
-        setDatos({
-            representante: null,
-            esRepresentanteNuevo: false,
-            alumno: null,
-            esAlumnoNuevo: false,
-            grado_seccion: '',
-            tipo_ingreso: 'nuevo',
-            documentos_completos: false,
-            periodo_escolar: '2025-2026',
-            inscripcion_id: null,
-        });
+        setDatos(ESTADO_INICIAL);
     };
 
     return (
@@ -673,43 +737,43 @@ const Inscripciones = () => {
 
                 <div className="mt-10">
                     {exito ? (
-                        <PantallaExito 
-                            alumno={`${datos.alumno?.nombre} ${datos.alumno?.apellido}`} 
-                            grado={datos.grado_seccion} 
-                            onReiniciar={reiniciar} 
-                            onDescargar={() => descargarPDF()}
+                        <PantallaExito
+                            alumno={`${datos.alumno?.nombre} ${datos.alumno?.apellido}`}
+                            grado={datos.grado_seccion}
+                            onReiniciar={reiniciar}
+                            onDescargar={() => descargarPDF(datos.inscripcion_id)}
                         />
                     ) : (
                         <>
                             {paso === 1 && (
-                                <PasoRepresentante 
-                                    datos={datos} 
-                                    setDatos={setDatos} 
-                                    onContinuar={() => setPaso(2)} 
+                                <PasoRepresentante
+                                    datos={datos}
+                                    setDatos={setDatos}
+                                    onContinuar={() => setPaso(2)}
                                 />
                             )}
                             {paso === 2 && (
-                                <PasoAlumno 
-                                    datos={datos} 
-                                    setDatos={setDatos} 
-                                    onContinuar={() => setPaso(3)} 
-                                    onVolver={() => setPaso(1)} 
+                                <PasoAlumno
+                                    datos={datos}
+                                    setDatos={setDatos}
+                                    onContinuar={() => setPaso(3)}
+                                    onVolver={() => setPaso(1)}
                                 />
                             )}
                             {paso === 3 && (
-                                <PasoConfiguracion 
-                                    datos={datos} 
-                                    setDatos={setDatos} 
-                                    onContinuar={() => setPaso(4)} 
-                                    onVolver={() => setPaso(2)} 
+                                <PasoConfiguracion
+                                    datos={datos}
+                                    setDatos={setDatos}
+                                    onContinuar={() => setPaso(4)}
+                                    onVolver={() => setPaso(2)}
                                 />
                             )}
                             {paso === 4 && (
-                                <PasoConfirmacion 
-                                    datos={datos} 
+                                <PasoConfirmacion
+                                    datos={datos}
                                     cargando={loading}
-                                    onContinuar={handleConfirmar} 
-                                    onVolver={() => setPaso(3)} 
+                                    onContinuar={handleConfirmar}
+                                    onVolver={() => setPaso(3)}
                                 />
                             )}
                         </>

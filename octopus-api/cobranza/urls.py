@@ -13,6 +13,7 @@ from .views import (
     ExportarAuditoriaExcelView,
     GenerarAnualidadView,
     HistoricoMensualView,
+    MensualidadesPuntualidadView,
     PagosListView,
     ReciboView,
     RegistrarPagoView,
@@ -37,4 +38,5 @@ urlpatterns = [
     path('comprobantes/',                  ConsultaComprobantesView.as_view(),     name='consulta-comprobantes'),
     path('comprobantes/<str:factura_id>/', ComprobanteDetalleView.as_view(),       name='comprobante-detalle'),
     path('pagos/lista/',                   PagosListView.as_view(),                name='pagos-lista'),
+    path('mensualidades/puntualidad/',     MensualidadesPuntualidadView.as_view(), name='mensualidades-puntualidad'),
 ]

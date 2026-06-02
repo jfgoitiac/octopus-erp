@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useRef, useContext } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     DollarSign, ArrowRight, Save, User,
     Plus, Trash2, ArrowLeft, AlertTriangle, Loader2, CheckCircle2,
-    RefreshCw
+    RefreshCw, Building2, Smartphone, CreditCard, Banknote,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import axiosInstance from '../api/apiClient';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { useTasaBCV } from './useTasaBCV';
+import { useTasaBCV } from '../hooks/useTasaBCV';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
 
 const METODOS_PAGO = [
@@ -71,6 +73,7 @@ const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocu
 const Cobranza = () => {
     const { user } = useContext(AuthContext);
     const location = useLocation();
+    const navigate = useNavigate();
     const { tasa, error: tasaError, ultimaActualizacion, refetch: refetchTasa } = useTasaBCV();
     const [step, setStep]           = useState(1);
     const [cedula, setCedula]       = useState('');
@@ -93,6 +96,9 @@ const Cobranza = () => {
     const [montosParciales, setMontosParciales]   = useState({}); // id → monto_usd string override
 
     const searchRef = useRef(null);
+    const abortRef  = useRef(null);
+    const [loadingBusqueda, setLoadingBusqueda] = useState(false);
+    const [confirming, setConfirming]           = useState(false);
 
     const totalUSD = useMemo(() => {
         return parseFloat(lineas.reduce((acc, l) => {
@@ -164,13 +170,25 @@ const Cobranza = () => {
     });
     const requiereDivisas = hayAdelantos || hayParciales;
 
+    const resetBusqueda = () => {
+        setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
+        setEstatusFinanciero(''); setAlumnoId(null);
+        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
+        setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
+    };
+
     const buscarAlumno = (val) => {
         setCedula(val);
         clearTimeout(searchRef.current);
+        abortRef.current?.abort();
         if (val.length > 6) {
+            setLoadingBusqueda(true);
             searchRef.current = setTimeout(async () => {
+                abortRef.current = new AbortController();
                 try {
-                    const res = await axiosInstance.get(`cobranza/buscar/${val}/`);
+                    const res = await axiosInstance.get(`cobranza/buscar/${val}/`, {
+                        signal: abortRef.current.signal,
+                    });
                     const alumnos = res.data.alumnos || [];
                     setRepresentanteNombre(res.data.representante?.nombre || '');
                     setAlumnosRep(alumnos);
@@ -189,30 +207,38 @@ const Cobranza = () => {
                         setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
                         setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
                     }
-                } catch {
-                    setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
-                    setEstatusFinanciero(''); setAlumnoId(null);
-                    setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
-                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
+                } catch (err) {
+                    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+                    resetBusqueda();
+                    const status = err.response?.status;
+                    if (status === 404) toast.info('Representante no encontrado.');
+                    else toast.error('Error al buscar. Verifica tu conexión.');
+                } finally {
+                    setLoadingBusqueda(false);
                 }
             }, 350);
         } else {
-            setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
-            setEstatusFinanciero(''); setAlumnoId(null);
-            setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
-            setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
+            setLoadingBusqueda(false);
+            resetBusqueda();
         }
     };
 
     useEffect(() => {
         const init = async () => {
-            const res = await axiosInstance.get('cobranza/bancos/');
-            setBancos(res.data);
-            const cedulaParam = new URLSearchParams(location.search).get('cedula');
-            if (cedulaParam) buscarAlumno(cedulaParam);
+            try {
+                const res = await axiosInstance.get('cobranza/bancos/');
+                setBancos(res.data);
+                const cedulaParam = new URLSearchParams(location.search).get('cedula');
+                if (cedulaParam) buscarAlumno(cedulaParam);
+            } catch {
+                toast.error('Error al cargar bancos. Recarga la página.');
+            }
         };
         init();
-        return () => clearTimeout(searchRef.current);
+        return () => {
+            clearTimeout(searchRef.current);
+            abortRef.current?.abort();
+        };
     }, [location.search]);
 
     const selAlumno = (alu) => {
@@ -256,6 +282,8 @@ const Cobranza = () => {
             toast.error(`Monto insuficiente. Se requieren al menos Bs. ${fmt(deudaVES)}.`);
             return;
         }
+        const sinBanco = lineas.some(l => requiereBanco(l.metodo_pago) && !l.banco_receptor_id);
+        if (sinBanco) { toast.error('Selecciona el banco receptor para todos los métodos de pago.'); return; }
         setLoading(true);
         try {
             const buildMontoPago = (id, lista) => {
@@ -351,12 +379,11 @@ const Cobranza = () => {
                 }));
 
                 const ahora = new Date();
-                const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
                 printReciboCobranza({
                     nroControl:       pagosCreados?.[0]?.factura_id || (pagosCreados?.[0]?.id ? String(pagosCreados[0].id).padStart(6, '0') : '—'),
-                    mes:              meses[ahora.getMonth()],
-                    año:              String(ahora.getFullYear()),
-                    fechaPago:        ahora.toLocaleDateString('es-VE'),
+                    mes:              format(ahora, 'MMMM', { locale: es }).toUpperCase(),
+                    año:              format(ahora, 'yyyy'),
+                    fechaPago:        format(ahora, 'dd/MM/yyyy', { locale: es }),
                     nombreEstudiante: nombreAlumno,
                     grado:            gradoAlumno,
                     representante:    representanteNombre,
@@ -372,6 +399,7 @@ const Cobranza = () => {
                 setLineas([crearLinea()]); setMensualidades([]); setSelectedMens([]);
                 setCuotasInscripcion([]); setSelectedCuotas([]);
                 setMensualidadesFuturas([]); setSelectedFuturas([]); setMontosParciales({});
+                setConfirming(false);
                 setStep(1);
             }
         } catch (err) {
@@ -397,7 +425,7 @@ const Cobranza = () => {
                 <p className="text-sm mb-5" style={{ color: 'var(--ash)' }}>
                     Su cuenta no tiene permisos para el módulo de cobranza.
                 </p>
-                <button onClick={() => window.history.back()}
+                <button onClick={() => navigate(-1)}
                     className="px-5 py-2 rounded-lg text-sm font-medium text-white"
                     style={{ background: 'var(--jet)' }}>
                     Regresar
@@ -419,13 +447,16 @@ const Cobranza = () => {
                     <User className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={15} />
                     <input
                         type="text"
-                        className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none"
+                        className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
                         style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                         placeholder="Ej: 12345678"
                         value={cedula}
                         onChange={e => buscarAlumno(e.target.value)}
                         autoFocus
                     />
+                    {loadingBusqueda && (
+                        <Loader2 className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" size={14} style={{ color: 'var(--ash)' }} />
+                    )}
                 </div>
             </div>
 
@@ -684,8 +715,12 @@ const Cobranza = () => {
     };
 
     const metodoPagoIcons = {
-        transferencia: '🏦', pago_movil: '📱', punto_de_venta: '💳',
-        zelle: '💵', efectivo: '💵', efectivo_ves: '💴',
+        transferencia:  <Building2 size={16} />,
+        pago_movil:     <Smartphone size={16} />,
+        punto_de_venta: <CreditCard size={16} />,
+        zelle:          <DollarSign size={16} />,
+        efectivo:       <Banknote size={16} />,
+        efectivo_ves:   <Banknote size={16} />,
     };
 
     return (
@@ -694,7 +729,7 @@ const Cobranza = () => {
             {/* Header */}
             <div className="flex items-center gap-3 mb-6 pb-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
                 <button
-                    onClick={() => setStep(1)}
+                    onClick={() => { setStep(1); setConfirming(false); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                 >
@@ -849,7 +884,7 @@ const Cobranza = () => {
                                                         opacity: bloqueado ? 0.45 : 1,
                                                     }}
                                                 >
-                                                    <span className="text-base">{metodoPagoIcons[m.value]}</span>
+                                                    <span className="flex items-center justify-center">{metodoPagoIcons[m.value]}</span>
                                                     <span className="text-center leading-tight">{m.label}</span>
                                                 </button>
                                             );
@@ -1041,17 +1076,47 @@ const Cobranza = () => {
                             </div>
                         )}
 
-                        {/* Botón confirmar */}
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={loading || !alumnoId}
-                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
-                            style={{ background: 'var(--pb)' }}
-                        >
-                            {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                            {loading ? 'Procesando…' : 'Confirmar Pago'}
-                        </button>
+                        {/* Botón confirmar — dos fases para evitar registros accidentales */}
+                        {confirming ? (
+                            <div className="space-y-2">
+                                <p className="text-xs text-center font-medium py-1.5 px-3 rounded-lg"
+                                    style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                                    ¿Confirmar el registro de este pago?
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirming(false)}
+                                        disabled={loading}
+                                        className="flex-1 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-all"
+                                        style={{ border: '1px solid var(--border-md)', color: 'var(--ash)' }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSubmit}
+                                        disabled={loading}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                                        style={{ background: 'var(--pb)' }}
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                                        {loading ? 'Procesando…' : 'Sí, registrar'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setConfirming(true)}
+                                disabled={!alumnoId}
+                                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                                style={{ background: 'var(--pb)' }}
+                            >
+                                <Save size={16} />
+                                Confirmar Pago
+                            </button>
+                        )}
 
                         <p className="text-[10px] text-center mt-2" style={{ color: 'var(--ash)' }}>
                             Se generará comprobante PDF automáticamente

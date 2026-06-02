@@ -1,253 +1,252 @@
-import { useContext, lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
-import { PortalAuthProvider } from './portal/context/PortalAuthContext';
-import { SedeProvider } from './context/SedeContext';
+import { ROLE_GROUPS } from './constants/roles';
+import AppProviders from './components/AppProviders';
+import ProtectedRoute from './components/ProtectedRoute';
 import PortalProtectedRoute from './portal/components/PortalProtectedRoute';
 import PortalLayout from './portal/components/PortalLayout';
-import Cobranza from './pages/Cobranza';
-import CobranzaDashboard from './pages/CobranzaDashboard';
-import Comprobantes from './pages/Comprobantes';
-import Inscripciones from './pages/Inscripciones';
-import ListaAlumnos from './pages/ListaAlumnos';
-import Nomina from './pages/Nomina';
-import Auditoria from './pages/Auditoria';
-import Reportes from './pages/Reportes';
-import Sistemas from './pages/Sistemas';
-import { AuthContext } from './context/AuthContext';
 import MainLayout from './components/MainLayout';
-import Configuracion from './pages/Configuracion';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Representantes from './pages/Representantes';
-import Morosos from './pages/Morosos';
-import Grados from './pages/Grados';
-import Conciliador from './pages/Conciliador';
-import Recibos from './pages/Recibos';
-import Notas from './pages/Notas';
-import Boletin from './pages/Boletin';
-import Asistencia from './pages/Asistencia';
-import Horarios from './pages/Horarios';
 
-// Portal de Representantes — lazy loaded
-const PortalLogin = lazy(() => import('./portal/pages/PortalLogin'));
-const PortalDashboard = lazy(() => import('./portal/pages/PortalDashboard'));
-const PortalHistorialPagos = lazy(() => import('./portal/pages/PortalHistorialPagos'));
-const PortalCambiarContrasena = lazy(() => import('./portal/pages/PortalCambiarContrasena'));
+// ── Portal de Representantes ──────────────────────────────────────────────────
+const PortalLogin              = lazy(() => import('./portal/pages/PortalLogin'));
+const PortalDashboard          = lazy(() => import('./portal/pages/PortalDashboard'));
+const PortalHistorialPagos     = lazy(() => import('./portal/pages/PortalHistorialPagos'));
+const PortalCambiarContrasena  = lazy(() => import('./portal/pages/PortalCambiarContrasena'));
 
-// Multi-Sede — lazy loaded
-const MultiSedeDashboard = lazy(() => import('./pages/MultiSedeDashboard'));
-const SedeDetalle = lazy(() => import('./pages/SedeDetalle'));
-const GestionSedes = lazy(() => import('./pages/GestionSedes'));
-
-// Configuración de Notificaciones — lazy loaded
+// ── Panel administrativo ──────────────────────────────────────────────────────
+const Login                    = lazy(() => import('./pages/Login'));
+const Dashboard                = lazy(() => import('./pages/Dashboard'));
+const Inscripciones            = lazy(() => import('./pages/Inscripciones'));
+const CobranzaDashboard        = lazy(() => import('./pages/CobranzaDashboard'));
+const Cobranza                 = lazy(() => import('./pages/Cobranza'));
+const Comprobantes             = lazy(() => import('./pages/Comprobantes'));
+const ListaAlumnos             = lazy(() => import('./pages/ListaAlumnos'));
+const Grados                   = lazy(() => import('./pages/Grados'));
+const Morosos                  = lazy(() => import('./pages/Morosos'));
+const Representantes           = lazy(() => import('./pages/Representantes'));
+const Reportes                 = lazy(() => import('./pages/Reportes'));
+const Sistemas                 = lazy(() => import('./pages/Sistemas'));
+const Nomina                   = lazy(() => import('./pages/Nomina'));
+const Recibos                  = lazy(() => import('./pages/Recibos'));
+const Conciliador              = lazy(() => import('./pages/Conciliador'));
+const Auditoria                = lazy(() => import('./pages/Auditoria'));
+const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
 
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated, user, loading } = useContext(AuthContext);
+// ── Módulo Académico ──────────────────────────────────────────────────────────
+const Notas                    = lazy(() => import('./pages/Notas'));
+const Boletin                  = lazy(() => import('./pages/Boletin'));
+const Asistencia               = lazy(() => import('./pages/Asistencia'));
+const Horarios                 = lazy(() => import('./pages/Horarios'));
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-3 justify-center items-center h-screen" style={{ background: 'var(--bg)' }}>
-        <Loader2 className="animate-spin" size={32} style={{ color: 'var(--pb)' }} />
-        <span className="text-sm font-medium" style={{ color: 'var(--ash)' }}>Cargando sistema...</span>
-      </div>
-    );
-  }
+// ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
+const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
+const SedeDetalle              = lazy(() => import('./pages/SedeDetalle'));
+const GestionSedes             = lazy(() => import('./pages/GestionSedes'));
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+// ── 404 ───────────────────────────────────────────────────────────────────────
+const NotFound                 = lazy(() => import('./pages/NotFound'));
 
-  if (!allowedRoles) {
-    return children;
-  }
-
-  const userRole = (user?.rol || '').toLowerCase().trim();
-
-  if (!allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-};
+const SuspenseFallback = () => (
+  <div
+    className="flex flex-col gap-3 justify-center items-center h-screen"
+    style={{ background: 'var(--bg)' }}
+  >
+    <Loader2 className="animate-spin" size={32} style={{ color: 'var(--pb)' }} />
+    <span className="text-sm font-medium" style={{ color: 'var(--ash)' }}>
+      Cargando...
+    </span>
+  </div>
+);
 
 function App() {
   return (
-    <SedeProvider>
-    <PortalAuthProvider>
-    <Router>
-      <Suspense fallback={
-        <div className="flex justify-center items-center h-screen">
-          <Loader2 className="animate-spin" size={28} style={{ color: '#0fa3b1' }} />
-        </div>
-      }>
-      <Routes>
-        {/* ── Rutas del Portal de Representantes ── */}
-        <Route path="/portal/login" element={<PortalLogin />} />
-        <Route
-          path="/portal"
-          element={
-            <PortalProtectedRoute>
-              <PortalLayout />
-            </PortalProtectedRoute>
-          }
-        >
-          <Route index element={<PortalDashboard />} />
-          <Route path="historial" element={<PortalHistorialPagos />} />
-          <Route path="cambiar-contrasena" element={<PortalCambiarContrasena />} />
-        </Route>
-        <Route path="/login" element={<Login />} />
+    <AppProviders>
+      <Router>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Routes>
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
+            {/* ── Portal de Representantes ── */}
+            <Route path="/portal/login" element={<PortalLogin />} />
+            <Route
+              path="/portal"
+              element={
+                <PortalProtectedRoute>
+                  <PortalLayout />
+                </PortalProtectedRoute>
+              }
+            >
+              <Route index element={<PortalDashboard />} />
+              <Route path="historial" element={<PortalHistorialPagos />} />
+              <Route path="cambiar-contrasena" element={<PortalCambiarContrasena />} />
+            </Route>
 
-          <Route path="inscripciones" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'secretaria']}>
-              <Inscripciones />
-            </ProtectedRoute>
-          } />
+            {/* ── Autenticación admin ── */}
+            <Route path="/login" element={<Login />} />
 
-          <Route path="cobranza/dashboard" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza']}>
-              <CobranzaDashboard />
-            </ProtectedRoute>
-          } />
+            {/* ── Panel administrativo (requiere auth) ── */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
 
-          <Route path="cobranza" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza', 'cajero']}>
-              <Cobranza />
-            </ProtectedRoute>
-          } />
+              {/* Gestión de alumnos */}
+              <Route path="inscripciones" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <Inscripciones />
+                </ProtectedRoute>
+              } />
+              <Route path="alumnos" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.STAFF_SEDE}>
+                  <ListaAlumnos />
+                </ProtectedRoute>
+              } />
+              <Route path="grados" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <Grados />
+                </ProtectedRoute>
+              } />
+              <Route path="representantes" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ATENCION_FAMILIAS}>
+                  <Representantes />
+                </ProtectedRoute>
+              } />
+              <Route path="morosos" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.MORA}>
+                  <Morosos />
+                </ProtectedRoute>
+              } />
 
-          <Route path="comprobantes" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza', 'cajero']}>
-              <Comprobantes />
-            </ProtectedRoute>
-          } />
+              {/* Cobranza */}
+              <Route path="cobranza/dashboard" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.FINANZAS}>
+                  <CobranzaDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.CAJA}>
+                  <Cobranza />
+                </ProtectedRoute>
+              } />
+              <Route path="comprobantes" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.CAJA}>
+                  <Comprobantes />
+                </ProtectedRoute>
+              } />
+              <Route path="conciliador" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.FINANZAS}>
+                  <Conciliador />
+                </ProtectedRoute>
+              } />
+              <Route path="recibos" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Recibos />
+                </ProtectedRoute>
+              } />
 
-          <Route path="alumnos" element={<ListaAlumnos />} />
+              {/* Reportes y nómina */}
+              <Route path="reportes" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Reportes />
+                </ProtectedRoute>
+              } />
+              <Route path="nomina" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Nomina />
+                </ProtectedRoute>
+              } />
 
-          <Route path="grados" element={<Grados />} />
+              {/* Administración del sistema */}
+              <Route path="sistemas" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Sistemas />
+                </ProtectedRoute>
+              } />
+              <Route path="auditoria" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Auditoria />
+                </ProtectedRoute>
+              } />
+              <Route path="configuracion" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Configuracion />
+                </ProtectedRoute>
+              } />
+              <Route path="configuracion/notificaciones" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <ConfiguracionNotificaciones />
+                </ProtectedRoute>
+              } />
 
-          <Route path="morosos" element={
-            <ProtectedRoute allowedRoles={['director', 'administrador', 'secretaria', 'cajero', 'sistemas']}>
-              <Morosos />
-            </ProtectedRoute>
-          } />
+              {/* Módulo Académico */}
+              <Route path="notas" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <Notas />
+                </ProtectedRoute>
+              } />
+              <Route path="boletin" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Boletin />
+                </ProtectedRoute>
+              } />
+              <Route path="asistencia" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <Asistencia />
+                </ProtectedRoute>
+              } />
+              <Route path="horarios" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Horarios />
+                </ProtectedRoute>
+              } />
 
-          <Route path="representantes" element={
-            <ProtectedRoute allowedRoles={['director', 'administrador', 'secretaria', 'cajero']}>
-              <Representantes />
-            </ProtectedRoute>
-          } />
-          <Route path="reportes" element={<Reportes />} />
+              {/* Módulo Multi-Sede */}
+              <Route path="multisede" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.RED_DIRECTIVA}>
+                  <MultiSedeDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="multisede/sedes" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SOLO_RED}>
+                  <GestionSedes />
+                </ProtectedRoute>
+              } />
+              <Route path="multisede/:sedeId" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.RED_DIRECTIVA}>
+                  <SedeDetalle />
+                </ProtectedRoute>
+              } />
 
-          <Route path="sistemas" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
-              <Sistemas />
-            </ProtectedRoute>
-          } />
+              {/* 404 dentro del panel */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
 
-          <Route path="nomina" element={<Nomina />} />
+            {/* 404 global (rutas fuera del panel) */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
 
-          <Route path="recibos" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
-              <Recibos />
-            </ProtectedRoute>
-          } />
+          </Routes>
+        </Suspense>
 
-
-          <Route path="conciliador" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'cobranza']}>
-              <Conciliador />
-            </ProtectedRoute>
-          } />
-
-          <Route path="auditoria" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
-              <Auditoria />
-            </ProtectedRoute>
-          } />
-
-          <Route path="configuracion" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
-              <Configuracion />
-            </ProtectedRoute>
-          } />
-
-          <Route path="configuracion/notificaciones" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
-              <ConfiguracionNotificaciones />
-            </ProtectedRoute>
-          } />
-
-          {/* ── Módulo Académico ── */}
-          <Route path="notas" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'secretaria']}>
-              <Notas />
-            </ProtectedRoute>
-          } />
-          <Route path="boletin" element={
-            <ProtectedRoute allowedRoles={['director', 'administrador']}>
-              <Boletin />
-            </ProtectedRoute>
-          } />
-          <Route path="asistencia" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador', 'secretaria']}>
-              <Asistencia />
-            </ProtectedRoute>
-          } />
-          <Route path="horarios" element={
-            <ProtectedRoute allowedRoles={['director', 'sistemas', 'administrador']}>
-              <Horarios />
-            </ProtectedRoute>
-          } />
-
-          {/* ── Módulo Multi-Sede ── */}
-          <Route path="multisede" element={
-            <ProtectedRoute allowedRoles={['directivo_red','director']}>
-              <MultiSedeDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="multisede/sedes" element={
-            <ProtectedRoute allowedRoles={['directivo_red']}>
-              <GestionSedes />
-            </ProtectedRoute>
-          } />
-          <Route path="multisede/:sedeId" element={
-            <ProtectedRoute allowedRoles={['directivo_red','director']}>
-              <SedeDetalle />
-            </ProtectedRoute>
-          } />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-      </Suspense>
-
-      <ToastContainer
-        position="bottom-right"
-        autoClose={5500}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-    </Router>
-    </PortalAuthProvider>
-    </SedeProvider>
+        <ToastContainer
+          position="bottom-right"
+          autoClose={5500}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
+      </Router>
+    </AppProviders>
   );
 }
 

@@ -16,3 +16,6 @@ export const secretariaService = {
     return response.data;
   }
 };
+
+export const buscarAlumnos = (termino, signal) =>
+  apiClient.get(`secretaria/alumnos/?buscar=${encodeURIComponent(termino)}`, { signal });

@@ -33,7 +33,22 @@ class Empleado(models.Model):
     apellido = models.CharField(max_length=100)
     cedula = models.CharField(max_length=15, unique=True)
     cargo = models.CharField(max_length=100)
+
+    TIPOS_PERSONAL = [
+        ('docente', 'Docente'),
+        ('administrativo', 'Administrativo'),
+        ('apoyo', 'Personal de Apoyo'),
+    ]
     TIPO_CUENTA_CHOICES = [('CTE', 'Corriente'), ('AHO', 'Ahorro')]
+
+    tipo_personal = models.CharField(max_length=20, choices=TIPOS_PERSONAL, default='docente')
+    fecha_ingreso = models.DateField(null=True, blank=True)
+    titulo = models.CharField(max_length=100, blank=True, default='')
+    categoria_docente = models.CharField(max_length=50, blank=True, default='')
+    anos_servicio = models.PositiveIntegerField(null=True, blank=True, default=0)
+    numero_hijos = models.PositiveIntegerField(default=0)
+    nivel = models.CharField(max_length=100, blank=True, default='')
+    horas_semanales = models.PositiveSmallIntegerField(null=True, blank=True)
 
     banco = models.ForeignKey(BancoNomina, null=True, blank=True, on_delete=models.SET_NULL, related_name='empleados')
     numero_cuenta = models.CharField(max_length=30, blank=True, default='')

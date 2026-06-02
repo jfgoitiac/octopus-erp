@@ -24,8 +24,8 @@ export const revocarUsuarioSede = (sedeId, userId) =>
   apiClient.delete(`multisede/sedes/${sedeId}/usuarios/${userId}/`).then(r => r.data);
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-export const getDashboardConsolidado = () =>
-  apiClient.get('multisede/dashboard/').then(r => r.data);
+export const getDashboardConsolidado = (signal) =>
+  apiClient.get('multisede/dashboard/', { signal }).then(r => r.data);
 
-export const getDashboardSede = (sedeId) =>
-  apiClient.get(`multisede/dashboard/${sedeId}/`).then(r => r.data);
+export const getDashboardSede = (sedeId, signal) =>
+  apiClient.get(`multisede/dashboard/${sedeId}/`, { signal }).then(r => r.data);

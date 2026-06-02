@@ -161,12 +161,20 @@ class DashboardStatsView(APIView):
         cobrado_hoy_ves = pagos_hoy.aggregate(t=Sum('monto_ves'))['t'] or Decimal('0')
         pagos_hoy_count = pagos_hoy.aggregate(c=Count('id'))['c'] or 0
 
-        # Ocupación por grado
-        grados = list(
-            ConfiguracionGrado.objects
-            .values('grado_seccion', 'cupos_maximos', 'cupos_utilizados')
-            .order_by('grado_seccion')
-        )
+        # Ocupación y morosidad por grado
+        configs = ConfiguracionGrado.objects.order_by('grado_seccion')
+        grados = []
+        for cfg in configs:
+            alumnos_grado = activos.filter(grado_seccion=cfg.grado_seccion)
+            total_grado   = alumnos_grado.count()
+            morosos_grado = alumnos_grado.filter(estatus_financiero='mora').count()
+            grados.append({
+                'grado':            cfg.grado_seccion,
+                'cupos_maximos':    cfg.cupos_maximos,
+                'cupos_utilizados': cfg.cupos_utilizados,
+                'total_alumnos':    total_grado,
+                'morosos':          morosos_grado,
+            })
 
         return Response({
             'total_activos':     total_activos,
@@ -481,27 +489,35 @@ class AuditoriaDiariaView(APIView):
             estatus='completado'
         )
 
-        total_usd = pagos_hoy.filter(
-            metodo_pago__in=['efectivo', 'zelle']
-        ).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
+        def _usd(metodo):
+            return pagos_hoy.filter(metodo_pago=metodo).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
 
-        efectivo_usd = pagos_hoy.filter(
-            metodo_pago='efectivo'
-        ).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
+        def _ves(metodo):
+            return pagos_hoy.filter(metodo_pago=metodo).aggregate(t=Sum('monto_ves'))['t'] or Decimal('0')
 
-        transferencia_ves = pagos_hoy.filter(
-            metodo_pago__in=['transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves']
-        ).aggregate(t=Sum('monto_ves'))['t'] or Decimal('0')
+        efectivo_usd          = _usd('efectivo')
+        zelle_usd             = _usd('zelle')
+        transf_bancaria_ves   = _ves('transferencia')
+        pago_movil_ves        = _ves('pago_movil')
+        punto_venta_ves       = _ves('punto_de_venta')
+        efectivo_bolivares_ves = _ves('efectivo_ves')
 
-        total_ves = pagos_hoy.aggregate(t=Sum('monto_ves'))['t'] or Decimal('0')
-        conteo = pagos_hoy.aggregate(c=Count('id'))['c'] or 0
+        total_usd         = efectivo_usd + zelle_usd
+        transferencia_ves = transf_bancaria_ves + pago_movil_ves + punto_venta_ves + efectivo_bolivares_ves
+        total_ves         = pagos_hoy.aggregate(t=Sum('monto_ves'))['t'] or Decimal('0')
+        conteo            = pagos_hoy.aggregate(c=Count('id'))['c'] or 0
 
         return Response({
-            'total_usd':        total_usd,
-            'total_ves':        total_ves,
-            'efectivo_usd':     efectivo_usd,
-            'transferencia_ves': transferencia_ves,
-            'conteo_pagos':     conteo,
+            'total_usd':              total_usd,
+            'total_ves':              total_ves,
+            'efectivo_usd':           efectivo_usd,
+            'zelle_usd':              zelle_usd,
+            'transferencia_ves':      transferencia_ves,
+            'transf_bancaria_ves':    transf_bancaria_ves,
+            'pago_movil_ves':         pago_movil_ves,
+            'punto_venta_ves':        punto_venta_ves,
+            'efectivo_bolivares_ves': efectivo_bolivares_ves,
+            'conteo_pagos':           conteo,
         })
 
 
@@ -955,4 +971,101 @@ class PagosListView(APIView):
             'page_size':   page_size,
             'total_pages': max(1, (total + page_size - 1) // page_size),
             'results':     PagoSerializer(pagos, many=True).data,
+        })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PUNTUALIDAD DE PAGOS (atrasado / a tiempo / adelantado)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class MensualidadesPuntualidadView(APIView):
+    """
+    Clasifica las mensualidades pagadas según cuándo se abonaron respecto
+    al mes que corresponden:
+      - adelantado: fecha_pago antes del mes de la mensualidad
+      - a_tiempo:   fecha_pago dentro del mismo mes
+      - atrasado:   fecha_pago después del mes de la mensualidad
+
+    Parámetros:
+      granularidad: 'dia' | 'mes' | 'anio'  (default: 'anio')
+      fecha:  YYYY-MM-DD  (para granularidad=dia, default: hoy)
+      anio:   YYYY        (para granularidad=mes o anio, default: año actual)
+      mes:    1..12       (para granularidad=mes, default: mes actual)
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import (
+            Case, When, Value, CharField, Count,
+            ExpressionWrapper, IntegerField, F,
+        )
+        from django.db.models.functions import ExtractMonth, ExtractYear
+        from datetime import date as _date, datetime
+
+        granularidad = request.query_params.get('granularidad', 'anio')
+        anio_param   = request.query_params.get('anio')
+        mes_param    = request.query_params.get('mes')
+        fecha_param  = request.query_params.get('fecha')
+
+        hoy = _date.today()
+        qs  = Mensualidad.objects.filter(pagado=True, fecha_pago__isnull=False)
+
+        if granularidad == 'dia':
+            if fecha_param:
+                try:
+                    fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+                except ValueError:
+                    return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                fecha = hoy
+            qs = qs.filter(fecha_pago__date=fecha)
+
+        elif granularidad == 'mes':
+            try:
+                anio = int(anio_param) if anio_param else hoy.year
+                mes  = int(mes_param)  if mes_param  else hoy.month
+                if not (1 <= mes <= 12):
+                    raise ValueError
+            except (ValueError, TypeError):
+                return Response({"error": "anio y mes deben ser enteros válidos."}, status=status.HTTP_400_BAD_REQUEST)
+            qs = qs.filter(fecha_pago__year=anio, fecha_pago__month=mes)
+
+        else:  # anio
+            try:
+                anio = int(anio_param) if anio_param else hoy.year
+            except (ValueError, TypeError):
+                return Response({"error": "anio debe ser un entero."}, status=status.HTTP_400_BAD_REQUEST)
+            qs = qs.filter(fecha_pago__year=anio)
+
+        qs = qs.annotate(
+            payment_ym=ExpressionWrapper(
+                ExtractYear('fecha_pago') * 12 + ExtractMonth('fecha_pago'),
+                output_field=IntegerField(),
+            ),
+            due_ym=ExpressionWrapper(
+                F('anio') * 12 + F('mes'),
+                output_field=IntegerField(),
+            ),
+        ).annotate(
+            tipo_pago=Case(
+                When(payment_ym__lt=F('due_ym'), then=Value('adelantado')),
+                When(payment_ym=F('due_ym'),     then=Value('a_tiempo')),
+                default=Value('atrasado'),
+                output_field=CharField(max_length=20),
+            )
+        )
+
+        counts = {row['tipo_pago']: row['count'] for row in
+                  qs.values('tipo_pago').annotate(count=Count('id'))}
+
+        total      = sum(counts.values())
+        atrasado   = counts.get('atrasado',   0)
+        a_tiempo   = counts.get('a_tiempo',   0)
+        adelantado = counts.get('adelantado', 0)
+
+        return Response({
+            'total':      total,
+            'atrasado':   atrasado,
+            'a_tiempo':   a_tiempo,
+            'adelantado': adelantado,
         })

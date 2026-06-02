@@ -1,8 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Calendar, RefreshCcw, Search, Filter, Clock, ArrowUpRight, Wallet, Banknote, ListChecks, Download, AlertCircle, Loader2 } from 'lucide-react';
+import {
+    Calendar, RefreshCcw, Search, Filter, Clock,
+    ArrowUpRight, Wallet, Banknote, ListChecks, Download,
+    AlertCircle, Loader2, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import DatePickerES from '../components/DatePickerES';
-import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { useAuditoria } from '../hooks/useAuditoria';
+import { fmt, formatLogDate, badgeClass } from '../utils/auditoria.utils';
+
+const ITEMS_PER_PAGE = 25;
+
+// ─── DetallesLog ──────────────────────────────────────────────────────────────
 
 const DetallesLog = ({ detalles }) => {
     if (!detalles) return <span className="italic" style={{ color: 'var(--ash)' }}>Sin detalles</span>;
@@ -34,203 +43,132 @@ const DetallesLog = ({ detalles }) => {
     );
 };
 
-const Auditoria = () => {
-    const [loading, setLoading]       = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [exporting, setExporting]   = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+const AuditoriaSkeleton = () => (
+    <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-48 rounded-lg" style={{ background: 'var(--porcelain)' }} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-24 rounded-xl" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }} />
+            ))}
+        </div>
+        <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
+            <div className="h-14" style={{ background: 'var(--porcelain)' }} />
+            {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="mx-4 my-3 h-10 rounded-lg" style={{ background: 'var(--ash-light)' }} />
+            ))}
+        </div>
+    </div>
+);
+
+// ─── KPIs ─────────────────────────────────────────────────────────────────────
+
+const KPI_CONFIG = [
+    { key: 'total_usd',         label: 'Ingreso USD',  cur: 'USD', icon: ArrowUpRight, color: '#16a34a',      bg: '#dcfce7' },
+    { key: 'efectivo_usd',      label: 'Efectivo USD', cur: 'USD', icon: Wallet,       color: 'var(--jet)',   bg: 'var(--ash-light)' },
+    { key: 'transferencia_ves', label: 'Total VES',    cur: 'VES', icon: Banknote,     color: 'var(--pb)',    bg: 'var(--pb-light)' },
+    { key: 'conteo_pagos',      label: 'Pagos',        cur: null,  icon: ListChecks,   color: 'var(--ash)',   bg: 'var(--porcelain)' },
+];
+
+const AuditoriaKPIs = ({ reporte }) => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {KPI_CONFIG.map(({ key, label, cur, icon: Icon, color, bg }) => (
+            <div key={key} className="p-4 rounded-xl" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                <div className="flex justify-between items-start mb-3">
+                    <div className="p-1.5 rounded-lg" style={{ background: bg, color }}><Icon size={16} /></div>
+                    <p className="text-[10px] uppercase tracking-widest text-right" style={{ color: 'var(--ash)' }}>{label}</p>
+                </div>
+                <p className="text-xl font-bold" style={{ color }}>
+                    {cur ? fmt(reporte?.[key], cur) : (reporte?.[key] ?? 0)}
+                </p>
+            </div>
+        ))}
+    </div>
+);
+
+// ─── Tabla con filtros y paginación ───────────────────────────────────────────
+
+const AuditoriaTabla = ({ logs }) => {
+    const [searchTerm, setSearchTerm]     = useState('');
     const [filtroModulo, setFiltroModulo] = useState('TODOS');
-    const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
-    const [fechaFin, setFechaFin]       = useState(new Date().toISOString().split('T')[0]);
-    const [error, setError]           = useState(null);
-
-    const [reporte, setReporte] = useState({
-        total_usd: 0, total_ves: 0, efectivo_usd: 0, transferencia_ves: 0, conteo_pagos: 0,
-    });
-    const [logs, setLogs] = useState([]);
-
-    const fetchAuditoria = async (isRefresh = false) => {
-        if (isRefresh) setRefreshing(true);
-        else setLoading(true);
-        setError(null);
-        try {
-            const [resStats, resLogs] = await Promise.all([
-                axiosInstance.get('cobranza/auditoria-diaria/', {
-                    params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
-                }),
-                axiosInstance.get('secretaria/auditoria/'),
-            ]);
-            setReporte(resStats.data);
-            setLogs(
-                (resLogs.data || []).sort((a, b) =>
-                    new Date(b.fecha_hora || b.fecha) - new Date(a.fecha_hora || a.fecha)
-                )
-            );
-        } catch {
-            setError('No se pudo sincronizar el historial de auditoría.');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    useEffect(() => { fetchAuditoria(); }, []);
-
-    const handleExportExcel = async () => {
-        setExporting(true);
-        try {
-            const res = await axiosInstance.get('cobranza/exportar-excel/', {
-                params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
-                responseType: 'blob',
-            });
-            const url = URL.createObjectURL(new Blob([res.data], {
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            }));
-            const a = Object.assign(document.createElement('a'), {
-                href: url,
-                download: `auditoria_${fechaInicio}_${fechaFin}.xlsx`,
-            });
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            toast.success('Archivo Excel descargado.');
-        } catch {
-            toast.error('No se pudo generar el Excel.');
-        } finally {
-            setExporting(false);
-        }
-    };
-
-    const logsFiltrados = useMemo(() => {
-        return logs.filter(log => {
-            const username = log.usuario?.username || log.usuario_nombre || 'SISTEMA';
-            const accion   = log.accion || '';
-            const detallesStr = typeof log.detalles === 'string'
-                ? log.detalles
-                : log.detalles ? JSON.stringify(log.detalles) : '';
-
-            const cumpleBusqueda =
-                detallesStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                accion.toLowerCase().includes(searchTerm.toLowerCase());
-
-            const cumpleModulo = filtroModulo === 'TODOS' || log.modulo === filtroModulo;
-            return cumpleBusqueda && cumpleModulo;
-        });
-    }, [logs, searchTerm, filtroModulo]);
-
-    const fmt = (val, cur = 'USD') =>
-        new Intl.NumberFormat(cur === 'USD' ? 'en-US' : 'es-VE', {
-            style: 'currency', currency: cur, minimumFractionDigits: 2,
-        }).format(val || 0);
-
-    const badgeClass = (accion) => {
-        const a = (accion || '').toUpperCase();
-        if (a.includes('ELIMINACION') || a.includes('ANULACION') || a.includes('DELETE')) return 'bg-red-50 text-red-700 border-red-100';
-        if (a.includes('REGISTRO') || a.includes('CREACION') || a.includes('INSCRIPCION')) return 'bg-green-50 text-green-700 border-green-100';
-        if (a.includes('INICIO_SESION') || a.includes('LOGIN')) return 'bg-blue-50 text-blue-700 border-blue-100';
-        if (a.includes('ACTUALIZACION') || a.includes('EDICION') || a.includes('AJUSTE')) return 'bg-amber-50 text-amber-700 border-amber-100';
-        return 'bg-slate-50 text-slate-600 border-slate-100';
-    };
+    const [currentPage, setCurrentPage]   = useState(1);
 
     const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
 
-    if (loading) return (
-        <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin" size={28} style={{ color: 'var(--pb)' }} />
-        </div>
+    const logsFiltrados = useMemo(() => (
+        logs.filter(log => {
+            const username    = log.usuario?.username || log.usuario_nombre || 'SISTEMA';
+            const accion      = log.accion || '';
+            const detallesStr = typeof log.detalles === 'string'
+                ? log.detalles
+                : log.detalles ? JSON.stringify(log.detalles) : '';
+            const term = searchTerm.toLowerCase();
+            const cumpleBusqueda =
+                detallesStr.toLowerCase().includes(term) ||
+                username.toLowerCase().includes(term) ||
+                accion.toLowerCase().includes(term);
+            const cumpleModulo = filtroModulo === 'TODOS' || log.modulo === filtroModulo;
+            return cumpleBusqueda && cumpleModulo;
+        })
+    ), [logs, searchTerm, filtroModulo]);
+
+    // Reset to page 1 whenever the filtered result set changes
+    useEffect(() => { setCurrentPage(1); }, [logsFiltrados]);
+
+    const totalPages = Math.max(1, Math.ceil(logsFiltrados.length / ITEMS_PER_PAGE));
+    const paginated  = logsFiltrados.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
     );
 
     return (
-        <div className="anim-fade-up">
-            <div className="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Auditoría</h2>
-                    <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>Control de ingresos y actividad del sistema.</p>
-                </div>
+        <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
 
-                <div className="flex flex-wrap items-end gap-2">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
-                        <DatePickerES value={fechaInicio} onChange={e => setFechaInicio(e.target.value)}
-                            className="px-2 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} />
+            {/* Filters header */}
+            <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-3"
+                style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
+                <div className="flex items-center gap-2">
+                    <Calendar size={16} style={{ color: 'var(--pb)' }} />
+                    <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Historial de Operaciones</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
+                        {logsFiltrados.length}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-56">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={13} />
+                        <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none"
+                            style={inputStyle}
+                        />
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
-                        <DatePickerES value={fechaFin} onChange={e => setFechaFin(e.target.value)}
-                            className="px-2 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} />
+                    <div className="relative">
+                        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={13} />
+                        <select
+                            value={filtroModulo}
+                            onChange={e => setFiltroModulo(e.target.value)}
+                            className="pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none appearance-none"
+                            style={inputStyle}
+                        >
+                            <option value="TODOS">Todos los módulos</option>
+                            <option value="COBRANZA">Cobranza</option>
+                            <option value="SECRETARIA">Secretaría</option>
+                            <option value="SEGURIDAD">Seguridad</option>
+                            <option value="FINANZAS">Finanzas</option>
+                        </select>
                     </div>
-                    <button onClick={() => fetchAuditoria(true)} disabled={refreshing}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                        <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
-                        {refreshing ? 'Actualizando...' : 'Actualizar'}
-                    </button>
-                    <button onClick={handleExportExcel} disabled={exporting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50"
-                        style={{ background: 'var(--jet)' }}>
-                        {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                        Exportar Excel
-                    </button>
                 </div>
             </div>
 
-            {error && (
-                <div className="mb-5 flex items-center gap-2 p-3 rounded-xl text-sm" style={{ background: '#fef2f2', border: '0.5px solid #fecaca', color: '#dc2626' }}>
-                    <AlertCircle size={16} />
-                    {error}
-                </div>
-            )}
-
-            {/* KPI strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                {[
-                    { label: 'Ingreso USD', value: fmt(reporte.total_usd), icon: ArrowUpRight, color: '#16a34a', bg: '#dcfce7' },
-                    { label: 'Efectivo USD', value: fmt(reporte.efectivo_usd), icon: Wallet, color: 'var(--jet)', bg: 'var(--ash-light)' },
-                    { label: 'Total VES', value: fmt(reporte.transferencia_ves, 'VES'), icon: Banknote, color: 'var(--pb)', bg: 'var(--pb-light)' },
-                    { label: 'Pagos', value: reporte.conteo_pagos, icon: ListChecks, color: 'var(--ash)', bg: 'var(--porcelain)' },
-                ].map(({ label, value, icon: Icon, color, bg }) => (
-                    <div key={label} className="p-4 rounded-xl" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
-                        <div className="flex justify-between items-start mb-3">
-                            <div className="p-1.5 rounded-lg" style={{ background: bg, color }}><Icon size={16} /></div>
-                            <p className="text-[10px] uppercase tracking-widest text-right" style={{ color: 'var(--ash)' }}>{label}</p>
-                        </div>
-                        <p className="text-xl font-bold" style={{ color }}>{value}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* Log table */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-                <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-3"
-                    style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                    <div className="flex items-center gap-2">
-                        <Calendar size={16} style={{ color: 'var(--pb)' }} />
-                        <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Historial de Operaciones</h3>
-                    </div>
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-56">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={13} />
-                            <input type="text" placeholder="Buscar..." value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} />
-                        </div>
-                        <div className="relative">
-                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={13} />
-                            <select value={filtroModulo} onChange={e => setFiltroModulo(e.target.value)}
-                                className="pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none appearance-none" style={inputStyle}>
-                                <option value="TODOS">Todos los módulos</option>
-                                <option value="COBRANZA">Cobranza</option>
-                                <option value="SECRETARIA">Secretaría</option>
-                                <option value="SEGURIDAD">Seguridad</option>
-                                <option value="FINANZAS">Finanzas</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <table className="w-full text-sm">
+            {/* Scrollable table — overflow-x-auto fixes mobile overflow */}
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[600px]">
                     <thead>
                         <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
                             {['Fecha y hora', 'Usuario', 'Acción', 'Detalles'].map(h => (
@@ -240,22 +178,23 @@ const Auditoria = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {logsFiltrados.length === 0 ? (
+                        {paginated.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-10 text-center text-sm italic" style={{ color: 'var(--ash)' }}>
+                                <td colSpan={4} className="px-4 py-10 text-center text-sm italic"
+                                    style={{ color: 'var(--ash)' }}>
                                     No hay registros que coincidan.
                                 </td>
                             </tr>
-                        ) : logsFiltrados.map(log => (
-                            <tr key={log.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'var(--ash-light)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'var(--porcelain)'}>
+                        ) : paginated.map(log => (
+                            <tr
+                                key={log.id}
+                                className="bg-[var(--porcelain)] hover:bg-[var(--ash-light)] transition-colors"
+                                style={{ borderBottom: '0.5px solid var(--border)' }}
+                            >
                                 <td className="px-4 py-3 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>
                                     <div className="flex items-center gap-1.5">
                                         <Clock size={12} />
-                                        {log.fecha_hora || log.fecha
-                                            ? new Date(log.fecha_hora || log.fecha).toLocaleString('es-VE')
-                                            : '—'}
+                                        {formatLogDate(log.fecha_hora || log.fecha)}
                                     </div>
                                 </td>
                                 <td className="px-4 py-3">
@@ -282,6 +221,121 @@ const Auditoria = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3"
+                    style={{ borderTop: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <span className="text-xs" style={{ color: 'var(--ash)' }}>
+                        Página {currentPage} de {totalPages} · {logsFiltrados.length} registros
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-1.5 rounded-lg disabled:opacity-40 transition-colors hover:bg-[var(--ash-light)]"
+                            style={{ color: 'var(--ash)' }}
+                        >
+                            <ChevronLeft size={14} />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-1.5 rounded-lg disabled:opacity-40 transition-colors hover:bg-[var(--ash-light)]"
+                            style={{ color: 'var(--ash)' }}
+                        >
+                            <ChevronRight size={14} />
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Página principal ──────────────────────────────────────────────────────────
+
+const Auditoria = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const [fechaInicio, setFechaInicio] = useState(today);
+    const [fechaFin, setFechaFin]       = useState(today);
+
+    const { loading, refreshing, exporting, reporte, logs, error, refetch, exportarExcel } =
+        useAuditoria(fechaInicio, fechaFin);
+
+    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
+
+    const handleRefresh = () => {
+        if (fechaFin < fechaInicio) {
+            toast.warn('La fecha final no puede ser anterior a la fecha de inicio.');
+            return;
+        }
+        refetch(true);
+    };
+
+    if (loading) return <AuditoriaSkeleton />;
+
+    return (
+        <div className="anim-fade-up">
+
+            {/* Header */}
+            <div className="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Auditoría</h2>
+                    <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>Control de ingresos y actividad del sistema.</p>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
+                        <DatePickerES
+                            value={fechaInicio}
+                            onChange={e => setFechaInicio(e.target.value)}
+                            className="px-2 py-1.5 rounded-lg text-xs outline-none"
+                            style={inputStyle}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
+                        <DatePickerES
+                            value={fechaFin}
+                            onChange={e => setFechaFin(e.target.value)}
+                            className="px-2 py-1.5 rounded-lg text-xs outline-none"
+                            style={inputStyle}
+                        />
+                    </div>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                    >
+                        <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
+                        {refreshing ? 'Actualizando...' : 'Recargar datos'}
+                    </button>
+                    <button
+                        onClick={exportarExcel}
+                        disabled={exporting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50"
+                        style={{ background: 'var(--jet)' }}
+                    >
+                        {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                        Exportar Excel
+                    </button>
+                </div>
+            </div>
+
+            {/* Error banner */}
+            {error && (
+                <div className="mb-5 flex items-center gap-2 p-3 rounded-xl text-sm"
+                    style={{ background: '#fef2f2', border: '0.5px solid #fecaca', color: '#dc2626' }}>
+                    <AlertCircle size={16} />
+                    {error}
+                </div>
+            )}
+
+            <AuditoriaKPIs reporte={reporte} />
+            <AuditoriaTabla logs={logs} />
         </div>
     );
 };

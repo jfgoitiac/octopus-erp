@@ -1,8 +1,8 @@
 import apiClient from './apiClient';
 
 // Materias
-export const getMaterias = (gradoSeccion) =>
-  apiClient.get(`academico/materias/?grado_seccion=${encodeURIComponent(gradoSeccion)}`);
+export const getMaterias = (gradoSeccion, signal) =>
+  apiClient.get(`academico/materias/?grado_seccion=${encodeURIComponent(gradoSeccion)}`, signal ? { signal } : undefined);
 
 export const createMateria = (data) =>
   apiClient.post('academico/materias/', data);
@@ -25,15 +25,15 @@ export const createLapso = (data) =>
   apiClient.post('academico/lapsos/', data);
 
 // Notas
-export const getNotasGrado = (materiaId, lapsoId) =>
-  apiClient.get(`academico/notas/?materia_id=${materiaId}&lapso_id=${lapsoId}`);
+export const getNotasGrado = (materiaId, lapsoId, signal) =>
+  apiClient.get(`academico/notas/?materia_id=${materiaId}&lapso_id=${lapsoId}`, { signal });
 
 export const saveNotas = (materiaId, lapsoId, notas) =>
   apiClient.post('academico/notas/', { materia_id: materiaId, lapso_id: lapsoId, notas });
 
 // Asistencia
-export const getAsistencia = (gradoSeccion, fecha) =>
-  apiClient.get(`academico/asistencia/?grado_seccion=${encodeURIComponent(gradoSeccion)}&fecha=${fecha}`);
+export const getAsistencia = (gradoSeccion, fecha, signal) =>
+  apiClient.get(`academico/asistencia/?grado_seccion=${encodeURIComponent(gradoSeccion)}&fecha=${fecha}`, { signal });
 
 export const saveAsistencia = (gradoSeccion, fecha, registros) =>
   apiClient.post('academico/asistencia/', { grado_seccion: gradoSeccion, fecha, registros });
@@ -42,8 +42,8 @@ export const getResumenAsistencia = (alumnoId, mes, anio) =>
   apiClient.get(`academico/asistencia/resumen/?alumno_id=${alumnoId}&mes=${mes}&anio=${anio}`);
 
 // Horarios
-export const getHorarios = (gradoSeccion) =>
-  apiClient.get(`academico/horarios/?grado_seccion=${encodeURIComponent(gradoSeccion)}`);
+export const getHorarios = (gradoSeccion, signal) =>
+  apiClient.get(`academico/horarios/?grado_seccion=${encodeURIComponent(gradoSeccion)}`, signal ? { signal } : undefined);
 
 export const saveHorario = (data) =>
   apiClient.post('academico/horarios/', data);
@@ -55,8 +55,8 @@ export const deleteHorario = (id) =>
   apiClient.delete(`academico/horarios/${id}/`);
 
 // Boletín
-export const getBoletin = (alumnoId, lapsoId) =>
-  apiClient.get(`academico/boletin/?alumno_id=${alumnoId}&lapso_id=${lapsoId}`);
+export const getBoletin = (alumnoId, lapsoId, signal) =>
+  apiClient.get(`academico/boletin/?alumno_id=${alumnoId}&lapso_id=${lapsoId}`, { signal });
 
 // Generador automático de horarios
 export const generarHorario = (data) =>

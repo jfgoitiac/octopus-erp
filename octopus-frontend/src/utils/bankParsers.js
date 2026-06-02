@@ -1,3 +1,6 @@
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 export const BANKS = [
   { id: 'bancaribe', label: 'Bancaribe',        color: '#005baa' },
   { id: 'banesco',   label: 'Banesco',           color: '#c8102e' },
@@ -43,17 +46,32 @@ function parseAmount(val) {
 
 function formatDate(val) {
   if (!val && val !== 0) return '';
+
   if (typeof val === 'number') {
+    // Excel serial number: days since 1900-01-01 (with Lotus 1-2-3 leap year bug offset)
     const d = new Date(Math.round((val - 25569) * 86400 * 1000));
-    return d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return format(d, 'dd/MM/yyyy', { locale: es });
   }
+
   const str = val.toString().trim();
+
+  // Already formatted dd/MM/yyyy
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+
+  // ISO format: 2024-01-15 or 2024-01-15T...
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
     const [y, m, d] = str.split(/[-T]/);
-    return `${d}/${m}/${y}`;
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return format(date, 'dd/MM/yyyy', { locale: es });
   }
-  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) return str.replace(/-/g, '/');
+
+  // dd-MM-yyyy
+  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+    const [d, m, y] = str.split('-');
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return format(date, 'dd/MM/yyyy', { locale: es });
+  }
+
   return str;
 }
 

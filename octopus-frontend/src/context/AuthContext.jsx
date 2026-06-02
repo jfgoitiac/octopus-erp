@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('access_token', res.data.access);
         localStorage.setItem('refresh_token', res.data.refresh);
         const userData = extractUserData(res.data.access);
+        if (!userData) throw new Error('Token inválido recibido del servidor');
         setUser(userData);
     };
 

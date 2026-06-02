@@ -1,67 +1,140 @@
-import { useState, useEffect, useContext } from 'react';
+import { useRef, useContext, useState } from 'react';
 import {
     Loader2, Eye, EyeOff, Save, Mail, MessageCircle,
-    CheckCircle2, XCircle, Bell, RefreshCcw, Send
+    CheckCircle2, XCircle, Bell, Send,
 } from 'lucide-react';
-import axiosInstance from '../api/apiClient';
-import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
+import { useConfiguracionNotificaciones } from '../hooks/useConfiguracionNotificaciones';
 
-const SECRET_FIELDS = ['email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'];
+// ─── Primitive form components (defined at module level to prevent remount on re-render) ───
 
-const isSecretMasked = (val) => typeof val === 'string' && val.startsWith('••••');
+const FieldLabel = ({ children, htmlFor }) => (
+    <label
+        htmlFor={htmlFor}
+        className="block text-[11px] uppercase tracking-widest mb-1.5"
+        style={{ color: 'var(--ash)' }}
+    >
+        {children}
+    </label>
+);
 
-const EMPTY_FORM = {
-    email_activo: false,
-    email_host: '',
-    email_port: 587,
-    email_use_tls: true,
-    email_host_user: '',
-    email_host_password: '',
-    email_from: '',
-    director_email: '',
-    whatsapp_activo: false,
-    whatsapp_proveedor: '',
-    twilio_account_sid: '',
-    twilio_auth_token: '',
-    twilio_whatsapp_from: '',
-    meta_whatsapp_token: '',
-    meta_whatsapp_phone_id: '',
-    director_whatsapp: '',
+const TextInput = ({ id, fieldKey, form, setField, placeholder, type = 'text' }) => (
+    <input
+        id={id ?? fieldKey}
+        type={type}
+        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+        value={form[fieldKey]}
+        placeholder={placeholder}
+        onChange={e =>
+            setField(fieldKey, type === 'number' ? (Number(e.target.value) || '') : e.target.value)
+        }
+    />
+);
+
+const SecretInput = ({ id, fieldKey, form, setField, show, onToggle, placeholder }) => {
+    const value = form[fieldKey];
+    const masked = typeof value === 'string' && value.startsWith('••••');
+    return (
+        <div className="relative">
+            <input
+                id={id ?? fieldKey}
+                type={show ? 'text' : 'password'}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none pr-10"
+                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                value={masked ? '' : value}
+                placeholder={masked ? '••••••••  (sin cambios)' : placeholder}
+                onChange={e => setField(fieldKey, e.target.value)}
+            />
+            <button
+                type="button"
+                aria-label={show ? 'Ocultar campo' : 'Mostrar campo'}
+                className="absolute right-2 top-1/2 -translate-y-1/2"
+                style={{ color: 'var(--ash)' }}
+                onClick={onToggle}
+                tabIndex={-1}
+            >
+                {show ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+        </div>
+    );
 };
+
+const Toggle = ({ fieldKey, form, setField, label }) => (
+    <div className="flex items-center gap-3">
+        <label
+            htmlFor={`toggle-${fieldKey}`}
+            className="relative inline-flex items-center cursor-pointer"
+            aria-label={label}
+        >
+            <input
+                id={`toggle-${fieldKey}`}
+                type="checkbox"
+                className="sr-only peer"
+                checked={!!form[fieldKey]}
+                onChange={e => setField(fieldKey, e.target.checked)}
+            />
+            <div
+                className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                style={{ background: form[fieldKey] ? 'var(--pb)' : 'var(--ash-light)' }}
+            />
+        </label>
+        <span className="text-sm select-none" style={{ color: 'var(--jet)' }}>{label}</span>
+    </div>
+);
+
+// ─── Skeleton ───
+
+const CardSkeleton = () => (
+    <div className="rounded-xl overflow-hidden animate-pulse" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+        <div className="px-5 py-3.5 flex items-center gap-3" style={{ background: 'var(--bg)' }}>
+            <div className="w-5 h-5 rounded" style={{ background: 'var(--ash-light)' }} />
+            <div className="w-40 h-4 rounded" style={{ background: 'var(--ash-light)' }} />
+        </div>
+        <div className="p-5 space-y-4">
+            {[1, 2, 3].map(i => (
+                <div key={i} className="space-y-1.5">
+                    <div className="w-24 h-3 rounded" style={{ background: 'var(--ash-light)' }} />
+                    <div className="w-full h-9 rounded-lg" style={{ background: 'var(--ash-light)' }} />
+                </div>
+            ))}
+            <div className="w-40 h-9 rounded-lg" style={{ background: 'var(--ash-light)' }} />
+        </div>
+    </div>
+);
+
+// ─── Main component ───
+
+const ROLES_AUTORIZADOS = ['director', 'sistemas', 'administrador'];
 
 const ConfiguracionNotificaciones = () => {
     const { user } = useContext(AuthContext);
+    const testSectionRef = useRef(null);
 
-    const [form, setForm] = useState(EMPTY_FORM);
-    const [original, setOriginal] = useState(EMPTY_FORM);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [testLoading, setTestLoading] = useState(false);
-    const [testForm, setTestForm] = useState({ canal: 'email', destino: '', mensaje: '' });
-    const [testResult, setTestResult] = useState(null);
+    const [visibleSecrets, setVisibleSecrets] = useState({
+        email_host_password: false,
+        twilio_auth_token: false,
+        meta_whatsapp_token: false,
+    });
 
-    const [showPass, setShowPass] = useState(false);
-    const [showTwilioToken, setShowTwilioToken] = useState(false);
-    const [showMetaToken, setShowMetaToken] = useState(false);
+    const {
+        form, loading,
+        savingEmail, savingWhatsApp,
+        testForm, setTestForm,
+        testLoading, testResult,
+        setField,
+        saveEmail, saveWhatsApp, sendTest,
+    } = useConfiguracionNotificaciones();
 
-    useEffect(() => {
-        const fetchConfig = async () => {
-            try {
-                const { data } = await axiosInstance.get('notificaciones/configuracion/');
-                const merged = { ...EMPTY_FORM, ...data };
-                setForm(merged);
-                setOriginal(merged);
-            } catch (err) {
-                toast.error('Error al cargar la configuración de notificaciones.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchConfig();
-    }, []);
+    const toggleSecret = (key) =>
+        setVisibleSecrets(prev => ({ ...prev, [key]: !prev[key] }));
 
-    const isAuthorized = user && ['director', 'sistemas', 'administrador'].includes(user.rol);
+    const scrollToTest = (canal) => {
+        setTestForm(p => ({ ...p, canal }));
+        testSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const isAuthorized = user && ROLES_AUTORIZADOS.includes(user.rol);
 
     if (!isAuthorized && !loading) {
         return (
@@ -75,159 +148,28 @@ const ConfiguracionNotificaciones = () => {
         );
     }
 
-    const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
-
-    const buildPayload = (keys) => {
-        const payload = {};
-        keys.forEach(key => {
-            const val = form[key];
-            if (SECRET_FIELDS.includes(key)) {
-                if (val === original[key] || val === '' || isSecretMasked(val)) {
-                    payload[key] = '';
-                } else {
-                    payload[key] = val;
-                }
-            } else {
-                payload[key] = val;
-            }
-        });
-        return payload;
-    };
-
-    const saveEmail = async () => {
-        setSaving(true);
-        try {
-            const payload = buildPayload([
-                'email_activo', 'email_host', 'email_port', 'email_use_tls',
-                'email_host_user', 'email_host_password', 'email_from', 'director_email'
-            ]);
-            await axiosInstance.patch('notificaciones/configuracion/', payload);
-            toast.success('Configuración de email guardada.');
-            const { data } = await axiosInstance.get('notificaciones/configuracion/');
-            const merged = { ...EMPTY_FORM, ...data };
-            setForm(merged);
-            setOriginal(merged);
-        } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al guardar.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const saveWhatsApp = async () => {
-        setSaving(true);
-        try {
-            const payload = buildPayload([
-                'whatsapp_activo', 'whatsapp_proveedor',
-                'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
-                'meta_whatsapp_token', 'meta_whatsapp_phone_id', 'director_whatsapp'
-            ]);
-            await axiosInstance.patch('notificaciones/configuracion/', payload);
-            toast.success('Configuración de WhatsApp guardada.');
-            const { data } = await axiosInstance.get('notificaciones/configuracion/');
-            const merged = { ...EMPTY_FORM, ...data };
-            setForm(merged);
-            setOriginal(merged);
-        } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al guardar.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const sendTest = async () => {
-        setTestLoading(true);
-        setTestResult(null);
-        try {
-            const { data } = await axiosInstance.post('notificaciones/probar/', testForm);
-            setTestResult({ ok: true, data });
-            toast.success('Prueba enviada.');
-        } catch (err) {
-            setTestResult({ ok: false, data: err.response?.data });
-            toast.error('Error al enviar prueba.');
-        } finally {
-            setTestLoading(false);
-        }
-    };
-
-    const SecretInput = ({ fieldKey, show, onToggle, placeholder }) => {
-        const value = form[fieldKey];
-        const masked = isSecretMasked(value);
-        return (
-            <div className="relative">
-                <input
-                    type={show ? 'text' : 'password'}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none pr-10"
-                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
-                    value={masked ? '' : value}
-                    placeholder={masked ? '••••••••  (sin cambios)' : placeholder}
-                    onChange={e => setField(fieldKey, e.target.value)}
-                />
-                <button
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                    style={{ color: 'var(--ash)' }}
-                    onClick={onToggle}
-                    tabIndex={-1}
-                >
-                    {show ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-            </div>
-        );
-    };
-
-    const Toggle = ({ fieldKey, label }) => (
-        <div className="flex items-center gap-3">
-            <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={!!form[fieldKey]}
-                    onChange={e => setField(fieldKey, e.target.checked)}
-                />
-                <div
-                    className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
-                    style={{ background: form[fieldKey] ? 'var(--pb)' : 'var(--ash-light)' }}
-                />
-            </label>
-            <span className="text-sm" style={{ color: 'var(--jet)' }}>{label}</span>
-        </div>
-    );
-
-    const FieldLabel = ({ children }) => (
-        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-            {children}
-        </label>
-    );
-
-    const TextInput = ({ fieldKey, placeholder, type = 'text' }) => (
-        <input
-            type={type}
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
-            value={form[fieldKey]}
-            placeholder={placeholder}
-            onChange={e => setField(fieldKey, type === 'number' ? Number(e.target.value) : e.target.value)}
-        />
-    );
-
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-20" style={{ animation: 'fadeIn 0.2s ease' }}>
+
             {/* Header */}
             <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg" style={{ background: 'var(--pb-light)' }}>
                     <Bell size={20} style={{ color: 'var(--pb)' }} />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold" style={{ color: 'var(--jet)' }}>Configuración de Notificaciones</h1>
-                    <p className="text-sm" style={{ color: 'var(--ash)' }}>Proveedores de correo y WhatsApp para avisos automáticos</p>
+                    <h1 className="text-xl font-bold" style={{ color: 'var(--jet)' }}>
+                        Configuración de Notificaciones
+                    </h1>
+                    <p className="text-sm" style={{ color: 'var(--ash)' }}>
+                        Proveedores de correo y WhatsApp para avisos automáticos
+                    </p>
                 </div>
             </div>
 
             {loading ? (
                 <div className="grid md:grid-cols-2 gap-6">
-                    <div className="animate-pulse rounded-xl h-48" style={{ background: 'var(--ash-light)' }} />
-                    <div className="animate-pulse rounded-xl h-48" style={{ background: 'var(--ash-light)' }} />
+                    <CardSkeleton />
+                    <CardSkeleton />
                 </div>
             ) : (
                 <>
@@ -238,35 +180,37 @@ const ConfiguracionNotificaciones = () => {
                                 <Mail size={17} style={{ color: 'var(--pb)' }} />
                                 <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Correo Electrónico</span>
                             </div>
-                            <Toggle fieldKey="email_activo" label="Activo" />
+                            <Toggle fieldKey="email_activo" form={form} setField={setField} label="Activo" />
                         </div>
                         <div className="p-5 space-y-4">
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
-                                    <FieldLabel>Servidor SMTP</FieldLabel>
-                                    <TextInput fieldKey="email_host" placeholder="smtp.gmail.com" />
+                                    <FieldLabel htmlFor="email_host">Servidor SMTP</FieldLabel>
+                                    <TextInput fieldKey="email_host" form={form} setField={setField} placeholder="smtp.gmail.com" />
                                 </div>
                                 <div>
-                                    <FieldLabel>Puerto</FieldLabel>
-                                    <TextInput fieldKey="email_port" placeholder="587" type="number" />
+                                    <FieldLabel htmlFor="email_port">Puerto</FieldLabel>
+                                    <TextInput fieldKey="email_port" form={form} setField={setField} placeholder="587" type="number" />
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-3 py-1">
-                                <Toggle fieldKey="email_use_tls" label="Usar TLS" />
+                                <Toggle fieldKey="email_use_tls" form={form} setField={setField} label="Usar TLS" />
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
-                                    <FieldLabel>Usuario SMTP</FieldLabel>
-                                    <TextInput fieldKey="email_host_user" placeholder="tu@gmail.com" />
+                                    <FieldLabel htmlFor="email_host_user">Usuario SMTP</FieldLabel>
+                                    <TextInput fieldKey="email_host_user" form={form} setField={setField} placeholder="tu@gmail.com" />
                                 </div>
                                 <div>
-                                    <FieldLabel>Contraseña SMTP</FieldLabel>
+                                    <FieldLabel htmlFor="email_host_password">Contraseña SMTP</FieldLabel>
                                     <SecretInput
                                         fieldKey="email_host_password"
-                                        show={showPass}
-                                        onToggle={() => setShowPass(v => !v)}
+                                        form={form}
+                                        setField={setField}
+                                        show={visibleSecrets.email_host_password}
+                                        onToggle={() => toggleSecret('email_host_password')}
                                         placeholder="Contraseña de aplicación"
                                     />
                                 </div>
@@ -274,27 +218,27 @@ const ConfiguracionNotificaciones = () => {
 
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
-                                    <FieldLabel>Remitente (From)</FieldLabel>
-                                    <TextInput fieldKey="email_from" placeholder='Colegio <no-reply@colegio.edu.ve>' />
+                                    <FieldLabel htmlFor="email_from">Remitente (From)</FieldLabel>
+                                    <TextInput fieldKey="email_from" form={form} setField={setField} placeholder='Colegio <no-reply@colegio.edu.ve>' />
                                 </div>
                                 <div>
-                                    <FieldLabel>Email del Director</FieldLabel>
-                                    <TextInput fieldKey="director_email" placeholder="director@colegio.edu.ve" type="email" />
+                                    <FieldLabel htmlFor="director_email">Email del Director</FieldLabel>
+                                    <TextInput fieldKey="director_email" form={form} setField={setField} placeholder="director@colegio.edu.ve" type="email" />
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3 pt-2">
+                            <div className="flex flex-wrap items-center gap-3 pt-2">
                                 <button
                                     onClick={saveEmail}
-                                    disabled={saving}
+                                    disabled={savingEmail}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}
                                 >
-                                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    {savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                                     Guardar configuración email
                                 </button>
                                 <button
-                                    onClick={() => { setTestForm(p => ({ ...p, canal: 'email' })); document.getElementById('test-section')?.scrollIntoView({ behavior: 'smooth' }); }}
+                                    onClick={() => scrollToTest('email')}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
                                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)', background: 'var(--bg)' }}
                                 >
@@ -312,12 +256,13 @@ const ConfiguracionNotificaciones = () => {
                                 <MessageCircle size={17} style={{ color: 'var(--pb)' }} />
                                 <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>WhatsApp</span>
                             </div>
-                            <Toggle fieldKey="whatsapp_activo" label="Activo" />
+                            <Toggle fieldKey="whatsapp_activo" form={form} setField={setField} label="Activo" />
                         </div>
                         <div className="p-5 space-y-4">
                             <div>
-                                <FieldLabel>Proveedor</FieldLabel>
+                                <FieldLabel htmlFor="whatsapp_proveedor">Proveedor</FieldLabel>
                                 <select
+                                    id="whatsapp_proveedor"
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                     value={form.whatsapp_proveedor}
@@ -332,21 +277,23 @@ const ConfiguracionNotificaciones = () => {
                             {form.whatsapp_proveedor === 'twilio' && (
                                 <div className="space-y-4">
                                     <div>
-                                        <FieldLabel>Account SID</FieldLabel>
-                                        <TextInput fieldKey="twilio_account_sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+                                        <FieldLabel htmlFor="twilio_account_sid">Account SID</FieldLabel>
+                                        <TextInput fieldKey="twilio_account_sid" form={form} setField={setField} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
                                     </div>
                                     <div>
-                                        <FieldLabel>Auth Token</FieldLabel>
+                                        <FieldLabel htmlFor="twilio_auth_token">Auth Token</FieldLabel>
                                         <SecretInput
                                             fieldKey="twilio_auth_token"
-                                            show={showTwilioToken}
-                                            onToggle={() => setShowTwilioToken(v => !v)}
+                                            form={form}
+                                            setField={setField}
+                                            show={visibleSecrets.twilio_auth_token}
+                                            onToggle={() => toggleSecret('twilio_auth_token')}
                                             placeholder="Auth token de Twilio"
                                         />
                                     </div>
                                     <div>
-                                        <FieldLabel>Número WhatsApp Twilio (From)</FieldLabel>
-                                        <TextInput fieldKey="twilio_whatsapp_from" placeholder="+14155238886" />
+                                        <FieldLabel htmlFor="twilio_whatsapp_from">Número WhatsApp Twilio (From)</FieldLabel>
+                                        <TextInput fieldKey="twilio_whatsapp_from" form={form} setField={setField} placeholder="+14155238886" />
                                     </div>
                                 </div>
                             )}
@@ -354,38 +301,40 @@ const ConfiguracionNotificaciones = () => {
                             {form.whatsapp_proveedor === 'meta' && (
                                 <div className="space-y-4">
                                     <div>
-                                        <FieldLabel>Token de acceso (Meta)</FieldLabel>
+                                        <FieldLabel htmlFor="meta_whatsapp_token">Token de acceso (Meta)</FieldLabel>
                                         <SecretInput
                                             fieldKey="meta_whatsapp_token"
-                                            show={showMetaToken}
-                                            onToggle={() => setShowMetaToken(v => !v)}
+                                            form={form}
+                                            setField={setField}
+                                            show={visibleSecrets.meta_whatsapp_token}
+                                            onToggle={() => toggleSecret('meta_whatsapp_token')}
                                             placeholder="Token permanente de Meta"
                                         />
                                     </div>
                                     <div>
-                                        <FieldLabel>Phone Number ID</FieldLabel>
-                                        <TextInput fieldKey="meta_whatsapp_phone_id" placeholder="ID del número en Meta Business" />
+                                        <FieldLabel htmlFor="meta_whatsapp_phone_id">Phone Number ID</FieldLabel>
+                                        <TextInput fieldKey="meta_whatsapp_phone_id" form={form} setField={setField} placeholder="ID del número en Meta Business" />
                                     </div>
                                 </div>
                             )}
 
                             <div>
-                                <FieldLabel>WhatsApp del Director (alertas día 15)</FieldLabel>
-                                <TextInput fieldKey="director_whatsapp" placeholder="+58 4XX XXXXXXX" />
+                                <FieldLabel htmlFor="director_whatsapp">WhatsApp del Director (alertas día 15)</FieldLabel>
+                                <TextInput fieldKey="director_whatsapp" form={form} setField={setField} placeholder="+58 4XX XXXXXXX" />
                             </div>
 
-                            <div className="flex items-center gap-3 pt-2">
+                            <div className="flex flex-wrap items-center gap-3 pt-2">
                                 <button
                                     onClick={saveWhatsApp}
-                                    disabled={saving}
+                                    disabled={savingWhatsApp}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}
                                 >
-                                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    {savingWhatsApp ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                                     Guardar configuración WhatsApp
                                 </button>
                                 <button
-                                    onClick={() => { setTestForm(p => ({ ...p, canal: 'whatsapp' })); document.getElementById('test-section')?.scrollIntoView({ behavior: 'smooth' }); }}
+                                    onClick={() => scrollToTest('whatsapp')}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
                                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)', background: 'var(--bg)' }}
                                 >
@@ -397,16 +346,21 @@ const ConfiguracionNotificaciones = () => {
                     </div>
 
                     {/* ─── Card Probar conexión ─── */}
-                    <div id="test-section" className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <div
+                        ref={testSectionRef}
+                        className="rounded-xl overflow-hidden"
+                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
+                    >
                         <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
                             <Send size={17} style={{ color: 'var(--pb)' }} />
                             <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Probar conexión</span>
                         </div>
                         <div className="p-5 space-y-4">
-                            <div className="grid md:grid-cols-3 gap-4">
+                            <div className="grid sm:grid-cols-3 gap-4">
                                 <div>
-                                    <FieldLabel>Canal</FieldLabel>
+                                    <FieldLabel htmlFor="test_canal">Canal</FieldLabel>
                                     <select
+                                        id="test_canal"
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                         style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                         value={testForm.canal}
@@ -417,11 +371,12 @@ const ConfiguracionNotificaciones = () => {
                                         <option value="ambos">Ambos</option>
                                     </select>
                                 </div>
-                                <div className="md:col-span-2">
-                                    <FieldLabel>
+                                <div className="sm:col-span-2">
+                                    <FieldLabel htmlFor="test_destino">
                                         {testForm.canal === 'whatsapp' ? 'Número destino' : 'Email destino'}
                                     </FieldLabel>
                                     <input
+                                        id="test_destino"
                                         type={testForm.canal === 'email' ? 'email' : 'text'}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                         style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
@@ -433,8 +388,9 @@ const ConfiguracionNotificaciones = () => {
                             </div>
 
                             <div>
-                                <FieldLabel>Mensaje (opcional)</FieldLabel>
+                                <FieldLabel htmlFor="test_mensaje">Mensaje (opcional)</FieldLabel>
                                 <textarea
+                                    id="test_mensaje"
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                     rows={3}
@@ -444,24 +400,23 @@ const ConfiguracionNotificaciones = () => {
                                 />
                             </div>
 
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={sendTest}
-                                    disabled={testLoading || !testForm.destino}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                                    style={{ background: 'var(--pb)' }}
-                                >
-                                    {testLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                                    Enviar prueba
-                                </button>
-                            </div>
+                            <button
+                                onClick={sendTest}
+                                disabled={testLoading || !testForm.destino.trim()}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                                style={{ background: 'var(--pb)' }}
+                            >
+                                {testLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                Enviar prueba
+                            </button>
 
                             {testResult && (
-                                <div className={`flex items-start gap-3 px-4 py-3 rounded-lg text-sm`}
+                                <div
+                                    className="flex items-start gap-3 px-4 py-3 rounded-lg text-sm"
                                     style={{
                                         background: testResult.ok ? 'var(--pb-light)' : 'var(--red-light)',
                                         border: `0.5px solid ${testResult.ok ? 'var(--pb)' : 'var(--red)'}`,
-                                        color: testResult.ok ? 'var(--pb)' : 'var(--red)'
+                                        color: testResult.ok ? 'var(--pb)' : 'var(--red)',
                                     }}
                                 >
                                     {testResult.ok
@@ -469,7 +424,9 @@ const ConfiguracionNotificaciones = () => {
                                         : <XCircle size={16} className="mt-0.5 shrink-0" />
                                     }
                                     <div>
-                                        <p className="font-semibold">{testResult.ok ? 'Prueba enviada correctamente' : 'Error al enviar'}</p>
+                                        <p className="font-semibold">
+                                            {testResult.ok ? 'Prueba enviada correctamente' : 'Error al enviar'}
+                                        </p>
                                         {testResult.data && (
                                             <p className="mt-0.5 opacity-80 text-xs">
                                                 {typeof testResult.data === 'string'

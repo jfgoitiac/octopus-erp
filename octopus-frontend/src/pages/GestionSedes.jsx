@@ -1,45 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Building2, Plus, Edit3, Trash2, UserPlus,
-  Shield, X, Save, Loader2
+  Shield, X, Save, Loader2,
 } from 'lucide-react';
-import { toast } from 'react-toastify';
-import {
-  getSedes, createSede, updateSede, deleteSede,
-  getUsuariosSede, asignarUsuarioSede, revocarUsuarioSede,
-} from '../api/multisede.service';
+import { useSedes } from '../hooks/useSedes';
+import { useUsuariosSede } from '../hooks/useUsuariosSede';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { ROL_OPTIONS } from '../constants/roles';
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-const ROLES = ['director','administrador','secretaria','cajero','cobranza','sistemas','directivo_red'];
-
-const initialSedeForm = {
-  nombre: '', rif: '', direccion: '', telefono: '',
-  correo: '', municipio: '', estado: '', activa: true,
-};
-const initialUserForm = { username: '', rol: 'cajero' };
-
-// ── Skeleton ──────────────────────────────────────────────────────────────────
-const SkeletonRow = () => (
+// ── Skeleton genérico ─────────────────────────────────────────────────────────
+// cols debe coincidir con el número real de columnas de cada tabla
+const SkeletonRow = ({ cols = 5 }) => (
   <tr className="animate-pulse">
-    {[1,2,3,4,5].map(i => (
+    {Array.from({ length: cols }).map((_, i) => (
       <td key={i} className="px-4 py-3">
-        <div className="h-3 rounded" style={{ background: 'var(--border-md)', width: i === 1 ? '60%' : '40%' }} />
+        <div className="h-3 rounded" style={{ background: 'var(--border-md)', width: i === 0 ? '60%' : '40%' }} />
       </td>
     ))}
   </tr>
 );
 
-// ── Modal genérico ────────────────────────────────────────────────────────────
+// ── Modal genérico — scrollable en mobile ─────────────────────────────────────
 const Modal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+  <div
+    className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto"
+    style={{ background: 'rgba(0,0,0,0.4)' }}
+  >
     <div
       className="w-full max-w-md rounded-2xl shadow-xl"
       style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
     >
-      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '0.5px solid var(--border)' }}>
+      <div
+        className="flex items-center justify-between px-5 py-4"
+        style={{ borderBottom: '0.5px solid var(--border)' }}
+      >
         <h2 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>{title}</h2>
         <button
           onClick={onClose}
+          aria-label="Cerrar modal"
           className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ color: 'var(--ash)', transition: 'background 0.15s' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ash-light)'}
@@ -53,7 +51,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-// ── Input helper ──────────────────────────────────────────────────────────────
+// ── Input reutilizable ────────────────────────────────────────────────────────
 const Field = ({ label, name, value, onChange, type = 'text', required = false }) => (
   <div>
     <label className="block text-xs font-medium mb-1" style={{ color: 'var(--ash)' }}>
@@ -78,7 +76,7 @@ const Field = ({ label, name, value, onChange, type = 'text', required = false }
   </div>
 );
 
-// ── Tab button ────────────────────────────────────────────────────────────────
+// ── Tab ───────────────────────────────────────────────────────────────────────
 const Tab = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
@@ -94,140 +92,55 @@ const Tab = ({ active, onClick, children }) => (
   </button>
 );
 
+// ── IconButton — consolida todos los onMouseEnter/Leave inline ────────────────
+const IconButton = ({ onClick, title, variant = 'primary', disabled = false, children }) => {
+  const hoverBg    = variant === 'danger' ? 'var(--red-light)' : 'var(--pb-light)';
+  const hoverColor = variant === 'danger' ? 'var(--red)'       : 'var(--pb-mid)';
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      className="p-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ color: 'var(--ash)', transition: 'background 0.15s' }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = hoverColor; } }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; }}
+    >
+      {children}
+    </button>
+  );
+};
+
 // ── Página ────────────────────────────────────────────────────────────────────
 const GestionSedes = () => {
   const [tab, setTab] = useState('sedes');
 
-  // — Sedes —
-  const [sedes, setSedes] = useState([]);
-  const [loadingSedes, setLoadingSedes] = useState(true);
-  const [modalSede, setModalSede] = useState(false);
-  const [editingSede, setEditingSede] = useState(null);
-  const [sedeForm, setSedeForm] = useState(initialSedeForm);
-  const [savingSedeForm, setSavingSedeForm] = useState(false);
-
-  // — Usuarios —
+  // C-2 fix: ID almacenado como Number (el select siempre devuelve string, parseamos al cambio)
   const [sedeSeleccionada, setSedeSeleccionada] = useState('');
-  const [usuarios, setUsuarios] = useState([]);
-  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
-  const [modalUsuario, setModalUsuario] = useState(false);
-  const [userForm, setUserForm] = useState(initialUserForm);
-  const [savingUser, setSavingUser] = useState(false);
 
-  // ── cargar sedes ────────────────────────────────────────────────────────────
-  const cargarSedes = async () => {
-    setLoadingSedes(true);
-    try {
-      const data = await getSedes();
-      setSedes(Array.isArray(data) ? data : (data.results || []));
-    } catch {
-      toast.error('Error al cargar las sedes');
-    } finally {
-      setLoadingSedes(false);
-    }
-  };
+  const {
+    sedes, loading: loadingSedes,
+    form: sedeForm, editingSede, showModal: modalSede, saving: savingSedeForm,
+    sedeParaEliminar, deletingId,
+    abrirNueva, abrirEditar, cerrarModal: cerrarModalSede,
+    handleFormChange, guardar,
+    solicitarEliminar, cancelarEliminar, confirmarEliminar,
+  } = useSedes();
 
-  useEffect(() => { cargarSedes(); }, []);
+  const {
+    usuarios, loading: loadingUsuarios,
+    form: userForm, setForm: setUserForm,
+    showModal: modalUsuario, setShowModal: setModalUsuario,
+    saving: savingUser,
+    usuarioParaRevocar, revokingId,
+    cerrarModal: cerrarModalUsuario, asignar: asignarUsuario,
+    solicitarRevocar, cancelarRevocar, confirmarRevocar,
+  } = useUsuariosSede(sedeSeleccionada);
 
-  // ── cargar usuarios de la sede seleccionada ─────────────────────────────────
-  useEffect(() => {
-    if (!sedeSeleccionada) { setUsuarios([]); return; }
-    setLoadingUsuarios(true);
-    getUsuariosSede(sedeSeleccionada)
-      .then(data => setUsuarios(Array.isArray(data) ? data : (data.results || [])))
-      .catch(() => toast.error('Error al cargar los usuarios'))
-      .finally(() => setLoadingUsuarios(false));
-  }, [sedeSeleccionada]);
-
-  // ── handlers sede ───────────────────────────────────────────────────────────
-  const abrirNuevaSede = () => {
-    setEditingSede(null);
-    setSedeForm(initialSedeForm);
-    setModalSede(true);
-  };
-
-  const abrirEditarSede = (sede) => {
-    setEditingSede(sede);
-    setSedeForm({
-      nombre: sede.nombre || '', rif: sede.rif || '',
-      direccion: sede.direccion || '', telefono: sede.telefono || '',
-      correo: sede.correo || '', municipio: sede.municipio || '',
-      estado: sede.estado || '', activa: sede.activa ?? true,
-    });
-    setModalSede(true);
-  };
-
-  const handleSedeFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setSedeForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
-
-  const guardarSede = async (e) => {
-    e.preventDefault();
-    setSavingSedeForm(true);
-    try {
-      if (editingSede) {
-        await updateSede(editingSede.id, sedeForm);
-        toast.success('Sede actualizada');
-      } else {
-        await createSede(sedeForm);
-        toast.success('Sede creada');
-      }
-      setModalSede(false);
-      cargarSedes();
-    } catch (err) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.nombre?.[0] || 'Error al guardar la sede';
-      toast.error(msg);
-    } finally {
-      setSavingSedeForm(false);
-    }
-  };
-
-  const eliminarSede = async (id) => {
-    if (!window.confirm('¿Eliminar esta sede? Esta acción no se puede deshacer.')) return;
-    try {
-      await deleteSede(id);
-      toast.success('Sede eliminada');
-      cargarSedes();
-    } catch {
-      toast.error('Error al eliminar la sede');
-    }
-  };
-
-  // ── handlers usuarios ───────────────────────────────────────────────────────
-  const asignarUsuario = async (e) => {
-    e.preventDefault();
-    setSavingUser(true);
-    try {
-      await asignarUsuarioSede(sedeSeleccionada, userForm);
-      toast.success('Usuario asignado');
-      setModalUsuario(false);
-      setUserForm(initialUserForm);
-      // recargar usuarios
-      const data = await getUsuariosSede(sedeSeleccionada);
-      setUsuarios(Array.isArray(data) ? data : (data.results || []));
-    } catch (err) {
-      const msg = err?.response?.data?.detail || 'Error al asignar usuario';
-      toast.error(msg);
-    } finally {
-      setSavingUser(false);
-    }
-  };
-
-  const revocarUsuario = async (userId) => {
-    if (!window.confirm('¿Revocar acceso a este usuario?')) return;
-    try {
-      await revocarUsuarioSede(sedeSeleccionada, userId);
-      toast.success('Acceso revocado');
-      setUsuarios(prev => prev.filter(u => u.id !== userId));
-    } catch {
-      toast.error('Error al revocar el acceso');
-    }
-  };
-
-  // ── render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-bold" style={{ color: 'var(--jet)' }}>Gestión de Sedes</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
@@ -253,11 +166,9 @@ const GestionSedes = () => {
         {tab === 'sedes' && (
           <>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                Sedes registradas
-              </h2>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Sedes registradas</h2>
               <button
-                onClick={abrirNuevaSede}
+                onClick={abrirNueva}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
                 style={{ background: 'var(--pb)', color: '#fff', transition: 'opacity 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
@@ -272,18 +183,31 @@ const GestionSedes = () => {
               <table className="w-full text-xs">
                 <thead>
                   <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                    {['Nombre','Municipio','Estado','Alumnos','Activa','Acciones'].map(h => (
-                      <th key={h} className="text-left pb-2 pr-3 font-medium uppercase tracking-wide" style={{ color: 'var(--ash)' }}>{h}</th>
+                    {['Nombre', 'Municipio', 'Estado', 'Alumnos', 'Activa', 'Acciones'].map(h => (
+                      <th
+                        key={h}
+                        className="text-left pb-2 pr-3 font-medium uppercase tracking-wide"
+                        style={{ color: 'var(--ash)' }}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loadingSedes ? (
-                    [1,2,3].map(i => <SkeletonRow key={i} />)
+                    [1, 2, 3].map(i => <SkeletonRow key={i} cols={6} />)
                   ) : sedes.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8" style={{ color: 'var(--ash)' }}>
-                        No hay sedes registradas.
+                      <td colSpan={6} className="text-center py-10" style={{ color: 'var(--ash)' }}>
+                        No hay sedes registradas.{' '}
+                        <button
+                          onClick={abrirNueva}
+                          className="underline"
+                          style={{ color: 'var(--pb-mid)' }}
+                        >
+                          Crear la primera
+                        </button>
                       </td>
                     </tr>
                   ) : sedes.map(sede => (
@@ -304,26 +228,24 @@ const GestionSedes = () => {
                         </span>
                       </td>
                       <td className="py-2.5 flex items-center gap-1">
-                        <button
-                          onClick={() => abrirEditarSede(sede)}
-                          className="p-1.5 rounded-lg"
-                          title="Editar"
-                          style={{ color: 'var(--ash)', transition: 'background 0.15s' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--pb-light)'; e.currentTarget.style.color = 'var(--pb-mid)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; }}
+                        <IconButton
+                          onClick={() => abrirEditar(sede)}
+                          title="Editar sede"
+                          disabled={deletingId === sede.id}
                         >
                           <Edit3 size={13} />
-                        </button>
-                        <button
-                          onClick={() => eliminarSede(sede.id)}
-                          className="p-1.5 rounded-lg"
-                          title="Eliminar"
-                          style={{ color: 'var(--ash)', transition: 'background 0.15s' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-light)'; e.currentTarget.style.color = 'var(--red)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; }}
+                        </IconButton>
+                        <IconButton
+                          onClick={() => solicitarEliminar(sede)}
+                          title="Eliminar sede"
+                          variant="danger"
+                          disabled={deletingId === sede.id}
                         >
-                          <Trash2 size={13} />
-                        </button>
+                          {deletingId === sede.id
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <Trash2 size={13} />
+                          }
+                        </IconButton>
                       </td>
                     </tr>
                   ))}
@@ -341,16 +263,21 @@ const GestionSedes = () => {
                 <label className="text-xs font-medium" style={{ color: 'var(--ash)' }}>Sede:</label>
                 <select
                   value={sedeSeleccionada}
-                  onChange={e => setSedeSeleccionada(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg text-xs outline-none"
+                  onChange={e => setSedeSeleccionada(Number(e.target.value) || '')}
+                  disabled={loadingSedes}
+                  className="px-3 py-1.5 rounded-lg text-xs outline-none disabled:opacity-60"
                   style={{
                     background: 'var(--bg)',
                     border: '0.5px solid var(--border-md)',
                     color: 'var(--jet)',
                   }}
                 >
-                  <option value="">— Seleccionar sede —</option>
-                  {sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                  <option value="">
+                    {loadingSedes ? 'Cargando sedes…' : '— Seleccionar sede —'}
+                  </option>
+                  {sedes.map(s => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
                 </select>
               </div>
               {sedeSeleccionada && (
@@ -376,14 +303,20 @@ const GestionSedes = () => {
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                      {['Usuario','Rol','Activo','Acciones'].map(h => (
-                        <th key={h} className="text-left pb-2 pr-3 font-medium uppercase tracking-wide" style={{ color: 'var(--ash)' }}>{h}</th>
+                      {['Usuario', 'Rol', 'Activo', 'Acciones'].map(h => (
+                        <th
+                          key={h}
+                          className="text-left pb-2 pr-3 font-medium uppercase tracking-wide"
+                          style={{ color: 'var(--ash)' }}
+                        >
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {loadingUsuarios ? (
-                      [1,2,3].map(i => <SkeletonRow key={i} />)
+                      [1, 2, 3].map(i => <SkeletonRow key={i} cols={4} />)
                     ) : usuarios.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="text-center py-8" style={{ color: 'var(--ash)' }}>
@@ -405,24 +338,25 @@ const GestionSedes = () => {
                           <span
                             className="px-2 py-0.5 rounded-full text-[10px]"
                             style={{
-                              background: u.activo !== false ? '#dcfce7' : 'var(--red-light)',
-                              color: u.activo !== false ? '#16a34a' : 'var(--red)',
+                              background: u.activo ? '#dcfce7' : 'var(--red-light)',
+                              color:      u.activo ? '#16a34a' : 'var(--red)',
                             }}
                           >
-                            {u.activo !== false ? 'Sí' : 'No'}
+                            {u.activo ? 'Sí' : 'No'}
                           </span>
                         </td>
                         <td className="py-2.5">
-                          <button
-                            onClick={() => revocarUsuario(u.id)}
-                            className="p-1.5 rounded-lg"
+                          <IconButton
+                            onClick={() => solicitarRevocar(u)}
                             title="Revocar acceso"
-                            style={{ color: 'var(--ash)', transition: 'background 0.15s' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-light)'; e.currentTarget.style.color = 'var(--red)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; }}
+                            variant="danger"
+                            disabled={revokingId === u.id}
                           >
-                            <Trash2 size={13} />
-                          </button>
+                            {revokingId === u.id
+                              ? <Loader2 size={13} className="animate-spin" />
+                              : <Trash2 size={13} />
+                            }
+                          </IconButton>
                         </td>
                       </tr>
                     ))}
@@ -436,22 +370,22 @@ const GestionSedes = () => {
 
       {/* ── Modal: crear / editar sede ── */}
       {modalSede && (
-        <Modal title={editingSede ? 'Editar sede' : 'Nueva sede'} onClose={() => setModalSede(false)}>
-          <form onSubmit={guardarSede} className="space-y-3">
+        <Modal title={editingSede ? 'Editar sede' : 'Nueva sede'} onClose={cerrarModalSede}>
+          <form onSubmit={guardar} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Nombre" name="nombre" value={sedeForm.nombre} onChange={handleSedeFormChange} required />
-              <Field label="RIF" name="rif" value={sedeForm.rif} onChange={handleSedeFormChange} />
-              <Field label="Teléfono" name="telefono" value={sedeForm.telefono} onChange={handleSedeFormChange} />
-              <Field label="Correo" name="correo" value={sedeForm.correo} onChange={handleSedeFormChange} type="email" />
-              <Field label="Municipio" name="municipio" value={sedeForm.municipio} onChange={handleSedeFormChange} />
-              <Field label="Estado" name="estado" value={sedeForm.estado} onChange={handleSedeFormChange} />
+              <Field label="Nombre"    name="nombre"    value={sedeForm.nombre}    onChange={handleFormChange} required />
+              <Field label="RIF"       name="rif"       value={sedeForm.rif}       onChange={handleFormChange} />
+              <Field label="Teléfono"  name="telefono"  value={sedeForm.telefono}  onChange={handleFormChange} />
+              <Field label="Correo"    name="correo"    value={sedeForm.correo}    onChange={handleFormChange} type="email" />
+              <Field label="Municipio" name="municipio" value={sedeForm.municipio} onChange={handleFormChange} />
+              <Field label="Estado"    name="estado"    value={sedeForm.estado}    onChange={handleFormChange} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--ash)' }}>Dirección</label>
               <textarea
                 name="direccion"
                 value={sedeForm.direccion}
-                onChange={handleSedeFormChange}
+                onChange={handleFormChange}
                 rows={2}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
                 style={{ background: 'var(--bg)', border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
@@ -464,7 +398,7 @@ const GestionSedes = () => {
                 type="checkbox"
                 name="activa"
                 checked={sedeForm.activa}
-                onChange={handleSedeFormChange}
+                onChange={handleFormChange}
                 className="rounded"
               />
               <span className="text-xs" style={{ color: 'var(--jet)' }}>Sede activa</span>
@@ -472,7 +406,7 @@ const GestionSedes = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setModalSede(false)}
+                onClick={cerrarModalSede}
                 className="px-4 py-2 rounded-lg text-sm"
                 style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}
               >
@@ -494,24 +428,16 @@ const GestionSedes = () => {
 
       {/* ── Modal: asignar usuario ── */}
       {modalUsuario && (
-        <Modal title="Asignar usuario a sede" onClose={() => setModalUsuario(false)}>
+        <Modal title="Asignar usuario a sede" onClose={cerrarModalUsuario}>
           <form onSubmit={asignarUsuario} className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--ash)' }}>
-                Username o email *
-              </label>
-              <input
-                type="text"
-                value={userForm.username}
-                onChange={e => setUserForm(prev => ({ ...prev, username: e.target.value }))}
-                required
-                placeholder="usuario@ejemplo.com"
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={{ background: 'var(--bg)', border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
-                onFocus={e => e.target.style.borderColor = 'var(--pb)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border-md)'}
-              />
-            </div>
+            {/* Q-3 fix: reutiliza Field en lugar de input inline */}
+            <Field
+              label="Username o email"
+              name="username"
+              value={userForm.username}
+              onChange={e => setUserForm(prev => ({ ...prev, username: e.target.value }))}
+              required
+            />
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--ash)' }}>Rol *</label>
               <select
@@ -521,13 +447,16 @@ const GestionSedes = () => {
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                 style={{ background: 'var(--bg)', border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
               >
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                {/* Fuente única de roles: constants/roles.js — deuda técnica resuelta */}
+                {ROL_OPTIONS.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setModalUsuario(false)}
+                onClick={cerrarModalUsuario}
                 className="px-4 py-2 rounded-lg text-sm"
                 style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}
               >
@@ -545,6 +474,26 @@ const GestionSedes = () => {
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* ── Confirm: eliminar sede (reemplaza window.confirm — UX-1 fix) ── */}
+      {sedeParaEliminar && (
+        <ConfirmDeleteModal
+          titulo="Eliminar sede"
+          nombre={sedeParaEliminar.nombre}
+          onConfirm={confirmarEliminar}
+          onCancel={cancelarEliminar}
+        />
+      )}
+
+      {/* ── Confirm: revocar acceso (reemplaza window.confirm — UX-1 fix) ── */}
+      {usuarioParaRevocar && (
+        <ConfirmDeleteModal
+          titulo="Revocar acceso a la sede"
+          nombre={usuarioParaRevocar.username}
+          onConfirm={confirmarRevocar}
+          onCancel={cancelarRevocar}
+        />
       )}
     </div>
   );

@@ -1,29 +1,36 @@
 import { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Lock, User, Octagon, AlertCircle } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { Lock, User, Octagon, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'react-toastify';
+
+const classifyAuthError = (err) => {
+    const status = err?.response?.status;
+    if (status === 401 || status === 400) return 'Usuario o contraseña incorrectos.';
+    if (status >= 500) return 'Error en el servidor. Intenta más tarde.';
+    return 'Sin conexión. Revisa tu red.';
+};
 
 const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const { login } = useContext(AuthContext);
+
+    const { login, isAuthenticated, loading } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-        // Lógica de negocio, no se modifica
-        e.preventDefault();
-        setError(null);
-        setIsSubmitting(true);
+    if (loading) return null;
+    if (isAuthenticated) return <Navigate to="/" replace />;
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
         try {
             await login(username, password);
-            navigate('/'); // Si todo sale bien, vamos al panel principal
-        } catch {
-            setError("Credenciales incorrectas o problema de conexión con el servidor.");
+            navigate('/');
+        } catch (err) {
+            toast.error(classifyAuthError(err));
         } finally {
             setIsSubmitting(false);
         }
@@ -40,24 +47,20 @@ const Login = () => {
                     <p className="text-xs uppercase tracking-widest mt-1" style={{ color: 'var(--ash)' }}>Gestión Escolar</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    {error && (
-                        <div className="p-3 rounded-xl flex items-start gap-2 text-sm"
-                             style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                          <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
-                          <span>{error}</span>
-                        </div>
-                    )}
-
+                <form onSubmit={handleSubmit} className="p-8 space-y-6" noValidate>
                     <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Usuario</label>
+                        <label htmlFor="login-username" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Usuario
+                        </label>
                         <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={16} />
-                            <input 
-                                type="text" 
-                                className="w-full px-3 py-2 pl-9 rounded-lg text-sm outline-none"
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={16} aria-hidden="true" />
+                            <input
+                                id="login-username"
+                                type="text"
+                                className="w-full px-3 py-2 pl-9 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--pb)]"
                                 style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                 placeholder="jperez"
+                                autoComplete="username"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required
@@ -66,25 +69,42 @@ const Login = () => {
                     </div>
 
                     <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Contraseña</label>
+                        <label htmlFor="login-password" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Contraseña
+                        </label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={16} />
-                            <input 
-                                type="password" 
-                                className="w-full px-3 py-2 pl-9 rounded-lg text-sm outline-none"
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={16} aria-hidden="true" />
+                            <input
+                                id="login-password"
+                                type={showPassword ? 'text' : 'password'}
+                                className="w-full px-3 py-2 pl-9 pr-10 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--pb)]"
                                 style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                 placeholder="••••••••"
+                                autoComplete="current-password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((v) => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none focus:ring-2 focus:ring-[var(--pb)] rounded"
+                                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                style={{ color: 'var(--ash)' }}
+                            >
+                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
                         </div>
                     </div>
 
-                    <button type="submit" disabled={isSubmitting}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50"
-                        style={{ background: 'var(--pb)' }}>
-                        {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Entrar al Sistema'}
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--pb)] focus:ring-offset-2"
+                        style={{ background: 'var(--pb)' }}
+                    >
+                        {isSubmitting && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                        <span>{isSubmitting ? 'Entrando...' : 'Entrar al Sistema'}</span>
                     </button>
                 </form>
 
