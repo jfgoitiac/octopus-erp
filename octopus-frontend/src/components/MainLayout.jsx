@@ -17,6 +17,7 @@ const PAGE_TITLES = {
   '/sistemas':           'Configuración del sistema',
   '/configuracion':      'Configuración',
   '/nomina':             'Nómina',
+  '/pagos':              'Pagos',
   '/recibos':            'Recibos de Pago',
   '/conciliador':        'Conciliador',
   '/auditoria':          'Auditoría',

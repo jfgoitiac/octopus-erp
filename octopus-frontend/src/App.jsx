@@ -29,6 +29,7 @@ const Representantes           = lazy(() => import('./pages/Representantes'));
 const Reportes                 = lazy(() => import('./pages/Reportes'));
 const Sistemas                 = lazy(() => import('./pages/Sistemas'));
 const Nomina                   = lazy(() => import('./pages/Nomina'));
+const Pagos                    = lazy(() => import('./pages/Pagos'));
 const Recibos                  = lazy(() => import('./pages/Recibos'));
 const Conciliador              = lazy(() => import('./pages/Conciliador'));
 const Auditoria                = lazy(() => import('./pages/Auditoria'));
@@ -160,6 +161,11 @@ function App() {
               <Route path="nomina" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
                   <Nomina />
+                </ProtectedRoute>
+              } />
+              <Route path="pagos" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Pagos />
                 </ProtectedRoute>
               } />
 

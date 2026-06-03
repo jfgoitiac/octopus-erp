@@ -36,8 +36,8 @@ class Empleado(models.Model):
 
     TIPOS_PERSONAL = [
         ('docente', 'Docente'),
-        ('administrativo', 'Administrativo'),
         ('apoyo', 'Personal de Apoyo'),
+        ('administrativo', 'Administrativo'),
     ]
     TIPO_CUENTA_CHOICES = [('CTE', 'Corriente'), ('AHO', 'Ahorro')]
 
