@@ -92,16 +92,18 @@ const Nomina = () => {
         if (!reciboData || !reciboEmp) return null;
         const esDocente = !reciboEmp.tipo_personal || reciboEmp.tipo_personal === 'docente';
 
-        const cestaUsd      = parseFloat(reciboData.cesta_monto_usd)  || 0;
-        const cestaTasa     = parseFloat(reciboData.cesta_tasa)        || 0;
-        const totalBs       = cestaUsd * cestaTasa;
-        const tarifaHoraUsd = parseFloat(cestaConfig.tarifa_hora)      || 0.20;
-        const hsInasist     = parseFloat(reciboData.horas_inasistencia) || 0;
-        const descuento     = hsInasist * tarifaHoraUsd * cestaTasa;
-        const totalRecibir  = Math.max(totalBs - descuento, 0);
-        // Convertir tarifa y costo diario a Bs para que el PDF los muestre correctamente
-        const tarifaHora  = tarifaHoraUsd * cestaTasa;
-        const costoDiario = tarifaHora * 7;
+        // PRD §5.3 + §6.5: dos escalas independientes
+        // Escala 1 — tarifa en Bs (cuerpo del recibo)
+        const tarifaHora  = parseFloat(cestaConfig.tarifa_hora)       || 0.20; // Bs/hora directo
+        const horasPorDia = parseFloat(cestaConfig.horas_por_dia)     || 6.67; // parámetro configurable
+        const costoDiario = tarifaHora * horasPorDia;                          // Bs/día
+        const hsInasist   = parseFloat(reciboData.horas_inasistencia)  || 0;
+        const descuento   = hsInasist * tarifaHora;                            // horas × Bs/hora
+        // Escala 2 — total en otra unidad (monto_usd × tasa)
+        const cestaUsd    = parseFloat(reciboData.cesta_monto_usd)     || 0;
+        const cestaTasa   = parseFloat(reciboData.cesta_tasa)          || 0;
+        const totalBs     = cestaUsd * cestaTasa;
+        const totalRecibir = Math.max(totalBs - descuento, 0);
         const cesta = { tarifaHora, costoDiario, totalBs, hsInasistencia: hsInasist, descuento, totalRecibir };
 
         if (esDocente) {

@@ -197,7 +197,7 @@ const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs })
         </tr>
         <tr style={stripe(1)}>
           <td colSpan={3} style={lb}>COSTO DIARIO DEL BENEFICIO DE ALIMENTACIÓN:</td>
-          <td style={rb}>{alimentario.costoDiario ? fmt(alimentario.costoDiario) : ''}</td>
+          <td style={rb}>{calcs.costoDiario ? fmt(calcs.costoDiario) : ''}</td>
         </tr>
         <tr style={{ background: NAVY_L }}>
           <td colSpan={3} style={{ ...lb, textAlign: 'right', color: NAVY }}>TOTAL BENEFICIO DE ALIMENTACIÓN:</td>

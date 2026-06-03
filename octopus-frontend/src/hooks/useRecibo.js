@@ -8,6 +8,7 @@ import {
   DEFAULT_RETENCIONES,
   LOGO_MAX_BYTES,
 } from '../constants/recibo';
+import { loadCestaConfig } from '../constants/avec';
 
 const initInfo = () => {
   let logos = {};
@@ -32,7 +33,7 @@ export function useRecibo() {
   const [asignaciones, setAsignaciones] = useState(() => DEFAULT_ASIGNACIONES.map(r => ({ ...r })));
   const [retenciones,  setRetenciones]  = useState(() => DEFAULT_RETENCIONES.map(r => ({ ...r })));
   const [alimentario, setAlimentario]  = useState({
-    montoPorHora: '', costoDiario: '', totalBeneficio: '',
+    montoPorHora: '', totalBeneficio: '',
     horasInasistencia: '', descuentoInasistencia: '',
   });
 
@@ -96,6 +97,12 @@ export function useRecibo() {
   const calcs = useMemo(() => {
     const totalAsignaciones = asignaciones.reduce((s, a) => s + (parseFloat(a.value) || 0), 0);
     const totalRetenciones  = retenciones.reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
+    // PRD §5.3 + §6.5: Costo_Diario = Monto_por_Hora × Horas_por_Día
+    // horas_por_dia viene de cestaConfig (configurable en Pagos → Cesta Ticket)
+    const cestaConf    = loadCestaConfig();
+    const montoPorHora = parseFloat(alimentario.montoPorHora)    || 0;
+    const horasPorDia  = parseFloat(cestaConf.horas_por_dia)     || 6.67;
+    const costoDiario  = montoPorHora * horasPorDia;
     const totalBeneficioRecibir =
       (parseFloat(alimentario.totalBeneficio)       || 0) -
       (parseFloat(alimentario.descuentoInasistencia) || 0);
@@ -105,6 +112,7 @@ export function useRecibo() {
       segundaQuincena:      totalAsignaciones / 2,
       totalRetenciones,
       netoDepositar:        totalAsignaciones - totalRetenciones,
+      costoDiario,
       totalBeneficioRecibir,
     };
   }, [asignaciones, retenciones, alimentario]);

@@ -67,10 +67,10 @@ function calcMontoNomina(emp, cestaConfig, periodo) {
  * Usa la misma lógica de Nomina.jsx: descuento = hsInasist * tarifa_hora (en Bs).
  */
 function getCestaMontoFinal(row, cfg) {
+    // PRD §6.5: descuento = horas_ausentes × tarifa_hora (Bs directo, sin × tasa)
     const tarifaHora  = parseFloat(cfg?.tarifa_hora) || 0.20;
-    const tasaBcv     = parseFloat(cfg?.tasa_bcv) || 1;
     const hsInasist   = parseFloat(row.hs_inasistencia) || 0;
-    const descuentoBs = hsInasist * tarifaHora * tasaBcv;
+    const descuentoBs = hsInasist * tarifaHora;
     return parseFloat(Math.max((row.cesta_total_bs || 0) - descuentoBs, 0).toFixed(2));
 }
 
@@ -783,9 +783,8 @@ const Pagos = () => {
                                 <tbody>
                                     {cestaRows.map(row => {
                                         const tarifaHora  = parseFloat(cestaConfigState.tarifa_hora) || 0.20;
-                                        const tasaBcv     = parseFloat(cestaConfigState.tasa_bcv) || 1;
                                         const hsInasist   = parseFloat(row.hs_inasistencia) || 0;
-                                        const descuento   = parseFloat((hsInasist * tarifaHora * tasaBcv).toFixed(2));
+                                        const descuento   = parseFloat((hsInasist * tarifaHora).toFixed(2)); // PRD: horas × Bs/hora
                                         const neto        = getCestaMontoFinal(row, cestaConfigState);
                                         const enTXT      = neto > 0 && esBancaribe(row);
                                         return (
@@ -1012,23 +1011,47 @@ const Pagos = () => {
                                 </div>
                             </div>
 
-                            {/* Tarifa/hora cesta */}
-                            <div>
-                                <label className={`block ${labelCls}`} style={labelStyle}>
-                                    Tarifa por Hora — Cesta Ticket (Bs)
-                                </label>
-                                <div className="flex items-center gap-2">
+                            {/* Tarifa/hora + Horas/día — PRD §5.3 */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className={`block ${labelCls}`} style={labelStyle}>
+                                        Monto por Hora (Bs)
+                                    </label>
                                     <input type="number" step="0.01" min="0" placeholder="0.20"
                                         value={cestaFormLocal.tarifa_hora}
                                         onChange={e => handleCestaConfigFormChange('tarifa_hora', e.target.value)}
-                                        className="w-32 px-3 py-2 rounded-lg text-sm font-mono outline-none"
+                                        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none"
                                         style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                        aria-label="Tarifa por hora de cesta ticket" />
-                                    <span className="text-xs" style={{ color: 'var(--ash)' }}>
-                                        Descuento inasistencia = Tarifa × H/Mens ausentes
-                                    </span>
+                                        aria-label="Monto por hora del beneficio de alimentación en Bs" />
+                                    <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                        Tarifa unitaria — cuerpo del recibo
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className={`block ${labelCls}`} style={labelStyle}>
+                                        Horas por Día (base)
+                                    </label>
+                                    <input type="number" step="0.01" min="0" placeholder="6.67"
+                                        value={cestaFormLocal.horas_por_dia ?? ''}
+                                        onChange={e => handleCestaConfigFormChange('horas_por_dia', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                        aria-label="Horas por día base para calcular costo diario" />
+                                    <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                        Costo diario = Monto/hora × H/día
+                                    </p>
                                 </div>
                             </div>
+                            {/* Preview costo diario calculado */}
+                            {parseFloat(cestaFormLocal.tarifa_hora) > 0 && parseFloat(cestaFormLocal.horas_por_dia) > 0 && (
+                                <p className="text-[10px] px-2 py-1 rounded" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
+                                    Costo diario calculado:{' '}
+                                    <strong>
+                                        {(parseFloat(cestaFormLocal.tarifa_hora) * parseFloat(cestaFormLocal.horas_por_dia))
+                                            .toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/día
+                                    </strong>
+                                </p>
+                            )}
 
                             {/* Tasa BCV */}
                             <div>

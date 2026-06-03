@@ -360,10 +360,18 @@ const Recibos = () => {
           <div className={card} style={cardStyle}>
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Programa Alimentario</p>
             <Field label="Monto beneficio por hora">
-              <NumInput value={alimentario.montoPorHora}         onChange={e => setAlimentarioField('montoPorHora',         e.target.value)} />
+              <NumInput value={alimentario.montoPorHora} onChange={e => setAlimentarioField('montoPorHora', e.target.value)} />
             </Field>
-            <Field label="Costo diario del beneficio">
-              <NumInput value={alimentario.costoDiario}          onChange={e => setAlimentarioField('costoDiario',          e.target.value)} />
+            <Field label="Costo diario del beneficio (auto)">
+              <div
+                className={`${inputCls} text-right`}
+                style={{ ...inputStyle, color: 'var(--ash)', cursor: 'default' }}
+              >
+                {fmt2(calcs.costoDiario)}
+              </div>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--ash)' }}>
+                = Monto/hora × H/día — configura H/día en Pagos → Cesta Ticket
+              </p>
             </Field>
             <Field label="Total Beneficio de Alimentación">
               <NumInput value={alimentario.totalBeneficio}       onChange={e => setAlimentarioField('totalBeneficio',       e.target.value)} />

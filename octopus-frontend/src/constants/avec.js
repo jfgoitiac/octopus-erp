@@ -96,7 +96,8 @@ const buildCategoriasDefault = () =>
 export const CESTA_DEFAULT = {
     categorias:     buildCategoriasDefault(),
     tasa_bcv:       '',
-    tarifa_hora:    '0.20',
+    tarifa_hora:    '0.20',  // Bs/hora — tarifa unitaria del beneficio (PRD §5.3)
+    horas_por_dia:  '6.67',  // h/día base para calcular costo diario (PRD §5.3)
     docente:        { monto_usd: '' },
     apoyo:          { monto_usd: '' },
     administrativo: { monto_usd: '' },
