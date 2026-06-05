@@ -13,6 +13,13 @@ import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
 
+const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const fmtMesAnio = (mes, anio) => {
+    const n = parseInt(mes);
+    const nombre = !isNaN(n) && n >= 1 && n <= 12 ? MESES_ES[n - 1] : String(mes);
+    return `${nombre} ${anio}`;
+};
+
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
     { value: 'pago_movil',     label: 'Pago Móvil' },
@@ -190,7 +197,12 @@ const Cobranza = () => {
                         signal: abortRef.current.signal,
                     });
                     const alumnos = res.data.alumnos || [];
-                    setRepresentanteNombre(res.data.representante?.nombre || '');
+                    const rep = res.data.representante || {};
+                    setRepresentanteNombre(
+                        rep.nombre_completo ||
+                        `${rep.nombre || ''} ${rep.apellido || ''}`.trim() ||
+                        ''
+                    );
                     setAlumnosRep(alumnos);
                     setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
                     // Si hay exactamente un alumno, seleccionarlo automáticamente
@@ -331,7 +343,7 @@ const Cobranza = () => {
                     const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                     itemsRecibo.push({
                         concepto: 'MENSUALIDAD',
-                        descripcion: `${m.mes} ${m.anio}${parcial ? ' (PARCIAL)' : ''}`,
+                        descripcion: `${fmtMesAnio(m.mes, m.anio)}${parcial ? ' (PARCIAL)' : ''}`,
                         monto_usd: monto.toFixed(2),
                         monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
                     });
@@ -344,7 +356,7 @@ const Cobranza = () => {
                     const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                     itemsRecibo.push({
                         concepto: 'ADELANTO',
-                        descripcion: `${m.mes} ${m.anio}${parcial ? ' (PARCIAL)' : ''}`,
+                        descripcion: `${fmtMesAnio(m.mes, m.anio)}${parcial ? ' (PARCIAL)' : ''}`,
                         monto_usd: monto.toFixed(2),
                         monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
                     });
@@ -362,7 +374,7 @@ const Cobranza = () => {
                     const conceptoLabel = CONCEPTOS.find(c => c.value === concepto)?.label.toUpperCase() || concepto.toUpperCase();
                     itemsRecibo.push({
                         concepto: conceptoLabel,
-                        descripcion: '',
+                        descripcion: fmtMesAnio(ahora.getMonth() + 1, ahora.getFullYear()),
                         monto_usd: totalUSD.toFixed(2),
                         monto_ves: totalVES.toFixed(2),
                     });

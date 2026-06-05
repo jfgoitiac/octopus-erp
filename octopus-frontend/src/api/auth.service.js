@@ -1,22 +1,22 @@
 import apiClient from './apiClient';
+import { tokenStore } from './tokenStore';
 
 export const authService = {
   async login(username, password) {
     const response = await apiClient.post('token/', { username, password });
     if (response.data.access) {
-      localStorage.setItem('access_token', response.data.access);
-      localStorage.setItem('refresh_token', response.data.refresh);
+      tokenStore.set(response.data.access);
+      // refresh llega como cookie HttpOnly — no manipular desde JS
     }
     return response.data;
   },
 
   logout() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    tokenStore.clear();
     window.location.href = '/login';
   },
 
   isAuthenticated() {
-    return !!localStorage.getItem('access_token');
+    return !!tokenStore.get();
   },
 };

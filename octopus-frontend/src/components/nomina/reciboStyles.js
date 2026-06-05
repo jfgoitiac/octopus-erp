@@ -1,7 +1,7 @@
-export const NAVY   = '#1e3a5f';
-export const NAVY_L = '#e8eff7';
-export const RED    = '#b91c1c';
-export const BORDER = '#b0bec5';
+export const NAVY   = '#003366';
+export const NAVY_L = '#F5F5F5';
+export const RED    = '#CC0000';
+export const BORDER = '#CCCCCC';
 
 const cell = {
   border: `0.5px solid ${BORDER}`,
@@ -9,7 +9,7 @@ const cell = {
   fontSize: '8px',
   fontFamily: '"Arial", sans-serif',
   verticalAlign: 'middle',
-  color: '#1e293b',
+  color: '#000000',
 };
 
 export const c   = { ...cell, textAlign: 'center' };
@@ -20,8 +20,8 @@ export const rb  = { ...r,   fontWeight: '700' };
 
 export const secH = {
   ...c,
-  background: NAVY,
-  color: '#fff',
+  background: '#F5F5F5',
+  color: '#003366',
   fontWeight: '700',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
@@ -31,8 +31,8 @@ export const secH = {
 
 export const subH = {
   ...c,
-  background: NAVY_L,
-  color: NAVY,
+  background: '#FFFFFF',
+  color: '#666666',
   fontWeight: '700',
   textTransform: 'uppercase',
   fontSize: '7.5px',

@@ -6,13 +6,12 @@ const fmt = n =>
     ? '—'
     : Number(n).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const TEAL  = '#0fa3b1';
-const NAVY  = '#1e3a5f';
+const NAVY  = '#003366';
 const GREEN = '#15803d';
-const GRAY  = '#64748b';
-const LIGHT = '#f8fafc';
-const BORDER = '#e2e8f0';
-const TEXT  = '#0f172a';
+const GRAY  = '#666666';
+const LIGHT = '#F5F5F5';
+const BORDER = '#CCCCCC';
+const TEXT  = '#000000';
 
 const ComprobanteCard = ({ data }) => {
   const {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     FileText, Loader2, AlertCircle, Download, X,
     Users, Wheat, Check, DollarSign, Settings2,
@@ -10,9 +10,12 @@ import { toast } from 'react-toastify';
 import axiosInstance from '../api/apiClient';
 import {
     generarPlanillaBancaribePDF, generarTXTBancaribe, fmtBs,
+    reciboAVECBytes, reciboSimpleBytes, txtBancaribe, planillaBancaribePDFBytes,
 } from '../utils/nominaPDF';
+import JSZip from 'jszip';
+import { es as esLocale } from 'date-fns/locale';
 import {
-    loadCestaConfig, saveCestaConfig, calcAVEC, calcSueldoBase,
+    CESTA_DEFAULT, calcAVEC, calcSueldoBase,
     SSO_PCT, SPF_PCT, FAOV_PCT, SSO_TOPE, CATEGORIAS_DOCENTE,
 } from '../constants/avec';
 
@@ -26,6 +29,49 @@ function useEscape(isOpen, onClose) {
         return () => document.removeEventListener('keydown', h);
     }, [isOpen, onClose]);
 }
+
+/** Atrapa el foco dentro del contenedor ref mientras el modal esté abierto. */
+function useFocusTrap(isOpen, containerRef) {
+    useEffect(() => {
+        if (!isOpen || !containerRef.current) return;
+        const el = containerRef.current;
+        const focusable = Array.from(el.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+        ));
+        if (!focusable.length) return;
+        focusable[0].focus();
+        const handleTab = (e) => {
+            if (e.key !== 'Tab') return;
+            if (e.shiftKey) {
+                if (document.activeElement === focusable[0]) {
+                    e.preventDefault();
+                    focusable[focusable.length - 1].focus();
+                }
+            } else {
+                if (document.activeElement === focusable[focusable.length - 1]) {
+                    e.preventDefault();
+                    focusable[0].focus();
+                }
+            }
+        };
+        document.addEventListener('keydown', handleTab);
+        return () => document.removeEventListener('keydown', handleTab);
+    }, [isOpen]); // containerRef es estable, no necesita estar en deps
+}
+
+/** Fila de skeleton animada para estados de carga en tablas. */
+const SkeletonRow = ({ cols }) => (
+    <tr className="animate-pulse">
+        {Array.from({ length: cols }).map((_, i) => (
+            <td key={i} className="px-4 py-3">
+                <div className="h-4 rounded"
+                    style={{ background: 'var(--border-md)', width: i === 0 ? '75%' : '55%' }} />
+            </td>
+        ))}
+    </tr>
+);
+
+const SKELETON_COUNT = 5;
 
 /** Devuelve true si el número de cuenta comienza con 0114 (Bancaribe). */
 const esBancaribe = (emp) => (emp.numero_cuenta || '').startsWith('0114');
@@ -108,6 +154,17 @@ const TIPO_LABEL = {
     apoyo:          'Apoyo/Obrero',
 };
 
+/** Agrupa un array de filas por estamento (docente/apoyo/administrativo). */
+function groupByEstamento(rows) {
+    const result = { docente: [], apoyo: [], administrativo: [] };
+    rows.forEach(r => {
+        const t   = r.tipo_personal || 'docente';
+        const key = t === 'directivo' ? 'docente' : (result[t] !== undefined ? t : 'docente');
+        result[key].push(r);
+    });
+    return result;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Componente principal
 // ═════════════════════════════════════════════════════════════════════════════
@@ -124,22 +181,54 @@ const Pagos = () => {
     const [loadingNomina,   setLoadingNomina]   = useState(false);
     const [nominaRows,      setNominaRows]       = useState([]);
     const [nominaPeriodo,   setNominaPeriodo]    = useState('I Quincena');
+    const [nominaTab,       setNominaTab]        = useState('docente');
 
     /* ── Sección 3: Cestaticket ────────────────────────────────────────────── */
     const [showCestaModal,      setShowCestaModal]      = useState(false);
     const [loadingCesta,        setLoadingCesta]        = useState(false);
     const [cestaRows,           setCestaRows]           = useState([]);
     const [cestaConfigState,    setCestaConfigState]    = useState(null);
+    const [cestaTab,            setCestaTab]            = useState('docente');
 
     /* ── Sección 3-b: Configuración Cestaticket ───────────────────────────── */
     const [showCestaConfigModal, setShowCestaConfigModal] = useState(false);
-    const [cestaConfigLocal,     setCestaConfigLocal]     = useState(loadCestaConfig);
-    const [cestaFormLocal,       setCestaFormLocal]       = useState(loadCestaConfig);
+    const [cestaConfigLocal,     setCestaConfigLocal]     = useState(() => structuredClone(CESTA_DEFAULT));
+    const [cestaFormLocal,       setCestaFormLocal]       = useState(() => structuredClone(CESTA_DEFAULT));
 
     /* ── Modal concepto (compartido por las 3 secciones) ──────────────────── */
     const [showConceptoModal, setShowConceptoModal] = useState(false);
     const [conceptoFor,       setConceptoFor]       = useState(null); // 'incentivo' | 'nomina' | 'cesta'
+    const [conceptoEstamento, setConceptoEstamento] = useState(null); // 'docente' | 'apoyo' | 'administrativo' | null
     const [conceptoPago,      setConceptoPago]      = useState('');
+
+    // ── Cache de empleados (Q-2: evita doble llamada al abrir Nómina y Cesta) ──
+    const empleadosCache = useRef(null);
+
+    // ── Refs para focus trap de cada modal (UX-2) ───────────────────────────
+    const bancaribeModalRef   = useRef(null);
+    const nominaModalRef      = useRef(null);
+    const cestaModalRef       = useRef(null);
+    const cestaConfigModalRef = useRef(null);
+    const conceptoModalRef    = useRef(null);
+
+    // ── Carga inicial de config desde el backend (no localStorage) ──────────
+    useEffect(() => {
+        axiosInstance.get('cobranza/config-nomina/')
+            .then(res => {
+                if (res.data && Object.keys(res.data).length > 0) {
+                    const merged = { ...structuredClone(CESTA_DEFAULT), ...res.data };
+                    setCestaConfigLocal(merged);
+                    setCestaFormLocal(merged);
+                }
+            })
+            .catch(() => {
+                toast.warning('No se pudo cargar la configuración guardada. Se usarán valores por defecto.');
+            });
+    }, []);
+
+    // ── Rows agrupados por estamento (derivados) ────────────────────────────
+    const nominaRowsByEstamento = useMemo(() => groupByEstamento(nominaRows), [nominaRows]);
+    const cestaRowsByEstamento  = useMemo(() => groupByEstamento(cestaRows),  [cestaRows]);
 
     // ── Escape ──────────────────────────────────────────────────────────────
     useEscape(showBancaribeModal,   () => { setShowBancaribeModal(false); setBancaribeRows([]); setTasaDia(0); });
@@ -148,18 +237,38 @@ const Pagos = () => {
     useEscape(showCestaConfigModal, () => setShowCestaConfigModal(false));
     useEscape(showConceptoModal,   () => { setShowConceptoModal(false); setConceptoPago(''); });
 
+    // ── Focus trap (UX-2) ───────────────────────────────────────────────────
+    useFocusTrap(showBancaribeModal,   bancaribeModalRef);
+    useFocusTrap(showNominaModal,      nominaModalRef);
+    useFocusTrap(showCestaModal,       cestaModalRef);
+    useFocusTrap(showCestaConfigModal, cestaConfigModalRef);
+    useFocusTrap(showConceptoModal,    conceptoModalRef);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Helper — fetch empleados con cache (Q-2)
+    // ════════════════════════════════════════════════════════════════════════
+    const fetchEmpleados = async () => {
+        if (empleadosCache.current) return empleadosCache.current;
+        const res = await axiosInstance.get('rrhh/empleados/');
+        empleadosCache.current = res.data || [];
+        return empleadosCache.current;
+    };
+
     // ════════════════════════════════════════════════════════════════════════
     // Handlers — Incentivo
     // ════════════════════════════════════════════════════════════════════════
     const handleOpenBancaribeModal = async () => {
+        setShowBancaribeModal(true); // UX-4: abre el modal primero con skeleton
         setLoadingBancaribe(true);
         try {
             const res = await axiosInstance.get('rrhh/empleados/preview_bancaribe/');
             const { empleados: emps, tasa } = res.data;
             setTasaDia(tasa || 0);
             setBancaribeRows(emps.map(e => ({ ...e, monto_usd: '' })));
-            setShowBancaribeModal(true);
-        } catch { toast.error('No se pudo cargar la vista previa de Bancaribe.'); }
+        } catch {
+            toast.error('No se pudo cargar la vista previa de Bancaribe.');
+            setShowBancaribeModal(false);
+        }
         finally  { setLoadingBancaribe(false); }
     };
 
@@ -173,25 +282,28 @@ const Pagos = () => {
     // Handlers — Nómina
     // ════════════════════════════════════════════════════════════════════════
     const handleOpenNominaModal = async () => {
+        setShowNominaModal(true); // UX-4: abre el modal primero con skeleton
         setLoadingNomina(true);
         try {
-            const cfg = loadCestaConfig();
-            const res = await axiosInstance.get('rrhh/empleados/');
-            const emps = res.data || [];
+            const cfg  = cestaConfigLocal;
+            const emps = await fetchEmpleados(); // Q-2: usa cache compartido
             const rows = emps.map(emp => {
                 const { monto, ok } = calcMontoNomina(emp, cfg, nominaPeriodo);
                 return { ...emp, monto_bs: ok ? String(monto) : '', calculado: ok };
             });
             setNominaRows(rows);
-            setShowNominaModal(true);
-        } catch { toast.error('No se pudo cargar los empleados.'); }
+            setNominaTab('docente');
+        } catch {
+            toast.error('No se pudo cargar los empleados.');
+            setShowNominaModal(false);
+        }
         finally  { setLoadingNomina(false); }
     };
 
     /** Recalcula los montos al cambiar el período sin volver a llamar a la API. */
     const handleNominaPeriodoChange = (periodo) => {
         setNominaPeriodo(periodo);
-        const cfg = loadCestaConfig();
+        const cfg = cestaConfigLocal;
         setNominaRows(prev => prev.map(emp => {
             const { monto, ok } = calcMontoNomina(emp, cfg, periodo);
             // Si el usuario ya editó el monto manualmente (!emp.calculado), no sobreescribir
@@ -206,11 +318,16 @@ const Pagos = () => {
     const handleCestaConfigFormChange = (path, value) =>
         setCestaFormLocal(prev => setNestedPath(prev, path, value));
 
-    const handleSaveCestaConfig = () => {
-        saveCestaConfig(cestaFormLocal);
-        setCestaConfigLocal({ ...cestaFormLocal });
-        setShowCestaConfigModal(false);
-        toast.success('Configuración de cesta ticket guardada.');
+    const handleSaveCestaConfig = async () => {
+        try {
+            const toSave = { ...cestaFormLocal };
+            await axiosInstance.put('cobranza/config-nomina/', toSave);
+            setCestaConfigLocal(toSave);
+            setShowCestaConfigModal(false);
+            toast.success('Configuracion de cesta ticket guardada.');
+        } catch {
+            toast.error('No se pudo guardar la configuracion. Verifica tu conexion.');
+        }
     };
 
     // ════════════════════════════════════════════════════════════════════════
@@ -222,10 +339,10 @@ const Pagos = () => {
             toast.warning('Configura la Tasa BCV usando el botón "Configurar" antes de procesar.');
             return;
         }
+        setShowCestaModal(true); // UX-4: abre el modal primero con skeleton
         setLoadingCesta(true);
         try {
-            const res  = await axiosInstance.get('rrhh/empleados/');
-            const emps = res.data || [];
+            const emps = await fetchEmpleados(); // Q-2: usa cache compartido
             const rows = emps.map(emp => {
                 const tipo     = emp.tipo_personal || 'docente';
                 const montoUsd = parseFloat(cfg[tipo]?.monto_usd) || 0;
@@ -240,25 +357,40 @@ const Pagos = () => {
             });
             setCestaRows(rows);
             setCestaConfigState(cfg);
-            setShowCestaModal(true);
-        } catch { toast.error('No se pudo cargar los empleados.'); }
+            setCestaTab('docente');
+        } catch {
+            toast.error('No se pudo cargar los empleados.');
+            setShowCestaModal(false);
+        }
         finally  { setLoadingCesta(false); }
     };
 
     // ════════════════════════════════════════════════════════════════════════
     // Handlers — Concepto + generación final
     // ════════════════════════════════════════════════════════════════════════
-    const handleAbrirConcepto = (para) => {
+    const handleAbrirConcepto = (para, estamento = null) => {
         let hasPagos = false;
-        if (para === 'incentivo') hasPagos = bancaribeRows.some(r => parseFloat(r.monto_usd) > 0);
-        if (para === 'nomina')    hasPagos = nominaRows.some(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r));
-        if (para === 'cesta')     hasPagos = cestaRows.some(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r));
+        if (para === 'incentivo') {
+            hasPagos = bancaribeRows.some(r => parseFloat(r.monto_usd) > 0);
+        }
+        if (para === 'nomina') {
+            const rows = estamento ? (nominaRowsByEstamento[estamento] || []) : nominaRows;
+            hasPagos = rows.some(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r));
+        }
+        if (para === 'cesta') {
+            const rows = estamento ? (cestaRowsByEstamento[estamento] || []) : cestaRows;
+            hasPagos = rows.some(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r));
+        }
 
         if (!hasPagos) {
-            toast.warning('No hay empleados Bancaribe con monto para incluir en el TXT.');
+            const estLabel = estamento
+                ? ` para ${TABS_CESTA.find(t => t.key === estamento)?.label}`
+                : '';
+            toast.warning(`No hay empleados Bancaribe con monto${estLabel} para incluir en el TXT.`);
             return;
         }
         setConceptoFor(para);
+        setConceptoEstamento(estamento);
         setConceptoPago('');
         setShowConceptoModal(true);
     };
@@ -283,34 +415,104 @@ const Pagos = () => {
             closeBancaribeModal();
 
         } else if (conceptoFor === 'nomina') {
-            const pagos = nominaRows
+            const estamento  = conceptoEstamento;
+            const estLabel   = TABS_CESTA.find(t => t.key === estamento)?.label || 'General';
+            const sourceRows = estamento ? (nominaRowsByEstamento[estamento] || []) : nominaRows;
+            const pagos = sourceRows
                 .filter(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r))
                 .map(r => ({ ...r, monto_usd: r.monto_bs }));
-            generarTXTBancaribe(pagos, 1, `Nomina_${nominaPeriodo.replace(' ', '')}_${mesStr}`);
+            const slug = estLabel.replace(/\s+/g, '');
+            generarTXTBancaribe(pagos, 1, `Nomina_${slug}_${nominaPeriodo.replace(' ', '')}_${mesStr}`);
             generarPlanillaBancaribePDF(pagos, 1, conceptoPago.trim(), {
-                titulo:   `PLANILLA DE NÓMINA — ${nominaPeriodo.toUpperCase()}`,
-                filename: `Planilla_Nomina_${nominaPeriodo.replace(' ', '')}_${mesStr}`,
+                titulo:   `PLANILLA DE NÓMINA — ${estLabel.toUpperCase()} — ${nominaPeriodo.toUpperCase()}`,
+                filename: `Planilla_Nomina_${slug}_${nominaPeriodo.replace(' ', '')}_${mesStr}`,
             });
-            toast.success(`Nómina: TXT + planilla generados (${pagos.length} empleado/s).`);
+            toast.success(`Nómina ${estLabel}: TXT + planilla generados (${pagos.length} empleado/s).`);
             setShowConceptoModal(false);
-            setShowNominaModal(false);
+            // Modal de nómina permanece abierto para generar los otros estamentos
 
         } else if (conceptoFor === 'cesta') {
-            const pagos = cestaRows
+            const estamento  = conceptoEstamento;
+            const estLabel   = TABS_CESTA.find(t => t.key === estamento)?.label || 'General';
+            const sourceRows = estamento ? (cestaRowsByEstamento[estamento] || []) : cestaRows;
+            const pagos = sourceRows
                 .filter(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r))
                 .map(r => ({ ...r, monto_usd: String(getCestaMontoFinal(r, cestaConfigState)) }));
-            generarTXTBancaribe(pagos, 1, `Cestaticket_${mesStr}`);
-            generarPlanillaBancaribePDF(pagos, 1, conceptoPago.trim(), {
-                titulo:   'PLANILLA DE PAGO — CESTATICKET / BONO ALIMENTARIO',
-                filename: `Planilla_Cesta_${mesStr}`,
-            });
-            toast.success(`Cestaticket: TXT + planilla generados (${pagos.length} empleado/s).`);
+            const slug     = estLabel.replace(/\s+/g, '');
+            const mesLabel = format(new Date(), 'MMMM_yyyy', { locale: esLocale }).toUpperCase();
+            const cfg      = cestaConfigState;
+            const tarifaH  = parseFloat(cfg?.tarifa_hora) || 0.20;
+            const hPorDia  = parseFloat(cfg?.horas_por_dia) || 8;
+
+            // ── Construir ZIP ──────────────────────────────────────────────────
+            const zip = new JSZip();
+
+            // 1. TXT Bancaribe
+            zip.file(
+                `Cestaticket_${slug}_${mesStr}.txt`,
+                txtBancaribe(pagos, 1),
+            );
+
+            // 2. Planilla PDF
+            zip.file(
+                `Planilla_Cesta_${slug}_${mesStr}.pdf`,
+                planillaBancaribePDFBytes(pagos, 1, conceptoPago.trim(), {
+                    titulo: `PLANILLA DE PAGO — CESTATICKET ${estLabel.toUpperCase()} / BONO ALIMENTARIO`,
+                }),
+            );
+
+            // 3. Recibo individual por empleado
+            const carpeta = zip.folder('Recibos');
+            for (const row of sourceRows) {
+                const hsInasist    = parseFloat(row.hs_inasistencia) || 0;
+                const descuento    = hsInasist * tarifaH;
+                const totalBsCesta = row.cesta_total_bs || 0;
+                const totalRecibir = Math.max(totalBsCesta - descuento, 0);
+                const cestaObj     = {
+                    tarifaHora:      tarifaH,
+                    costoDiario:     tarifaH * hPorDia,
+                    totalBs:         totalBsCesta,
+                    hsInasistencia:  hsInasist,
+                    descuento,
+                    totalRecibir,
+                };
+                const nombreArchivo = `Recibo_${row.apellido?.toUpperCase()}_${mesLabel}.pdf`;
+                const esDocente     = !row.tipo_personal || row.tipo_personal === 'docente' || row.tipo_personal === 'directivo';
+
+                if (esDocente) {
+                    const sb   = calcSueldoBase(cfg, row.categoria_docente, row.horas_semanales);
+                    if (sb > 0) {
+                        const avec = calcAVEC(sb, row.categoria_docente, row.anos_servicio, row.numero_hijos, row.titulo);
+                        const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb) };
+                        carpeta.file(nombreArchivo, reciboAVECBytes(row, data, avec, cestaObj));
+                    }
+                } else {
+                    const sb = parseFloat(row.sueldo_base) || 0;
+                    const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb), otras_deducciones: '0' };
+                    carpeta.file(nombreArchivo, reciboSimpleBytes(row, data));
+                }
+            }
+
+            // ── Descargar ZIP ──────────────────────────────────────────────────
+            zip.generateAsync({ type: 'blob' }).then(blob => {
+                const url  = URL.createObjectURL(blob);
+                const link = Object.assign(document.createElement('a'), {
+                    href: url, download: `Cesta_${slug}_${mesStr}.zip`,
+                });
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                toast.success(`Cestaticket ${estLabel}: ZIP generado con ${sourceRows.length} recibo(s) + planilla + TXT.`);
+            }).catch(() => toast.error('Error al generar el ZIP.'));
+
             setShowConceptoModal(false);
-            setShowCestaModal(false);
+            // Modal de cestaticket permanece abierto para generar los otros estamentos
         }
 
         setConceptoPago('');
         setConceptoFor(null);
+        setConceptoEstamento(null);
     };
 
     // ════════════════════════════════════════════════════════════════════════
@@ -369,7 +571,7 @@ const Pagos = () => {
                         <div>
                             <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Nómina</p>
                             <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                                Pago de sueldo — Cálculo AVEC automático por categoría
+                                Pago de sueldo por estamento — Cálculo AVEC automático
                             </p>
                         </div>
                     </div>
@@ -396,7 +598,7 @@ const Pagos = () => {
                             <div>
                                 <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Cestaticket</p>
                                 <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                                    Bono alimentario
+                                    Bono alimentario por estamento
                                     {parseFloat(cestaConfigLocal.tasa_bcv) > 0 && (
                                         <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
                                             style={{ background: '#dcfce7', color: '#16a34a' }}>
@@ -434,7 +636,8 @@ const Pagos = () => {
                 <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
                     style={{ background: 'rgba(43,48,58,0.6)' }}
                     role="dialog" aria-modal="true" aria-label="Generar pago Incentivo Bancaribe">
-                    <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+                    <div ref={bancaribeModalRef}
+                        className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
                         style={{ background: 'var(--porcelain)', maxHeight: '90vh' }}>
 
                         {/* Header */}
@@ -467,14 +670,32 @@ const Pagos = () => {
                             </button>
                         </div>
 
-                        {/* Tabla */}
-                        <div className="overflow-y-auto flex-1">
-                            {bancaribeRows.length === 0 ? (
+                        {/* Tabla — UX-1: overflow-auto para scroll horizontal en mobile */}
+                        <div className="overflow-auto flex-1">
+                            {loadingBancaribe ? (
+                                <table className="w-full min-w-[560px] text-left">
+                                    <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
+                                        <tr>
+                                            {['Empleado', 'Cédula', 'N° Cuenta', 'Tipo', 'Monto USD', 'Monto Bs'].map(h => (
+                                                <th key={h} className="px-4 py-3 text-[11px] uppercase tracking-widest"
+                                                    style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>
+                                                    {h}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                                            <SkeletonRow key={i} cols={6} />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : bancaribeRows.length === 0 ? (
                                 <div className="py-20 text-center text-sm" style={{ color: 'var(--ash)' }}>
                                     No hay empleados con cuenta Bancaribe (0114) configurada.
                                 </div>
                             ) : (
-                                <table className="w-full text-left">
+                                <table className="w-full min-w-[560px] text-left">
                                     <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
                                         <tr>
                                             {['Empleado', 'Cédula', 'N° Cuenta', 'Tipo', 'Monto USD', 'Monto Bs'].map(h => (
@@ -547,7 +768,7 @@ const Pagos = () => {
                                     Cancelar
                                 </button>
                                 <button onClick={() => handleAbrirConcepto('incentivo')}
-                                    disabled={bancaribeRows.length === 0}
+                                    disabled={loadingBancaribe || !bancaribeRows.some(r => parseFloat(r.monto_usd) > 0)}
                                     className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                                     style={{ background: '#004FA3' }}>
                                     <Download size={15} /> Generar TXT
@@ -559,13 +780,14 @@ const Pagos = () => {
             )}
 
             {/* ════════════════════════════════════════════════════════════
-                MODAL 2 — NÓMINA
+                MODAL 2 — NÓMINA (con tabs por estamento)
             ════════════════════════════════════════════════════════════ */}
             {showNominaModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
                     style={{ background: 'rgba(43,48,58,0.6)' }}
                     role="dialog" aria-modal="true" aria-label="Generar pago de Nómina">
-                    <div className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+                    <div ref={nominaModalRef}
+                        className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
                         style={{ background: 'var(--porcelain)', maxHeight: '90vh' }}>
 
                         {/* Header */}
@@ -600,18 +822,49 @@ const Pagos = () => {
                             </button>
                         </div>
 
-                        {/* Aviso si hay empleados sin calcular */}
-                        {nominaRows.some(r => !r.calculado) && (
+                        {/* Aviso global si hay empleados sin calcular */}
+                        {!loadingNomina && nominaRows.some(r => !r.calculado) && (
                             <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 text-xs"
                                 style={{ background: '#fef9c3', color: '#92400e', borderBottom: '0.5px solid #fde047' }}>
                                 <AlertCircle size={13} />
-                                Algunos empleados no tienen datos suficientes para cálculo automático (sin categoría, H/Sem o sueldo base). Puedes ingresar el monto manualmente.
+                                Algunos empleados no tienen datos suficientes para cálculo automático. Puedes ingresar el monto manualmente.
                             </div>
                         )}
 
-                        {/* Tabla */}
-                        <div className="overflow-y-auto flex-1">
-                            <table className="w-full text-left">
+                        {/* Tabs por estamento */}
+                        <div className="px-6 pt-4 pb-2 flex-shrink-0">
+                            <div className="flex gap-1 p-1 rounded-xl"
+                                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                                {TABS_CESTA.map(t => {
+                                    const Icon     = t.icon;
+                                    const active   = nominaTab === t.key;
+                                    const tabRows  = nominaRowsByEstamento[t.key] || [];
+                                    const conTXT   = tabRows.filter(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r)).length;
+                                    return (
+                                        <button key={t.key} onClick={() => setNominaTab(t.key)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all flex-1 justify-center"
+                                            style={{ background: active ? '#6d28d9' : 'transparent', color: active ? '#fff' : 'var(--ash)' }}>
+                                            <Icon size={13} />
+                                            {t.label}
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-0.5"
+                                                style={{ background: active ? 'rgba(255,255,255,0.2)' : 'var(--border-md)', color: active ? '#fff' : 'var(--ash)' }}>
+                                                {tabRows.length}
+                                            </span>
+                                            {conTXT > 0 && (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                                                    style={{ background: active ? 'rgba(255,255,255,0.25)' : '#ede9fe', color: active ? '#fff' : '#6d28d9' }}>
+                                                    {conTXT} ✓
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Tabla del tab activo — UX-1: overflow-auto para mobile */}
+                        <div className="overflow-auto flex-1">
+                            <table className="w-full min-w-[640px] text-left">
                                 <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
                                     <tr>
                                         {['Empleado', 'Tipo', 'Cálculo', `Monto ${nominaPeriodo} (Bs)`, 'Cuenta Bancaribe', 'TXT'].map(h => (
@@ -623,9 +876,19 @@ const Pagos = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {nominaRows.map(row => {
-                                        const monto    = parseFloat(row.monto_bs) || 0;
-                                        const enTXT    = monto > 0 && esBancaribe(row);
+                                    {loadingNomina ? (
+                                        Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                                            <SkeletonRow key={i} cols={6} />
+                                        ))
+                                    ) : (nominaRowsByEstamento[nominaTab] || []).length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" className="px-4 py-16 text-center text-sm" style={{ color: 'var(--ash)' }}>
+                                                No hay personal {TABS_CESTA.find(t => t.key === nominaTab)?.label.toLowerCase()} registrado.
+                                            </td>
+                                        </tr>
+                                    ) : (nominaRowsByEstamento[nominaTab] || []).map(row => {
+                                        const monto = parseFloat(row.monto_bs) || 0;
+                                        const enTXT = monto > 0 && esBancaribe(row);
                                         return (
                                             <tr key={row.id}
                                                 style={{ borderBottom: '0.5px solid var(--border)', background: enTXT ? 'rgba(109,40,217,0.03)' : 'var(--porcelain)' }}>
@@ -691,10 +954,14 @@ const Pagos = () => {
                             style={{ borderTop: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
                             <div className="text-xs space-y-0.5" style={{ color: 'var(--ash)' }}>
                                 <p>
-                                    {nominaRows.filter(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r)).length} empleado(s) en TXT
+                                    <span className="font-medium" style={{ color: 'var(--jet)' }}>
+                                        {TABS_CESTA.find(t => t.key === nominaTab)?.label}:
+                                    </span>
+                                    {' '}
+                                    {(nominaRowsByEstamento[nominaTab] || []).filter(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r)).length} empleado(s) en TXT
                                     {' · '}
                                     Total: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                        {fmtBs(nominaRows.reduce((s, r) => s + (parseFloat(r.monto_bs) || 0), 0))} Bs
+                                        {fmtBs((nominaRowsByEstamento[nominaTab] || []).reduce((s, r) => s + (parseFloat(r.monto_bs) || 0), 0))} Bs
                                     </span>
                                 </p>
                             </div>
@@ -702,12 +969,14 @@ const Pagos = () => {
                                 <button onClick={() => setShowNominaModal(false)}
                                     className="px-4 py-2 rounded-lg text-sm font-medium"
                                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                    Cancelar
+                                    Cerrar
                                 </button>
-                                <button onClick={() => handleAbrirConcepto('nomina')}
-                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white"
+                                <button onClick={() => handleAbrirConcepto('nomina', nominaTab)}
+                                    disabled={loadingNomina}
+                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                                     style={{ background: '#6d28d9' }}>
-                                    <Download size={15} /> Generar TXT
+                                    <Download size={15} />
+                                    Generar TXT — {TABS_CESTA.find(t => t.key === nominaTab)?.label}
                                 </button>
                             </div>
                         </div>
@@ -716,13 +985,14 @@ const Pagos = () => {
             )}
 
             {/* ════════════════════════════════════════════════════════════
-                MODAL 3 — CESTATICKET
+                MODAL 3 — CESTATICKET (con tabs por estamento)
             ════════════════════════════════════════════════════════════ */}
-            {showCestaModal && cestaConfigState && (
+            {showCestaModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
                     style={{ background: 'rgba(43,48,58,0.6)' }}
                     role="dialog" aria-modal="true" aria-label="Generar pago de Cestaticket">
-                    <div className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+                    <div ref={cestaModalRef}
+                        className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
                         style={{ background: 'var(--porcelain)', maxHeight: '90vh' }}>
 
                         {/* Header */}
@@ -735,22 +1005,20 @@ const Pagos = () => {
                                         Cestaticket — Bono Alimentario
                                     </h3>
                                 </div>
-                                <p className="text-xs ml-5" style={{ color: 'var(--ash)' }}>
-                                    Tasa BCV: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                        {parseFloat(cestaConfigState.tasa_bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs/USD
-                                    </span>
-                                    {' · '}
-                                    Tarifa/hora: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                        {cestaConfigState.tarifa_hora} Bs/h
-                                    </span>
-                                    {' · '}
-                                    <button
-                                        onClick={() => { setCestaFormLocal({ ...cestaConfigState }); setShowCestaConfigModal(true); }}
-                                        className="underline underline-offset-2"
-                                        style={{ color: 'var(--pb)' }}>
-                                        Editar configuración
-                                    </button>
-                                </p>
+                                {cestaConfigState && (
+                                    <p className="text-xs ml-5" style={{ color: 'var(--ash)' }}>
+                                        Tasa BCV: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
+                                            {parseFloat(cestaConfigState.tasa_bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs/USD
+                                        </span>
+                                        {' · '}
+                                        <button
+                                            onClick={() => { setCestaFormLocal({ ...cestaConfigLocal }); setShowCestaConfigModal(true); }}
+                                            className="underline underline-offset-2"
+                                            style={{ color: 'var(--pb)' }}>
+                                            Editar configuración
+                                        </button>
+                                    </p>
+                                )}
                             </div>
                             <button onClick={() => setShowCestaModal(false)} style={{ color: 'var(--ash)' }}
                                 aria-label="Cerrar modal Cestaticket">
@@ -758,8 +1026,8 @@ const Pagos = () => {
                             </button>
                         </div>
 
-                        {/* Aviso si hay empleados sin monto configurado */}
-                        {cestaRows.some(r => !r.ok_cesta) && (
+                        {/* Aviso global si hay empleados sin monto */}
+                        {!loadingCesta && cestaRows.some(r => !r.ok_cesta) && (
                             <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 text-xs"
                                 style={{ background: '#fef9c3', color: '#92400e', borderBottom: '0.5px solid #fde047' }}>
                                 <AlertCircle size={13} />
@@ -767,9 +1035,42 @@ const Pagos = () => {
                             </div>
                         )}
 
-                        {/* Tabla */}
-                        <div className="overflow-y-auto flex-1">
-                            <table className="w-full text-left">
+                        {/* Tabs por estamento */}
+                        <div className="px-6 pt-4 pb-2 flex-shrink-0">
+                            <div className="flex gap-1 p-1 rounded-xl"
+                                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                                {TABS_CESTA.map(t => {
+                                    const Icon     = t.icon;
+                                    const active   = cestaTab === t.key;
+                                    const tabRows  = cestaRowsByEstamento[t.key] || [];
+                                    const conTXT   = cestaConfigState
+                                        ? tabRows.filter(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r)).length
+                                        : 0;
+                                    return (
+                                        <button key={t.key} onClick={() => setCestaTab(t.key)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all flex-1 justify-center"
+                                            style={{ background: active ? '#16a34a' : 'transparent', color: active ? '#fff' : 'var(--ash)' }}>
+                                            <Icon size={13} />
+                                            {t.label}
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-0.5"
+                                                style={{ background: active ? 'rgba(255,255,255,0.2)' : 'var(--border-md)', color: active ? '#fff' : 'var(--ash)' }}>
+                                                {tabRows.length}
+                                            </span>
+                                            {conTXT > 0 && (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                                                    style={{ background: active ? 'rgba(255,255,255,0.25)' : '#dcfce7', color: active ? '#fff' : '#16a34a' }}>
+                                                    {conTXT} ✓
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Tabla del tab activo — UX-1: overflow-auto para mobile */}
+                        <div className="overflow-auto flex-1">
+                            <table className="w-full min-w-[700px] text-left">
                                 <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
                                     <tr>
                                         {['Empleado', 'Tipo', 'Total Bs', 'H/Mens Inasistencia', 'Descuento', 'Neto a Recibir', 'TXT'].map(h => (
@@ -781,11 +1082,21 @@ const Pagos = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {cestaRows.map(row => {
-                                        const tarifaHora  = parseFloat(cestaConfigState.tarifa_hora) || 0.20;
-                                        const hsInasist   = parseFloat(row.hs_inasistencia) || 0;
-                                        const descuento   = parseFloat((hsInasist * tarifaHora).toFixed(2)); // PRD: horas × Bs/hora
-                                        const neto        = getCestaMontoFinal(row, cestaConfigState);
+                                    {loadingCesta ? (
+                                        Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                                            <SkeletonRow key={i} cols={7} />
+                                        ))
+                                    ) : (cestaRowsByEstamento[cestaTab] || []).length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" className="px-4 py-16 text-center text-sm" style={{ color: 'var(--ash)' }}>
+                                                No hay personal {TABS_CESTA.find(t => t.key === cestaTab)?.label.toLowerCase()} registrado.
+                                            </td>
+                                        </tr>
+                                    ) : (cestaRowsByEstamento[cestaTab] || []).map(row => {
+                                        const tarifaHora = parseFloat(cestaConfigState?.tarifa_hora) || 0.20;
+                                        const hsInasist  = parseFloat(row.hs_inasistencia) || 0;
+                                        const descuento  = parseFloat((hsInasist * tarifaHora).toFixed(2));
+                                        const neto       = getCestaMontoFinal(row, cestaConfigState);
                                         const enTXT      = neto > 0 && esBancaribe(row);
                                         return (
                                             <tr key={row.id}
@@ -846,22 +1157,32 @@ const Pagos = () => {
                         <div className="px-6 py-4 flex justify-between items-center flex-shrink-0"
                             style={{ borderTop: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
                             <div className="text-xs" style={{ color: 'var(--ash)' }}>
-                                {cestaRows.filter(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r)).length} empleado(s) en TXT
+                                <span className="font-medium" style={{ color: 'var(--jet)' }}>
+                                    {TABS_CESTA.find(t => t.key === cestaTab)?.label}:
+                                </span>
+                                {' '}
+                                {cestaConfigState
+                                    ? (cestaRowsByEstamento[cestaTab] || []).filter(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r)).length
+                                    : 0} empleado(s) en TXT
                                 {' · '}
                                 Total: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                    {fmtBs(cestaRows.reduce((s, r) => s + getCestaMontoFinal(r, cestaConfigState), 0))} Bs
+                                    {cestaConfigState
+                                        ? fmtBs((cestaRowsByEstamento[cestaTab] || []).reduce((s, r) => s + getCestaMontoFinal(r, cestaConfigState), 0))
+                                        : '0'} Bs
                                 </span>
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={() => setShowCestaModal(false)}
                                     className="px-4 py-2 rounded-lg text-sm font-medium"
                                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                    Cancelar
+                                    Cerrar
                                 </button>
-                                <button onClick={() => handleAbrirConcepto('cesta')}
-                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white"
+                                <button onClick={() => handleAbrirConcepto('cesta', cestaTab)}
+                                    disabled={loadingCesta}
+                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                                     style={{ background: '#16a34a' }}>
-                                    <Download size={15} /> Generar TXT
+                                    <Download size={15} />
+                                    Generar TXT — {TABS_CESTA.find(t => t.key === cestaTab)?.label}
                                 </button>
                             </div>
                         </div>
@@ -876,11 +1197,12 @@ const Pagos = () => {
                 <div className="fixed inset-0 flex items-center justify-center z-[60] p-4"
                     style={{ background: 'rgba(43,48,58,0.7)' }}
                     role="dialog" aria-modal="true" aria-label="Concepto de pago">
-                    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+                    <div ref={conceptoModalRef}
+                        className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
                         style={{ background: 'var(--porcelain)' }}>
                         <div className="flex justify-between items-center px-5 py-4"
                             style={{ borderBottom: '0.5px solid var(--border)' }}>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <div className="w-2 h-2 rounded-full" style={{
                                     background: conceptoFor === 'incentivo' ? '#004FA3'
                                               : conceptoFor === 'nomina'    ? '#6d28d9'
@@ -892,6 +1214,7 @@ const Pagos = () => {
                                 <span className="text-xs px-2 py-0.5 rounded-full capitalize"
                                     style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
                                     {conceptoFor}
+                                    {conceptoEstamento && ` · ${TABS_CESTA.find(t => t.key === conceptoEstamento)?.label}`}
                                 </span>
                             </div>
                             <button onClick={() => { setShowConceptoModal(false); setConceptoPago(''); }}
@@ -943,7 +1266,8 @@ const Pagos = () => {
                 <div className="fixed inset-0 flex items-center justify-center z-[70] p-4"
                     style={{ background: 'rgba(43,48,58,0.65)' }}
                     role="dialog" aria-modal="true" aria-label="Configuración de Cesta Ticket">
-                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+                    <div ref={cestaConfigModalRef}
+                        className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col"
                         style={{ background: 'var(--porcelain)', maxHeight: '92vh' }}>
 
                         <div className="flex justify-between items-center px-6 py-4 flex-shrink-0"
@@ -955,7 +1279,7 @@ const Pagos = () => {
                                         Configuración de Cesta Ticket
                                     </h3>
                                     <p className="text-[11px]" style={{ color: 'var(--ash)' }}>
-                                        Monto en USD por estamento · Se guarda localmente
+                                        Monto en USD por estamento · Se guarda en el servidor
                                     </p>
                                 </div>
                             </div>
@@ -967,43 +1291,53 @@ const Pagos = () => {
 
                         <div className="p-6 space-y-5 overflow-y-auto flex-1">
 
-                            {/* Tabla AVEC: costo/hora por categoría */}
+                            {/* Tabla AVEC: sueldo base mensual por categoría */}
                             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
                                 <div className="px-4 py-2.5"
                                     style={{ background: 'var(--pb-light)', borderBottom: '0.5px solid var(--border-md)' }}>
                                     <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--pb-mid)' }}>
-                                        Tabla AVEC — Costo por Hora según Categoría
+                                        Tabla AVEC — Sueldo Base Mensual según Categoría
                                     </p>
                                     <p className="text-[10px] mt-0.5" style={{ color: 'var(--ash)' }}>
-                                        Sueldo Base = Costo/Hora[categoría] × N° H/Sem del docente
+                                        Bs/hora = Sueldo/Mes ÷ H/Sem referencia · Sueldo empleado = Bs/hora × H/Sem del docente
                                     </p>
                                 </div>
                                 <div className="divide-y" style={{ background: 'var(--porcelain)' }}>
                                     {CATEGORIAS_DOCENTE.map((cat, i) => {
-                                        const valor   = cestaFormLocal.categorias?.[cat]?.costo_hora || '';
-                                        const ejemplo = valor
-                                            ? `Ej: ${parseFloat(valor).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs/h × 36 h = ${(parseFloat(valor)*36).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`
-                                            : null;
+                                        const mensual  = cestaFormLocal.categorias?.[cat]?.sueldo_mensual || '';
+                                        const horasRef = parseFloat(cestaFormLocal.horas_sem_referencia) || 44;
+                                        const horasDia = parseFloat(cestaFormLocal.horas_por_dia) || 6.67;
+                                        const monto    = parseFloat(mensual) || 0;
+                                        const porHora  = monto > 0 ? monto / horasRef : null;
+                                        const porDia   = porHora !== null ? porHora * horasDia : null;
                                         return (
-                                            <div key={cat} className="flex items-center gap-3 px-4 py-2.5">
+                                            <div key={cat} className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
                                                 <span className="text-xs font-medium w-16 flex-shrink-0 px-2 py-0.5 rounded text-center"
                                                     style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
                                                     {cat}
                                                 </span>
-                                                <div className="flex-1 flex items-center gap-1.5">
+                                                <div className="flex items-center gap-1.5">
                                                     <input type="number" step="0.01" min="0"
-                                                        placeholder="Bs/hora"
+                                                        placeholder="0.00"
                                                         autoFocus={i === 0}
-                                                        value={valor}
-                                                        onChange={e => handleCestaConfigFormChange(`categorias.${cat}.costo_hora`, e.target.value)}
+                                                        value={mensual}
+                                                        onChange={e => handleCestaConfigFormChange(`categorias.${cat}.sueldo_mensual`, e.target.value)}
                                                         className="w-32 px-2.5 py-1.5 rounded-lg text-sm font-mono outline-none"
-                                                        style={{ border: `0.5px solid ${valor ? 'var(--pb)' : 'var(--border-md)'}`, background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                                        aria-label={`Costo por hora categoría ${cat}`} />
-                                                    <span className="text-[11px]" style={{ color: 'var(--ash)' }}>Bs/hora</span>
+                                                        style={{ border: `0.5px solid ${mensual ? 'var(--pb)' : 'var(--border-md)'}`, background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                                        aria-label={`Sueldo base mensual categoría ${cat}`} />
+                                                    <span className="text-[11px]" style={{ color: 'var(--ash)' }}>Bs/mes</span>
                                                 </div>
-                                                {ejemplo && (
-                                                    <span className="text-[10px] font-mono text-right hidden sm:block"
-                                                        style={{ color: 'var(--ash)' }}>{ejemplo}</span>
+                                                {porHora !== null && (
+                                                    <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                                                        <span className="px-2 py-0.5 rounded"
+                                                            style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
+                                                            {porHora.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/h
+                                                        </span>
+                                                        <span className="px-2 py-0.5 rounded"
+                                                            style={{ background: '#f0fdf4', color: '#15803d' }}>
+                                                            {porDia.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/día
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         );
@@ -1011,47 +1345,6 @@ const Pagos = () => {
                                 </div>
                             </div>
 
-                            {/* Tarifa/hora + Horas/día — PRD §5.3 */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className={`block ${labelCls}`} style={labelStyle}>
-                                        Monto por Hora (Bs)
-                                    </label>
-                                    <input type="number" step="0.01" min="0" placeholder="0.20"
-                                        value={cestaFormLocal.tarifa_hora}
-                                        onChange={e => handleCestaConfigFormChange('tarifa_hora', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                        aria-label="Monto por hora del beneficio de alimentación en Bs" />
-                                    <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
-                                        Tarifa unitaria — cuerpo del recibo
-                                    </p>
-                                </div>
-                                <div>
-                                    <label className={`block ${labelCls}`} style={labelStyle}>
-                                        Horas por Día (base)
-                                    </label>
-                                    <input type="number" step="0.01" min="0" placeholder="6.67"
-                                        value={cestaFormLocal.horas_por_dia ?? ''}
-                                        onChange={e => handleCestaConfigFormChange('horas_por_dia', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                        aria-label="Horas por día base para calcular costo diario" />
-                                    <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
-                                        Costo diario = Monto/hora × H/día
-                                    </p>
-                                </div>
-                            </div>
-                            {/* Preview costo diario calculado */}
-                            {parseFloat(cestaFormLocal.tarifa_hora) > 0 && parseFloat(cestaFormLocal.horas_por_dia) > 0 && (
-                                <p className="text-[10px] px-2 py-1 rounded" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-                                    Costo diario calculado:{' '}
-                                    <strong>
-                                        {(parseFloat(cestaFormLocal.tarifa_hora) * parseFloat(cestaFormLocal.horas_por_dia))
-                                            .toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/día
-                                    </strong>
-                                </p>
-                            )}
 
                             {/* Tasa BCV */}
                             <div>

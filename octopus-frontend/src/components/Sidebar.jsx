@@ -3,9 +3,10 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useSede } from '../context/SedeContext';
 import SedeSwitcher from './SedeSwitcher';
+import logoColegio from '../assets/logo-colegio.png';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
-  BarChart3, Wrench, LogOut, Octagon, ShieldCheck,
+  BarChart3, Wrench, LogOut, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell
 } from 'lucide-react';
@@ -95,12 +96,11 @@ const Sidebar = () => {
           className="absolute inset-0 opacity-[0.04] pointer-events-none"
           style={{ background: 'radial-gradient(ellipse 120% 100% at -10% 50%, var(--pb) 0%, transparent 65%)' }}
         />
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 glow-pulse"
-          style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}
-        >
-          <Octagon size={15} color="#fff" />
-        </div>
+        <img
+          src={logoColegio}
+          alt="Logo del colegio"
+          className="w-9 h-9 object-contain flex-shrink-0"
+        />
         <div>
           <p className="text-sm font-semibold leading-none text-gradient">Octopus</p>
           <p className="text-[10px] tracking-widest mt-0.5" style={{ color: 'var(--ash)' }}>ERP v2</p>

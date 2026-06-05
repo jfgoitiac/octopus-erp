@@ -121,6 +121,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ] + [o for o in _cors_extra if o]
 
+# Requerido para que el navegador envie la cookie HttpOnly del refresh token
+CORS_ALLOW_CREDENTIALS = True
+
 # Configuración de CSRF necesaria para permitir peticiones desde el frontend
 _csrf_extra = os.environ.get('DJANGO_CSRF_ORIGINS', '').split()
 CSRF_TRUSTED_ORIGINS = [

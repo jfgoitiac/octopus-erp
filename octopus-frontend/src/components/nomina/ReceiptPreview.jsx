@@ -13,7 +13,7 @@ const LogoPlaceholder = ({ label }) => (
     width: 68, height: 68,
     border: `1.5px dashed ${BORDER}`,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    margin: '0 auto', fontSize: '7px', color: '#94a3b8',
+    margin: '0 auto', fontSize: '7px', color: '#666666',
     flexDirection: 'column', gap: 2, borderRadius: '4px',
   }}>
     <span>Logo</span><span>{label}</span>
@@ -43,13 +43,13 @@ const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs })
           </td>
           <td style={{ border: 'none', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.1 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              <span style={{ fontSize: '8px',   color: '#374151' }}>REPÚBLICA BOLIVARIANA DE VENEZUELA</span>
-              <span style={{ fontSize: '7.5px', color: '#374151' }}>MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</span>
-              <span style={{ fontSize: '7.5px', color: '#1e293b' }}>U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA</span>
-              <span style={{ fontSize: '7px',   color: '#374151' }}>AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA</span>
-              <span style={{ fontSize: '7px',   color: '#374151' }}>YARACAL ESTADO FALCÓN</span>
-              <span style={{ fontSize: '7px',   color: '#374151' }}>TELÉFONOS 0259 938 1347</span>
-              <span style={{ fontSize: '7px',   color: '#374151' }}>CÓDIGO DEA PD00131104 &nbsp;&nbsp; RIF-J-085222910</span>
+              <span style={{ fontSize: '8px',   color: '#003366' }}>REPÚBLICA BOLIVARIANA DE VENEZUELA</span>
+              <span style={{ fontSize: '7.5px', color: '#000000' }}>MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</span>
+              <span style={{ fontSize: '7.5px', color: '#003366', fontWeight: '700' }}>U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>YARACAL ESTADO FALCÓN</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>TELÉFONOS 0259 938 1347</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>CÓDIGO DEA PD00131104 &nbsp;&nbsp; RIF-J-085222910</span>
             </div>
           </td>
           <td style={{ width: '13%', border: 'none', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -70,7 +70,7 @@ const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs })
       }}>
         RECIBO DE PAGO {info.tipoRecibo}
       </div>
-      <div style={{ fontWeight: '600', fontSize: '8.5px', color: '#374151', marginTop: '3px' }}>
+      <div style={{ fontWeight: '600', fontSize: '8.5px', color: '#000000', marginTop: '3px' }}>
         Mes: {info.mes} {info.año}
       </div>
     </div>
@@ -229,7 +229,7 @@ const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs })
       marginTop: 'auto',
       textAlign: 'center',
       fontSize: '7px',
-      color: '#64748b',
+      color: '#666666',
       lineHeight: 2,
       borderTop: `1.5px solid ${NAVY}`,
       paddingTop: '10px',

@@ -198,9 +198,10 @@ class Pago(models.Model):
         """
         is_new = self.pk is None
 
-        # 1. Referencia automática para efectivo en divisas
-        if self.metodo_pago == 'efectivo' and not self.referencia:
-            self.referencia = f"EFECT-{uuid.uuid4().hex[:8].upper()}"
+        # 1. Referencia automática para pagos en efectivo (USD y Bs.)
+        if self.metodo_pago in ('efectivo', 'efectivo_ves') and not self.referencia:
+            prefijo = 'EFECT' if self.metodo_pago == 'efectivo' else 'EFEBS'
+            self.referencia = f"{prefijo}-{uuid.uuid4().hex[:8].upper()}"
 
         # 2. Validación (ejecuta clean())
         self.full_clean()
@@ -220,11 +221,19 @@ class Pago(models.Model):
         # 3. Generar factura_id después del primer guardado (requiere pk)
         if is_new and not self.factura_id:
             from django.utils import timezone as tz
+            from django.db import transaction
             fecha = self.fecha_pago if self.fecha_pago else tz.now()
             date_prefix = fecha.strftime('%Y%m%d')
-            count = Pago.objects.filter(factura_id__startswith=date_prefix).count()
-            self.factura_id = f"{date_prefix}{count + 1:04d}"
-            Pago.objects.filter(pk=self.pk).update(factura_id=self.factura_id)
+            with transaction.atomic():
+                # select_for_update evita race condition en entornos multi-worker
+                count = (
+                    Pago.objects
+                    .select_for_update()
+                    .filter(factura_id__startswith=date_prefix)
+                    .count()
+                )
+                self.factura_id = f"{date_prefix}{count + 1:04d}"
+                Pago.objects.filter(pk=self.pk).update(factura_id=self.factura_id)
 class Mensualidad(models.Model):
     MESES = [
         (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),

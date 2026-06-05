@@ -1,7 +1,8 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Lock, User, Octagon, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import logoColegio from '../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 
 const classifyAuthError = (err) => {
@@ -40,8 +41,8 @@ const Login = () => {
         <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
             <div className="max-w-md w-full rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
                 <div className="p-8 text-center" style={{ background: 'var(--jet)' }}>
-                    <div className="inline-flex p-3 rounded-xl backdrop-blur-sm mb-4" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                        <Octagon size={48} style={{ color: 'var(--pb)' }} />
+                    <div className="inline-flex p-2 rounded-xl backdrop-blur-sm mb-4" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                        <img src={logoColegio} alt="Logo del colegio" className="w-16 h-16 object-contain" />
                     </div>
                     <h1 className="text-xl font-medium text-white">Octopus ERP</h1>
                     <p className="text-xs uppercase tracking-widest mt-1" style={{ color: 'var(--ash)' }}>Gestión Escolar</p>

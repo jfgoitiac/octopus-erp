@@ -8,6 +8,7 @@ from .views import (
     BuscarAlumnoCobranzaView,
     ComprobanteDetalleView,
     ConfiguracionCobranzaView,
+    ConfigNominaView,
     ConsultaComprobantesView,
     DashboardStatsView,
     ExportarAuditoriaExcelView,
@@ -39,4 +40,5 @@ urlpatterns = [
     path('comprobantes/<str:factura_id>/', ComprobanteDetalleView.as_view(),       name='comprobante-detalle'),
     path('pagos/lista/',                   PagosListView.as_view(),                name='pagos-lista'),
     path('mensualidades/puntualidad/',     MensualidadesPuntualidadView.as_view(), name='mensualidades-puntualidad'),
+    path('config-nomina/',                 ConfigNominaView.as_view(),             name='config-nomina'),
 ]

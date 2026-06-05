@@ -23,7 +23,7 @@ function SectionLabel({ text }) {
     );
 }
 
-export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = false }) {
+export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = false, autoFocusNombre = false }) {
     const tipo = data.tipo_personal || 'docente';
     const isDocente        = tipo === 'docente';
     const isAdministrativo = tipo === 'administrativo';
@@ -58,7 +58,8 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                 <div>
                     <label className={labelCls} style={labelStyle}>Nombre <Req /></label>
                     <input name="nombre" value={data.nombre} onChange={onChange}
-                        placeholder="Juan" className={inputCls} style={inputStyle} />
+                        placeholder="Juan" className={inputCls} style={inputStyle}
+                        autoFocus={autoFocusNombre} />
                 </div>
                 <div>
                     <label className={labelCls} style={labelStyle}>Apellido <Req /></label>
@@ -151,9 +152,19 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                 </>
             )}
 
-            {/* ── ADMINISTRATIVO: fecha ingreso ────────────────────────────────── */}
+            {/* ── ADMINISTRATIVO: sueldo base + datos laborales ───────────────── */}
             {isAdministrativo && (
                 <>
+                    <SectionLabel text="Datos salariales" />
+                    <div>
+                        <label className={labelCls} style={labelStyle}>Sueldo Base Mensual (Bs) <Req /></label>
+                        <input type="number" name="sueldo_base" value={data.sueldo_base}
+                            onChange={onChange} placeholder="0.00" min="0" step="0.01"
+                            className={inputCls} style={inputStyle} />
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                            Salario bruto mensual — base para calcular SSO, SPF y FAOV
+                        </p>
+                    </div>
                     <SectionLabel text="Datos laborales" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
@@ -176,9 +187,19 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                 </>
             )}
 
-            {/* ── APOYO: solo fecha ingreso ─────────────────────────────────────── */}
+            {/* ── APOYO: sueldo base + fecha ingreso ───────────────────────────── */}
             {tipo === 'apoyo' && (
                 <>
+                    <SectionLabel text="Datos salariales" />
+                    <div>
+                        <label className={labelCls} style={labelStyle}>Sueldo Base Mensual (Bs) <Req /></label>
+                        <input type="number" name="sueldo_base" value={data.sueldo_base}
+                            onChange={onChange} placeholder="0.00" min="0" step="0.01"
+                            className={inputCls} style={inputStyle} />
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                            Salario bruto mensual — base para calcular SSO, SPF y FAOV
+                        </p>
+                    </div>
                     <SectionLabel text="Datos laborales" />
                     <div>
                         <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>

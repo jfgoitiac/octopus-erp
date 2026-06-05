@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
+import { tokenStore } from '../api/tokenStore';
 
 export const SedeContext = createContext(null);
 
@@ -9,8 +10,7 @@ export const SedeProvider = ({ children }) => {
   const [loadingSedes, setLoadingSedes] = useState(false);
 
   const cargarSedes = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
+    if (!tokenStore.get()) return; // sin sesion activa, no intentar cargar
     setLoadingSedes(true);
     try {
       const res = await apiClient.get('multisede/sedes/');

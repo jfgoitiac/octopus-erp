@@ -17,24 +17,27 @@ function parseApiError(err) {
     return 'Error inesperado.';
 }
 
-const NULLABLE_FIELDS = ['horas_semanales', 'anos_servicio', 'fecha_ingreso'];
+const NULLABLE_FIELDS = ['horas_semanales', 'anos_servicio', 'fecha_ingreso', 'sueldo_base'];
 
 function cleanNullables(payload) {
     NULLABLE_FIELDS.forEach(f => { if (payload[f] === '') payload[f] = null; });
 }
 
-// El formulario usa dd/MM/yyyy; Django espera YYYY-MM-DD
+// Retorna un nuevo objeto con fecha_ingreso normalizada a YYYY-MM-DD.
+// No muta el payload original.
 function normalizeFechas(payload) {
     if (payload.fecha_ingreso && /^\d{2}\/\d{2}\/\d{4}$/.test(payload.fecha_ingreso)) {
         const [d, m, y] = payload.fecha_ingreso.split('/');
-        payload.fecha_ingreso = `${y}-${m}-${d}`;
+        return { ...payload, fecha_ingreso: `${y}-${m}-${d}` };
     }
+    return payload;
 }
 
 export function useNomina() {
     const [empleados,    setEmpleados]    = useState([]);
     const [bancosNomina, setBancosNomina] = useState([]);
     const [loading,      setLoading]      = useState(true);
+    const [fetchError,   setFetchError]   = useState(null);
     const [busqueda,     setBusqueda]     = useState('');
 
     const [exportingExcel, setExportingExcel] = useState(false);
@@ -52,6 +55,7 @@ export function useNomina() {
     // ── Carga inicial ─────────────────────────────────────────────────────────
     const fetchData = useCallback(async (signal) => {
         setLoading(true);
+        setFetchError(null);
         try {
             const opts = signal ? { signal } : {};
             const [resEmp, resBancos] = await Promise.all([
@@ -62,7 +66,10 @@ export function useNomina() {
             setBancosNomina(resBancos.data || []);
         } catch (err) {
             const msg = parseApiError(err);
-            if (msg) toast.error(msg);
+            if (msg) {
+                toast.error(msg);
+                setFetchError(msg);
+            }
         } finally {
             setLoading(false);
         }
@@ -113,10 +120,10 @@ export function useNomina() {
         }
         setIsRegistering(true);
         try {
-            const payload = { ...newEmployeeData };
+            let payload = { ...newEmployeeData };
             if (!payload.banco) payload.banco = null;
             cleanNullables(payload);
-            normalizeFechas(payload);
+            payload = normalizeFechas(payload);
             await axiosInstance.post('rrhh/empleados/', payload);
             toast.success('Empleado registrado exitosamente.');
             setShowRegisterModal(false);
@@ -142,23 +149,24 @@ export function useNomina() {
     const handleOpenEditModal = (emp) => {
         setEditEmployeeData({
             id:                emp.id,
-            nombre:            emp.nombre           || '',
-            apellido:          emp.apellido         || '',
-            cedula:            emp.cedula           || '',
-            cargo:             emp.cargo            || '',
-            tipo_personal:     emp.tipo_personal    || 'docente',
-            fecha_ingreso:     emp.fecha_ingreso    || '',
-            titulo:            emp.titulo           || '',
+            nombre:            emp.nombre            || '',
+            apellido:          emp.apellido          || '',
+            cedula:            emp.cedula            || '',
+            cargo:             emp.cargo             || '',
+            tipo_personal:     emp.tipo_personal     || 'docente',
+            fecha_ingreso:     emp.fecha_ingreso     || '',
+            titulo:            emp.titulo            || '',
             categoria_docente: emp.categoria_docente || '',
-            anos_servicio:     emp.anos_servicio    || '',
-            numero_hijos:      emp.numero_hijos     ?? '0',
-            nivel:             emp.nivel            || '',
-            horas_semanales:   emp.horas_semanales  || '',
-            banco:             emp.banco            ?? '',
-            numero_cuenta:     emp.numero_cuenta    || '',
-            tipo_cuenta:       emp.tipo_cuenta      || '',
-            telefono:          emp.telefono         || '',
-            correo:            emp.correo           || '',
+            anos_servicio:     emp.anos_servicio     || '',
+            numero_hijos:      emp.numero_hijos      ?? '0',
+            nivel:             emp.nivel             || '',
+            horas_semanales:   emp.horas_semanales   || '',
+            sueldo_base:       emp.sueldo_base       != null ? String(emp.sueldo_base) : '',
+            banco:             emp.banco             ?? '',
+            numero_cuenta:     emp.numero_cuenta     || '',
+            tipo_cuenta:       emp.tipo_cuenta       || '',
+            telefono:          emp.telefono          || '',
+            correo:            emp.correo            || '',
         });
         setShowEditModal(true);
     };
@@ -186,12 +194,12 @@ export function useNomina() {
         }
         setIsSaving(true);
         try {
-            const id      = editEmployeeData.id;
-            const payload = { ...editEmployeeData };
+            const id = editEmployeeData.id;
+            let payload = { ...editEmployeeData };
             delete payload.id;
             if (!payload.banco) payload.banco = null;
             cleanNullables(payload);
-            normalizeFechas(payload);
+            payload = normalizeFechas(payload);
             await axiosInstance.patch(`rrhh/empleados/${id}/`, payload);
             toast.success('Empleado actualizado exitosamente.');
             setShowEditModal(false);
@@ -222,13 +230,15 @@ export function useNomina() {
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast.success('Archivo Excel descargado.');
-        } catch { toast.error('No se pudo generar el Excel de nómina.'); }
-        finally { setExportingExcel(false); }
+        } catch (err) {
+            const msg = parseApiError(err);
+            if (msg) toast.error(msg);
+        } finally { setExportingExcel(false); }
     };
 
     return {
         // Datos
-        empleados, bancosNomina, loading,
+        empleados, bancosNomina, loading, fetchError,
         busqueda, setBusqueda, empleadosPorTab,
         refetch: fetchData,
         // Exportar

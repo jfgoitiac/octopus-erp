@@ -12,7 +12,7 @@ from django.db.models import Q
 from .models import BancoInstitucional, CuotaInscripcion, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
 from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
 from .utils import generar_pdf_recibo
-from authentication.views import IsSystemAdminOrDirector
+from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza
 from usuarios.models import LogAuditoria
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ class DashboardStatsView(APIView):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class BuscarAlumnoCobranzaView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     MES_NOMBRES = {
         1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
@@ -321,7 +321,7 @@ class BancosListView(APIView):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class RegistrarPagoView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     @transaction.atomic
     def post(self, request):
@@ -1069,3 +1069,30 @@ class MensualidadesPuntualidadView(APIView):
             'a_tiempo':   a_tiempo,
             'adelantado': adelantado,
         })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CONFIG NOMINA — almacenada en ParametroGlobal, no en localStorage del cliente
+# ──────────────────────────────────────────────────────────────────────────────
+import json as _json
+
+class ConfigNominaView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+    CLAVE = 'NOMINA_CONFIG_JSON'
+
+    def get(self, request):
+        param = ParametroGlobal.objects.filter(clave=self.CLAVE).first()
+        if not param or not param.valor:
+            return Response({})
+        try:
+            return Response(_json.loads(param.valor))
+        except Exception:
+            return Response({})
+
+    def put(self, request):
+        valor = _json.dumps(request.data)
+        ParametroGlobal.objects.update_or_create(
+            clave=self.CLAVE,
+            defaults={'valor': valor, 'descripcion': 'Configuracion cesta ticket y nomina'},
+        )
+        return Response(request.data)

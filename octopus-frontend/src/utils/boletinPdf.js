@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const BRAND = '#0fa3b1';
+const BRAND = '#003366';
 
 function calcularPromedio(materias) {
   const vals = materias.map(m => parseFloat(m.definitiva)).filter(v => !isNaN(v));
@@ -11,7 +11,7 @@ function calcularPromedio(materias) {
 }
 
 export function generarBoletinPDF(boletin) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
@@ -90,8 +90,8 @@ export function generarBoletinPDF(boletin) {
     head: [['Materia', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado']],
     body: materiaRows,
     styles: { fontSize: 8, cellPadding: 2.5 },
-    headStyles: { fillColor: BRAND, textColor: 255, fontStyle: 'bold', fontSize: 8 },
-    alternateRowStyles: { fillColor: [245, 253, 254] },
+    headStyles: { fillColor: BRAND, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {
       0: { cellWidth: 55 },
       1: { halign: 'center' },
@@ -110,7 +110,7 @@ export function generarBoletinPDF(boletin) {
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(BRAND);
+  doc.setTextColor(0, 51, 102);
   doc.text('Resumen de Asistencia', 14, afterTableY);
 
   doc.setTextColor(30, 30, 30);

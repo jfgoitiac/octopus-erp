@@ -70,6 +70,21 @@ class ComprobanteSerializer(serializers.ModelSerializer):
     desglose_pagos = serializers.SerializerMethodField()
     total_ves = serializers.SerializerMethodField()
     total_usd = serializers.SerializerMethodField()
+    representante_nombre = serializers.SerializerMethodField()
+
+    def get_representante_nombre(self, obj):
+        """Devuelve el nombre completo del representante.
+        Primero intenta obtenerlo de la relación alumno→representante (fuente de verdad),
+        y usa el campo de texto como fallback para registros históricos."""
+        try:
+            rep = obj.alumno.representante
+            if rep:
+                nombre = f"{rep.nombre or ''} {rep.apellido or ''}".strip()
+                if nombre:
+                    return nombre
+        except Exception:
+            pass
+        return obj.representante_nombre or ''
 
     def get_desglose_pagos(self, obj):
         hermanos = Pago.objects.filter(
@@ -98,13 +113,23 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             'desglose_pagos', 'total_ves', 'total_usd',
         ]
 
+class PagoItemSerializer(serializers.Serializer):
+    """Esquema estricto para cada método de pago dentro de una transacción."""
+    METODOS = [m[0] for m in Pago.METODOS]
+    metodo_pago       = serializers.ChoiceField(choices=METODOS)
+    monto_usd         = serializers.DecimalField(max_digits=10, decimal_places=2,
+                                                  min_value=Decimal('0'), required=False, default=Decimal('0'))
+    monto_ves         = serializers.DecimalField(max_digits=20, decimal_places=2,
+                                                  min_value=Decimal('0'), required=False, default=Decimal('0'))
+    banco_receptor_id = serializers.IntegerField(required=False, allow_null=True)
+    referencia        = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    observaciones     = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
+
+
 class PagoCreateSerializer(serializers.Serializer):
     alumno_id = serializers.IntegerField()
     concepto = serializers.CharField(max_length=20, default='mensualidad', required=False)
-    pagos = serializers.ListField(
-        child=serializers.DictField(),
-        allow_empty=False
-    )
+    pagos = PagoItemSerializer(many=True, allow_empty=False)
     representante_documento = serializers.CharField(max_length=30, required=False, allow_blank=True)
     representante_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True)
     mensualidad_ids = serializers.ListField(
@@ -132,10 +157,8 @@ class PagoCreateSerializer(serializers.Serializer):
         except TasaCambio.DoesNotExist:
             raise serializers.ValidationError({"tasa": "No se ha registrado ninguna tasa de cambio."})
         
-        # Validate each payment item
+        # PagoItemSerializer ya valida metodo_pago y tipos — solo validamos semántica
         for i, pago_item in enumerate(data['pagos']):
-            if 'metodo_pago' not in pago_item:
-                raise serializers.ValidationError(f"Pago {i}: El método de pago es requerido.")
             if not pago_item.get('monto_usd') and not pago_item.get('monto_ves'):
                 raise serializers.ValidationError(f"Pago {i}: Se requiere monto en USD o VES.")
             if pago_item.get('banco_receptor_id'):
@@ -143,10 +166,6 @@ class PagoCreateSerializer(serializers.Serializer):
                     BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
                 except BancoInstitucional.DoesNotExist:
                     raise serializers.ValidationError(f"Pago {i}: Banco receptor no encontrado.")
-            
-            # Ensure monto_usd and monto_ves are Decimal
-            pago_item['monto_usd'] = Decimal(str(pago_item.get('monto_usd', 0)))
-            pago_item['monto_ves'] = Decimal(str(pago_item.get('monto_ves', 0)))
 
         return data
 

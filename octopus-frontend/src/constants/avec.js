@@ -72,9 +72,17 @@ export function calcAVEC(sueldoBase, categoria, anosServicio, numeroHijos, titul
              otrasAsig, totalAsig, sso, spf, faov, totalRet, neto, quincena };
 }
 
-// Sueldo base docente: costo_hora[categoría] × horas_semanales
+// Sueldo base docente. Acepta sueldo_mensual (nuevo) o costo_hora (legado).
+// sueldo_mensual ÷ horas_sem_referencia = costo_hora → × horas_semanales del empleado
 export function calcSueldoBase(config, categoriaDocente, horasSemanales) {
-    const costoHora = parseFloat(config.categorias?.[categoriaDocente]?.costo_hora) || 0;
+    const catCfg = config.categorias?.[categoriaDocente] || {};
+    let costoHora;
+    if (parseFloat(catCfg.sueldo_mensual) > 0) {
+        const horasRef = parseFloat(config.horas_sem_referencia) || 44;
+        costoHora = parseFloat(catCfg.sueldo_mensual) / horasRef;
+    } else {
+        costoHora = parseFloat(catCfg.costo_hora) || 0;
+    }
     return costoHora * (parseFloat(horasSemanales) || 0);
 }
 
@@ -91,17 +99,18 @@ export function validarCedula(cedula) {
 export const CESTA_LS_KEY = 'nomina_cesta_config';
 
 const buildCategoriasDefault = () =>
-    Object.fromEntries(CATEGORIAS_DOCENTE.map(c => [c, { costo_hora: '' }]));
+    Object.fromEntries(CATEGORIAS_DOCENTE.map(c => [c, { sueldo_mensual: '' }]));
 
 export const CESTA_DEFAULT = {
-    categorias:     buildCategoriasDefault(),
-    tasa_bcv:       '',
-    tarifa_hora:    '0.20',  // Bs/hora — tarifa unitaria del beneficio (PRD §5.3)
-    horas_por_dia:  '6.67',  // h/día base para calcular costo diario (PRD §5.3)
-    docente:        { monto_usd: '' },
-    apoyo:          { monto_usd: '' },
-    administrativo: { monto_usd: '' },
+    categorias:           buildCategoriasDefault(),
+    tasa_bcv:             '',
+    tarifa_hora:          '0.20',  // USD/hora — para descontar horas de inasistencia del cestaticket
+    horas_sem_referencia: '44',    // h/semana de referencia para derivar costo/hora del sueldo mensual
+    docente:              { monto_usd: '' },
+    apoyo:                { monto_usd: '' },
+    administrativo:       { monto_usd: '' },
 };
+
 
 export function loadCestaConfig() {
     try {
@@ -133,5 +142,6 @@ export const EMPTY_EMP = {
     fecha_ingreso:     '', titulo: '', categoria_docente: '',
     anos_servicio:     '', numero_hijos: '0', nivel: '',
     horas_semanales:   '',
+    sueldo_base:       '',
     banco: '', numero_cuenta: '', tipo_cuenta: '', telefono: '', correo: '',
 };

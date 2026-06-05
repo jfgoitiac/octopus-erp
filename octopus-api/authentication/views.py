@@ -16,7 +16,22 @@ from .models import PerfilUsuario
 from usuarios.models import LogAuditoria
 from .serializers import UserSerializer, MyTokenObtainPairSerializer
 
-# --- PERMISO PERSONALIZADO ---
+# --- PERMISOS PERSONALIZADOS ---
+class EsPersonalCobranza(permissions.BasePermission):
+    """Permite acceso solo a roles autorizados para registrar pagos."""
+    ROLES = {'director', 'administrador', 'cajero', 'cobranza', 'sistemas'}
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        try:
+            return request.user.perfil.esta_activo and request.user.perfil.rol in self.ROLES
+        except Exception:
+            return False
+
+
 class IsSystemAdminOrDirector(permissions.BasePermission):
     """
     Permite el acceso a superusuarios de Django o a usuarios activos

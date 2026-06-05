@@ -1,6 +1,7 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import logoColegio from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/PortalAuthContext';
 
@@ -46,9 +47,7 @@ const PortalLogin = () => {
       <div className="w-full max-w-[420px]">
         {/* Logo / branding */}
         <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-[#0fa3b1] flex items-center justify-center shadow-md">
-            <GraduationCap size={30} className="text-white" />
-          </div>
+          <img src={logoColegio} alt="Logo del colegio" className="w-20 h-20 object-contain" />
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-800">Portal de Familias</h1>
             <p className="text-sm text-gray-500 mt-1">Accede a la información de tu representado</p>
