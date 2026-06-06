@@ -85,7 +85,13 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         User = get_user_model()
-        qs = User.objects.all().select_related('perfil').order_by('-id')
+        # Excluir usuarios del portal de representantes — no son operadores del sistema
+        qs = (
+            User.objects
+            .filter(representante_portal__isnull=True)
+            .select_related('perfil')
+            .order_by('-id')
+        )
         activo = self.request.query_params.get('activo')
         if activo == 'false':
             qs = qs.filter(is_active=False)

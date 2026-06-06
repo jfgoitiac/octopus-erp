@@ -22,6 +22,8 @@ class Materia(models.Model):
         related_name='materias'
     )
     activa = models.BooleanField(default=True)
+    # Cantidad de bloques de 45 min que la materia ocupa por semana
+    horas_academicas = models.PositiveSmallIntegerField(default=4)
 
     # Multi-sede
     sede = models.ForeignKey(

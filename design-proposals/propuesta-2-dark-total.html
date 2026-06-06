@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propuesta 2 — Dark Mode Total</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #0d0f14; color: #e2e4e9; display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px;
+  background: #13161e;
+  display: flex; flex-direction: column; flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.sidebar-logo {
+  padding: 20px 16px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #0fa3b1, #4f6ef7);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff; font-size: 14px;
+  box-shadow: 0 0 16px rgba(15,163,177,0.4);
+}
+
+.logo-text { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: -0.02em; }
+.logo-sub  { color: rgba(255,255,255,0.25); font-size: 10px; }
+
+.sidebar-user {
+  margin: 12px 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #0fa3b1, #4f6ef7);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 10px; font-weight: 600; flex-shrink: 0;
+}
+.user-name { color: #e2e4e9; font-size: 12px; font-weight: 500; }
+.user-role { color: rgba(255,255,255,0.3); font-size: 10px; }
+
+nav { flex: 1; overflow-y: auto; padding: 8px 10px; }
+
+.nav-label {
+  color: rgba(255,255,255,0.2);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 12px 8px 6px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 8px;
+  color: rgba(255,255,255,0.35);
+  font-size: 12.5px; cursor: pointer;
+  margin-bottom: 1px; transition: all 0.15s;
+}
+.nav-item:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+.nav-item.active {
+  background: rgba(15,163,177,0.12);
+  color: #0fa3b1;
+  border: 1px solid rgba(15,163,177,0.18);
+}
+
+.sidebar-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+.logout-btn {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 8px;
+  color: rgba(255,255,255,0.25); font-size: 12.5px; cursor: pointer; transition: all 0.15s;
+}
+.logout-btn:hover { background: rgba(239,68,68,0.1); color: #f87171; }
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.topbar {
+  height: 52px;
+  background: #13161e;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; align-items: center; gap: 12px; padding: 0 24px;
+}
+
+.topbar-title { font-size: 15px; font-weight: 600; color: #e2e4e9; flex: 1; letter-spacing: -0.02em; }
+
+.topbar-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 8px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500;
+}
+.topbar-dot { width: 6px; height: 6px; border-radius: 50%; background: #0fa3b1; box-shadow: 0 0 6px #0fa3b1; }
+.topbar-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #0fa3b1, #4f6ef7);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 10px; font-weight: 600;
+}
+
+/* ── CONTENT ── */
+.content { flex: 1; overflow-y: auto; padding: 24px; }
+
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+
+.stat-card {
+  background: #13161e;
+  border-radius: 14px; padding: 18px 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+  position: relative; overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent);
+  border-radius: 14px 14px 0 0;
+}
+
+.stat-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.stat-value { font-size: 26px; font-weight: 700; color: #e2e4e9; letter-spacing: -0.03em; margin-bottom: 6px; }
+.stat-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 20px;
+}
+.badge-green  { background: rgba(16,185,129,0.12); color: #34d399; }
+.badge-blue   { background: rgba(79,110,247,0.15); color: #818cf8; }
+.badge-orange { background: rgba(217,119,6,0.12);  color: #fbbf24; }
+.badge-red    { background: rgba(239,68,68,0.12);  color: #f87171; }
+
+.cards-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+
+.card {
+  background: #13161e;
+  border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 13px; font-weight: 600; color: #e2e4e9; }
+.card-action { font-size: 11px; color: #0fa3b1; font-weight: 500; cursor: pointer; }
+
+table { width: 100%; border-collapse: collapse; }
+.th { padding: 10px 20px; font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.02); text-align: left; }
+.td { padding: 12px 20px; font-size: 12.5px; color: rgba(255,255,255,0.65); border-top: 1px solid rgba(255,255,255,0.04); }
+tr:hover .td { background: rgba(255,255,255,0.02); }
+
+.status-pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.pill-green  { background: rgba(16,185,129,0.12); color: #34d399; }
+.pill-yellow { background: rgba(217,119,6,0.12);  color: #fbbf24; }
+.pill-red    { background: rgba(239,68,68,0.12);  color: #f87171; }
+
+.mini-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 20px; border-top: 1px solid rgba(255,255,255,0.04);
+}
+.mini-item:first-child { border-top: none; }
+.mi-name { color: rgba(255,255,255,0.6); font-size: 12.5px; font-weight: 500; }
+.mi-val  { color: #e2e4e9; font-weight: 600; font-size: 13px; }
+.mi-sub  { color: rgba(255,255,255,0.25); font-size: 10.5px; margin-top: 1px; }
+
+/* Glow orb decorativo en el fondo */
+body::before {
+  content: '';
+  position: fixed; top: -150px; left: -100px;
+  width: 400px; height: 400px;
+  background: radial-gradient(ellipse, rgba(15,163,177,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed; bottom: -150px; right: -100px;
+  width: 400px; height: 400px;
+  background: radial-gradient(ellipse, rgba(79,110,247,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">O</div>
+    <div>
+      <div class="logo-text">Octopus</div>
+      <div class="logo-sub">ERP Escolar</div>
+    </div>
+  </div>
+  <div class="sidebar-user">
+    <div class="avatar">JG</div>
+    <div>
+      <div class="user-name">jfgoitiac</div>
+      <div class="user-role">Director</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-label">Principal</div>
+    <div class="nav-item active">⊞ &nbsp;Dashboard</div>
+    <div class="nav-item">👥 &nbsp;Alumnos</div>
+    <div class="nav-item">⚠️ &nbsp;Morosos</div>
+    <div class="nav-item">📋 &nbsp;Representantes</div>
+    <div class="nav-item">✚ &nbsp;Inscripciones</div>
+    <div class="nav-item">🎓 &nbsp;Grados</div>
+    <div class="nav-label">Finanzas</div>
+    <div class="nav-item">💰 &nbsp;Cobranza</div>
+    <div class="nav-item">🧾 &nbsp;Comprobantes</div>
+    <div class="nav-item">📊 &nbsp;Reportes</div>
+    <div class="nav-item">💳 &nbsp;Recibos</div>
+    <div class="nav-label">Académico</div>
+    <div class="nav-item">📚 &nbsp;Notas</div>
+    <div class="nav-item">📅 &nbsp;Asistencia</div>
+    <div class="nav-item">🕐 &nbsp;Horarios</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="logout-btn">🚪 &nbsp;Cerrar sesión</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title">Panel de control</span>
+    <span style="font-size:11px;color:rgba(255,255,255,0.25)">vie 6 de junio de 2025</span>
+    <div class="topbar-pill">
+      <div class="topbar-dot"></div>
+      BCV &nbsp;<strong style="color:#e2e4e9">Bs. 91.40</strong>
+    </div>
+    <div class="topbar-avatar">JG</div>
+  </div>
+
+  <div class="content">
+    <div class="stats-row">
+      <div class="stat-card" style="--accent: linear-gradient(90deg,#0fa3b1,#4f6ef7)">
+        <div class="stat-label">Cobrado este mes</div>
+        <div class="stat-value">$12,480</div>
+        <span class="stat-badge badge-green">↑ 8.2% vs mes ant.</span>
+      </div>
+      <div class="stat-card" style="--accent: linear-gradient(90deg,#d97706,#f59e0b)">
+        <div class="stat-label">Deuda pendiente</div>
+        <div class="stat-value">$3,240</div>
+        <span class="stat-badge badge-orange">42 facturas abiertas</span>
+      </div>
+      <div class="stat-card" style="--accent: linear-gradient(90deg,#10b981,#34d399)">
+        <div class="stat-label">Alumnos activos</div>
+        <div class="stat-value">347</div>
+        <span class="stat-badge badge-blue">↑ 12 nuevos</span>
+      </div>
+      <div class="stat-card" style="--accent: linear-gradient(90deg,#ef4444,#f87171)">
+        <div class="stat-label">En mora</div>
+        <div class="stat-value">28</div>
+        <span class="stat-badge badge-red">+3 esta semana</span>
+      </div>
+    </div>
+
+    <div class="cards-row">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Últimas facturas</span>
+          <span class="card-action">Ver todas →</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="th">Alumno</th>
+              <th class="th">Monto</th>
+              <th class="th">Vencimiento</th>
+              <th class="th">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td"><strong style="color:#e2e4e9">García, María</strong><br><span style="color:rgba(255,255,255,0.25);font-size:11px">3er grado</span></td>
+              <td class="td" style="color:#e2e4e9;font-weight:600">$280</td>
+              <td class="td">15 Jun 2025</td>
+              <td class="td"><span class="status-pill pill-green">Pagado</span></td>
+            </tr>
+            <tr>
+              <td class="td"><strong style="color:#e2e4e9">López, Carlos</strong><br><span style="color:rgba(255,255,255,0.25);font-size:11px">5to grado</span></td>
+              <td class="td" style="color:#e2e4e9;font-weight:600">$280</td>
+              <td class="td" style="color:#f87171">01 Jun 2025</td>
+              <td class="td"><span class="status-pill pill-red">Vencida</span></td>
+            </tr>
+            <tr>
+              <td class="td"><strong style="color:#e2e4e9">Rodríguez, Ana</strong><br><span style="color:rgba(255,255,255,0.25);font-size:11px">1er grado</span></td>
+              <td class="td" style="color:#e2e4e9;font-weight:600">$350</td>
+              <td class="td">20 Jun 2025</td>
+              <td class="td"><span class="status-pill pill-yellow">Pendiente</span></td>
+            </tr>
+            <tr>
+              <td class="td"><strong style="color:#e2e4e9">Martínez, José</strong><br><span style="color:rgba(255,255,255,0.25);font-size:11px">4to grado</span></td>
+              <td class="td" style="color:#e2e4e9;font-weight:600">$280</td>
+              <td class="td">20 Jun 2025</td>
+              <td class="td"><span class="status-pill pill-green">Pagado</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Tasa BCV — historial</span>
+        </div>
+        <div class="mini-item">
+          <div><div class="mi-name">Hoy</div><div class="mi-sub">06 Jun 2025</div></div>
+          <div class="mi-val" style="color:#0fa3b1">Bs. 91.40</div>
+        </div>
+        <div class="mini-item">
+          <div><div class="mi-name">Ayer</div><div class="mi-sub">05 Jun 2025</div></div>
+          <div class="mi-val">Bs. 90.88</div>
+        </div>
+        <div class="mini-item">
+          <div><div class="mi-name">Hace 2 días</div><div class="mi-sub">04 Jun 2025</div></div>
+          <div class="mi-val">Bs. 90.21</div>
+        </div>
+        <div class="mini-item">
+          <div><div class="mi-name">Hace 3 días</div><div class="mi-sub">03 Jun 2025</div></div>
+          <div class="mi-val">Bs. 89.94</div>
+        </div>
+
+        <div style="padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.25);margin-bottom:10px">COBROS POR GRADO</div>
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:rgba(255,255,255,0.6)"><span>Primaria</span><span style="color:#e2e4e9;font-weight:600">$8,400</span></div>
+            <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:3px"><div style="height:100%;width:72%;background:linear-gradient(90deg,#0fa3b1,#4f6ef7);border-radius:3px;box-shadow:0 0 8px rgba(15,163,177,0.4)"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:rgba(255,255,255,0.6)"><span>Secundaria</span><span style="color:#e2e4e9;font-weight:600">$4,080</span></div>
+            <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:3px"><div style="height:100%;width:35%;background:linear-gradient(90deg,#4f6ef7,#a78bfa);border-radius:3px;box-shadow:0 0 8px rgba(79,110,247,0.3)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

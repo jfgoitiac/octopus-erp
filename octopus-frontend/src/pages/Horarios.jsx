@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, GraduationCap, Printer, Wand2 } from 'lucide-react';
 import GradoSelect from '../components/GradoSelect';
 import { useHorarios } from '../hooks/useHorarios';
@@ -7,21 +7,35 @@ import { INPUT_STYLE } from '../constants/styles';
 import { GrillaHorario } from '../components/horarios/GrillaHorario';
 import { ModalClase } from '../components/horarios/ModalClase';
 import { ModalGenerador } from '../components/horarios/ModalGenerador';
+import { PanelMaterias } from '../components/horarios/PanelMaterias';
 
 const Horarios = () => {
   const {
     grado, setGrado,
     horarios, materias,
-    loading, saving, generando,
+    loading, saving, savingMateria, generando,
     horasInicio, horasFin,
     getClaseEnCelda,
     tieneConflicto,
     guardar, eliminar, generar, recargar,
+    crearMateria, actualizarMateria, eliminarMateria,
   } = useHorarios();
 
   // modal: null | { clase: objeto|null, celdaDefecto: {dia,hora}|null }
   const [modal, setModal]               = useState(null);
   const [showGenerador, setShowGenerador] = useState(false);
+
+  // IDs de clases bloqueadas — el generador las respeta y no las mueve
+  const [lockedIds, setLockedIds] = useState(new Set());
+
+  // Limpiar locks al cambiar de grado (IDs ya no corresponden)
+  useEffect(() => { setLockedIds(new Set()); }, [grado]);
+
+  const toggleLock = (id) => setLockedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   const abrirCelda = (dia, hora) => {
     const clase = getClaseEnCelda(dia, hora);
@@ -99,6 +113,17 @@ const Horarios = () => {
         />
       </div>
 
+      {/* Panel de materias — solo cuando hay grado seleccionado */}
+      {grado && (
+        <PanelMaterias
+          materias={materias}
+          savingMateria={savingMateria}
+          onCrear={crearMateria}
+          onActualizar={actualizarMateria}
+          onEliminar={eliminarMateria}
+        />
+      )}
+
       {/* Título visible solo al imprimir */}
       {grado && (
         <h2 className="hidden print:block text-lg font-bold mb-4" style={{ color: 'var(--jet)' }}>
@@ -120,6 +145,8 @@ const Horarios = () => {
           horasInicio={horasInicio}
           getClaseEnCelda={getClaseEnCelda}
           onCeldaClick={abrirCelda}
+          lockedIds={lockedIds}
+          onToggleLock={toggleLock}
         />
       )}
 
@@ -149,6 +176,7 @@ const Horarios = () => {
       {showGenerador && (
         <ModalGenerador
           generando={generando}
+          lockedIds={lockedIds}
           onClose={() => setShowGenerador(false)}
           onGenerar={generar}
           onGeneradoOk={handleGeneradoOk}

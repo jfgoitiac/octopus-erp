@@ -1,4 +1,4 @@
-import { Plus, Edit3, CalendarX } from 'lucide-react';
+import { Plus, Edit3, CalendarX, Lock, LockOpen } from 'lucide-react';
 import { DIAS, HORAS_INICIO, getColor } from '../../constants/horarios';
 
 const TH_STYLE = {
@@ -100,6 +100,8 @@ export const GrillaHorario = ({
   horasInicio = HORAS_INICIO,
   getClaseEnCelda,
   onCeldaClick,
+  lockedIds = new Set(),
+  onToggleLock,
 }) => {
   if (loading) return <SkeletonGrilla horasInicio={horasInicio} />;
   if (isEmpty) return <EmptyGrilla />;
@@ -132,6 +134,7 @@ export const GrillaHorario = ({
                 </td>
                 {DIAS.map(dia => {
                   const clase = getClaseEnCelda(dia, hora);
+                  const isLocked = clase && lockedIds.has(clase.id);
                   return (
                     <td key={dia} className="px-2 py-1.5 text-center" style={CELL_STYLE}>
                       {clase ? (
@@ -139,7 +142,10 @@ export const GrillaHorario = ({
                           onClick={() => onCeldaClick(dia, hora)}
                           aria-label={`Editar ${clase.materia?.nombre || 'clase'} — ${dia} ${hora}`}
                           className="w-full rounded-lg px-2 py-2 text-left transition-all hover:opacity-80 group relative"
-                          style={{ background: getColor(clase.materia?.id), border: '1px solid rgba(0,0,0,0.07)' }}
+                          style={{
+                            background: getColor(clase.materia?.id),
+                            border: isLocked ? '2px solid #7c3aed' : '1px solid rgba(0,0,0,0.07)',
+                          }}
                         >
                           <p className="text-[11px] font-bold leading-tight" style={{ color: 'var(--jet)' }}>
                             {clase.materia?.nombre || 'Materia'}
@@ -150,6 +156,21 @@ export const GrillaHorario = ({
                           <p className="text-[9px] mt-0.5 opacity-60" style={{ color: 'var(--jet)' }}>
                             {clase.hora_inicio} – {clase.hora_fin}
                           </p>
+                          {/* Botón lock — siempre visible si bloqueado, hover si no */}
+                          {onToggleLock && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); onToggleLock(clase.id); }}
+                              aria-label={isLocked ? 'Desbloquear clase' : 'Bloquear clase para el generador'}
+                              className={`absolute top-1 left-1 p-0.5 rounded transition-all ${isLocked ? 'flex' : 'hidden group-hover:flex'}`}
+                              style={{ background: 'rgba(255,255,255,0.85)' }}
+                            >
+                              {isLocked
+                                ? <Lock size={10} style={{ color: '#7c3aed' }} />
+                                : <LockOpen size={10} style={{ color: 'var(--ash)' }} />
+                              }
+                            </button>
+                          )}
                           <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
                             <span className="p-0.5 rounded" style={{ background: 'rgba(255,255,255,0.8)' }}>
                               <Edit3 size={10} style={{ color: 'var(--pb)' }} />

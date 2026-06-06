@@ -9,7 +9,7 @@ import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
-  BookOpen, CalendarCheck, Clock, Building2, Bell
+  BookOpen, CalendarCheck, Clock, Building2, Bell, X
 } from 'lucide-react';
 
 const navSections = [
@@ -63,7 +63,7 @@ const navSections = [
   },
 ];
 
-const Sidebar = () => {
+const Sidebar = ({ open = false, onClose = () => {} }) => {
   const { user, logout, loading } = useContext(AuthContext);
   const { sedes, sedeActiva, cambiarSede } = useSede();
   const { config } = useConfiguracion();
@@ -76,7 +76,7 @@ const Sidebar = () => {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   if (loading) return (
-    <div className="w-52 h-screen flex items-center justify-center" style={{ background: 'var(--porcelain)' }}>
+    <div className="w-52 h-screen flex items-center justify-center fixed left-0 top-0 z-40" style={{ background: 'var(--porcelain)' }}>
       <Loader2 className="animate-spin" size={24} style={{ color: 'var(--pb)' }} />
     </div>
   );
@@ -84,8 +84,16 @@ const Sidebar = () => {
   if (!user) return null;
 
   return (
+    <>
+      {/* Overlay móvil */}
+      <div
+        className={`fixed inset-0 bg-black/40 z-30 md:hidden transition-opacity duration-300 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
     <div
-      className="w-52 h-screen flex flex-col fixed left-0 top-0"
+      className={`w-52 h-screen flex flex-col fixed left-0 top-0 z-40 transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       style={{ background: 'var(--porcelain)', borderRight: '0.5px solid var(--border-md)' }}
     >
       {/* Logo */}
@@ -103,12 +111,21 @@ const Sidebar = () => {
           alt="Logo del colegio"
           className="w-9 h-9 object-contain flex-shrink-0"
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-none text-gradient">Octopus</p>
           <p className="text-[10px] font-medium leading-tight mt-0.5 break-words" style={{ color: 'var(--jet)' }}>
             {config.nombre_colegio || sedeActiva?.nombre || 'ERP v2'}
           </p>
         </div>
+        {/* Botón cerrar — solo móvil */}
+        <button
+          className="md:hidden flex-shrink-0 p-1 rounded-lg"
+          onClick={onClose}
+          style={{ color: 'var(--ash)' }}
+          aria-label="Cerrar menú"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {/* Usuario */}
@@ -248,6 +265,7 @@ const Sidebar = () => {
         </button>
       </div>
     </div>
+    </>
   );
 };
 

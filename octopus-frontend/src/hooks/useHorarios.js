@@ -4,6 +4,7 @@ import {
   getMaterias, getHorarios,
   saveHorario, updateHorario, deleteHorario,
   generarHorario,
+  createMateria, updateMateria, deleteMateria,
 } from '../api/academico.service';
 import { DIA_MAP, HORAS_INICIO, HORAS_FIN, buildHoraBlocks } from '../constants/horarios';
 import apiClient from '../api/apiClient';
@@ -13,8 +14,9 @@ export function useHorarios() {
   const [horarios, setHorarios]   = useState([]);
   const [materias, setMaterias]   = useState([]);
   const [loading, setLoading]     = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [generando, setGenerando] = useState(false);
+  const [saving, setSaving]             = useState(false);
+  const [savingMateria, setSavingMateria] = useState(false);
+  const [generando, setGenerando]       = useState(false);
 
   // Horas dinámicas — se sobreescriben si la institución tiene config propia
   const [horasInicio, setHorasInicio] = useState(HORAS_INICIO);
@@ -133,6 +135,54 @@ export function useHorarios() {
     }
   }, [recargar]);
 
+  const crearMateria = useCallback(async (form) => {
+    setSavingMateria(true);
+    try {
+      await createMateria({ ...form, grado_seccion: grado });
+      toast.success('Materia agregada.');
+      recargar();
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.nombre?.[0] || 'Error al crear la materia.';
+      toast.error(msg);
+      return false;
+    } finally {
+      setSavingMateria(false);
+    }
+  }, [grado, recargar]);
+
+  const actualizarMateria = useCallback(async (form) => {
+    setSavingMateria(true);
+    try {
+      await updateMateria(form.id, { nombre: form.nombre, horas_academicas: form.horas_academicas });
+      toast.success('Materia actualizada.');
+      recargar();
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.nombre?.[0] || 'Error al actualizar la materia.';
+      toast.error(msg);
+      return false;
+    } finally {
+      setSavingMateria(false);
+    }
+  }, [recargar]);
+
+  const eliminarMateria = useCallback(async (id) => {
+    setSavingMateria(true);
+    try {
+      await deleteMateria(id);
+      toast.success('Materia desactivada.');
+      recargar();
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Error al eliminar la materia.';
+      toast.error(msg);
+      return false;
+    } finally {
+      setSavingMateria(false);
+    }
+  }, [recargar]);
+
   const generar = useCallback(async (config) => {
     setGenerando(true);
     try {
@@ -150,10 +200,11 @@ export function useHorarios() {
   return {
     grado, setGrado,
     horarios, materias,
-    loading, saving, generando,
+    loading, saving, savingMateria, generando,
     horasInicio, horasFin,
     getClaseEnCelda,
     tieneConflicto,
     guardar, eliminar, generar, recargar,
+    crearMateria, actualizarMateria, eliminarMateria,
   };
 }

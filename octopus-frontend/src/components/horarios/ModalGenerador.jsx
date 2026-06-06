@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { X, Loader2, Wand2, AlertTriangle } from 'lucide-react';
+import { X, Loader2, Wand2, AlertTriangle, Lock, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { DIAS_GENERADOR } from '../../constants/horarios';
 import { INPUT_STYLE } from '../../constants/styles';
@@ -11,13 +11,12 @@ const INITIAL_CONFIG = {
   hora_inicio:          '07:00',
   hora_fin:             '13:00',
   duracion_clase_min:   60,
-  recreo_hora:          '09:00',
-  recreo_duracion_min:  20,
+  recesos:              [{ hora: '09:00', duracion_min: 20 }],
   dias:                 DIAS_GENERADOR.map(d => d.value),
   reemplazar_existente: false,
 };
 
-export const ModalGenerador = ({ generando, onClose, onGenerar, onGeneradoOk }) => {
+export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGeneradoOk }) => {
   const [config, setConfig]             = useState(INITIAL_CONFIG);
   const [advertencias, setAdvertencias] = useState([]);
   const containerRef                    = useRef(null);
@@ -36,10 +35,29 @@ export const ModalGenerador = ({ generando, onClose, onGenerar, onGeneradoOk }) 
       : [...prev.dias, val],
   }));
 
+  const addReceso = () => setConfig(prev => ({
+    ...prev,
+    recesos: [...prev.recesos, { hora: '11:00', duracion_min: 15 }],
+  }));
+
+  const updateReceso = (idx, field, val) => setConfig(prev => ({
+    ...prev,
+    recesos: prev.recesos.map((r, i) => i === idx ? { ...r, [field]: val } : r),
+  }));
+
+  const removeReceso = (idx) => setConfig(prev => ({
+    ...prev,
+    recesos: prev.recesos.filter((_, i) => i !== idx),
+  }));
+
   const handleGenerar = async () => {
     if (!config.dias.length) { toast.warning('Selecciona al menos un día de clases.'); return; }
     setAdvertencias([]);
-    const result = await onGenerar(config);
+    const payload = {
+      ...config,
+      clases_bloqueadas: lockedIds ? [...lockedIds] : [],
+    };
+    const result = await onGenerar(payload);
     if (!result.ok) return;
     const { data } = result;
     if (data.advertencias?.length) {
@@ -144,28 +162,54 @@ export const ModalGenerador = ({ generando, onClose, onGenerar, onGeneradoOk }) 
             </div>
           </div>
 
-          {/* Recreo hora / duración */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                Hora del recreo
-              </label>
-              <input type="time" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
-                value={config.recreo_hora} onChange={set('recreo_hora')} />
+          {/* Recreos — soporte para múltiples recesos */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
+              Recreos / Recesos
+            </label>
+            <div className="space-y-2">
+              {config.recesos.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input type="time"
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
+                    value={r.hora}
+                    onChange={e => updateReceso(i, 'hora', e.target.value)} />
+                  <select
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
+                    value={r.duracion_min}
+                    onChange={e => updateReceso(i, 'duracion_min', parseInt(e.target.value, 10))}>
+                    <option value={10}>10 min</option>
+                    <option value={15}>15 min</option>
+                    <option value={20}>20 min</option>
+                    <option value={30}>30 min</option>
+                  </select>
+                  <button type="button" onClick={() => removeReceso(i)}
+                    className="p-2 rounded-lg flex-shrink-0 transition-colors"
+                    style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
+                    aria-label="Eliminar recreo">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
             </div>
-            <div>
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                Duración recreo (min)
-              </label>
-              <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
-                value={config.recreo_duracion_min}
-                onChange={set('recreo_duracion_min', v => parseInt(v, 10))}>
-                <option value={15}>15 min</option>
-                <option value={20}>20 min</option>
-                <option value={30}>30 min</option>
-              </select>
-            </div>
+            <button type="button" onClick={addReceso}
+              className="mt-2 w-full py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+              style={{ border: '0.5px dashed var(--border-md)', color: 'var(--ash)', background: 'transparent' }}>
+              <Plus size={13} />
+              Agregar otro recreo
+            </button>
           </div>
+
+          {/* Clases bloqueadas — info badge */}
+          {lockedIds?.size > 0 && (
+            <div className="rounded-xl p-3 flex items-center gap-2"
+              style={{ background: '#f5f3ff', border: '0.5px solid #c4b5fd' }}>
+              <Lock size={14} style={{ color: '#7c3aed', flexShrink: 0 }} />
+              <p className="text-xs" style={{ color: '#5b21b6' }}>
+                <span className="font-bold">{lockedIds.size} clase{lockedIds.size > 1 ? 's' : ''} bloqueada{lockedIds.size > 1 ? 's' : ''}</span> en la grilla — el generador las respetará y no las moverá.
+              </p>
+            </div>
+          )}
 
           {/* Días */}
           <div>

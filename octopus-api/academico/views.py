@@ -710,6 +710,8 @@ def _calcular_bloques(hora_inicio_str, hora_fin_str, duracion_min, recreo_hora_s
 def _ejecutar_algoritmo(grado_seccion, config):
     """
     Algoritmo de distribución de materias en la grilla horaria.
+    Cada materia se asigna exactamente materia.horas_academicas veces en la semana
+    (1 hora académica = 1 bloque de 45 min).
     Retorna (asignaciones, advertencias).
     asignaciones: [{'materia': <Materia>, 'dia': str, 'bloque': {'inicio': str, 'fin': str}}]
     """
@@ -717,8 +719,8 @@ def _ejecutar_algoritmo(grado_seccion, config):
     if not materias:
         return [], ['No hay materias activas para este grado.']
 
-    dias     = config.get('dias', ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'])
-    bloques  = _calcular_bloques(
+    dias    = config.get('dias', ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'])
+    bloques = _calcular_bloques(
         config['hora_inicio'],
         config['hora_fin'],
         config['duracion_clase_min'],
@@ -738,29 +740,27 @@ def _ejecutar_algoritmo(grado_seccion, config):
         if h.materia.docente_id:
             conflictos_docente[(h.materia.docente_id, h.dia_semana, str(h.hora_inicio)[:5])] = True
 
-    # Semilla fija para resultados reproducibles; usar timestamp para variación si se quiere
     random.seed(42)
 
     # Grilla: dia -> [bloques disponibles] (copia por día)
     grilla = {dia: list(bloques) for dia in dias}
 
-    # Rastrear en qué días ya está cada materia para equilibrar distribución
+    # Rastrear en qué días ya está cada materia para distribuir equitativamente
     materia_dias = {m.id: set() for m in materias}
 
-    # Rellenar la grilla con un ciclo rotativo de materias
-    total_slots  = sum(len(b) for b in grilla.values())
-    ciclo        = (materias * ((total_slots // max(len(materias), 1)) + 2))
-    random.shuffle(ciclo)
+    # Expandir cada materia según sus horas_academicas semanales
+    cola = []
+    for m in materias:
+        cola.extend([m] * max(1, m.horas_academicas))
+    random.shuffle(cola)
 
     asignaciones = []
     advertencias = []
 
-    for materia in ciclo:
-        # Salir si ya no hay slots disponibles
+    for materia in cola:
         if not any(grilla[d] for d in dias):
             break
 
-        # 1er intento: día donde la materia aún no está asignada
         dias_candidatos = random.sample(dias, len(dias))
         ubicada = False
 
@@ -768,7 +768,7 @@ def _ejecutar_algoritmo(grado_seccion, config):
             for dia in dias_candidatos:
                 if not grilla[dia]:
                     continue
-                # En el primer pase, evitar repetir día para la misma materia
+                # Primer pase: evitar repetir día para la misma materia
                 if not intentar_sin_restriccion and dia in materia_dias[materia.id]:
                     continue
                 bloque = grilla[dia][0]
@@ -780,7 +780,6 @@ def _ejecutar_algoritmo(grado_seccion, config):
                             f"Conflicto de docente: '{materia.nombre}' el {dia} a las {bloque['inicio']} — se intentará otro bloque."
                         )
                         continue
-                # Asignar bloque
                 grilla[dia].pop(0)
                 materia_dias[materia.id].add(dia)
                 asignaciones.append({'materia': materia, 'dia': dia, 'bloque': bloque})
@@ -790,7 +789,10 @@ def _ejecutar_algoritmo(grado_seccion, config):
                 break
 
         if not ubicada:
-            advertencias.append(f"No se pudo ubicar '{materia.nombre}' por conflictos de docente en todos los bloques disponibles.")
+            advertencias.append(
+                f"No se pudo ubicar todas las horas de '{materia.nombre}' "
+                f"({materia.horas_academicas} h/sem) por falta de bloques o conflictos de docente."
+            )
 
     return asignaciones, advertencias
 

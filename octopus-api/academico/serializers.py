@@ -14,7 +14,7 @@ class MateriaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Materia
-        fields = ['id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username', 'activa']
+        fields = ['id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username', 'activa', 'horas_academicas']
 
     def get_docente_username(self, obj):
         if obj.docente:
