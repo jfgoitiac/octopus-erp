@@ -1,6 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import {
+    activarPortalRepresentante,
+    desactivarPortalRepresentante,
+    restablecerContrasenaPortal,
+} from '../api/portalAdmin.service';
 
 const FORM_EMPTY = { nombre: '', apellido: '', cedula: '', telefono: '', correo: '', direccion: '' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,6 +48,9 @@ export function useRepresentantes() {
     // --- Confirmar eliminar ---
     const [confirmDelete, setConfirmDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
+
+    // --- Portal de representantes ---
+    const [portalLoading, setPortalLoading] = useState(false);
 
     // AbortController + debounce para evitar race conditions
     const fetchRepresentantes = useCallback(async (signal) => {
@@ -208,6 +216,51 @@ export function useRepresentantes() {
         }
     };
 
+    // Actualiza el rep seleccionado y su fila en la lista con nuevos campos de portal
+    const _actualizarPortalEnEstado = (repId, campos) => {
+        const patchRep = (r) => r.id === repId ? { ...r, ...campos } : r;
+        setRepresentantes((prev) => prev.map(patchRep));
+        setSelectedRep((prev) => prev ? patchRep(prev) : prev);
+    };
+
+    const handleActivarPortal = async (rep) => {
+        setPortalLoading(true);
+        try {
+            await activarPortalRepresentante(rep.id);
+            _actualizarPortalEnEstado(rep.id, { portal_creado: true, portal_activo: true });
+            toast.success(`Acceso al portal activado. Contraseña inicial: ${rep.cedula}`);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'No se pudo activar el portal.');
+        } finally {
+            setPortalLoading(false);
+        }
+    };
+
+    const handleDesactivarPortal = async (rep) => {
+        setPortalLoading(true);
+        try {
+            await desactivarPortalRepresentante(rep.id);
+            _actualizarPortalEnEstado(rep.id, { portal_activo: false });
+            toast.success('Acceso al portal desactivado.');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'No se pudo desactivar el portal.');
+        } finally {
+            setPortalLoading(false);
+        }
+    };
+
+    const handleRestablecerContrasena = async (rep) => {
+        setPortalLoading(true);
+        try {
+            await restablecerContrasenaPortal(rep.id, rep.cedula);
+            toast.success(`Contraseña restablecida a la cédula: ${rep.cedula}`);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'No se pudo restablecer la contraseña.');
+        } finally {
+            setPortalLoading(false);
+        }
+    };
+
     return {
         // Lista
         representantes, loading, busqueda, setBusqueda, minHijos, setMinHijos,
@@ -220,5 +273,7 @@ export function useRepresentantes() {
         openCrear, openEditar, closeModal, handleSave,
         // Delete
         confirmDelete, setConfirmDelete, deleting, handleDelete,
+        // Portal
+        portalLoading, handleActivarPortal, handleDesactivarPortal, handleRestablecerContrasena,
     };
 }

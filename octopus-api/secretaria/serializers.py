@@ -58,11 +58,24 @@ class RepresentanteUpdateSerializer(serializers.ModelSerializer):
 
 class RepresentanteCRUDSerializer(serializers.ModelSerializer):
     """Serializer para gestión CRUD directa de representantes (valida unicidad de cédula)."""
-    cantidad_alumnos = serializers.IntegerField(read_only=True)
+    cantidad_alumnos  = serializers.IntegerField(read_only=True)
+    portal_creado     = serializers.SerializerMethodField()
+    portal_activo     = serializers.SerializerMethodField()
 
     class Meta:
         model  = Representante
-        fields = ['id', 'cedula', 'nombre', 'apellido', 'telefono', 'correo', 'direccion', 'cantidad_alumnos']
+        fields = [
+            'id', 'cedula', 'nombre', 'apellido', 'telefono', 'correo', 'direccion',
+            'cantidad_alumnos', 'portal_creado', 'portal_activo',
+        ]
+
+    def get_portal_creado(self, obj):
+        return hasattr(obj, 'portal_user')
+
+    def get_portal_activo(self, obj):
+        if hasattr(obj, 'portal_user'):
+            return obj.portal_user.esta_activo
+        return False
 
     def validate_cedula(self, value):
         qs = Representante.objects.filter(cedula=value)

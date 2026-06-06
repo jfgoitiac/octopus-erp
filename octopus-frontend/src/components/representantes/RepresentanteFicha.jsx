@@ -1,4 +1,4 @@
-import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2, Monitor, ShieldOff, KeyRound } from 'lucide-react';
 
 const CONTACTO_FIELDS = [
     { icon: Phone,  field: 'telefono' },
@@ -14,7 +14,10 @@ const FichaAlumnosSkeleton = () => (
     </div>
 );
 
-const RepresentanteFicha = ({ rep, alumnos, fichaLoading, canWrite, onClose, onEditar, onConfirmDelete }) => (
+const RepresentanteFicha = ({
+    rep, alumnos, fichaLoading, canWrite, onClose, onEditar, onConfirmDelete,
+    portalLoading, onActivarPortal, onDesactivarPortal, onRestablecerContrasena,
+}) => (
     <div
         className="w-72 flex-shrink-0 rounded-xl flex flex-col"
         style={{
@@ -96,6 +99,85 @@ const RepresentanteFicha = ({ rep, alumnos, fichaLoading, canWrite, onClose, onE
                 </div>
             ))}
         </div>
+
+        {/* Acceso al Portal */}
+        {canWrite && (
+            <div className="px-4 py-3 flex flex-col gap-2" style={{ borderTop: '0.5px solid var(--border)' }}>
+                <div className="flex items-center justify-between">
+                    <p className="text-[11px] uppercase tracking-widest font-medium flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
+                        <Monitor size={12} />
+                        Acceso al Portal
+                    </p>
+                    {rep.portal_creado ? (
+                        <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full"
+                            style={rep.portal_activo
+                                ? { background: 'var(--pb-light)', color: 'var(--pb-mid)' }
+                                : { background: 'var(--ash-light)', color: 'var(--ash)' }}
+                        >
+                            {rep.portal_activo ? 'Activo' : 'Desactivado'}
+                        </span>
+                    ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
+                            Sin acceso
+                        </span>
+                    )}
+                </div>
+
+                {!rep.portal_creado ? (
+                    <button
+                        onClick={() => onActivarPortal(rep)}
+                        disabled={portalLoading}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-medium text-white disabled:opacity-60"
+                        style={{ background: 'var(--pb)' }}
+                    >
+                        {portalLoading ? <Loader2 size={12} className="animate-spin" /> : <Monitor size={12} />}
+                        Activar acceso al portal
+                    </button>
+                ) : rep.portal_activo ? (
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => onRestablecerContrasena(rep)}
+                            disabled={portalLoading}
+                            title="Restablecer contraseña a la cédula"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium disabled:opacity-60"
+                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                        >
+                            {portalLoading ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
+                            Restablecer clave
+                        </button>
+                        <button
+                            onClick={() => onDesactivarPortal(rep)}
+                            disabled={portalLoading}
+                            title="Desactivar acceso al portal"
+                            className="flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs transition-colors disabled:opacity-60"
+                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                            onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'var(--red)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; e.currentTarget.style.borderColor = 'var(--border-md)'; }}
+                        >
+                            <ShieldOff size={12} />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => onActivarPortal(rep)}
+                        disabled={portalLoading}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-medium text-white disabled:opacity-60"
+                        style={{ background: 'var(--pb)' }}
+                    >
+                        {portalLoading ? <Loader2 size={12} className="animate-spin" /> : <Monitor size={12} />}
+                        Reactivar acceso
+                    </button>
+                )}
+
+                {rep.portal_creado && (
+                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                        Usuario: <span className="font-mono">{rep.cedula}</span>
+                        {rep.portal_activo && ' · clave = cédula si nunca la cambió'}
+                    </p>
+                )}
+            </div>
+        )}
 
         {/* Acciones rápidas */}
         {canWrite && (

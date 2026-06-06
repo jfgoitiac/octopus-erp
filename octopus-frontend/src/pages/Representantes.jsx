@@ -117,6 +117,10 @@ const Representantes = () => {
                     onClose={rep.closeFicha}
                     onEditar={rep.openEditar}
                     onConfirmDelete={rep.setConfirmDelete}
+                    portalLoading={rep.portalLoading}
+                    onActivarPortal={rep.handleActivarPortal}
+                    onDesactivarPortal={rep.handleDesactivarPortal}
+                    onRestablecerContrasena={rep.handleRestablecerContrasena}
                 />
             )}
 
