@@ -1,0 +1,3777 @@
+<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mo="http://schemas.microsoft.com/office/mac/office/2008/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:mv="urn:schemas-microsoft-com:mac:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 wp14">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="800"/>
+        <w:jc w:val="center"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="44"/>
+        </w:rPr>
+        <w:t>PORTAL DE REPRESENTANTES</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="center"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="28"/>
+        </w:rPr>
+        <w:t>Informe de Integración y Configuración</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="center"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:color w:val="666666"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Sistema Octopus — Fase 1</w:t>
+      </w:r>
+    </w:p>
+    <w:p/>
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="center"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:color w:val="999999"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Mayo 2026</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>1. Resumen Ejecutivo</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Se completó la Fase 1 del Portal de Representantes para el sistema Octopus. Este módulo permite a los representantes legales acceder a la información financiera de sus estudiantes, consultar mensualidades pendientes y subir comprobantes de pago directamente desde su teléfono.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>El portal corre sobre la misma infraestructura existente (Django + React) sin modificar los módulos administrativos actuales. Se crearon componentes completamente separados con autenticación propia.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>Qué se construyó</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">Backend: </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>App Django portal con modelos, API REST, tareas Celery y migraciones</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">Frontend: </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Módulo React /portal con 11 componentes y páginas mobile-first</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">Seguridad: </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>11 vulnerabilidades corregidas (5 de severidad alta)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">QA: </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>3 bugs funcionales detectados y corregidos antes de despliegue</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>2. Pasos de Configuración (Obligatorios)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Estos pasos deben ejecutarse en orden antes de que el portal funcione.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>2.1 Aplicar la migración de base de datos</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>La app portal crea dos tablas nuevas: RepresentanteUser y ComprobantePago. Ejecutar en el entorno de Django:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>cd octopus-api</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>python manage.py migrate portal</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Verificar que no hubo errores. Las tablas existentes no son modificadas.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>2.2 Configurar variables de entorno</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Crear o actualizar el archivo .env en la raíz de octopus-api con los siguientes valores:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t># ── Seguridad ────────────────────────────────</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>DJANGO_SECRET_KEY=clave-secreta-larga-y-aleatoria-aqui</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>DJANGO_DEBUG=False          # Siempre False en producción</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t># ── CORS (dominio del frontend en producción) ─</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>DJANGO_CORS_ORIGINS=https://app.micolegio.edu.ve</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>DJANGO_CSRF_ORIGINS=https://app.micolegio.edu.ve</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t># ── Email (para notificaciones de cobranza) ──</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>EMAIL_HOST=smtp.gmail.com</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>EMAIL_PORT=587</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>EMAIL_USE_TLS=True</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>EMAIL_HOST_USER=noreply@micolegio.edu.ve</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>EMAIL_HOST_PASSWORD=contraseña-de-aplicacion-gmail</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t># ── Portal ───────────────────────────────────</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>PORTAL_EMAIL_FROM=noreply@micolegio.edu.ve</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>PORTAL_EMAIL_DIRECTOR=director@micolegio.edu.ve</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Para Gmail, usar una "contraseña de aplicación" (no la contraseña normal de la cuenta). Generarla en: Cuenta Google → Seguridad → Verificación en dos pasos → Contraseñas de aplicación.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>2.3 Variable de entorno del frontend</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Crear el archivo octopus-frontend/.env (o .env.production para producción):</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>VITE_API_BASE_URL=https://api.micolegio.edu.ve</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>En desarrollo local, omitir esta variable. El sistema usará http://127.0.0.1:8000 por defecto.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>2.4 Crear usuarios del portal para representantes existentes</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>El modelo RepresentanteUser vincula cada Representante con un usuario Django para autenticación. Los representantes registrados antes de esta actualización no tienen usuario todavía. Ejecutar el siguiente script desde el shell de Django:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>python manage.py shell</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>from django.contrib.auth import get_user_model</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>from secretaria.models import Representante</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>from portal.models import RepresentanteUser</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>User = get_user_model()</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>creados = 0</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>for rep in Representante.objects.all():</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">    if not hasattr(rep, "portal_user"):</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">        user = User.objects.create_user(</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">            username=rep.cedula,</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">            password=rep.cedula,  # contraseña inicial = cédula</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">            email=rep.correo)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">        RepresentanteUser.objects.create(representante=rep, user=user)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">        creados += 1</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>print(f"Usuarios creados: {creados}")</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="TableGrid"/>
+        <w:tblW w:type="auto" w:w="0"/>
+        <w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="9360"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="9360"/>
+            <w:shd w:val="clear" w:color="auto" w:fill="FFF3CD"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="1F3864"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>⚠️  Importante sobre contraseñas iniciales</w:t>
+            </w:r>
+          </w:p>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>La contraseña inicial es la cédula del representante. Comunicarles que deben cambiarla al primer ingreso. En el futuro se puede agregar un endpoint de cambio de contraseña al portal.</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p/>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>2.5 Verificar que Celery está corriendo (para notificaciones)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Las notificaciones automáticas de cobranza (días 0, 5, 10, 15) requieren un worker de Celery activo. Para desarrollo:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t># Terminal 1 — Redis (broker)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>redis-server</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t># Terminal 2 — Worker Celery</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>cd octopus-api</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>celery -A config worker -l info</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Si no se tiene Redis instalado: pip install redis y luego instalar Redis desde redis.io. En producción, usar un servicio gestionado (Redis Cloud, ElastiCache, etc.)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Agregar también en settings.py si no está ya configurado:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>2.6 Conectar notificaciones al flujo de creación de mensualidades</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>La función programar_notificaciones_mensualidad() existe en portal/tasks.py pero no se llama automáticamente aún. Agregar esto en cobranza/signals.py:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>from django.db.models.signals import post_save</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>from django.dispatch import receiver</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>from .models import Mensualidad</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>@receiver(post_save, sender=Mensualidad)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>def al_crear_mensualidad(sender, instance, created, **kwargs):</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">    if created and not instance.pagado:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">        from portal.tasks import programar_notificaciones_mensualidad</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t xml:space="preserve">        programar_notificaciones_mensualidad.delay(instance.id)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>3. Checklist de Despliegue</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Antes de abrir el portal a los representantes, verificar cada punto:</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="TableGrid"/>
+        <w:tblW w:type="auto" w:w="0"/>
+        <w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="4680"/>
+        <w:gridCol w:w="4680"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="720"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>OK</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="9360"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Paso</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>python manage.py migrate portal ejecutado sin errores</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Variables de entorno configuradas (SECRET_KEY, EMAIL, CORS)</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>DJANGO_DEBUG=False en producción</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>VITE_API_BASE_URL apuntando al dominio de producción</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>npm run build ejecutado en octopus-frontend</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Usuarios de portal creados para todos los representantes</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Email de prueba enviado correctamente</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Celery worker corriendo y conectado a Redis</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Señal post_save de Mensualidad conectada a programar_notificaciones</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Carpeta media/ con permisos de escritura para el usuario del servidor</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Archivos media servidos por nginx (no por Django en producción)</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Prueba de login con cédula y con correo funcionando</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Prueba de subida de comprobante (imagen JPG y PDF)</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="22"/>
+              </w:rPr>
+              <w:t>☐</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Verificar que un usuario admin NO puede entrar al portal con su token</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p/>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>4. Sugerencias de Mejora Futura</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.1 Integración con Stripe (Pago en línea)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>El botón "Pagar en línea" está preparado en el frontend pero deshabilitado. Para activarlo:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>pip install stripe en el backend</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Crear endpoint POST /api/portal/stripe/checkout/ que genere una Stripe Checkout Session</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>El frontend hace window.location.href = session.url para redirigir al usuario</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Configurar webhook en Stripe Dashboard apuntando a POST /api/portal/stripe/webhook/</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>El webhook actualiza la Mensualidad a pagado=True cuando el pago se confirma</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Costo estimado de implementación: 1-2 días de desarrollo.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.2 Notificaciones por WhatsApp</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>El código en portal/tasks.py incluye stubs comentados con TODO para WhatsApp. Dos opciones:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">Opción A: </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Twilio WhatsApp API — simple, $0.005 por mensaje, ideal para menos de 1,000 alumnos</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">Opción B: </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Meta Business API (WhatsApp Cloud API) — gratis hasta 1,000 conversaciones/mes, requiere cuenta Business verificada</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Ambas opciones están preparadas para conectarse a las tasks Celery existentes sin cambiar la lógica de programación de notificaciones.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.3 Comando de creación masiva de usuarios</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Crear un management command de Django para automatizar la creación de usuarios del portal cuando se registran nuevos representantes:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="80" w:after="80"/>
+        <w:ind w:left="432"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F0F0F0"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+          <w:sz w:val="18"/>
+        </w:rPr>
+        <w:t>python manage.py crear_usuarios_portal</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Este comando también podría enviar un email automático al representante con sus credenciales iniciales.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.4 Cambio de contraseña desde el portal</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Los representantes reciben su cédula como contraseña inicial. Se recomienda agregar en Fase 1.1 un endpoint POST /api/portal/cambiar-contrasena/ y la pantalla correspondiente en el frontend para que puedan actualizarla desde su teléfono.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.5 Filtrar "Últimos pagos" por alumno activo</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Actualmente el dashboard muestra los últimos pagos de todos los hijos mezclados. Cuando el representante cambia de tab (EstudianteSelector), los pagos deberían filtrarse por el alumno seleccionado. Requiere un pequeño cambio en PortalDashboard.jsx para llamar al historial con alumno_id=alumnoActivo.id al cambiar de tab.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.6 Migrar tokens a HttpOnly Cookies</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Actualmente los JWT se guardan en localStorage, lo que los expone a ataques XSS. La solución más segura es usar HttpOnly Cookies, pero requiere cambios en el backend para emitir y leer cookies. Recomendado para Fase 2 cuando el portal tenga más usuarios.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>4.7 Panel de revisión de comprobantes (admin)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Los comprobantes subidos por representantes quedan en estado "pendiente". Se necesita una pantalla en el panel administrativo donde el personal de cobranza pueda ver, aprobar o rechazar comprobantes con un clic. El modelo ComprobantePago ya tiene el campo estatus con los tres estados.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>5. Arquitectura del Módulo Creado</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>Backend — Nuevos archivos (octopus-api/portal/)</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="TableGrid"/>
+        <w:tblW w:type="auto" w:w="0"/>
+        <w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="4680"/>
+        <w:gridCol w:w="4680"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Archivo</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Descripción</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>models.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>RepresentanteUser (vincula Representante con User Django) y ComprobantePago</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>authentication.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>PortalJWTAuthentication — bloquea tokens admin en el portal</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>serializers.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Token, Dashboard, Mensualidades, Historial de pagos, Comprobantes</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>views.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>PortalTokenView, DashboardView, HistorialView, ComprobanteView</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>urls.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>/api/portal/token/, /dashboard/, /historial/, /comprobante/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>tasks.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Jobs Celery días 0, 5, 10, 15 + stubs WhatsApp comentados</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>migrations/0001_initial.py</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Crea las dos tablas nuevas sin tocar las existentes</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p/>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="0FA3B1"/>
+          <w:sz w:val="26"/>
+        </w:rPr>
+        <w:t>Frontend — Nuevos archivos (octopus-frontend/src/portal/)</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="TableGrid"/>
+        <w:tblW w:type="auto" w:w="0"/>
+        <w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="4680"/>
+        <w:gridCol w:w="4680"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Archivo</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Descripción</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>context/PortalAuthContext.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>AuthContext separado, token en portal_token</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>api/portalClient.js</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Axios con baseURL /api/portal/, refresh automático</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>api/portal.service.js</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>getDashboard(), getHistorial(), subirComprobante()</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>components/PortalProtectedRoute.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Guard de rutas — redirige si no autenticado</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>components/PortalLayout.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Layout mobile-first, header, logout</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>components/SkeletonCard.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Skeleton loaders (reemplaza spinners genéricos)</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>components/EstudianteSelector.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Tabs si el representante tiene varios hijos</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>components/ComprobantePagoModal.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Uploader con preview, validación MIME y tamaño</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>pages/PortalLogin.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Login por cédula o correo</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>pages/PortalDashboard.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Resumen financiero, deuda, vencimientos, últimos pagos</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>pages/PortalHistorialPagos.jsx</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="4680"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>Historial paginado con badges de estatus</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p/>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="TableGrid"/>
+        <w:tblW w:type="auto" w:w="0"/>
+        <w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="9360"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="9360"/>
+            <w:shd w:val="clear" w:color="auto" w:fill="E8F4E8"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="1F3864"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>📌  Archivos modificados (existentes)</w:t>
+            </w:r>
+          </w:p>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="20"/>
+              </w:rPr>
+              <w:t>config/settings.py — portal agregado a INSTALLED_APPS, throttle, CORS variables</w:t>
+              <w:br/>
+              <w:t>config/urls.py — ruta api/portal/ registrada</w:t>
+              <w:br/>
+              <w:t>src/App.jsx — rutas /portal y /portal/login agregadas, PortalAuthProvider</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p/>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>6. Resumen de Seguridad</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>La auditoría de seguridad detectó y corrigió los siguientes problemas:</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblStyle w:val="TableGrid"/>
+        <w:tblW w:type="auto" w:w="0"/>
+        <w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="2340"/>
+        <w:gridCol w:w="2340"/>
+        <w:gridCol w:w="2340"/>
+        <w:gridCol w:w="2340"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Severidad</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Problema</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Estado</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:b/>
+              </w:rPr>
+              <w:t>Solución aplicada</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="C00000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>ALTA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Username enumeration en login</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Todos los errores de auth retornan el mismo mensaje genérico</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="C00000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>ALTA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Sin rate limiting en /portal/token/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Throttle de 5 intentos/minuto por IP</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="C00000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>ALTA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Subida de archivos sin validación MIME ni límite</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Validación de tipo MIME, firma binaria e límite de 10 MB</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="C00000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>ALTA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Endpoint de refresh JWT no existía</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Agregado /api/portal/token/refresh/ separado del admin</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="C00000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>ALTA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Cross-auth admin↔portal posible</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>PortalJWTAuthentication bloquea tokens admin en todas las views</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="926200"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>MEDIA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>BasicAuthentication habilitado globalmente</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Eliminado de DEFAULT_AUTHENTICATION_CLASSES</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="926200"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>MEDIA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>SECRET_KEY con fallback inseguro</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Guard que lanza ValueError si DEBUG=False y clave es la por defecto</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="926200"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>MEDIA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>DEBUG=True por defecto</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Default cambiado a False</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="926200"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>MEDIA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORS sin variables para producción</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Lee DJANGO_CORS_ORIGINS desde variables de entorno</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="006000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>BAJA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>URL del API hardcodeada en frontend</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>CORREGIDA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Usa VITE_API_BASE_URL de variables de entorno</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:b/>
+                <w:color w:val="006000"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>BAJA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>JWT en localStorage (riesgo XSS)</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>ANOTADA</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:type="dxa" w:w="2340"/>
+          </w:tcPr>
+          <w:p>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+                <w:sz w:val="18"/>
+              </w:rPr>
+              <w:t>Mitigación: CSP estricto. Solución completa: HttpOnly Cookies (Fase 2)</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p/>
+    <w:p>
+      <w:r>
+        <w:br w:type="page"/>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="280" w:after="80"/>
+        <w:pBdr>
+          <w:bottom w:val="single" w:sz="6" w:space="1" w:color="0FA3B1"/>
+        </w:pBdr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:b/>
+          <w:color w:val="1F3864"/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>7. Próximos Pasos Recomendados</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Una vez completados los pasos de configuración de la Sección 2:</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Probar el flujo completo de login con un representante real</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Verificar que llegan los emails de notificación (enviar una mensualidad de prueba)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Comunicar a los representantes la URL del portal y sus credenciales iniciales</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Agregar el panel de revisión de comprobantes en el admin (Sección 4.7)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Evaluar integración con Stripe para pagos en línea (Sección 4.1)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListBullet"/>
+        <w:spacing w:after="60"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t>Iniciar Fase 2 — Módulo Académico (notas, boletines, asistencia, horarios)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:spacing w:before="400"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+          <w:i/>
+          <w:color w:val="666666"/>
+          <w:sz w:val="20"/>
+        </w:rPr>
+        <w:t>Ver NOTAS_TECNICAS.md en la raíz del proyecto para el registro completo de deuda técnica detectada.</w:t>
+      </w:r>
+    </w:p>
+    <w:sectPr w:rsidR="00FC693F" w:rsidRPr="0006063C" w:rsidSect="00034616">
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+      <w:cols w:space="720"/>
+      <w:docGrid w:linePitch="360"/>
+    </w:sectPr>
+  </w:body>
+</w:document>

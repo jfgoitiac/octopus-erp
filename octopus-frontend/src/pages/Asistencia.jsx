@@ -4,7 +4,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { es } from 'date-fns/locale';
 import { useAsistencia } from '../hooks/useAsistencia';
-import { GradoSelect } from '../constants/grados';
+import GradoSelect from '../components/GradoSelect';
 import FilaAlumno from '../components/asistencia/FilaAlumno';
 import SkeletonFila from '../components/asistencia/SkeletonFila';
 

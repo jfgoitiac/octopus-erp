@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Octopus — Mockup Apple Style</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f5f5f7;
+    --surface:   rgba(255,255,255,0.72);
+    --surface-solid: #ffffff;
+    --border:    rgba(0,0,0,0.06);
+    --border-md: rgba(0,0,0,0.10);
+    --text:      #1d1d1f;
+    --text-2:    #6e6e73;
+    --text-3:    #aeaeb2;
+    --accent:    #0071e3;
+    --accent-2:  #30d158;
+    --accent-3:  #ff375f;
+    --accent-4:  #bf5af2;
+    --accent-teal: #32ade6;
+    --radius-card: 18px;
+    --radius-sm: 10px;
+    --shadow-card: 0 2px 20px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.05);
+    --shadow-hover: 0 8px 36px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  }
+
+  html { background: var(--bg); }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border-right: 0.5px solid var(--border-md);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 14px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    gap: 6px;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 20px;
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #0071e3 0%, #32ade6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 2px 12px rgba(0,113,227,0.35);
+  }
+
+  .brand-name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--text-2);
+    letter-spacing: -0.01em;
+  }
+
+  .nav-section {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-3);
+    padding: 12px 10px 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+
+  .nav-item:hover { background: rgba(0,0,0,0.04); color: var(--text); }
+
+  .nav-item.active {
+    background: rgba(0,113,227,0.1);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .nav-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: rgba(0,0,0,0.04);
+    flex-shrink: 0;
+  }
+
+  .nav-item.active .nav-icon {
+    background: rgba(0,113,227,0.12);
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 0.5px solid var(--border);
+  }
+
+  .avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .avatar-row:hover { background: rgba(0,0,0,0.04); }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-teal) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .avatar-name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .avatar-role { font-size: 10px; color: var(--text-2); }
+
+  /* ── Main ────────────────────────────────────────────────── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Topbar ─────────────────────────────────────────────── */
+  .topbar {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    background: rgba(245,245,247,0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid var(--border-md);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .topbar-left { display: flex; flex-direction: column; }
+
+  .topbar-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .topbar-date {
+    font-size: 11px;
+    color: var(--text-2);
+    letter-spacing: -0.01em;
+  }
+
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  .pill-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .pill-btn.ghost {
+    background: rgba(0,0,0,0.05);
+    color: var(--text-2);
+  }
+
+  .pill-btn.ghost:hover { background: rgba(0,0,0,0.09); color: var(--text); }
+
+  .pill-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0,113,227,0.3);
+  }
+
+  .pill-btn.primary:hover { background: #0077ed; box-shadow: 0 4px 16px rgba(0,113,227,0.4); }
+
+  /* ── Content ────────────────────────────────────────────── */
+  .content {
+    flex: 1;
+    padding: 24px 28px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  /* ── KPI grid ───────────────────────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-card);
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: var(--shadow-card);
+    cursor: default;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: var(--kpi-accent, var(--accent));
+    opacity: 0.7;
+  }
+
+  .kpi-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  .kpi-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-2);
+    letter-spacing: -0.01em;
+  }
+
+  .kpi-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: var(--kpi-bg, rgba(0,113,227,0.08));
+    color: var(--kpi-accent, var(--accent));
+  }
+
+  .kpi-value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .kpi-sub {
+    font-size: 10.5px;
+    color: var(--text-3);
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Middle row ─────────────────────────────────────────── */
+  .mid-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-3);
+  }
+
+  /* ── Donut ──────────────────────────────────────────────── */
+  .donut-wrap { display: flex; justify-content: center; }
+
+  .donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-label {
+    font-size: 12px;
+    color: var(--text-2);
+    flex: 1;
+    letter-spacing: -0.01em;
+  }
+
+  .legend-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Cobranza rows ──────────────────────────────────────── */
+  .cobranza-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.02);
+    border: 0.5px solid var(--border);
+    transition: all 0.15s ease;
+  }
+
+  .cobranza-row:hover {
+    background: rgba(0,0,0,0.04);
+    transform: translateX(2px);
+  }
+
+  .cobranza-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .cobranza-label { font-size: 11px; color: var(--text-2); }
+  .cobranza-value { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+
+  /* ── Grades bar ─────────────────────────────────────────── */
+  .grades-card {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .grades-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px 24px;
+    margin-top: 4px;
+  }
+
+  .grade-row {}
+
+  .grade-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .grade-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .grade-count {
+    font-size: 11px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar-track {
+    height: 5px;
+    background: rgba(0,0,0,0.06);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  /* ── Gender stats ─────────────────────────────────────── */
+  .gender-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .gender-block { text-align: center; }
+  .gender-num { font-size: 28px; font-weight: 700; letter-spacing: -0.04em; }
+  .gender-lbl { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+  .gender-pct { font-size: 11px; font-weight: 600; margin-top: 1px; }
+
+  /* SVG donut */
+  svg.donut { overflow: visible; }
+
+  /* ── Animations ─────────────────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in { animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+
+  .d1 { animation-delay: 0ms; }
+  .d2 { animation-delay: 50ms; }
+  .d3 { animation-delay: 100ms; }
+  .d4 { animation-delay: 150ms; }
+  .d5 { animation-delay: 200ms; }
+  .d6 { animation-delay: 250ms; }
+  .d7 { animation-delay: 300ms; }
+  .d8 { animation-delay: 350ms; }
+  .d9 { animation-delay: 400ms; }
+
+  /* ── Notification badge ────────────────────────────────── */
+  .badge {
+    background: var(--accent-3);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 99px;
+    padding: 1px 5px;
+    min-width: 16px;
+    text-align: center;
+    margin-left: auto;
+  }
+
+  /* ── Search bar ───────────────────────────────────────── */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: text;
+    width: 180px;
+    border: 0.5px solid transparent;
+    transition: all 0.15s ease;
+  }
+
+  .search-bar:hover { background: rgba(0,0,0,0.07); border-color: var(--border-md); }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">🐙</div>
+    <div>
+      <div class="brand-name">Octopus</div>
+      <div class="brand-sub">Colegio San Marcos</div>
+    </div>
+  </div>
+
+  <span class="nav-section">Principal</span>
+
+  <a class="nav-item active">
+    <div class="nav-icon">⊞</div>
+    Dashboard
+  </a>
+  <a class="nav-item">
+    <div class="nav-icon">👥</div>
+    Estudiantes
+    <span class="badge">3</span>
+  </a>
+  <a class="nav-item">
+    <div class="nav-icon">📋</div>
+    Inscripciones
+  </a>
+
+  <span class="nav-section">Finanzas</span>
+
+  <a class="nav-item">
+    <div class="nav-icon">💳</div>
+    Facturación
+  </a>
+  <a class="nav-item">
+    <div class="nav-icon">💰</div>
+    Cobros
+  </a>
+  <a class="nav-item">
+    <div class="nav-icon">📊</div>
+    Reportes
+  </a>
+
+  <span class="nav-section">Portal</span>
+
+  <a class="nav-item">
+    <div class="nav-icon">🌐</div>
+    Portal Representantes
+  </a>
+  <a class="nav-item">
+    <div class="nav-icon">🔔</div>
+    Notificaciones
+  </a>
+
+  <div class="sidebar-footer">
+    <div class="avatar-row">
+      <div class="avatar">A</div>
+      <div>
+        <div class="avatar-name">Admin</div>
+        <div class="avatar-role">Director</div>
+      </div>
+      <svg style="margin-left:auto;opacity:.35" width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="4" r="1.5" fill="currentColor"/>
+        <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+        <circle cx="8" cy="12" r="1.5" fill="currentColor"/>
+      </svg>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title">Resumen general</span>
+      <span class="topbar-date">Viernes, 6 de junio de 2026</span>
+    </div>
+    <div class="topbar-right">
+      <div class="search-bar">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Buscar…
+      </div>
+      <button class="pill-btn ghost">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Actualizar
+      </button>
+      <button class="pill-btn primary">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Nueva inscripción
+      </button>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="content">
+
+    <!-- KPI Row -->
+    <div class="kpi-grid">
+      <div class="kpi-card fade-in d1" style="--kpi-accent:#0071e3;--kpi-bg:rgba(0,113,227,0.08)">
+        <div class="kpi-top">
+          <span class="kpi-label">Alumnos activos</span>
+          <div class="kpi-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M1 13.5c0-2.485 2.239-4.5 5-4.5s5 2.015 5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M14 13c0-1.657-1.343-3-3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">248</div>
+        <div class="kpi-sub">12 retirados este año</div>
+      </div>
+
+      <div class="kpi-card fade-in d2" style="--kpi-accent:#30d158;--kpi-bg:rgba(48,209,88,0.08)">
+        <div class="kpi-top">
+          <span class="kpi-label">Solventes</span>
+          <div class="kpi-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">189</div>
+        <div class="kpi-sub">76% del total</div>
+      </div>
+
+      <div class="kpi-card fade-in d3" style="--kpi-accent:#ff375f;--kpi-bg:rgba(255,55,95,0.08)">
+        <div class="kpi-top">
+          <span class="kpi-label">En mora</span>
+          <div class="kpi-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2l6.5 11.5H1.5L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.5v3M8 11v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">59</div>
+        <div class="kpi-sub">$12,400 pendientes</div>
+      </div>
+
+      <div class="kpi-card fade-in d4" style="--kpi-accent:#bf5af2;--kpi-bg:rgba(191,90,242,0.08)">
+        <div class="kpi-top">
+          <span class="kpi-label">Becados</span>
+          <div class="kpi-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3.5L13 6l-2.5 2.5.6 3.5L8 10.5 4.9 12l.6-3.5L3 6l3.5-.5L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">24</div>
+        <div class="kpi-sub">9.7% del total</div>
+      </div>
+
+      <div class="kpi-card fade-in d5" style="--kpi-accent:#636366;--kpi-bg:rgba(99,99,102,0.08)">
+        <div class="kpi-top">
+          <span class="kpi-label">Retirados</span>
+          <div class="kpi-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M1 13.5c0-2.485 2.239-4.5 5-4.5s5 2.015 5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 8l2 2m0-2l-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">12</div>
+        <div class="kpi-sub">Este año escolar</div>
+      </div>
+
+      <div class="kpi-card fade-in d6" style="--kpi-accent:#32ade6;--kpi-bg:rgba(50,173,230,0.08)">
+        <div class="kpi-top">
+          <span class="kpi-label">Tasa BCV</span>
+          <div class="kpi-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 11l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="kpi-value">36.8</div>
+        <div class="kpi-sub">Actualizado hoy</div>
+      </div>
+    </div>
+
+    <!-- Mid row -->
+    <div class="mid-row">
+
+      <!-- Estado financiero -->
+      <div class="card fade-in d7">
+        <span class="card-title">Estado financiero</span>
+        <div class="donut-wrap">
+          <svg class="donut" width="160" height="160" viewBox="0 0 160 160">
+            <defs>
+              <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#30d158"/>
+                <stop offset="100%" stop-color="#25a244"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff375f"/>
+                <stop offset="100%" stop-color="#c9003a"/>
+              </linearGradient>
+              <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffd60a"/>
+                <stop offset="100%" stop-color="#f4a800"/>
+              </linearGradient>
+            </defs>
+            <!-- Solventes 76% = 272° -->
+            <circle cx="80" cy="80" r="56" fill="none" stroke="url(#g1)" stroke-width="22"
+              stroke-dasharray="270 132" stroke-dashoffset="0"
+              transform="rotate(-90 80 80)" stroke-linecap="round" />
+            <!-- Mora 19% = 68° -->
+            <circle cx="80" cy="80" r="56" fill="none" stroke="url(#g2)" stroke-width="22"
+              stroke-dasharray="68 334" stroke-dashoffset="-276"
+              transform="rotate(-90 80 80)" stroke-linecap="round" />
+            <!-- Pendiente 5% = 18° -->
+            <circle cx="80" cy="80" r="56" fill="none" stroke="url(#g3)" stroke-width="22"
+              stroke-dasharray="18 384" stroke-dashoffset="-350"
+              transform="rotate(-90 80 80)" stroke-linecap="round" />
+            <text x="80" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="22" font-weight="700" fill="#1d1d1f" letter-spacing="-1">76%</text>
+            <text x="80" y="91" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#6e6e73">solventes</text>
+          </svg>
+        </div>
+        <div class="donut-legend">
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#30d158"></div>
+            <span class="legend-label">Solventes</span>
+            <span class="legend-value" style="color:#30d158">189</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#ff375f"></div>
+            <span class="legend-label">En mora</span>
+            <span class="legend-value" style="color:#ff375f">47</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#ffd60a"></div>
+            <span class="legend-label">Por vencer</span>
+            <span class="legend-value" style="color:#e6a800">12</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Género -->
+      <div class="card fade-in d8">
+        <span class="card-title">Distribución por género</span>
+        <div class="donut-wrap">
+          <svg class="donut" width="160" height="160" viewBox="0 0 160 160">
+            <defs>
+              <linearGradient id="gb" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0071e3"/>
+                <stop offset="100%" stop-color="#32ade6"/>
+              </linearGradient>
+              <linearGradient id="gp" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#bf5af2"/>
+                <stop offset="100%" stop-color="#e040fb"/>
+              </linearGradient>
+            </defs>
+            <!-- Masculino 55% = 197° -->
+            <circle cx="80" cy="80" r="56" fill="none" stroke="url(#gb)" stroke-width="22"
+              stroke-dasharray="195 207" stroke-dashoffset="0"
+              transform="rotate(-90 80 80)" stroke-linecap="round" />
+            <!-- Femenino 45% -->
+            <circle cx="80" cy="80" r="56" fill="none" stroke="url(#gp)" stroke-width="22"
+              stroke-dasharray="160 242" stroke-dashoffset="-201"
+              transform="rotate(-90 80 80)" stroke-linecap="round" />
+            <text x="80" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#1d1d1f" letter-spacing="-1">248</text>
+            <text x="80" y="91" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#6e6e73">estudiantes</text>
+          </svg>
+        </div>
+        <div class="gender-stats">
+          <div class="gender-block">
+            <div class="gender-num" style="color:#0071e3">137</div>
+            <div class="gender-lbl">Masculino</div>
+            <div class="gender-pct" style="color:#0071e3">55%</div>
+          </div>
+          <div style="width:0.5px;background:var(--border-md);align-self:stretch"></div>
+          <div class="gender-block">
+            <div class="gender-num" style="color:#bf5af2">111</div>
+            <div class="gender-lbl">Femenino</div>
+            <div class="gender-pct" style="color:#bf5af2">45%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cobranza hoy -->
+      <div class="card fade-in d9">
+        <span class="card-title">Cobranza hoy</span>
+        <div class="cobranza-row">
+          <div class="cobranza-icon" style="background:rgba(48,209,88,0.1)">💵</div>
+          <div>
+            <div class="cobranza-label">Total USD cobrado</div>
+            <div class="cobranza-value" style="color:#30d158">$4,820.00</div>
+          </div>
+        </div>
+        <div class="cobranza-row">
+          <div class="cobranza-icon" style="background:rgba(0,113,227,0.1)">🏦</div>
+          <div>
+            <div class="cobranza-label">Total VES cobrado</div>
+            <div class="cobranza-value" style="color:#0071e3">Bs. 177,376</div>
+          </div>
+        </div>
+        <div class="cobranza-row">
+          <div class="cobranza-icon" style="background:rgba(191,90,242,0.1)">📑</div>
+          <div>
+            <div class="cobranza-label">Pagos procesados</div>
+            <div class="cobranza-value" style="color:#bf5af2">18 pagos</div>
+          </div>
+        </div>
+        <div style="margin-top:auto;padding-top:8px;border-top:0.5px solid var(--border)">
+          <div style="font-size:10.5px;color:var(--text-3);text-align:center">
+            Última actualización: hace 3 min
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grades -->
+    <div class="grades-card fade-in" style="animation-delay:450ms">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <span class="card-title" style="margin-bottom:0">Ocupación por grado</span>
+        <span style="font-size:11px;color:var(--accent);font-weight:500;cursor:pointer">Ver todos →</span>
+      </div>
+      <div class="grades-grid">
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">1° "A"</span>
+            <span class="grade-count">28 / 30 <span style="color:var(--text-3)">(93%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:93%;background:#ff375f"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">1° "B"</span>
+            <span class="grade-count">24 / 30 <span style="color:var(--text-3)">(80%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:80%;background:#ffd60a"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">2° "A"</span>
+            <span class="grade-count">18 / 30 <span style="color:var(--text-3)">(60%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:60%;background:#0071e3"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">2° "B"</span>
+            <span class="grade-count">27 / 30 <span style="color:var(--text-3)">(90%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:90%;background:#ff375f"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">3° "A"</span>
+            <span class="grade-count">22 / 30 <span style="color:var(--text-3)">(73%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:73%;background:#ffd60a"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">3° "B"</span>
+            <span class="grade-count">15 / 30 <span style="color:var(--text-3)">(50%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:50%;background:#0071e3"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">4° "A"</span>
+            <span class="grade-count">30 / 30 <span style="color:var(--text-3)">(100%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:100%;background:#ff375f"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">5° "A"</span>
+            <span class="grade-count">20 / 30 <span style="color:var(--text-3)">(67%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:67%;background:#0071e3"></div></div>
+        </div>
+
+        <div class="grade-row">
+          <div class="grade-header">
+            <span class="grade-name">6° "A"</span>
+            <span class="grade-count">16 / 30 <span style="color:var(--text-3)">(53%)</span></span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:53%;background:#0071e3"></div></div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

@@ -5,7 +5,8 @@ import {
   saveHorario, updateHorario, deleteHorario,
   generarHorario,
 } from '../api/academico.service';
-import { DIA_MAP } from '../constants/horarios';
+import { DIA_MAP, HORAS_INICIO, HORAS_FIN, buildHoraBlocks } from '../constants/horarios';
+import apiClient from '../api/apiClient';
 
 export function useHorarios() {
   const [grado, setGrado]         = useState('');
@@ -14,10 +15,35 @@ export function useHorarios() {
   const [loading, setLoading]     = useState(false);
   const [saving, setSaving]       = useState(false);
   const [generando, setGenerando] = useState(false);
+
+  // Horas dinámicas — se sobreescriben si la institución tiene config propia
+  const [horasInicio, setHorasInicio] = useState(HORAS_INICIO);
+  const [horasFin,    setHorasFin]    = useState(HORAS_FIN);
+
   const abortRef = useRef(null);
 
   // Cancelar cualquier petición en vuelo al desmontar
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  // Leer hora_inicio_clases y hora_fin_clases desde el perfil de la institución
+  useEffect(() => {
+    apiClient.get('secretaria/configuracion/')
+      .then(res => {
+        const inicio = res.data?.hora_inicio_clases;
+        const fin    = res.data?.hora_fin_clases;
+        if (inicio && fin) {
+          setHorasInicio(buildHoraBlocks(inicio, fin));
+          // fin de bloque comienza 1 hora después del inicio de la jornada
+          const startH = parseInt(inicio.split(':')[0], 10);
+          const endH   = parseInt(fin.split(':')[0], 10);
+          setHorasFin(buildHoraBlocks(
+            `${String(startH + 1).padStart(2, '0')}:00`,
+            `${String(endH   + 1).padStart(2, '0')}:00`
+          ));
+        }
+      })
+      .catch(() => {}); // silencioso — usa los defaults de la constante
+  }, []);
 
   const recargar = useCallback(() => {
     if (!grado) { setHorarios([]); setMaterias([]); return; }
@@ -46,6 +72,16 @@ export function useHorarios() {
   const getClaseEnCelda = useCallback((dia, hora) => {
     const diaNum = DIA_MAP[dia];
     return horarios.find(h => h.dia_semana === diaNum && h.hora_inicio === hora) ?? null;
+  }, [horarios]);
+
+  // Devuelve true si ya existe otra clase en el mismo día y hora que el form indicado
+  const tieneConflicto = useCallback((form) => {
+    const diaNum = parseInt(form.dia_semana, 10);
+    return horarios.some(h =>
+      h.dia_semana  === diaNum &&
+      h.hora_inicio === form.hora_inicio &&
+      h.id          !== form.id  // al editar, ignora la clase actual
+    );
   }, [horarios]);
 
   const guardar = useCallback(async (form) => {
@@ -88,8 +124,9 @@ export function useHorarios() {
       toast.success('Clase eliminada.');
       recargar();
       return true;
-    } catch {
-      toast.error('Error al eliminar la clase.');
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al eliminar la clase.';
+      toast.error(msg);
       return false;
     } finally {
       setSaving(false);
@@ -114,7 +151,9 @@ export function useHorarios() {
     grado, setGrado,
     horarios, materias,
     loading, saving, generando,
+    horasInicio, horasFin,
     getClaseEnCelda,
+    tieneConflicto,
     guardar, eliminar, generar, recargar,
   };
 }

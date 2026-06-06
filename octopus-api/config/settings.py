@@ -222,6 +222,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'portal.tasks.revisar_y_programar_notificaciones_pendientes',
         'schedule': crontab(hour=8, minute=0),  # cada día a las 8am
     },
+    # Sincronizar tasa BCV cada 2 horas en horario bancario (lun-vie, 8am-6pm)
+    'sincronizar-tasa-bcv': {
+        'task': 'cobranza.tasks.actualizar_tasa_bcv_automatica',
+        'schedule': crontab(minute=0, hour='8,10,12,14,16,18', day_of_week='1-5'),
+    },
 }
 # ── Fin Celery Beat ────────────────────────────────────────────────────────────
 

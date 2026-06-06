@@ -1,0 +1,244 @@
+﻿PORTAL DE REPRESENTANTES
+Informe de Integración y Configuración
+Sistema Octopus — Fase 1
+Mayo 2026
+1. Resumen Ejecutivo
+Se completó la Fase 1 del Portal de Representantes para el sistema Octopus. Este módulo permite a los representantes legales acceder a la información financiera de sus estudiantes, consultar mensualidades pendientes y subir comprobantes de pago directamente desde su teléfono.
+El portal corre sobre la misma infraestructura existente (Django + React) sin modificar los módulos administrativos actuales. Se crearon componentes completamente separados con autenticación propia.
+Qué se construyó
+Backend: App Django portal con modelos, API REST, tareas Celery y migraciones
+Frontend: Módulo React /portal con 11 componentes y páginas mobile-first
+Seguridad: 11 vulnerabilidades corregidas (5 de severidad alta)
+QA: 3 bugs funcionales detectados y corregidos antes de despliegue
+2. Pasos de Configuración (Obligatorios)
+Estos pasos deben ejecutarse en orden antes de que el portal funcione.
+2.1 Aplicar la migración de base de datos
+La app portal crea dos tablas nuevas: RepresentanteUser y ComprobantePago. Ejecutar en el entorno de Django:
+cd octopus-api
+python manage.py migrate portal
+Verificar que no hubo errores. Las tablas existentes no son modificadas.
+2.2 Configurar variables de entorno
+Crear o actualizar el archivo .env en la raíz de octopus-api con los siguientes valores:
+# ── Seguridad ────────────────────────────────
+DJANGO_SECRET_KEY=clave-secreta-larga-y-aleatoria-aqui
+DJANGO_DEBUG=False          # Siempre False en producción
+# ── CORS (dominio del frontend en producción) ─
+DJANGO_CORS_ORIGINS=https://app.micolegio.edu.ve
+DJANGO_CSRF_ORIGINS=https://app.micolegio.edu.ve
+# ── Email (para notificaciones de cobranza) ──
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=noreply@micolegio.edu.ve
+EMAIL_HOST_PASSWORD=contraseña-de-aplicacion-gmail
+# ── Portal ───────────────────────────────────
+PORTAL_EMAIL_FROM=noreply@micolegio.edu.ve
+PORTAL_EMAIL_DIRECTOR=director@micolegio.edu.ve
+Para Gmail, usar una "contraseña de aplicación" (no la contraseña normal de la cuenta). Generarla en: Cuenta Google → Seguridad → Verificación en dos pasos → Contraseñas de aplicación.
+2.3 Variable de entorno del frontend
+Crear el archivo octopus-frontend/.env (o .env.production para producción):
+VITE_API_BASE_URL=https://api.micolegio.edu.ve
+En desarrollo local, omitir esta variable. El sistema usará http://127.0.0.1:8000 por defecto.
+2.4 Crear usuarios del portal para representantes existentes
+El modelo RepresentanteUser vincula cada Representante con un usuario Django para autenticación. Los representantes registrados antes de esta actualización no tienen usuario todavía. Ejecutar el siguiente script desde el shell de Django:
+python manage.py shell
+from django.contrib.auth import get_user_model
+from secretaria.models import Representante
+from portal.models import RepresentanteUser
+User = get_user_model()
+creados = 0
+for rep in Representante.objects.all():
+    if not hasattr(rep, "portal_user"):
+        user = User.objects.create_user(
+            username=rep.cedula,
+            password=rep.cedula,  # contraseña inicial = cédula
+            email=rep.correo)
+        RepresentanteUser.objects.create(representante=rep, user=user)
+        creados += 1
+print(f"Usuarios creados: {creados}")
+⚠️  Importante sobre contraseñas iniciales
+La contraseña inicial es la cédula del representante. Comunicarles que deben cambiarla al primer ingreso. En el futuro se puede agregar un endpoint de cambio de contraseña al portal.
+2.5 Verificar que Celery está corriendo (para notificaciones)
+Las notificaciones automáticas de cobranza (días 0, 5, 10, 15) requieren un worker de Celery activo. Para desarrollo:
+# Terminal 1 — Redis (broker)
+redis-server
+# Terminal 2 — Worker Celery
+cd octopus-api
+celery -A config worker -l info
+Si no se tiene Redis instalado: pip install redis y luego instalar Redis desde redis.io. En producción, usar un servicio gestionado (Redis Cloud, ElastiCache, etc.)
+Agregar también en settings.py si no está ya configurado:
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+2.6 Conectar notificaciones al flujo de creación de mensualidades
+La función programar_notificaciones_mensualidad() existe en portal/tasks.py pero no se llama automáticamente aún. Agregar esto en cobranza/signals.py:
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Mensualidad
+@receiver(post_save, sender=Mensualidad)
+def al_crear_mensualidad(sender, instance, created, **kwargs):
+    if created and not instance.pagado:
+        from portal.tasks import programar_notificaciones_mensualidad
+        programar_notificaciones_mensualidad.delay(instance.id)
+3. Checklist de Despliegue
+Antes de abrir el portal a los representantes, verificar cada punto:
+OK
+Paso
+☐
+python manage.py migrate portal ejecutado sin errores
+☐
+Variables de entorno configuradas (SECRET_KEY, EMAIL, CORS)
+☐
+DJANGO_DEBUG=False en producción
+☐
+VITE_API_BASE_URL apuntando al dominio de producción
+☐
+npm run build ejecutado en octopus-frontend
+☐
+Usuarios de portal creados para todos los representantes
+☐
+Email de prueba enviado correctamente
+☐
+Celery worker corriendo y conectado a Redis
+☐
+Señal post_save de Mensualidad conectada a programar_notificaciones
+☐
+Carpeta media/ con permisos de escritura para el usuario del servidor
+☐
+Archivos media servidos por nginx (no por Django en producción)
+☐
+Prueba de login con cédula y con correo funcionando
+☐
+Prueba de subida de comprobante (imagen JPG y PDF)
+☐
+Verificar que un usuario admin NO puede entrar al portal con su token
+4. Sugerencias de Mejora Futura
+4.1 Integración con Stripe (Pago en línea)
+El botón "Pagar en línea" está preparado en el frontend pero deshabilitado. Para activarlo:
+pip install stripe en el backend
+Crear endpoint POST /api/portal/stripe/checkout/ que genere una Stripe Checkout Session
+El frontend hace window.location.href = session.url para redirigir al usuario
+Configurar webhook en Stripe Dashboard apuntando a POST /api/portal/stripe/webhook/
+El webhook actualiza la Mensualidad a pagado=True cuando el pago se confirma
+Costo estimado de implementación: 1-2 días de desarrollo.
+4.2 Notificaciones por WhatsApp
+El código en portal/tasks.py incluye stubs comentados con TODO para WhatsApp. Dos opciones:
+Opción A: Twilio WhatsApp API — simple, $0.005 por mensaje, ideal para menos de 1,000 alumnos
+Opción B: Meta Business API (WhatsApp Cloud API) — gratis hasta 1,000 conversaciones/mes, requiere cuenta Business verificada
+Ambas opciones están preparadas para conectarse a las tasks Celery existentes sin cambiar la lógica de programación de notificaciones.
+4.3 Comando de creación masiva de usuarios
+Crear un management command de Django para automatizar la creación de usuarios del portal cuando se registran nuevos representantes:
+python manage.py crear_usuarios_portal
+Este comando también podría enviar un email automático al representante con sus credenciales iniciales.
+4.4 Cambio de contraseña desde el portal
+Los representantes reciben su cédula como contraseña inicial. Se recomienda agregar en Fase 1.1 un endpoint POST /api/portal/cambiar-contrasena/ y la pantalla correspondiente en el frontend para que puedan actualizarla desde su teléfono.
+4.5 Filtrar "Últimos pagos" por alumno activo
+Actualmente el dashboard muestra los últimos pagos de todos los hijos mezclados. Cuando el representante cambia de tab (EstudianteSelector), los pagos deberían filtrarse por el alumno seleccionado. Requiere un pequeño cambio en PortalDashboard.jsx para llamar al historial con alumno_id=alumnoActivo.id al cambiar de tab.
+4.6 Migrar tokens a HttpOnly Cookies
+Actualmente los JWT se guardan en localStorage, lo que los expone a ataques XSS. La solución más segura es usar HttpOnly Cookies, pero requiere cambios en el backend para emitir y leer cookies. Recomendado para Fase 2 cuando el portal tenga más usuarios.
+4.7 Panel de revisión de comprobantes (admin)
+Los comprobantes subidos por representantes quedan en estado "pendiente". Se necesita una pantalla en el panel administrativo donde el personal de cobranza pueda ver, aprobar o rechazar comprobantes con un clic. El modelo ComprobantePago ya tiene el campo estatus con los tres estados.
+5. Arquitectura del Módulo Creado
+Backend — Nuevos archivos (octopus-api/portal/)
+Archivo
+Descripción
+models.py
+RepresentanteUser (vincula Representante con User Django) y ComprobantePago
+authentication.py
+PortalJWTAuthentication — bloquea tokens admin en el portal
+serializers.py
+Token, Dashboard, Mensualidades, Historial de pagos, Comprobantes
+views.py
+PortalTokenView, DashboardView, HistorialView, ComprobanteView
+urls.py
+/api/portal/token/, /dashboard/, /historial/, /comprobante/
+tasks.py
+Jobs Celery días 0, 5, 10, 15 + stubs WhatsApp comentados
+migrations/0001_initial.py
+Crea las dos tablas nuevas sin tocar las existentes
+Frontend — Nuevos archivos (octopus-frontend/src/portal/)
+Archivo
+Descripción
+context/PortalAuthContext.jsx
+AuthContext separado, token en portal_token
+api/portalClient.js
+Axios con baseURL /api/portal/, refresh automático
+api/portal.service.js
+getDashboard(), getHistorial(), subirComprobante()
+components/PortalProtectedRoute.jsx
+Guard de rutas — redirige si no autenticado
+components/PortalLayout.jsx
+Layout mobile-first, header, logout
+components/SkeletonCard.jsx
+Skeleton loaders (reemplaza spinners genéricos)
+components/EstudianteSelector.jsx
+Tabs si el representante tiene varios hijos
+components/ComprobantePagoModal.jsx
+Uploader con preview, validación MIME y tamaño
+pages/PortalLogin.jsx
+Login por cédula o correo
+pages/PortalDashboard.jsx
+Resumen financiero, deuda, vencimientos, últimos pagos
+pages/PortalHistorialPagos.jsx
+Historial paginado con badges de estatus
+📌  Archivos modificados (existentes)
+config/settings.py — portal agregado a INSTALLED_APPS, throttle, CORS variablesconfig/urls.py — ruta api/portal/ registradasrc/App.jsx — rutas /portal y /portal/login agregadas, PortalAuthProvider
+6. Resumen de Seguridad
+La auditoría de seguridad detectó y corrigió los siguientes problemas:
+Severidad
+Problema
+Estado
+Solución aplicada
+ALTA
+Username enumeration en login
+CORREGIDA
+Todos los errores de auth retornan el mismo mensaje genérico
+ALTA
+Sin rate limiting en /portal/token/
+CORREGIDA
+Throttle de 5 intentos/minuto por IP
+ALTA
+Subida de archivos sin validación MIME ni límite
+CORREGIDA
+Validación de tipo MIME, firma binaria e límite de 10 MB
+ALTA
+Endpoint de refresh JWT no existía
+CORREGIDA
+Agregado /api/portal/token/refresh/ separado del admin
+ALTA
+Cross-auth admin↔portal posible
+CORREGIDA
+PortalJWTAuthentication bloquea tokens admin en todas las views
+MEDIA
+BasicAuthentication habilitado globalmente
+CORREGIDA
+Eliminado de DEFAULT_AUTHENTICATION_CLASSES
+MEDIA
+SECRET_KEY con fallback inseguro
+CORREGIDA
+Guard que lanza ValueError si DEBUG=False y clave es la por defecto
+MEDIA
+DEBUG=True por defecto
+CORREGIDA
+Default cambiado a False
+MEDIA
+CORS sin variables para producción
+CORREGIDA
+Lee DJANGO_CORS_ORIGINS desde variables de entorno
+BAJA
+URL del API hardcodeada en frontend
+CORREGIDA
+Usa VITE_API_BASE_URL de variables de entorno
+BAJA
+JWT en localStorage (riesgo XSS)
+ANOTADA
+Mitigación: CSP estricto. Solución completa: HttpOnly Cookies (Fase 2)
+7. Próximos Pasos Recomendados
+Una vez completados los pasos de configuración de la Sección 2:
+Probar el flujo completo de login con un representante real
+Verificar que llegan los emails de notificación (enviar una mensualidad de prueba)
+Comunicar a los representantes la URL del portal y sus credenciales iniciales
+Agregar el panel de revisión de comprobantes en el admin (Sección 4.7)
+Evaluar integración con Stripe para pagos en línea (Sección 4.1)
+Iniciar Fase 2 — Módulo Académico (notas, boletines, asistencia, horarios)
+Ver NOTAS_TECNICAS.md en la raíz del proyecto para el registro completo de deuda técnica detectada.

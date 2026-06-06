@@ -1,6 +1,6 @@
 import { X, Save, GraduationCap, UserCircle, Loader2 } from 'lucide-react';
 import DatePickerES from '../DatePickerES';
-import { GradoSelect } from '../../constants/grados';
+import GradoSelect from '../GradoSelect';
 
 const Campo = ({ label, children }) => (
     <div>

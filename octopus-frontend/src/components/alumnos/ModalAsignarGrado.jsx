@@ -1,5 +1,5 @@
 import { X, UserCheck, Loader2 } from 'lucide-react';
-import { GradoSelect } from '../../constants/grados';
+import GradoSelect from '../GradoSelect';
 
 const ModalAsignarGrado = ({ alumno, nuevoGrado, setNuevoGrado, saving, onClose, onConfirmar }) => (
     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"

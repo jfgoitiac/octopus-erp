@@ -14,8 +14,10 @@ La migración `portal/0001_initial.py` fue creada manualmente. Antes de levantar
 python manage.py migrate portal
 ```
 
-**2. Usuarios de portal deben crearse manualmente por ahora**
-No existe todavía una vista/comando para crear `RepresentanteUser` en masa. Hay que hacerlo desde el shell de Django o el admin. Se recomienda crear un management command `python manage.py crear_usuarios_portal` que itere sobre todos los `Representante` existentes y cree sus usuarios con la cédula como contraseña inicial forzando cambio de clave.
+**2. ~~Usuarios de portal deben crearse manualmente por ahora~~ — RESUELTO**
+Management command creado: `python manage.py crear_usuarios_portal`.
+Opciones: `--dry-run` para previsualizar, `--sobreescribir` para reactivar usuarios inactivos.
+Contraseña inicial = cédula del representante. Ver `portal/management/commands/crear_usuarios_portal.py`.
 
 **3. Celery no está configurado para producción**
 `portal/tasks.py` y `cobranza/celery.py` usan Celery pero no hay configuración de broker en `settings.py` para producción. Actualmente solo funciona con `task_always_eager=True` en desarrollo. Se debe configurar Redis o RabbitMQ como broker y correr un worker:
@@ -23,8 +25,8 @@ No existe todavía una vista/comando para crear `RepresentanteUser` en masa. Hay
 celery -A config worker -l info
 ```
 
-**4. `programar_notificaciones_mensualidad` no está conectada al flujo de creación de mensualidades**
-La función existe en `portal/tasks.py` pero no se llama en ningún lado. Debe conectarse vía señal `post_save` en `cobranza/signals.py` o desde la view que genera las mensualidades anuales.
+**4. ~~`programar_notificaciones_mensualidad` no está conectada~~ — YA ESTABA IMPLEMENTADO**
+La señal `al_crear_mensualidad` en `cobranza/signals.py` ya llama a `programar_notificaciones_mensualidad` en el `post_save` de `Mensualidad`. Esta nota estaba desactualizada.
 
 **5. Email backend apunta a consola en desarrollo**
 `settings.py` usa `EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'`. Para producción, cambiar a `smtp.EmailBackend` y configurar las variables de entorno `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`.
@@ -35,8 +37,10 @@ Revisar consistencia: `models.py` define `related_name='portal_user'` en la FK a
 **7. No hay límite de tamaño para comprobantes subidos**
 `PortalComprobantePagoView` no valida el tamaño del archivo. Un representante podría subir archivos muy grandes. Agregar validación de máximo 5MB antes de guardar.
 
-**8. Stripe no implementado**
-El botón "Pagar en línea" está deshabilitado en el frontend con `cursor-not-allowed`. Para implementarlo: instalar `stripe` en el backend, crear endpoint `POST /api/portal/stripe/checkout/` que genere una `Session` de Stripe Checkout y retorne la URL de redirect. El frontend solo necesita `window.location.href = url`.
+**8. ~~Stripe no implementado~~ — RESUELTO**
+`StripeCheckoutView` y `StripeWebhookView` implementados en `portal/views.py`.
+El frontend (`PortalDashboard.jsx`) llama a `crearCheckoutStripe()` y redirige al hosted page de Stripe.
+Variables de entorno `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` añadidas al `.env` — reemplazar los valores `_REEMPLAZAR` con las claves reales del dashboard de Stripe antes de probar.
 
 ---
 

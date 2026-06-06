@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useSede } from '../context/SedeContext';
+import { useConfiguracion } from '../hooks/useConfiguracion';
 import SedeSwitcher from './SedeSwitcher';
 import logoColegio from '../assets/logo-colegio.png';
 import {
@@ -65,6 +66,7 @@ const navSections = [
 const Sidebar = () => {
   const { user, logout, loading } = useContext(AuthContext);
   const { sedes, sedeActiva, cambiarSede } = useSede();
+  const { config } = useConfiguracion();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -101,9 +103,11 @@ const Sidebar = () => {
           alt="Logo del colegio"
           className="w-9 h-9 object-contain flex-shrink-0"
         />
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold leading-none text-gradient">Octopus</p>
-          <p className="text-[10px] tracking-widest mt-0.5" style={{ color: 'var(--ash)' }}>ERP v2</p>
+          <p className="text-[10px] font-medium leading-tight mt-0.5 break-words" style={{ color: 'var(--jet)' }}>
+            {config.nombre_colegio || sedeActiva?.nombre || 'ERP v2'}
+          </p>
         </div>
       </div>
 

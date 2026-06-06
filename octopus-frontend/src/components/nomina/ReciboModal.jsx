@@ -12,6 +12,7 @@ import {
 } from '../../constants/avec';
 import { fmtBs, generarReciboAVECPDF, generarReciboSimplePDF } from '../../utils/nominaPDF';
 import { useEscape } from '../../hooks/useEscape';
+import { useInstitucionPDF } from '../../hooks/useInstitucionPDF';
 
 registerLocale('es', es);
 
@@ -75,8 +76,9 @@ function DocenteBanner({ emp, config, sueldoBase }) {
 
 // ── Modal principal ────────────────────────────────────────────────────────────
 export function ReciboModal({ emp, cestaConfig, onClose }) {
-    const tipo      = emp.tipo_personal || 'docente';
-    const esDocente = tipo === 'docente';
+    const tipo        = emp.tipo_personal || 'docente';
+    const esDocente   = tipo === 'docente';
+    const institucion = useInstitucionPDF();
 
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const [reciboData,    setReciboData]    = useState(() => ({
@@ -157,7 +159,7 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
                 toast.error('Sueldo base resultó en 0. Verifica el costo/hora y las H/Sem.'); return;
             }
             generarReciboAVECPDF(emp, { ...reciboData, sueldo_base: String(reciboCalc.sueldoBase) },
-                reciboCalc, reciboCalc.cesta);
+                reciboCalc, reciboCalc.cesta, institucion);
         } else {
             if (!reciboData.sueldo_base_simple || parseFloat(reciboData.sueldo_base_simple) <= 0) {
                 toast.warning('Ingresa el sueldo / salario bruto mensual.'); return;
@@ -166,7 +168,7 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
                 ...reciboData,
                 sueldo_base:       reciboData.sueldo_base_simple,
                 otras_deducciones: reciboData.otras_deducciones,
-            });
+            }, institucion);
         }
 
         toast.success('Recibo generado correctamente.');

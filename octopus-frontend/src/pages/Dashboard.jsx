@@ -96,6 +96,18 @@ const Dashboard = () => {
     return (
         <div className="flex flex-col gap-5">
 
+            {/* ── Cabecera con botón de actualizar ── */}
+            <div className="flex items-center justify-end">
+                <button
+                    onClick={retry}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                >
+                    <RefreshCw size={12} />
+                    Actualizar
+                </button>
+            </div>
+
             {/* ── Row 1: KPI cards ── */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 <KpiCard icon={Users}         label="Alumnos activos" value={kpi.totalActivos}

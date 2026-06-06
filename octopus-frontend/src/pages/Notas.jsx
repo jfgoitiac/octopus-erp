@@ -1,7 +1,7 @@
 import { useContext, useMemo } from 'react';
 import { BookOpen, GraduationCap, Save, Plus, Pencil, Loader2, AlertTriangle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-import { GradoSelect } from '../constants/grados';
+import GradoSelect from '../components/GradoSelect';
 import { useNotas } from '../hooks/useNotas';
 import { useLapsos } from '../hooks/useLapsos';
 import { TablaNotas } from '../components/notas/TablaNotas';

@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, Save, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { DIAS, DIA_MAP, HORAS_INICIO, HORAS_FIN } from '../../constants/horarios';
+import { INPUT_STYLE } from '../../constants/styles';
+import { useEscape } from '../../hooks/useEscape';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
-const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
-
-// Devuelve la hora siguiente en formato HH:00 ("07:00" → "08:00")
-const nextHour = (hhmm) =>
-  `${String(parseInt(hhmm.split(':')[0], 10) + 1).padStart(2, '0')}:00`;
+// Devuelve la hora siguiente en formato HH:00 ("07:00" → "08:00"), tope en 23:00
+const nextHour = (hhmm) => {
+  const next = parseInt(hhmm.split(':')[0], 10) + 1;
+  return next < 24 ? `${String(next).padStart(2, '0')}:00` : '23:00';
+};
 
 const buildInitialForm = (claseInicial, celdaDefecto) => {
   if (claseInicial) {
@@ -30,22 +33,41 @@ const buildInitialForm = (claseInicial, celdaDefecto) => {
   };
 };
 
-export const ModalClase = ({ materias, claseInicial, celdaDefecto, saving, onClose, onSave, onDelete }) => {
-  const [form, setForm] = useState(() => buildInitialForm(claseInicial, celdaDefecto));
+export const ModalClase = ({
+  materias,
+  claseInicial,
+  celdaDefecto,
+  saving,
+  horasInicio = HORAS_INICIO,
+  horasFin    = HORAS_FIN,
+  tieneConflicto,
+  onClose,
+  onSave,
+  onDelete,
+}) => {
+  const [form, setForm]             = useState(() => buildInitialForm(claseInicial, celdaDefecto));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const containerRef                = useRef(null);
 
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+  useEscape(true, onClose);
+  useFocusTrap(containerRef);
 
   const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  // Conflicto: otra clase en el mismo día y hora (ignorando la clase actual al editar)
+  const conflicto = tieneConflicto &&
+    form.dia_semana &&
+    form.hora_inicio &&
+    tieneConflicto(form);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.materia_id || !form.dia_semana || !form.hora_inicio || !form.hora_fin) {
       toast.warning('Completa todos los campos obligatorios.');
+      return;
+    }
+    if (conflicto) {
+      toast.warning('Ya existe una clase en ese horario. Elige otro día u hora.');
       return;
     }
     onSave(form);
@@ -60,8 +82,11 @@ export const ModalClase = ({ materias, claseInicial, celdaDefecto, saving, onClo
       aria-modal="true"
       aria-labelledby="modal-clase-titulo"
     >
-      <div className="rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn"
-        style={{ background: 'var(--porcelain)' }}>
+      <div
+        ref={containerRef}
+        className="rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn"
+        style={{ background: 'var(--porcelain)' }}
+      >
 
         {/* Header */}
         <div className="p-5 flex justify-between items-center"
@@ -83,9 +108,20 @@ export const ModalClase = ({ materias, claseInicial, celdaDefecto, saving, onClo
             </label>
             <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
               value={form.materia_id} onChange={set('materia_id')} required>
-              <option value="">Seleccionar...</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+              {materias.length === 0 ? (
+                <option value="" disabled>Sin materias registradas para este grado</option>
+              ) : (
+                <>
+                  <option value="">Seleccionar...</option>
+                  {materias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                </>
+              )}
             </select>
+            {materias.length === 0 && (
+              <p className="text-[11px] mt-1.5" style={{ color: '#dc2626' }}>
+                Registra materias para este grado antes de agregar clases.
+              </p>
+            )}
           </div>
 
           {/* Día */}
@@ -109,7 +145,7 @@ export const ModalClase = ({ materias, claseInicial, celdaDefecto, saving, onClo
               <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
                 value={form.hora_inicio} onChange={set('hora_inicio')} required>
                 <option value="">—</option>
-                {HORAS_INICIO.map(h => <option key={h} value={h}>{h}</option>)}
+                {horasInicio.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
             <div>
@@ -119,10 +155,21 @@ export const ModalClase = ({ materias, claseInicial, celdaDefecto, saving, onClo
               <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
                 value={form.hora_fin} onChange={set('hora_fin')} required>
                 <option value="">—</option>
-                {HORAS_FIN.map(h => <option key={h} value={h}>{h}</option>)}
+                {horasFin.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
           </div>
+
+          {/* Aviso de conflicto */}
+          {conflicto && (
+            <div className="rounded-lg px-3 py-2 flex items-start gap-2"
+              style={{ background: '#fffbeb', border: '0.5px solid #fcd34d' }}>
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#b45309' }} />
+              <p className="text-xs" style={{ color: '#92400e' }}>
+                Ya hay una clase asignada en ese día y hora. Elige otra combinación.
+              </p>
+            </div>
+          )}
 
           {/* Aula */}
           <div>
@@ -141,7 +188,7 @@ export const ModalClase = ({ materias, claseInicial, celdaDefecto, saving, onClo
               style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
               Cancelar
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || materias.length === 0}
               className="flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
               style={{ background: 'var(--pb)' }}>
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

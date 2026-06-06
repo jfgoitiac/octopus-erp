@@ -4,16 +4,16 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SSO_TOPE, SSO_PCT, SPF_PCT, FAOV_PCT } from '../constants/avec';
 
-// [DEUDA] El nombre del colegio debe venir de GET /configuracion/ (perfil de la institución).
-// Mientras no exista ese endpoint, se usa este valor por defecto hardcodeado.
-// Impacto SaaS: si otro colegio usa el módulo, sus recibos mostrarán este nombre.
-const NOMBRE_COLEGIO_DEFAULT = 'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA';
+// Fallback usado solo si el llamador no pasa un objeto institucion.
+// El valor real viene de GET /api/secretaria/configuracion/ vía useInstitucionPDF.
+const INST_DEFAULT = { nombre: 'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA', logoColegio: null, logoAvec: null };
 
 export const fmtBs = (n) =>
     (parseFloat(n) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// ── Recibo AVEC (docentes) ────────────────────────────────────────────────────
-export function generarReciboAVECPDF(emp, data, calc, cesta, nombreColegio = NOMBRE_COLEGIO_DEFAULT) {
+// ── Lógica interna compartida para el recibo AVEC ────────────────────────────
+function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
+    const { nombre: nombreColegio, logoColegio, logoAvec } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
@@ -21,15 +21,15 @@ export function generarReciboAVECPDF(emp, data, calc, cesta, nombreColegio = NOM
     const RM  = W - LM;
 
     const sueldoBase = parseFloat(data.sueldo_base) || 0;
-    const { primaAnt, primaDoc, primaGeo, primaPos, primaAsis, primaHijos,
-            otrasAsig, totalAsig, sso, spf, faov, totalRet, neto: netoMensual, quincena } = calc;
+    const { otrasAsig, totalAsig, sso, spf, faov, totalRet, neto: netoMensual, quincena } = calc;
+    const primaDiscapacidad = parseFloat(calc.primaDiscapacidad) || 0;
     const { tarifaHora, costoDiario, totalBs: totalAlim,
             hsInasistencia, descuento: descAlim, totalRecibir: totalAlimRecibir } = cesta;
 
     const cell = (text, x, y, w, h, opts = {}) => {
         const { bold = false, align = 'left', bg, fontSize = 8, textColor = [0, 0, 0] } = opts;
         if (bg) { doc.setFillColor(...bg); doc.rect(x, y, w, h, 'F'); }
-        doc.setDrawColor(204, 204, 204);
+        doc.setDrawColor(180, 180, 180);
         doc.rect(x, y, w, h);
         doc.setFontSize(fontSize);
         doc.setFont('helvetica', bold ? 'bold' : 'normal');
@@ -40,143 +40,203 @@ export function generarReciboAVECPDF(emp, data, calc, cesta, nombreColegio = NOM
         else                        doc.text(String(text), x + pad, y + h / 2 + fontSize * 0.18);
     };
 
-    let y = 10;
-    const hdrBg = [245, 245, 245];
+    // ── Cabecera institucional ──────────────────────────────────────────────
+    const LOGO_SIZE  = 28;   // mm — alto/ancho del escudo del colegio
+    const AVEC_W     = 22;   // mm — ancho logo AVEC
+    const AVEC_H     = 22;   // mm — alto logo AVEC
+    const HDR_TOP    = 8;    // mm — margen superior de la cabecera
 
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 51, 102);
-    doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-    y += 5;
-    doc.setFontSize(9); doc.setTextColor(204, 0, 0);
-    doc.text('RECIBO DE PAGO I, II QUINCENA Y BONO DE ALIMENTACIÓN', W / 2, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-    y += 5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    doc.text(`Mes:  ${(data.mes || '').toUpperCase()}`, W / 2, y, { align: 'center' });
-    y += 3;
+    // Logos (base64 provenientes de useInstitucionPDF — omitidos si null)
+    if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM,           HDR_TOP,     LOGO_SIZE, LOGO_SIZE); } catch (_) {}
+    if (logoAvec)    try { doc.addImage(logoAvec,    'PNG', RM - AVEC_W,  HDR_TOP + 2, AVEC_W,    AVEC_H);   } catch (_) {}
 
-    const cW = (RM - LM) / 4;
-    const rH = 7;
+    // Texto centrado entre logos
+    const txtX = LM + LOGO_SIZE + 2;
+    const txtW = RM - AVEC_W - 2 - txtX;
+    const cx   = txtX + txtW / 2;
 
-    cell('Apellidos y Nombres', LM,          y, cW * 1.6, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('C.I Nº',             LM + cW*1.6,  y, cW * 0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Nº H /Sem',          LM + cW*2.4,  y, cW * 0.6, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Cargo',              LM + cW*3.0,  y, cW * 1.0, rH, { bold: true, bg: hdrBg, fontSize: 7 });
+    let y = HDR_TOP + 2;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
+
+    doc.setFontSize(6.5);
+    doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', cx, y, { align: 'center' }); y += 3.2;
+    doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', cx, y, { align: 'center' }); y += 3.2;
+
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text(nombreColegio.toUpperCase(), cx, y, { align: 'center' }); y += 3.2;
+
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+    doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', cx, y, { align: 'center' }); y += 3;
+    doc.text('YARACAL ESTADO FALCÓN', cx, y, { align: 'center' }); y += 3;
+    doc.text('TELÉFONO 0259 938 1347  -  0426 563 1569', cx, y, { align: 'center' }); y += 3;
+    doc.text('CÓDIGO DEA PD00131104', cx, y, { align: 'center' }); y += 3;
+    doc.text('RIF-J-085222910', cx, y, { align: 'center' });
+
+    // Separador debajo de logos
+    y = HDR_TOP + LOGO_SIZE + 4;
+    doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
+    doc.line(LM, y, RM, y); y += 7;
+
+    // ── Título ──────────────────────────────────────────────────────────────
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 51, 102);
+    doc.text('RECIBO DE PAGO I, II QUINCENA Y BONO DE ALIMENTACION', W / 2, y, { align: 'center' }); y += 7;
+
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
+    doc.text(`Mes: ${(data.mes || '').toUpperCase()}`, W / 2, y, { align: 'center' }); y += 8;
+
+    // ── Datos del empleado ──────────────────────────────────────────────────
+    const hdrBg = [235, 235, 235];
+    const BLUE  = [0, 51, 102];
+    const RED   = [204, 0, 0];
+    const fullW = RM - LM;
+    const cW    = fullW / 4;
+    const rH    = 7;
+
+    // Fila 1 encabezados
+    cell('APELLIDOS Y NOMBRES', LM,           y, cW * 1.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('C.I Nº',              LM + cW*1.6,  y, cW * 0.8, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('Nº H /Sem',           LM + cW*2.4,  y, cW * 0.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('Cargo',               LM + cW*3.0,  y, cW * 1.0, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
     y += rH;
 
-    cell(`${emp.apellido?.toUpperCase()} ${emp.nombre?.toUpperCase()}`, LM, y, cW*1.6, rH, { fontSize: 7 });
-    cell(emp.cedula || '',                       LM + cW*1.6, y, cW*0.8, rH, { fontSize: 7 });
-    cell(String(emp.horas_semanales || ''),       LM + cW*2.4, y, cW*0.6, rH, { align: 'center', fontSize: 7 });
-    cell((emp.cargo || '').toUpperCase(),         LM + cW*3.0, y, cW*1.0, rH, { fontSize: 7 });
+    cell(`${emp.apellido?.toUpperCase() ?? ''} ${emp.nombre?.toUpperCase() ?? ''}`, LM, y, cW*1.6, rH, { fontSize: 7 });
+    cell(emp.cedula || '',                    LM + cW*1.6, y, cW*0.8, rH, { fontSize: 7, align: 'center' });
+    cell(String(emp.horas_semanales || ''),   LM + cW*2.4, y, cW*0.6, rH, { align: 'center', fontSize: 7 });
+    cell((emp.cargo || '').toUpperCase(),     LM + cW*3.0, y, cW*1.0, rH, { fontSize: 7 });
     y += rH;
 
-    cell('Fecha de Ingreso',   LM,          y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Título',             LM+cW*0.8,   y, cW*0.6, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Categoría Docente',  LM+cW*1.4,   y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('NIVEL',              LM+cW*2.2,   y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    doc.setDrawColor(204, 204, 204); doc.rect(LM+cW*3.0, y, cW*1.0, rH);
+    // Fila 2 encabezados
+    cell('FECHA DE INGRESO',   LM,           y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('TÍTULO',             LM + cW*0.8,  y, cW*0.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('CATEGORÍA DOCENTE',  LM + cW*1.4,  y, cW*1.0, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('NIVEL',              LM + cW*2.4,  y, cW*1.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
     y += rH;
 
-    cell(emp.fecha_ingreso || '',     LM,         y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    cell(emp.titulo || '',            LM+cW*0.8,  y, cW*0.6, rH, { fontSize: 7, align: 'center' });
-    cell(emp.categoria_docente || '', LM+cW*1.4,  y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    cell(emp.nivel || '',             LM+cW*2.2,  y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    doc.rect(LM+cW*3.0, y, cW*1.0, rH);
-    y += rH + 2;
+    cell(emp.fecha_ingreso || '',     LM,           y, cW*0.8, rH, { fontSize: 7, align: 'center' });
+    cell(emp.titulo || '',            LM + cW*0.8,  y, cW*0.6, rH, { fontSize: 7, align: 'center' });
+    cell(emp.categoria_docente || '', LM + cW*1.4,  y, cW*1.0, rH, { fontSize: 7, align: 'center' });
+    cell(emp.nivel || '',             LM + cW*2.4,  y, cW*1.6, rH, { fontSize: 7, align: 'center' });
+    y += rH + 3;
 
-    const half   = (RM - LM) / 2 - 1;
+    // ── Asignaciones / Retenciones ──────────────────────────────────────────
+    const half   = fullW / 2 - 1;
     const xLeft  = LM;
     const xRight = LM + half + 2;
     const dH     = 6.5;
-
-    cell('ASIGNACIONES MENSUALES', xLeft,  y, half, dH, { bold: true, bg: [245, 245, 245], align: 'center', fontSize: 8, textColor: [0, 51, 102] });
-    cell('RETENCIONES',            xRight, y, half, dH, { bold: true, bg: [245, 245, 245], align: 'center', fontSize: 8, textColor: [0, 51, 102] });
-    y += dH;
-
-    const asigRows = [
-        ['SUELDO BASE',             fmtBs(sueldoBase)],
-        ['',                        ''],
-        ['OTRAS ASIGNACIONES',      fmtBs(otrasAsig)],
-        ['TOTAL ASIGNACIONES',      fmtBs(totalAsig)],
-        ['MONTO PRIMERA QUINCENA',  fmtBs(quincena)],
-        ['DEDUCCIONES',             fmtBs(totalRet)],
-        ['MONTO SEGUNDA QUINCENA',  fmtBs(quincena)],
-    ];
-    const retRows = [
-        ['F.A.O.V',           fmtBs(faov)],
-        ['S.S.O',             fmtBs(sso)],
-        ['',                  ''],
-        ['S.P.F',             fmtBs(spf)],
-        ['',                  ''],
-        ['Total Retenciones', fmtBs(totalRet)],
-        ['Neto a Depositar',  fmtBs(netoMensual)],
-    ];
-
-    const labelW = half * 0.62;
+    const labelW = half * 0.65;
     const valW   = half - labelW;
 
-    asigRows.forEach((row, i) => {
-        const retRow = retRows[i] || ['', ''];
-        const isBold = [3, 4, 6].includes(i);
-        const rBold  = [5, 6].includes(i);
-        cell(row[0], xLeft,           y, labelW, dH, { bold: isBold, fontSize: 7 });
-        cell(row[1], xLeft + labelW,  y, valW,   dH, { bold: isBold, fontSize: 7, align: 'right' });
-        cell(retRow[0], xRight,           y, labelW, dH, { bold: rBold, fontSize: 7, ...(rBold ? { textColor: [204, 0, 0] } : {}) });
-        cell(retRow[1], xRight + labelW,  y, valW,   dH, { bold: rBold, fontSize: 7, align: 'right', ...(rBold ? { textColor: [204, 0, 0] } : {}) });
+    cell('ASIGNACIONES MENSUALES', xLeft,  y, half, dH, { bold: true, bg: hdrBg, align: 'center', fontSize: 8, textColor: BLUE });
+    cell('RETENCIONES',            xRight, y, half, dH, { bold: true, bg: hdrBg, align: 'center', fontSize: 8, textColor: BLUE });
+    y += dH;
+
+    // 5 filas paralelas asignaciones | retenciones
+    const asigRows = [
+        { label: 'SUELDO BASE',            val: fmtBs(sueldoBase), bold: false },
+        { label: 'OTRAS ASIGNACIONES',     val: fmtBs(otrasAsig),  bold: false },
+        { label: 'TOTAL ASIGNACIONES',     val: fmtBs(totalAsig),  bold: true  },
+        { label: 'MONTO PRIMERA QUINCENA', val: fmtBs(quincena),   bold: true, color: BLUE },
+        { label: 'MONTO SEGUNDA QUINCENA', val: fmtBs(quincena),   bold: true, color: BLUE },
+    ];
+    const retRows = [
+        { label: 'F.A.O.V',           val: fmtBs(faov),    bold: false },
+        { label: 'S.S.O',             val: fmtBs(sso),     bold: true  },
+        { label: 'S.P.F',             val: fmtBs(spf),     bold: false },
+        { label: 'DEDUCCIONES',       val: '',              bold: false },
+        { label: 'TOTAL RETENCIONES', val: fmtBs(totalRet),bold: true, color: RED },
+    ];
+
+    asigRows.forEach((ar, i) => {
+        const rr = retRows[i];
+        const aColor = ar.color ?? [0, 0, 0];
+        const rColor = rr.color ?? [0, 0, 0];
+        cell(ar.label, xLeft,          y, labelW, dH, { bold: ar.bold, fontSize: 7, textColor: aColor });
+        cell(ar.val,   xLeft + labelW, y, valW,   dH, { bold: ar.bold, fontSize: 7, align: 'right', textColor: aColor });
+        cell(rr.label, xRight,          y, labelW, dH, { bold: rr.bold, fontSize: 7, textColor: rColor });
+        cell(rr.val,   xRight + labelW, y, valW,   dH, { bold: rr.bold, fontSize: 7, align: 'right', textColor: rColor });
         y += dH;
     });
 
-    y += 2;
-    const fullW = RM - LM;
-    cell('PRIMA POR DISCAPACIDAD PARA EL PERSONAL E HIJOS', LM, y, fullW, dH, { fontSize: 7, bg: [245, 245, 245] });
-    y += dH + 2;
-
-    cell('PROGRAMA ALIMENTARIO', LM, y, fullW, dH, { bold: true, bg: [245, 245, 245], align: 'center', fontSize: 8, textColor: [0, 51, 102] });
+    y += 1;
+    // Prima por discapacidad
+    const primaLabelW = fullW * 0.78;
+    const primaValW   = fullW - primaLabelW;
+    cell('PRIMA POR DISCAPACIDAD PARA EL PERSONAL E HIJOS', LM, y, primaLabelW, dH, { fontSize: 7 });
+    cell(fmtBs(primaDiscapacidad), LM + primaLabelW, y, primaValW, dH, { fontSize: 7, align: 'right' });
     y += dH;
 
-    const col1 = fullW * 0.55;
+    // NETO A DEPOSITAR — fila completa destacada
+    const netoLabelW = fullW * 0.78;
+    const netoValW   = fullW - netoLabelW;
+    cell('NETO A DEPOSITAR', LM, y, netoLabelW, dH, { bold: true, fontSize: 8, textColor: RED });
+    cell(fmtBs(netoMensual), LM + netoLabelW, y, netoValW, dH, { bold: true, fontSize: 8, align: 'right', textColor: RED });
+    y += dH + 3;
+
+    // ── Programa Alimentario ────────────────────────────────────────────────
+    cell('PROGRAMA ALIMENTARIO', LM, y, fullW, dH, { bold: true, bg: hdrBg, align: 'center', fontSize: 8, textColor: BLUE });
+    y += dH;
+
+    const col1 = fullW * 0.78;
     const col2 = fullW - col1;
-    cell('MONTO DEL BENEFICIO DE ALIMENTACIÓN POR HORA:', LM, y, col1, dH, { fontSize: 7 });
+    cell('MONTO DEL BENEFICIO DE ALIMENTACIÓN POR HORA:',  LM, y, col1, dH, { fontSize: 7 });
     cell(fmtBs(tarifaHora), LM + col1, y, col2, dH, { fontSize: 7, align: 'right' });
     y += dH;
     cell('COSTO DIARIO DEL BENEFICIO DE ALIMENTACIÓN:', LM, y, col1, dH, { fontSize: 7 });
     cell(fmtBs(costoDiario), LM + col1, y, col2, dH, { fontSize: 7, align: 'right' });
     y += dH;
-    cell('TOTAL BENEFICIO DE ALIMENTACIÓN:', LM, y, col1, dH, { bold: true, fontSize: 7 });
+    cell('TOTAL BENEFICIO DE ALIMENTACIÓN', LM, y, col1, dH, { bold: true, fontSize: 7 });
     cell(fmtBs(totalAlim), LM + col1, y, col2, dH, { bold: true, fontSize: 7, align: 'right' });
     y += dH;
 
-    const qW = fullW / 4;
-    cell('Nº H /MENS de inasistencia',               LM,        y, qW,   dH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Descuento por inasistencia',                LM + qW,   y, qW,   dH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Total Beneficio de Alimentación a Recibir', LM + qW*2, y, qW*2, dH, { bold: true, bg: hdrBg, fontSize: 7 });
+    const qW = fullW / 3;
+    cell('Nº H /MENS DE INASISTENCIA',               LM,        y, qW,   dH, { bold: true, bg: hdrBg, align: 'center', fontSize: 7 });
+    cell('DESCUENTO POR INASISTENCIA',                LM + qW,   y, qW,   dH, { bold: true, bg: hdrBg, align: 'center', fontSize: 7 });
+    cell('TOTAL BENEFICIO DE ALIMENTACIÓN A RECIBIR', LM + qW*2, y, qW,   dH, { bold: true, bg: hdrBg, align: 'center', fontSize: 7 });
     y += dH;
-    cell(hsInasistencia > 0 ? String(hsInasistencia) : '0',  LM,        y, qW,   dH, { align: 'center', fontSize: 7 });
-    cell(hsInasistencia > 0 ? fmtBs(descAlim) : '0,00',      LM + qW,   y, qW,   dH, { align: 'right',  fontSize: 7 });
-    cell(fmtBs(totalAlimRecibir),                             LM + qW*2, y, qW*2, dH, { bold: true, align: 'right', fontSize: 7 });
-    y += dH + 8;
+    cell(hsInasistencia > 0 ? String(hsInasistencia) : '0', LM,        y, qW, dH, { align: 'center', fontSize: 7 });
+    cell(hsInasistencia > 0 ? fmtBs(descAlim) : '0,00',     LM + qW,   y, qW, dH, { align: 'right',  fontSize: 7 });
+    cell(fmtBs(totalAlimRecibir),                            LM + qW*2, y, qW, dH, { bold: true, align: 'right', fontSize: 7, textColor: RED });
+    y += dH + 10;
 
-    const firmaY = Math.min(y, H - 35);
+    // ── Firma ───────────────────────────────────────────────────────────────
+    const firmaY = Math.min(y, H - 30);
     doc.setDrawColor(0); doc.setLineWidth(0.4);
     doc.line(W/2 - 30, firmaY, W/2 + 30, firmaY);
     doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80);
     doc.text('Firma del Empleado', W / 2, firmaY + 4, { align: 'center' });
 
-    doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
-    doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W / 2, H - 8, { align: 'center' });
+    // ── Pie de página con dirección ─────────────────────────────────────────
+    doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
+    doc.line(LM, H - 14, RM, H - 14);
+    doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
+    doc.text(
+        'Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcón.',
+        W / 2, H - 9, { align: 'center' }
+    );
 
+    return doc;
+}
+
+// ── Recibo AVEC (docentes) ────────────────────────────────────────────────────
+export function generarReciboAVECPDF(emp, data, calc, cesta, institucion = {}) {
+    const doc = _buildReciboAVECDoc(emp, data, calc, cesta, institucion);
     doc.save(`Recibo_${emp.apellido}_${(data.mes || 'SIN_MES').replace(/\s/g, '_').toUpperCase()}.pdf`);
 }
 
 // ── Recibo simple (Administrativo / Apoyo) ────────────────────────────────────
-export function generarReciboSimplePDF(emp, data, nombreColegio = NOMBRE_COLEGIO_DEFAULT) {
+export function generarReciboSimplePDF(emp, data, institucion = {}) {
+    const { nombre: nombreColegio, logoColegio } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
     const LM  = 14;
+    const RM  = W - LM;
 
-    let y = 14;
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 51, 102);
+    let y = 10;
+    if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
+
+    y = 14;
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
     doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', W / 2, y, { align: 'center' }); y += 3.5;
     doc.setFontSize(6.5);
     doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', W / 2, y, { align: 'center' }); y += 3.5;
@@ -358,174 +418,28 @@ export function generarTXTBancaribe(pagos, tasa, filename = null) {
 // ── Variantes que devuelven bytes (para empaquetar en ZIP) ────────────────────
 
 /**
- * Igual que generarReciboAVECPDF pero retorna Uint8Array en vez de auto-descargar.
+ * Igual que generarReciboAVECPDF pero retorna ArrayBuffer en vez de auto-descargar.
  */
-export function reciboAVECBytes(emp, data, calc, cesta, nombreColegio = NOMBRE_COLEGIO_DEFAULT) {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-    const W   = doc.internal.pageSize.getWidth();
-    const H   = doc.internal.pageSize.getHeight();
-    const LM  = 14;
-    const RM  = W - LM;
-
-    const sueldoBase = parseFloat(data.sueldo_base) || 0;
-    const { primaAnt, primaDoc, primaGeo, primaPos, primaAsis, primaHijos,
-            otrasAsig, totalAsig, sso, spf, faov, totalRet, neto: netoMensual, quincena } = calc;
-    const { tarifaHora, costoDiario, totalBs: totalAlim,
-            hsInasistencia, descuento: descAlim, totalRecibir: totalAlimRecibir } = cesta;
-
-    const cell = (text, x, y, w, h, opts = {}) => {
-        const { bold = false, align = 'left', bg, fontSize = 8, textColor = [0, 0, 0] } = opts;
-        if (bg) { doc.setFillColor(...bg); doc.rect(x, y, w, h, 'F'); }
-        doc.setDrawColor(204, 204, 204);
-        doc.rect(x, y, w, h);
-        doc.setFontSize(fontSize);
-        doc.setFont('helvetica', bold ? 'bold' : 'normal');
-        doc.setTextColor(...textColor);
-        const pad = 1.5;
-        if (align === 'center')     doc.text(String(text), x + w / 2, y + h / 2 + fontSize * 0.18, { align: 'center' });
-        else if (align === 'right') doc.text(String(text), x + w - pad, y + h / 2 + fontSize * 0.18, { align: 'right' });
-        else                        doc.text(String(text), x + pad, y + h / 2 + fontSize * 0.18);
-    };
-
-    let y = 10;
-    const hdrBg = [245, 245, 245];
-
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 51, 102);
-    doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-    y += 5;
-    doc.setFontSize(9); doc.setTextColor(204, 0, 0);
-    doc.text('RECIBO DE PAGO I, II QUINCENA Y BONO DE ALIMENTACIÓN', W / 2, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-    y += 5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    doc.text(`Mes:  ${(data.mes || '').toUpperCase()}`, W / 2, y, { align: 'center' });
-    y += 3;
-
-    const cW = (RM - LM) / 4;
-    const rH = 7;
-
-    cell('Apellidos y Nombres', LM,          y, cW * 1.6, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('C.I Nº',             LM + cW*1.6,  y, cW * 0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Nº H /Sem',          LM + cW*2.4,  y, cW * 0.6, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Cargo',              LM + cW*3.0,  y, cW * 1.0, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    y += rH;
-
-    cell(`${emp.apellido?.toUpperCase()} ${emp.nombre?.toUpperCase()}`, LM, y, cW*1.6, rH, { fontSize: 7 });
-    cell(emp.cedula || '',                       LM + cW*1.6, y, cW*0.8, rH, { fontSize: 7 });
-    cell(String(emp.horas_semanales || ''),       LM + cW*2.4, y, cW*0.6, rH, { align: 'center', fontSize: 7 });
-    cell((emp.cargo || '').toUpperCase(),         LM + cW*3.0, y, cW*1.0, rH, { fontSize: 7 });
-    y += rH;
-
-    cell('Fecha de Ingreso',   LM,          y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Título',             LM+cW*0.8,   y, cW*0.6, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Categoría Docente',  LM+cW*1.4,   y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('NIVEL',              LM+cW*2.2,   y, cW*0.8, rH, { bold: true, bg: hdrBg, fontSize: 7 });
-    doc.setDrawColor(204, 204, 204); doc.rect(LM+cW*3.0, y, cW*1.0, rH);
-    y += rH;
-
-    cell(emp.fecha_ingreso || '',     LM,         y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    cell(emp.titulo || '',            LM+cW*0.8,  y, cW*0.6, rH, { fontSize: 7, align: 'center' });
-    cell(emp.categoria_docente || '', LM+cW*1.4,  y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    cell(emp.nivel || '',             LM+cW*2.2,  y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    doc.rect(LM+cW*3.0, y, cW*1.0, rH);
-    y += rH + 2;
-
-    const half   = (RM - LM) / 2 - 1;
-    const xLeft  = LM;
-    const xRight = LM + half + 2;
-    const dH     = 6.5;
-
-    cell('ASIGNACIONES MENSUALES', xLeft,  y, half, dH, { bold: true, bg: [245, 245, 245], align: 'center', fontSize: 8, textColor: [0, 51, 102] });
-    cell('RETENCIONES',            xRight, y, half, dH, { bold: true, bg: [245, 245, 245], align: 'center', fontSize: 8, textColor: [0, 51, 102] });
-    y += dH;
-
-    const asigRows = [
-        ['SUELDO BASE',             fmtBs(sueldoBase)],
-        ['',                        ''],
-        ['OTRAS ASIGNACIONES',      fmtBs(otrasAsig)],
-        ['TOTAL ASIGNACIONES',      fmtBs(totalAsig)],
-        ['MONTO PRIMERA QUINCENA',  fmtBs(quincena)],
-        ['DEDUCCIONES',             fmtBs(totalRet)],
-        ['MONTO SEGUNDA QUINCENA',  fmtBs(quincena)],
-    ];
-    const retRows = [
-        ['F.A.O.V',           fmtBs(faov)],
-        ['S.S.O',             fmtBs(sso)],
-        ['',                  ''],
-        ['S.P.F',             fmtBs(spf)],
-        ['',                  ''],
-        ['Total Retenciones', fmtBs(totalRet)],
-        ['Neto a Depositar',  fmtBs(netoMensual)],
-    ];
-
-    const labelW = half * 0.62;
-    const valW   = half - labelW;
-
-    asigRows.forEach((row, i) => {
-        const retRow = retRows[i] || ['', ''];
-        const isBold = [3, 4, 6].includes(i);
-        const rBold  = [5, 6].includes(i);
-        cell(row[0], xLeft,           y, labelW, dH, { bold: isBold, fontSize: 7 });
-        cell(row[1], xLeft + labelW,  y, valW,   dH, { bold: isBold, fontSize: 7, align: 'right' });
-        cell(retRow[0], xRight,           y, labelW, dH, { bold: rBold, fontSize: 7, ...(rBold ? { textColor: [204, 0, 0] } : {}) });
-        cell(retRow[1], xRight + labelW,  y, valW,   dH, { bold: rBold, fontSize: 7, align: 'right', ...(rBold ? { textColor: [204, 0, 0] } : {}) });
-        y += dH;
-    });
-
-    y += 2;
-    const fullW = RM - LM;
-    cell('PRIMA POR DISCAPACIDAD PARA EL PERSONAL E HIJOS', LM, y, fullW, dH, { fontSize: 7, bg: [245, 245, 245] });
-    y += dH + 2;
-
-    cell('PROGRAMA ALIMENTARIO', LM, y, fullW, dH, { bold: true, bg: [245, 245, 245], align: 'center', fontSize: 8, textColor: [0, 51, 102] });
-    y += dH;
-
-    const col1 = fullW * 0.55;
-    const col2 = fullW - col1;
-    cell('MONTO DEL BENEFICIO DE ALIMENTACIÓN POR HORA:', LM, y, col1, dH, { fontSize: 7 });
-    cell(fmtBs(tarifaHora), LM + col1, y, col2, dH, { fontSize: 7, align: 'right' });
-    y += dH;
-    cell('COSTO DIARIO DEL BENEFICIO DE ALIMENTACIÓN:', LM, y, col1, dH, { fontSize: 7 });
-    cell(fmtBs(costoDiario), LM + col1, y, col2, dH, { fontSize: 7, align: 'right' });
-    y += dH;
-    cell('TOTAL BENEFICIO DE ALIMENTACIÓN:', LM, y, col1, dH, { bold: true, fontSize: 7 });
-    cell(fmtBs(totalAlim), LM + col1, y, col2, dH, { bold: true, fontSize: 7, align: 'right' });
-    y += dH;
-
-    const qW = fullW / 4;
-    cell('Nº H /MENS de inasistencia',               LM,        y, qW,   dH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Descuento por inasistencia',                LM + qW,   y, qW,   dH, { bold: true, bg: hdrBg, fontSize: 7 });
-    cell('Total Beneficio de Alimentación a Recibir', LM + qW*2, y, qW*2, dH, { bold: true, bg: hdrBg, fontSize: 7 });
-    y += dH;
-    cell(hsInasistencia > 0 ? String(hsInasistencia) : '0',  LM,        y, qW,   dH, { align: 'center', fontSize: 7 });
-    cell(hsInasistencia > 0 ? fmtBs(descAlim) : '0,00',      LM + qW,   y, qW,   dH, { align: 'right',  fontSize: 7 });
-    cell(fmtBs(totalAlimRecibir),                             LM + qW*2, y, qW*2, dH, { bold: true, align: 'right', fontSize: 7 });
-    y += dH + 8;
-
-    const firmaY = Math.min(y, H - 35);
-    doc.setDrawColor(0); doc.setLineWidth(0.4);
-    doc.line(W/2 - 30, firmaY, W/2 + 30, firmaY);
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80);
-    doc.text('Firma del Empleado', W / 2, firmaY + 4, { align: 'center' });
-
-    doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
-    doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W / 2, H - 8, { align: 'center' });
-
+export function reciboAVECBytes(emp, data, calc, cesta, institucion = {}) {
+    const doc = _buildReciboAVECDoc(emp, data, calc, cesta, institucion);
     return doc.output('arraybuffer');
 }
 
 /**
  * Igual que generarReciboSimplePDF pero retorna Uint8Array en vez de auto-descargar.
  */
-export function reciboSimpleBytes(emp, data, nombreColegio = NOMBRE_COLEGIO_DEFAULT) {
+export function reciboSimpleBytes(emp, data, institucion = {}) {
+    const { nombre: nombreColegio, logoColegio } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
     const LM  = 14;
 
-    let y = 14;
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 51, 102);
+    let y = 10;
+    if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
+
+    y = 14;
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
     doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', W / 2, y, { align: 'center' }); y += 3.5;
     doc.setFontSize(6.5);
     doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', W / 2, y, { align: 'center' }); y += 3.5;

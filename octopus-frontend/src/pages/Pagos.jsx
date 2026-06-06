@@ -12,6 +12,7 @@ import {
     generarPlanillaBancaribePDF, generarTXTBancaribe, fmtBs,
     reciboAVECBytes, reciboSimpleBytes, txtBancaribe, planillaBancaribePDFBytes,
 } from '../utils/nominaPDF';
+import { useInstitucionPDF } from '../hooks/useInstitucionPDF';
 import JSZip from 'jszip';
 import { es as esLocale } from 'date-fns/locale';
 import {
@@ -169,6 +170,7 @@ function groupByEstamento(rows) {
 // Componente principal
 // ═════════════════════════════════════════════════════════════════════════════
 const Pagos = () => {
+    const institucion = useInstitucionPDF();
 
     /* ── Sección 1: Incentivo (Bancaribe existente) ────────────────────────── */
     const [showBancaribeModal, setShowBancaribeModal] = useState(false);
@@ -484,12 +486,12 @@ const Pagos = () => {
                     if (sb > 0) {
                         const avec = calcAVEC(sb, row.categoria_docente, row.anos_servicio, row.numero_hijos, row.titulo);
                         const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb) };
-                        carpeta.file(nombreArchivo, reciboAVECBytes(row, data, avec, cestaObj));
+                        carpeta.file(nombreArchivo, reciboAVECBytes(row, data, avec, cestaObj, institucion));
                     }
                 } else {
                     const sb = parseFloat(row.sueldo_base) || 0;
                     const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb), otras_deducciones: '0' };
-                    carpeta.file(nombreArchivo, reciboSimpleBytes(row, data));
+                    carpeta.file(nombreArchivo, reciboSimpleBytes(row, data, institucion));
                 }
             }
 

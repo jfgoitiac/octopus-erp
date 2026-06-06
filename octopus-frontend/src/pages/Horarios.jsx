@@ -1,29 +1,26 @@
 import { useState } from 'react';
 import { Clock, GraduationCap, Printer, Wand2 } from 'lucide-react';
-import { GradoSelect } from '../constants/grados';
+import GradoSelect from '../components/GradoSelect';
 import { useHorarios } from '../hooks/useHorarios';
 import { DIA_MAP } from '../constants/horarios';
+import { INPUT_STYLE } from '../constants/styles';
 import { GrillaHorario } from '../components/horarios/GrillaHorario';
 import { ModalClase } from '../components/horarios/ModalClase';
 import { ModalGenerador } from '../components/horarios/ModalGenerador';
-
-const INPUT_STYLE = {
-  border: '0.5px solid var(--border-md)',
-  background: '#fff',
-  color: 'var(--jet)',
-};
 
 const Horarios = () => {
   const {
     grado, setGrado,
     horarios, materias,
     loading, saving, generando,
+    horasInicio, horasFin,
     getClaseEnCelda,
+    tieneConflicto,
     guardar, eliminar, generar, recargar,
   } = useHorarios();
 
   // modal: null | { clase: objeto|null, celdaDefecto: {dia,hora}|null }
-  const [modal, setModal]             = useState(null);
+  const [modal, setModal]               = useState(null);
   const [showGenerador, setShowGenerador] = useState(false);
 
   const abrirCelda = (dia, hora) => {
@@ -54,8 +51,8 @@ const Horarios = () => {
   return (
     <div className="animate-fadeIn">
 
-      {/* Header */}
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Header — oculto al imprimir */}
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
           <h2 className="text-lg font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
             <Clock size={20} style={{ color: 'var(--pb)' }} />
@@ -88,8 +85,8 @@ const Horarios = () => {
         </div>
       </div>
 
-      {/* Selector de grado */}
-      <div className="mb-6 max-w-xs">
+      {/* Selector de grado — oculto al imprimir */}
+      <div className="mb-6 max-w-xs print:hidden">
         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
           Grado / Año
         </label>
@@ -102,6 +99,13 @@ const Horarios = () => {
         />
       </div>
 
+      {/* Título visible solo al imprimir */}
+      {grado && (
+        <h2 className="hidden print:block text-lg font-bold mb-4" style={{ color: 'var(--jet)' }}>
+          Horario de Clases — {grado}
+        </h2>
+      )}
+
       {/* Contenido principal */}
       {!grado ? (
         <div className="rounded-xl p-16 text-center"
@@ -112,13 +116,15 @@ const Horarios = () => {
       ) : (
         <GrillaHorario
           loading={loading}
+          isEmpty={!loading && !horarios.length}
+          horasInicio={horasInicio}
           getClaseEnCelda={getClaseEnCelda}
           onCeldaClick={abrirCelda}
         />
       )}
 
-      {grado && !loading && (
-        <p className="mt-3 text-xs" style={{ color: 'var(--ash)' }}>
+      {grado && !loading && !!horarios.length && (
+        <p className="mt-3 text-xs print:hidden" style={{ color: 'var(--ash)' }}>
           Haz clic en una celda vacía para agregar clase, o en una existente para editarla.
         </p>
       )}
@@ -130,6 +136,9 @@ const Horarios = () => {
           claseInicial={modal.clase}
           celdaDefecto={modal.celdaDefecto}
           saving={saving}
+          horasInicio={horasInicio}
+          horasFin={horasFin}
+          tieneConflicto={tieneConflicto}
           onClose={cerrarModal}
           onSave={handleGuardar}
           onDelete={handleEliminar}

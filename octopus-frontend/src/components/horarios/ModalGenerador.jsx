@@ -1,16 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, Loader2, Wand2, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
-
-const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
-
-const DIAS_CONFIG = [
-  { label: 'Lunes',     value: 'lunes' },
-  { label: 'Martes',    value: 'martes' },
-  { label: 'Miércoles', value: 'miercoles' },
-  { label: 'Jueves',    value: 'jueves' },
-  { label: 'Viernes',   value: 'viernes' },
-];
+import { DIAS_GENERADOR } from '../../constants/horarios';
+import { INPUT_STYLE } from '../../constants/styles';
+import { useEscape } from '../../hooks/useEscape';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const INITIAL_CONFIG = {
   horas_por_dia:        6,
@@ -19,20 +13,18 @@ const INITIAL_CONFIG = {
   duracion_clase_min:   60,
   recreo_hora:          '09:00',
   recreo_duracion_min:  20,
-  dias:                 ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+  dias:                 DIAS_GENERADOR.map(d => d.value),
   reemplazar_existente: false,
 };
 
 export const ModalGenerador = ({ generando, onClose, onGenerar, onGeneradoOk }) => {
-  const [config, setConfig]           = useState(INITIAL_CONFIG);
+  const [config, setConfig]             = useState(INITIAL_CONFIG);
   const [advertencias, setAdvertencias] = useState([]);
+  const containerRef                    = useRef(null);
 
-  // Bloquear cierre con Escape mientras se genera
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape' && !generando) onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose, generando]);
+  // Bloqueado mientras genera para no perder el estado intermedio
+  useEscape(!generando, onClose);
+  useFocusTrap(containerRef);
 
   const set = (field, parse) => (e) =>
     setConfig(prev => ({ ...prev, [field]: parse ? parse(e.target.value) : e.target.value }));
@@ -68,8 +60,11 @@ export const ModalGenerador = ({ generando, onClose, onGenerar, onGeneradoOk }) 
       aria-modal="true"
       aria-labelledby="modal-generador-titulo"
     >
-      <div className="rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-fadeIn"
-        style={{ background: 'var(--porcelain)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div
+        ref={containerRef}
+        className="rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-fadeIn"
+        style={{ background: 'var(--porcelain)', maxHeight: '90vh', overflowY: 'auto' }}
+      >
 
         {/* Header */}
         <div className="p-5 flex justify-between items-center sticky top-0 z-10"
@@ -178,7 +173,7 @@ export const ModalGenerador = ({ generando, onClose, onGenerar, onGeneradoOk }) 
               Días de clases
             </label>
             <div className="flex flex-wrap gap-2">
-              {DIAS_CONFIG.map(d => (
+              {DIAS_GENERADOR.map(d => (
                 <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={

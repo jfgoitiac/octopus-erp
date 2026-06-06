@@ -63,12 +63,14 @@ const MainLayout = () => {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Sidebar />
+      <div className="print:hidden">
+        <Sidebar />
+      </div>
 
-      <div className="flex flex-col ml-52" style={{ height: '100vh', overflow: 'hidden' }}>
+      <div className="flex flex-col ml-52 print:ml-0" style={{ height: '100vh', overflow: 'hidden' }}>
         {/* Topbar */}
         <header
-          className="flex-shrink-0 z-40 h-[50px] flex items-center justify-between px-5 glass"
+          className="flex-shrink-0 z-40 h-[50px] flex items-center justify-between px-5 glass print:hidden"
           style={{ borderBottom: '0.5px solid var(--border-md)' }}
         >
           <h1 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>{title}</h1>
