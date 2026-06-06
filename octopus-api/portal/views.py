@@ -396,6 +396,11 @@ class ActivarPortalRepresentanteView(APIView):
             ru = RepresentanteUser.objects.get(representante=rep)
             ru.esta_activo = True
             ru.save()
+            # Si se envió password explícita, actualizarla (caso "restablecer contraseña")
+            if password:
+                ru.user.set_password(password)
+                ru.user.save(update_fields=['password'])
+                return Response({'mensaje': 'Contraseña restablecida y acceso reactivado.', 'cedula': rep.cedula})
             return Response({'mensaje': 'Acceso al portal reactivado.', 'cedula': rep.cedula})
 
         # Crear user Django + RepresentanteUser
