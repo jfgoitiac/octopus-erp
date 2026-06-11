@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from decimal import Decimal
-from datetime import timedelta
+from datetime import date, timedelta
 from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio
 from secretaria.models import Alumno, Representante
 
@@ -33,6 +33,7 @@ class ArqueoCajaMidnightTest(TestCase):
             nombre="Pedro",
             apellido="Perez",
             cedula_escolar="E84000001",
+            fecha_nacimiento=date(2015, 3, 10),
             representante=self.representante
         )
 

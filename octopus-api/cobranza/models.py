@@ -77,6 +77,7 @@ class Pago(models.Model):
         ('zelle', 'Zelle'),
         ('efectivo', 'Efectivo Divisas'),
         ('efectivo_ves', 'Efectivo Bolívares'),
+        ('stripe', 'Stripe (Pago Online)'),
     )
 
     ESTATUS_PAGO = (

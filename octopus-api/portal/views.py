@@ -554,7 +554,7 @@ class StripeWebhookView(APIView):
         try:
             stripe.api_key = dj_settings.STRIPE_SECRET_KEY
             event = stripe.Webhook.construct_event(payload, sig_header, dj_settings.STRIPE_WEBHOOK_SECRET)
-        except (ValueError, stripe.error.SignatureVerificationError):
+        except (ValueError, stripe.SignatureVerificationError):
             return Response({'error': 'Firma inválida.'}, status=400)
 
         if event['type'] == 'checkout.session.completed':

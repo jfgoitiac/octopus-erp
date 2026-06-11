@@ -134,7 +134,8 @@ class DashboardStatsView(APIView):
         masculino = activos.filter(genero='masculino').count()
         femenino  = activos.filter(genero='femenino').count()
         total_activos = activos.count()
-        inactivos = Alumno.objects.filter(activo=False).count()
+        # Alumno.objects filtra activo=True por defecto; usar el manager completo
+        inactivos = Alumno.todos.filter(activo=False).count()
 
         tasa_valor = Decimal('0')
         parametro = ParametroGlobal.objects.filter(clave="TASA_BCV_ACTUAL").first()
