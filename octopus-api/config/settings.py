@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework_simplejwt',
-    'background_task',
     'simple_history',
     'django_filters',
 
@@ -226,6 +225,11 @@ CELERY_BEAT_SCHEDULE = {
     'sincronizar-tasa-bcv': {
         'task': 'cobranza.tasks.actualizar_tasa_bcv_automatica',
         'schedule': crontab(minute=0, hour='8,10,12,14,16,18', day_of_week='1-5'),
+    },
+    # Marcar alumnos en mora / solventes según la mensualidad del mes actual
+    'verificar-solvencia-diaria': {
+        'task': 'cobranza.tasks.verificar_solvencia_estudiantil_automatica',
+        'schedule': crontab(hour=0, minute=30),
     },
 }
 # ── Fin Celery Beat ────────────────────────────────────────────────────────────
