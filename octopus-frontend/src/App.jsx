@@ -158,7 +158,7 @@ function App() {
 
               {/* Reportes y nómina */}
               <Route path="reportes" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.FINANZAS}>
                   <Reportes />
                 </ProtectedRoute>
               } />
