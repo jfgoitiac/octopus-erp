@@ -14,6 +14,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _SECRET_KEY_DEFAULT)
 
 # SEGURIDAD: el default es False para que un deploy sin configurar no quede en DEBUG.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+AUTH_COOKIE_SECURE = os.environ.get('AUTH_COOKIE_SECURE', 'True') == 'True'
 
 # Permite manejar listas separadas por espacios o comas desde variables de entorno
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]').replace(',', ' ').split()

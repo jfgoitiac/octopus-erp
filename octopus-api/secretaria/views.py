@@ -70,10 +70,7 @@ class ConfiguracionSistemaView(APIView):
     def get(self, request):
         config = ConfiguracionSistema.objects.first()
         if not config:
-            return Response(
-                {"error": "No hay configuración del sistema. Crea una primero."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({}, status=status.HTTP_200_OK)
         serializer = ConfiguracionSistemaSerializer(config)
         return Response(serializer.data)
 

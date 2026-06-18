@@ -31,33 +31,11 @@ def _parse_decimal(valor) -> Decimal:
 
 def _obtener_tasa_por_scraping_bcv() -> Decimal:
     """
-    API 1: pydolarve.org — JSON público, sin scraping HTML, sin librerías extra.
-    Endpoint: GET /api/v1/dollar?monitor=bcv
+    API 1: ve.dolarapi.com — JSON público.
+    Endpoint: GET /v1/dolares → busca fuente "oficial" (BCV).
     """
     r = requests.get(
-        'https://pydolarve.org/api/v1/dollar',
-        params={'monitor': 'bcv'},
-        headers=_HEADERS,
-        timeout=10,
-    )
-    r.raise_for_status()
-    data = r.json()
-    price = data.get('price') or data.get('valor') or data.get('rate')
-    if not price:
-        raise ValueError(f"pydolarve.org no devolvió campo de precio. Respuesta: {data}")
-    tasa = _parse_decimal(price)
-    if tasa <= 0:
-        raise ValueError(f"pydolarve.org devolvió valor inválido: {tasa}")
-    return tasa
-
-
-def _obtener_tasa_por_pydolar() -> Decimal:
-    """
-    API 2: ve.dolarapi.com — JSON público, fallback sin librerías.
-    Endpoint: GET /v1/divisas  → lista de fuentes, busca la del BCV.
-    """
-    r = requests.get(
-        'https://ve.dolarapi.com/v1/divisas',
+        'https://ve.dolarapi.com/v1/dolares',
         headers=_HEADERS,
         timeout=10,
     )
@@ -65,16 +43,36 @@ def _obtener_tasa_por_pydolar() -> Decimal:
     data = r.json()
 
     for item in data:
-        fuente = str(item.get('fuente', '')).upper()
-        nombre = str(item.get('nombre', '')).lower()
-        if fuente == 'BCV' or 'bcv' in nombre or 'oficial' in nombre:
-            price = item.get('promedio') or item.get('compra') or item.get('venta')
+        fuente = str(item.get('fuente', '')).lower()
+        if fuente == 'oficial':
+            price = item.get('promedio') or item.get('venta') or item.get('compra')
             if price:
                 tasa = _parse_decimal(price)
                 if tasa > 0:
                     return tasa
 
-    raise ValueError(f"ve.dolarapi.com no devolvió tasa BCV en la respuesta: {data}")
+    raise ValueError(f"ve.dolarapi.com no devolvió tasa oficial en: {data}")
+
+
+def _obtener_tasa_por_pydolar() -> Decimal:
+    """
+    API 2: exchangerate.host como fallback real con endpoint distinto.
+    """
+    r = requests.get(
+        'https://api.exchangerate.host/latest?base=USD&symbols=VES',
+        headers=_HEADERS,
+        timeout=10,
+    )
+    r.raise_for_status()
+    data = r.json()
+
+    ves = data.get('rates', {}).get('VES')
+    if ves:
+        tasa = _parse_decimal(ves)
+        if tasa > 0:
+            return tasa
+
+    raise ValueError(f"exchangerate.host no devolvió tasa VES: {data}")
 
 
 def _obtener_tasa_de_emergencia_db() -> Decimal:

@@ -13,9 +13,12 @@ from authentication.serializers import MyTokenObtainPairSerializer
 REFRESH_COOKIE = 'refresh_token'
 
 def _cookie_settings():
+    # AUTH_COOKIE_SECURE permite forzar False en producción sobre HTTP puro.
+    # Cuando el servidor use HTTPS, poner AUTH_COOKIE_SECURE=True en .env.
+    secure = getattr(settings, 'AUTH_COOKIE_SECURE', not settings.DEBUG)
     return {
         'httponly': True,
-        'secure': not settings.DEBUG,
+        'secure': secure,
         'samesite': 'Lax',
         'max_age': int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()),
         'path': '/api/token/',
