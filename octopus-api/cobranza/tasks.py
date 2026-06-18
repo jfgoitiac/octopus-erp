@@ -3,7 +3,7 @@ from celery import shared_task
 from django.db import transaction
 from django.core.cache import cache
 from decimal import Decimal, InvalidOperation
-from .utils import _obtener_tasa_por_scraping_bcv, _obtener_tasa_por_pydolar, _obtener_tasa_de_emergencia_db
+from .utils import _obtener_tasa_por_scraping_bcv, _obtener_tasa_por_pydolar, _obtener_tasa_de_emergencia_db, sincronizar_tasa_bcv
 from secretaria.models import Alumno
 from django.contrib.auth import get_user_model
 from .models import Mensualidad, TasaCambio, ParametroGlobal
@@ -128,38 +128,16 @@ def sincronizar_tasa_con_blindaje():
 
 @shared_task(bind=True, max_retries=3)
 def actualizar_tasa_bcv_automatica(self):
-    """
-    Tarea que utiliza la función de servicio para obtener la tasa oficial
-    y registrar el evento en la auditoría.
-    """
+    """Tarea periódica: delega toda la lógica en sincronizar_tasa_con_blindaje."""
     logger.info("Iniciando tarea programada de actualización de tasa BCV...")
     try:
-        # Paso A: Obtener tasa externa (importada al inicio del archivo)
-        tasa_bcv = _obtener_tasa_por_scraping_bcv()
-
-        # Paso B: Obtener tasa interna actual de referencia [NUEVO]
-        # Usamos order_by('-id') para asegurar que obtenemos la más reciente, no la primera creada
-        ultima_tasa_reg = TasaCambio.objects.order_by('-id').first()
-        tasa_interna = ultima_tasa_reg.valor_bs if ultima_tasa_reg else Decimal('0')
-
-        # Paso C: Comparar y actuar [NUEVO]
-        if tasa_bcv and tasa_bcv > 0:
-            if tasa_bcv != tasa_interna:
-                # Ejecuta la lógica centralizada de persistencia y blindaje
-                resultado = sincronizar_tasa_con_blindaje()
-                if resultado:
-                    # Invalida caché si existe una llave definida para la tasa [NUEVO]
-                    cache.delete('TASA_BCV_ACTUAL_CACHE')
-                    logger.warning(f"¡Cambio de tasa detectado en BCV! Actualizado de {tasa_interna} a {tasa_bcv}")
-            else:
-                # Trazabilidad sin escritura [NUEVO]
-                logger.debug(f"Sincronización omitida: Tasa BCV permanece en {tasa_bcv}")
+        resultado = sincronizar_tasa_con_blindaje()
+        if resultado:
+            logger.info(f"Tarea periódica BCV completada: {resultado}")
         else:
-            # Error: la fuente retornó un valor no usable [NUEVO]
-            logger.error(f"No se pudo actualizar: La fuente BCV retornó un valor inválido ({tasa_bcv})")
-            
+            logger.error("Tarea periódica BCV: todas las fuentes fallaron.")
     except Exception as e:
-        logger.error(f"Fallo crítico en tarea de comparación BCV: {str(e)}")
+        logger.error(f"Fallo crítico en tarea periódica BCV: {e}")
         return None
 
 @shared_task

@@ -1,7 +1,5 @@
 import logging
-import urllib3
 import requests
-from bs4 import BeautifulSoup
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from django.utils import timezone
@@ -11,142 +9,118 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 
-# Definición global de variables para evitar advertencias de "no definido" (Import Error)
-BCV = None
-Monitor = None
-PYDOLAR_DISPONIBLE = False
-
-try:
-    # Intentamos la importación opcional
-    from pyDolarVenezuela.pages import BCV
-    from pyDolarVenezuela import Monitor
-    PYDOLAR_DISPONIBLE = True
-except ImportError:
-    pass
-
 from .models import TasaCambio, ParametroGlobal
 
-# Configuración del Logger de Django
 logger = logging.getLogger(__name__)
+
+_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # LÓGICA DE MONITOREO Y TOLERANCIA A FALLOS (TASA BCV)
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _parse_decimal(valor) -> Decimal:
+    """Convierte cualquier representación numérica a Decimal, normalizando comas."""
+    return Decimal(str(valor).replace(',', '.')).quantize(Decimal('0.0001'))
+
+
 def _obtener_tasa_por_scraping_bcv() -> Decimal:
     """
-    Intento Primario: Raspado directo del HTML del portal del BCV.
+    API 1: pydolarve.org — JSON público, sin scraping HTML, sin librerías extra.
+    Endpoint: GET /api/v1/dollar?monitor=bcv
     """
-    url = "https://www.bcv.org.ve/"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                      '(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    
-    ssl_verify = not settings.DEBUG
-    if not ssl_verify:
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-    response = requests.get(url, headers=headers, verify=ssl_verify, timeout=10)
-    response.raise_for_status()
-    
-    soup = BeautifulSoup(response.content, 'html.parser')
-    dolar_section = soup.find(id="dolar")
-    
-    if not dolar_section:
-        usd_tag = soup.find(string=lambda t: t and "USD" in t)
-        if usd_tag:
-            dolar_section = usd_tag.find_parent('div')
-
-    if not dolar_section:
-        raise ValueError("Estructura HTML modificada: No se localizó la sección USD.")
-
-    strong_tag = dolar_section.find('strong')
-    if not strong_tag:
-        raise ValueError("Estructura HTML modificada: No se encontró la etiqueta <strong>.")
-
-    tasa_val = strong_tag.text.strip()
-    return Decimal(tasa_val.replace(',', '.')).quantize(Decimal('0.0001'))
+    r = requests.get(
+        'https://pydolarve.org/api/v1/dollar',
+        params={'monitor': 'bcv'},
+        headers=_HEADERS,
+        timeout=10,
+    )
+    r.raise_for_status()
+    data = r.json()
+    price = data.get('price') or data.get('valor') or data.get('rate')
+    if not price:
+        raise ValueError(f"pydolarve.org no devolvió campo de precio. Respuesta: {data}")
+    tasa = _parse_decimal(price)
+    if tasa <= 0:
+        raise ValueError(f"pydolarve.org devolvió valor inválido: {tasa}")
+    return tasa
 
 
 def _obtener_tasa_por_pydolar() -> Decimal:
     """
-    Intento Secundario (Fallback 1): Consumo de librería/API pyDolarVenezuela.
+    API 2: ve.dolarapi.com — JSON público, fallback sin librerías.
+    Endpoint: GET /v1/divisas  → lista de fuentes, busca la del BCV.
     """
-    if not PYDOLAR_DISPONIBLE:
-        raise ImportError("La librería 'pyDolarVenezuela' no está instalada en el entorno.")
-    
-    # Instanciamos el monitor apuntando específicamente al BCV
-    monitor = Monitor(BCV)
-    tasa_datos = monitor.get_value(monitor_code='usd')
-    
-    # Dependiendo de la versión de pyDolar, puede retornar un float, string o un dict
-    if isinstance(tasa_datos, dict):
-        tasa_val = str(tasa_datos.get('price', ''))
-    else:
-        tasa_val = str(tasa_datos)
+    r = requests.get(
+        'https://ve.dolarapi.com/v1/divisas',
+        headers=_HEADERS,
+        timeout=10,
+    )
+    r.raise_for_status()
+    data = r.json()
 
-    if not tasa_val:
-        raise ValueError("pyDolarVenezuela retornó un valor vacío.")
+    for item in data:
+        fuente = str(item.get('fuente', '')).upper()
+        nombre = str(item.get('nombre', '')).lower()
+        if fuente == 'BCV' or 'bcv' in nombre or 'oficial' in nombre:
+            price = item.get('promedio') or item.get('compra') or item.get('venta')
+            if price:
+                tasa = _parse_decimal(price)
+                if tasa > 0:
+                    return tasa
 
-    return Decimal(tasa_val.replace(',', '.')).quantize(Decimal('0.0001'))
+    raise ValueError(f"ve.dolarapi.com no devolvió tasa BCV en la respuesta: {data}")
 
 
 def _obtener_tasa_de_emergencia_db() -> Decimal:
     """
-    Intento Terciario (Fallback 2): Obtiene el último parámetro global 
-    forzado o la última tasa registrada exitosamente en la BD.
+    Fallback final: tasa manual configurada por el administrador o último
+    registro histórico en BD. No crea registros nuevos.
     """
-    # 1. Buscamos primero si existe una tasa configurada manualmente por el administrador
-    parametro, created = ParametroGlobal.objects.get_or_create(
+    parametro, _ = ParametroGlobal.objects.get_or_create(
         clave="TASA_BCV_MANUAL",
         defaults={"valor": "0.0000", "descripcion": "Tasa manual de contingencia"}
     )
-    
-    if parametro.valor and Decimal(parametro.valor) > 0:
-        logger.warning(f"Utilizando tasa de contingencia MANUAL configurada en ParametroGlobal: {parametro.valor}")
-        return Decimal(parametro.valor).quantize(Decimal('0.0001'))
+    if parametro.valor:
+        try:
+            manual = Decimal(parametro.valor)
+            if manual > 0:
+                logger.warning(f"Usando tasa manual de contingencia: {manual}")
+                return manual.quantize(Decimal('0.0001'))
+        except InvalidOperation:
+            pass
 
-    # 2. Si no hay tasa manual, degradamos al último registro histórico exitoso
-    ultima_tasa = TasaCambio.objects.order_by('-fecha').first()
+    ultima_tasa = TasaCambio.objects.order_by('-id').first()
     if ultima_tasa:
-        logger.warning(f"Utilizando última tasa histórica exitosa de la base de datos: {ultima_tasa.valor_bs}")
+        logger.warning(f"Usando última tasa histórica en BD: {ultima_tasa.valor_bs}")
         return ultima_tasa.valor_bs
 
-    raise LookupError("Sin registros en base de datos. Imposible determinar tasa de cambio.")
+    raise LookupError("Sin registros en BD. Imposible determinar tasa de cambio.")
 
 
 def sincronizar_tasa_bcv() -> Decimal:
-    """
-    Función principal controladora que implementa el patrón de tolerancia a fallos
-    para la obtención de la tasa oficial en Bolívares (VES).
-    """
-    # --- Intento 1: Scraping Tradicional ---
-    try:
-        tasa_decimal = _obtener_tasa_por_scraping_bcv()
-        TasaCambio.objects.create(valor_bs=tasa_decimal)
-        logger.info(f"Sincronización exitosa vía Scraping BCV: Bs. {tasa_decimal}")
-        return tasa_decimal
-    except Exception as e:
-        logger.warning(f"Fallo el intento primario (Scraping BCV). Motivo: {e}. Iniciando Fallback 1...")
+    """Controlador con cadena de fallback: API1 → API2 → BD."""
+    for nombre, fn in [
+        ('pydolarve.org', _obtener_tasa_por_scraping_bcv),
+        ('ve.dolarapi.com', _obtener_tasa_por_pydolar),
+    ]:
+        try:
+            tasa = fn()
+            TasaCambio.objects.create(valor_bs=tasa)
+            logger.info(f"Tasa BCV obtenida desde {nombre}: {tasa}")
+            return tasa
+        except Exception as e:
+            logger.warning(f"{nombre} falló: {e}")
 
-    # --- Intento 2: Fallback con pyDolarVenezuela ---
     try:
-        tasa_decimal = _obtener_tasa_por_pydolar()
-        TasaCambio.objects.create(valor_bs=tasa_decimal)
-        logger.info(f"Sincronización exitosa vía pyDolarVenezuela: Bs. {tasa_decimal}")
-        return tasa_decimal
+        return _obtener_tasa_de_emergencia_db()
     except Exception as e:
-        logger.error(f"Fallo el intento secundario (pyDolarVenezuela). Motivo: {e}. Iniciando Fallback de Emergencia...")
-
-    # --- Intento 3: Base de Datos (Último recurso) ---
-    try:
-        tasa_contingencia = _obtener_tasa_de_emergencia_db()
-        # NOTA: No creamos un nuevo registro en TasaCambio para evitar bucles de logs o falsos positivos.
-        return tasa_contingencia
-    except Exception as e:
-        logger.critical(f"CRITICAL: El sistema no pudo determinar ninguna tasa de cambio válida. {e}")
+        logger.critical(f"Todas las fuentes fallaron: {e}")
         return None
 
 
