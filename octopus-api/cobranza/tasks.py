@@ -3,7 +3,7 @@ from celery import shared_task
 from django.db import transaction
 from django.core.cache import cache
 from decimal import Decimal, InvalidOperation
-from .utils import _obtener_tasa_por_scraping_bcv
+from .utils import _obtener_tasa_por_scraping_bcv, _obtener_tasa_por_pydolar, _obtener_tasa_de_emergencia_db
 from secretaria.models import Alumno
 from django.contrib.auth import get_user_model
 from .models import Mensualidad, TasaCambio, ParametroGlobal
@@ -15,10 +15,32 @@ logger = logging.getLogger(__name__)
 @shared_task
 def sincronizar_tasa_con_blindaje():
     try:
-        tasa_extraida = _obtener_tasa_por_scraping_bcv()
+        tasa_extraida = None
+
+        # Fuente 1: scraping directo BCV
+        try:
+            tasa_extraida = _obtener_tasa_por_scraping_bcv()
+        except Exception as e_scrap:
+            logger.warning(f"Scraping BCV falló: {e_scrap}. Intentando pyDolar...")
+
+        # Fuente 2: pyDolarVenezuela
+        if not tasa_extraida or tasa_extraida <= 0:
+            try:
+                tasa_extraida = _obtener_tasa_por_pydolar()
+            except Exception as e_py:
+                logger.warning(f"pyDolar falló: {e_py}. Usando último valor en BD...")
+
+        # Fuente 3: último valor conocido en BD (solo lectura, no crea nuevo registro)
+        db_fallback = False
+        if not tasa_extraida or tasa_extraida <= 0:
+            try:
+                tasa_extraida = _obtener_tasa_de_emergencia_db()
+                db_fallback = True
+            except Exception as e_db:
+                logger.error(f"Fallback de BD también falló: {e_db}")
 
         if not tasa_extraida or tasa_extraida <= 0:
-            logger.error("Scraping retornó valor inválido o cero.")
+            logger.error("Todas las fuentes retornaron valor inválido o cero.")
             return None
 
         # CORRECCIÓN: order_by('-id') para garantizar el registro más reciente
@@ -65,7 +87,9 @@ def sincronizar_tasa_con_blindaje():
                 return None
 
         with transaction.atomic():
-            TasaCambio.objects.create(valor_bs=tasa_extraida, fuente='BCV_AUTOMATICO')
+            # No crear nuevo registro si el valor vino de BD (sería un duplicado falso)
+            if not db_fallback:
+                TasaCambio.objects.create(valor_bs=tasa_extraida, fuente='BCV_AUTOMATICO')
 
             ParametroGlobal.objects.update_or_create(
                 clave="TASA_BCV_ACTUAL",
