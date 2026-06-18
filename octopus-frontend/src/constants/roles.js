@@ -6,6 +6,7 @@ export const ROLES = {
   CAJERO:        'cajero',
   SECRETARIA:    'secretaria',
   DIRECTIVO_RED: 'directivo_red',
+  DOCENTE:       'docente',
 };
 
 export const ROL_OPTIONS = [
@@ -16,6 +17,7 @@ export const ROL_OPTIONS = [
   { value: 'cajero',        label: 'Cajero' },
   { value: 'secretaria',    label: 'Secretaria' },
   { value: 'directivo_red', label: 'Directivo de Red' },
+  { value: 'docente',       label: 'Docente' },
 ];
 
 // Roles con acceso al panel de Sistemas
@@ -31,6 +33,7 @@ export const getRolStyle = (rol) => {
     case 'cajero':        return 'bg-green-100 text-green-700';
     case 'secretaria':    return 'bg-teal-100 text-teal-700';
     case 'directivo_red': return 'bg-indigo-100 text-indigo-700';
+    case 'docente':       return 'bg-yellow-100 text-yellow-700';
     default:              return 'bg-gray-100 text-gray-500';
   }
 };
@@ -64,4 +67,7 @@ export const ROLE_GROUPS = {
 
   // Morosos: todos excepto directivo_red (gestión local de sede)
   MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.SISTEMAS],
+
+  // Docente: solo banco de estudiantes, representantes e inscripciones
+  DOCENTE: [ROLES.DOCENTE],
 };

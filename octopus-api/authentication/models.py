@@ -11,6 +11,7 @@ class PerfilUsuario(models.Model):
         ('cajero',        'Cajero / Staff Administrativo'),
         ('secretaria',    'Secretaria'),
         ('cobranza',      'Cobranza'),
+        ('docente',       'Docente'),
         # Rol sin privilegios administrativos: usuarios del portal de representantes.
         # AdminJWTAuthentication rechaza este rol en todos los endpoints del panel.
         ('representante', 'Representante (Portal)'),

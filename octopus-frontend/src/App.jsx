@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
-import { ROLE_GROUPS } from './constants/roles';
+import { ROLE_GROUPS, ROLES } from './constants/roles';
 import AppProviders from './components/AppProviders';
 import ProtectedRoute from './components/ProtectedRoute';
 import PortalProtectedRoute from './portal/components/PortalProtectedRoute';
@@ -96,16 +96,20 @@ function App() {
               }
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="dashboard" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA]}>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
 
               {/* Gestión de alumnos */}
               <Route path="inscripciones" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.SECRETARIA_ADMIN, ROLES.DOCENTE]}>
                   <Inscripciones />
                 </ProtectedRoute>
               } />
               <Route path="alumnos" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.STAFF_SEDE}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.STAFF_SEDE, ROLES.DOCENTE]}>
                   <ListaAlumnos />
                 </ProtectedRoute>
               } />
@@ -115,7 +119,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="representantes" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ATENCION_FAMILIAS}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.ATENCION_FAMILIAS, ROLES.DOCENTE]}>
                   <Representantes />
                 </ProtectedRoute>
               } />
@@ -176,7 +180,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="auditoria" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
                   <Auditoria />
                 </ProtectedRoute>
               } />
@@ -215,17 +219,17 @@ function App() {
 
               {/* Módulo Multi-Sede */}
               <Route path="multisede" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.RED_DIRECTIVA}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTIVO_RED, ROLES.DIRECTOR]}>
                   <MultiSedeDashboard />
                 </ProtectedRoute>
               } />
               <Route path="multisede/sedes" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.SOLO_RED}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTIVO_RED]}>
                   <GestionSedes />
                 </ProtectedRoute>
               } />
               <Route path="multisede/:sedeId" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.RED_DIRECTIVA}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTIVO_RED, ROLES.DIRECTOR]}>
                   <SedeDetalle />
                 </ProtectedRoute>
               } />

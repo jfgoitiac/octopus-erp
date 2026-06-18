@@ -3,6 +3,18 @@ import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
+// Mapping de rol a primera ruta accesible
+const FIRST_ACCESSIBLE_ROUTE = {
+  'director': '/dashboard',
+  'cobranza': '/dashboard',
+  'administrador': '/dashboard',
+  'sistemas': '/cobranza/dashboard',
+  'secretaria': '/inscripciones',
+  'cajero': '/cobranza',
+  'directivo_red': '/multisede',
+  'docente': '/alumnos',
+};
+
 /**
  * Protege rutas del panel administrativo.
  * - Sin allowedRoles: cualquier usuario autenticado puede entrar.
@@ -32,7 +44,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (allowedRoles) {
     const userRole = (user?.rol || '').toLowerCase().trim();
     if (!allowedRoles.includes(userRole)) {
-      return <Navigate to="/dashboard" replace />;
+      const fallbackRoute = FIRST_ACCESSIBLE_ROUTE[userRole] || '/dashboard';
+      return <Navigate to={fallbackRoute} replace />;
     }
   }
 

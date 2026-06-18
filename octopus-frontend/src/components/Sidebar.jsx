@@ -16,12 +16,12 @@ const navSections = [
   {
     label: 'Principal',
     items: [
-      { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['director','sistemas','cobranza','cajero','administrador','secretaria'] },
-      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','sistemas','administrador'] },
+      { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['director','cobranza','administrador'] },
+      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','sistemas','administrador','docente'] },
       { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','sistemas'] },
-      { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero'] },
-      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria'] },
-      { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria','docente'] },
+      { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','docente'] },
+      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria','docente'] },
+      { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria'] },
     ],
   },
   {
@@ -58,7 +58,7 @@ const navSections = [
       { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas','administrador'] },
       { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas','administrador'] },
       { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas','administrador'] },
-      { name: 'Auditoría', path: '/auditoria', icon: ShieldCheck, roles: ['director','sistemas','administrador'] },
+      { name: 'Auditoría', path: '/auditoria', icon: ShieldCheck, roles: ['director'] },
     ],
   },
 ];
