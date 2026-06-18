@@ -12,7 +12,7 @@ Octopus es un SaaS de gestión escolar para colegios privados en Latinoamérica 
 
 La selección de funcionalidades se hizo priorizando:
 - **Impacto directo en la experiencia del usuario final** (padres, docentes, directivos)
-- **Diferenciación competitiva real** frente a Eduweb
+- **Diferenciación competitiva real**
 - **Compatibilidad con el stack existente** (React 19, Django, Tailwind v4)
 - **Viabilidad de implementación** dentro de las fases ya planificadas
 
@@ -22,7 +22,7 @@ La selección de funcionalidades se hizo priorizando:
 
 | # | Herramienta / Módulo | Descripción en la propuesta |
 |---|----------------------|-----------------------------|
-| 1 | Control de Estudios (Educomp) | Impresión de documentación MPPE, planes de evaluación, gestión de secciones |
+| 1 | Control de Estudios| Impresión de documentación MPPE, planes de evaluación, gestión de secciones |
 | 2 | Módulo de Calificaciones | Gestión de evaluaciones y boletines digitales |
 | 3 | Módulo de Comunicación | Mensajería bidireccional y notificaciones automáticas |
 | 4 | Módulo de Admisión | Automatización de procesos para nuevos ingresos |

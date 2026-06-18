@@ -145,22 +145,51 @@ class Pago(models.Model):
 
     class Meta:
         constraints = [
+            # Cubre pagos activos: completado y en_revision.
+            # Los anulados quedan fuera para no bloquear reutilización de refs
+            # en casos de reverso bancario legítimo.
             models.UniqueConstraint(
                 fields=['referencia'],
-                condition=models.Q(estatus='completado'),
-                name='unique_referencia_pago_completado'
+                condition=models.Q(estatus__in=['completado', 'en_revision']),
+                name='unique_referencia_pago_activo'
             )
         ]
 
     def __str__(self):
         return f"Pago {self.id} - {self.alumno.nombre} ({self.monto_usd} USD) - {self.operacion_uuid}"
-    
+
+    @staticmethod
+    def normalizar_referencia(ref: str) -> str:
+        """
+        Normaliza una referencia bancaria para comparación uniforme:
+        elimina espacios extremos, convierte a mayúsculas y colapsa
+        espacios internos. Así 'abc 123', 'ABC123' y ' ABC 123 ' son iguales.
+        """
+        return ' '.join(ref.upper().split()) if ref else ''
+
     def clean(self):
-        ref_limpia = self.referencia.strip() if self.referencia else None
+        ref_limpia = self.normalizar_referencia(self.referencia) if self.referencia else None
+
+        # Persistir la referencia normalizada para que el UniqueConstraint
+        # a nivel de BD también opere sobre el valor limpio.
         if ref_limpia:
-            if Pago.objects.filter(referencia=ref_limpia, estatus='completado').exclude(pk=self.pk).exists():
+            self.referencia = ref_limpia
+
+        if ref_limpia:
+            duplicado_qs = Pago.objects.filter(
+                referencia=ref_limpia,
+                estatus__in=['completado', 'en_revision'],
+            ).exclude(pk=self.pk)
+
+            if duplicado_qs.exists():
+                dup = duplicado_qs.first()
                 raise ValidationError({
-                    'referencia': f"Error Crítico: La referencia {ref_limpia} ya fue procesada anteriormente."
+                    'referencia': (
+                        f"Referencia duplicada: '{ref_limpia}' ya existe en el pago "
+                        f"#{dup.pk} (factura {dup.factura_id or 'N/A'}, "
+                        f"estatus: {dup.estatus}). "
+                        "Verifique el número de transacción antes de continuar."
+                    )
                 })
 
         if self.monto_usd is not None and self.tasa_aplicada is not None and self.monto_ves is not None:

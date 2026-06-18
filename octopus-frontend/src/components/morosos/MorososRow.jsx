@@ -1,15 +1,18 @@
-import { GraduationCap, Phone, ExternalLink, Loader2 } from 'lucide-react';
+import { GraduationCap, Phone, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InitialsAvatar from '../shared/InitialsAvatar';
 import { fmt } from '../../utils/format';
 
-const GENERO_LABEL = { masculino: 'Masculino', femenino: 'Femenino' };
-
-const MorososRow = ({ alu, deuda, loadingDeudas, animDelay }) => {
+const MorososRow = ({ alu, animDelay }) => {
     const navigate = useNavigate();
 
     const handleCobrar = () =>
         navigate('/cobranza', { state: { cedulaEscolar: alu.cedula_escolar } });
+
+    const deuda        = parseFloat(alu.monto_adeudado || 0);
+    const mesesLabel   = alu.meses_adeudados === 1
+        ? '1 mes'
+        : `${alu.meses_adeudados} meses`;
 
     return (
         <tr
@@ -29,7 +32,7 @@ const MorososRow = ({ alu, deuda, loadingDeudas, animDelay }) => {
                             {alu.nombre} {alu.apellido}
                         </p>
                         <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
-                            {GENERO_LABEL[alu.genero] ?? '—'}
+                            {mesesLabel} adeudado{alu.meses_adeudados !== 1 ? 's' : ''}
                         </p>
                     </div>
                 </div>
@@ -85,17 +88,9 @@ const MorososRow = ({ alu, deuda, loadingDeudas, animDelay }) => {
 
             {/* Deuda */}
             <td className="px-4 py-3">
-                {deuda === undefined || deuda === null ? (
-                    <span className="text-xs" style={{ color: 'var(--ash)' }}>
-                        {loadingDeudas
-                            ? <Loader2 size={12} className="animate-spin" />
-                            : '—'}
-                    </span>
-                ) : (
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: '#dc2626' }}>
-                        ${fmt(deuda, 2)}
-                    </span>
-                )}
+                <span className="text-xs font-semibold tabular-nums" style={{ color: '#dc2626' }}>
+                    ${fmt(deuda, 2)}
+                </span>
             </td>
 
             {/* Acción */}

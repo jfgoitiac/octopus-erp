@@ -4,8 +4,8 @@ import portalClient from './portalClient';
  * Obtiene el dashboard del representante autenticado.
  * Retorna: { representante, alumnos, resumen_financiero }
  */
-export const getDashboard = () => {
-  return portalClient.get('dashboard/');
+export const getDashboard = (signal) => {
+  return portalClient.get('dashboard/', signal ? { signal } : undefined);
 };
 
 /**
@@ -23,11 +23,17 @@ export const getHistorial = (alumnoId, page = 1) => {
  * Sube un comprobante de pago (multipart/form-data).
  * @param {number|string} mensualidadId
  * @param {File} archivo
+ * @param {string} referenciaBancaria  Nº de referencia/confirmación de la transacción
+ * @param {string} metodoPago          transferencia | pago_movil | zelle | punto_de_venta
  */
-export const subirComprobante = (mensualidadId, archivo) => {
+export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = '', metodoPago = 'transferencia') => {
   const formData = new FormData();
   formData.append('mensualidad_id', mensualidadId);
   formData.append('archivo', archivo);
+  formData.append('metodo_pago', metodoPago);
+  if (referenciaBancaria) {
+    formData.append('referencia_bancaria', referenciaBancaria);
+  }
 
   return portalClient.post('comprobante/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -35,18 +41,18 @@ export const subirComprobante = (mensualidadId, archivo) => {
 };
 
 /**
+ * Verifica si una referencia bancaria ya existe en el sistema.
+ * Solo para uso del panel administrativo.
+ * @param {string} ref  Número de referencia a consultar
+ */
+export const verificarReferencia = (ref) =>
+  portalClient.get('verificar-referencia/', { params: { ref } });
+
+/**
  * Obtiene la lista de bancos activos del colegio para transferencias.
  * Retorna: [{ id, nombre, numero_cuenta, tipo }]
  */
 export const getBancos = () => portalClient.get('bancos/');
-
-/**
- * Crea una Stripe Checkout Session para pagar una mensualidad.
- * Retorna: { checkout_url, session_id }
- * @param {number|string} mensualidadId
- */
-export const crearCheckoutStripe = (mensualidadId) =>
-  portalClient.post('stripe/checkout/', { mensualidad_id: mensualidadId });
 
 /**
  * Obtiene la configuración visual pública del colegio (nombre, colores, logo).

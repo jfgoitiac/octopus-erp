@@ -50,8 +50,6 @@ Página principal del portal mostrando:
 - Si tiene varios hijos en el colegio: tabs o selector para cambiar entre estudiantes
 
 ### 3. Pago online
-- Integrar Stripe Checkout (redirect a hosted page de Stripe)
-- Al retornar, webhook del backend actualiza el estado de la factura
 - Alternativa manual: botón "Pagar por transferencia" que abre un modal con datos bancarios + uploader de comprobante (imagen o PDF)
 - Mostrar estado del comprobante: Pendiente / Aprobado / Rechazado
 - Usar react-toastify para confirmar acciones al usuario

@@ -57,18 +57,14 @@ const SummaryCard = ({ label, value, color, bg, Icon, loading }) => (
     </div>
 );
 
-const MorososSummary = ({ count, totalDeudaUSD, tasa, loading, loadingDeudas }) => {
+const MorososSummary = ({ count, totalDeudaUSD, tasa, loading }) => {
     const totalVES = totalDeudaUSD * tasa;
     const cards = CARDS(count, totalDeudaUSD, totalVES, tasa > 0);
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {cards.map(card => (
-                <SummaryCard
-                    key={card.label}
-                    {...card}
-                    loading={card.label === 'Alumnos en mora' ? loading : loadingDeudas}
-                />
+                <SummaryCard key={card.label} {...card} loading={loading} />
             ))}
         </div>
     );

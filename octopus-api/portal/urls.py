@@ -1,5 +1,17 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
+
+
+class PortalTokenRefreshView(TokenRefreshView):
+    """
+    Refresh del portal sin clases de autenticación: si el cliente adjunta un
+    access token (expirado o de rol 'representante') en el header, la clase
+    por defecto AdminJWTAuthentication lo rechazaría con 401 antes de poder
+    procesar el refresh token del body.
+    """
+    authentication_classes = []
+
+
 from .views import (
     PortalTokenView,
     PortalDashboardView,
@@ -7,9 +19,8 @@ from .views import (
     PortalComprobantePagoView,
     ActivarPortalRepresentanteView,
     PortalBancosView,
-    StripeCheckoutView,
-    StripeWebhookView,
     AdminComprobantesView,
+    VerificarReferenciaView,
     ConfiguracionColegioPublicaView,
     CambiarContrasenaPortalView,
 )
@@ -24,7 +35,7 @@ urlpatterns = [
     # Nota: simplejwt TokenRefreshView acepta cualquier refresh token válido del sistema;
     # el control de que solo representantes usen el portal se aplica en PortalJWTAuthentication
     # al validar el access token resultante en cada endpoint protegido.
-    path('token/refresh/', TokenRefreshView.as_view(), name='portal_token_refresh'),
+    path('token/refresh/', PortalTokenRefreshView.as_view(), name='portal_token_refresh'),
 
     # Dashboard financiero: GET /api/portal/dashboard/
     path('dashboard/', PortalDashboardView.as_view(), name='portal_dashboard'),
@@ -42,19 +53,16 @@ urlpatterns = [
     # Datos bancarios del colegio para transferencias
     path('bancos/', PortalBancosView.as_view(), name='portal_bancos'),
 
-    # Stripe Checkout: POST /api/portal/stripe/checkout/
-    path('stripe/checkout/', StripeCheckoutView.as_view(), name='portal_stripe_checkout'),
-
-    # Stripe Webhook: POST /api/portal/stripe/webhook/
-    # SEGURIDAD: Sin autenticación — Stripe firma el payload con STRIPE_WEBHOOK_SECRET
-    path('stripe/webhook/', StripeWebhookView.as_view(), name='portal_stripe_webhook'),
-
     # Admin — Listar comprobantes pendientes: GET /api/portal/admin/comprobantes/?estatus=pendiente
     path('admin/comprobantes/', AdminComprobantesView.as_view(), name='portal_admin_comprobantes'),
 
     # Admin — Aprobar/rechazar comprobante: PATCH /api/portal/admin/comprobantes/<id>/
     path('admin/comprobantes/<int:comprobante_id>/', AdminComprobantesView.as_view(), name='portal_admin_comprobante_detalle'),
 
+
+    # Verificar si una referencia bancaria ya existe en el sistema
+    # GET /api/portal/verificar-referencia/?ref=XXXXXX
+    path('verificar-referencia/', VerificarReferenciaView.as_view(), name='portal_verificar_referencia'),
 
     # Configuración visual pública del colegio (sin auth): GET /api/portal/config-colegio/
     path('config-colegio/', ConfiguracionColegioPublicaView.as_view(), name='portal_config_colegio'),

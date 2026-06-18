@@ -38,12 +38,15 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-rep-titulo"
                 className="rounded-2xl w-full max-w-md mx-4 flex flex-col"
                 style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                    <h2 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
+                    <h2 id="modal-rep-titulo" className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
                         {editando ? 'Editar representante' : 'Agregar representante'}
                     </h2>
                     <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>
@@ -65,6 +68,7 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
                     <Field id="rep-cedula" label="Cédula" required error={formErrors.cedula}>
                         <input
                             id="rep-cedula"
+                            inputMode="numeric"
                             {...field('cedula')}
                             readOnly={!!editando}
                             style={{ ...INPUT_STYLE, ...(editando ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
@@ -72,7 +76,7 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
                     </Field>
 
                     <Field id="rep-telefono" label="Teléfono" error={formErrors.telefono}>
-                        <input id="rep-telefono" {...field('telefono')} />
+                        <input id="rep-telefono" inputMode="tel" {...field('telefono')} />
                     </Field>
 
                     <Field id="rep-correo" label="Correo" error={formErrors.correo}>

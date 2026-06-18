@@ -1,16 +1,33 @@
+import { useEffect, useRef } from 'react';
 import { X, UserCheck, Loader2 } from 'lucide-react';
 import GradoSelect from '../GradoSelect';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
-const ModalAsignarGrado = ({ alumno, nuevoGrado, setNuevoGrado, saving, onClose, onConfirmar }) => (
+const ModalAsignarGrado = ({ alumno, nuevoGrado, setNuevoGrado, saving, onClose, onConfirmar }) => {
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [onClose]);
+
+    return (
     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
          style={{ background: 'rgba(43,48,58,0.5)' }}>
-        <div className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
-             style={{ background: 'var(--porcelain)' }}>
+        <div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-grado-titulo"
+            className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
+            style={{ background: 'var(--porcelain)' }}>
 
             <div className="p-6 flex justify-between items-center"
                  style={{ borderBottom: '0.5px solid var(--border)' }}>
                 <div>
-                    <h3 className="font-bold" style={{ color: 'var(--jet)' }}>Asignar Grado / Año</h3>
+                    <h3 id="modal-grado-titulo" className="font-bold" style={{ color: 'var(--jet)' }}>Asignar Grado / Año</h3>
                     {alumno && (
                         <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
                             {alumno.nombre} {alumno.apellido}
@@ -46,6 +63,7 @@ const ModalAsignarGrado = ({ alumno, nuevoGrado, setNuevoGrado, saving, onClose,
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export default ModalAsignarGrado;

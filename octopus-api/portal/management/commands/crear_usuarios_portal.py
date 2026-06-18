@@ -99,6 +99,11 @@ class Command(BaseCommand):
                             esta_activo=True,
                         )
 
+                        # El usuario del portal no debe conservar el rol 'cajero'
+                        # por defecto (sin acceso al panel administrativo)
+                        from portal.models import asignar_rol_portal
+                        asignar_rol_portal(user)
+
                     creados += 1
                     self.stdout.write(
                         self.style.SUCCESS(f'  CREADO      {rep.cedula} — {rep.nombre} {rep.apellido}')

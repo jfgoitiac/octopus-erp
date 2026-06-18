@@ -348,6 +348,9 @@ class ActivarPortalMasivoView(APIView):
                     user.set_password(rep.cedula)
                     user.save()
                 RepresentanteUser.objects.create(representante=rep, user=user)
+                # El usuario del portal no debe conservar el rol 'cajero' por defecto
+                from portal.models import asignar_rol_portal
+                asignar_rol_portal(user)
                 creados += 1
             except Exception as e:
                 errores.append(f'{rep.cedula}: {str(e)}')

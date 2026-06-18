@@ -136,7 +136,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # SEGURIDAD: rechaza tokens de usuarios del portal (rol 'representante')
+        # en los endpoints administrativos. Ver authentication/authentication.py.
+        'authentication.authentication.AdminJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         # SEGURIDAD: BasicAuthentication removido — enviaba credenciales en base64 (texto plano
         # sobre HTTP) y no es necesario para esta API JWT. SessionAuthentication se mantiene
@@ -245,10 +247,6 @@ if not DEBUG and SECRET_KEY == _SECRET_KEY_DEFAULT:
         "No se puede iniciar el servidor en modo producción (DEBUG=False) con la clave por defecto."
     )
 
-# ── Stripe ────────────────────────────────────────────────────────────────────
-STRIPE_SECRET_KEY      = os.environ.get('STRIPE_SECRET_KEY', '')
-STRIPE_WEBHOOK_SECRET  = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
-STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
 FRONTEND_URL           = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 
 # ── Validación de configuración crítica al arrancar ────────────────────────────

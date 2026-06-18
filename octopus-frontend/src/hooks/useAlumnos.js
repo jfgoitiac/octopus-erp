@@ -114,9 +114,9 @@ export function useAlumnos() {
     const verificarRepresentante = async (cedula) => {
         setCheckingRep(true);
         try {
-            const res = await axiosInstance.get(`cobranza/buscar/${cedula}/`);
-            if (res.data.representante) {
-                const rep = res.data.representante;
+            const res = await axiosInstance.get(`secretaria/representante/${cedula}/`);
+            if (res.data.existe) {
+                const rep = res.data;
                 setRegisterForm(prev => ({
                     ...prev,
                     rep_nombre: rep.nombre || '',

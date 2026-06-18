@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { X, Save, GraduationCap, UserCircle, Loader2 } from 'lucide-react';
 import DatePickerES from '../DatePickerES';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const inputClass = "w-full px-3 py-2 rounded-lg text-sm outline-none";
 const inputStyle = { border: '0.5px solid var(--border-md)', color: 'var(--jet)' };
@@ -14,18 +16,32 @@ const ModalRegistrarAlumno = ({
     onSubmit,
     onLimpiarRep,
 }) => {
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [onClose]);
+
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
     return (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
              style={{ background: 'rgba(43,48,58,0.5)' }}>
-            <div className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
-                 style={{ background: 'var(--porcelain)' }}>
+            <div
+                ref={containerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-registrar-titulo"
+                className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
+                style={{ background: 'var(--porcelain)' }}>
 
                 {/* Header */}
                 <div className="p-6 flex justify-between items-center"
                      style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--pb)', color: '#fff' }}>
-                    <h2 className="text-xl font-bold">Registrar en Banco Estudiantil</h2>
+                    <h2 id="modal-registrar-titulo" className="text-xl font-bold">Registrar en Banco Estudiantil</h2>
                     <button onClick={onClose} aria-label="Cerrar modal" style={{ color: '#fff' }}>
                         <X size={24} />
                     </button>
@@ -104,7 +120,7 @@ const ModalRegistrarAlumno = ({
                                     Cédula
                                 </label>
                                 <div className="relative">
-                                    <input type="text" className={inputClass}
+                                    <input type="text" inputMode="numeric" className={inputClass}
                                         style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
                                         required value={form.rep_cedula} readOnly={repFound}
                                         onChange={set('rep_cedula')} />
@@ -125,15 +141,15 @@ const ModalRegistrarAlumno = ({
                             {[
                                 { label: 'Nombres', field: 'rep_nombre', type: 'text', required: true },
                                 { label: 'Apellidos', field: 'rep_apellido', type: 'text', required: true },
-                                { label: 'Teléfono', field: 'rep_telefono', type: 'text', required: true },
+                                { label: 'Teléfono', field: 'rep_telefono', type: 'tel', inputMode: 'tel', required: true },
                                 { label: 'Correo', field: 'rep_correo', type: 'email', required: true },
-                            ].map(({ label, field, type, required }) => (
+                            ].map(({ label, field, type, inputMode, required }) => (
                                 <div key={field}>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5"
                                            style={{ color: 'var(--ash)' }}>
                                         {label}
                                     </label>
-                                    <input type={type} className={inputClass}
+                                    <input type={type} inputMode={inputMode} className={inputClass}
                                         style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
                                         required={required} value={form[field]} readOnly={repFound}
                                         onChange={set(field)} />

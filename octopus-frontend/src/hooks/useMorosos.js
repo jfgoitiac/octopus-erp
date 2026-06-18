@@ -1,51 +1,21 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
-import { getMorosos, getDeudaAlumno, exportarMorososExcel } from '../api/cobranza.service';
+import apiClient from '../api/apiClient';
+import { exportarMorososExcel } from '../api/cobranza.service';
 
 export function useMorosos(busqueda) {
     const [alumnos, setAlumnos] = useState([]);
-    const [deudas, setDeudas] = useState({});
     const [loading, setLoading] = useState(true);
-    const [loadingDeudas, setLoadingDeudas] = useState(false);
     const [exportingExcel, setExportingExcel] = useState(false);
-
-    // Evita que resultados de búsquedas anteriores sobreescriban los actuales
-    const deudasVersionRef = useRef(0);
-
-    const fetchDeudas = useCallback(async (lista, signal) => {
-        if (!lista.length) {
-            setDeudas({});
-            return;
-        }
-        const version = ++deudasVersionRef.current;
-        setLoadingDeudas(true);
-        const results = {};
-        await Promise.allSettled(
-            lista.map(async (alu) => {
-                try {
-                    const res = await getDeudaAlumno(alu.cedula_escolar, signal);
-                    results[alu.cedula_escolar] = res.data?.monto_total_deuda ?? 0;
-                } catch (err) {
-                    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-                    results[alu.cedula_escolar] = null;
-                }
-            })
-        );
-        // Solo aplica el resultado si sigue siendo la versión más reciente
-        if (version === deudasVersionRef.current) {
-            setDeudas(results);
-            setLoadingDeudas(false);
-        }
-    }, []);
 
     const fetchMorosos = useCallback(async (signal) => {
         setLoading(true);
         try {
-            const res = await getMorosos(busqueda, signal);
-            const data = res.data?.results ?? res.data ?? [];
-            setAlumnos(data);
-            fetchDeudas(data, signal);
+            const params = {};
+            if (busqueda?.trim()) params.buscar = busqueda.trim();
+            const res = await apiClient.get('cobranza/morosos/', { params, signal });
+            setAlumnos(res.data?.results ?? res.data ?? []);
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
             setAlumnos([]);
@@ -53,7 +23,7 @@ export function useMorosos(busqueda) {
         } finally {
             setLoading(false);
         }
-    }, [busqueda, fetchDeudas]);
+    }, [busqueda]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -87,15 +57,13 @@ export function useMorosos(busqueda) {
     }, [busqueda]);
 
     const totalDeudaUSD = useMemo(
-        () => Object.values(deudas).reduce((s, v) => s + (v ?? 0), 0),
-        [deudas]
+        () => alumnos.reduce((s, a) => s + parseFloat(a.monto_adeudado || 0), 0),
+        [alumnos]
     );
 
     return {
         alumnos,
-        deudas,
         loading,
-        loadingDeudas,
         exportingExcel,
         totalDeudaUSD,
         refetch,

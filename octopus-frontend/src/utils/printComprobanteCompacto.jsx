@@ -139,7 +139,7 @@ export const printComprobanteCompacto = (data) => {
       iframe.contentWindow.print();
       setTimeout(() => document.body.removeChild(iframe), 1000);
     }, 400);
-  } catch (err) {
-    console.error('Error generando comprobante compacto:', err);
+  } catch {
+    // error silencioso — el iframe falla solo si el documento está vacío
   }
 };

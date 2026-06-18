@@ -151,21 +151,65 @@ class PagoCreateSerializer(serializers.Serializer):
             data['alumno'] = Alumno.objects.get(id=data['alumno_id'])
         except Alumno.DoesNotExist:
             raise serializers.ValidationError({"alumno_id": "Alumno no encontrado."})
-        
+
         try:
             data['tasa'] = TasaCambio.objects.latest('fecha')
         except TasaCambio.DoesNotExist:
             raise serializers.ValidationError({"tasa": "No se ha registrado ninguna tasa de cambio."})
-        
-        # PagoItemSerializer ya valida metodo_pago y tipos — solo validamos semántica
+
+        # PagoItemSerializer ya valida metodo_pago y tipos — aquí validamos semántica
+        # y duplicados de referencia de forma anticipada para dar mensajes claros.
+        referencias_en_esta_solicitud = []
         for i, pago_item in enumerate(data['pagos']):
             if not pago_item.get('monto_usd') and not pago_item.get('monto_ves'):
                 raise serializers.ValidationError(f"Pago {i}: Se requiere monto en USD o VES.")
+
             if pago_item.get('banco_receptor_id'):
                 try:
                     BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
                 except BancoInstitucional.DoesNotExist:
                     raise serializers.ValidationError(f"Pago {i}: Banco receptor no encontrado.")
+
+            # --- Validación antifraude de referencia ---
+            ref_raw = pago_item.get('referencia', '').strip()
+            if not ref_raw:
+                continue
+
+            ref_normalizada = ' '.join(ref_raw.upper().split())
+
+            # 1. Duplicate dentro de la misma solicitud (dos lineas con misma ref)
+            if ref_normalizada in referencias_en_esta_solicitud:
+                raise serializers.ValidationError(
+                    f"Pago {i}: La referencia '{ref_normalizada}' aparece más de una vez "
+                    "en esta transacción. Cada línea de pago debe tener una referencia única."
+                )
+            referencias_en_esta_solicitud.append(ref_normalizada)
+
+            # 2. Duplicate contra pagos ya registrados en BD
+            dup_pago = Pago.objects.filter(
+                referencia=ref_normalizada,
+                estatus__in=['completado', 'en_revision'],
+            ).first()
+            if dup_pago:
+                raise serializers.ValidationError(
+                    f"Pago {i}: La referencia '{ref_normalizada}' ya fue registrada "
+                    f"en el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
+                    f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
+                    "Si cree que es un error, contacte al administrador."
+                )
+
+            # 3. Duplicate contra comprobantes pendientes/aprobados del portal
+            from portal.models import ComprobantePago
+            dup_comp = ComprobantePago.objects.filter(
+                referencia_bancaria=ref_normalizada,
+                estatus__in=['pendiente', 'aprobado'],
+            ).first()
+            if dup_comp:
+                raise serializers.ValidationError(
+                    f"Pago {i}: La referencia '{ref_normalizada}' ya existe en un "
+                    f"comprobante del portal (#{dup_comp.pk}, estatus: {dup_comp.estatus}). "
+                    "Verifique antes de continuar."
+                )
 
         return data
 

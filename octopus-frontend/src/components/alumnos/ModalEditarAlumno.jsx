@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { X, Save, GraduationCap, UserCircle, Loader2 } from 'lucide-react';
 import DatePickerES from '../DatePickerES';
 import GradoSelect from '../GradoSelect';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const Campo = ({ label, children }) => (
     <div>
@@ -18,18 +20,32 @@ const inputStyle = {
 const inputClass = "w-full px-3 py-2 rounded-lg text-sm outline-none";
 
 const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [onClose]);
+
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
     return (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
              style={{ background: 'rgba(43,48,58,0.5)' }}>
-            <div className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
-                 style={{ background: 'var(--porcelain)' }}>
+            <div
+                ref={containerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-editar-titulo"
+                className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
+                style={{ background: 'var(--porcelain)' }}>
 
                 {/* Header */}
                 <div className="p-6 flex justify-between items-center"
                      style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--jet)' }}>Editar Información</h2>
+                    <h2 id="modal-editar-titulo" className="text-xl font-bold" style={{ color: 'var(--jet)' }}>Editar Información</h2>
                     <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>
                         <X size={24} />
                     </button>
@@ -56,7 +72,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     value={form.apellido} onChange={set('apellido')} />
                             </Campo>
                             <Campo label="Cédula Escolar">
-                                <input type="text" className={inputClass} style={inputStyle}
+                                <input type="text" inputMode="numeric" className={inputClass} style={inputStyle}
                                     value={form.cedula_escolar} onChange={set('cedula_escolar')} />
                             </Campo>
                             <Campo label="Grado / Año">
@@ -115,11 +131,11 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     value={form.rep_apellido || ''} onChange={set('rep_apellido')} />
                             </Campo>
                             <Campo label="Cédula">
-                                <input type="text" className={inputClass} style={inputStyle}
+                                <input type="text" inputMode="numeric" className={inputClass} style={inputStyle}
                                     value={form.rep_cedula || ''} onChange={set('rep_cedula')} />
                             </Campo>
                             <Campo label="Teléfono">
-                                <input type="text" className={inputClass} style={inputStyle}
+                                <input type="tel" inputMode="tel" className={inputClass} style={inputStyle}
                                     value={form.rep_telefono || ''} onChange={set('rep_telefono')} />
                             </Campo>
                             <div className="sm:col-span-2">

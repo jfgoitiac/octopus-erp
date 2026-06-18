@@ -11,6 +11,9 @@ class PerfilUsuario(models.Model):
         ('cajero',        'Cajero / Staff Administrativo'),
         ('secretaria',    'Secretaria'),
         ('cobranza',      'Cobranza'),
+        # Rol sin privilegios administrativos: usuarios del portal de representantes.
+        # AdminJWTAuthentication rechaza este rol en todos los endpoints del panel.
+        ('representante', 'Representante (Portal)'),
     )
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='perfil', on_delete=models.CASCADE)

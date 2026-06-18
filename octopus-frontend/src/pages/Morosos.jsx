@@ -13,9 +13,7 @@ const Morosos = () => {
     const { tasa } = useTasaBCV();
     const {
         alumnos,
-        deudas,
         loading,
-        loadingDeudas,
         exportingExcel,
         totalDeudaUSD,
         refetch,
@@ -30,7 +28,6 @@ const Morosos = () => {
                 totalDeudaUSD={totalDeudaUSD}
                 tasa={tasa}
                 loading={loading}
-                loadingDeudas={loadingDeudas}
             />
 
             {/* Toolbar */}
@@ -121,8 +118,6 @@ const Morosos = () => {
                                 <MorososRow
                                     key={alu.id}
                                     alu={alu}
-                                    deuda={deudas[alu.cedula_escolar]}
-                                    loadingDeudas={loadingDeudas}
                                     animDelay={idx * 30}
                                 />
                             ))}

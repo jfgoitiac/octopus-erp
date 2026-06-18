@@ -1,11 +1,11 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AlertTriangle, CheckCircle, Clock, CreditCard, Banknote, ArrowRight, CalendarDays } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Banknote, ArrowRight, CalendarDays } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/PortalAuthContext';
-import { getDashboard, crearCheckoutStripe } from '../api/portal.service';
+import { getDashboard } from '../api/portal.service';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SkeletonCard from '../components/SkeletonCard';
 import ComprobantePagoModal from '../components/ComprobantePagoModal';
@@ -58,61 +58,37 @@ const PortalDashboard = () => {
   const [alumnoActivo, setAlumnoActivo] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [mensualidadSeleccionada, setMensualidadSeleccionada] = useState(null);
-  const [loadingStripe, setLoadingStripe] = useState(false);
 
   const fechaHoy = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
 
-  const cargarDashboard = async () => {
+  const cargarDashboard = useCallback(async (signal) => {
     setLoading(true);
     try {
-      const res = await getDashboard();
+      const res = await getDashboard(signal);
       const data = res.data;
       setDashboardData(data);
       if (data.alumnos?.length > 0) {
         setAlumnoActivo(data.alumnos[0]);
       }
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       toast.error('No se pudo cargar la información. Intenta más tarde.');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    cargarDashboard();
   }, []);
 
-  // Detectar retorno desde Stripe Checkout
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('pago') === 'exitoso') {
-      toast.success('¡Pago realizado! Tu saldo será actualizado en breve.');
-      window.history.replaceState({}, '', '/portal');
-      cargarDashboard();
-    } else if (params.get('pago') === 'cancelado') {
-      toast.info('Pago cancelado. Puedes intentarlo cuando quieras.');
-      window.history.replaceState({}, '', '/portal');
-    }
-  }, []);
-
-  const handlePagarOnline = async (mensualidad) => {
-    if (!mensualidad) {
-      toast.info('No tienes mensualidades pendientes.');
-      return;
-    }
-    setLoadingStripe(true);
-    try {
-      const res = await crearCheckoutStripe(mensualidad.id);
-      window.location.href = res.data.checkout_url;
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Error al iniciar el pago. Intenta más tarde.';
-      toast.error(msg);
-    } finally {
-      setLoadingStripe(false);
-    }
-  };
+    const controller = new AbortController();
+    cargarDashboard(controller.signal);
+    return () => controller.abort();
+  }, [cargarDashboard]);
 
   // Resumen financiero del alumno activo (o global si solo hay uno)
+  const ultimosPagos = alumnoActivo && dashboardData?.alumnos?.length > 1
+    ? (dashboardData?.ultimos_pagos || []).filter(p => p.alumno_id === alumnoActivo.id)
+    : (dashboardData?.ultimos_pagos || []);
+
   const resumen = dashboardData?.resumen_financiero;
   const tieneDeuda = resumen && Number(resumen.total_deuda_usd) > 0;
 
@@ -229,7 +205,7 @@ const PortalDashboard = () => {
       {/* Card Últimos Pagos */}
       {loading ? (
         <SkeletonCard lines={3} />
-      ) : dashboardData?.ultimos_pagos?.length > 0 ? (
+      ) : ultimosPagos.length > 0 ? (
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -244,7 +220,7 @@ const PortalDashboard = () => {
             </Link>
           </div>
           <div className="space-y-2">
-            {dashboardData.ultimos_pagos.slice(0, 3).map((pago) => (
+            {ultimosPagos.slice(0, 3).map((pago) => (
               <div key={pago.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <div>
                   <p className="text-sm text-gray-700">{pago.concepto}</p>
@@ -263,16 +239,6 @@ const PortalDashboard = () => {
       {/* Botones de pago */}
       {!loading && (
         <div className="space-y-2 pt-2">
-          {/* Stripe Checkout */}
-          <button
-            onClick={() => handlePagarOnline(resumen?.mensualidades_vencidas?.[0])}
-            disabled={loadingStripe || !resumen?.mensualidades_vencidas?.length}
-            className="w-full flex items-center justify-center gap-2 bg-[#0fa3b1] text-white font-medium py-3 rounded-xl text-sm hover:bg-[#0d93a0] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <CreditCard size={16} />
-            {loadingStripe ? 'Redirigiendo a pago...' : 'Pagar en línea con tarjeta'}
-          </button>
-
           {/* Comprobante de transferencia */}
           <button
             onClick={() => {

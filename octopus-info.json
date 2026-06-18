@@ -1,0 +1,51 @@
+{
+  "nombre": "Octopus",
+  "tipo": "Software SaaS de gestión escolar",
+  "para_quien": "Colegios privados en Latinoamérica",
+  "que_es": "Una plataforma en la nube que ayuda a los colegios a administrar a sus estudiantes, los cobros y la comunicación con las familias desde un solo lugar.",
+  "para_que_sirve": [
+    "Llevar el control de inscripciones de alumnos",
+    "Gestionar la facturación y los cobros de mensualidades",
+    "Identificar y dar seguimiento a representantes morosos",
+    "Generar reportes y recibos en PDF",
+    "Permitir que los representantes consulten y paguen desde su celular"
+  ],
+  "modulos": {
+    "panel_administrativo": {
+      "descripcion": "Lo usa el personal del colegio para administrar la operación diaria.",
+      "funciones": [
+        "Registro y edición de alumnos",
+        "Asignación de grados y horarios",
+        "Cobranza y ajuste de mensualidades",
+        "Seguimiento de pagos vencidos (morosos)",
+        "Reportes y comprobantes imprimibles"
+      ]
+    },
+    "portal_de_representantes": {
+      "descripcion": "Un portal aparte, pensado para usarse desde el teléfono, donde los padres revisan y resuelven sus pagos.",
+      "funciones": [
+        "Inicio de sesión propio para representantes",
+        "Ver el saldo, la deuda pendiente y las facturas vencidas",
+        "Consultar próximos vencimientos e historial de pagos",
+        "Cambiar entre varios hijos inscritos",
+        "Pagar en línea o subir el comprobante de una transferencia",
+        "Conocer el estado del comprobante: pendiente, aprobado o rechazado"
+      ]
+    },
+    "cobranza_automatica": {
+      "descripcion": "Recordatorios de pago que el sistema envía solo, sin intervención del colegio.",
+      "funciones": [
+        "Aviso al generar la factura",
+        "Recordatorios por correo a los días de atraso",
+        "Alerta al director cuando la deuda se prolonga"
+      ]
+    }
+  },
+  "beneficios": [
+    "Menos trabajo manual para el personal administrativo",
+    "Pagos más fáciles y rápidos para las familias",
+    "Mejor recuperación de la cartera vencida",
+    "Toda la información del colegio centralizada y accesible"
+  ],
+  "estado": "En desarrollo activo"
+}

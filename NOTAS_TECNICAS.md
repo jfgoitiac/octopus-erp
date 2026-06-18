@@ -37,11 +37,6 @@ Revisar consistencia: `models.py` define `related_name='portal_user'` en la FK a
 **7. No hay límite de tamaño para comprobantes subidos**
 `PortalComprobantePagoView` no valida el tamaño del archivo. Un representante podría subir archivos muy grandes. Agregar validación de máximo 5MB antes de guardar.
 
-**8. ~~Stripe no implementado~~ — RESUELTO**
-`StripeCheckoutView` y `StripeWebhookView` implementados en `portal/views.py`.
-El frontend (`PortalDashboard.jsx`) llama a `crearCheckoutStripe()` y redirige al hosted page de Stripe.
-Variables de entorno `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` añadidas al `.env` — reemplazar los valores `_REEMPLAZAR` con las claves reales del dashboard de Stripe antes de probar.
-
 ---
 
 ### Frontend
@@ -55,7 +50,7 @@ El portal usa `#0fa3b1` como color primario hardcodeado en varios componentes. C
 **11. Sin manejo de token expirado en `PortalProtectedRoute`**
 `PortalProtectedRoute` verifica expiración al montar, pero si el token expira mientras el representante usa la app y el refresh falla silenciosamente, puede quedar en un estado inconsistente. Agregar un intervalo de verificación periódica o escuchar el evento de 401 del `portalClient`.
 
-**12. `ultimos_pagos` en el dashboard no filtra por `alumnoActivo`**
+**~~12. `ultimos_pagos` en el dashboard no filtra por `alumnoActivo`~~ — RESUELTO**
 Cuando hay varios alumnos y el representante cambia de tab, los "Últimos pagos" muestran pagos de todos los hijos mezclados. Refactorizar para filtrar por `alumnoActivo.id` o agregar el nombre del alumno en cada fila del historial.
 
 ---
@@ -116,6 +111,9 @@ El sistema corre con SQLite (`db.sqlite3`). Para producción con varios usuarios
 - [ ] **Jobs de cobranza**: La lógica de envío automático según `offsetDays` debe implementarse como un cron job en el backend. El frontend solo configura las reglas; el backend es responsable de ejecutarlas.
 - [ ] **Preview de templates real**: El editor de templates usa datos de ejemplo hardcodeados. En el futuro, conectar a un endpoint que devuelva una factura real para previsualización.
 - [ ] **Logs de notificaciones enviadas**: No existe pantalla para ver historial de notificaciones enviadas. Considerar agregar tabla de logs en una fase posterior.
+
+**[RESUELTO] Stripe eliminado del proyecto**
+Se decidió no usar Stripe. Los pagos en línea se manejan únicamente mediante comprobante de transferencia/pago móvil subido por el representante.
 
 ## [2026-05-31] Configuración de Notificaciones — Deuda técnica detectada
 

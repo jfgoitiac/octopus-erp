@@ -1029,14 +1029,17 @@ class MensualidadesPuntualidadView(APIView):
                     raise ValueError
             except (ValueError, TypeError):
                 return Response({"error": "anio y mes deben ser enteros válidos."}, status=status.HTTP_400_BAD_REQUEST)
-            qs = qs.filter(fecha_pago__year=anio, fecha_pago__month=mes)
+            # Filtra por el período de la mensualidad, no por cuándo se pagó.
+            # Así los adelantados aparecen en el mes al que corresponden.
+            qs = qs.filter(anio=anio, mes=mes)
 
         else:  # anio
             try:
                 anio = int(anio_param) if anio_param else hoy.year
             except (ValueError, TypeError):
                 return Response({"error": "anio debe ser un entero."}, status=status.HTTP_400_BAD_REQUEST)
-            qs = qs.filter(fecha_pago__year=anio)
+            # Ídem: filtra por el año de la mensualidad, no el año de pago.
+            qs = qs.filter(anio=anio)
 
         qs = qs.annotate(
             payment_ym=ExpressionWrapper(
@@ -1070,6 +1073,152 @@ class MensualidadesPuntualidadView(APIView):
             'a_tiempo':   a_tiempo,
             'adelantado': adelantado,
         })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# MOROSOS DINÁMICO — calculado desde mensualidades, sin depender de Celery
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ListaMorososView(APIView):
+    """
+    Devuelve en tiempo real los alumnos con mensualidades vencidas.
+    No usa el campo estatus_financiero (que depende de Celery) sino que
+    consulta directamente las mensualidades para determinar mora:
+
+      - Vencidas:   mensualidades de meses anteriores sin pagar.
+      - Mes actual: sin pagar y hoy > dia_limite_pago del alumno.
+
+    Incluye monto_adeudado y meses_adeudados por alumno (sin N+1 queries).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @staticmethod
+    def _build_qs(hoy, buscar=''):
+        from django.db.models import (
+            Exists, OuterRef, Sum, Count, Subquery,
+            DecimalField, IntegerField,
+        )
+        from django.db.models.functions import Coalesce
+        from secretaria.models import Alumno
+
+        # ── Mensualidades de meses anteriores sin pagar ────────────────────────
+        deuda_mes_pasado = Exists(
+            Mensualidad.objects.filter(
+                alumno=OuterRef('pk'),
+                pagado=False,
+            ).filter(
+                Q(anio__lt=hoy.year) |
+                Q(anio=hoy.year, mes__lt=hoy.month)
+            )
+        )
+
+        # ── Mes actual sin pagar y pasado dia_limite_pago del alumno ──────────
+        deuda_mes_actual = (
+            Exists(
+                Mensualidad.objects.filter(
+                    alumno=OuterRef('pk'),
+                    pagado=False,
+                    anio=hoy.year,
+                    mes=hoy.month,
+                )
+            ) & Q(dia_limite_pago__lt=hoy.day)
+        )
+
+        # ── Subqueries para monto y conteo (meses anteriores + mes actual) ────
+        overdue_q = Q(pagado=False) & (
+            Q(anio__lt=hoy.year) |
+            Q(anio=hoy.year, mes__lte=hoy.month)
+        )
+        debt_subq = (
+            Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
+            .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
+        )
+        count_subq = (
+            Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
+            .values('alumno').annotate(c=Count('id')).values('c')[:1]
+        )
+
+        qs = (
+            Alumno.objects.filter(activo=True)
+            .filter(deuda_mes_pasado | deuda_mes_actual)
+            .select_related('representante')
+            .annotate(
+                monto_adeudado=Coalesce(
+                    Subquery(debt_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                    Decimal('0.00'),
+                ),
+                meses_adeudados=Coalesce(
+                    Subquery(count_subq, output_field=IntegerField()),
+                    0,
+                ),
+            )
+            .order_by('-monto_adeudado', 'apellido', 'nombre')
+        )
+
+        if buscar:
+            qs = qs.filter(
+                Q(nombre__icontains=buscar) |
+                Q(apellido__icontains=buscar) |
+                Q(cedula_escolar__icontains=buscar) |
+                Q(representante__nombre__icontains=buscar) |
+                Q(representante__cedula__icontains=buscar)
+            )
+        return qs
+
+    def get(self, request):
+        from datetime import date as _date
+        hoy    = _date.today()
+        buscar = request.query_params.get('buscar', '').strip()
+        qs     = self._build_qs(hoy, buscar)
+
+        results = [
+            {
+                'id':              a.id,
+                'cedula_escolar':  a.cedula_escolar,
+                'nombre':          a.nombre,
+                'apellido':        a.apellido,
+                'genero':          a.genero,
+                'grado_seccion':   a.grado_seccion,
+                'representante': {
+                    'nombre':   a.representante.nombre,
+                    'apellido': a.representante.apellido,
+                    'cedula':   a.representante.cedula,
+                    'telefono': a.representante.telefono,
+                } if a.representante else None,
+                'monto_adeudado':  str(a.monto_adeudado),
+                'meses_adeudados': a.meses_adeudados,
+            }
+            for a in qs
+        ]
+        return Response({'count': len(results), 'results': results})
+
+
+class ExportarMorososExcelView(APIView):
+    """
+    Exporta la lista dinámica de morosos a Excel usando la misma lógica
+    que ListaMorososView — sin depender de estatus_financiero.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from datetime import date as _date
+        from cobranza.exports import ExcelExporter
+
+        hoy    = _date.today()
+        buscar = request.query_params.get('buscar', '').strip()
+        qs     = ListaMorososView._build_qs(hoy, buscar)
+
+        columns = [
+            ('Nombre',              'nombre'),
+            ('Apellido',            'apellido'),
+            ('Cédula Escolar',      'cedula_escolar'),
+            ('Grado / Sección',     'grado_seccion'),
+            ('Representante',       lambda a: f"{a.representante.nombre} {a.representante.apellido}" if a.representante else ''),
+            ('Tel. Representante',  lambda a: a.representante.telefono if a.representante else ''),
+            ('Meses Adeudados',     'meses_adeudados'),
+            ('Monto Adeudado (USD)','monto_adeudado'),
+        ]
+        return ExcelExporter.export(qs, columns, f'morosos_{hoy}')
 
 
 # ──────────────────────────────────────────────────────────────────────────────

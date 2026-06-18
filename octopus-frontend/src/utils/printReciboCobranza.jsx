@@ -286,7 +286,7 @@ export const printReciboCobranza = (data) => {
       iframe.contentWindow.print();
       setTimeout(() => document.body.removeChild(iframe), 1000);
     }, 400);
-  } catch (err) {
-    console.error('Error generando recibo de cobranza:', err);
+  } catch {
+    // error silencioso — el iframe falla solo si el documento está vacío
   }
 };
