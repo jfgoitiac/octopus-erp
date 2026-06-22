@@ -71,7 +71,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                 <input type="text" className={inputClass} style={inputStyle}
                                     value={form.apellido} onChange={set('apellido')} />
                             </Campo>
-                            <Campo label="Cédula Escolar">
+                            <Campo label="Cédula Escolar (Opcional)">
                                 <input type="text" inputMode="numeric" className={inputClass} style={inputStyle}
                                     value={form.cedula_escolar} onChange={set('cedula_escolar')} />
                             </Campo>
@@ -130,7 +130,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                 <input type="text" className={inputClass} style={inputStyle}
                                     value={form.rep_apellido || ''} onChange={set('rep_apellido')} />
                             </Campo>
-                            <Campo label="Cédula">
+                            <Campo label="Cédula *">
                                 <input type="text" inputMode="numeric" className={inputClass} style={inputStyle}
                                     value={form.rep_cedula || ''} onChange={set('rep_cedula')} />
                             </Campo>

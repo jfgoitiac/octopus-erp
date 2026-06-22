@@ -208,6 +208,10 @@ function BarraControles({ buscar, onBuscar, orden, onCambiarOrden, exportando, o
   );
 }
 
+// Las cédulas generadas automáticamente tienen formato 99YYYYMMDDHHMMSSRRRR (20 chars)
+const esCedulaTemporal = (cedula) => cedula?.startsWith('99') && cedula.length >= 18;
+const mostrarCedula = (cedula) => (cedula && !esCedulaTemporal(cedula)) ? cedula : '—';
+
 // ── TablaAlumnos ──────────────────────────────────────────────────────────────
 
 function TablaAlumnos({ alumnos, buscar }) {
@@ -254,7 +258,7 @@ function TablaAlumnos({ alumnos, buscar }) {
             >
               <td className="px-4 py-3 text-xs w-9" style={{ color: 'var(--ash)' }}>{idx + 1}</td>
               <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>
-                {alumno.cedula_escolar || '—'}
+                {mostrarCedula(alumno.cedula_escolar)}
               </td>
               <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{alumno.nombre}</td>
               <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{alumno.apellido}</td>

@@ -8,7 +8,7 @@ import { SkeletonCard } from './SkeletonCard';
 const LABELS_ALUMNO = {
     nombre:         'Nombre',
     apellido:       'Apellido',
-    cedula_escolar: 'Cédula Escolar',
+    cedula_escolar: 'Cédula Escolar (Opcional)',
 };
 
 export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {

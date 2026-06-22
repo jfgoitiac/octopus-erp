@@ -1,5 +1,12 @@
 from datetime import date
 from django.shortcuts import get_object_or_404
+
+
+def _cedula_visible(cedula):
+    """Devuelve la cédula real o cadena vacía si es una cédula temporal generada (99...)."""
+    if cedula and cedula.startswith('99') and len(cedula) >= 18:
+        return ''
+    return cedula or ''
 from django.db import transaction
 from django.db import models
 from django.db.models import F
@@ -846,7 +853,7 @@ class ExportarMatriculaGradoExcelView(APIView):
         for idx, alumno in enumerate(qs, start=1):
             ws.append([
                 idx,
-                alumno.cedula_escolar,
+                _cedula_visible(alumno.cedula_escolar),
                 alumno.nombre,
                 alumno.apellido,
             ])
@@ -908,7 +915,7 @@ class ExportarMatriculaGradoPDFView(APIView):
         for idx, alumno in enumerate(qs, start=1):
             table_data.append([
                 str(idx),
-                alumno.cedula_escolar or '',
+                _cedula_visible(alumno.cedula_escolar),
                 alumno.nombre,
                 alumno.apellido,
             ])
