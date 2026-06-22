@@ -1,4 +1,6 @@
-const StackedBar = ({ used, max, height = 10 }) => {
+import { memo } from 'react';
+
+const StackedBar = memo(({ used, max, height = 10 }) => {
     const pct   = max > 0 ? Math.min(100, (used / max) * 100) : 0;
     const color = pct >= 90 ? '#dc2626' : pct >= 70 ? '#d97706' : '#4f6ef7';
 
@@ -13,6 +15,7 @@ const StackedBar = ({ used, max, height = 10 }) => {
             }} />
         </div>
     );
-};
+});
 
+StackedBar.displayName = 'StackedBar';
 export default StackedBar;

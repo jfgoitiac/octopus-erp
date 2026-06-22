@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useMemo, useEffect, memo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -14,41 +14,47 @@ import { fmt } from '../utils/format';
 
 // ─── pequeños helpers de UI locales ──────────────────────────────────────────
 
-const SectionTitle = ({ children }) => (
+const SectionTitle = memo(({ children }) => (
     <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
         {children}
     </p>
-);
+));
+SectionTitle.displayName = 'SectionTitle';
 
-const Legend = ({ items }) => (
+const Legend = memo(({ items }) => (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 justify-center">
         {items.map(item => (
-            <div key={`${item.label}-${item.value}`} className="flex items-center gap-1.5">
+            // Stable key on label — avoids DOM destruction when value updates
+            <div key={item.label} className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
                 <span className="text-[11px]" style={{ color: 'var(--ash)' }}>{item.label}</span>
                 <span className="text-[11px] font-medium" style={{ color: 'var(--jet)' }}>{item.value}</span>
             </div>
         ))}
     </div>
-);
+));
+Legend.displayName = 'Legend';
 
-const CobranzaFila = ({ icon: Icon, label, value, color, bg }) => {
-    const [hovered, setHovered] = useState(false);
-    const touchTimer = useRef(null);
+// Hover handled via direct DOM mutation — avoids a React re-render per mouse event.
+const CobranzaFila = memo(({ icon: Icon, label, value, color, bg }) => {
+    const rowRef    = useRef(null);
+    const timerRef  = useRef(null);
 
-    const activate    = () => setHovered(true);
-    const deactivate  = () => setHovered(false);
-    const onTouchStart = () => { clearTimeout(touchTimer.current); activate(); };
-    const onTouchEnd   = () => { touchTimer.current = setTimeout(deactivate, 200); };
+    useEffect(() => () => clearTimeout(timerRef.current), []);
+
+    const activate   = () => { if (rowRef.current) rowRef.current.style.boxShadow = `0 4px 16px ${color}20`; };
+    const deactivate = () => { if (rowRef.current) rowRef.current.style.boxShadow = ''; };
+    const onTouchStart = () => { clearTimeout(timerRef.current); activate(); };
+    const onTouchEnd   = () => { timerRef.current = setTimeout(deactivate, 200); };
 
     return (
         <div
+            ref={rowRef}
             className="flex items-center gap-3 rounded-lg px-3 py-3"
             style={{
                 background: 'var(--bg)',
                 border: '0.5px solid var(--border)',
                 transition: 'box-shadow 0.2s ease',
-                boxShadow: hovered ? `0 4px 16px ${color}20` : undefined,
             }}
             onMouseEnter={activate}
             onMouseLeave={deactivate}
@@ -64,7 +70,8 @@ const CobranzaFila = ({ icon: Icon, label, value, color, bg }) => {
             </div>
         </div>
     );
-};
+});
+CobranzaFila.displayName = 'CobranzaFila';
 
 // ─── componente principal ─────────────────────────────────────────────────────
 
@@ -72,7 +79,23 @@ const Dashboard = () => {
     const { raw: s, loading, error, retry, financialData, genderData, gradeData, totalGender, kpi } =
         useDashboardStats();
 
-    const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es });
+    // date-fns format with locale is non-trivial; compute once per mount, not every render
+    const today = useMemo(
+        () => format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es }),
+        []
+    );
+
+    // Pre-compute pct + color for grade bars so StackedBar receives stable primitives
+    const processedGradeData = useMemo(() =>
+        gradeData.map(g => {
+            const pct   = g.cupos_maximos > 0
+                ? Math.round((g.cupos_utilizados / g.cupos_maximos) * 100)
+                : 0;
+            const color = pct >= 90 ? '#dc2626' : pct >= 70 ? '#d97706' : '#4f6ef7';
+            return { ...g, pct, color };
+        }),
+        [gradeData]
+    );
 
     if (loading) return <DashboardSkeleton />;
 
@@ -147,10 +170,10 @@ const Dashboard = () => {
                         <DonutChart data={genderData} size={180} thickness={30} label="estudiantes" />
                     </div>
                     <div className="flex justify-center gap-6">
-                        {genderData.map((g, i) => {
+                        {genderData.map(g => {
                             const pct = totalGender > 0 ? Math.round((g.value / totalGender) * 100) : 0;
                             return (
-                                <div key={`${g.label}-${i}`} className="text-center">
+                                <div key={g.label} className="text-center">
                                     <p className="text-2xl font-semibold" style={{ color: g.color }}>{fmt(g.value)}</p>
                                     <p className="text-[10px]" style={{ color: 'var(--ash)' }}>{g.label}</p>
                                     <p className="text-[10px] font-medium" style={{ color: g.color }}>{pct}%</p>
@@ -179,32 +202,26 @@ const Dashboard = () => {
             <div className="rounded-xl p-4 anim-scale-in card-lift"
                 style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '320ms' }}>
                 <SectionTitle>Ocupación por grado</SectionTitle>
-                {gradeData.length === 0 ? (
+                {processedGradeData.length === 0 ? (
                     <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>
                         Sin grados configurados
                     </p>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-3">
-                        {gradeData.map((g, i) => {
-                            const pct   = g.cupos_maximos > 0
-                                ? Math.round((g.cupos_utilizados / g.cupos_maximos) * 100)
-                                : 0;
-                            const color = pct >= 90 ? '#dc2626' : pct >= 70 ? '#d97706' : '#4f6ef7';
-                            return (
-                                <div key={`${g.grado_seccion || 'grado'}-${i}`}>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
-                                            {g.grado_seccion}
-                                        </span>
-                                        <span className="text-[11px] tabular-nums" style={{ color }}>
-                                            {g.cupos_utilizados}/{g.cupos_maximos}
-                                            <span className="ml-1" style={{ color: 'var(--ash)' }}>({pct}%)</span>
-                                        </span>
-                                    </div>
-                                    <StackedBar used={g.cupos_utilizados} max={g.cupos_maximos} height={8} />
+                        {processedGradeData.map((g) => (
+                            <div key={g.grado_seccion}>
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
+                                        {g.grado_seccion}
+                                    </span>
+                                    <span className="text-[11px] tabular-nums" style={{ color: g.color }}>
+                                        {g.cupos_utilizados}/{g.cupos_maximos}
+                                        <span className="ml-1" style={{ color: 'var(--ash)' }}>({g.pct}%)</span>
+                                    </span>
                                 </div>
-                            );
-                        })}
+                                <StackedBar used={g.cupos_utilizados} max={g.cupos_maximos} height={8} />
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>

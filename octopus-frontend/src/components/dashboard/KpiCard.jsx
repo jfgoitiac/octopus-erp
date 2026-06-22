@@ -1,35 +1,38 @@
-import { useState, useRef } from 'react';
+import { memo, useRef } from 'react';
 
-const KpiCard = ({ icon: Icon, label, value, sub, accent, iconBg, iconColor, delay = 0 }) => {
-    const [hovered, setHovered] = useState(false);
-    const touchTimer = useRef(null);
+// Hover handled via direct DOM mutation — avoids 6 React re-render cycles per mouse event.
+const KpiCard = memo(({ icon: Icon, label, value, sub, accent, iconBg, iconColor, delay = 0 }) => {
+    const cardRef = useRef(null);
 
-    const activate   = () => setHovered(true);
-    const deactivate = () => setHovered(false);
-    const onTouchEnd = () => {
-        touchTimer.current = setTimeout(deactivate, 200);
+    const handleMouseEnter = () => {
+        const el = cardRef.current;
+        if (!el) return;
+        el.style.boxShadow = `0 8px 28px ${accent}28, 0 2px 8px ${accent}14`;
+        el.style.transform = 'translateY(-2px)';
+        el.style.borderColor = `${accent}55`;
     };
-    const onTouchStart = () => {
-        clearTimeout(touchTimer.current);
-        activate();
+
+    const handleMouseLeave = () => {
+        const el = cardRef.current;
+        if (!el) return;
+        el.style.boxShadow = '';
+        el.style.transform = '';
+        el.style.borderColor = 'var(--border-md)';
     };
 
     return (
         <div
+            ref={cardRef}
             className="rounded-xl p-4 flex flex-col gap-2 anim-scale-in card-lift cursor-default"
             style={{
                 background: 'var(--porcelain)',
-                border: `0.5px solid ${hovered ? `${accent}55` : 'var(--border-md)'}`,
+                border: `0.5px solid var(--border-md)`,
                 borderLeft: `3px solid ${accent}`,
                 animationDelay: `${delay}ms`,
-                boxShadow: hovered ? `0 8px 28px ${accent}28, 0 2px 8px ${accent}14` : undefined,
-                transform: hovered ? 'translateY(-2px)' : undefined,
                 transition: 'box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
             }}
-            onMouseEnter={activate}
-            onMouseLeave={deactivate}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
         >
             <div className="flex items-start justify-between">
                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>{label}</span>
@@ -41,6 +44,7 @@ const KpiCard = ({ icon: Icon, label, value, sub, accent, iconBg, iconColor, del
             {sub && <p className="text-[11px]" style={{ color: 'var(--ash)' }}>{sub}</p>}
         </div>
     );
-};
+});
 
+KpiCard.displayName = 'KpiCard';
 export default KpiCard;

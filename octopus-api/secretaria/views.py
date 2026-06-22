@@ -76,6 +76,8 @@ class ConfiguracionSistemaView(APIView):
 
     def post(self, request):
         config = ConfiguracionSistema.objects.first()
+        estaba_abierto = config.inscripciones_abiertas if config else False
+
         if config:
             serializer = ConfiguracionSistemaSerializer(config, data=request.data, partial=True)
         else:
@@ -83,6 +85,29 @@ class ConfiguracionSistemaView(APIView):
 
         serializer.is_valid(raise_exception=True)
         config = serializer.save()
+
+        # Al abrir el proceso de inscripciones, generar CuotaInscripcion para todos los alumnos activos
+        cuotas_generadas = 0
+        if config.inscripciones_abiertas and not estaba_abierto:
+            from cobranza.models import CuotaInscripcion, ParametroGlobal
+            from decimal import Decimal
+
+            param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
+            monto = Decimal(param.valor) if param and param.valor else Decimal('50.00')
+            periodo = config.periodo_escolar_activo
+
+            alumnos_activos = list(Alumno.objects.filter(activo=True))
+            cuotas_nuevas = [
+                CuotaInscripcion(
+                    alumno=alumno,
+                    periodo_escolar=periodo,
+                    monto_usd=monto,
+                    pagado=False,
+                )
+                for alumno in alumnos_activos
+            ]
+            CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
+            cuotas_generadas = len(cuotas_nuevas)
 
         LogAuditoria.objects.create(
             usuario=request.user,
@@ -93,9 +118,14 @@ class ConfiguracionSistemaView(APIView):
                 "fecha_inicio_inscripciones":  str(config.fecha_inicio_inscripciones),
                 "fecha_fin_inscripciones":     str(config.fecha_fin_inscripciones),
                 "dia_limite_pago":             config.dia_limite_pago,
+                "cuotas_inscripcion_generadas": cuotas_generadas,
             }
         )
-        return Response(ConfiguracionSistemaSerializer(config).data)
+
+        response_data = ConfiguracionSistemaSerializer(config).data
+        if cuotas_generadas > 0:
+            response_data['cuotas_inscripcion_generadas'] = cuotas_generadas
+        return Response(response_data)
 
 
 # ─────────────────────────────────────────────
