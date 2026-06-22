@@ -20,7 +20,7 @@ const TABS = [
 
 const Nomina = () => {
     const {
-        empleados, bancosNomina, loading, fetchError, refetch,
+        empleados, bancosNomina, loading, isRefreshing, fetchError, refetch,
         busqueda, setBusqueda, empleadosPorTab,
         exportingExcel, handleExportExcel,
         showRegisterModal,
@@ -62,10 +62,11 @@ const Nomina = () => {
                     </p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                    <button onClick={refetch} aria-label="Recargar listado de empleados"
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                    <button onClick={refetch} disabled={isRefreshing || loading}
+                        aria-label="Recargar listado de empleados"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                        <RefreshCcw size={16} />
+                        <RefreshCcw size={16} className={isRefreshing ? 'animate-spin' : ''} />
                     </button>
                     <button onClick={handleExportExcel} disabled={exportingExcel || empleados.length === 0}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"

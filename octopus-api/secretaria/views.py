@@ -143,6 +143,9 @@ class PromocionAlumnosView(APIView):
 
     # Mapa de promoción de grados
     MAPA_GRADOS = {
+        'Sala 3':    'Sala 4',
+        'Sala 4':    'Sala 5',
+        'Sala 5':    '1er Grado',
         '1er Grado': '2do Grado',
         '2do Grado': '3er Grado',
         '3er Grado': '4to Grado',

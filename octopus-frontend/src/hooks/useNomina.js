@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
@@ -37,8 +37,10 @@ export function useNomina() {
     const [empleados,    setEmpleados]    = useState([]);
     const [bancosNomina, setBancosNomina] = useState([]);
     const [loading,      setLoading]      = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [fetchError,   setFetchError]   = useState(null);
     const [busqueda,     setBusqueda]     = useState('');
+    const isFirstLoad = useRef(true);
 
     const [exportingExcel, setExportingExcel] = useState(false);
 
@@ -52,9 +54,13 @@ export function useNomina() {
     const [editEmployeeData, setEditEmployeeData] = useState(null);
     const [isSaving,         setIsSaving]         = useState(false);
 
-    // ── Carga inicial ─────────────────────────────────────────────────────────
+    // ── Carga inicial / refresco ──────────────────────────────────────────────
     const fetchData = useCallback(async (signal) => {
-        setLoading(true);
+        if (isFirstLoad.current) {
+            setLoading(true);
+        } else {
+            setIsRefreshing(true);
+        }
         setFetchError(null);
         try {
             const opts = signal ? { signal } : {};
@@ -71,7 +77,9 @@ export function useNomina() {
                 setFetchError(msg);
             }
         } finally {
+            isFirstLoad.current = false;
             setLoading(false);
+            setIsRefreshing(false);
         }
     }, []);
 
@@ -231,14 +239,24 @@ export function useNomina() {
             URL.revokeObjectURL(url);
             toast.success('Archivo Excel descargado.');
         } catch (err) {
-            const msg = parseApiError(err);
-            if (msg) toast.error(msg);
+            // Con responseType:'blob' el cuerpo del error llega como Blob, no JSON
+            let msg = 'Error al exportar el Excel.';
+            if (err.response?.data instanceof Blob) {
+                try {
+                    const text = await err.response.data.text();
+                    const json = JSON.parse(text);
+                    msg = json.error || json.detail || msg;
+                } catch { /* usar mensaje por defecto */ }
+            } else {
+                msg = parseApiError(err) || msg;
+            }
+            toast.error(msg);
         } finally { setExportingExcel(false); }
     };
 
     return {
         // Datos
-        empleados, bancosNomina, loading, fetchError,
+        empleados, bancosNomina, loading, isRefreshing, fetchError,
         busqueda, setBusqueda, empleadosPorTab,
         refetch: fetchData,
         // Exportar

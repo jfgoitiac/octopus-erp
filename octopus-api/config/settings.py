@@ -253,11 +253,9 @@ FRONTEND_URL           = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 # ── Validación de configuración crítica al arrancar ────────────────────────────
 import warnings as _warnings
 
-# Advertir si Celery no tiene broker configurado (solo en producción)
-if not DEBUG:
-    _celery_url = CELERY_BROKER_URL if 'CELERY_BROKER_URL' in dir() else ''
-    if 'localhost' in str(_celery_url) or not _celery_url:
-        _warnings.warn(
-            'CELERY_BROKER_URL apunta a localhost — en producción configure un Redis externo.',
-            RuntimeWarning
-        )
+# Advertir si CELERY_BROKER_URL no está definida explícitamente en el entorno de producción
+if not DEBUG and not os.environ.get('CELERY_BROKER_URL'):
+    _warnings.warn(
+        'CELERY_BROKER_URL no está definida en el entorno — usando redis://localhost:6379/0 por defecto.',
+        RuntimeWarning
+    )
