@@ -224,3 +224,26 @@
 - [DEUDA BAJA] Escala de z-index inconsistente entre modales: `z-50`, `z-[100]`, `z-40`
   y sin definir. Definir en CSS global: `--z-overlay: 40; --z-modal: 50; --z-toast: 9999`
   y referenciar desde Tailwind con `z-[var(--z-modal)]`.
+
+---
+
+## Mejoras UI/UX detectadas — 2026-06-23
+
+### Recibos
+
+- [DEUDA MEDIA] `DynamicRows.handleRemove` en `Recibos.jsx` usa `window.confirm()` nativo
+  para confirmar la eliminación de filas de asignaciones/retenciones. No sigue el sistema
+  de diseño. Reemplazar con un mini-modal o un estado `pendingDelete` en el componente
+  para mostrar una confirmación inline con los estilos del proyecto.
+
+- [DEUDA MEDIA] `Recibos.jsx` asume layout de escritorio (sidebar `w-[400px]` + preview
+  A4 de `595px`). En viewport móvil (<768px) el contenido se desborda sin scroll
+  horizontal ni diseño alternativo. Evaluar si el colegio usa este módulo desde celular;
+  si es así, agregar un layout apilado (formulario arriba, preview abajo) usando `md:flex`.
+
+### Pagos (Nómina/Cesta)
+
+- [DEUDA MEDIA] `handleSaveCestaConfig` en `Pagos.jsx` no tiene estado de carga mientras
+  guarda (`saving`). Si el usuario hace doble clic en "Guardar configuración" puede enviar
+  dos PUT simultáneos. Agregar `const [savingConfig, setSavingConfig] = useState(false)`
+  y deshabilitar el botón mientras la petición está en curso.

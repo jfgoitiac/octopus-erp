@@ -8,7 +8,7 @@ import ModalRepresentante from '../components/representantes/ModalRepresentante'
 
 const INPUT_STYLE = {
     background: 'var(--bg)', border: '0.5px solid var(--border-md)',
-    borderRadius: '8px', color: 'var(--jet)', fontSize: '13px',
+    borderRadius: '8px', color: 'var(--jet)', fontSize: '16px',
     padding: '7px 10px', outline: 'none',
 };
 
@@ -36,7 +36,8 @@ const Representantes = () => {
                     <div className="relative flex-1 min-w-[180px]">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                         <input
-                            type="text"
+                            type="search"
+                            aria-label="Buscar representante por nombre, cédula o correo"
                             placeholder="Buscar por nombre, cédula o correo…"
                             value={rep.busqueda}
                             onChange={e => rep.setBusqueda(e.target.value)}
@@ -58,7 +59,7 @@ const Representantes = () => {
                     {canWrite && (
                         <button
                             onClick={rep.openCrear}
-                            className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-medium text-white"
+                            className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white min-h-[44px]"
                             style={{ background: 'var(--pb)', whiteSpace: 'nowrap' }}
                         >
                             <UserPlus size={14} />
@@ -69,9 +70,9 @@ const Representantes = () => {
                         <button
                             onClick={rep.handleExportExcel}
                             disabled={rep.exportingExcel || rep.loading}
-                            className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[44px]"
                             style={{ background: 'var(--jet)', whiteSpace: 'nowrap' }}
-                            title="Exportar a Excel"
+                            aria-label="Exportar a Excel"
                         >
                             {rep.exportingExcel ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                             Excel
@@ -155,7 +156,7 @@ const Representantes = () => {
                         <div className="flex gap-2 px-5 pb-4">
                             <button
                                 onClick={() => rep.setConfirmDelete(null)}
-                                className="flex-1 py-2 rounded-lg text-xs font-medium"
+                                className="flex-1 min-h-[44px] rounded-lg text-xs font-medium"
                                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                             >
                                 Cancelar
@@ -163,8 +164,8 @@ const Representantes = () => {
                             <button
                                 onClick={rep.handleDelete}
                                 disabled={rep.deleting}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium text-white"
-                                style={{ background: 'var(--red)', opacity: rep.deleting ? 0.7 : 1 }}
+                                className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] rounded-lg text-xs font-medium text-white disabled:opacity-70"
+                                style={{ background: 'var(--red)' }}
                             >
                                 {rep.deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                 {rep.deleting ? 'Eliminando…' : 'Eliminar'}

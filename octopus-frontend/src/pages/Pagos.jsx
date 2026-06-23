@@ -326,9 +326,9 @@ const Pagos = () => {
             await axiosInstance.put('cobranza/config-nomina/', toSave);
             setCestaConfigLocal(toSave);
             setShowCestaConfigModal(false);
-            toast.success('Configuracion de cesta ticket guardada.');
+            toast.success('Configuración de cesta ticket guardada.');
         } catch {
-            toast.error('No se pudo guardar la configuracion. Verifica tu conexion.');
+            toast.error('No se pudo guardar la configuración. Verifica tu conexión.');
         }
     };
 
@@ -667,7 +667,8 @@ const Pagos = () => {
                                 )}
                             </div>
                             <button onClick={closeBancaribeModal} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar modal Incentivo">
+                                aria-label="Cerrar modal Incentivo"
+                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
                                 <X size={18} />
                             </button>
                         </div>
@@ -807,7 +808,8 @@ const Pagos = () => {
                                     {PERIODOS.map(p => (
                                         <button key={p}
                                             onClick={() => handleNominaPeriodoChange(p)}
-                                            className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                                            aria-pressed={nominaPeriodo === p}
+                                            className="px-3 py-1 rounded-lg text-xs font-medium transition-all min-h-[36px]"
                                             style={{
                                                 background: nominaPeriodo === p ? '#6d28d9' : 'var(--porcelain)',
                                                 color:      nominaPeriodo === p ? '#fff' : 'var(--ash)',
@@ -819,7 +821,8 @@ const Pagos = () => {
                                 </div>
                             </div>
                             <button onClick={() => setShowNominaModal(false)} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar modal Nómina">
+                                aria-label="Cerrar modal Nómina"
+                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
                                 <X size={18} />
                             </button>
                         </div>
@@ -1023,7 +1026,8 @@ const Pagos = () => {
                                 )}
                             </div>
                             <button onClick={() => setShowCestaModal(false)} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar modal Cestaticket">
+                                aria-label="Cerrar modal Cestaticket"
+                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
                                 <X size={18} />
                             </button>
                         </div>
@@ -1220,7 +1224,8 @@ const Pagos = () => {
                                 </span>
                             </div>
                             <button onClick={() => { setShowConceptoModal(false); setConceptoPago(''); }}
-                                style={{ color: 'var(--ash)' }}>
+                                style={{ color: 'var(--ash)' }} aria-label="Cerrar modal concepto"
+                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
                                 <X size={18} />
                             </button>
                         </div>
@@ -1237,7 +1242,7 @@ const Pagos = () => {
                                     value={conceptoPago}
                                     onChange={e => setConceptoPago(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && handleConfirmarGeneracion()}
-                                    className={inputCls} style={inputStyle} />
+                                    className={inputCls} style={{ ...inputStyle, fontSize: '16px' }} />
                             </div>
                             <div className="flex gap-2 pt-1">
                                 <button type="button"
@@ -1286,7 +1291,8 @@ const Pagos = () => {
                                 </div>
                             </div>
                             <button onClick={() => setShowCestaConfigModal(false)} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar configuración de cesta ticket">
+                                aria-label="Cerrar configuración de cesta ticket"
+                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
                                 <X size={18} />
                             </button>
                         </div>

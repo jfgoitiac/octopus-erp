@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Settings, Save, UserMinus, RefreshCcw, PlusCircle, Download, Loader2, X } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import axiosInstance from '../api/apiClient';
+import { sincronizarTasa } from '../api/cobranza.service';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useAlumnos } from '../hooks/useAlumnos';
 import { useMensualidadesAlumno } from '../hooks/useMensualidadesAlumno';
@@ -34,7 +34,7 @@ const ListaAlumnos = () => {
 
     const handleSyncTasa = async () => {
         try {
-            await axiosInstance.post('cobranza/sincronizar-tasa/', {});
+            await sincronizarTasa();
             toast.success('Sincronización con BCV completada.');
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al sincronizar con el BCV.';
@@ -77,7 +77,7 @@ const ListaAlumnos = () => {
                     {isSecretaria && (
                         <button
                             onClick={() => alumnos.setShowRegisterModal(true)}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all"
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all min-h-[44px]"
                             style={{ background: 'var(--pb)' }}>
                             <PlusCircle size={18} />
                             <span>Registrar Alumno</span>
@@ -88,7 +88,7 @@ const ListaAlumnos = () => {
                         onClick={alumnos.handleExportExcel}
                         disabled={alumnos.exportingExcel}
                         aria-label="Exportar a Excel"
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[44px]"
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                         {alumnos.exportingExcel ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                         <span className="hidden sm:inline">Excel</span>
@@ -98,7 +98,8 @@ const ListaAlumnos = () => {
                     <div className="relative">
                         <button
                             onClick={() => setShowConfig(!showConfig)}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                            aria-expanded={showConfig}
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px]"
                             style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                             <Settings size={16} />
                             <span className="text-sm font-bold">Configuración</span>
@@ -112,7 +113,8 @@ const ListaAlumnos = () => {
                                     </p>
                                     <button
                                         onClick={() => setShowConfig(false)}
-                                        className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                        aria-label="Cerrar configuración"
+                                        className="flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]"
                                         style={{ color: 'var(--ash)' }}>
                                         <X size={14} />
                                     </button>
@@ -121,18 +123,18 @@ const ListaAlumnos = () => {
                                        style={{ color: 'var(--ash)' }}>
                                     Mensualidad ($)
                                 </label>
-                                <input type="number" step="0.01"
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                <input type="number" step="0.01" inputMode="decimal"
+                                    className="w-full px-3 py-2 rounded-lg outline-none mb-3"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     value={alumnos.montoDefecto}
                                     onChange={(e) => alumnos.setMontoDefecto(e.target.value)} />
                                 <label className="block text-[11px] uppercase tracking-widest mb-1"
                                        style={{ color: 'var(--ash)' }}>
                                     Inscripción ($)
                                 </label>
-                                <input type="number" step="0.01"
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                <input type="number" step="0.01" inputMode="decimal"
+                                    className="w-full px-3 py-2 rounded-lg outline-none mb-3"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     value={alumnos.montoInscripcion}
                                     onChange={(e) => alumnos.setMontoInscripcion(e.target.value)} />
                                 {/* C-4 fix: disabled mientras guarda */}
@@ -152,7 +154,8 @@ const ListaAlumnos = () => {
 
                     <button
                         onClick={() => alumnos.setMostrarInactivos(!alumnos.mostrarInactivos)}
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                        aria-pressed={alumnos.mostrarInactivos}
+                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px]"
                         style={{
                             border: '0.5px solid var(--border-md)',
                             background: alumnos.mostrarInactivos ? 'var(--jet)' : 'transparent',
@@ -167,7 +170,7 @@ const ListaAlumnos = () => {
                     <button
                         onClick={handleSyncTasa}
                         aria-label="Sincronizar tasa BCV"
-                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${loadingTasa ? 'animate-pulse' : ''}`}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] ${loadingTasa ? 'animate-pulse' : ''}`}
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}>
                         <RefreshCcw size={18} />
                         <span className="text-sm font-bold">Bs. {tasa.toLocaleString('es-VE')}</span>
@@ -176,11 +179,11 @@ const ListaAlumnos = () => {
                     <div className="relative flex-1 md:w-72">
                         <Search className="absolute left-3 top-2.5" style={{ color: 'var(--ash)' }} size={18} />
                         <input
-                            type="text"
+                            type="search"
                             placeholder="Buscar Estudiante..."
                             aria-label="Buscar estudiante"
-                            className="w-full px-3 py-2 pl-10 rounded-lg text-sm outline-none"
-                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                            className="w-full px-3 py-2 pl-10 rounded-lg outline-none"
+                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                             value={alumnos.busqueda}
                             onChange={(e) => alumnos.setBusqueda(e.target.value)}
                         />
@@ -206,7 +209,7 @@ const ListaAlumnos = () => {
                         onRetirar={handleRetirar}
                         onReactivar={alumnos.solicitarReactivar}
                         onAjustarDeuda={handleAjustarDeuda}
-                        onIrCobranza={(a) => navigate(`/cobranza?cedula=${a.cedula_escolar}`)}
+                        onIrCobranza={(a) => navigate(`/cobranza?cedula=${a.representante?.cedula ?? a.cedula_escolar}`)}
                     />
                 )}
             </div>
@@ -255,7 +258,7 @@ const ListaAlumnos = () => {
                 <SidebarFichaAlumno
                     alumno={alumnos.selectedAlumno}
                     onClose={() => setShowFichaSidebar(false)}
-                    onIrCobranza={(a) => navigate(`/cobranza?cedula=${a.cedula_escolar}`)}
+                    onIrCobranza={(a) => navigate(`/cobranza?cedula=${a.representante?.cedula ?? a.cedula_escolar}`)}
                 />
             )}
 

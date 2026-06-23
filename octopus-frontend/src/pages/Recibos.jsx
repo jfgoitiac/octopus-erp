@@ -43,6 +43,7 @@ const TextInput = ({ value, onChange, placeholder = '' }) => (
 const NumInput = ({ value, onChange, placeholder = '0.00', step = '0.01' }) => (
   <input
     type="number"
+    inputMode="decimal"
     step={step}
     min="0"
     value={value}
@@ -109,7 +110,7 @@ const DynamicRows = ({ title, rows, onChangeRow, onAdd, onRemove }) => {
         <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>{title}</p>
         <button
           onClick={onAdd}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-all"
+          className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-all min-h-[36px]"
           style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
           {...hoverOp}
         >
@@ -140,7 +141,7 @@ const DynamicRows = ({ title, rows, onChangeRow, onAdd, onRemove }) => {
             <button
               onClick={() => handleRemove(row.id, row.label)}
               aria-label={`Eliminar ${row.label}`}
-              className="flex-shrink-0 p-1.5 rounded-lg transition-all"
+              className="flex-shrink-0 p-2 rounded-lg transition-all min-h-[36px] min-w-[36px] flex items-center justify-center"
               style={{ color: 'var(--ash)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-light)'; e.currentTarget.style.color = 'var(--red)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent';       e.currentTarget.style.color = 'var(--ash)'; }}
@@ -398,7 +399,7 @@ const Recibos = () => {
           {/* Botón imprimir */}
           <button
             onClick={handlePrint}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-opacity"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-opacity min-h-[44px]"
             style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)', color: '#fff' }}
             {...hoverOp}
           >

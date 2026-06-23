@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo, useRef, useContext } from 'react';
+import { useState, useEffect, useMemo, useRef, useContext, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     DollarSign, ArrowRight, Save, User,
-    Plus, Trash2, ArrowLeft, AlertTriangle, Loader2, CheckCircle2,
+    Plus, Trash2, ArrowLeft, Loader2, CheckCircle2,
     RefreshCw, Building2, Smartphone, CreditCard, Banknote,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import axiosInstance from '../api/apiClient';
+import { getBancos } from '../api/cobranza.service';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
@@ -177,14 +178,14 @@ const Cobranza = () => {
     });
     const requiereDivisas = hayAdelantos || hayParciales;
 
-    const resetBusqueda = () => {
+    const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
         setEstatusFinanciero(''); setAlumnoId(null);
         setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
         setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
-    };
+    }, []);
 
-    const buscarAlumno = (val) => {
+    const buscarAlumno = useCallback((val) => {
         setCedula(val);
         clearTimeout(searchRef.current);
         abortRef.current?.abort();
@@ -233,16 +234,21 @@ const Cobranza = () => {
             setLoadingBusqueda(false);
             resetBusqueda();
         }
-    };
+    }, [resetBusqueda]);
+
+    const bancosAbortRef = useRef(null);
 
     useEffect(() => {
+        bancosAbortRef.current?.abort();
+        bancosAbortRef.current = new AbortController();
         const init = async () => {
             try {
-                const res = await axiosInstance.get('cobranza/bancos/');
+                const res = await getBancos(bancosAbortRef.current.signal);
                 setBancos(res.data);
                 const cedulaParam = new URLSearchParams(location.search).get('cedula');
                 if (cedulaParam) buscarAlumno(cedulaParam);
-            } catch {
+            } catch (err) {
+                if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
                 toast.error('Error al cargar bancos. Recarga la página.');
             }
         };
@@ -250,8 +256,9 @@ const Cobranza = () => {
         return () => {
             clearTimeout(searchRef.current);
             abortRef.current?.abort();
+            bancosAbortRef.current?.abort();
         };
-    }, [location.search]);
+    }, [location.search, buscarAlumno]);
 
     const selAlumno = (alu) => {
         setCedula(alu.cedula_escolar);
@@ -332,6 +339,7 @@ const Cobranza = () => {
             if (res.status === 201) {
                 toast.success('¡Pago registrado correctamente!');
                 const pagosCreados = res.data.pagos;
+                const ahora = new Date();
 
                 // Construir ítems del recibo
                 const itemsRecibo = [];
@@ -390,7 +398,6 @@ const Cobranza = () => {
                         : l.monto_ves,
                 }));
 
-                const ahora = new Date();
                 printReciboCobranza({
                     nroControl:       pagosCreados?.[0]?.factura_id || (pagosCreados?.[0]?.id ? String(pagosCreados[0].id).padStart(6, '0') : '—'),
                     mes:              format(ahora, 'MMMM', { locale: es }).toUpperCase(),
@@ -400,7 +407,7 @@ const Cobranza = () => {
                     grado:            gradoAlumno,
                     representante:    representanteNombre,
                     ciRepresentante:  cedula,
-                    cajero:           user?.username || user?.perfil?.nombre || '',
+                    cajero:           user?.username || '',
                     tasa,
                     items:            itemsRecibo,
                     pagos:            pagosRecibo,
@@ -425,27 +432,6 @@ const Cobranza = () => {
         }
     };
 
-    const isAuthorized = user && ['director', 'administrador', 'cajero', 'cobranza'].includes(
-        (user?.rol || '').toLowerCase()
-    );
-
-    if (!isAuthorized) return (
-        <div className="flex flex-col items-center justify-center py-20">
-            <div className="p-8 rounded-2xl text-center max-w-md" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
-                <AlertTriangle size={40} className="mx-auto mb-4" style={{ color: 'var(--red)' }} />
-                <h2 className="text-lg font-medium mb-2" style={{ color: 'var(--jet)' }}>Acceso Restringido</h2>
-                <p className="text-sm mb-5" style={{ color: 'var(--ash)' }}>
-                    Su cuenta no tiene permisos para el módulo de cobranza.
-                </p>
-                <button onClick={() => navigate(-1)}
-                    className="px-5 py-2 rounded-lg text-sm font-medium text-white"
-                    style={{ background: 'var(--jet)' }}>
-                    Regresar
-                </button>
-            </div>
-        </div>
-    );
-
     /* ── STEP 1: Búsqueda ── */
     if (step === 1) return (
         <div className={`max-w-2xl mx-auto anim-fade-up ${!representanteNombre ? 'py-16' : 'py-4'}`}>
@@ -458,9 +444,10 @@ const Cobranza = () => {
                 <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={15} />
                     <input
-                        type="text"
-                        className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
-                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                        type="tel"
+                        inputMode="numeric"
+                        className="w-full pl-9 pr-8 py-2 rounded-lg outline-none"
+                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                         placeholder="Ej: 12345678"
                         value={cedula}
                         onChange={e => buscarAlumno(e.target.value)}
@@ -699,7 +686,7 @@ const Cobranza = () => {
                                         (mensualidades.length > 0 || cuotasInscripcion.length > 0) &&
                                         !haySeleccion
                                     )}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 min-h-[44px]"
                                     style={{ background: 'var(--pb)' }}
                                 >
                                     Registrar pago <ArrowRight size={15} />
@@ -742,7 +729,8 @@ const Cobranza = () => {
             <div className="flex items-center gap-3 mb-6 pb-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
                 <button
                     onClick={() => { setStep(1); setConfirming(false); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
+                    aria-label="Volver a buscar alumno"
+                    className="flex items-center justify-center px-3 rounded-lg min-h-[44px] min-w-[44px]"
                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                 >
                     <ArrowLeft size={14} />
