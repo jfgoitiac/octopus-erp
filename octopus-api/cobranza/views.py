@@ -670,7 +670,7 @@ class ConfiguracionCobranzaView(APIView):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class ActualizarMensualidadesView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     @transaction.atomic
     def patch(self, request):
@@ -699,7 +699,7 @@ class ActualizarMensualidadesView(APIView):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class GenerarAnualidadView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     @transaction.atomic
     def post(self, request):

@@ -23,7 +23,7 @@ const ListaAlumnos = () => {
 
     // Q-5 fix: optional chaining redundante eliminado
     const isSecretaria = !!user && ['director', 'administrador', 'secretaria', 'sistemas'].includes(user.rol);
-    const isCajero     = !!user && ['director', 'administrador', 'cajero'].includes(user.rol);
+    const isCajero     = !!user && ['director', 'administrador', 'cajero', 'cobranza'].includes(user.rol);
 
     // UI-only state (no lógica de negocio)
     const [showConfig, setShowConfig] = useState(false);
