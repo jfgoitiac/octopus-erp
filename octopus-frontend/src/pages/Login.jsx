@@ -59,7 +59,7 @@ const Login = () => {
                                 id="login-username"
                                 type="text"
                                 className="w-full px-3 py-2 pl-9 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--pb)]"
-                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                 placeholder="jperez"
                                 autoComplete="username"
                                 value={username}
@@ -79,7 +79,7 @@ const Login = () => {
                                 id="login-password"
                                 type={showPassword ? 'text' : 'password'}
                                 className="w-full px-3 py-2 pl-9 pr-10 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--pb)]"
-                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                 placeholder="••••••••"
                                 autoComplete="current-password"
                                 value={password}
@@ -89,7 +89,7 @@ const Login = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword((v) => !v)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none focus:ring-2 focus:ring-[var(--pb)] rounded"
+                                className="absolute right-0 top-0 h-full flex items-center justify-center px-3 min-w-[44px] focus:outline-none focus:ring-2 focus:ring-[var(--pb)] rounded"
                                 aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                 style={{ color: 'var(--ash)' }}
                             >
@@ -101,7 +101,7 @@ const Login = () => {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--pb)] focus:ring-offset-2"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--pb)] focus:ring-offset-2 min-h-[44px]"
                         style={{ background: 'var(--pb)' }}
                     >
                         {isSubmitting && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}

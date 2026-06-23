@@ -121,7 +121,7 @@ const Nomina = () => {
                         onChange={e => setBusqueda(e.target.value)}
                         placeholder="Buscar nombre, cédula, cargo…"
                         className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none"
-                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)', fontSize: '16px' }}
                         aria-label="Buscar empleados"
                     />
                 </div>

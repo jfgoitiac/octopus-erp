@@ -152,6 +152,7 @@ function BarraControles({ buscar, onBuscar, orden, onCambiarOrden, exportando, o
             border:     '0.5px solid var(--border-md)',
             background: 'var(--porcelain)',
             color:      'var(--jet)',
+            fontSize:   '16px',
           }}
         />
       </div>

@@ -68,6 +68,7 @@ const Field = ({ label, name, value, onChange, type = 'text', required = false }
         background: 'var(--bg)',
         border: '0.5px solid var(--border-md)',
         color: 'var(--jet)',
+        fontSize: '16px',
         transition: 'border-color 0.15s',
       }}
       onFocus={e => e.target.style.borderColor = 'var(--pb)'}

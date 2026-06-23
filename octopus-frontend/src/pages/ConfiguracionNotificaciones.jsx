@@ -23,7 +23,7 @@ const TextInput = ({ id, fieldKey, form, setField, placeholder, type = 'text' })
         id={id ?? fieldKey}
         type={type}
         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
         value={form[fieldKey]}
         placeholder={placeholder}
         onChange={e =>
@@ -41,7 +41,7 @@ const SecretInput = ({ id, fieldKey, form, setField, show, onToggle, placeholder
                 id={id ?? fieldKey}
                 type={show ? 'text' : 'password'}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none pr-10"
-                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                 value={masked ? '' : value}
                 placeholder={masked ? '••••••••  (sin cambios)' : placeholder}
                 onChange={e => setField(fieldKey, e.target.value)}
@@ -264,7 +264,7 @@ const ConfiguracionNotificaciones = () => {
                                 <select
                                     id="whatsapp_proveedor"
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     value={form.whatsapp_proveedor}
                                     onChange={e => setField('whatsapp_proveedor', e.target.value)}
                                 >
@@ -362,7 +362,7 @@ const ConfiguracionNotificaciones = () => {
                                     <select
                                         id="test_canal"
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         value={testForm.canal}
                                         onChange={e => setTestForm(p => ({ ...p, canal: e.target.value }))}
                                     >
@@ -379,7 +379,7 @@ const ConfiguracionNotificaciones = () => {
                                         id="test_destino"
                                         type={testForm.canal === 'email' ? 'email' : 'text'}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         value={testForm.destino}
                                         placeholder={testForm.canal === 'whatsapp' ? '+58 4XX XXXXXXX' : 'destino@ejemplo.com'}
                                         onChange={e => setTestForm(p => ({ ...p, destino: e.target.value }))}
@@ -392,7 +392,7 @@ const ConfiguracionNotificaciones = () => {
                                 <textarea
                                     id="test_mensaje"
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     rows={3}
                                     value={testForm.mensaje}
                                     placeholder="Mensaje de prueba personalizado..."
