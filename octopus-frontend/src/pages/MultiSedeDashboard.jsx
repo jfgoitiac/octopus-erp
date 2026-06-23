@@ -65,7 +65,7 @@ const EmptyState = ({ onReintentar, esError }) => (
     {esError && (
       <button
         onClick={onReintentar}
-        className="mt-4 text-sm underline cursor-pointer"
+        className="mt-4 text-sm underline cursor-pointer px-3 py-2 min-h-[44px]"
         style={{ color: 'var(--pb)' }}
       >
         Reintentar
@@ -138,7 +138,7 @@ const MultiSedeDashboard = () => {
           onClick={cargar}
           disabled={loading}
           aria-label="Actualizar datos"
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors duration-150
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 min-h-[44px]
             ${loading
               ? 'opacity-50 cursor-not-allowed'
               : 'cursor-pointer hover:bg-[var(--ash-light)]'

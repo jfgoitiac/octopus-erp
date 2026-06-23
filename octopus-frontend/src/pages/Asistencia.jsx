@@ -8,7 +8,7 @@ import GradoSelect from '../components/GradoSelect';
 import FilaAlumno from '../components/asistencia/FilaAlumno';
 import SkeletonFila from '../components/asistencia/SkeletonFila';
 
-const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
+const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
 const CONTEO_ITEMS = [
   { key: 'presentes',   label: 'Presentes',   color: '#16a34a',     bg: '#dcfce7' },
@@ -60,7 +60,7 @@ const Asistencia = () => {
         <button
           onClick={guardar}
           disabled={saving || !dirty || !registros.length}
-          className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50"
+          className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--pb)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

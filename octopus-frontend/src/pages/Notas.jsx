@@ -11,6 +11,7 @@ const INPUT_STYLE = {
   border: '0.5px solid var(--border-md)',
   background: '#fff',
   color: 'var(--jet)',
+  fontSize: '16px',
 };
 
 const Notas = () => {
@@ -60,7 +61,7 @@ const Notas = () => {
         <button
           onClick={guardar}
           disabled={saving || !dirty || !notas.length}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--pb)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
