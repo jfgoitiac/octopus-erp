@@ -79,8 +79,8 @@ const CobranzaDashboard = () => {
               <input 
                 type="text" 
                 placeholder="Buscar cédula (Enter)..."
-                className="w-full px-3 py-2 pl-9 rounded-lg text-sm outline-none"
-                style={{ color: 'var(--jet)' }}
+                className="w-full px-3 py-2 pl-9 rounded-lg outline-none"
+                style={{ color: 'var(--jet)', fontSize: '16px' }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleSearch}

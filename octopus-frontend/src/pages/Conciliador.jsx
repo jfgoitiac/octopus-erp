@@ -240,6 +240,7 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
                   border:     '1.5px solid var(--border-md)',
                   background: 'var(--porcelain)',
                   color:      'var(--jet)',
+                  fontSize:   '16px',
                 }}
               />
               <button
