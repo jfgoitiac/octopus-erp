@@ -161,11 +161,11 @@ const PortalDashboard = () => {
                     </p>
                     <p className="text-xs text-red-500">{m.dias_mora} días de mora</p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-col items-end gap-1.5">
                     <p className="text-sm font-semibold text-gray-800">${Number(m.monto_usd).toFixed(2)}</p>
                     <button
                       onClick={() => abrirModalComprobante(m)}
-                      className="text-xs text-[#0fa3b1] hover:underline mt-0.5"
+                      className="px-3 py-1.5 rounded-lg bg-[#0fa3b1]/10 text-[#0fa3b1] text-sm font-medium min-h-[44px] flex items-center hover:bg-[#0fa3b1]/20 transition-colors"
                     >
                       Pagar
                     </button>
@@ -214,9 +214,9 @@ const PortalDashboard = () => {
             </div>
             <Link
               to="/portal/historial"
-              className="text-xs text-[#0fa3b1] flex items-center gap-0.5 hover:underline"
+              className="flex items-center gap-1 text-sm text-[#0fa3b1] py-2 px-1 -mx-1 min-h-[44px] hover:underline"
             >
-              Ver todos <ArrowRight size={12} />
+              Ver todos <ArrowRight size={14} />
             </Link>
           </div>
           <div className="space-y-2">
@@ -236,10 +236,9 @@ const PortalDashboard = () => {
         </div>
       ) : null}
 
-      {/* Botones de pago */}
+      {/* Botón de pago — en flujo (solo desktop sm:) */}
       {!loading && (
-        <div className="space-y-2 pt-2">
-          {/* Comprobante de transferencia */}
+        <div className="hidden sm:block pt-2">
           <button
             onClick={() => {
               const primeraVencida = resumen?.mensualidades_vencidas?.[0];
@@ -252,6 +251,26 @@ const PortalDashboard = () => {
             className="w-full flex items-center justify-center gap-2 bg-[#0fa3b1] text-white font-medium py-3 rounded-xl text-sm hover:bg-[#0d93a0] transition-colors"
           >
             <Banknote size={16} />
+            Pagar por transferencia
+          </button>
+        </div>
+      )}
+
+      {/* Botón flotante móvil — siempre accesible sin scroll */}
+      {!loading && (
+        <div className="fixed bottom-16 left-0 right-0 px-4 z-20 sm:hidden">
+          <button
+            onClick={() => {
+              const primeraVencida = resumen?.mensualidades_vencidas?.[0];
+              if (primeraVencida) {
+                abrirModalComprobante(primeraVencida);
+              } else {
+                toast.info('No tienes mensualidades vencidas pendientes.');
+              }
+            }}
+            className="w-full max-w-[480px] mx-auto flex items-center justify-center gap-2 bg-[#0fa3b1] text-white font-semibold py-3.5 rounded-xl text-base hover:bg-[#0d93a0] transition-colors shadow-lg shadow-[#0fa3b1]/30"
+          >
+            <Banknote size={18} />
             Pagar por transferencia
           </button>
         </div>

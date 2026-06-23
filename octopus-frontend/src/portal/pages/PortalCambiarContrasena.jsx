@@ -41,10 +41,10 @@ const PortalCambiarContrasena = () => {
     <button
       type="button"
       onClick={() => setShow((s) => ({ ...s, [field]: !s[field] }))}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+      className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors min-w-[44px]"
       aria-label={show[field] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
     >
-      {show[field] ? <EyeOff size={16} /> : <Eye size={16} />}
+      {show[field] ? <EyeOff size={18} /> : <Eye size={18} />}
     </button>
   );
 
@@ -52,7 +52,7 @@ const PortalCambiarContrasena = () => {
     <div className="max-w-sm mx-auto px-4 py-6">
       <button
         onClick={() => navigate('/portal')}
-        className="flex items-center gap-1 text-sm text-gray-500 mb-6 hover:text-gray-700"
+        className="flex items-center gap-1 text-sm text-gray-500 mb-4 hover:text-gray-700 py-2 min-h-[44px]"
       >
         <ArrowLeft size={16} /> Volver
       </button>
@@ -71,14 +71,16 @@ const PortalCambiarContrasena = () => {
           const sk = showKey(key);
           return (
             <div key={key}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <label htmlFor={`portal-pwd-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
               <div className="relative">
                 <input
+                  id={`portal-pwd-${key}`}
                   type={show[sk] ? 'text' : 'password'}
                   value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   required
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30"
+                  autoComplete={key === 'contrasena_actual' ? 'current-password' : 'new-password'}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30"
                 />
                 <ToggleBtn field={sk} />
               </div>

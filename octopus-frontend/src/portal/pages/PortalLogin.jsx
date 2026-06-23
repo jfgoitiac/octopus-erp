@@ -59,18 +59,19 @@ const PortalLogin = () => {
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Cédula o email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="portal-cedula" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Cédula o correo electrónico
               </label>
               <div className="relative">
                 <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
+                  id="portal-cedula"
                   type="text"
                   value={cedulaOEmail}
                   onChange={(e) => setCedulaOEmail(e.target.value)}
                   placeholder="Ej: V-12345678 o correo@ejemplo.com"
                   autoComplete="username"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30 focus:border-[#0fa3b1] transition-colors"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30 focus:border-[#0fa3b1] transition-colors"
                   disabled={submitting}
                 />
               </div>
@@ -78,27 +79,28 @@ const PortalLogin = () => {
 
             {/* Contraseña */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="portal-password" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Contraseña
               </label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
+                  id="portal-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   autoComplete="current-password"
-                  className="w-full pl-9 pr-10 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30 focus:border-[#0fa3b1] transition-colors"
+                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30 focus:border-[#0fa3b1] transition-colors"
                   disabled={submitting}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  tabIndex={-1}
+                  className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors min-w-[44px]"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
