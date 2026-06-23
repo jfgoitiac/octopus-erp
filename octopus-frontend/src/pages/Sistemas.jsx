@@ -48,7 +48,8 @@ const SistemasInner = () => {
                     const active = activeTab === id;
                     return (
                         <button key={id} onClick={() => setActiveTab(id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                            aria-current={active ? 'page' : undefined}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[40px]"
                             style={active
                                 ? { background: 'var(--pb)', color: '#fff' }
                                 : { color: 'var(--ash)' }}>

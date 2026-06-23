@@ -94,7 +94,7 @@ const AuditoriaTabla = ({ logs }) => {
     const [filtroModulo, setFiltroModulo] = useState('TODOS');
     const [currentPage, setCurrentPage]   = useState(1);
 
-    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
+    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
     const logsFiltrados = useMemo(() => (
         logs.filter(log => {
@@ -233,7 +233,8 @@ const AuditoriaTabla = ({ logs }) => {
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="p-1.5 rounded-lg disabled:opacity-40 transition-colors hover:bg-[var(--ash-light)]"
+                            aria-label="Página anterior"
+                            className="flex items-center justify-center p-1.5 rounded-lg disabled:opacity-40 transition-colors hover:bg-[var(--ash-light)] min-h-[44px] min-w-[44px]"
                             style={{ color: 'var(--ash)' }}
                         >
                             <ChevronLeft size={14} />
@@ -241,7 +242,8 @@ const AuditoriaTabla = ({ logs }) => {
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="p-1.5 rounded-lg disabled:opacity-40 transition-colors hover:bg-[var(--ash-light)]"
+                            aria-label="Página siguiente"
+                            className="flex items-center justify-center p-1.5 rounded-lg disabled:opacity-40 transition-colors hover:bg-[var(--ash-light)] min-h-[44px] min-w-[44px]"
                             style={{ color: 'var(--ash)' }}
                         >
                             <ChevronRight size={14} />
@@ -263,7 +265,7 @@ const Auditoria = () => {
     const { loading, refreshing, exporting, reporte, logs, error, refetch, exportarExcel } =
         useAuditoria(fechaInicio, fechaFin);
 
-    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
+    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
     const handleRefresh = () => {
         if (fechaFin < fechaInicio) {
@@ -307,7 +309,7 @@ const Auditoria = () => {
                     <button
                         onClick={handleRefresh}
                         disabled={refreshing}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                     >
                         <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
@@ -316,7 +318,7 @@ const Auditoria = () => {
                     <button
                         onClick={exportarExcel}
                         disabled={exporting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
                         style={{ background: 'var(--jet)' }}
                     >
                         {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}

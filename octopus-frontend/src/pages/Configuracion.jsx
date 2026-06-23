@@ -182,23 +182,23 @@ const Configuracion = () => {
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Colegio</label>
                                     <input type="text" name="nombre_colegio" value={config?.nombre_colegio || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         placeholder="Ej. U.E. Mi Colegio" />
                                 </div>
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>RIF</label>
                                     <input type="text" name="rif" value={config?.rif || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         placeholder="Ej. J-12345678-9" />
                                 </div>
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Teléfono</label>
                                     <div className="relative">
                                         <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
-                                        <input type="text" name="telefono_colegio" value={config?.telefono_colegio || ''} onChange={handleConfigChange}
+                                        <input type="tel" name="telefono_colegio" value={config?.telefono_colegio || ''} onChange={handleConfigChange}
                                             className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none"
-                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                             placeholder="Ej. 0212-1234567" />
                                     </div>
                                 </div>
@@ -208,7 +208,7 @@ const Configuracion = () => {
                                         <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                                         <input type="email" name="correo_colegio" value={config?.correo_colegio || ''} onChange={handleConfigChange}
                                             className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none"
-                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                             placeholder="Ej. info@colegio.edu.ve" />
                                     </div>
                                 </div>
@@ -216,14 +216,14 @@ const Configuracion = () => {
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Municipio</label>
                                     <input type="text" name="municipio" value={config?.municipio || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         placeholder="Ej. Sucre" />
                                 </div>
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Estado</label>
                                     <input type="text" name="estado_colegio" value={config?.estado_colegio || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         placeholder="Ej. Miranda" />
                                 </div>
                                 <div className="col-span-2">
@@ -233,7 +233,7 @@ const Configuracion = () => {
                                         <textarea name="direccion_colegio" value={config?.direccion_colegio || ''} onChange={handleConfigChange}
                                             rows={2}
                                             className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none resize-none"
-                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                             placeholder="Dirección completa del colegio" />
                                     </div>
                                 </div>
@@ -251,7 +251,7 @@ const Configuracion = () => {
                                                 <input type="text" name="color_primario" value={config?.color_primario || '#0fa3b1'} onChange={handleConfigChange}
                                                     maxLength={7}
                                                     className="flex-1 px-3 py-2 rounded-lg text-sm outline-none font-mono"
-                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                                     placeholder="#0fa3b1" />
                                             </div>
                                         </div>
@@ -264,7 +264,7 @@ const Configuracion = () => {
                                                 <input type="text" name="color_secundario" value={config?.color_secundario || '#1f3864'} onChange={handleConfigChange}
                                                     maxLength={7}
                                                     className="flex-1 px-3 py-2 rounded-lg text-sm outline-none font-mono"
-                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                                     placeholder="#1f3864" />
                                             </div>
                                         </div>
@@ -272,7 +272,7 @@ const Configuracion = () => {
                                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>URL del Logo</label>
                                             <input type="url" name="logo_url" value={config?.logo_url || ''} onChange={handleConfigChange}
                                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                                 placeholder="https://ejemplo.com/logo.png" />
                                             {config?.logo_url && (
                                                 <div className="mt-2 flex items-center gap-3">
@@ -312,20 +312,20 @@ const Configuracion = () => {
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Período Activo</label>
                                 <input type="text" name="periodo_escolar_activo" value={config?.periodo_escolar_activo || ''} onChange={handleConfigChange}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none font-medium"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio del Año</label>
                                     <DatePickerES name="fecha_inicio_ano_escolar" value={config?.fecha_inicio_ano_escolar || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                                 </div>
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fin del Año</label>
                                     <DatePickerES name="fecha_fin_ano_escolar" value={config?.fecha_fin_ano_escolar || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                                 </div>
                             </div>
                         </div>
@@ -353,13 +353,13 @@ const Configuracion = () => {
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio Inscripciones</label>
                                     <DatePickerES name="fecha_inicio_inscripciones" value={config?.fecha_inicio_inscripciones || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                                 </div>
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Cierre Inscripciones</label>
                                     <DatePickerES name="fecha_fin_inscripciones" value={config?.fecha_fin_inscripciones || ''} onChange={handleConfigChange}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                                 </div>
                             </div>
                         </div>
@@ -425,7 +425,7 @@ const Configuracion = () => {
                                                         <input type="number" defaultValue={g.cupos_maximos}
                                                             onBlur={(e) => handleUpdateCupos(g.id, parseInt(e.target.value))}
                                                             className="w-16 px-2 py-1.5 rounded-lg text-xs font-bold text-center outline-none"
-                                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <div className="flex items-center gap-1.5">
@@ -469,7 +469,7 @@ const Configuracion = () => {
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Día Límite de Pago</label>
                                 <input type="number" name="dia_limite_pago" value={config?.dia_limite_pago || 5} onChange={handleConfigChange}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Notificaciones</span>
@@ -481,7 +481,7 @@ const Configuracion = () => {
                                 </label>
                             </div>
                             <button type="submit" disabled={saving}
-                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50"
+                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 min-h-[44px]"
                                 style={{ background: 'var(--pb)' }}>
                                 {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                                 Guardar Configuración
@@ -855,7 +855,7 @@ const Configuracion = () => {
                                         value={pruebaForm.canal}
                                         onChange={e => setPruebaForm(p => ({ ...p, canal: e.target.value }))}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}>
                                         <option value="email">Email</option>
                                         <option value="whatsapp">WhatsApp</option>
                                         <option value="ambos">Ambos</option>
@@ -871,7 +871,7 @@ const Configuracion = () => {
                                         onChange={e => setPruebaForm(p => ({ ...p, destino: e.target.value }))}
                                         placeholder={pruebaForm.canal === 'whatsapp' ? '+58 4XX XXXXXXX' : 'correo@ejemplo.com'}
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                         required />
                                 </div>
                             </div>
@@ -883,7 +883,7 @@ const Configuracion = () => {
                                     rows={2}
                                     placeholder="Mensaje de prueba desde el sistema Octopus..."
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                             </div>
                             <div className="flex items-center gap-3 flex-wrap">
                                 <button type="submit" disabled={pruebaCargando}
@@ -923,7 +923,7 @@ const Configuracion = () => {
                                     value={logsFiltro.canal}
                                     onChange={e => setLogsFiltro(p => ({ ...p, canal: e.target.value }))}
                                     className="px-2.5 py-1.5 rounded-lg text-xs outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}>
                                     <option value="">Todos los canales</option>
                                     <option value="email">Email</option>
                                     <option value="whatsapp">WhatsApp</option>
@@ -932,7 +932,7 @@ const Configuracion = () => {
                                     value={logsFiltro.estado}
                                     onChange={e => setLogsFiltro(p => ({ ...p, estado: e.target.value }))}
                                     className="px-2.5 py-1.5 rounded-lg text-xs outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}>
                                     <option value="">Todos los estados</option>
                                     <option value="enviado">Enviado</option>
                                     <option value="fallido">Fallido</option>
@@ -1120,7 +1120,7 @@ const Configuracion = () => {
                                 <input type="text" value={gradoForm.grado_seccion}
                                     onChange={e => setGradoForm(p => ({ ...p, grado_seccion: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Ej. Sala de 4, Kinder primera etapa, 1er Grado" />
                             </div>
                             <div>
@@ -1128,7 +1128,7 @@ const Configuracion = () => {
                                 <input type="number" value={gradoForm.cupos_maximos} min={1}
                                     onChange={e => setGradoForm(p => ({ ...p, cupos_maximos: parseInt(e.target.value) || 1 }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }} />
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                             </div>
                         </div>
                         <div className="flex gap-3 px-6 pb-6">
@@ -1168,7 +1168,7 @@ const Configuracion = () => {
                                 <input type="text" value={tipoCargoForm.nombre}
                                     onChange={e => setTipoCargoForm(p => ({ ...p, nombre: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Ej. Profesor, Administrativo" />
                             </div>
                             <div>
@@ -1176,7 +1176,7 @@ const Configuracion = () => {
                                 <input type="text" value={tipoCargoForm.descripcion}
                                     onChange={e => setTipoCargoForm(p => ({ ...p, descripcion: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Opcional" />
                             </div>
                             {tipoCargoEditando && (
@@ -1227,21 +1227,21 @@ const Configuracion = () => {
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Banco *</label>
                                 <input type="text" value={bancoForm.nombre} onChange={e => setBancoForm(p => ({ ...p, nombre: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Ej. Banesco" />
                             </div>
                             <div>
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Número de Cuenta</label>
                                 <input type="text" value={bancoForm.numero_cuenta} onChange={e => setBancoForm(p => ({ ...p, numero_cuenta: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Opcional" />
                             </div>
                             <div>
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Tipo de Banco</label>
                                 <select value={bancoForm.tipo} onChange={e => setBancoForm(p => ({ ...p, tipo: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}>
                                     {Object.entries(TIPO_LABELS).map(([val, label]) => (
                                         <option key={val} value={val}>{label}</option>
                                     ))}
@@ -1296,7 +1296,7 @@ const Configuracion = () => {
                                 <input type="text" value={bancoNominaForm.nombre}
                                     onChange={e => setBancoNominaForm(p => ({ ...p, nombre: e.target.value }))}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Ej. Banesco, Mercantil, BNC" />
                             </div>
                             {bancoNominaEditando && (
@@ -1347,7 +1347,7 @@ const Configuracion = () => {
                                 </label>
                                 <input type="text" value={periodoDestino} onChange={(e) => setPeriodoDestino(e.target.value)}
                                     className="w-full px-3 py-2.5 rounded-lg outline-none font-bold text-center text-base"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="2026-2027" />
                             </div>
                             <div className="flex gap-3">

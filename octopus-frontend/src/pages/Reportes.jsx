@@ -386,7 +386,7 @@ const Reportes = () => {
         fetchPuntualidad(puntGranularidad, puntAnio, puntMes, puntFecha);
     }, [fetchPuntualidad, puntGranularidad, puntAnio, puntMes, puntFecha]);
 
-    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
+    const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
     const cardStyle  = { border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' };
 
     return (
@@ -422,7 +422,7 @@ const Reportes = () => {
                     <button
                         onClick={() => fetchCierre(fechaInicio, fechaFin)}
                         disabled={loadingCierre}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 min-h-[44px]"
                         style={{ background: 'var(--pb)' }}
                     >
                         {loadingCierre ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
@@ -502,7 +502,7 @@ const Reportes = () => {
                     <button
                         onClick={handleExportExcel}
                         disabled={loadingCierre || exportingExcel}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
                         style={{ background: 'var(--jet)' }}
                     >
                         {exportingExcel ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
@@ -511,7 +511,7 @@ const Reportes = () => {
                     <button
                         onClick={handleExportCSV}
                         disabled={loadingCierre}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[44px]"
                         style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                     >
                         <Download size={16} />
@@ -520,7 +520,7 @@ const Reportes = () => {
                     <button
                         onClick={handlePrintDetalle}
                         disabled={loadingCierre || printingDetalle}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[44px]"
                         style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
                     >
                         {printingDetalle
