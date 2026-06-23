@@ -47,29 +47,36 @@ const PortalHistorialPagos = () => {
 
   // Cargar alumnos al montar
   useEffect(() => {
+    const controller = new AbortController();
+
     const cargarAlumnos = async () => {
       setLoadingAlumnos(true);
       try {
-        const res = await getDashboard();
+        const res = await getDashboard(controller.signal);
         const lista = res.data.alumnos || [];
         setAlumnos(lista);
         if (lista.length > 0) setAlumnoActivo(lista[0]);
-      } catch {
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
         toast.error('No se pudo cargar los datos del representante.');
       } finally {
         setLoadingAlumnos(false);
       }
     };
+
     cargarAlumnos();
+    return () => controller.abort();
   }, []);
 
   // Cargar historial cuando cambia alumno o página
   useEffect(() => {
     if (!alumnoActivo) return;
+    const controller = new AbortController();
+
     const cargarHistorial = async () => {
       setLoadingPagos(true);
       try {
-        const res = await getHistorial(alumnoActivo.id, paginaActual);
+        const res = await getHistorial(alumnoActivo.id, paginaActual, controller.signal);
         const data = res.data;
         setPagos(data.results || data.pagos || []);
         // Soporte para paginación estándar DRF: count / page_size
@@ -79,13 +86,16 @@ const PortalHistorialPagos = () => {
         } else if (data.total_paginas) {
           setTotalPaginas(data.total_paginas);
         }
-      } catch {
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
         toast.error('No se pudo cargar el historial de pagos.');
       } finally {
         setLoadingPagos(false);
       }
     };
+
     cargarHistorial();
+    return () => controller.abort();
   }, [alumnoActivo, paginaActual]);
 
   const handleSelectAlumno = (alumno) => {
@@ -143,17 +153,14 @@ const PortalHistorialPagos = () => {
           <p className="text-sm text-gray-500">No hay pagos registrados aún.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm divide-y divide-gray-100">
           {pagos.map((pago) => (
-            <div
-              key={pago.id}
-              className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm"
-            >
+            <div key={pago.id} className="px-4 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{pago.concepto}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{formatFecha(pago.fecha_pago)}</p>
-                  <p className="text-xs text-gray-400 capitalize">{pago.metodo_pago || 'Transferencia'}</p>
+                  <p className="text-sm font-medium text-gray-800 line-clamp-2">{pago.concepto}</p>
+                  <p className="text-sm text-gray-400 mt-0.5">{formatFecha(pago.fecha_pago)}</p>
+                  <p className="text-sm text-gray-400 capitalize">{pago.metodo_pago || 'Transferencia'}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <p className="text-sm font-semibold text-gray-800">
@@ -169,22 +176,22 @@ const PortalHistorialPagos = () => {
 
       {/* Paginación */}
       {!loadingPagos && totalPaginas > 1 && (
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center gap-3 pt-2">
           <button
             onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
             disabled={paginaActual === 1}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]"
           >
             <ChevronLeft size={16} />
             Anterior
           </button>
-          <span className="text-xs text-gray-500">
-            Página {paginaActual} de {totalPaginas}
+          <span className="text-sm text-gray-500 whitespace-nowrap">
+            {paginaActual} / {totalPaginas}
           </span>
           <button
             onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
             disabled={paginaActual === totalPaginas}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]"
           >
             Siguiente
             <ChevronRight size={16} />

@@ -31,7 +31,10 @@ export function useMorosos(busqueda) {
         return () => { clearTimeout(timer); controller.abort(); };
     }, [fetchMorosos]);
 
-    const refetch = useCallback(() => fetchMorosos(), [fetchMorosos]);
+    const refetch = useCallback(() => {
+        const controller = new AbortController();
+        fetchMorosos(controller.signal);
+    }, [fetchMorosos]);
 
     const handleExportExcel = useCallback(async () => {
         setExportingExcel(true);

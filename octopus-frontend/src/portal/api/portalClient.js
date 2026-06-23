@@ -16,6 +16,7 @@ const portalClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 15000,
 });
 
 // Interceptor de REQUEST — agrega el portal_token a cada petición

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
@@ -13,16 +13,23 @@ export function useNotificaciones() {
     const [logsFiltro, setLogsFiltro] = useState({ canal: '', estado: '', page: 1 });
     const [logsLoading, setLogsLoading] = useState(false);
 
-    const cargarConfigNotificaciones = useCallback(async (canalFiltro = '', estadoFiltro = '', page = 1) => {
+    // Ref para cancelar cualquier petición en vuelo antes de lanzar una nueva
+    const abortRef = useRef(null);
+
+    const cargarConfigNotificaciones = useCallback(async (canalFiltro = '', estadoFiltro = '', page = 1, signal) => {
         setLogsLoading(true);
         try {
             const [cfgRes, logsRes] = await Promise.all([
-                axiosInstance.get('notificaciones/configuracion/'),
-                axiosInstance.get(`notificaciones/logs/?canal=${canalFiltro}&estado=${estadoFiltro}&page=${page}&page_size=${PAGE_SIZE_LOGS}`),
+                axiosInstance.get('notificaciones/configuracion/', { signal }),
+                axiosInstance.get('notificaciones/logs/', {
+                    params: { canal: canalFiltro, estado: estadoFiltro, page, page_size: PAGE_SIZE_LOGS },
+                    signal,
+                }),
             ]);
             setConfigNotif(cfgRes.data);
             setLogsNotif(logsRes.data);
         } catch (err) {
+            if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
             const msg = err.response?.data?.detail || "No se pudo cargar la configuración de notificaciones.";
             toast.error(msg);
         } finally {
@@ -30,7 +37,22 @@ export function useNotificaciones() {
         }
     }, []);
 
-    useEffect(() => { cargarConfigNotificaciones(); }, [cargarConfigNotificaciones]);
+    useEffect(() => {
+        const controller = new AbortController();
+        cargarConfigNotificaciones(undefined, undefined, undefined, controller.signal);
+        return () => controller.abort();
+    }, [cargarConfigNotificaciones]);
+
+    // Cancela la petición anterior antes de lanzar una nueva desde filtros o paginación
+    const dispatchCarga = useCallback((canal, estado, page) => {
+        abortRef.current?.abort();
+        abortRef.current = new AbortController();
+        cargarConfigNotificaciones(canal, estado, page, abortRef.current.signal);
+    }, [cargarConfigNotificaciones]);
+
+    useEffect(() => {
+        return () => { abortRef.current?.abort(); };
+    }, []);
 
     const handleEnviarPrueba = async (e) => {
         e.preventDefault();
@@ -49,13 +71,13 @@ export function useNotificaciones() {
     };
 
     const aplicarFiltrosLogs = () => {
-        cargarConfigNotificaciones(logsFiltro.canal, logsFiltro.estado, 1);
+        dispatchCarga(logsFiltro.canal, logsFiltro.estado, 1);
         setLogsFiltro(p => ({ ...p, page: 1 }));
     };
 
     const cambiarPaginaLogs = (nueva) => {
         setLogsFiltro(p => ({ ...p, page: nueva }));
-        cargarConfigNotificaciones(logsFiltro.canal, logsFiltro.estado, nueva);
+        dispatchCarga(logsFiltro.canal, logsFiltro.estado, nueva);
     };
 
     return {

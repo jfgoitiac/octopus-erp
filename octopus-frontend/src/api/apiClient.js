@@ -7,6 +7,7 @@ const apiClient = axios.create({
   baseURL: `${API_BASE}/api/`,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,  // envia la cookie HttpOnly del refresh token automaticamente
+  timeout: 15000,
 });
 
 // Interceptor REQUEST — adjunta el access token en memoria

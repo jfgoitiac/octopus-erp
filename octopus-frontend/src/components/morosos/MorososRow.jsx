@@ -7,7 +7,7 @@ const MorososRow = ({ alu, animDelay }) => {
     const navigate = useNavigate();
 
     const handleCobrar = () =>
-        navigate('/cobranza', { state: { cedulaEscolar: alu.cedula_escolar } });
+        navigate(`/cobranza?cedula=${alu.representante?.cedula ?? ''}`);
 
     const deuda        = parseFloat(alu.monto_adeudado || 0);
     const mesesLabel   = alu.meses_adeudados === 1

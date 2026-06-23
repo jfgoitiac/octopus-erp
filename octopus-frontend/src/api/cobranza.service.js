@@ -12,3 +12,9 @@ export const exportarMorososExcel = (busqueda, signal) => {
         signal,
     });
 };
+
+export const getBancos = (signal) =>
+    apiClient.get('cobranza/bancos/', signal ? { signal } : undefined);
+
+export const sincronizarTasa = () =>
+    apiClient.post('cobranza/sincronizar-tasa/', {});

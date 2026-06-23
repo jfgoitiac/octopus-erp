@@ -1,14 +1,8 @@
 import { useState } from 'react';
 import axiosInstance from '../api/apiClient';
+import { getDeudaAlumno } from '../api/cobranza.service';
 import { toast } from 'react-toastify';
-
-function parseApiError(err) {
-    const data = err.response?.data;
-    if (!data) return 'Error de conexión.';
-    if (data.error) return data.error;
-    if (data.detail) return data.detail;
-    return 'Error inesperado.';
-}
+import { parseApiError } from '../utils/apiError';
 
 export function useMensualidadesAlumno() {
     const [showModal, setShowModal] = useState(false);
@@ -22,9 +16,9 @@ export function useMensualidadesAlumno() {
         setShowModal(true);
         setLoadingMensualidades(true);
         try {
-            const res = await axiosInstance.get(`cobranza/buscar/${alumno.cedula_escolar}/`);
+            const res = await getDeudaAlumno(alumno.cedula_escolar);
             setMensualidades(res.data?.alumnos?.[0]?.mensualidades_pendientes || []);
-            setTotalDeuda(res.data.monto_total_deuda || 0);
+            setTotalDeuda(res.data?.monto_total_deuda || 0);
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al cargar mensualidades.');
         } finally {
@@ -76,12 +70,19 @@ export function useMensualidadesAlumno() {
         setSavingMensualidades(true);
         try {
             await axiosInstance.post('cobranza/generar-anualidad/', { alumno_id: alumno.id });
-            const res = await axiosInstance.get(`cobranza/buscar/${alumno.cedula_escolar}/`);
-            setMensualidades(res.data?.alumnos?.[0]?.mensualidades_pendientes || []);
-            setTotalDeuda(res.data.monto_total_deuda || 0);
             toast.success('Año completo generado.');
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al generar los meses del año.');
+            setSavingMensualidades(false);
+            return;
+        }
+        // Carga separada: un error de red aquí no revierte la generación exitosa
+        try {
+            const res = await getDeudaAlumno(alumno.cedula_escolar);
+            setMensualidades(res.data?.alumnos?.[0]?.mensualidades_pendientes || []);
+            setTotalDeuda(res.data?.monto_total_deuda || 0);
+        } catch {
+            toast.warn('Recarga la página para ver las mensualidades actualizadas.');
         } finally {
             setSavingMensualidades(false);
         }

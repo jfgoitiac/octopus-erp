@@ -10,11 +10,6 @@ export const secretariaService = {
     const response = await apiClient.post('secretaria/bienes/', datos);
     return response.data;
   },
-
-  async buscarAlumno(cedula) {
-    const response = await apiClient.get(`cobranza/buscar/${cedula}/`);
-    return response.data;
-  }
 };
 
 export const buscarAlumnos = (termino, signal) =>

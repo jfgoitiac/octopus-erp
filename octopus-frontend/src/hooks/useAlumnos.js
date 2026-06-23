@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { parseApiError } from '../utils/apiError';
 
 const INITIAL_REGISTER_FORM = {
     nombre: '', apellido: '', cedula_escolar: '', fecha_nacimiento: '', genero: 'masculino',
@@ -14,19 +15,6 @@ const INITIAL_EDIT_FORM = {
     rep_id: '', rep_nombre: '', rep_apellido: '', rep_cedula: '',
     rep_telefono: '', rep_correo: '', rep_direccion: '',
 };
-
-function parseApiError(err) {
-    const data = err.response?.data;
-    if (!data) return 'Error de conexión.';
-    if (data.error) return data.error;
-    if (data.detail) return data.detail;
-    if (typeof data === 'object') {
-        return Object.entries(data)
-            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : JSON.stringify(v)}`)
-            .join(' | ');
-    }
-    return 'Error inesperado.';
-}
 
 export function useAlumnos() {
     // --- Lista ---
@@ -74,6 +62,9 @@ export function useAlumnos() {
     const [alumnoParaReactivar, setAlumnoParaReactivar] = useState(null);
     const [savingReactivar, setSavingReactivar] = useState(false);
 
+    // Ref para refetches post-mutación (se inicializa antes de fetchData)
+    const mutationAbortRef = useRef(null);
+
     // C-3 fix: AbortController para cancelar requests en vuelo
     const fetchData = useCallback(async (signal) => {
         setLoading(true);
@@ -103,15 +94,18 @@ export function useAlumnos() {
         return () => { clearTimeout(timer); controller.abort(); };
     }, [fetchData]);
 
-    // Autocomplete de representante por cédula
-    useEffect(() => {
-        if (registerForm.rep_cedula.length <= 6 || repFound || !showRegisterModal) return;
-        const timer = setTimeout(() => verificarRepresentante(registerForm.rep_cedula), 800);
-        return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [registerForm.rep_cedula, repFound, showRegisterModal]);
+    // Refetch post-mutación con AbortController rastreado para limpieza al desmontar
+    const refetchAfterMutation = useCallback(() => {
+        mutationAbortRef.current?.abort();
+        mutationAbortRef.current = new AbortController();
+        fetchData(mutationAbortRef.current.signal);
+    }, [fetchData]);
 
-    const verificarRepresentante = async (cedula) => {
+    useEffect(() => {
+        return () => { mutationAbortRef.current?.abort(); };
+    }, []);
+
+    const verificarRepresentante = useCallback(async (cedula) => {
         setCheckingRep(true);
         try {
             const res = await axiosInstance.get(`secretaria/representante/${cedula}/`);
@@ -134,7 +128,14 @@ export function useAlumnos() {
         } finally {
             setCheckingRep(false);
         }
-    };
+    }, []);
+
+    // Autocomplete de representante por cédula
+    useEffect(() => {
+        if (registerForm.rep_cedula.length <= 6 || repFound || !showRegisterModal) return;
+        const timer = setTimeout(() => verificarRepresentante(registerForm.rep_cedula), 800);
+        return () => clearTimeout(timer);
+    }, [registerForm.rep_cedula, repFound, showRegisterModal, verificarRepresentante]);
 
     // C-4 fix: savingConfig previene doble envío
     const handleSaveConfig = async () => {
@@ -157,6 +158,7 @@ export function useAlumnos() {
         try {
             const params = new URLSearchParams();
             if (busqueda.trim()) params.append('buscar', busqueda.trim());
+            if (mostrarInactivos) params.append('todos', 'true');
             const res = await axiosInstance.get(
                 `secretaria/exportar-alumnos-excel/?${params}`,
                 { responseType: 'blob' }
@@ -220,7 +222,7 @@ export function useAlumnos() {
             await axiosInstance.post('secretaria/alumnos/', payload);
             toast.success('Alumno registrado en el banco exitosamente.');
             handleCloseRegisterModal();
-            fetchData();
+            refetchAfterMutation();
         } catch (err) {
             toast.error(parseApiError(err));
         } finally {
@@ -313,7 +315,7 @@ export function useAlumnos() {
             toast.success(`Grado ${nuevoGrado} asignado correctamente.`);
             setShowAsignarGradoModal(false);
             setNuevoGrado('');
-            fetchData();
+            refetchAfterMutation();
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al asignar grado.');
         } finally {
@@ -330,7 +332,7 @@ export function useAlumnos() {
             toast.success('Alumno retirado y cupo liberado.');
             setShowRetirarModal(false);
             setMotivoRetiro('');
-            fetchData();
+            refetchAfterMutation();
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al procesar el retiro.');
         } finally {
@@ -349,7 +351,7 @@ export function useAlumnos() {
             await axiosInstance.post(`secretaria/alumnos/${alumnoParaReactivar.id}/reactivar/`);
             toast.success('Alumno reactivado exitosamente.');
             setAlumnoParaReactivar(null);
-            fetchData();
+            refetchAfterMutation();
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al intentar reactivar al alumno.');
         } finally {

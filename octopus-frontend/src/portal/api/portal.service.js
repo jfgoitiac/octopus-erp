@@ -12,10 +12,12 @@ export const getDashboard = (signal) => {
  * Obtiene el historial de pagos paginado para un alumno.
  * @param {number|string} alumnoId
  * @param {number} page
+ * @param {AbortSignal} [signal]
  */
-export const getHistorial = (alumnoId, page = 1) => {
+export const getHistorial = (alumnoId, page = 1, signal) => {
   return portalClient.get('historial/', {
     params: { alumno_id: alumnoId, page },
+    ...(signal ? { signal } : {}),
   });
 };
 
