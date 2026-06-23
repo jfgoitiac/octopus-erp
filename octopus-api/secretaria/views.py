@@ -62,7 +62,7 @@ class IsDocenteOrAbove(permissions.BasePermission):
         try:
             return (
                 request.user.perfil.esta_activo and
-                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'docente']
+                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'docente', 'cobranza']
             )
         except Exception:
             return False

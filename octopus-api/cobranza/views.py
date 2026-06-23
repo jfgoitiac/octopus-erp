@@ -24,7 +24,12 @@ class SincronizarTasaView(APIView):
     Implementa lógica defensiva contra valores nulos o en cero,
     con doble fuente de verdad: ParametroGlobal y TasaCambio.
     """
-    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+    def get_permissions(self):
+        # POST (sincronizar): cualquier personal de cobranza/caja puede disparar
+        # GET (consultar): solo admin/director/sistemas
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated(), EsPersonalCobranza()]
+        return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
 
     def get(self, request):
         """
