@@ -87,6 +87,7 @@ const inputStyle = {
   background: 'var(--bg)',
   borderColor: 'var(--border-md)',
   color: 'var(--jet)',
+  fontSize: '16px',
 };
 
 const SkeletonRow = () => (

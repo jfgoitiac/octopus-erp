@@ -9,6 +9,7 @@ const inputStyle = {
   border: '0.5px solid var(--border-md)',
   background: '#fff',
   color: 'var(--jet)',
+  fontSize: '16px',
 };
 
 const SkeletonCard = () => (
@@ -135,7 +136,7 @@ const Boletin = () => {
           type="button"
           onClick={handleVistaPrev}
           disabled={loading || !alumnoSeleccionado || !lapsoId}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--pb)' }}
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
@@ -146,7 +147,7 @@ const Boletin = () => {
           <button
             type="button"
             onClick={() => generarBoletinPDF(boletin)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all min-h-[44px]"
             style={{ background: 'var(--success, #16a34a)' }}
           >
             <Download size={16} />

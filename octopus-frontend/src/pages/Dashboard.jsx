@@ -107,7 +107,7 @@ const Dashboard = () => {
             </p>
             <button
                 onClick={retry}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium min-h-[44px]"
                 style={{ background: 'var(--pb)', color: '#fff' }}
             >
                 <RefreshCw size={14} />
@@ -123,7 +123,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-end">
                 <button
                     onClick={retry}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 min-h-[44px]"
                     style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                 >
                     <RefreshCw size={12} />

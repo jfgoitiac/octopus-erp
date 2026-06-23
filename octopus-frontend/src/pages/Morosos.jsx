@@ -39,30 +39,32 @@ const Morosos = () => {
                         style={{ color: 'var(--ash)' }}
                     />
                     <input
-                        type="text"
+                        type="search"
+                        aria-label="Buscar moroso por nombre o cédula"
                         placeholder="Buscar por nombre, cédula…"
                         value={busqueda}
                         onChange={e => setBusqueda(e.target.value)}
-                        className="w-full rounded-lg text-xs"
+                        className="w-full rounded-lg"
                         style={{
                             paddingLeft: 30, paddingRight: 10, paddingTop: 7, paddingBottom: 7,
                             background: 'var(--porcelain)',
                             border: '0.5px solid var(--border-md)',
                             color: 'var(--jet)',
                             outline: 'none',
+                            fontSize: '16px',
                         }}
                     />
                 </div>
                 <button
                     onClick={refetch}
                     disabled={loading}
-                    className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs disabled:opacity-50"
+                    aria-label="Refrescar lista de morosos"
+                    className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs disabled:opacity-50 min-h-[44px]"
                     style={{
                         border: '0.5px solid var(--border-md)',
                         color: 'var(--ash)',
                         background: 'var(--porcelain)',
                     }}
-                    title="Refrescar"
                 >
                     <RefreshCcw size={13} className={loading ? 'animate-spin' : ''} />
                     Refrescar
@@ -70,9 +72,9 @@ const Morosos = () => {
                 <button
                     onClick={handleExportExcel}
                     disabled={exportingExcel || loading}
-                    className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                    aria-label="Exportar morosos a Excel"
+                    className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[44px]"
                     style={{ background: 'var(--jet)' }}
-                    title="Exportar Excel"
                 >
                     {exportingExcel
                         ? <Loader2 size={13} className="animate-spin" />
