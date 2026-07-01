@@ -145,8 +145,9 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
             'contacto_emergencia_parentesco'
         ]
         extra_kwargs = {
-            'cedula_escolar': {'allow_null': True, 'allow_blank': True, 'required': False},
-            'grado_seccion':  {'allow_null': True, 'allow_blank': True, 'required': False},
+            'cedula_escolar':    {'allow_null': True, 'allow_blank': True, 'required': False},
+            'grado_seccion':     {'allow_null': True, 'allow_blank': True, 'required': False},
+            'fecha_nacimiento':  {'allow_null': True, 'required': False},
         }
 
     def update(self, instance, validated_data):

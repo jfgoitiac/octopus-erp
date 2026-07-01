@@ -50,13 +50,6 @@ export default function DatePickerES({ value, onChange, className, style, name, 
             showMonthDropdown
             showYearDropdown
             dropdownMode="select"
-            popperPlacement="bottom-start"
-            popperModifiers={[
-                { name: 'offset', options: { offset: [0, 6] } },
-                { name: 'preventOverflow', options: { boundary: 'viewport', padding: 12 } },
-                { name: 'flip', options: { fallbackPlacements: ['top-start', 'bottom-end', 'top-end'] } },
-            ]}
-            withPortal={false}
         />
     );
 }

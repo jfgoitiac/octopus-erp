@@ -1126,7 +1126,7 @@ class ListaMorososView(APIView):
                     anio=hoy.year,
                     mes=hoy.month,
                 )
-            ) & Q(dia_limite_pago__lt=hoy.day)
+            ) & Q(dia_limite_pago__lte=hoy.day)
         )
 
         # ── Subqueries para monto y conteo (meses anteriores + mes actual) ────

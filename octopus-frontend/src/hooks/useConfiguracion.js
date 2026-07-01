@@ -59,7 +59,10 @@ export function useConfiguracion() {
         if (e) e.preventDefault();
         setSaving(true);
         try {
-            await axiosInstance.post('secretaria/configuracion/', config);
+            const DATE_FIELDS = ['fecha_inicio_inscripciones', 'fecha_fin_inscripciones', 'fecha_inicio_ano_escolar', 'fecha_fin_ano_escolar'];
+            const payload = { ...config };
+            DATE_FIELDS.forEach(f => { if (!payload[f]) delete payload[f]; });
+            await axiosInstance.post('secretaria/configuracion/', payload);
             toast.success("Configuración global actualizada con éxito.");
             fetchConfig();
         } catch (err) {
