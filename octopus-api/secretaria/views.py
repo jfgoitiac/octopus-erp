@@ -296,10 +296,20 @@ class AlumnoListView(viewsets.ModelViewSet):
         if cedula:
             qs = Alumno.todos.filter(cedula_escolar=cedula)
 
-        # Filtro por estatus financiero (mora, solvente, becado)
+        # Estatus financiero EN VIVO: se anota `en_mora` con el mismo criterio
+        # que el módulo de morosos, para que ambos coincidan sin depender de la
+        # tarea Celery. El serializer lee esta anotación en to_representation().
+        from cobranza.mora import annotate_en_mora
+        qs = annotate_en_mora(qs)
+
+        # Filtro por estatus financiero (mora, solvente, becado) sobre el estado real
         estatus = self.request.query_params.get('estatus', '')
-        if estatus:
-            qs = qs.filter(estatus_financiero=estatus)
+        if estatus == 'mora':
+            qs = qs.filter(en_mora=True).exclude(estatus_financiero='becado')
+        elif estatus == 'solvente':
+            qs = qs.filter(en_mora=False).exclude(estatus_financiero='becado')
+        elif estatus == 'becado':
+            qs = qs.filter(estatus_financiero='becado')
 
         # Búsqueda por nombre, cédula o representante
         buscar = self.request.query_params.get('buscar', '')
@@ -554,12 +564,22 @@ class ExportarAlumnosExcelView(APIView):
         from cobranza.exports import ExcelExporter
         from django.db.models import Q as DQ
 
+        from cobranza.mora import annotate_en_mora, estatus_financiero_actual
+
         estatus = request.query_params.get('estatus', '')
         buscar  = request.query_params.get('buscar', '')
 
-        qs = Alumno.objects.filter(activo=True).select_related('representante').order_by('apellido', 'nombre')
-        if estatus:
-            qs = qs.filter(estatus_financiero=estatus)
+        # Estatus en vivo (mismo criterio que morosos) para que la exportación
+        # coincida con lo que se ve en pantalla.
+        qs = annotate_en_mora(
+            Alumno.objects.filter(activo=True).select_related('representante').order_by('apellido', 'nombre')
+        )
+        if estatus == 'mora':
+            qs = qs.filter(en_mora=True).exclude(estatus_financiero='becado')
+        elif estatus == 'solvente':
+            qs = qs.filter(en_mora=False).exclude(estatus_financiero='becado')
+        elif estatus == 'becado':
+            qs = qs.filter(estatus_financiero='becado')
         if buscar:
             qs = qs.filter(
                 DQ(nombre__icontains=buscar) |
@@ -573,7 +593,7 @@ class ExportarAlumnosExcelView(APIView):
             ('Cédula Escolar',  'cedula_escolar'),
             ('Grado / Sección', 'grado_seccion'),
             ('Género',          'genero'),
-            ('Estatus',         'estatus_financiero'),
+            ('Estatus',         estatus_financiero_actual),
             ('Representante',   lambda x: f"{x.representante.nombre} {x.representante.apellido}" if x.representante else ''),
             ('Tel. Rep.',       lambda x: x.representante.telefono if x.representante else ''),
         ]
@@ -774,7 +794,8 @@ class MatriculaGradoView(APIView):
         if not grado:
             return Response({"error": "Debe especificar el parámetro 'grado'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        qs = (
+        from cobranza.mora import annotate_en_mora, estatus_financiero_actual
+        qs = annotate_en_mora(
             Alumno.objects
             .filter(activo=True, grado_seccion=grado)
             .select_related('representante')
@@ -793,7 +814,7 @@ class MatriculaGradoView(APIView):
                 'apellido':         a.apellido,
                 'genero':           a.genero,
                 'grado_seccion':    a.grado_seccion,
-                'estatus_financiero': a.estatus_financiero,
+                'estatus_financiero': estatus_financiero_actual(a),
                 'representante_nombre': f"{a.representante.nombre} {a.representante.apellido}" if a.representante else '',
                 'representante_telefono': a.representante.telefono if a.representante else '',
             }

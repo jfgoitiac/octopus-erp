@@ -132,9 +132,14 @@ class DashboardStatsView(APIView):
         from secretaria.models import Alumno, ConfiguracionGrado
         from django.db.models import Sum, Count
 
+        from .mora import annotate_en_mora
+
         activos   = Alumno.objects.filter(activo=True)
-        solventes = activos.filter(estatus_financiero='solvente').count()
-        morosos   = activos.filter(estatus_financiero='mora').count()
+        # Conteos en vivo con el criterio canónico de mora (coincide con la lista
+        # de morosos y el módulo de alumnos, sin depender de la tarea Celery).
+        activos_mora = annotate_en_mora(activos.exclude(estatus_financiero='becado'))
+        morosos   = activos_mora.filter(en_mora=True).count()
+        solventes = activos_mora.filter(en_mora=False).count()
         becados   = activos.filter(estatus_financiero='becado').count()
         masculino = activos.filter(genero='masculino').count()
         femenino  = activos.filter(genero='femenino').count()
@@ -173,7 +178,9 @@ class DashboardStatsView(APIView):
         for cfg in configs:
             alumnos_grado = activos.filter(grado_seccion=cfg.grado_seccion)
             total_grado   = alumnos_grado.count()
-            morosos_grado = alumnos_grado.filter(estatus_financiero='mora').count()
+            morosos_grado = annotate_en_mora(
+                alumnos_grado.exclude(estatus_financiero='becado')
+            ).filter(en_mora=True).count()
             grados.append({
                 'grado':            cfg.grado_seccion,
                 'cupos_maximos':    cfg.cupos_maximos,
@@ -1099,64 +1106,18 @@ class ListaMorososView(APIView):
 
     @staticmethod
     def _build_qs(hoy, buscar=''):
-        from django.db.models import (
-            Exists, OuterRef, Sum, Count, Subquery,
-            DecimalField, IntegerField,
-        )
-        from django.db.models.functions import Coalesce
         from secretaria.models import Alumno
+        from .mora import annotate_mora_detalle
 
-        # ── Mensualidades de meses anteriores sin pagar ────────────────────────
-        deuda_mes_pasado = Exists(
-            Mensualidad.objects.filter(
-                alumno=OuterRef('pk'),
-                pagado=False,
-            ).filter(
-                Q(anio__lt=hoy.year) |
-                Q(anio=hoy.year, mes__lt=hoy.month)
-            )
-        )
-
-        # ── Mes actual sin pagar y pasado dia_limite_pago del alumno ──────────
-        deuda_mes_actual = (
-            Exists(
-                Mensualidad.objects.filter(
-                    alumno=OuterRef('pk'),
-                    pagado=False,
-                    anio=hoy.year,
-                    mes=hoy.month,
-                )
-            ) & Q(dia_limite_pago__lte=hoy.day)
-        )
-
-        # ── Subqueries para monto y conteo (meses anteriores + mes actual) ────
-        overdue_q = Q(pagado=False) & (
-            Q(anio__lt=hoy.year) |
-            Q(anio=hoy.year, mes__lte=hoy.month)
-        )
-        debt_subq = (
-            Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
-            .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
-        )
-        count_subq = (
-            Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
-            .values('alumno').annotate(c=Count('id')).values('c')[:1]
-        )
-
+        # Criterio de mora centralizado en cobranza/mora.py (fuente de verdad única
+        # compartida con la tarea Celery y el módulo de alumnos).
         qs = (
-            Alumno.objects.filter(activo=True)
-            .filter(deuda_mes_pasado | deuda_mes_actual)
-            .select_related('representante')
-            .annotate(
-                monto_adeudado=Coalesce(
-                    Subquery(debt_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
-                    Decimal('0.00'),
-                ),
-                meses_adeudados=Coalesce(
-                    Subquery(count_subq, output_field=IntegerField()),
-                    0,
-                ),
+            annotate_mora_detalle(
+                Alumno.objects.filter(activo=True).exclude(estatus_financiero='becado'),
+                hoy,
             )
+            .filter(en_mora=True)
+            .select_related('representante')
             .order_by('-monto_adeudado', 'apellido', 'nombre')
         )
 

@@ -103,6 +103,19 @@ class AlumnoSerializer(serializers.ModelSerializer):
         model  = Alumno
         fields = '__all__'
 
+    def to_representation(self, instance):
+        """
+        Muestra el estatus financiero EN VIVO cuando el queryset viene anotado
+        con `en_mora` (cobranza.mora.annotate_en_mora), evitando divergencias con
+        el módulo de morosos entre corridas de la tarea Celery. Si no hay
+        anotación, se conserva el campo persistido. Los becados no se alteran.
+        """
+        data = super().to_representation(instance)
+        en_mora = getattr(instance, 'en_mora', None)
+        if en_mora is not None and instance.estatus_financiero != 'becado':
+            data['estatus_financiero'] = 'mora' if en_mora else 'solvente'
+        return data
+
     @transaction.atomic
     def create(self, validated_data):
         representante_data = validated_data.pop('representante')

@@ -143,34 +143,31 @@ def actualizar_tasa_bcv_automatica(self):
 @shared_task
 def verificar_solvencia_estudiantil_automatica():
     """
-    Se ejecuta diariamente para marcar como 'En Mora' a quienes no han pagado
-    la mensualidad correspondiente al mes actual.
+    Se ejecuta diariamente para sincronizar Alumno.estatus_financiero con el
+    criterio canónico de mora (cobranza/mora.py), el MISMO que usa la lista de
+    morosos y las vistas de alumnos.
+
+    A diferencia de la versión anterior, considera tanto la deuda del mes actual
+    (pasado el día límite) como la deuda de meses anteriores, evitando que un
+    alumno con meses atrasados quede marcado 'solvente'. Los becados no se tocan.
     """
     print(f"[{datetime.now()}] Iniciando verificación de solvencia estudiantil...")
     hoy = date.today()
     User = get_user_model()
-    
+
+    from .mora import annotate_en_mora
+
     # CORRECCIÓN: Manejo de system_user para evitar fallos en bulk_create si no hay usuarios
     system_user = User.objects.filter(is_superuser=True).first()
 
     with transaction.atomic():
-        # CORRECCIÓN N+1: prefetch solo las mensualidades del mes actual
-        # así el .filter() posterior opera en Python sobre el caché,
-        # sin disparar queries adicionales por cada alumno
-        from django.db.models import Prefetch
-
-        mensualidades_mes = Mensualidad.objects.filter(
-            mes=hoy.month,
-            anio=hoy.year
+        # El criterio de mora se resuelve en la BD (sin N+1): annotate_en_mora
+        # anota `en_mora` consultando mensualidades vencidas de forma masiva.
+        # Los becados conservan su etiqueta y quedan fuera de la sincronización.
+        alumnos = annotate_en_mora(
+            Alumno.objects.exclude(estatus_financiero='becado'),
+            hoy,
         )
-
-        alumnos = Alumno.objects.prefetch_related(
-            Prefetch(
-                'mensualidades',
-                queryset=mensualidades_mes,
-                to_attr='mensualidades_mes_actual'  # caché con nombre específico
-            )
-        ).all()
 
         # Acumular logs para insertar en bulk al final
         # evita 1 INSERT por alumno que cambia de estatus
@@ -180,48 +177,36 @@ def verificar_solvencia_estudiantil_automatica():
         alumnos_a_actualizar = []
 
         for alumno in alumnos:
-            # Leer desde el caché — sin query adicional
-            mensualidad_actual = next(
-                iter(alumno.mensualidades_mes_actual), None
-            )
+            nuevo_estatus = 'mora' if alumno.en_mora else 'solvente'
+            if alumno.estatus_financiero == nuevo_estatus:
+                continue
 
-            # SEGURIDAD: dia_limite_pago puede ser None. Usamos 5 como default para evitar TypeError
-            dia_limite = getattr(alumno, 'dia_limite_pago', None) or 5
-            debe_estar_en_mora = (
-                hoy.day > dia_limite and
-                (not mensualidad_actual or not mensualidad_actual.pagado)
-            )
+            alumno.estatus_financiero = nuevo_estatus
+            alumnos_a_actualizar.append(alumno)
 
-            if debe_estar_en_mora:
-                if alumno.estatus_financiero != 'mora':
-                    alumno.estatus_financiero = 'mora'
-                    alumnos_a_actualizar.append(alumno)
-                    logs_pendientes.append(LogAuditoria(
-                        usuario=system_user,
-                        accion="CAMBIO_ESTATUS_MORA",
-                        modulo="COBRANZA",
-                        detalles=(
-                            f"Alumno {alumno.nombre} {alumno.apellido} "
-                            f"(CI: {alumno.cedula_escolar}) en MORA "
-                            f"por mes {hoy.month}/{hoy.year}."
-                        )
-                    ))
-                    print(f"[{datetime.now()}] Alumno {alumno.cedula_escolar} -> MORA")
-
-            elif mensualidad_actual and mensualidad_actual.pagado:
-                if alumno.estatus_financiero != 'solvente':
-                    alumno.estatus_financiero = 'solvente'
-                    alumnos_a_actualizar.append(alumno)
-                    logs_pendientes.append(LogAuditoria(
-                        usuario=system_user,
-                        accion="CAMBIO_ESTATUS_SOLVENTE",
-                        modulo="COBRANZA",
-                        detalles=(
-                            f"Alumno {alumno.nombre} {alumno.apellido} "
-                            f"marcado SOLVENTE."
-                        )
-                    ))
-                    print(f"[{datetime.now()}] Alumno {alumno.cedula_escolar} -> SOLVENTE")
+            if nuevo_estatus == 'mora':
+                logs_pendientes.append(LogAuditoria(
+                    usuario=system_user,
+                    accion="CAMBIO_ESTATUS_MORA",
+                    modulo="COBRANZA",
+                    detalles=(
+                        f"Alumno {alumno.nombre} {alumno.apellido} "
+                        f"(CI: {alumno.cedula_escolar}) en MORA "
+                        f"al {hoy.day}/{hoy.month}/{hoy.year}."
+                    )
+                ))
+                print(f"[{datetime.now()}] Alumno {alumno.cedula_escolar} -> MORA")
+            else:
+                logs_pendientes.append(LogAuditoria(
+                    usuario=system_user,
+                    accion="CAMBIO_ESTATUS_SOLVENTE",
+                    modulo="COBRANZA",
+                    detalles=(
+                        f"Alumno {alumno.nombre} {alumno.apellido} "
+                        f"marcado SOLVENTE."
+                    )
+                ))
+                print(f"[{datetime.now()}] Alumno {alumno.cedula_escolar} -> SOLVENTE")
 
         # MEJORA: actualización masiva de alumnos
         if alumnos_a_actualizar:
