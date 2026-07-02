@@ -1,164 +1,194 @@
-import { useState, useRef } from 'react';
-import { parse, isValid, format } from 'date-fns';
+﻿import { useState, useRef, useEffect } from "react";
+import { parse, isValid, format } from "date-fns";
+import { es } from "date-fns/locale";
 
-const SEPARATORS = /[\/\-\.\s]/g;
-const CHAR_PATTERN = /^\d{0,8}$/;
+const SmartDateInput = ({
+    value,
+    onChange,
+    placeholder = "DD/MM/AAAA",
+    className = "",
+    style = {},
+    disabled = false,
+    required = false,
+    autoFocus = false,
+    "aria-label": ariaLabel = "Campo de fecha",
+}) => {
+    const [display, setDisplay] = useState("");
+    const [error, setError] = useState("");
+    const inputRef = useRef(null);
 
-function normalizeInput(str) {
-  return str.replace(/\D/g, '');
-}
+    const formatDateDisplay = (date) => {
+        if (!date) return "";
+        try {
+            return format(date, "dd/MM/yyyy");
+        } catch {
+            return "";
+        }
+    };
 
-function formatDisplay(digits) {
-  if (!digits) return '';
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
-}
+    const parseSmartDate = (input) => {
+        if (!input || input.trim() === "") {
+            return null;
+        }
 
-function parseSmartDate(input) {
-  if (!input) return null;
+        const raw = input.trim().replace(/\s+/g, " ");
+        const formats = [
+            "dd/MM/yyyy",
+            "dd-MM-yyyy",
+            "dd.MM.yyyy",
+            "d/M/yyyy",
+            "d-M-yyyy",
+            "d.M.yyyy",
+            "ddMMyyyy",
+            "ddMMyyy",
+            "d",
+        ];
 
-  const digits = normalizeInput(input);
-  if (digits.length < 2) return null;
+        for (const fmt of formats) {
+            try {
+                const parsed = parse(raw, fmt, new Date());
+                if (isValid(parsed)) {
+                    const year = parsed.getFullYear();
+                    if (year >= 1900 && year <= 2100) {
+                        return parsed;
+                    }
+                }
+            } catch {
+                continue;
+            }
+        }
 
-  // Rellenar a la izquierda con ceros según el largo
-  let padded;
-  if (digits.length <= 2) {
-    padded = digits.padStart(2, '0');
-  } else if (digits.length <= 4) {
-    padded = digits.padStart(4, '0');
-  } else if (digits.length <= 6) {
-    padded = digits.padStart(6, '0');
-  } else {
-    padded = digits.padStart(8, '0');
-  }
+        // Parse con pivote para años de 2 dígitos
+        const parts = raw.split(/[\s\-\.\/ ]+/);
+        if (parts.length >= 2) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            let year = parts[2] ? parseInt(parts[2], 10) : new Date().getFullYear();
 
-  let d, m, y;
+            if (day > 0 && day <= 31 && month > 0 && month <= 12) {
+                if (year < 100) {
+                    year = year >= 50 ? 1900 + year : 2000 + year;
+                }
 
-  if (padded.length === 2) {
-    // Solo día
-    d = parseInt(padded, 10);
-    m = new Date().getMonth() + 1;
-    y = new Date().getFullYear();
-  } else if (padded.length === 4) {
-    // DD/MM (sin año, usa actual)
-    d = parseInt(padded.slice(0, 2), 10);
-    m = parseInt(padded.slice(2, 4), 10);
-    y = new Date().getFullYear();
-  } else if (padded.length === 6) {
-    // DD/MM/YY
-    d = parseInt(padded.slice(0, 2), 10);
-    m = parseInt(padded.slice(2, 4), 10);
-    y = parseInt(padded.slice(4, 6), 10);
-    y = y >= 50 ? 1900 + y : 2000 + y;
-  } else {
-    // DD/MM/YYYY (8+ dígitos)
-    d = parseInt(padded.slice(0, 2), 10);
-    m = parseInt(padded.slice(2, 4), 10);
-    y = parseInt(padded.slice(4, 8), 10);
-  }
+                const parsed = new Date(year, month - 1, day);
+                if (
+                    parsed.getDate() === day &&
+                    parsed.getMonth() === month - 1 &&
+                    parsed.getFullYear() === year
+                ) {
+                    return parsed;
+                }
+            }
+        }
 
-  try {
-    const date = new Date(y, m - 1, d);
-    if (date.getDate() !== d || date.getMonth() !== m - 1) return null;
-    return date;
-  } catch {
-    return null;
-  }
-}
+        // Si solo es un día, usar mes/año actuales
+        const onlyDay = parseInt(raw, 10);
+        if (!isNaN(onlyDay) && onlyDay > 0 && onlyDay <= 31) {
+            const today = new Date();
+            const parsed = new Date(today.getFullYear(), today.getMonth(), onlyDay);
+            if (parsed.getDate() === onlyDay) {
+                return parsed;
+            }
+        }
 
-function toISOString(date) {
-  if (!date) return '';
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+        return null;
+    };
 
-export default function SmartDateInput({
-  value,
-  onChange,
-  className = '',
-  style = {},
-  placeholder = 'dd/mm/aaaa',
-  name,
-  required,
-}) {
-  const [displayValue, setDisplayValue] = useState(() => {
-    if (!value) return '';
-    try {
-      const [y, m, d] = value.split('-').map(Number);
-      return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
-    } catch {
-      return '';
-    }
-  });
+    useEffect(() => {
+        if (value) {
+            setDisplay(formatDateDisplay(value));
+            setError("");
+        } else {
+            setDisplay("");
+        }
+    }, [value]);
 
-  const [error, setError] = useState(false);
-  const inputRef = useRef(null);
+    const handleChange = (e) => {
+        const input = e.target.value;
+        const formatted = input
+            .replace(/[^\d\s\-\.\/ ]/g, "")
+            .slice(0, 10);
 
-  const handleChange = (e) => {
-    const input = e.target.value;
-    const digits = normalizeInput(input);
+        setDisplay(formatted);
 
-    if (!CHAR_PATTERN.test(input) || digits.length > 8) return;
+        if (formatted.length > 0) {
+            const parsed = parseSmartDate(formatted);
+            if (parsed && isValid(parsed)) {
+                onChange(parsed);
+                setError("");
+            } else if (formatted.length >= 8) {
+                setError("Fecha inválida");
+                onChange(null);
+            }
+        } else {
+            onChange(null);
+            setError("");
+        }
+    };
 
-    setDisplayValue(formatDisplay(digits));
-    setError(false);
-  };
+    const handleBlur = () => {
+        if (display.trim() === "") {
+            setDisplay("");
+            onChange(null);
+            setError("");
+            return;
+        }
 
-  const handleBlur = () => {
-    const digits = normalizeInput(displayValue);
-    if (!digits) {
-      setDisplayValue('');
-      onChange({ target: { value: '', name } });
-      setError(false);
-      return;
-    }
+        const parsed = parseSmartDate(display);
 
-    const parsed = parseSmartDate(digits);
-    if (!parsed) {
-      setError(true);
-      return;
-    }
+        if (parsed && isValid(parsed)) {
+            const formatted = formatDateDisplay(parsed);
+            setDisplay(formatted);
+            onChange(parsed);
+            setError("");
+        } else {
+            setError("Formato: DD/MM/AAAA");
+            onChange(null);
+        }
+    };
 
-    const iso = toISOString(parsed);
-    const formatted = formatDisplay(digits);
-    setDisplayValue(formatted);
-    setError(false);
-    onChange({ target: { value: iso, name } });
-  };
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            handleBlur();
+        }
+    };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleBlur();
-    }
-  };
+    return (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+            <input
+                ref={inputRef}
+                type="text"
+                inputMode="numeric"
+                className={className}
+                style={{
+                    ...style,
+                    borderColor: error ? "#ef4444" : style.borderColor || "var(--border-md)",
+                }}
+                placeholder={placeholder}
+                value={display}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                disabled={disabled}
+                autoFocus={autoFocus}
+                aria-label={ariaLabel}
+                aria-invalid={error ? "true" : "false"}
+            />
+            {error && (
+                <span
+                    style={{
+                        marginTop: "4px",
+                        fontSize: "12px",
+                        color: "#ef4444",
+                        fontWeight: "500",
+                    }}
+                    role="alert"
+                >
+                    {error}
+                </span>
+            )}
+        </div>
+    );
+};
 
-  return (
-    <div className="relative">
-      <input
-        ref={inputRef}
-        type="text"
-        inputMode="numeric"
-        value={displayValue}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className={`${className} ${error ? 'border-red-500' : ''}`}
-        style={{
-          ...style,
-          ...(error && { borderColor: '#ef4444', color: '#dc2626' }),
-        }}
-        required={required}
-        autoComplete="off"
-      />
-      {error && (
-        <p className="text-xs mt-1" style={{ color: '#dc2626' }}>
-          Fecha inválida. Usa dd/mm/aaaa
-        </p>
-      )}
-    </div>
-  );
-}
+export default SmartDateInput;
