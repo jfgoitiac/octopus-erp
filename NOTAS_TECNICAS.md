@@ -235,3 +235,60 @@ Se decidió no usar Stripe. Los pagos en línea se manejan únicamente mediante 
 - `octopus-api/media/comprobantes/pago_*.png` quedan como archivos sueltos tras correr el test
   suite completo (`portal/tests.py`, tests de comprobantes) — no hay limpieza en `tearDown`.
   No se tocó por estar fuera de alcance de esta auditoría de performance.
+
+## [2026-07-02] Auditoría Frontend — Módulo Auditoria
+
+### Hallazgos resueltos en esta sesión
+- ✅ **Filtro de fecha no afectaba la tabla de logs** (🔴 crítico)
+  - Backend: `LogAuditoriaListView` no aceptaba `fecha_inicio`/`fecha_fin`. Ahora filtra con `date__gte` y `date__lte`.
+  - Frontend: `useAuditoria.js` no pasaba los parámetros. Ahora los envía al segundo `axios.get`.
+
+- ✅ **Campos de fecha no permitían escribir y autocorrección** (🔴 crítico)
+  - Nuevo componente `SmartDateInput` con:
+    - Máscara en vivo: `DD/MM/AAAA`
+    - Autocorrección al blur/Enter: `51296` → `05/12/1996`, `5121996` → `05/12/1996`, `05/12/96` → `05/12/1996`
+    - Soporte para separadores múltiples: `/`, `-`, `.`, espacio
+    - Validación de fecha válida (rechaza 32/13/2020, etc.)
+    - Años de 2 dígitos: pivot `>= 50` → 19xx, `< 50` → 20xx
+  - Reemplazó `DatePickerES` en Auditoria.jsx (líneas 293-307).
+
+- ✅ **Hora local vs UTC** (🟡 medio)
+  - `today` ahora calcula la fecha en hora local, no UTC, evitando off-by-one en países LatAm (ej. Venezuela).
+
+- ✅ **Accesibilidad** (🟡 bajo)
+  - Agregados `aria-label` al buscador ("Buscar en el historial de operaciones") y filtro ("Filtrar por módulo").
+
+### Hallazgos detectados pero NO resueltos (deuda técnica)
+
+**1. Falta de AbortController en useAuditoria** (🟡 medio)
+- Ubicación: `octopus-frontend/src/hooks/useAuditoria.js` líneas 18-25
+- Problema: Dos llamadas `Promise.allSettled` sin cancelación. Si el usuario cambia rápido de rango de fechas, pueden llegar respuestas fuera de orden.
+- Solución: Implementar `AbortController` y cancelar fetch anterior antes de una nueva.
+
+**2. Error incompleto cuando falla carga de logs** (🟡 medio)
+- Ubicación: `useAuditoria.js` línea 45 (toast), Auditoria.jsx línea 185 (tabla vacía)
+- Problema: Si falla el fetch de logs, solo se dispara toast. El estado `error` solo cubre `reporte`, no `logs`. Tabla muestra "No hay registros" sin distinguir real vacío vs. fallo.
+- Solución: Extender hook para retornar `logError`, mostrar error inline en tabla, agregar botón de reintentar.
+
+**3. Validación de formato de fecha en backend** (🟡 bajo)
+- Ubicación: `octopus-api/secretaria/views.py` línea 742
+- Problema: `parse_date()` puede devolver `None` silenciosamente. No hay validación de que `fecha_inicio`/`fecha_fin` sean fechas válidas.
+- Nota: Frontend ahora siempre envía formato válido (SmartDateInput lo garantiza), pero backend debería ser defensivo.
+
+**4. parseISO puede fallar con formatos no-ISO** (🟡 bajo)
+- Ubicación: `octopus-frontend/src/utils/auditoria.utils.js` línea 20
+- Problema: Si backend envía `"2026-07-02 10:30:00"` (espacio en vez de `T`), `parseISO` falla y devuelve string cruda sin formatear.
+- Verificar: Con backend real, confirmar que siempre envía ISO 8601 completo.
+
+### Cambios en 5 commits
+1. `55aef26` — fix(auditoria): filtrar logs por rango de fechas en backend
+2. `d4bcf29` — fix(auditoria): pasar fecha_inicio/fecha_fin al endpoint de logs
+3. `abb426d` — feat(componentes): agregar SmartDateInput con máscara y autocorrección de fechas
+4. `38b4cfd` — refactor(auditoria): usar SmartDateInput, fijar hora local y mejorar accesibilidad
+5. `a6355c2` — fix(SmartDateInput): corregir lógica de relleno para años de 2 dígitos
+
+### Próximas mejoras
+- Reemplazar `DatePickerES` globalmente (otros módulos aún la usan sin máscara).
+- Inyectar `AbortController` en todos los hooks de fetch (patrón coherente).
+- Error handling robusto en tablas (componente reutilizable: carga, vacío, error, reintentar).
+- Validar que `fecha_fin >= fecha_inicio` antes de enviar al backend.
