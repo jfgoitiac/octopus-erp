@@ -109,7 +109,7 @@ class Alumno(models.Model):
     contacto_emergencia_parentesco  = models.CharField(max_length=50, blank=True, default='')
 
     # Académico — grado_seccion ahora es opcional (alumno puede existir sin inscripción)
-    grado_seccion      = models.CharField(max_length=50, blank=True, null=True)  # MODIFICADO
+    grado_seccion      = models.CharField(max_length=50, blank=True, null=True, db_index=True)  # MODIFICADO
     representante      = models.ForeignKey(
         Representante, on_delete=models.CASCADE, related_name='alumnos'
     )

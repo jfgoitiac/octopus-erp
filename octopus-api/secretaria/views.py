@@ -990,7 +990,7 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = Representante.objects.annotate(
+        qs = Representante.objects.select_related('portal_user').annotate(
             cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True))
         )
         buscar = self.request.query_params.get('buscar', '').strip()

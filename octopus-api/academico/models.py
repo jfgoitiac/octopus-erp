@@ -164,7 +164,7 @@ class Asistencia(models.Model):
         on_delete=models.CASCADE,
         related_name='asistencias'
     )
-    fecha     = models.DateField()
+    fecha     = models.DateField(db_index=True)
     presente  = models.BooleanField(default=True)
     # justificada solo tiene sentido cuando presente=False
     justificada  = models.BooleanField(default=False)
