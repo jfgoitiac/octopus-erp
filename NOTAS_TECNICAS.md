@@ -140,3 +140,98 @@ Se decidió no usar Stripe. Los pagos en línea se manejan únicamente mediante 
   de prueba. Agregar throttle con DRF (ScopedRateThrottle).
 - Los jobs de cobranza Celery (tasks.py) leen ConfiguracionNotificaciones en cada ejecución.
   Si hay miles de facturas, esto genera N queries. Cachear con Django cache framework (1 min TTL).
+
+## [2026-07-01] Auditoría de performance — hallazgos pendientes (no implementados aún)
+
+### Mapeo de stack (FASE 0)
+- El directorio `backend/` (FastAPI, `main.py`/`routers/`) está **muerto**: no tiene `package.json`,
+  no aparece en `deploy.sh`, y ningún `.env` del frontend apunta a su puerto. El módulo real de
+  notificaciones que consume el frontend es `octopus-api/notificaciones/` (Django). Tampoco está
+  en uso el directorio huérfano `C:\Octopus\src\modules\notifications\` (sin build, sin
+  package.json) — parece un prototipo duplicado del mismo módulo. Ambos se pueden eliminar tras
+  confirmar con el usuario, no se tocaron en esta sesión.
+- `config/settings.py` solo define `DATABASES` con `sqlite3`, sin variante para producción.
+  `PyMySQL` en `requirements.txt` no se usa en ningún lado — deuda técnica, no un motor activo.
+  Si en producción real se usa MySQL, falta esa configuración en el repo.
+- No hay `DEFAULT_PAGINATION_CLASS` global en `REST_FRAMEWORK` (config/settings.py) — cada listado
+  pagina (o no) manualmente. Revisar caso por caso antes de asumir que un endpoint está paginado.
+
+### Pendiente de FASE 1 (diagnosticado, no arreglado)
+- **Falta de cache** pendiente en catálogos de `academico` (materias/lapsos) — no se tocó, mismo
+  patrón que el resuelto abajo se puede replicar ahí si hace falta.
+- **I/O bloqueante en request** (no se toca porque cambiar a Celery async rompería el contrato
+  actual del frontend, que espera el archivo en la misma respuesta — requiere decisión de
+  producto/UX antes de tocarlo): `cobranza/views.py` `ReciboView`, `ExportarAuditoriaExcelView`,
+  `ExportarMorososExcelView`; `secretaria/views.py` `ExportarMatriculaGradoExcelView`/`PDFView`;
+  `nomina/views.py` `ReciboNominaPDFView`. También `usuarios/views.py` `DatabaseBackupView` corre
+  `subprocess` (`manage.py dumpdata`) de forma síncrona en el request.
+
+### Resuelto en esta sesión
+- **[RESUELTO]** Índices faltantes (migraciones nuevas, sin cambiar contrato):
+  - `cobranza.Mensualidad.pagado` y `cobranza.Pago.fecha_pago` → `cobranza/migrations/0014_...`
+  - `portal.ComprobantePago.estatus` y `.referencia_bancaria` → `portal/migrations/0004_...`
+  - `secretaria.Alumno.grado_seccion` → `secretaria/migrations/0009_...`
+  - `academico.Asistencia.fecha` → `academico/migrations/0006_...`
+  - Aplicadas en `db.sqlite3` de dev. `makemigrations --check` confirma que no quedan cambios de
+    modelo pendientes. Nota: como el modelo usa `django-simple-history`, las tablas
+    `historical*` también recibieron el índice (esperado, no es un efecto colateral raro).
+- **[RESUELTO]** N+1 en `multisede/views.py::DashboardConsolidadoView` — dos problemas apilados:
+  1. La vista recalculaba en un loop aparte (líneas 289-302 originales) las mismas 4 métricas por
+     sede que `SedeResumenSerializer` ya computaba. Se eliminó el loop; los totales ahora se
+     derivan sumando `resumen_sedes` (ya calculado), sin re-consultar.
+  2. **Bug real más grave, encontrado al medir queries**: `SedeResumenSerializer._total_sedes()`
+     (`multisede/serializers.py:58-59`) usaba `self.context.get('total_sedes', Sede.objects...count())`
+     — el segundo argumento de `dict.get()` se evalúa siempre en Python, sin importar si la clave
+     ya existe, así que esa query de conteo se disparaba en cada una de las 4 llamadas por sede,
+     ignorando por completo el valor que ya se pasaba por contexto. Se cambió a un `if total is
+     None` explícito. Este bug por sí solo duplicaba el costo de todo el endpoint.
+     Combinados: de 12 queries por sede a 4. Tests en
+     `multisede/tests.py::DashboardConsolidadoNPlusOneTest`; verificado que fallan sin ambos fixes
+     (12 vs 4) y pasan con ellos.
+- **[RESUELTO]** N+1 en `secretaria/views.py::RepresentanteViewSet.get_queryset` (línea 992-995):
+  `RepresentanteCRUDSerializer.get_portal_creado/get_portal_activo` accedían a `obj.portal_user`
+  (OneToOne reverso hacia `portal.RepresentanteUser`) sin `select_related`, 1 query extra por
+  representante listado. Se agregó `.select_related('portal_user')` al queryset (JOIN único, sin
+  necesidad de `prefetch_related` porque es OneToOne). Tests nuevos en
+  `secretaria/tests.py::RepresentanteViewSetNPlusOneTest` (no existían tests en esa app antes;
+  archivo tenía solo el stub por defecto). Verificado que falla sin el fix (8 vs 4 queries con 5
+  vs 1 representante) y pasa con el fix.
+- **[RESUELTO]** Cache en catálogos/config estables:
+  - `portal/views.py` `ConfiguracionColegioPublicaView` (público, se pega en cada carga del
+    portal) — cache de 5 min + invalidación por señal `post_save` de `ConfiguracionSistema`
+    (`secretaria/signals.py`, nuevo archivo, registrado en `secretaria/apps.py::ready()`).
+  - `cobranza/views.py` `BancosListView` y `portal/views.py` `PortalBancosView` — cache de 5 min
+    + invalidación por señal `post_save`/`post_delete` de `BancoInstitucional`
+    (`cobranza/signals.py`).
+  - El cache usa el backend de Django por defecto (LocMemCache, no hay `CACHES` en settings.py).
+    En producción con varios workers gunicorn, LocMemCache es por-proceso: la invalidación por
+    señal solo limpia el proceso que recibe el `save()`; el resto se corrige solo al expirar el
+    TTL (5 min). Si se necesita invalidación instantánea entre workers, cambiar a Redis como
+    backend de cache (ya está disponible para Celery). Anotado, no implementado.
+  - Tests: `portal/tests.py::ConfiguracionColegioPublicaCacheTest`,
+    `cobranza/tests.py::BancosListViewCacheTest`. Verificado que fallan sin el fix y pasan con él.
+- **[RESUELTO]** N+1 en `multisede/views.py` `_get_pagos_de_sede` (usado por `DashboardSedeView.ultimos_pagos`):
+  faltaba `select_related('alumno')`, causando 1 query extra por cada uno de los 5 últimos pagos.
+  Se agregó al queryset base (no afecta a los otros usos que solo hacen `.aggregate()`). Tests
+  nuevos en `multisede/tests.py::DashboardSedeNPlusOneTest` (no existían tests en esa app; se creó
+  el archivo). Verificado que falla sin el fix (20 vs 16 queries con 5 vs 1 pago) y pasa con el fix.
+- **[RESUELTO]** N+1 en `portal/views.py` `PortalDashboardView` (líneas 114-183): antes hacía
+  2 queries de `Mensualidad` por cada alumno del representante en un loop Python. Ahora una sola
+  query trae todas las mensualidades pendientes de los alumnos y se agrupan en Python respetando
+  el orden cronológico (`Meta.ordering` de `Mensualidad` es `['anio','mes']`). Mismo JSON de
+  salida. Tests en `portal/tests.py::PortalDashboardNPlusOneTest` (verificado que el nº de queries
+  no escala con la cantidad de alumnos: 7 antes con 1 alumno vs. 11 con 3 alumnos en el código
+  viejo, 7 en ambos casos con el fix).
+- **[RESUELTO]** N+1 en `cobranza/serializers.py` `ComprobanteSerializer` (`get_desglose_pagos`,
+  `get_total_ves`, `get_total_usd`): cada método hacía su propia query sobre `operacion_uuid`.
+  Ahora comparten una sola consulta cacheada por operación (`_get_hermanos`). Tests en
+  `cobranza/tests.py::ComprobanteSerializerNPlusOneTest`.
+  Nota de comportamiento: el string de `total_usd`/`total_ves` ahora siempre trae 2 decimales
+  (antes, cuando SQLite perdía ceros en el `Sum()` agregado, podía devolver `"15"` en vez de
+  `"15.00"`). El frontend (`Comprobantes.jsx`) siempre hace `Number(...)` antes de mostrarlo, así
+  que no afecta la UI, pero queda anotado por si algún consumidor externo depende del string exacto.
+
+### Higiene de tests (detectado, no corregido)
+- `octopus-api/media/comprobantes/pago_*.png` quedan como archivos sueltos tras correr el test
+  suite completo (`portal/tests.py`, tests de comprobantes) — no hay limpieza en `tearDown`.
+  No se tocó por estar fuera de alcance de esta auditoría de performance.
