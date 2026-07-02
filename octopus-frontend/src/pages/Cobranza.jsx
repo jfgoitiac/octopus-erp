@@ -13,6 +13,7 @@ import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
+import DecimalInput from '../components/DecimalInput';
 
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const fmtMesAnio = (mes, anio) => {
@@ -54,29 +55,6 @@ const crearLinea = () => ({
 });
 
 const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
-
-const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocus, max }) => {
-    const handleChange = (e) => {
-        const digits = e.target.value.replace(/\D/g, '');
-        if (!digits || parseInt(digits, 10) === 0) { onChange(''); return; }
-        let num = parseInt(digits, 10) / 100;
-        if (max !== undefined && max > 0 && num > max) num = parseFloat(max.toFixed(2));
-        onChange(num.toFixed(2));
-    };
-    return (
-        <input
-            type="text"
-            inputMode="numeric"
-            className={className}
-            style={style}
-            placeholder={placeholder ?? '0.00'}
-            value={value}
-            onChange={handleChange}
-            autoFocus={autoFocus}
-        />
-    );
-};
-
 
 const Cobranza = () => {
     const { user } = useContext(AuthContext);
@@ -582,6 +560,7 @@ const Cobranza = () => {
                                                                 value={ov !== undefined ? ov : m.monto_usd}
                                                                 onChange={v => setMontoParcial(m.id, v)}
                                                                 max={parseFloat(m.monto_usd)}
+                                                                aria-label={`Monto a abonar para mensualidad ${m.mes} ${m.anio}`}
                                                             />
                                                         </div>
                                                         {parcial && (
@@ -654,6 +633,7 @@ const Cobranza = () => {
                                                                     value={ov !== undefined ? ov : m.monto_usd}
                                                                     onChange={v => setMontoParcial(m.id, v)}
                                                                     max={parseFloat(m.monto_usd)}
+                                                                    aria-label={`Monto adelanto para ${m.mes} ${m.anio}`}
                                                                 />
                                                             </div>
                                                             {parcial && (
@@ -700,7 +680,7 @@ const Cobranza = () => {
     );
 
     /* ── STEP 2: Pago ── */
-    const maxForLine = (idx) => {
+    const maxForLine = useMemo(() => (idx) => {
         if (deudaVES <= 0 || tasa <= 0) return undefined;
         const otherVES = lineas.reduce((acc, line, i) => {
             if (i === idx) return acc;
@@ -711,7 +691,7 @@ const Cobranza = () => {
         return esDivisa(lineas[idx].metodo_pago)
             ? parseFloat((maxVES / tasa).toFixed(2))
             : parseFloat(maxVES.toFixed(2));
-    };
+    }, [deudaVES, tasa, lineas]);
 
     const metodoPagoIcons = {
         transferencia:  <Building2 size={16} />,
@@ -910,6 +890,7 @@ const Cobranza = () => {
                                                 onChange={v => actualizarLinea(i, esDivisa(l.metodo_pago) ? 'monto_usd' : 'monto_ves', v)}
                                                 max={esCash(l.metodo_pago) ? undefined : maxForLine(i)}
                                                 autoFocus={i === 0}
+                                                aria-label={`Monto pago ${i + 1} en ${esDivisa(l.metodo_pago) ? 'USD' : 'Bolívares'}`}
                                             />
                                         </div>
                                         {/* Conversión automática */}
