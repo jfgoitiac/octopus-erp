@@ -4,7 +4,7 @@ import {
     ArrowUpRight, Wallet, Banknote, ListChecks, Download,
     AlertCircle, Loader2, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import DatePickerES from '../components/DatePickerES';
+import SmartDateInput from '../components/SmartDateInput';
 import { toast } from 'react-toastify';
 import { useAuditoria } from '../hooks/useAuditoria';
 import { fmt, formatLogDate, badgeClass } from '../utils/auditoria.utils';
@@ -144,6 +144,7 @@ const AuditoriaTabla = ({ logs }) => {
                             placeholder="Buscar..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
+                            aria-label="Buscar en el historial de operaciones"
                             className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none"
                             style={inputStyle}
                         />
@@ -153,6 +154,7 @@ const AuditoriaTabla = ({ logs }) => {
                         <select
                             value={filtroModulo}
                             onChange={e => setFiltroModulo(e.target.value)}
+                            aria-label="Filtrar por módulo"
                             className="pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none appearance-none"
                             style={inputStyle}
                         >
@@ -258,7 +260,13 @@ const AuditoriaTabla = ({ logs }) => {
 // ─── Página principal ──────────────────────────────────────────────────────────
 
 const Auditoria = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = (() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    })();
     const [fechaInicio, setFechaInicio] = useState(today);
     const [fechaFin, setFechaFin]       = useState(today);
 
@@ -290,7 +298,7 @@ const Auditoria = () => {
                 <div className="flex flex-wrap items-end gap-2">
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
-                        <DatePickerES
+                        <SmartDateInput
                             value={fechaInicio}
                             onChange={e => setFechaInicio(e.target.value)}
                             className="px-2 py-1.5 rounded-lg text-xs outline-none"
@@ -299,7 +307,7 @@ const Auditoria = () => {
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
-                        <DatePickerES
+                        <SmartDateInput
                             value={fechaFin}
                             onChange={e => setFechaFin(e.target.value)}
                             className="px-2 py-1.5 rounded-lg text-xs outline-none"
