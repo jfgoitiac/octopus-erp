@@ -17,6 +17,8 @@ from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
+from django.db import connection
 from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
@@ -160,6 +162,66 @@ class PortalDashboardTests(PortalTestBase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
         resp = self.client.get('/api/portal/dashboard/')
         self.assertEqual(resp.status_code, 401)
+
+
+class PortalDashboardNPlusOneTest(PortalTestBase):
+    """
+    PortalDashboardView hacía 2 queries de Mensualidad por cada alumno del
+    representante (N+1). Verifica que el nº de queries no escale con la
+    cantidad de alumnos y que el resumen financiero siga siendo correcto.
+    """
+
+    def setUp(self):
+        super().setUp()
+        hoy = date.today()
+        mes_pasado = hoy.month - 1 or 12
+        anio_mes_pasado = hoy.year if hoy.month > 1 else hoy.year - 1
+
+        # self.alumno (de PortalTestBase) ya tiene 1 mensualidad vencida (mes actual, $35).
+        # Agregamos 2 alumnos más, cada uno con 1 vencida (mes anterior) y 3 futuras.
+        self.alumno2 = crear_alumno(self.rep, 'E84000002', nombre='Ana', apellido='Gonzalez')
+        self.alumno3 = crear_alumno(self.rep, 'E84000003', nombre='Luis', apellido='Gonzalez')
+
+        for alumno in (self.alumno2, self.alumno3):
+            crear_mensualidad(alumno, mes_pasado, anio_mes_pasado, monto='40.00')
+            for i in range(1, 4):
+                mes_futuro = hoy.month + i
+                anio_futuro = hoy.year
+                if mes_futuro > 12:
+                    mes_futuro -= 12
+                    anio_futuro += 1
+                crear_mensualidad(alumno, mes_futuro, anio_futuro, monto='50.00')
+
+    def test_totales_y_agrupacion_correctos_con_varios_alumnos(self):
+        self.auth_portal()
+        resp = self.client.get('/api/portal/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+
+        # 1 vencida propia ($35) + 1 vencida por cada alumno nuevo ($40 x2) = 115
+        self.assertEqual(float(resp.data['resumen_financiero']['total_deuda_usd']), 115.0)
+        self.assertEqual(len(resp.data['resumen_financiero']['mensualidades_vencidas']), 3)
+
+        # Cada alumno nuevo tiene 3 futuras pero el endpoint limita a 2 por alumno
+        futuras = resp.data['resumen_financiero']['proximos_vencimientos']
+        self.assertEqual(len(futuras), 4)  # 2 (alumno2) + 2 (alumno3), self.alumno no tiene futuras
+        futuras_alumno2 = [f for f in futuras if f['alumno_id'] == self.alumno2.id]
+        self.assertEqual(len(futuras_alumno2), 2)
+
+    def test_query_count_no_escala_con_cantidad_de_alumnos(self):
+        """El nº de queries con 3 alumnos debe ser el mismo que con 1 solo."""
+        self.auth_portal()
+        with CaptureQueriesContext(connection) as ctx_varios:
+            resp = self.client.get('/api/portal/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+
+        # Quita los 2 alumnos extra y sus mensualidades para medir la línea base.
+        self.alumno2.delete()
+        self.alumno3.delete()
+        with CaptureQueriesContext(connection) as ctx_uno:
+            resp = self.client.get('/api/portal/dashboard/')
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(len(ctx_varios.captured_queries), len(ctx_uno.captured_queries))
 
 
 class PortalIDORTests(PortalTestBase):
@@ -430,3 +492,46 @@ class RecordatoriosCobranzaTests(PortalTestBase):
         m0.assert_not_called()
         m10.assert_not_called()
         m15.assert_not_called()
+
+
+class ConfiguracionColegioPublicaCacheTest(TestCase):
+    """
+    ConfiguracionColegioPublicaView es pública y se pega en cada carga del
+    portal. Verifica que la segunda llamada no golpee la BD, y que guardar
+    ConfiguracionSistema desde el admin invalide el cache (secretaria/signals.py).
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def test_segunda_llamada_no_toca_la_bd(self):
+        from secretaria.models import ConfiguracionSistema
+        ConfiguracionSistema.objects.create(
+            nombre_colegio='Colegio Test', color_primario='#111111',
+            fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+            fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(),
+        )
+        resp1 = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp1.data['nombre_colegio'], 'Colegio Test')
+
+        with CaptureQueriesContext(connection) as ctx:
+            resp2 = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp2.data, resp1.data)
+        self.assertEqual(len(ctx.captured_queries), 0)
+
+    def test_guardar_configuracion_invalida_el_cache(self):
+        from secretaria.models import ConfiguracionSistema
+        config = ConfiguracionSistema.objects.create(
+            nombre_colegio='Nombre Viejo', color_primario='#111111',
+            fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+            fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(),
+        )
+        resp1 = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp1.data['nombre_colegio'], 'Nombre Viejo')
+
+        config.nombre_colegio = 'Nombre Nuevo'
+        config.save(update_fields=['nombre_colegio'])
+
+        resp2 = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp2.data['nombre_colegio'], 'Nombre Nuevo')

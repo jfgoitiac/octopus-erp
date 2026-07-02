@@ -1,8 +1,8 @@
 import hashlib
 import logging
+from collections import defaultdict
 from datetime import date
 
-from django.db.models import Q
 from django.db import transaction
 
 from rest_framework.views import APIView
@@ -113,11 +113,21 @@ class PortalDashboardView(APIView):
 
     def get(self, request):
         representante = _get_representante(request)
-        alumnos = Alumno.objects.filter(
+        alumnos = list(Alumno.objects.filter(
             representante=representante, activo=True
-        )
+        ))
 
         hoy = date.today()
+
+        # Una sola query para las mensualidades pendientes de todos los alumnos
+        # (antes: 2 queries de Mensualidad por alumno, N+1 con varios hijos).
+        # El orden ('anio', 'mes') coincide con Meta.ordering de Mensualidad,
+        # así que al agrupar por alumno cada lista queda cronológica.
+        pendientes_por_alumno = defaultdict(list)
+        for m in Mensualidad.objects.filter(
+            alumno__in=alumnos, pagado=False
+        ).order_by('anio', 'mes'):
+            pendientes_por_alumno[m.alumno_id].append(m)
 
         # Calcular resumen financiero consolidado de todos los alumnos
         total_deuda_usd = 0
@@ -125,23 +135,19 @@ class PortalDashboardView(APIView):
         proximos_vencimientos = []
 
         for alumno in alumnos:
+            pendientes = pendientes_por_alumno.get(alumno.id, [])
+
             # Mensualidades no pagadas y ya vencidas (mes <= mes actual)
-            vencidas = Mensualidad.objects.filter(
-                alumno=alumno,
-                pagado=False,
-            ).filter(
-                Q(anio__lt=hoy.year) |
-                Q(anio=hoy.year, mes__lte=hoy.month)
-            )
+            vencidas = [
+                m for m in pendientes
+                if m.anio < hoy.year or (m.anio == hoy.year and m.mes <= hoy.month)
+            ]
 
             # Próximos 2 meses sin pagar
-            futuras = Mensualidad.objects.filter(
-                alumno=alumno,
-                pagado=False,
-            ).filter(
-                Q(anio__gt=hoy.year) |
-                Q(anio=hoy.year, mes__gt=hoy.month)
-            ).order_by('anio', 'mes')[:2]
+            futuras = [
+                m for m in pendientes
+                if m.anio > hoy.year or (m.anio == hoy.year and m.mes > hoy.month)
+            ][:2]
 
             vencidas_data = MensualidadSerializer(vencidas, many=True).data
             futuras_data = MensualidadSerializer(futuras, many=True).data
@@ -565,11 +571,19 @@ class PortalBancosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        from django.core.cache import cache
         from cobranza.models import BancoInstitucional
-        bancos = BancoInstitucional.objects.filter(activo=True).values(
-            'id', 'nombre', 'numero_cuenta', 'tipo'
-        )
-        return Response(list(bancos))
+        from cobranza.signals import CACHE_KEY_BANCOS_ACTIVOS
+
+        cache_key = f'{CACHE_KEY_BANCOS_ACTIVOS}_portal'
+        data = cache.get(cache_key)
+        if data is None:
+            bancos = BancoInstitucional.objects.filter(activo=True).values(
+                'id', 'nombre', 'numero_cuenta', 'tipo'
+            )
+            data = list(bancos)
+            cache.set(cache_key, data, timeout=300)
+        return Response(data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -819,21 +833,33 @@ class ConfiguracionColegioPublicaView(APIView):
     authentication_classes = []
 
     def get(self, request):
+        from django.core.cache import cache
+        from secretaria.signals import CACHE_KEY_CONFIG_COLEGIO_PUBLICA
+
+        data = cache.get(CACHE_KEY_CONFIG_COLEGIO_PUBLICA)
+        if data is not None:
+            return Response(data)
+
         from secretaria.models import ConfiguracionSistema
         config = ConfiguracionSistema.objects.first()
         if not config:
-            return Response({
+            data = {
                 'nombre_colegio': 'Mi Colegio',
                 'color_primario': '#0fa3b1',
                 'color_secundario': '#1f3864',
                 'logo_url': '',
-            })
-        return Response({
-            'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
-            'color_primario': config.color_primario or '#0fa3b1',
-            'color_secundario': config.color_secundario or '#1f3864',
-            'logo_url': config.logo_url or '',
-        })
+            }
+        else:
+            data = {
+                'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
+                'color_primario': config.color_primario or '#0fa3b1',
+                'color_secundario': config.color_secundario or '#1f3864',
+                'logo_url': config.logo_url or '',
+            }
+        # TTL de 5 min como red de seguridad además de la invalidación por
+        # señal (secretaria/signals.py), por si corre con varios workers.
+        cache.set(CACHE_KEY_CONFIG_COLEGIO_PUBLICA, data, timeout=300)
+        return Response(data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

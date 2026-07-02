@@ -78,6 +78,7 @@ class ComprobantePago(models.Model):
         max_length=100,
         blank=True,
         null=True,
+        db_index=True,
         verbose_name='Referencia / N° de transacción',
         help_text='Número de confirmación, referencia de pago móvil o N° de transferencia'
     )
@@ -93,6 +94,7 @@ class ComprobantePago(models.Model):
         max_length=15,
         choices=ESTATUS_CHOICES,
         default='pendiente',
+        db_index=True,
         verbose_name='Estatus'
     )
     observaciones = models.TextField(
