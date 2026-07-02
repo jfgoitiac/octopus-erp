@@ -56,7 +56,14 @@ class SedeResumenSerializer(serializers.ModelSerializer):
         ]
 
     def _total_sedes(self):
-        return self.context.get('total_sedes', Sede.objects.filter(activa=True).count())
+        # OJO: dict.get(key, default) evalúa el default siempre, aunque la
+        # clave ya exista — con `.get('total_sedes', Sede.objects...count())`
+        # se disparaba la query de conteo en cada llamada (4 veces por sede,
+        # ignorando por completo el valor ya calculado en el contexto).
+        total = self.context.get('total_sedes')
+        if total is None:
+            total = Sede.objects.filter(activa=True).count()
+        return total
 
     def get_alumnos_activos(self, obj):
         from .views import _get_alumnos_de_sede

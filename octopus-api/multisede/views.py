@@ -40,9 +40,11 @@ def _get_pagos_de_sede(sede, total_sedes, mes=None, anio=None):
     """
     from cobranza.models import Pago
     if total_sedes == 1:
-        qs = Pago.objects.filter(Q(sede=sede) | Q(sede__isnull=True), estatus='completado')
+        qs = Pago.objects.filter(
+            Q(sede=sede) | Q(sede__isnull=True), estatus='completado'
+        ).select_related('alumno')
     else:
-        qs = Pago.objects.filter(sede=sede, estatus='completado')
+        qs = Pago.objects.filter(sede=sede, estatus='completado').select_related('alumno')
 
     if mes and anio:
         qs = qs.filter(fecha_pago__month=mes, fecha_pago__year=anio)
@@ -266,11 +268,7 @@ class DashboardConsolidadoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from secretaria.models import Alumno
-        from cobranza.models import Mensualidad
-
         sedes = _sedes_accesibles(request.user)
-        ahora = timezone.now()
         total_sedes = sedes.filter(activa=True).count()
 
         # Pasar total_sedes al serializer via contexto
@@ -278,26 +276,13 @@ class DashboardConsolidadoView(APIView):
             sedes, many=True, context={'total_sedes': total_sedes}
         ).data
 
-        # Totales globales usando helpers que respetan registros sin sede
-        total_alumnos    = 0
-        total_deuda      = 0
-        total_pagos_mes  = 0
-        total_morosos    = 0
-
-        for sede in sedes:
-            alumnos_qs = _get_alumnos_de_sede(sede, total_sedes)
-            total_alumnos   += alumnos_qs.count()
-            total_morosos   += alumnos_qs.filter(estatus_financiero='mora').count()
-
-            deuda_sede = Mensualidad.objects.filter(
-                alumno__in=alumnos_qs, pagado=False
-            ).aggregate(total=Sum('monto_usd'))['total'] or 0
-            total_deuda += deuda_sede
-
-            pagos_sede = _get_pagos_de_sede(
-                sede, total_sedes, mes=ahora.month, anio=ahora.year
-            ).aggregate(total=Sum('monto_usd'))['total'] or 0
-            total_pagos_mes += pagos_sede
+        # Totales globales: se derivan de resumen_sedes (ya calculado arriba)
+        # en vez de volver a consultar por sede — antes se repetían las mismas
+        # 4 queries de _get_alumnos_de_sede/_get_pagos_de_sede en un loop aparte.
+        total_alumnos   = sum(s['alumnos_activos'] for s in resumen_sedes)
+        total_deuda     = sum(s['deuda_total_usd'] for s in resumen_sedes)
+        total_pagos_mes = sum(s['pagos_mes_actual'] for s in resumen_sedes)
+        total_morosos   = sum(s['morosos'] for s in resumen_sedes)
 
         nota_datos_historicos = (total_sedes == 1)
 
