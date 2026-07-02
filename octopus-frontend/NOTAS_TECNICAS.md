@@ -121,6 +121,20 @@
   es mínimo (5 s vs 60 s originales), pero para mayor corrección podría usarse un `useRef`
   con cleanup en un `useEffect` del componente raíz.
 
+- [RESUELTO 2026-07-02] `PasoAlumno.jsx` usaba `DatePickerES` (solo calendario, sin
+  autocorrección) para `fecha_nacimiento`. Se migró a `SmartDateInput`, que ahora soporta
+  además un ícono de calendario con popper de `react-datepicker` vía `withPortal` (útil si
+  en el futuro este paso se muestra dentro de un modal). El contrato de `SmartDateInput`
+  es `onChange(date: Date|null)`, distinto al patrón `onChange({target:{name,value}})` del
+  resto del formulario — se agregó un handler dedicado `handleFechaNacimiento` y un
+  `useMemo` para mantener estable la identidad del `Date` pasado como `value` (ver nota de
+  Auditoría más abajo sobre por qué esto es necesario).
+
+- [DEUDA] La cédula del representante (`PasoRepresentante.jsx:36`) dispara la búsqueda con
+  solo `cedulaInput.length > 6` como guarda, sin validar que sea numérica/formato cédula.
+  No rompe nada (el backend responde `existe:false`), pero genera peticiones innecesarias
+  si el usuario pega texto no numérico.
+
 ---
 
 ## Auth / ApiClient
@@ -247,3 +261,42 @@
   guarda (`saving`). Si el usuario hace doble clic en "Guardar configuración" puede enviar
   dos PUT simultáneos. Agregar `const [savingConfig, setSavingConfig] = useState(false)`
   y deshabilitar el botón mientras la petición está en curso.
+
+---
+
+## Auditoría del módulo Inscripciones — 2026-07-02
+
+### Bug crítico corregido (efecto colateral de la auditoría, fuera del módulo)
+
+- [RESUELTO 2026-07-02] `Auditoria.jsx` usaba `SmartDateInput` con
+  `onChange={e => setFechaInicio(e.target.value)}`, asumiendo un objeto evento. Pero
+  `SmartDateInput.onChange` siempre entregó un `Date` (o `null`) directamente, nunca un
+  evento — por lo que escribir o seleccionar una fecha en los filtros "Desde"/"Hasta" de
+  Auditoría lanzaba `TypeError: Cannot read properties of undefined (reading 'value')`.
+  Además, el `value` inicial se pasaba como string `'yyyy-MM-dd'`, pero `SmartDateInput`
+  espera un `Date` para su `format()` interno, así que el campo arrancaba en blanco en
+  vez de mostrar la fecha de hoy. Se corrigió: `fechaInicio`/`fechaFin` siguen
+  almacenándose como string ISO (lo que usa el backend), pero se derivan a `Date` con
+  `useMemo` (identidad estable) para alimentar `SmartDateInput`, y el `onChange` ahora
+  recibe el `Date` directamente. Este bug se detectó porque `SmartDateInput` es un
+  componente compartido y se tocó para agregarle el ícono de calendario (ver abajo).
+
+### Mejora aplicada
+
+- [RESUELTO 2026-07-02] `SmartDateInput.jsx` (compartido) solo permitía escribir la
+  fecha a mano, sin opción de calendario visual. Se agregó un ícono de calendario que
+  abre un `react-datepicker` en modo `withPortal` (overlay centrado, seguro dentro de
+  modales y con teclado móvil abierto). El contrato público (`value: Date|null`,
+  `onChange(date: Date|null)`) no cambió — es retrocompatible con el uso existente en
+  `Auditoria.jsx`. Se añadió también soporte de prop `id` para asociar correctamente
+  `<label htmlFor>`.
+
+### Deuda técnica anotada, no implementada
+
+- [DEUDA BAJA] `SmartDateInput` no expone `aria-describedby` hacia su mensaje de error
+  interno (`role="alert"` sin `id` referenciado desde el input). Funciona para lectores
+  de pantalla que anuncian regiones `alert`, pero no es tan robusto como el patrón
+  `aria-describedby` usado en los demás campos del wizard de Inscripciones.
+- [DEUDA BAJA] El botón de calendario de `SmartDateInput` no cierra el popper al
+  presionar Tab (solo con Escape o clic afuera). Verificar navegación por teclado
+  completa si se usa en formularios con muchos campos.

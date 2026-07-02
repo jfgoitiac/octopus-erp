@@ -1540,9 +1540,9 @@
     "semantic_hash": "991a5d5a03e1832dd2bcb0377ff91b9f"
   },
   "octopus-frontend/src/components/inscripciones/PasoAlumno.jsx": {
-    "mtime": 1783010707.9458811,
-    "ast_hash": "01a3f8d2e26a6e5140e0e8322dc14cc4",
-    "semantic_hash": ""
+    "mtime": 1782161209.6355808,
+    "ast_hash": "8116a2415dd289773c7b3f953f00e3a9",
+    "semantic_hash": "8116a2415dd289773c7b3f953f00e3a9"
   },
   "octopus-frontend/src/components/inscripciones/PasoConfiguracion.jsx": {
     "mtime": 1781378015.462557,
@@ -1920,8 +1920,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Auditoria.jsx": {
-    "mtime": 1783010651.2390091,
-    "ast_hash": "719dba169f587ec20c539b2edd14f17b",
+    "mtime": 1783007070.8262784,
+    "ast_hash": "866fb7a3ffe35c02aa84617f5950c0e7",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Boletin.jsx": {
@@ -2245,8 +2245,8 @@
     "semantic_hash": "53aa2860f052a083d440f8b3ee1ab855"
   },
   "octopus-frontend/NOTAS_TECNICAS.md": {
-    "mtime": 1783010959.236634,
-    "ast_hash": "bdc74fefdea74f4ebdfdb2deedce4976",
+    "mtime": 1782257045.4816875,
+    "ast_hash": "9de2cf8146d817d03e637a47c5fe8535",
     "semantic_hash": ""
   },
   "octopus-frontend/README.md": {
@@ -2710,8 +2710,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/SmartDateInput.jsx": {
-    "mtime": 1783010696.936908,
-    "ast_hash": "69819ebb825d81169a3ddce8233c20c2",
+    "mtime": 1783009250.053077,
+    "ast_hash": "065afe94eceec48ecdcf99737bba659a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/DecimalInput.jsx": {

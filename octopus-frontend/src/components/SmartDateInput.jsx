@@ -1,7 +1,14 @@
-﻿import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { parse, isValid, format } from "date-fns";
+import DatePicker, { registerLocale } from "react-datepicker";
+import { es } from "date-fns/locale/es";
+import { CalendarDays } from "lucide-react";
+import "react-datepicker/dist/react-datepicker.css";
+
+registerLocale("es", es);
 
 const SmartDateInput = ({
+    id,
     value,
     onChange,
     placeholder = "DD/MM/AAAA",
@@ -9,10 +16,12 @@ const SmartDateInput = ({
     style = {},
     disabled = false,
     autoFocus = false,
+    showCalendar = true,
     "aria-label": ariaLabel = "Campo de fecha",
 }) => {
     const [display, setDisplay] = useState("");
     const [error, setError] = useState("");
+    const [calendarioAbierto, setCalendarioAbierto] = useState(false);
     const inputRef = useRef(null);
 
     const formatDateDisplay = (date) => {
@@ -146,30 +155,86 @@ const SmartDateInput = ({
     const handleKeyDown = (e) => {
         if (e.key === "Enter") {
             handleBlur();
+        } else if (e.key === "Escape" && calendarioAbierto) {
+            setCalendarioAbierto(false);
         }
+    };
+
+    const handleSeleccionCalendario = (date) => {
+        setDisplay(formatDateDisplay(date));
+        onChange(date);
+        setError("");
+        setCalendarioAbierto(false);
     };
 
     return (
         <div style={{ display: "flex", flexDirection: "column" }}>
-            <input
-                ref={inputRef}
-                type="text"
-                inputMode="numeric"
-                className={className}
-                style={{
-                    ...style,
-                    borderColor: error ? "#ef4444" : style.borderColor || "var(--border-md)",
-                }}
-                placeholder={placeholder}
-                value={display}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                onKeyDown={handleKeyDown}
-                disabled={disabled}
-                autoFocus={autoFocus}
-                aria-label={ariaLabel}
-                aria-invalid={error ? "true" : "false"}
-            />
+            <div style={{ position: "relative" }}>
+                <input
+                    ref={inputRef}
+                    id={id}
+                    type="text"
+                    inputMode="numeric"
+                    className={className}
+                    style={{
+                        ...style,
+                        paddingRight: showCalendar ? "2rem" : style.paddingRight,
+                        borderColor: error ? "#ef4444" : style.borderColor || "var(--border-md)",
+                    }}
+                    placeholder={placeholder}
+                    value={display}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    onKeyDown={handleKeyDown}
+                    disabled={disabled}
+                    autoFocus={autoFocus}
+                    aria-label={ariaLabel}
+                    aria-invalid={error ? "true" : "false"}
+                />
+                {showCalendar && !disabled && (
+                    <button
+                        type="button"
+                        onClick={() => setCalendarioAbierto((o) => !o)}
+                        aria-label="Abrir calendario"
+                        tabIndex={-1}
+                        style={{
+                            position: "absolute",
+                            right: 6,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            padding: 2,
+                            lineHeight: 0,
+                            cursor: "pointer",
+                            color: "var(--ash)",
+                        }}
+                    >
+                        <CalendarDays size={16} aria-hidden="true" />
+                    </button>
+                )}
+                {showCalendar && calendarioAbierto && (
+                    <DatePicker
+                        open={calendarioAbierto}
+                        onClickOutside={() => setCalendarioAbierto(false)}
+                        onCalendarClose={() => setCalendarioAbierto(false)}
+                        selected={value instanceof Date && isValid(value) ? value : null}
+                        onChange={handleSeleccionCalendario}
+                        locale="es"
+                        dateFormat="dd/MM/yyyy"
+                        showMonthDropdown
+                        showYearDropdown
+                        dropdownMode="select"
+                        withPortal
+                        customInput={
+                            <input
+                                readOnly
+                                style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                            />
+                        }
+                    />
+                )}
+            </div>
             {error && (
                 <span
                     style={{

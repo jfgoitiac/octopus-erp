@@ -1,9 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserPlus, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-import DatePickerES from '../DatePickerES';
+import { parse, format, isValid } from 'date-fns';
+import SmartDateInput from '../SmartDateInput';
 import { fetchAlumnosPorRepresentante } from '../../api/inscripciones.service';
 import { SkeletonCard } from './SkeletonCard';
+
+function parseISODate(str) {
+    if (!str) return null;
+    const parsed = parse(str, 'yyyy-MM-dd', new Date());
+    return isValid(parsed) ? parsed : null;
+}
 
 const LABELS_ALUMNO = {
     nombre:         'Nombre',
@@ -41,6 +48,19 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         setDatos(prev => ({ ...prev, alumno: { ...prev.alumno, [name]: value } }));
         if (errores[name]) setErrores(prev => ({ ...prev, [name]: '' }));
     };
+
+    const handleFechaNacimiento = (date) => {
+        setDatos(prev => ({
+            ...prev,
+            alumno: { ...prev.alumno, fecha_nacimiento: date ? format(date, 'yyyy-MM-dd') : '' },
+        }));
+        if (errores.fecha_nacimiento) setErrores(prev => ({ ...prev, fecha_nacimiento: '' }));
+    };
+
+    const fechaNacimientoDate = useMemo(
+        () => parseISODate(datos.alumno?.fecha_nacimiento),
+        [datos.alumno?.fecha_nacimiento]
+    );
 
     const handleSelectExistente = (alu) => {
         setDatos(prev => ({ ...prev, alumno: alu, esAlumnoNuevo: false }));
@@ -188,16 +208,17 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                             >
                                 Fecha de Nacimiento <span className="text-red-500">*</span>
                             </label>
-                            <DatePickerES
-                                name="fecha_nacimiento"
+                            <SmartDateInput
+                                id="alu-fecha_nacimiento"
+                                value={fechaNacimientoDate}
+                                onChange={handleFechaNacimiento}
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                 style={{
                                     border: `0.5px solid ${errores.fecha_nacimiento ? '#f87171' : 'var(--border-md)'}`,
                                     background: 'var(--porcelain)',
                                     color: 'var(--jet)',
                                 }}
-                                value={datos.alumno.fecha_nacimiento || ''}
-                                onChange={handleNewAlumnoChange}
+                                aria-label="Fecha de nacimiento"
                             />
                             {errores.fecha_nacimiento && (
                                 <p className="text-[10px] mt-1 text-red-500">{errores.fecha_nacimiento}</p>

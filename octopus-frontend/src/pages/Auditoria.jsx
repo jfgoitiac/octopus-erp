@@ -6,8 +6,15 @@ import {
 } from 'lucide-react';
 import SmartDateInput from '../components/SmartDateInput';
 import { toast } from 'react-toastify';
+import { parse, format, isValid } from 'date-fns';
 import { useAuditoria } from '../hooks/useAuditoria';
 import { fmt, formatLogDate, badgeClass } from '../utils/auditoria.utils';
+
+function parseISODate(str) {
+    if (!str) return null;
+    const parsed = parse(str, 'yyyy-MM-dd', new Date());
+    return isValid(parsed) ? parsed : null;
+}
 
 const ITEMS_PER_PAGE = 25;
 
@@ -270,6 +277,9 @@ const Auditoria = () => {
     const [fechaInicio, setFechaInicio] = useState(today);
     const [fechaFin, setFechaFin]       = useState(today);
 
+    const fechaInicioDate = useMemo(() => parseISODate(fechaInicio), [fechaInicio]);
+    const fechaFinDate    = useMemo(() => parseISODate(fechaFin), [fechaFin]);
+
     const { loading, refreshing, exporting, reporte, logs, error, refetch, exportarExcel } =
         useAuditoria(fechaInicio, fechaFin);
 
@@ -299,19 +309,21 @@ const Auditoria = () => {
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
                         <SmartDateInput
-                            value={fechaInicio}
-                            onChange={e => setFechaInicio(e.target.value)}
+                            value={fechaInicioDate}
+                            onChange={date => setFechaInicio(date ? format(date, 'yyyy-MM-dd') : '')}
                             className="px-2 py-1.5 rounded-lg text-xs outline-none"
                             style={inputStyle}
+                            aria-label="Fecha de inicio"
                         />
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
                         <SmartDateInput
-                            value={fechaFin}
-                            onChange={e => setFechaFin(e.target.value)}
+                            value={fechaFinDate}
+                            onChange={date => setFechaFin(date ? format(date, 'yyyy-MM-dd') : '')}
                             className="px-2 py-1.5 rounded-lg text-xs outline-none"
                             style={inputStyle}
+                            aria-label="Fecha de fin"
                         />
                     </div>
                     <button
