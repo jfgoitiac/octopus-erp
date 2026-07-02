@@ -110,7 +110,7 @@ class Pago(models.Model):
         editable=False,
         help_text="Equivalente contable en Bolívares"
     )
-    fecha_pago = models.DateTimeField(auto_now_add=True)
+    fecha_pago = models.DateTimeField(auto_now_add=True, db_index=True)
     referencia = models.CharField(max_length=100, blank=True, null=True)
     observaciones = models.TextField(blank=True, null=True)
     representante_documento = models.CharField(max_length=30, blank=True, null=True)
@@ -275,7 +275,7 @@ class Mensualidad(models.Model):
     mes = models.PositiveSmallIntegerField(choices=MESES)
     anio = models.PositiveSmallIntegerField(default=date.today().year)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
-    pagado = models.BooleanField(default=False)
+    pagado = models.BooleanField(default=False, db_index=True)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='mensualidades_pagadas')
     # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores

@@ -325,8 +325,17 @@ class BancosListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        bancos = BancoInstitucional.objects.filter(activo=True).order_by('nombre')
-        return Response(BancoInstitucionalSerializer(bancos, many=True).data)
+        from django.core.cache import cache
+        from .signals import CACHE_KEY_BANCOS_ACTIVOS
+
+        data = cache.get(CACHE_KEY_BANCOS_ACTIVOS)
+        if data is None:
+            bancos = BancoInstitucional.objects.filter(activo=True).order_by('nombre')
+            data = BancoInstitucionalSerializer(bancos, many=True).data
+            # TTL de 5 min como red de seguridad además de la invalidación por
+            # señal (cobranza/signals.py), por si corre con varios workers.
+            cache.set(CACHE_KEY_BANCOS_ACTIVOS, data, timeout=300)
+        return Response(data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

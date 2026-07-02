@@ -1,8 +1,21 @@
-from django.db.models.signals import post_save
+from django.core.cache import cache
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import Pago
+from .models import BancoInstitucional, Pago
 from secretaria.services import NotificadorService
 from usuarios.models import LogAuditoria
+
+CACHE_KEY_BANCOS_ACTIVOS = 'cobranza_bancos_activos'
+
+
+@receiver(post_save, sender=BancoInstitucional)
+@receiver(post_delete, sender=BancoInstitucional)
+def invalidar_cache_bancos(sender, instance, **kwargs):
+    """Invalida el cache de bancos activos (BancosListView / PortalBancosView)
+    al crear, editar, (des)activar o eliminar un banco desde el panel admin."""
+    cache.delete(CACHE_KEY_BANCOS_ACTIVOS)
+    cache.delete(f'{CACHE_KEY_BANCOS_ACTIVOS}_portal')
+
 
 @receiver(post_save, sender=Pago)
 def procesar_notificacion_pago(sender, instance, created, **kwargs):

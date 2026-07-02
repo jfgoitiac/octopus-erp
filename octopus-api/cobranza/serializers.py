@@ -86,20 +86,31 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             pass
         return obj.representante_nombre or ''
 
+    def _get_hermanos(self, obj):
+        """Los 'hermanos' (pagos de la misma operacion_uuid) se consultan una sola
+        vez por operación y se reusan entre get_desglose_pagos/get_total_ves/
+        get_total_usd — antes cada uno lanzaba su propia query (N+1 con hasta
+        100 filas por página en ConsultaComprobantesView)."""
+        cache = self.context.setdefault('_hermanos_cache', {})
+        key = obj.operacion_uuid
+        if key not in cache:
+            cache[key] = list(
+                Pago.objects.filter(operacion_uuid=key)
+                .select_related('banco_receptor')
+                .order_by('id')
+            )
+        return cache[key]
+
     def get_desglose_pagos(self, obj):
-        hermanos = Pago.objects.filter(
-            operacion_uuid=obj.operacion_uuid
-        ).select_related('banco_receptor').order_by('id')
+        hermanos = self._get_hermanos(obj)
         return DesglosePagoSerializer(hermanos, many=True).data
 
     def get_total_ves(self, obj):
-        from django.db.models import Sum
-        total = Pago.objects.filter(operacion_uuid=obj.operacion_uuid).aggregate(t=Sum('monto_ves'))['t']
+        total = sum((h.monto_ves for h in self._get_hermanos(obj)), Decimal('0'))
         return str(total or obj.monto_ves)
 
     def get_total_usd(self, obj):
-        from django.db.models import Sum
-        total = Pago.objects.filter(operacion_uuid=obj.operacion_uuid).aggregate(t=Sum('monto_usd'))['t']
+        total = sum((h.monto_usd for h in self._get_hermanos(obj)), Decimal('0'))
         return str(total or obj.monto_usd)
 
     class Meta:
