@@ -21,25 +21,41 @@ function parseSmartDate(input) {
   const digits = normalizeInput(input);
   if (digits.length < 2) return null;
 
+  // Rellenar a la izquierda con ceros según el largo
+  let padded;
+  if (digits.length <= 2) {
+    padded = digits.padStart(2, '0');
+  } else if (digits.length <= 4) {
+    padded = digits.padStart(4, '0');
+  } else if (digits.length <= 6) {
+    padded = digits.padStart(6, '0');
+  } else {
+    padded = digits.padStart(8, '0');
+  }
+
   let d, m, y;
 
-  if (digits.length === 2) {
-    d = parseInt(digits, 10);
+  if (padded.length === 2) {
+    // Solo día
+    d = parseInt(padded, 10);
     m = new Date().getMonth() + 1;
     y = new Date().getFullYear();
-  } else if (digits.length === 4) {
-    d = parseInt(digits.slice(0, 2), 10);
-    m = parseInt(digits.slice(2, 4), 10);
+  } else if (padded.length === 4) {
+    // DD/MM (sin año, usa actual)
+    d = parseInt(padded.slice(0, 2), 10);
+    m = parseInt(padded.slice(2, 4), 10);
     y = new Date().getFullYear();
-  } else if (digits.length === 6) {
-    d = parseInt(digits.slice(0, 2), 10);
-    m = parseInt(digits.slice(2, 4), 10);
-    y = parseInt(digits.slice(4, 6), 10);
+  } else if (padded.length === 6) {
+    // DD/MM/YY
+    d = parseInt(padded.slice(0, 2), 10);
+    m = parseInt(padded.slice(2, 4), 10);
+    y = parseInt(padded.slice(4, 6), 10);
     y = y >= 50 ? 1900 + y : 2000 + y;
   } else {
-    d = parseInt(digits.slice(0, 2), 10);
-    m = parseInt(digits.slice(2, 4), 10);
-    y = parseInt(digits.slice(4, 8), 10);
+    // DD/MM/YYYY (8+ dígitos)
+    d = parseInt(padded.slice(0, 2), 10);
+    m = parseInt(padded.slice(2, 4), 10);
+    y = parseInt(padded.slice(4, 8), 10);
   }
 
   try {
