@@ -19,7 +19,9 @@ export function useAuditoria(fechaInicio, fechaFin) {
             axiosInstance.get('cobranza/auditoria-diaria/', {
                 params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
             }),
-            axiosInstance.get('secretaria/auditoria/'),
+            axiosInstance.get('secretaria/auditoria/', {
+                params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
+            }),
         ]);
 
         if (resStats.status === 'fulfilled') {
