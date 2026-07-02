@@ -737,7 +737,17 @@ class LogAuditoriaListView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
 
     def get(self, request):
-        logs = LogAuditoria.objects.select_related('usuario').all().order_by('-id')[:200]
+        from django.utils.dateparse import parse_date
+        logs = LogAuditoria.objects.select_related('usuario').all().order_by('-id')
+
+        fecha_inicio = request.query_params.get('fecha_inicio')
+        fecha_fin = request.query_params.get('fecha_fin')
+        if fecha_inicio:
+            logs = logs.filter(fecha_hora__date__gte=parse_date(fecha_inicio))
+        if fecha_fin:
+            logs = logs.filter(fecha_hora__date__lte=parse_date(fecha_fin))
+
+        logs = logs[:200]
         serializer = LogAuditoriaSerializer(logs, many=True)
         return Response(serializer.data)
 
