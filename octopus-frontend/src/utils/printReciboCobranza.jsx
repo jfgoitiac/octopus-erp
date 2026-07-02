@@ -1,13 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-
-const fmtN = n =>
-  isNaN(n) || n === '' || n === null
-    ? ''
-    : Number(n).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const fmtZ = n =>
-  isNaN(n) ? '0,00' : Number(n).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { fmtN, fmtZ } from './formato';
 
 const NAVY   = '#003366';
 const RED    = '#CC0000';

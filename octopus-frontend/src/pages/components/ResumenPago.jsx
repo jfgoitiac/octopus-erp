@@ -1,6 +1,5 @@
 import { Save, Loader2 } from 'lucide-react';
-
-const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
+import { fmt } from '../../utils/formato';
 
 const ResumenPago = ({
     nombreAlumno,
@@ -24,7 +23,10 @@ const ResumenPago = ({
     handleSubmit,
 }) => {
     return (
-        <div className="lg:col-span-2 space-y-4 self-start sticky" style={{ top: '66px' }}>
+        <div
+            className="lg:col-span-2 space-y-4 self-start sticky"
+            style={{ top: '66px', maxHeight: 'calc(100vh - 82px)', overflowY: 'auto' }}
+        >
             <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                 <p className="text-[11px] uppercase tracking-widest font-semibold mb-4 pb-2"
                     style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border)' }}>

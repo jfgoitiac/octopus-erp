@@ -1,7 +1,6 @@
 import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
-
-const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
+import { fmt } from '../../utils/formato';
 
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
@@ -195,7 +194,7 @@ const CobranzaStep2 = ({
                                 {/* Método de pago */}
                                 <div className="mb-3">
                                     <label className="block text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Método de pago</label>
-                                    <div className="grid grid-cols-3 gap-1.5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                                         {METODOS_PAGO.map(m => {
                                             const bloqueado = requiereDivisas && !esDivisa(m.value);
                                             return (

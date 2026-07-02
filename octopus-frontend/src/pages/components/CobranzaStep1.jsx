@@ -1,7 +1,6 @@
 import { User, Loader2, CheckCircle2, DollarSign, ArrowRight } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
-
-const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
+import { fmt } from '../../utils/formato';
 
 const CobranzaStep1 = ({
     cedula,
@@ -40,8 +39,11 @@ const CobranzaStep1 = ({
                     <input
                         type="tel"
                         inputMode="numeric"
-                        className="w-full pl-9 pr-8 py-2 rounded-lg outline-none"
-                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                        className="w-full pl-9 pr-8 py-2 rounded-lg outline-none transition-colors"
+                        style={{
+                            border: loadingBusqueda ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
+                            background: '#fff', color: 'var(--jet)', fontSize: '16px',
+                        }}
                         placeholder="Ej: 12345678"
                         value={cedula}
                         onChange={e => buscarAlumno(e.target.value)}

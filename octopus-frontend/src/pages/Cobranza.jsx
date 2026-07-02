@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
 import { construirItemsRecibo } from '../utils/construirItemsRecibo';
+import { fmt } from '../utils/formato';
 import CobranzaStep1 from './components/CobranzaStep1';
 import CobranzaStep2 from './components/CobranzaStep2';
 import ResumenPago from './components/ResumenPago';
@@ -46,8 +47,6 @@ const crearLinea = () => ({
     banco_receptor_id: '',
     referencia: '',
 });
-
-const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const metodoPagoIcons = {
     transferencia:  <Building2 size={16} />,
@@ -372,7 +371,7 @@ const Cobranza = () => {
             const data = err.response?.data;
             const msg = data?.error || data?.detail
                 || (typeof data === 'object' ? Object.values(data).flat().join(' ') : null)
-                || 'Error al registrar el pago.';
+                || (!err.response ? 'Sin conexión con el servidor. Verifica tu internet e intenta de nuevo.' : 'Error al registrar el pago.');
             toast.error(msg);
         } finally {
             setLoading(false);
