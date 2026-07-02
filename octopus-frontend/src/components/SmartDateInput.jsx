@@ -1,6 +1,5 @@
-﻿import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef } from "react";
 import { parse, isValid, format } from "date-fns";
-import { es } from "date-fns/locale";
 
 const SmartDateInput = ({
     value,
@@ -9,7 +8,6 @@ const SmartDateInput = ({
     className = "",
     style = {},
     disabled = false,
-    required = false,
     autoFocus = false,
     "aria-label": ariaLabel = "Campo de fecha",
 }) => {
@@ -59,7 +57,7 @@ const SmartDateInput = ({
         }
 
         // Parse con pivote para años de 2 dígitos
-        const parts = raw.split(/[\s\-\.\/ ]+/);
+        const parts = raw.split(/[\s\-./]+/);
         if (parts.length >= 2) {
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10);
@@ -94,19 +92,17 @@ const SmartDateInput = ({
         return null;
     };
 
-    useEffect(() => {
-        if (value) {
-            setDisplay(formatDateDisplay(value));
-            setError("");
-        } else {
-            setDisplay("");
-        }
-    }, [value]);
+    const [prevValue, setPrevValue] = useState(value);
+    if (value !== prevValue) {
+        setPrevValue(value);
+        setDisplay(value ? formatDateDisplay(value) : "");
+        setError("");
+    }
 
     const handleChange = (e) => {
         const input = e.target.value;
         const formatted = input
-            .replace(/[^\d\s\-\.\/ ]/g, "")
+            .replace(/[^\d\s\-./]/g, "")
             .slice(0, 10);
 
         setDisplay(formatted);

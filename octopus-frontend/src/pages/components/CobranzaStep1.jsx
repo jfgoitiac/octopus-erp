@@ -1,13 +1,6 @@
 import { User, Loader2, CheckCircle2, DollarSign, ArrowRight } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
 
-const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const fmtMesAnio = (mes, anio) => {
-    const n = parseInt(mes);
-    const nombre = !isNaN(n) && n >= 1 && n <= 12 ? MESES_ES[n - 1] : String(mes);
-    return `${nombre} ${anio}`;
-};
-
 const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const CobranzaStep1 = ({
@@ -35,10 +28,6 @@ const CobranzaStep1 = ({
     setStep,
     haySeleccion,
 }) => {
-    const esDivisa = (m) => ['zelle', 'efectivo'].includes(m);
-    const esBolivares = (m) => ['transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves'].includes(m);
-    const esCash = (m) => ['efectivo', 'efectivo_ves'].includes(m);
-
     return (
         <div className={`max-w-2xl mx-auto anim-fade-up ${!representanteNombre ? 'py-16' : 'py-4'}`}>
             {/* Search box */}

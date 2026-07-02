@@ -2,25 +2,16 @@ import { Save, Loader2 } from 'lucide-react';
 
 const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
 
-const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const fmtMesAnio = (mes, anio) => {
-    const n = parseInt(mes);
-    const nombre = !isNaN(n) && n >= 1 && n <= 12 ? MESES_ES[n - 1] : String(mes);
-    return `${nombre} ${anio}`;
-};
-
 const ResumenPago = ({
     nombreAlumno,
     cedula,
     selectedMens,
     selectedFuturas,
-    selectedCuotas,
     mensualidades,
     mensualidadesFuturas,
     montosParciales,
     confirming,
     deudaVES,
-    pagoVES,
     vueltoVES,
     vueltoUSD,
     pct,

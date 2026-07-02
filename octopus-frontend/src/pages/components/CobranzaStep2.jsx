@@ -1,4 +1,4 @@
-import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw, Building2, Smartphone, CreditCard, Banknote } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
 
 const fmt = (v, d = 2) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -29,16 +29,11 @@ const requiereBanco = (m) => m && !['efectivo', 'efectivo_ves'].includes(m);
 const CobranzaStep2 = ({
     nombreAlumno,
     cedula,
-    step,
     setStep,
     concepto,
     setConcepto,
     selectedMens,
     mensualidades,
-    montosParciales,
-    selectedFuturas,
-    mensualidadesFuturas,
-    selectedCuotas,
     requiereDivisas,
     hayAdelantos,
     todosDivisas,
@@ -53,14 +48,8 @@ const CobranzaStep2 = ({
     deudaVES,
     maxForLine,
     metodoPagoIcons,
+    children,
 }) => {
-    const fmtMesAnio = (mes, anio) => {
-        const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const n = parseInt(mes);
-        const nombre = !isNaN(n) && n >= 1 && n <= 12 ? MESES_ES[n - 1] : String(mes);
-        return `${nombre} ${anio}`;
-    };
-
     const crearLinea = () => ({
         id: Date.now() + Math.random(),
         metodo_pago: 'transferencia',
@@ -317,6 +306,9 @@ const CobranzaStep2 = ({
                         ))}
                     </div>
                 </div>
+
+                {/* ── Resumen (2/5) ── */}
+                {children}
             </div>
         </div>
     );
