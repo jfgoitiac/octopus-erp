@@ -93,3 +93,39 @@ exitosos. No se ejecutó prueba end-to-end en navegador por falta de backend
 corriendo con datos de prueba en este entorno.
 
 Actualización: 2026-07-02
+
+---
+
+# BACKEND — GENERACIÓN AUTOMÁTICA DE MENSUALIDADES (2026-07-02)
+
+Deuda técnica detectada al implementar la generación automática de mensualidades
+(cobranza/services.py + tarea mensual de Celery + comando de backfill). Solo se
+anota, no se tocó:
+
+1. **`GenerarAnualidadView` usa año calendario, no período escolar** —
+   genera Ene–Dic (incluye agosto/vacaciones), mientras el resto del sistema
+   (búsqueda de cobranza, servicio nuevo) trabaja con el período Sep–Jul.
+   Conviven dos definiciones de "año". Migrar la vista al servicio
+   `cobranza.services.generar_mensualidades` cuando se pueda validar el impacto
+   en el frontend que la consume.
+
+2. **Doble vía de notificaciones de cobranza** — la señal `post_save` de
+   `Mensualidad` programa avisos con countdown (días 0/5/10/15 desde la creación)
+   y además la tarea diaria `revisar_y_programar_notificaciones_pendientes`
+   dispara por días desde el vencimiento real. Una mensualidad creada
+   individualmente (get_or_create en `GenerarAnualidadView`) puede notificar dos
+   veces. El servicio nuevo usa `bulk_create` (sin señales) y deja las
+   notificaciones solo a la tarea diaria, que es el criterio correcto.
+
+3. **`Inscripcion.save()` no valida cuota de inscripción impaga** — el bloqueo
+   por deuda de inscripción vive en `InscripcionSerializer` (cubre los dos
+   endpoints de la API), pero una inscripción creada por admin de Django o
+   shell lo esquiva. Considerar mover la validación al modelo.
+
+4. **5 tests de `portal` fallan de forma preexistente** (verificado contra main
+   sin cambios): 2 de comprobantes ahora exigen número de referencia
+   (`"Debe ingresar el número de referencia"`) y 3 de Stripe webhook. Los tests
+   quedaron desactualizados respecto a validaciones agregadas después.
+
+5. **Los tests de portal dejan archivos basura** en `media/comprobantes/` al
+   correr (PNGs de prueba). Usar un `MEDIA_ROOT` temporal en los tests.
