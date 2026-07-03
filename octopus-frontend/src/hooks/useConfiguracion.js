@@ -62,8 +62,12 @@ export function useConfiguracion() {
             const DATE_FIELDS = ['fecha_inicio_inscripciones', 'fecha_fin_inscripciones', 'fecha_inicio_ano_escolar', 'fecha_fin_ano_escolar'];
             const payload = { ...config };
             DATE_FIELDS.forEach(f => { if (!payload[f]) delete payload[f]; });
-            await axiosInstance.post('secretaria/configuracion/', payload);
+            const res = await axiosInstance.post('secretaria/configuracion/', payload);
             toast.success("Configuración global actualizada con éxito.");
+            const actualizados = res?.data?.alumnos_dia_limite_actualizados;
+            if (actualizados > 0) {
+                toast.info(`Día límite de pago aplicado a ${actualizados} alumno${actualizados === 1 ? '' : 's'}.`);
+            }
             fetchConfig();
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || "No se pudo guardar la configuración.";
