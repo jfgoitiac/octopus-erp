@@ -230,16 +230,16 @@ class BuscarAlumnoCobranzaView(APIView):
 
         school_months = [(m, year1) for m in range(9, 13)] + [(m, year2) for m in range(1, 8)]
 
-        # Auto-crear meses futuros del año escolar que no existan aún
-        param = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()
-        monto_defecto = Decimal(param.valor) if param and param.valor else Decimal('35.00')
-        for mes_num, anio in school_months:
-            is_future = anio > hoy.year or (anio == hoy.year and mes_num > hoy.month)
-            if is_future:
-                Mensualidad.objects.get_or_create(
-                    alumno=alumno, mes=mes_num, anio=anio,
-                    defaults={'monto_usd': monto_defecto, 'pagado': False},
-                )
+        # Auto-crear los meses del año escolar que falten, mes actual incluido
+        # (antes solo se creaban futuros y el mes en curso nunca generaba deuda).
+        # Los becados totales no cargan mensualidades.
+        if alumno.estatus_financiero != 'becado':
+            from .services import generar_mensualidades
+            meses_pendientes = [
+                (m, a) for (m, a) in school_months
+                if (a, m) >= (hoy.year, hoy.month)
+            ]
+            generar_mensualidades([alumno], meses_pendientes)
 
         def to_list(qs):
             return [
