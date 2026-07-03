@@ -84,7 +84,6 @@ class ConfiguracionSistemaView(APIView):
     def post(self, request):
         config = ConfiguracionSistema.objects.first()
         estaba_abierto = config.inscripciones_abiertas if config else False
-        dia_limite_anterior = config.dia_limite_pago if config else None
 
         if config:
             serializer = ConfiguracionSistemaSerializer(config, data=request.data, partial=True)
@@ -97,8 +96,10 @@ class ConfiguracionSistemaView(APIView):
         # Propagar el día límite de pago a los alumnos: la mora y las
         # notificaciones leen Alumno.dia_limite_pago, así que sin esta
         # sincronización el valor de Configuración no tendría efecto real.
+        # Se sincroniza en CADA guardado (no solo al cambiar el valor) para
+        # corregir alumnos desviados; el exclude lo hace idempotente y barato.
         alumnos_actualizados = 0
-        if config.dia_limite_pago and config.dia_limite_pago != dia_limite_anterior:
+        if config.dia_limite_pago:
             alumnos_actualizados = Alumno.todos.exclude(
                 dia_limite_pago=config.dia_limite_pago
             ).update(dia_limite_pago=config.dia_limite_pago)

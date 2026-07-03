@@ -310,9 +310,18 @@ class DiaLimitePagoGlobalTest(GeneracionMensualidadesBase):
         # También los retirados, para que al reactivarlos queden consistentes
         self.assertEqual(retirado.dia_limite_pago, 1)
 
-    def test_sin_cambio_no_toca_alumnos(self):
+    def test_guardar_sin_cambio_sincroniza_alumnos_desviados(self):
+        """Cada guardado sincroniza, aunque el valor de config no cambie:
+        corrige alumnos que quedaron con otro día límite (data vieja)."""
+        # self.alumno tiene dia_limite=1 (helper); config sigue en 5
         resp = self._post_config({'dia_limite_pago': 5})
         self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data.get('alumnos_dia_limite_actualizados'), 1)
+        self.alumno.refresh_from_db()
+        self.assertEqual(self.alumno.dia_limite_pago, 5)
+
+        # Segundo guardado idéntico: ya no hay nada que corregir
+        resp = self._post_config({'dia_limite_pago': 5})
         self.assertNotIn('alumnos_dia_limite_actualizados', resp.data)
 
     def test_alumno_nuevo_toma_dia_limite_de_configuracion(self):
