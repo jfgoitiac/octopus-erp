@@ -23,6 +23,7 @@ const SmartDateInput = ({
     const [error, setError] = useState("");
     const [calendarioAbierto, setCalendarioAbierto] = useState(false);
     const inputRef = useRef(null);
+    const datePickerRef = useRef(null);
 
     const formatDateDisplay = (date) => {
         if (!date) return "";
@@ -33,23 +34,46 @@ const SmartDateInput = ({
         }
     };
 
+    // Formatos completos, sin ambigüedad — seguros para parsear en cada tecla.
+    const STRICT_FORMATS = [
+        "dd/MM/yyyy",
+        "dd-MM-yyyy",
+        "dd.MM.yyyy",
+        "ddMMyyyy",
+    ];
+
+    const parseStrictDate = (input) => {
+        if (!input || input.trim() === "") return null;
+        const raw = input.trim().replace(/\s+/g, " ");
+
+        for (const fmt of STRICT_FORMATS) {
+            try {
+                const parsed = parse(raw, fmt, new Date());
+                if (isValid(parsed)) {
+                    const year = parsed.getFullYear();
+                    if (year >= 1900 && year <= 2100) {
+                        return parsed;
+                    }
+                }
+            } catch {
+                continue;
+            }
+        }
+        return null;
+    };
+
+    // Heurísticas laxas (día solo, año de 2 dígitos) — solo al confirmar (blur/Enter),
+    // nunca en cada tecla, porque interpretan entradas parciales como fechas completas.
     const parseSmartDate = (input) => {
         if (!input || input.trim() === "") {
             return null;
         }
 
+        const strict = parseStrictDate(input);
+        if (strict) return strict;
+
         const raw = input.trim().replace(/\s+/g, " ");
-        const formats = [
-            "dd/MM/yyyy",
-            "dd-MM-yyyy",
-            "dd.MM.yyyy",
-            "d/M/yyyy",
-            "d-M-yyyy",
-            "d.M.yyyy",
-            "ddMMyyyy",
-            "ddMMyyy",
-            "d",
-        ];
+        const formats = ["d/M/yyyy", "d-M-yyyy", "d.M.yyyy", "ddMMyyy"];
 
         for (const fmt of formats) {
             try {
@@ -101,9 +125,12 @@ const SmartDateInput = ({
         return null;
     };
 
-    const [prevValue, setPrevValue] = useState(value);
-    if (value !== prevValue) {
-        setPrevValue(value);
+    const [prevValueTime, setPrevValueTime] = useState(
+        value instanceof Date && isValid(value) ? value.getTime() : null
+    );
+    const valueTime = value instanceof Date && isValid(value) ? value.getTime() : null;
+    if (valueTime !== prevValueTime) {
+        setPrevValueTime(valueTime);
         setDisplay(value ? formatDateDisplay(value) : "");
         setError("");
     }
@@ -116,18 +143,22 @@ const SmartDateInput = ({
 
         setDisplay(formatted);
 
-        if (formatted.length > 0) {
-            const parsed = parseSmartDate(formatted);
-            if (parsed && isValid(parsed)) {
-                onChange(parsed);
-                setError("");
-            } else if (formatted.length >= 8) {
-                setError("Fecha inválida");
-                onChange(null);
-            }
-        } else {
+        if (formatted.length === 0) {
             onChange(null);
             setError("");
+            return;
+        }
+
+        // Solo se confirma la fecha mientras se escribe si el formato ya está
+        // completo y es inequívoco (ver parseStrictDate). Entradas parciales
+        // (ej. "1", "15") no disparan onChange — se resuelven en handleBlur.
+        const parsed = parseStrictDate(formatted);
+        if (parsed && isValid(parsed)) {
+            onChange(parsed);
+            setError("");
+        } else if (formatted.length >= 10) {
+            setError("Fecha inválida");
+            onChange(null);
         }
     };
 
@@ -156,7 +187,7 @@ const SmartDateInput = ({
         if (e.key === "Enter") {
             handleBlur();
         } else if (e.key === "Escape" && calendarioAbierto) {
-            setCalendarioAbierto(false);
+            datePickerRef.current?.setOpen(false);
         }
     };
 
@@ -194,7 +225,13 @@ const SmartDateInput = ({
                 {showCalendar && !disabled && (
                     <button
                         type="button"
-                        onClick={() => setCalendarioAbierto((o) => !o)}
+                        onClick={() => {
+                            // withPortal ignora la prop `open` para decidir si renderiza
+                            // el calendario (usa su estado interno) — hay que abrirlo/
+                            // cerrarlo a través del ref imperativo, no de esa prop.
+                            const dp = datePickerRef.current;
+                            if (dp) dp.setOpen(!calendarioAbierto);
+                        }}
                         aria-label="Abrir calendario"
                         tabIndex={-1}
                         style={{
@@ -213,11 +250,12 @@ const SmartDateInput = ({
                         <CalendarDays size={16} aria-hidden="true" />
                     </button>
                 )}
-                {showCalendar && calendarioAbierto && (
+                {showCalendar && (
                     <DatePicker
-                        open={calendarioAbierto}
+                        ref={datePickerRef}
                         onClickOutside={() => setCalendarioAbierto(false)}
                         onCalendarClose={() => setCalendarioAbierto(false)}
+                        onCalendarOpen={() => setCalendarioAbierto(true)}
                         selected={value instanceof Date && isValid(value) ? value : null}
                         onChange={handleSeleccionCalendario}
                         locale="es"

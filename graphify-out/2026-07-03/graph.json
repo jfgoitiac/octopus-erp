@@ -3764,7 +3764,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_filters",
-      "community": 88,
+      "community": 200,
       "norm_label": "filters.py"
     },
     {
@@ -3784,7 +3784,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "cobranza_filters_meta",
-      "community": 88,
+      "community": 200,
       "norm_label": "meta"
     },
     {
@@ -4204,7 +4204,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "cobranza_models_parametroglobal",
-      "community": 17,
+      "community": 15,
       "norm_label": "parametroglobal"
     },
     {
@@ -4214,7 +4214,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "cobranza_models_parametroglobal_str",
-      "community": 17,
+      "community": 15,
       "norm_label": ".__str__()"
     },
     {
@@ -4344,7 +4344,7 @@
       "source_location": "L267",
       "_origin": "ast",
       "id": "cobranza_models_mensualidad",
-      "community": 88,
+      "community": 200,
       "norm_label": "mensualidad"
     },
     {
@@ -4354,7 +4354,7 @@
       "source_location": "L288",
       "_origin": "ast",
       "id": "cobranza_models_mensualidad_str",
-      "community": 88,
+      "community": 200,
       "norm_label": ".__str__()"
     },
     {
@@ -4384,7 +4384,7 @@
       "source_location": "L308",
       "_origin": "ast",
       "id": "cobranza_models_cierrecaja",
-      "community": 15,
+      "community": 53,
       "norm_label": "cierrecaja"
     },
     {
@@ -4404,7 +4404,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "cobranza_models_rationale_13",
-      "community": 17,
+      "community": 15,
       "norm_label": "almacena configuraciones globales como el monto base de mensualidad"
     },
     {
@@ -4444,7 +4444,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_mora",
-      "community": 17,
+      "community": 30,
       "norm_label": "mora.py"
     },
     {
@@ -4454,7 +4454,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "cobranza_mora_hoy",
-      "community": 17,
+      "community": 30,
       "norm_label": "_hoy()"
     },
     {
@@ -4464,7 +4464,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "cobranza_mora_condicion_mora",
-      "community": 17,
+      "community": 30,
       "norm_label": "_condicion_mora()"
     },
     {
@@ -4474,7 +4474,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "cobranza_mora_annotate_en_mora",
-      "community": 17,
+      "community": 30,
       "norm_label": "annotate_en_mora()"
     },
     {
@@ -4484,7 +4484,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "cobranza_mora_annotate_mora_detalle",
-      "community": 17,
+      "community": 30,
       "norm_label": "annotate_mora_detalle()"
     },
     {
@@ -4494,18 +4494,8 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "cobranza_mora_estatus_financiero_actual",
-      "community": 17,
+      "community": 3,
       "norm_label": "estatus_financiero_actual()"
-    },
-    {
-      "label": "sincronizar_estatus_alumno()",
-      "file_type": "code",
-      "source_file": "octopus-api/cobranza/mora.py",
-      "source_location": "L130",
-      "_origin": "ast",
-      "id": "cobranza_mora_sincronizar_estatus_alumno",
-      "community": 17,
-      "norm_label": "sincronizar_estatus_alumno()"
     },
     {
       "label": "Fuente de verdad \u00daNICA para el c\u00e1lculo de morosidad.  Antes exist\u00edan dos criteri",
@@ -4514,7 +4504,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_1",
-      "community": 17,
+      "community": 30,
       "norm_label": "fuente de verdad unica para el calculo de morosidad.  antes existian dos criteri"
     },
     {
@@ -4524,7 +4514,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_38",
-      "community": 17,
+      "community": 30,
       "norm_label": "devuelve (deuda_mes_pasado, deuda_mes_actual) como expresiones para anotar     s"
     },
     {
@@ -4534,7 +4524,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_67",
-      "community": 17,
+      "community": 30,
       "norm_label": "anota `en_mora` (booleanfield) sobre un queryset de alumno segun el criterio"
     },
     {
@@ -4544,7 +4534,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_84",
-      "community": 17,
+      "community": 30,
       "norm_label": "como annotate_en_mora pero ademas anota `monto_adeudado` y `meses_adeudados`"
     },
     {
@@ -4554,18 +4544,8 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_117",
-      "community": 17,
+      "community": 3,
       "norm_label": "estado a mostrar para un alumno que ya trae la anotacion `en_mora`.     conserva"
-    },
-    {
-      "label": "Recalcula el estatus con el criterio can\u00f3nico y lo persiste si cambi\u00f3.     Usar",
-      "file_type": "rationale",
-      "source_file": "octopus-api/cobranza/mora.py",
-      "source_location": "L131",
-      "_origin": "ast",
-      "id": "cobranza_mora_rationale_131",
-      "community": 17,
-      "norm_label": "recalcula el estatus con el criterio canonico y lo persiste si cambio.     usar"
     },
     {
       "label": "serializers.py",
@@ -4574,7 +4554,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_serializers",
-      "community": 15,
+      "community": 53,
       "norm_label": "serializers.py"
     },
     {
@@ -4594,7 +4574,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "cobranza_serializers_meta",
-      "community": 15,
+      "community": 53,
       "norm_label": "meta"
     },
     {
@@ -4604,7 +4584,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "cobranza_serializers_cierrecajaserializer",
-      "community": 15,
+      "community": 53,
       "norm_label": "cierrecajaserializer"
     },
     {
@@ -4634,7 +4614,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "cobranza_serializers_desglosepagoserializer",
-      "community": 15,
+      "community": 53,
       "norm_label": "desglosepagoserializer"
     },
     {
@@ -4644,7 +4624,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "cobranza_serializers_comprobanteserializer",
-      "community": 15,
+      "community": 53,
       "norm_label": "comprobanteserializer"
     },
     {
@@ -4654,7 +4634,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "cobranza_serializers_comprobanteserializer_get_representante_nombre",
-      "community": 314,
+      "community": 53,
       "norm_label": ".get_representante_nombre()"
     },
     {
@@ -4664,7 +4644,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "cobranza_serializers_comprobanteserializer_get_hermanos",
-      "community": 30,
+      "community": 53,
       "norm_label": "._get_hermanos()"
     },
     {
@@ -4674,7 +4654,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "cobranza_serializers_comprobanteserializer_get_desglose_pagos",
-      "community": 30,
+      "community": 53,
       "norm_label": ".get_desglose_pagos()"
     },
     {
@@ -4684,7 +4664,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "cobranza_serializers_comprobanteserializer_get_total_ves",
-      "community": 30,
+      "community": 53,
       "norm_label": ".get_total_ves()"
     },
     {
@@ -4694,7 +4674,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "cobranza_serializers_comprobanteserializer_get_total_usd",
-      "community": 30,
+      "community": 53,
       "norm_label": ".get_total_usd()"
     },
     {
@@ -4704,7 +4684,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "cobranza_serializers_pagoitemserializer",
-      "community": 15,
+      "community": 53,
       "norm_label": "pagoitemserializer"
     },
     {
@@ -4734,7 +4714,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "cobranza_serializers_rationale_76",
-      "community": 314,
+      "community": 53,
       "norm_label": "devuelve el nombre completo del representante.         primero intenta obtenerl"
     },
     {
@@ -4744,7 +4724,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "cobranza_serializers_rationale_90",
-      "community": 30,
+      "community": 53,
       "norm_label": "los 'hermanos' (pagos de la misma operacion_uuid) se consultan una sola"
     },
     {
@@ -4754,7 +4734,7 @@
       "source_location": "L128",
       "_origin": "ast",
       "id": "cobranza_serializers_rationale_128",
-      "community": 15,
+      "community": 53,
       "norm_label": "esquema estricto para cada metodo de pago dentro de una transaccion."
     },
     {
@@ -5014,7 +4994,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "cobranza_tasks_generar_mensualidades_mes_actual",
-      "community": 17,
+      "community": 200,
       "norm_label": "generar_mensualidades_mes_actual()"
     },
     {
@@ -5024,7 +5004,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "cobranza_tasks_verificar_solvencia_estudiantil_automatica",
-      "community": 17,
+      "community": 30,
       "norm_label": "verificar_solvencia_estudiantil_automatica()"
     },
     {
@@ -5044,7 +5024,7 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "cobranza_tasks_rationale_145",
-      "community": 17,
+      "community": 30,
       "norm_label": "se ejecuta el dia 1 de cada mes (celery beat) y crea la mensualidad del mes"
     },
     {
@@ -5054,7 +5034,7 @@
       "source_location": "L186",
       "_origin": "ast",
       "id": "cobranza_tasks_rationale_186",
-      "community": 17,
+      "community": 30,
       "norm_label": "se ejecuta diariamente para sincronizar alumno.estatus_financiero con el     cr"
     },
     {
@@ -5064,7 +5044,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades",
-      "community": 17,
+      "community": 200,
       "norm_label": "test_generacion_mensualidades.py"
     },
     {
@@ -5104,7 +5084,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_crear_alumno",
-      "community": 17,
+      "community": 200,
       "norm_label": "_crear_alumno()"
     },
     {
@@ -5114,7 +5094,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase",
-      "community": 17,
+      "community": 200,
       "norm_label": "generacionmensualidadesbase"
     },
     {
@@ -5124,7 +5104,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "testcase",
-      "community": 17,
+      "community": 53,
       "norm_label": "testcase"
     },
     {
@@ -5134,7 +5114,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase_setup",
-      "community": 17,
+      "community": 200,
       "norm_label": ".setup()"
     },
     {
@@ -5224,7 +5204,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_tareamensualtest",
-      "community": 17,
+      "community": 200,
       "norm_label": "tareamensualtest"
     },
     {
@@ -5234,7 +5214,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_tareamensualtest_test_genera_mes_actual_para_activos_no_becados",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_genera_mes_actual_para_activos_no_becados()"
     },
     {
@@ -5244,7 +5224,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_tareamensualtest_test_alumno_queda_en_mora_tras_generacion",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_alumno_queda_en_mora_tras_generacion()"
     },
     {
@@ -5254,7 +5234,7 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_tareamensualtest_test_no_genera_en_agosto",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_no_genera_en_agosto()"
     },
     {
@@ -5264,7 +5244,7 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_comandobackfilltest",
-      "community": 17,
+      "community": 200,
       "norm_label": "comandobackfilltest"
     },
     {
@@ -5274,7 +5254,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_comandobackfilltest_run",
-      "community": 17,
+      "community": 200,
       "norm_label": "._run()"
     },
     {
@@ -5284,7 +5264,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_comandobackfilltest_test_backfill_mes_actual_hasta_fin_de_periodo",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_backfill_mes_actual_hasta_fin_de_periodo()"
     },
     {
@@ -5294,7 +5274,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_comandobackfilltest_test_backfill_desde_mes_anterior",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_backfill_desde_mes_anterior()"
     },
     {
@@ -5304,7 +5284,7 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_comandobackfilltest_test_dry_run_no_escribe",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_dry_run_no_escribe()"
     },
     {
@@ -5314,7 +5294,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_inscripciongeneradeudatest",
-      "community": 17,
+      "community": 200,
       "norm_label": "inscripciongeneradeudatest"
     },
     {
@@ -5324,7 +5304,7 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_inscripciongeneradeudatest_setup",
-      "community": 17,
+      "community": 200,
       "norm_label": ".setup()"
     },
     {
@@ -5334,7 +5314,7 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_inscripciongeneradeudatest_serializer",
-      "community": 17,
+      "community": 200,
       "norm_label": "._serializer()"
     },
     {
@@ -5344,7 +5324,7 @@
       "source_location": "L202",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_inscripciongeneradeudatest_test_bloquea_inscripcion_con_cuota_impaga",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_bloquea_inscripcion_con_cuota_impaga()"
     },
     {
@@ -5354,97 +5334,67 @@
       "source_location": "L216",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_inscripciongeneradeudatest_test_inscripcion_exitosa_genera_mensualidades_del_periodo",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_inscripcion_exitosa_genera_mensualidades_del_periodo()"
-    },
-    {
-      "label": "SincronizarEstatusTest",
-      "file_type": "code",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L237",
-      "_origin": "ast",
-      "id": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "community": 17,
-      "norm_label": "sincronizarestatustest"
-    },
-    {
-      "label": ".test_pagar_un_mes_no_da_solvencia_si_debe_anteriores()",
-      "file_type": "code",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L241",
-      "_origin": "ast",
-      "id": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_pagar_un_mes_no_da_solvencia_si_debe_anteriores",
-      "community": 17,
-      "norm_label": ".test_pagar_un_mes_no_da_solvencia_si_debe_anteriores()"
-    },
-    {
-      "label": ".test_becado_no_se_toca()",
-      "file_type": "code",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L263",
-      "_origin": "ast",
-      "id": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_becado_no_se_toca",
-      "community": 17,
-      "norm_label": ".test_becado_no_se_toca()"
     },
     {
       "label": "DiaLimitePagoGlobalTest",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L273",
+      "source_location": "L237",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "community": 17,
+      "community": 200,
       "norm_label": "dialimitepagoglobaltest"
     },
     {
       "label": ".setUp()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L277",
+      "source_location": "L241",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_setup",
-      "community": 17,
+      "community": 200,
       "norm_label": ".setup()"
     },
     {
       "label": "._post_config()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L292",
+      "source_location": "L256",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config",
-      "community": 17,
+      "community": 200,
       "norm_label": "._post_config()"
     },
     {
       "label": ".test_cambio_de_dia_limite_se_propaga_a_alumnos()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L298",
+      "source_location": "L262",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_cambio_de_dia_limite_se_propaga_a_alumnos",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_cambio_de_dia_limite_se_propaga_a_alumnos()"
     },
     {
       "label": ".test_sin_cambio_no_toca_alumnos()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L313",
+      "source_location": "L277",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_sin_cambio_no_toca_alumnos",
-      "community": 17,
+      "community": 200,
       "norm_label": ".test_sin_cambio_no_toca_alumnos()"
     },
     {
       "label": ".test_alumno_nuevo_toma_dia_limite_de_configuracion()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L318",
+      "source_location": "L282",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_alumno_nuevo_toma_dia_limite_de_configuracion",
-      "community": 17,
+      "community": 3,
       "norm_label": ".test_alumno_nuevo_toma_dia_limite_de_configuracion()"
     },
     {
@@ -5454,7 +5404,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_rationale_1",
-      "community": 17,
+      "community": 200,
       "norm_label": "tests de la generacion automatica de mensualidades:   - servicio central (cobran"
     },
     {
@@ -5484,7 +5434,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_rationale_126",
-      "community": 17,
+      "community": 200,
       "norm_label": "con dia_limite_pago=1 y hoy=2/jul, la mensualidad generada activa la mora."
     },
     {
@@ -5494,27 +5444,17 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "cobranza_test_generacion_mensualidades_rationale_175",
-      "community": 17,
+      "community": 200,
       "norm_label": "valida el flujo completo de inscripcion: bloqueo por cuota impaga y     generaci"
-    },
-    {
-      "label": "Tras un pago, el estatus persistido debe recalcularse con el criterio     can\u00f3ni",
-      "file_type": "rationale",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L238",
-      "_origin": "ast",
-      "id": "cobranza_test_generacion_mensualidades_rationale_238",
-      "community": 17,
-      "norm_label": "tras un pago, el estatus persistido debe recalcularse con el criterio     canoni"
     },
     {
       "label": "El d\u00eda l\u00edmite configurado en ConfiguracionSistema debe propagarse a los     alum",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L274",
+      "source_location": "L238",
       "_origin": "ast",
-      "id": "cobranza_test_generacion_mensualidades_rationale_274",
-      "community": 17,
+      "id": "cobranza_test_generacion_mensualidades_rationale_238",
+      "community": 200,
       "norm_label": "el dia limite configurado en configuracionsistema debe propagarse a los     alum"
     },
     {
@@ -5524,7 +5464,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_tests",
-      "community": 15,
+      "community": 53,
       "norm_label": "tests.py"
     },
     {
@@ -5534,7 +5474,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "cobranza_tests_arqueocajamidnighttest",
-      "community": 15,
+      "community": 53,
       "norm_label": "arqueocajamidnighttest"
     },
     {
@@ -5544,7 +5484,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "cobranza_tests_arqueocajamidnighttest_setup",
-      "community": 200,
+      "community": 53,
       "norm_label": ".setup()"
     },
     {
@@ -5554,7 +5494,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "cobranza_tests_arqueocajamidnighttest_test_arqueo_incluye_pagos_multi_dia",
-      "community": 30,
+      "community": 53,
       "norm_label": ".test_arqueo_incluye_pagos_multi_dia()"
     },
     {
@@ -5624,7 +5564,7 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "cobranza_tests_bancoslistviewcachetest",
-      "community": 79,
+      "community": 53,
       "norm_label": "bancoslistviewcachetest"
     },
     {
@@ -5634,7 +5574,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "cobranza_tests_bancoslistviewcachetest_setup",
-      "community": 79,
+      "community": 53,
       "norm_label": ".setup()"
     },
     {
@@ -5644,7 +5584,7 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "cobranza_tests_bancoslistviewcachetest_test_segunda_llamada_no_toca_la_bd",
-      "community": 79,
+      "community": 53,
       "norm_label": ".test_segunda_llamada_no_toca_la_bd()"
     },
     {
@@ -5654,7 +5594,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "cobranza_tests_bancoslistviewcachetest_test_crear_banco_invalida_el_cache",
-      "community": 79,
+      "community": 53,
       "norm_label": ".test_crear_banco_invalida_el_cache()"
     },
     {
@@ -5664,7 +5604,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "cobranza_tests_rationale_18",
-      "community": 15,
+      "community": 53,
       "norm_label": "suite de pruebas para validar la proteccion contra el 'midnight bug'     en el"
     },
     {
@@ -5674,7 +5614,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "cobranza_tests_rationale_47",
-      "community": 30,
+      "community": 53,
       "norm_label": "verifica que un arqueo realizado en la madrugada incluya pagos         de la no"
     },
     {
@@ -5714,7 +5654,7 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "cobranza_tests_rationale_179",
-      "community": 79,
+      "community": 53,
       "norm_label": "bancoslistview cachea la lista de bancos activos (catalogo estable).     verifi"
     },
     {
@@ -5824,7 +5764,7 @@
       "source_location": "L366",
       "_origin": "ast",
       "id": "cobranza_utils_generar_pdf_inscripcion",
-      "community": 30,
+      "community": 3,
       "norm_label": "generar_pdf_inscripcion()"
     },
     {
@@ -5904,7 +5844,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "cobranza_utils_rationale_367",
-      "community": 30,
+      "community": 3,
       "norm_label": "genera comprobante de inscripcion en pdf con reportlab."
     },
     {
@@ -6034,7 +5974,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "cobranza_views_dashboardstatsview_get",
-      "community": 17,
+      "community": 30,
       "norm_label": ".get()"
     },
     {
@@ -6054,34 +5994,34 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "cobranza_views_buscaralumnocobranzaview_alumno_data",
-      "community": 17,
+      "community": 30,
       "norm_label": "._alumno_data()"
     },
     {
       "label": "._rep_data()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L292",
+      "source_location": "L284",
       "_origin": "ast",
       "id": "cobranza_views_buscaralumnocobranzaview_rep_data",
-      "community": 17,
+      "community": 30,
       "norm_label": "._rep_data()"
     },
     {
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L303",
+      "source_location": "L295",
       "_origin": "ast",
       "id": "cobranza_views_buscaralumnocobranzaview_get",
-      "community": 17,
+      "community": 30,
       "norm_label": ".get()"
     },
     {
       "label": "BancosListView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L332",
+      "source_location": "L324",
       "_origin": "ast",
       "id": "cobranza_views_bancoslistview",
       "community": 15,
@@ -6091,7 +6031,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L335",
+      "source_location": "L327",
       "_origin": "ast",
       "id": "cobranza_views_bancoslistview_get",
       "community": 62,
@@ -6101,7 +6041,7 @@
       "label": "RegistrarPagoView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L353",
+      "source_location": "L345",
       "_origin": "ast",
       "id": "cobranza_views_registrarpagoview",
       "community": 15,
@@ -6111,17 +6051,17 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L357",
+      "source_location": "L349",
       "_origin": "ast",
       "id": "cobranza_views_registrarpagoview_post",
-      "community": 62,
+      "community": 15,
       "norm_label": ".post()"
     },
     {
       "label": "ReciboView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L465",
+      "source_location": "L455",
       "_origin": "ast",
       "id": "cobranza_views_reciboview",
       "community": 15,
@@ -6131,7 +6071,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L468",
+      "source_location": "L458",
       "_origin": "ast",
       "id": "cobranza_views_reciboview_get",
       "community": 30,
@@ -6141,7 +6081,7 @@
       "label": "AuditoriaDiariaView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L501",
+      "source_location": "L491",
       "_origin": "ast",
       "id": "cobranza_views_auditoriadiariaview",
       "community": 15,
@@ -6151,7 +6091,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L504",
+      "source_location": "L494",
       "_origin": "ast",
       "id": "cobranza_views_auditoriadiariaview_get",
       "community": 62,
@@ -6161,7 +6101,7 @@
       "label": "HistoricoMensualView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L560",
+      "source_location": "L550",
       "_origin": "ast",
       "id": "cobranza_views_historicomensualview",
       "community": 15,
@@ -6171,7 +6111,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L563",
+      "source_location": "L553",
       "_origin": "ast",
       "id": "cobranza_views_historicomensualview_get",
       "community": 200,
@@ -6181,7 +6121,7 @@
       "label": "ExportarAuditoriaExcelView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L623",
+      "source_location": "L613",
       "_origin": "ast",
       "id": "cobranza_views_exportarauditoriaexcelview",
       "community": 15,
@@ -6191,7 +6131,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L626",
+      "source_location": "L616",
       "_origin": "ast",
       "id": "cobranza_views_exportarauditoriaexcelview_get",
       "community": 62,
@@ -6201,7 +6141,7 @@
       "label": "ConfiguracionCobranzaView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L664",
+      "source_location": "L654",
       "_origin": "ast",
       "id": "cobranza_views_configuracioncobranzaview",
       "community": 15,
@@ -6211,7 +6151,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L667",
+      "source_location": "L657",
       "_origin": "ast",
       "id": "cobranza_views_configuracioncobranzaview_get",
       "community": 15,
@@ -6221,7 +6161,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L675",
+      "source_location": "L665",
       "_origin": "ast",
       "id": "cobranza_views_configuracioncobranzaview_post",
       "community": 62,
@@ -6231,7 +6171,7 @@
       "label": "ActualizarMensualidadesView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L698",
+      "source_location": "L688",
       "_origin": "ast",
       "id": "cobranza_views_actualizarmensualidadesview",
       "community": 15,
@@ -6241,7 +6181,7 @@
       "label": ".patch()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L702",
+      "source_location": "L692",
       "_origin": "ast",
       "id": "cobranza_views_actualizarmensualidadesview_patch",
       "community": 62,
@@ -6251,7 +6191,7 @@
       "label": "GenerarAnualidadView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L727",
+      "source_location": "L717",
       "_origin": "ast",
       "id": "cobranza_views_generaranualidadview",
       "community": 15,
@@ -6261,7 +6201,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L731",
+      "source_location": "L721",
       "_origin": "ast",
       "id": "cobranza_views_generaranualidadview_post",
       "community": 62,
@@ -6271,7 +6211,7 @@
       "label": "BancosAdminView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L785",
+      "source_location": "L775",
       "_origin": "ast",
       "id": "cobranza_views_bancosadminview",
       "community": 15,
@@ -6281,7 +6221,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L789",
+      "source_location": "L779",
       "_origin": "ast",
       "id": "cobranza_views_bancosadminview_get",
       "community": 15,
@@ -6291,7 +6231,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L794",
+      "source_location": "L784",
       "_origin": "ast",
       "id": "cobranza_views_bancosadminview_post",
       "community": 15,
@@ -6301,7 +6241,7 @@
       "label": "BancoDetailView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L802",
+      "source_location": "L792",
       "_origin": "ast",
       "id": "cobranza_views_bancodetailview",
       "community": 92,
@@ -6311,7 +6251,7 @@
       "label": "._get_banco()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L806",
+      "source_location": "L796",
       "_origin": "ast",
       "id": "cobranza_views_bancodetailview_get_banco",
       "community": 92,
@@ -6321,7 +6261,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L810",
+      "source_location": "L800",
       "_origin": "ast",
       "id": "cobranza_views_bancodetailview_get",
       "community": 92,
@@ -6331,7 +6271,7 @@
       "label": ".patch()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L815",
+      "source_location": "L805",
       "_origin": "ast",
       "id": "cobranza_views_bancodetailview_patch",
       "community": 92,
@@ -6341,7 +6281,7 @@
       "label": ".delete()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L823",
+      "source_location": "L813",
       "_origin": "ast",
       "id": "cobranza_views_bancodetailview_delete",
       "community": 92,
@@ -6351,7 +6291,7 @@
       "label": "ConsultaComprobantesView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L847",
+      "source_location": "L837",
       "_origin": "ast",
       "id": "cobranza_views_consultacomprobantesview",
       "community": 15,
@@ -6361,7 +6301,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L854",
+      "source_location": "L844",
       "_origin": "ast",
       "id": "cobranza_views_consultacomprobantesview_get",
       "community": 62,
@@ -6371,7 +6311,7 @@
       "label": "ComprobanteDetalleView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L938",
+      "source_location": "L928",
       "_origin": "ast",
       "id": "cobranza_views_comprobantedetalleview",
       "community": 15,
@@ -6381,7 +6321,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L942",
+      "source_location": "L932",
       "_origin": "ast",
       "id": "cobranza_views_comprobantedetalleview_get",
       "community": 62,
@@ -6391,7 +6331,7 @@
       "label": "PagosListView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L959",
+      "source_location": "L949",
       "_origin": "ast",
       "id": "cobranza_views_pagoslistview",
       "community": 15,
@@ -6401,7 +6341,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L978",
+      "source_location": "L968",
       "_origin": "ast",
       "id": "cobranza_views_pagoslistview_get",
       "community": 15,
@@ -6411,7 +6351,7 @@
       "label": "MensualidadesPuntualidadView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1013",
+      "source_location": "L1003",
       "_origin": "ast",
       "id": "cobranza_views_mensualidadespuntualidadview",
       "community": 15,
@@ -6421,7 +6361,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1029",
+      "source_location": "L1019",
       "_origin": "ast",
       "id": "cobranza_views_mensualidadespuntualidadview_get",
       "community": 62,
@@ -6431,7 +6371,7 @@
       "label": "ListaMorososView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1113",
+      "source_location": "L1103",
       "_origin": "ast",
       "id": "cobranza_views_listamorososview",
       "community": 15,
@@ -6441,7 +6381,7 @@
       "label": "._build_qs()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1127",
+      "source_location": "L1117",
       "_origin": "ast",
       "id": "cobranza_views_listamorososview_build_qs",
       "community": 62,
@@ -6451,7 +6391,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1153",
+      "source_location": "L1143",
       "_origin": "ast",
       "id": "cobranza_views_listamorososview_get",
       "community": 62,
@@ -6461,7 +6401,7 @@
       "label": "ExportarMorososExcelView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1181",
+      "source_location": "L1171",
       "_origin": "ast",
       "id": "cobranza_views_exportarmorososexcelview",
       "community": 15,
@@ -6471,7 +6411,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1188",
+      "source_location": "L1178",
       "_origin": "ast",
       "id": "cobranza_views_exportarmorososexcelview_get",
       "community": 62,
@@ -6481,7 +6421,7 @@
       "label": "ConfigNominaView",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1214",
+      "source_location": "L1204",
       "_origin": "ast",
       "id": "cobranza_views_confignominaview",
       "community": 15,
@@ -6491,7 +6431,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1218",
+      "source_location": "L1208",
       "_origin": "ast",
       "id": "cobranza_views_confignominaview_get",
       "community": 62,
@@ -6501,7 +6441,7 @@
       "label": ".put()",
       "file_type": "code",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1227",
+      "source_location": "L1217",
       "_origin": "ast",
       "id": "cobranza_views_confignominaview_put",
       "community": 15,
@@ -6541,9 +6481,9 @@
       "label": "Lista todos los bancos (activos e inactivos) y permite crear nuevos.",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L786",
+      "source_location": "L776",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_786",
+      "id": "cobranza_views_rationale_776",
       "community": 15,
       "norm_label": "lista todos los bancos (activos e inactivos) y permite crear nuevos."
     },
@@ -6551,9 +6491,9 @@
       "label": "Recupera, actualiza o elimina un banco espec\u00edfico.",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L803",
+      "source_location": "L793",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_803",
+      "id": "cobranza_views_rationale_793",
       "community": 92,
       "norm_label": "recupera, actualiza o elimina un banco especifico."
     },
@@ -6561,9 +6501,9 @@
       "label": "M\u00f3dulo de consulta de comprobantes de pago con filtros y paginaci\u00f3n.     Soport",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L848",
+      "source_location": "L838",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_848",
+      "id": "cobranza_views_rationale_838",
       "community": 15,
       "norm_label": "modulo de consulta de comprobantes de pago con filtros y paginacion.     soport"
     },
@@ -6571,9 +6511,9 @@
       "label": "Retorna el detalle de un comprobante por su factura_id.",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L939",
+      "source_location": "L929",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_939",
+      "id": "cobranza_views_rationale_929",
       "community": 15,
       "norm_label": "retorna el detalle de un comprobante por su factura_id."
     },
@@ -6581,9 +6521,9 @@
       "label": "Lista de pagos con filtros avanzados v\u00eda query params.      Par\u00e1metros de filt",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L960",
+      "source_location": "L950",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_960",
+      "id": "cobranza_views_rationale_950",
       "community": 15,
       "norm_label": "lista de pagos con filtros avanzados via query params.      parametros de filt"
     },
@@ -6591,9 +6531,9 @@
       "label": "Clasifica las mensualidades pagadas seg\u00fan cu\u00e1ndo se abonaron respecto     al me",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1014",
+      "source_location": "L1004",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_1014",
+      "id": "cobranza_views_rationale_1004",
       "community": 15,
       "norm_label": "clasifica las mensualidades pagadas segun cuando se abonaron respecto     al me"
     },
@@ -6601,9 +6541,9 @@
       "label": "Devuelve en tiempo real los alumnos con mensualidades vencidas.     No usa el c",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1114",
+      "source_location": "L1104",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_1114",
+      "id": "cobranza_views_rationale_1104",
       "community": 15,
       "norm_label": "devuelve en tiempo real los alumnos con mensualidades vencidas.     no usa el c"
     },
@@ -6611,9 +6551,9 @@
       "label": "Exporta la lista din\u00e1mica de morosos a Excel usando la misma l\u00f3gica     que Lis",
       "file_type": "rationale",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1182",
+      "source_location": "L1172",
       "_origin": "ast",
-      "id": "cobranza_views_rationale_1182",
+      "id": "cobranza_views_rationale_1172",
       "community": 15,
       "norm_label": "exporta la lista dinamica de morosos a excel usando la misma logica     que lis"
     },
@@ -7161,7 +7101,7 @@
       "label": "DashboardConsolidadoSerializer",
       "file_type": "code",
       "source_file": "octopus-api/multisede/serializers.py",
-      "source_location": "L104",
+      "source_location": "L99",
       "_origin": "ast",
       "id": "multisede_serializers_dashboardconsolidadoserializer",
       "community": 16,
@@ -7251,7 +7191,7 @@
       "label": ".test_totales_correctos_con_varias_sedes()",
       "file_type": "code",
       "source_file": "octopus-api/multisede/tests.py",
-      "source_location": "L128",
+      "source_location": "L124",
       "_origin": "ast",
       "id": "multisede_tests_dashboardconsolidadonplusonetest_test_totales_correctos_con_varias_sedes",
       "community": 16,
@@ -7261,7 +7201,7 @@
       "label": ".test_costo_por_sede_no_se_duplica()",
       "file_type": "code",
       "source_file": "octopus-api/multisede/tests.py",
-      "source_location": "L140",
+      "source_location": "L136",
       "_origin": "ast",
       "id": "multisede_tests_dashboardconsolidadonplusonetest_test_costo_por_sede_no_se_duplica",
       "community": 16,
@@ -7301,9 +7241,9 @@
       "label": "Antes: 8 queries extra por cada sede agregada (4 del loop + 4 del         serial",
       "file_type": "rationale",
       "source_file": "octopus-api/multisede/tests.py",
-      "source_location": "L141",
+      "source_location": "L137",
       "_origin": "ast",
-      "id": "multisede_tests_rationale_141",
+      "id": "multisede_tests_rationale_137",
       "community": 16,
       "norm_label": "antes: 8 queries extra por cada sede agregada (4 del loop + 4 del         serial"
     },
@@ -7531,7 +7471,7 @@
       "label": "AsignarSedeExistenteView",
       "file_type": "code",
       "source_file": "octopus-api/multisede/views.py",
-      "source_location": "L403",
+      "source_location": "L399",
       "_origin": "ast",
       "id": "multisede_views_asignarsedeexistenteview",
       "community": 16,
@@ -7541,7 +7481,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/multisede/views.py",
-      "source_location": "L411",
+      "source_location": "L407",
       "_origin": "ast",
       "id": "multisede_views_asignarsedeexistenteview_post",
       "community": 16,
@@ -7591,9 +7531,9 @@
       "label": "Asigna una sede a todos los registros (alumnos, pagos, materias) que tienen sede",
       "file_type": "rationale",
       "source_file": "octopus-api/multisede/views.py",
-      "source_location": "L404",
+      "source_location": "L400",
       "_origin": "ast",
-      "id": "multisede_views_rationale_404",
+      "id": "multisede_views_rationale_400",
       "community": 16,
       "norm_label": "asigna una sede a todos los registros (alumnos, pagos, materias) que tienen sede"
     },
@@ -10121,7 +10061,7 @@
       "label": "PortalHistorialPagosView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L202",
+      "source_location": "L196",
       "_origin": "ast",
       "id": "portal_views_portalhistorialpagosview",
       "community": 12,
@@ -10131,7 +10071,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L210",
+      "source_location": "L204",
       "_origin": "ast",
       "id": "portal_views_portalhistorialpagosview_get",
       "community": 83,
@@ -10141,7 +10081,7 @@
       "label": "PortalComprobantePagoView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L259",
+      "source_location": "L253",
       "_origin": "ast",
       "id": "portal_views_portalcomprobantepagoview",
       "community": 12,
@@ -10151,7 +10091,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L268",
+      "source_location": "L262",
       "_origin": "ast",
       "id": "portal_views_portalcomprobantepagoview_post",
       "community": 83,
@@ -10161,7 +10101,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L456",
+      "source_location": "L450",
       "_origin": "ast",
       "id": "portal_views_portalcomprobantepagoview_get",
       "community": 83,
@@ -10171,7 +10111,7 @@
       "label": "ActivarPortalRepresentanteView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L481",
+      "source_location": "L475",
       "_origin": "ast",
       "id": "portal_views_activarportalrepresentanteview",
       "community": 12,
@@ -10181,7 +10121,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L491",
+      "source_location": "L485",
       "_origin": "ast",
       "id": "portal_views_activarportalrepresentanteview_post",
       "community": 58,
@@ -10191,7 +10131,7 @@
       "label": ".delete()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L550",
+      "source_location": "L544",
       "_origin": "ast",
       "id": "portal_views_activarportalrepresentanteview_delete",
       "community": 83,
@@ -10201,7 +10141,7 @@
       "label": "PortalBancosView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L570",
+      "source_location": "L564",
       "_origin": "ast",
       "id": "portal_views_portalbancosview",
       "community": 12,
@@ -10211,7 +10151,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L579",
+      "source_location": "L573",
       "_origin": "ast",
       "id": "portal_views_portalbancosview_get",
       "community": 83,
@@ -10221,7 +10161,7 @@
       "label": "AdminComprobantesView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L599",
+      "source_location": "L593",
       "_origin": "ast",
       "id": "portal_views_admincomprobantesview",
       "community": 12,
@@ -10231,7 +10171,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L606",
+      "source_location": "L600",
       "_origin": "ast",
       "id": "portal_views_admincomprobantesview_get",
       "community": 83,
@@ -10241,7 +10181,7 @@
       "label": ".patch()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L638",
+      "source_location": "L632",
       "_origin": "ast",
       "id": "portal_views_admincomprobantesview_patch",
       "community": 83,
@@ -10251,7 +10191,7 @@
       "label": "VerificarReferenciaView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L771",
+      "source_location": "L763",
       "_origin": "ast",
       "id": "portal_views_verificarreferenciaview",
       "community": 12,
@@ -10261,7 +10201,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L781",
+      "source_location": "L773",
       "_origin": "ast",
       "id": "portal_views_verificarreferenciaview_get",
       "community": 83,
@@ -10271,7 +10211,7 @@
       "label": "ConfiguracionColegioPublicaView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L835",
+      "source_location": "L827",
       "_origin": "ast",
       "id": "portal_views_configuracioncolegiopublicaview",
       "community": 12,
@@ -10281,7 +10221,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L843",
+      "source_location": "L835",
       "_origin": "ast",
       "id": "portal_views_configuracioncolegiopublicaview_get",
       "community": 83,
@@ -10291,7 +10231,7 @@
       "label": "CambiarContrasenaPortalView",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L877",
+      "source_location": "L869",
       "_origin": "ast",
       "id": "portal_views_cambiarcontrasenaportalview",
       "community": 12,
@@ -10301,7 +10241,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L885",
+      "source_location": "L877",
       "_origin": "ast",
       "id": "portal_views_cambiarcontrasenaportalview_post",
       "community": 83,
@@ -10341,9 +10281,9 @@
       "label": "Historial de pagos de un alumno espec\u00edfico del representante autenticado.     S",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L203",
+      "source_location": "L197",
       "_origin": "ast",
-      "id": "portal_views_rationale_203",
+      "id": "portal_views_rationale_197",
       "community": 12,
       "norm_label": "historial de pagos de un alumno especifico del representante autenticado.     s"
     },
@@ -10351,9 +10291,9 @@
       "label": "Permite al representante subir un comprobante de transferencia o dep\u00f3sito     p",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L260",
+      "source_location": "L254",
       "_origin": "ast",
-      "id": "portal_views_rationale_260",
+      "id": "portal_views_rationale_254",
       "community": 12,
       "norm_label": "permite al representante subir un comprobante de transferencia o deposito     p"
     },
@@ -10361,9 +10301,9 @@
       "label": "Consulta el estado de los comprobantes del representante autenticado.         P",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L457",
+      "source_location": "L451",
       "_origin": "ast",
-      "id": "portal_views_rationale_457",
+      "id": "portal_views_rationale_451",
       "community": 83,
       "norm_label": "consulta el estado de los comprobantes del representante autenticado.         p"
     },
@@ -10371,9 +10311,9 @@
       "label": "Permite a un administrador activar el acceso al portal     de un Representante",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L482",
+      "source_location": "L476",
       "_origin": "ast",
-      "id": "portal_views_rationale_482",
+      "id": "portal_views_rationale_476",
       "community": 12,
       "norm_label": "permite a un administrador activar el acceso al portal     de un representante"
     },
@@ -10381,9 +10321,9 @@
       "label": "Desactiva el acceso al portal de un representante.",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L551",
+      "source_location": "L545",
       "_origin": "ast",
-      "id": "portal_views_rationale_551",
+      "id": "portal_views_rationale_545",
       "community": 83,
       "norm_label": "desactiva el acceso al portal de un representante."
     },
@@ -10391,9 +10331,9 @@
       "label": "Lista los bancos activos del colegio para que el representante     sepa a d\u00f3nde",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L571",
+      "source_location": "L565",
       "_origin": "ast",
-      "id": "portal_views_rationale_571",
+      "id": "portal_views_rationale_565",
       "community": 12,
       "norm_label": "lista los bancos activos del colegio para que el representante     sepa a donde"
     },
@@ -10401,9 +10341,9 @@
       "label": "Vista para el panel administrativo: lista y gestiona comprobantes pendientes.",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L600",
+      "source_location": "L594",
       "_origin": "ast",
-      "id": "portal_views_rationale_600",
+      "id": "portal_views_rationale_594",
       "community": 12,
       "norm_label": "vista para el panel administrativo: lista y gestiona comprobantes pendientes."
     },
@@ -10411,9 +10351,9 @@
       "label": "Aprobar o rechazar un comprobante.         Al APROBAR:         - Marca la mens",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L639",
+      "source_location": "L633",
       "_origin": "ast",
-      "id": "portal_views_rationale_639",
+      "id": "portal_views_rationale_633",
       "community": 83,
       "norm_label": "aprobar o rechazar un comprobante.         al aprobar:         - marca la mens"
     },
@@ -10421,9 +10361,9 @@
       "label": "GET /api/portal/verificar-referencia/?ref=XXXXXX     Comprueba si una referenci",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L772",
+      "source_location": "L764",
       "_origin": "ast",
-      "id": "portal_views_rationale_772",
+      "id": "portal_views_rationale_764",
       "community": 12,
       "norm_label": "get /api/portal/verificar-referencia/?ref=xxxxxx     comprueba si una referenci"
     },
@@ -10431,9 +10371,9 @@
       "label": "Retorna la configuraci\u00f3n visual p\u00fablica del colegio:     nombre, colores, logo.",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L836",
+      "source_location": "L828",
       "_origin": "ast",
-      "id": "portal_views_rationale_836",
+      "id": "portal_views_rationale_828",
       "community": 12,
       "norm_label": "retorna la configuracion visual publica del colegio:     nombre, colores, logo."
     },
@@ -10441,9 +10381,9 @@
       "label": "Permite al representante autenticado cambiar su propia contrase\u00f1a.     Requiere",
       "file_type": "rationale",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L878",
+      "source_location": "L870",
       "_origin": "ast",
-      "id": "portal_views_rationale_878",
+      "id": "portal_views_rationale_870",
       "community": 12,
       "norm_label": "permite al representante autenticado cambiar su propia contrasena.     requiere"
     },
@@ -12261,7 +12201,7 @@
       "label": ".asignar_grado()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L398",
+      "source_location": "L395",
       "_origin": "ast",
       "id": "secretaria_views_alumnolistview_asignar_grado",
       "community": 3,
@@ -12271,7 +12211,7 @@
       "label": ".retirar()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L440",
+      "source_location": "L437",
       "_origin": "ast",
       "id": "secretaria_views_alumnolistview_retirar",
       "community": 3,
@@ -12281,7 +12221,7 @@
       "label": ".reactivar()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L471",
+      "source_location": "L468",
       "_origin": "ast",
       "id": "secretaria_views_alumnolistview_reactivar",
       "community": 3,
@@ -12291,7 +12231,7 @@
       "label": ".perform_destroy()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L497",
+      "source_location": "L494",
       "_origin": "ast",
       "id": "secretaria_views_alumnolistview_perform_destroy",
       "community": 3,
@@ -12301,7 +12241,7 @@
       "label": "InscripcionNuevaView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L516",
+      "source_location": "L513",
       "_origin": "ast",
       "id": "secretaria_views_inscripcionnuevaview",
       "community": 3,
@@ -12311,7 +12251,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L521",
+      "source_location": "L518",
       "_origin": "ast",
       "id": "secretaria_views_inscripcionnuevaview_post",
       "community": 3,
@@ -12321,7 +12261,7 @@
       "label": "ComprobanteInscripcionView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L552",
+      "source_location": "L549",
       "_origin": "ast",
       "id": "secretaria_views_comprobanteinscripcionview",
       "community": 3,
@@ -12331,17 +12271,17 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L555",
+      "source_location": "L552",
       "_origin": "ast",
       "id": "secretaria_views_comprobanteinscripcionview_get",
-      "community": 30,
+      "community": 3,
       "norm_label": ".get()"
     },
     {
       "label": "ExportarAlumnosExcelView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L576",
+      "source_location": "L573",
       "_origin": "ast",
       "id": "secretaria_views_exportaralumnosexcelview",
       "community": 3,
@@ -12351,7 +12291,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L579",
+      "source_location": "L576",
       "_origin": "ast",
       "id": "secretaria_views_exportaralumnosexcelview_get",
       "community": 3,
@@ -12361,7 +12301,7 @@
       "label": "ExportarRepresentantesExcelView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L620",
+      "source_location": "L617",
       "_origin": "ast",
       "id": "secretaria_views_exportarrepresentantesexcelview",
       "community": 3,
@@ -12371,7 +12311,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L623",
+      "source_location": "L620",
       "_origin": "ast",
       "id": "secretaria_views_exportarrepresentantesexcelview_get",
       "community": 3,
@@ -12381,7 +12321,7 @@
       "label": "buscar_representante_por_cedula()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L665",
+      "source_location": "L662",
       "_origin": "ast",
       "id": "secretaria_views_buscar_representante_por_cedula",
       "community": 3,
@@ -12391,7 +12331,7 @@
       "label": "RepresentanteAlumnosView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L681",
+      "source_location": "L678",
       "_origin": "ast",
       "id": "secretaria_views_representantealumnosview",
       "community": 3,
@@ -12401,7 +12341,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L688",
+      "source_location": "L685",
       "_origin": "ast",
       "id": "secretaria_views_representantealumnosview_get",
       "community": 3,
@@ -12411,7 +12351,7 @@
       "label": "InscripcionExistenteView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L705",
+      "source_location": "L700",
       "_origin": "ast",
       "id": "secretaria_views_inscripcionexistenteview",
       "community": 3,
@@ -12421,7 +12361,7 @@
       "label": ".post()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L711",
+      "source_location": "L706",
       "_origin": "ast",
       "id": "secretaria_views_inscripcionexistenteview_post",
       "community": 3,
@@ -12431,7 +12371,7 @@
       "label": "ConfiguracionGradoViewSet",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L732",
+      "source_location": "L727",
       "_origin": "ast",
       "id": "secretaria_views_configuraciongradoviewset",
       "community": 3,
@@ -12441,7 +12381,7 @@
       "label": ".perform_update()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L737",
+      "source_location": "L732",
       "_origin": "ast",
       "id": "secretaria_views_configuraciongradoviewset_perform_update",
       "community": 3,
@@ -12451,7 +12391,7 @@
       "label": "LogAuditoriaListView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L754",
+      "source_location": "L749",
       "_origin": "ast",
       "id": "secretaria_views_logauditorialistview",
       "community": 3,
@@ -12461,7 +12401,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L757",
+      "source_location": "L752",
       "_origin": "ast",
       "id": "secretaria_views_logauditorialistview_get",
       "community": 3,
@@ -12471,7 +12411,7 @@
       "label": "_nombre_grado_completo()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L790",
+      "source_location": "L785",
       "_origin": "ast",
       "id": "secretaria_views_nombre_grado_completo",
       "community": 3,
@@ -12481,7 +12421,7 @@
       "label": "GradosListView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L797",
+      "source_location": "L792",
       "_origin": "ast",
       "id": "secretaria_views_gradoslistview",
       "community": 3,
@@ -12491,7 +12431,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L801",
+      "source_location": "L796",
       "_origin": "ast",
       "id": "secretaria_views_gradoslistview_get",
       "community": 3,
@@ -12501,7 +12441,7 @@
       "label": "MatriculaGradoView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L814",
+      "source_location": "L809",
       "_origin": "ast",
       "id": "secretaria_views_matriculagradoview",
       "community": 3,
@@ -12511,17 +12451,17 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L818",
+      "source_location": "L813",
       "_origin": "ast",
       "id": "secretaria_views_matriculagradoview_get",
-      "community": 17,
+      "community": 3,
       "norm_label": ".get()"
     },
     {
       "label": "ExportarMatriculaGradoExcelView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L854",
+      "source_location": "L849",
       "_origin": "ast",
       "id": "secretaria_views_exportarmatriculagradoexcelview",
       "community": 3,
@@ -12531,7 +12471,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L858",
+      "source_location": "L853",
       "_origin": "ast",
       "id": "secretaria_views_exportarmatriculagradoexcelview_get",
       "community": 3,
@@ -12541,7 +12481,7 @@
       "label": "ExportarMatriculaGradoPDFView",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L925",
+      "source_location": "L920",
       "_origin": "ast",
       "id": "secretaria_views_exportarmatriculagradopdfview",
       "community": 3,
@@ -12551,7 +12491,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L929",
+      "source_location": "L924",
       "_origin": "ast",
       "id": "secretaria_views_exportarmatriculagradopdfview_get",
       "community": 3,
@@ -12561,7 +12501,7 @@
       "label": "RepresentanteViewSet",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L1015",
+      "source_location": "L1010",
       "_origin": "ast",
       "id": "secretaria_views_representanteviewset",
       "community": 3,
@@ -12571,7 +12511,7 @@
       "label": ".get_queryset()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L1020",
+      "source_location": "L1015",
       "_origin": "ast",
       "id": "secretaria_views_representanteviewset_get_queryset",
       "community": 3,
@@ -12581,7 +12521,7 @@
       "label": ".get_permissions()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L1037",
+      "source_location": "L1032",
       "_origin": "ast",
       "id": "secretaria_views_representanteviewset_get_permissions",
       "community": 45,
@@ -12591,7 +12531,7 @@
       "label": ".destroy()",
       "file_type": "code",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L1042",
+      "source_location": "L1037",
       "_origin": "ast",
       "id": "secretaria_views_representanteviewset_destroy",
       "community": 3,
@@ -12611,9 +12551,9 @@
       "label": "Asigna o cambia el grado de un alumno del banco.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L399",
+      "source_location": "L396",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_399",
+      "id": "secretaria_views_rationale_396",
       "community": 3,
       "norm_label": "asigna o cambia el grado de un alumno del banco."
     },
@@ -12621,9 +12561,9 @@
       "label": "Soft delete \u2014 retira sin eliminar historial.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L441",
+      "source_location": "L438",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_441",
+      "id": "secretaria_views_rationale_438",
       "community": 3,
       "norm_label": "soft delete \u2014 retira sin eliminar historial."
     },
@@ -12631,9 +12571,9 @@
       "label": "Reactiva un alumno retirado.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L472",
+      "source_location": "L469",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_472",
+      "id": "secretaria_views_rationale_469",
       "community": 3,
       "norm_label": "reactiva un alumno retirado."
     },
@@ -12641,9 +12581,9 @@
       "label": "Sobreescribir DELETE para usar soft delete.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L498",
+      "source_location": "L495",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_498",
+      "id": "secretaria_views_rationale_495",
       "community": 3,
       "norm_label": "sobreescribir delete para usar soft delete."
     },
@@ -12651,9 +12591,9 @@
       "label": "Inscribe a un alumno ya registrado en el banco.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L517",
+      "source_location": "L514",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_517",
+      "id": "secretaria_views_rationale_514",
       "community": 3,
       "norm_label": "inscribe a un alumno ya registrado en el banco."
     },
@@ -12661,9 +12601,9 @@
       "label": "Busca un representante por c\u00e9dula y devuelve su informaci\u00f3n junto      con la l",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L682",
+      "source_location": "L679",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_682",
+      "id": "secretaria_views_rationale_679",
       "community": 3,
       "norm_label": "busca un representante por cedula y devuelve su informacion junto      con la l"
     },
@@ -12671,9 +12611,9 @@
       "label": "Procesa la inscripci\u00f3n de un alumno que ya existe en el sistema.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L706",
+      "source_location": "L701",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_706",
+      "id": "secretaria_views_rationale_701",
       "community": 3,
       "norm_label": "procesa la inscripcion de un alumno que ya existe en el sistema."
     },
@@ -12681,9 +12621,9 @@
       "label": "Devuelve el nombre completo del grado, conservando la secci\u00f3n si existe.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L791",
+      "source_location": "L786",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_791",
+      "id": "secretaria_views_rationale_786",
       "community": 3,
       "norm_label": "devuelve el nombre completo del grado, conservando la seccion si existe."
     },
@@ -12691,9 +12631,9 @@
       "label": "Lista todos los grados activos con cantidad de alumnos inscritos.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L798",
+      "source_location": "L793",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_798",
+      "id": "secretaria_views_rationale_793",
       "community": 3,
       "norm_label": "lista todos los grados activos con cantidad de alumnos inscritos."
     },
@@ -12701,9 +12641,9 @@
       "label": "Devuelve la lista de alumnos de un grado con orden configurable.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L815",
+      "source_location": "L810",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_815",
+      "id": "secretaria_views_rationale_810",
       "community": 3,
       "norm_label": "devuelve la lista de alumnos de un grado con orden configurable."
     },
@@ -12711,9 +12651,9 @@
       "label": "Exporta la matr\u00edcula de un grado a Excel.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L855",
+      "source_location": "L850",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_855",
+      "id": "secretaria_views_rationale_850",
       "community": 3,
       "norm_label": "exporta la matricula de un grado a excel."
     },
@@ -12721,9 +12661,9 @@
       "label": "Exporta la matr\u00edcula de un grado a PDF con reportlab.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L926",
+      "source_location": "L921",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_926",
+      "id": "secretaria_views_rationale_921",
       "community": 3,
       "norm_label": "exporta la matricula de un grado a pdf con reportlab."
     },
@@ -12731,9 +12671,9 @@
       "label": "CRUD completo de representantes con b\u00fasqueda y conteo de alumnos vinculados.",
       "file_type": "rationale",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L1016",
+      "source_location": "L1011",
       "_origin": "ast",
-      "id": "secretaria_views_rationale_1016",
+      "id": "secretaria_views_rationale_1011",
       "community": 3,
       "norm_label": "crud completo de representantes con busqueda y conteo de alumnos vinculados."
     },
@@ -20574,7 +20514,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "api_academico_service_createlapso",
-      "community": 84,
+      "community": 303,
       "norm_label": "createlapso()"
     },
     {
@@ -20584,7 +20524,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "api_academico_service_getnotasgrado",
-      "community": 84,
+      "community": 303,
       "norm_label": "getnotasgrado()"
     },
     {
@@ -20594,7 +20534,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "api_academico_service_savenotas",
-      "community": 84,
+      "community": 303,
       "norm_label": "savenotas()"
     },
     {
@@ -20704,7 +20644,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "api_academico_service_updatelapso",
-      "community": 84,
+      "community": 303,
       "norm_label": "updatelapso()"
     },
     {
@@ -20714,7 +20654,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "api_academico_service_deletelapso",
-      "community": 84,
+      "community": 303,
       "norm_label": "deletelapso()"
     },
     {
@@ -20734,7 +20674,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "api_apiclient_apiclient",
-      "community": 311,
+      "community": 20,
       "norm_label": "apiclient"
     },
     {
@@ -20854,7 +20794,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "api_inscripciones_service_fetchalumnosporrepresentante",
-      "community": 28,
+      "community": 31,
       "norm_label": "fetchalumnosporrepresentante()"
     },
     {
@@ -20994,7 +20934,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "api_portaladmin_service",
-      "community": 44,
+      "community": 20,
       "norm_label": "portaladmin.service.js"
     },
     {
@@ -21004,7 +20944,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "api_portaladmin_service_activarportalrepresentante",
-      "community": 44,
+      "community": 20,
       "norm_label": "activarportalrepresentante()"
     },
     {
@@ -21014,7 +20954,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "api_portaladmin_service_desactivarportalrepresentante",
-      "community": 44,
+      "community": 20,
       "norm_label": "desactivarportalrepresentante()"
     },
     {
@@ -21024,7 +20964,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "api_portaladmin_service_restablecercontrasenaportal",
-      "community": 44,
+      "community": 20,
       "norm_label": "restablecercontrasenaportal()"
     },
     {
@@ -21104,7 +21044,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_confirmdeletemodal",
-      "community": 27,
+      "community": 28,
       "norm_label": "confirmdeletemodal.jsx"
     },
     {
@@ -21114,7 +21054,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "components_confirmdeletemodal_confirmdeletemodal",
-      "community": 27,
+      "community": 28,
       "norm_label": "confirmdeletemodal()"
     },
     {
@@ -21124,7 +21064,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_datepickeres",
-      "community": 28,
+      "community": 9,
       "norm_label": "datepickeres.jsx"
     },
     {
@@ -21134,7 +21074,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_datepickeres_parselocaldate",
-      "community": 28,
+      "community": 9,
       "norm_label": "parselocaldate()"
     },
     {
@@ -21144,7 +21084,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "components_datepickeres_toisostring",
-      "community": 28,
+      "community": 9,
       "norm_label": "toisostring()"
     },
     {
@@ -21154,7 +21094,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "components_datepickeres_datepickeres",
-      "community": 28,
+      "community": 9,
       "norm_label": "datepickeres()"
     },
     {
@@ -21184,7 +21124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_gradoselect",
-      "community": 33,
+      "community": 28,
       "norm_label": "gradoselect.jsx"
     },
     {
@@ -21194,7 +21134,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "components_gradoselect_gradoselect",
-      "community": 33,
+      "community": 28,
       "norm_label": "gradoselect()"
     },
     {
@@ -21274,7 +21214,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_sedeswitcher",
-      "community": 20,
+      "community": 19,
       "norm_label": "sedeswitcher.jsx"
     },
     {
@@ -21284,7 +21224,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "components_sedeswitcher_sedeswitcher",
-      "community": 20,
+      "community": 19,
       "norm_label": "sedeswitcher()"
     },
     {
@@ -21294,7 +21234,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_sidebar",
-      "community": 20,
+      "community": 19,
       "norm_label": "sidebar.jsx"
     },
     {
@@ -21304,7 +21244,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "components_sidebar_navsections",
-      "community": 20,
+      "community": 19,
       "norm_label": "navsections"
     },
     {
@@ -21314,7 +21254,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "components_sidebar_sidebar",
-      "community": 20,
+      "community": 19,
       "norm_label": "sidebar()"
     },
     {
@@ -21344,7 +21284,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_modalajustarmensualidades",
-      "community": 119,
+      "community": 28,
       "norm_label": "modalajustarmensualidades.jsx"
     },
     {
@@ -21354,7 +21294,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "alumnos_modalajustarmensualidades_formatearfechahistorial",
-      "community": 119,
+      "community": 28,
       "norm_label": "formatearfechahistorial()"
     },
     {
@@ -21364,7 +21304,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "alumnos_modalajustarmensualidades_modalajustarmensualidades",
-      "community": 119,
+      "community": 28,
       "norm_label": "modalajustarmensualidades()"
     },
     {
@@ -21374,7 +21314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_modalasignargrado",
-      "community": 33,
+      "community": 28,
       "norm_label": "modalasignargrado.jsx"
     },
     {
@@ -21384,7 +21324,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "alumnos_modalasignargrado_modalasignargrado",
-      "community": 33,
+      "community": 28,
       "norm_label": "modalasignargrado()"
     },
     {
@@ -21394,7 +21334,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_modalconfirmarreactivar",
-      "community": 27,
+      "community": 28,
       "norm_label": "modalconfirmarreactivar.jsx"
     },
     {
@@ -21404,7 +21344,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "alumnos_modalconfirmarreactivar_modalconfirmarreactivar",
-      "community": 27,
+      "community": 28,
       "norm_label": "modalconfirmarreactivar()"
     },
     {
@@ -21504,7 +21444,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_modalretirar",
-      "community": 27,
+      "community": 28,
       "norm_label": "modalretirar.jsx"
     },
     {
@@ -21514,7 +21454,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "alumnos_modalretirar_modalretirar",
-      "community": 27,
+      "community": 28,
       "norm_label": "modalretirar()"
     },
     {
@@ -21524,7 +21464,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_sidebarfichaalumno",
-      "community": 119,
+      "community": 28,
       "norm_label": "sidebarfichaalumno.jsx"
     },
     {
@@ -21534,7 +21474,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "alumnos_sidebarfichaalumno_estadobadge",
-      "community": 119,
+      "community": 28,
       "norm_label": "estadobadge()"
     },
     {
@@ -21544,7 +21484,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "alumnos_sidebarfichaalumno_sidebarfichaalumno",
-      "community": 119,
+      "community": 28,
       "norm_label": "sidebarfichaalumno()"
     },
     {
@@ -21554,7 +21494,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_tablaalumnos",
-      "community": 119,
+      "community": 28,
       "norm_label": "tablaalumnos.jsx"
     },
     {
@@ -21564,7 +21504,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "alumnos_tablaalumnos_estadobadge",
-      "community": 119,
+      "community": 28,
       "norm_label": "estadobadge()"
     },
     {
@@ -21574,7 +21514,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "alumnos_tablaalumnos_tablaalumnosskeleton",
-      "community": 119,
+      "community": 28,
       "norm_label": "tablaalumnosskeleton()"
     },
     {
@@ -21584,7 +21524,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "alumnos_tablaalumnos_tablaalumnos",
-      "community": 119,
+      "community": 28,
       "norm_label": "tablaalumnos()"
     },
     {
@@ -22014,7 +21954,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno",
-      "community": 28,
+      "community": 31,
       "norm_label": "pasoalumno.jsx"
     },
     {
@@ -22024,7 +21964,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno_parseisodate",
-      "community": 28,
+      "community": 31,
       "norm_label": "parseisodate()"
     },
     {
@@ -22034,7 +21974,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno_labels_alumno",
-      "community": 28,
+      "community": 31,
       "norm_label": "labels_alumno"
     },
     {
@@ -22044,7 +21984,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno_pasoalumno",
-      "community": 28,
+      "community": 31,
       "norm_label": "pasoalumno()"
     },
     {
@@ -22154,7 +22094,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inscripciones_skeletoncard",
-      "community": 28,
+      "community": 31,
       "norm_label": "skeletoncard.jsx"
     },
     {
@@ -22164,7 +22104,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "inscripciones_skeletoncard_skeletoncard",
-      "community": 28,
+      "community": 31,
       "norm_label": "skeletoncard()"
     },
     {
@@ -22434,7 +22374,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nomina_empleadoform",
-      "community": 10,
+      "community": 309,
       "norm_label": "empleadoform.jsx"
     },
     {
@@ -22444,7 +22384,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "nomina_empleadoform_inputstyle",
-      "community": 10,
+      "community": 309,
       "norm_label": "inputstyle"
     },
     {
@@ -22454,7 +22394,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "nomina_empleadoform_labelstyle",
-      "community": 10,
+      "community": 309,
       "norm_label": "labelstyle"
     },
     {
@@ -22464,7 +22404,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "nomina_empleadoform_req",
-      "community": 10,
+      "community": 309,
       "norm_label": "req()"
     },
     {
@@ -22474,7 +22414,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "nomina_empleadoform_parseisodate",
-      "community": 10,
+      "community": 309,
       "norm_label": "parseisodate()"
     },
     {
@@ -22484,7 +22424,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "nomina_empleadoform_calcularanosservicio",
-      "community": 10,
+      "community": 309,
       "norm_label": "calcularanosservicio()"
     },
     {
@@ -22494,7 +22434,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "nomina_empleadoform_sectionlabel",
-      "community": 10,
+      "community": 309,
       "norm_label": "sectionlabel()"
     },
     {
@@ -22504,7 +22444,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "nomina_empleadoform_errorstyle",
-      "community": 10,
+      "community": 309,
       "norm_label": "errorstyle"
     },
     {
@@ -22514,7 +22454,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "nomina_empleadoform_fielderror",
-      "community": 10,
+      "community": 309,
       "norm_label": "fielderror()"
     },
     {
@@ -22524,7 +22464,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "nomina_empleadoform_empleadoform",
-      "community": 10,
+      "community": 309,
       "norm_label": "empleadoform()"
     },
     {
@@ -22554,7 +22494,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nomina_receiptpreview",
-      "community": 43,
+      "community": 79,
       "norm_label": "receiptpreview.jsx"
     },
     {
@@ -22564,7 +22504,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "nomina_receiptpreview_fmt",
-      "community": 43,
+      "community": 79,
       "norm_label": "fmt()"
     },
     {
@@ -22574,7 +22514,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "nomina_receiptpreview_logoplaceholder",
-      "community": 43,
+      "community": 79,
       "norm_label": "logoplaceholder()"
     },
     {
@@ -22584,7 +22524,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "nomina_receiptpreview_receiptpreview",
-      "community": 43,
+      "community": 79,
       "norm_label": "receiptpreview()"
     },
     {
@@ -22594,7 +22534,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nomina_recibomodal",
-      "community": 10,
+      "community": 33,
       "norm_label": "recibomodal.jsx"
     },
     {
@@ -22604,7 +22544,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "nomina_recibomodal_inputstyle",
-      "community": 10,
+      "community": 33,
       "norm_label": "inputstyle"
     },
     {
@@ -22614,7 +22554,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "nomina_recibomodal_labelstyle",
-      "community": 10,
+      "community": 33,
       "norm_label": "labelstyle"
     },
     {
@@ -22624,7 +22564,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "nomina_recibomodal_monthinput",
-      "community": 10,
+      "community": 33,
       "norm_label": "monthinput"
     },
     {
@@ -22634,7 +22574,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "nomina_recibomodal_docentebanner",
-      "community": 10,
+      "community": 33,
       "norm_label": "docentebanner()"
     },
     {
@@ -22644,7 +22584,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "nomina_recibomodal_recibomodal",
-      "community": 10,
+      "community": 33,
       "norm_label": "recibomodal()"
     },
     {
@@ -22654,7 +22594,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nomina_skeletonfila",
-      "community": 10,
+      "community": 312,
       "norm_label": "skeletonfila.jsx"
     },
     {
@@ -22664,7 +22604,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nomina_skeletonfila_skeletonfila",
-      "community": 10,
+      "community": 312,
       "norm_label": "skeletonfila()"
     },
     {
@@ -22674,7 +22614,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nomina_recibostyles",
-      "community": 43,
+      "community": 79,
       "norm_label": "recibostyles.js"
     },
     {
@@ -22684,7 +22624,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "nomina_recibostyles_cell",
-      "community": 43,
+      "community": 79,
       "norm_label": "cell_"
     },
     {
@@ -22694,7 +22634,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "nomina_recibostyles_c",
-      "community": 43,
+      "community": 79,
       "norm_label": "c"
     },
     {
@@ -22704,7 +22644,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "nomina_recibostyles_l",
-      "community": 43,
+      "community": 79,
       "norm_label": "l"
     },
     {
@@ -22714,7 +22654,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "nomina_recibostyles_r",
-      "community": 43,
+      "community": 79,
       "norm_label": "r"
     },
     {
@@ -22724,7 +22664,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "nomina_recibostyles_lb",
-      "community": 43,
+      "community": 79,
       "norm_label": "lb"
     },
     {
@@ -22734,7 +22674,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "nomina_recibostyles_rb",
-      "community": 43,
+      "community": 79,
       "norm_label": "rb"
     },
     {
@@ -22744,7 +22684,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "nomina_recibostyles_sech",
-      "community": 43,
+      "community": 79,
       "norm_label": "sech"
     },
     {
@@ -22754,7 +22694,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "nomina_recibostyles_subh",
-      "community": 43,
+      "community": 79,
       "norm_label": "subh"
     },
     {
@@ -22764,7 +22704,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "nomina_recibostyles_redcell",
-      "community": 43,
+      "community": 79,
       "norm_label": "redcell"
     },
     {
@@ -22774,7 +22714,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "nomina_recibostyles_redlcell",
-      "community": 43,
+      "community": 79,
       "norm_label": "redlcell"
     },
     {
@@ -22784,7 +22724,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "nomina_recibostyles_stripe",
-      "community": 43,
+      "community": 79,
       "norm_label": "stripe()"
     },
     {
@@ -22824,7 +22764,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "notas_tablanotas",
-      "community": 303,
+      "community": 314,
       "norm_label": "tablanotas.jsx"
     },
     {
@@ -22834,7 +22774,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "notas_tablanotas_input_style",
-      "community": 303,
+      "community": 314,
       "norm_label": "input_style"
     },
     {
@@ -22844,7 +22784,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "notas_tablanotas_campos_eval",
-      "community": 303,
+      "community": 314,
       "norm_label": "campos_eval"
     },
     {
@@ -22854,7 +22794,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "notas_tablanotas_cabeceras",
-      "community": 303,
+      "community": 314,
       "norm_label": "cabeceras"
     },
     {
@@ -22864,7 +22804,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "notas_tablanotas_skeletonrow",
-      "community": 303,
+      "community": 314,
       "norm_label": "skeletonrow()"
     },
     {
@@ -22874,7 +22814,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "notas_tablanotas_tablanotas",
-      "community": 303,
+      "community": 314,
       "norm_label": "tablanotas()"
     },
     {
@@ -23254,7 +23194,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "constants_avec",
-      "community": 10,
+      "community": 17,
       "norm_label": "avec.js"
     },
     {
@@ -23264,7 +23204,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "constants_avec_categorias_docente",
-      "community": 10,
+      "community": 309,
       "norm_label": "categorias_docente"
     },
     {
@@ -23274,7 +23214,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "constants_avec_prima_docente_pct",
-      "community": 10,
+      "community": 17,
       "norm_label": "prima_docente_pct"
     },
     {
@@ -23284,7 +23224,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "constants_avec_postgrado_pct",
-      "community": 10,
+      "community": 17,
       "norm_label": "postgrado_pct"
     },
     {
@@ -23294,7 +23234,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "constants_avec_calcprimaantiguedad",
-      "community": 10,
+      "community": 17,
       "norm_label": "calcprimaantiguedad()"
     },
     {
@@ -23304,7 +23244,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "constants_avec_calcprimapostgrado",
-      "community": 10,
+      "community": 17,
       "norm_label": "calcprimapostgrado()"
     },
     {
@@ -23314,7 +23254,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "constants_avec_calcavec",
-      "community": 10,
+      "community": 17,
       "norm_label": "calcavec()"
     },
     {
@@ -23334,7 +23274,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "constants_avec_validarcedula",
-      "community": 10,
+      "community": 17,
       "norm_label": "validarcedula()"
     },
     {
@@ -23344,7 +23284,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "constants_avec_buildcategoriasdefault",
-      "community": 10,
+      "community": 17,
       "norm_label": "buildcategoriasdefault()"
     },
     {
@@ -23354,7 +23294,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "constants_avec_cesta_default",
-      "community": 10,
+      "community": 17,
       "norm_label": "cesta_default"
     },
     {
@@ -23364,7 +23304,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "constants_avec_loadcestaconfig",
-      "community": 10,
+      "community": 17,
       "norm_label": "loadcestaconfig()"
     },
     {
@@ -23374,7 +23314,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "constants_avec_savecestaconfig",
-      "community": 10,
+      "community": 17,
       "norm_label": "savecestaconfig()"
     },
     {
@@ -23384,7 +23324,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "constants_avec_empty_recibo",
-      "community": 10,
+      "community": 33,
       "norm_label": "empty_recibo"
     },
     {
@@ -23394,7 +23334,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "constants_avec_empty_emp",
-      "community": 10,
+      "community": 17,
       "norm_label": "empty_emp"
     },
     {
@@ -23404,7 +23344,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "constants_grados",
-      "community": 33,
+      "community": 28,
       "norm_label": "grados.jsx"
     },
     {
@@ -23414,7 +23354,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "constants_grados_grados_primaria",
-      "community": 33,
+      "community": 28,
       "norm_label": "grados_primaria"
     },
     {
@@ -23424,7 +23364,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "constants_grados_grados_media",
-      "community": 33,
+      "community": 28,
       "norm_label": "grados_media"
     },
     {
@@ -23434,7 +23374,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "constants_grados_todos_los_grados",
-      "community": 33,
+      "community": 28,
       "norm_label": "todos_los_grados"
     },
     {
@@ -23534,7 +23474,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "constants_nominafmt",
-      "community": 10,
+      "community": 33,
       "norm_label": "nominafmt.js"
     },
     {
@@ -23544,7 +23484,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "constants_nominafmt_fmtbs",
-      "community": 10,
+      "community": 33,
       "norm_label": "fmtbs()"
     },
     {
@@ -23754,7 +23694,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "context_sedecontext_usesede",
-      "community": 20,
+      "community": 19,
       "norm_label": "usesede()"
     },
     {
@@ -24064,7 +24004,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usefocustrap",
-      "community": 27,
+      "community": 28,
       "norm_label": "usefocustrap.js"
     },
     {
@@ -24074,7 +24014,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "hooks_usefocustrap_usefocustrap",
-      "community": 27,
+      "community": 28,
       "norm_label": "usefocustrap()"
     },
     {
@@ -24194,7 +24134,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_uselapsos",
-      "community": 84,
+      "community": 303,
       "norm_label": "uselapsos.js"
     },
     {
@@ -24244,7 +24184,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_uselogssistemas",
-      "community": 313,
+      "community": 20,
       "norm_label": "uselogssistemas.js"
     },
     {
@@ -24344,7 +24284,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usemorosos",
-      "community": 19,
+      "community": 119,
       "norm_label": "usemorosos.js"
     },
     {
@@ -24384,7 +24324,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usenomina",
-      "community": 10,
+      "community": 17,
       "norm_label": "usenomina.js"
     },
     {
@@ -24394,7 +24334,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "hooks_usenomina_parseapierror",
-      "community": 10,
+      "community": 17,
       "norm_label": "parseapierror()"
     },
     {
@@ -24404,7 +24344,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "hooks_usenomina_nullable_fields",
-      "community": 10,
+      "community": 17,
       "norm_label": "nullable_fields"
     },
     {
@@ -24414,7 +24354,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "hooks_usenomina_cleannullables",
-      "community": 10,
+      "community": 17,
       "norm_label": "cleannullables()"
     },
     {
@@ -24424,7 +24364,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "hooks_usenomina_validarempleado",
-      "community": 10,
+      "community": 17,
       "norm_label": "validarempleado()"
     },
     {
@@ -24434,7 +24374,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "hooks_usenomina_usenomina",
-      "community": 10,
+      "community": 312,
       "norm_label": "usenomina()"
     },
     {
@@ -24444,7 +24384,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usenotas",
-      "community": 84,
+      "community": 303,
       "norm_label": "usenotas.js"
     },
     {
@@ -24514,7 +24454,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_userepresentantes",
-      "community": 44,
+      "community": 20,
       "norm_label": "userepresentantes.js"
     },
     {
@@ -24524,7 +24464,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "hooks_userepresentantes_form_empty",
-      "community": 44,
+      "community": 20,
       "norm_label": "form_empty"
     },
     {
@@ -24534,7 +24474,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "hooks_userepresentantes_parseapierror",
-      "community": 44,
+      "community": 20,
       "norm_label": "parseapierror()"
     },
     {
@@ -24624,7 +24564,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usesyncedlocalstorage",
-      "community": 10,
+      "community": 312,
       "norm_label": "usesyncedlocalstorage.js"
     },
     {
@@ -24634,7 +24574,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "hooks_usesyncedlocalstorage_usesyncedlocalstorage",
-      "community": 10,
+      "community": 312,
       "norm_label": "usesyncedlocalstorage()"
     },
     {
@@ -24724,7 +24664,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_useusuariossistemas",
-      "community": 68,
+      "community": 20,
       "norm_label": "useusuariossistemas.js"
     },
     {
@@ -25004,7 +24944,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_cobranzadashboard",
-      "community": 312,
+      "community": 20,
       "norm_label": "cobranzadashboard.jsx"
     },
     {
@@ -25014,7 +24954,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "pages_cobranzadashboard_cobranzadashboard",
-      "community": 312,
+      "community": 20,
       "norm_label": "cobranzadashboard()"
     },
     {
@@ -25024,7 +24964,7 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "pages_cobranzadashboard_statcard",
-      "community": 312,
+      "community": 20,
       "norm_label": "statcard()"
     },
     {
@@ -25034,7 +24974,7 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "pages_cobranzadashboard_actionbutton",
-      "community": 312,
+      "community": 20,
       "norm_label": "actionbutton()"
     },
     {
@@ -25604,7 +25544,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_listaalumnos",
-      "community": 119,
+      "community": 28,
       "norm_label": "listaalumnos.jsx"
     },
     {
@@ -25754,7 +25694,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_nomina",
-      "community": 10,
+      "community": 312,
       "norm_label": "nomina.jsx"
     },
     {
@@ -25764,7 +25704,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "pages_nomina_tabs",
-      "community": 10,
+      "community": 312,
       "norm_label": "tabs"
     },
     {
@@ -25774,7 +25714,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "pages_nomina_nomina",
-      "community": 10,
+      "community": 312,
       "norm_label": "nomina()"
     },
     {
@@ -26704,7 +26644,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_portalprotectedroute",
-      "community": 309,
+      "community": 39,
       "norm_label": "portalprotectedroute.jsx"
     },
     {
@@ -26714,7 +26654,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_portalprotectedroute_fullscreenskeleton",
-      "community": 309,
+      "community": 39,
       "norm_label": "fullscreenskeleton()"
     },
     {
@@ -26724,7 +26664,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "components_portalprotectedroute_istokenvalid",
-      "community": 309,
+      "community": 39,
       "norm_label": "istokenvalid()"
     },
     {
@@ -26734,7 +26674,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "components_portalprotectedroute_portalprotectedroute",
-      "community": 309,
+      "community": 39,
       "norm_label": "portalprotectedroute()"
     },
     {
@@ -27244,7 +27184,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "utils_nominapdf",
-      "community": 10,
+      "community": 33,
       "norm_label": "nominapdf.js"
     },
     {
@@ -27254,7 +27194,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "utils_nominapdf_inst_default",
-      "community": 10,
+      "community": 33,
       "norm_label": "inst_default"
     },
     {
@@ -27264,7 +27204,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "utils_nominapdf_buildreciboavecdoc",
-      "community": 10,
+      "community": 33,
       "norm_label": "_buildreciboavecdoc()"
     },
     {
@@ -27274,7 +27214,7 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "utils_nominapdf_generarreciboavecpdf",
-      "community": 10,
+      "community": 33,
       "norm_label": "generarreciboavecpdf()"
     },
     {
@@ -27284,7 +27224,7 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "utils_nominapdf_generarrecibosimplepdf",
-      "community": 10,
+      "community": 33,
       "norm_label": "generarrecibosimplepdf()"
     },
     {
@@ -27314,7 +27254,7 @@
       "source_location": "L423",
       "_origin": "ast",
       "id": "utils_nominapdf_reciboavecbytes",
-      "community": 10,
+      "community": 33,
       "norm_label": "reciboavecbytes()"
     },
     {
@@ -27324,7 +27264,7 @@
       "source_location": "L431",
       "_origin": "ast",
       "id": "utils_nominapdf_recibosimplebytes",
-      "community": 10,
+      "community": 33,
       "norm_label": "recibosimplebytes()"
     },
     {
@@ -27354,7 +27294,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "utils_notas_utils",
-      "community": 84,
+      "community": 303,
       "norm_label": "notas.utils.js"
     },
     {
@@ -27374,7 +27314,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "utils_notas_utils_lapso_vacio",
-      "community": 84,
+      "community": 303,
       "norm_label": "lapso_vacio"
     },
     {
@@ -27384,7 +27324,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "utils_notas_utils_campos_eval",
-      "community": 84,
+      "community": 303,
       "norm_label": "campos_eval"
     },
     {
@@ -27394,7 +27334,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "utils_notas_utils_calcdefinitiva",
-      "community": 84,
+      "community": 303,
       "norm_label": "calcdefinitiva()"
     },
     {
@@ -43025,9 +42965,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L19",
       "weight": 0.8,
-      "confidence_score": 0.5,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_models_parametroglobal"
+      "target": "cobranza_models_parametroglobal",
+      "confidence_score": 0.5
     },
     {
       "relation": "uses",
@@ -43068,16 +43008,6 @@
       "confidence_score": 0.5,
       "source": "cobranza_test_generacion_mensualidades_serviciogeneraciontest",
       "target": "cobranza_models_parametroglobal"
-    },
-    {
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L19",
-      "weight": 0.8,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "target": "cobranza_models_parametroglobal",
-      "confidence_score": 0.5
     },
     {
       "relation": "uses",
@@ -44922,9 +44852,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L19",
       "weight": 0.8,
-      "confidence_score": 0.5,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_models_mensualidad"
+      "target": "cobranza_models_mensualidad",
+      "confidence_score": 0.5
     },
     {
       "relation": "uses",
@@ -44965,16 +44895,6 @@
       "confidence_score": 0.5,
       "source": "cobranza_test_generacion_mensualidades_serviciogeneraciontest",
       "target": "cobranza_models_mensualidad"
-    },
-    {
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L19",
-      "weight": 0.8,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "target": "cobranza_models_mensualidad",
-      "confidence_score": 0.5
     },
     {
       "relation": "uses",
@@ -45244,9 +45164,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L19",
       "weight": 0.8,
-      "confidence_score": 0.5,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_models_cuotainscripcion"
+      "target": "cobranza_models_cuotainscripcion",
+      "confidence_score": 0.5
     },
     {
       "relation": "uses",
@@ -45287,16 +45207,6 @@
       "confidence_score": 0.5,
       "source": "cobranza_test_generacion_mensualidades_serviciogeneraciontest",
       "target": "cobranza_models_cuotainscripcion"
-    },
-    {
-      "relation": "uses",
-      "confidence": "INFERRED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L19",
-      "weight": 0.8,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "target": "cobranza_models_cuotainscripcion",
-      "confidence_score": 0.5
     },
     {
       "relation": "uses",
@@ -45754,16 +45664,6 @@
       "target": "cobranza_mora_hoy"
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/mora.py",
-      "source_location": "L130",
-      "weight": 1.0,
-      "source": "cobranza_mora",
-      "target": "cobranza_mora_sincronizar_estatus_alumno",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -45860,17 +45760,6 @@
       "target": "cobranza_mora_annotate_en_mora"
     },
     {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/mora.py",
-      "source_location": "L141",
-      "weight": 1.0,
-      "source": "cobranza_mora_sincronizar_estatus_alumno",
-      "target": "cobranza_mora_annotate_en_mora",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -45931,53 +45820,9 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L276",
-      "weight": 1.0,
-      "source": "cobranza_views_buscaralumnocobranzaview_alumno_data",
-      "target": "cobranza_mora_annotate_en_mora"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "octopus-api/cobranza/views.py",
       "source_location": "L140",
       "weight": 1.0,
       "source": "cobranza_views_dashboardstatsview_get",
-      "target": "cobranza_mora_annotate_en_mora"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/multisede/serializers.py",
-      "source_location": "L95",
-      "weight": 1.0,
-      "source": "multisede_serializers_sederesumenserializer_get_morosos",
-      "target": "cobranza_mora_annotate_en_mora"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/multisede/views.py",
-      "source_location": "L369",
-      "weight": 1.0,
-      "source": "multisede_views_dashboardsedeview_get",
-      "target": "cobranza_mora_annotate_en_mora"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/portal/views.py",
-      "source_location": "L120",
-      "weight": 1.0,
-      "source": "portal_views_portaldashboardview_get",
       "target": "cobranza_mora_annotate_en_mora"
     },
     {
@@ -45989,17 +45834,6 @@
       "source_location": "L303",
       "weight": 1.0,
       "source": "secretaria_views_alumnolistview_get_queryset",
-      "target": "cobranza_mora_annotate_en_mora"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L394",
-      "weight": 1.0,
-      "source": "secretaria_views_alumnolistview_update_info",
       "target": "cobranza_mora_annotate_en_mora"
     },
     {
@@ -46022,17 +45856,6 @@
       "source_location": "L798",
       "weight": 1.0,
       "source": "secretaria_views_matriculagradoview_get",
-      "target": "cobranza_mora_annotate_en_mora"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L693",
-      "weight": 1.0,
-      "source": "secretaria_views_representantealumnosview_get",
       "target": "cobranza_mora_annotate_en_mora"
     },
     {
@@ -46089,39 +45912,6 @@
       "target": "cobranza_mora_estatus_financiero_actual"
     },
     {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L275",
-      "weight": 1.0,
-      "source": "cobranza_views",
-      "target": "cobranza_mora_estatus_financiero_actual",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L286",
-      "weight": 1.0,
-      "source": "cobranza_views_buscaralumnocobranzaview_alumno_data",
-      "target": "cobranza_mora_estatus_financiero_actual"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/portal/views.py",
-      "source_location": "L124",
-      "weight": 1.0,
-      "source": "portal_views_portaldashboardview_get",
-      "target": "cobranza_mora_estatus_financiero_actual"
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "INFERRED",
@@ -46131,82 +45921,6 @@
       "weight": 1.0,
       "source": "secretaria_views_matriculagradoview_get",
       "target": "cobranza_mora_estatus_financiero_actual"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/mora.py",
-      "source_location": "L131",
-      "weight": 1.0,
-      "source": "cobranza_mora_rationale_131",
-      "target": "cobranza_mora_sincronizar_estatus_alumno",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L242",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades",
-      "target": "cobranza_mora_sincronizar_estatus_alumno",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L268",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_becado_no_se_toca",
-      "target": "cobranza_mora_sincronizar_estatus_alumno"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L246",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_pagar_un_mes_no_da_solvencia_si_debe_anteriores",
-      "target": "cobranza_mora_sincronizar_estatus_alumno"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L429",
-      "weight": 1.0,
-      "source": "cobranza_views",
-      "target": "cobranza_mora_sincronizar_estatus_alumno",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L430",
-      "weight": 1.0,
-      "source": "cobranza_views_registrarpagoview_post",
-      "target": "cobranza_mora_sincronizar_estatus_alumno"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "octopus-api/portal/views.py",
-      "source_location": "L748",
-      "weight": 1.0,
-      "source": "portal_views_admincomprobantesview_patch",
-      "target": "cobranza_mora_sincronizar_estatus_alumno"
     },
     {
       "relation": "contains",
@@ -48159,17 +47873,6 @@
       "target": "cobranza_services_generar_mensualidades"
     },
     {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L243",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_pagar_un_mes_no_da_solvencia_si_debe_anteriores",
-      "target": "cobranza_services_generar_mensualidades"
-    },
-    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -48687,9 +48390,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L237",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -48730,16 +48433,6 @@
       "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades",
       "target": "cobranza_test_generacion_mensualidades_serviciogeneraciontest"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L237",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades",
-      "target": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -48831,9 +48524,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L245",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_setup",
-      "target": "date"
+      "target": "date",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -48867,17 +48560,6 @@
       "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_serviciogeneraciontest_test_periodo_escolar_de_fecha",
       "target": "date"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L244",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_pagar_un_mes_no_da_solvencia_si_debe_anteriores",
-      "target": "date",
-      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -49029,9 +48711,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L264",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_cambio_de_dia_limite_se_propaga_a_alumnos",
-      "target": "cobranza_test_generacion_mensualidades_crear_alumno"
+      "target": "cobranza_test_generacion_mensualidades_crear_alumno",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -49043,17 +48725,6 @@
       "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase_setup",
       "target": "cobranza_test_generacion_mensualidades_crear_alumno"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L265",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_becado_no_se_toca",
-      "target": "cobranza_test_generacion_mensualidades_crear_alumno",
-      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -49082,9 +48753,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L237",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase"
+      "target": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -49125,16 +48796,6 @@
       "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_serviciogeneraciontest",
       "target": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase"
-    },
-    {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L237",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "target": "cobranza_test_generacion_mensualidades_generacionmensualidadesbase",
-      "confidence_score": 1.0
     },
     {
       "relation": "inherits",
@@ -49487,9 +49148,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L179",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_inscripciongeneradeudatest_setup",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_setup"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_setup",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -49536,44 +49197,14 @@
       "target": "decimal"
     },
     {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L238",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_rationale_238",
-      "target": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L263",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "target": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_becado_no_se_toca",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L241",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_sincronizarestatustest",
-      "target": "cobranza_test_generacion_mensualidades_sincronizarestatustest_test_pagar_un_mes_no_da_solvencia_si_debe_anteriores",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L256",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -49581,9 +49212,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L241",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_setup"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_setup",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -49591,9 +49222,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L282",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_alumno_nuevo_toma_dia_limite_de_configuracion"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_alumno_nuevo_toma_dia_limite_de_configuracion",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -49601,9 +49232,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L262",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_cambio_de_dia_limite_se_propaga_a_alumnos"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_cambio_de_dia_limite_se_propaga_a_alumnos",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -49611,9 +49242,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L277",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_sin_cambio_no_toca_alumnos"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_sin_cambio_no_toca_alumnos",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -49621,17 +49252,7 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L238",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_rationale_238",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
-      "source_location": "L274",
-      "weight": 1.0,
-      "source": "cobranza_test_generacion_mensualidades_rationale_274",
       "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest",
       "confidence_score": 1.0
     },
@@ -49642,9 +49263,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L267",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_cambio_de_dia_limite_se_propaga_a_alumnos",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -49653,9 +49274,9 @@
       "source_file": "octopus-api/cobranza/test_generacion_mensualidades.py",
       "source_location": "L278",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_test_sin_cambio_no_toca_alumnos",
-      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config"
+      "target": "cobranza_test_generacion_mensualidades_dialimitepagoglobaltest_post_config",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -51437,11 +51058,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L786",
+      "source_location": "L776",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_786",
-      "target": "cobranza_views_bancosadminview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_776",
+      "target": "cobranza_views_bancosadminview"
     },
     {
       "relation": "method",
@@ -51487,11 +51108,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L803",
+      "source_location": "L793",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_803",
-      "target": "cobranza_views_bancodetailview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_793",
+      "target": "cobranza_views_bancodetailview"
     },
     {
       "relation": "calls",
@@ -51540,11 +51161,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L848",
+      "source_location": "L838",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_848",
-      "target": "cobranza_views_consultacomprobantesview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_838",
+      "target": "cobranza_views_consultacomprobantesview"
     },
     {
       "relation": "calls",
@@ -51571,11 +51192,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L939",
+      "source_location": "L929",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_939",
-      "target": "cobranza_views_comprobantedetalleview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_929",
+      "target": "cobranza_views_comprobantedetalleview"
     },
     {
       "relation": "calls",
@@ -51602,11 +51223,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L960",
+      "source_location": "L950",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_960",
-      "target": "cobranza_views_pagoslistview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_950",
+      "target": "cobranza_views_pagoslistview"
     },
     {
       "relation": "calls",
@@ -51633,11 +51254,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1014",
+      "source_location": "L1004",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_1014",
-      "target": "cobranza_views_mensualidadespuntualidadview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_1004",
+      "target": "cobranza_views_mensualidadespuntualidadview"
     },
     {
       "relation": "calls",
@@ -51674,11 +51295,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1114",
+      "source_location": "L1104",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_1114",
-      "target": "cobranza_views_listamorososview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_1104",
+      "target": "cobranza_views_listamorososview"
     },
     {
       "relation": "calls",
@@ -51727,11 +51348,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/cobranza/views.py",
-      "source_location": "L1182",
+      "source_location": "L1172",
       "weight": 1.0,
-      "source": "cobranza_views_rationale_1182",
-      "target": "cobranza_views_exportarmorososexcelview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "cobranza_views_rationale_1172",
+      "target": "cobranza_views_exportarmorososexcelview"
     },
     {
       "relation": "calls",
@@ -53296,11 +52917,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/multisede/tests.py",
-      "source_location": "L141",
+      "source_location": "L137",
       "weight": 1.0,
-      "source": "multisede_tests_rationale_141",
-      "target": "multisede_tests_dashboardconsolidadonplusonetest_test_costo_por_sede_no_se_duplica",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "multisede_tests_rationale_137",
+      "target": "multisede_tests_dashboardconsolidadonplusonetest_test_costo_por_sede_no_se_duplica"
     },
     {
       "relation": "imports_from",
@@ -53874,11 +53495,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/multisede/views.py",
-      "source_location": "L404",
+      "source_location": "L400",
       "weight": 1.0,
-      "source": "multisede_views_rationale_404",
-      "target": "multisede_views_asignarsedeexistenteview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "multisede_views_rationale_400",
+      "target": "multisede_views_asignarsedeexistenteview"
     },
     {
       "relation": "contains",
@@ -59526,11 +59147,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L203",
+      "source_location": "L197",
       "weight": 1.0,
-      "source": "portal_views_rationale_203",
-      "target": "portal_views_portalhistorialpagosview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_197",
+      "target": "portal_views_portalhistorialpagosview"
     },
     {
       "relation": "calls",
@@ -59567,11 +59188,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L260",
+      "source_location": "L254",
       "weight": 1.0,
-      "source": "portal_views_rationale_260",
-      "target": "portal_views_portalcomprobantepagoview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_254",
+      "target": "portal_views_portalcomprobantepagoview"
     },
     {
       "relation": "calls",
@@ -59599,11 +59220,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L457",
+      "source_location": "L451",
       "weight": 1.0,
-      "source": "portal_views_rationale_457",
-      "target": "portal_views_portalcomprobantepagoview_get",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_451",
+      "target": "portal_views_portalcomprobantepagoview_get"
     },
     {
       "relation": "method",
@@ -59629,11 +59250,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L482",
+      "source_location": "L476",
       "weight": 1.0,
-      "source": "portal_views_rationale_482",
-      "target": "portal_views_activarportalrepresentanteview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_476",
+      "target": "portal_views_activarportalrepresentanteview"
     },
     {
       "relation": "calls",
@@ -59661,11 +59282,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L551",
+      "source_location": "L545",
       "weight": 1.0,
-      "source": "portal_views_rationale_551",
-      "target": "portal_views_activarportalrepresentanteview_delete",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_545",
+      "target": "portal_views_activarportalrepresentanteview_delete"
     },
     {
       "relation": "method",
@@ -59681,11 +59302,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L571",
+      "source_location": "L565",
       "weight": 1.0,
-      "source": "portal_views_rationale_571",
-      "target": "portal_views_portalbancosview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_565",
+      "target": "portal_views_portalbancosview"
     },
     {
       "relation": "calls",
@@ -59722,11 +59343,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L600",
+      "source_location": "L594",
       "weight": 1.0,
-      "source": "portal_views_rationale_600",
-      "target": "portal_views_admincomprobantesview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_594",
+      "target": "portal_views_admincomprobantesview"
     },
     {
       "relation": "calls",
@@ -59754,21 +59375,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L639",
+      "source_location": "L633",
       "weight": 1.0,
-      "source": "portal_views_rationale_639",
-      "target": "portal_views_admincomprobantesview_patch",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_633",
+      "target": "portal_views_admincomprobantesview_patch"
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L772",
+      "source_location": "L764",
       "weight": 1.0,
-      "source": "portal_views_rationale_772",
-      "target": "portal_views_verificarreferenciaview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_764",
+      "target": "portal_views_verificarreferenciaview"
     },
     {
       "relation": "method",
@@ -59805,11 +59426,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L836",
+      "source_location": "L828",
       "weight": 1.0,
-      "source": "portal_views_rationale_836",
-      "target": "portal_views_configuracioncolegiopublicaview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_828",
+      "target": "portal_views_configuracioncolegiopublicaview"
     },
     {
       "relation": "calls",
@@ -59836,11 +59457,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/portal/views.py",
-      "source_location": "L878",
+      "source_location": "L870",
       "weight": 1.0,
-      "source": "portal_views_rationale_878",
-      "target": "portal_views_cambiarcontrasenaportalview",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "portal_views_rationale_870",
+      "target": "portal_views_cambiarcontrasenaportalview"
     },
     {
       "relation": "contains",
@@ -61313,9 +60934,9 @@
       "source_file": "octopus-api/secretaria/services.py",
       "source_location": "L81",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "secretaria_services",
-      "target": "secretaria_models_configuracionsistema"
+      "target": "secretaria_models_configuracionsistema",
+      "confidence_score": 1.0
     },
     {
       "relation": "uses",
@@ -61323,9 +60944,9 @@
       "source_file": "octopus-api/secretaria/services.py",
       "source_location": "L81",
       "weight": 0.8,
-      "confidence_score": 0.5,
       "source": "secretaria_services_notificadorservice",
-      "target": "secretaria_models_configuracionsistema"
+      "target": "secretaria_models_configuracionsistema",
+      "confidence_score": 0.5
     },
     {
       "relation": "imports",
@@ -63763,9 +63384,9 @@
       "source_file": "octopus-api/secretaria/serializers.py",
       "source_location": "L141",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "secretaria_serializers",
-      "target": "secretaria_services_dia_limite_pago_global"
+      "target": "secretaria_services_dia_limite_pago_global",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -66058,9 +65679,9 @@
       "source_file": "octopus-api/secretaria/serializers.py",
       "source_location": "L235",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "secretaria_serializers_rationale_235",
-      "target": "secretaria_serializers_inscripcionserializer_validate"
+      "target": "secretaria_serializers_inscripcionserializer_validate",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -66090,9 +65711,9 @@
       "source_file": "octopus-api/secretaria/serializers.py",
       "source_location": "L253",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "secretaria_serializers_rationale_253",
-      "target": "secretaria_serializers_inscripcionserializer_create"
+      "target": "secretaria_serializers_inscripcionserializer_create",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -66342,9 +65963,9 @@
       "source_file": "octopus-api/secretaria/services.py",
       "source_location": "L75",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "secretaria_services",
-      "target": "secretaria_services_dia_limite_pago_global"
+      "target": "secretaria_services_dia_limite_pago_global",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66466,9 +66087,9 @@
       "source_file": "octopus-api/secretaria/services.py",
       "source_location": "L76",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "secretaria_services_rationale_76",
-      "target": "secretaria_services_dia_limite_pago_global"
+      "target": "secretaria_services_dia_limite_pago_global",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -67211,9 +66832,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L399",
+      "source_location": "L396",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_399",
+      "source": "secretaria_views_rationale_396",
       "target": "secretaria_views_alumnolistview_asignar_grado",
       "confidence_score": 1.0
     },
@@ -67243,9 +66864,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L441",
+      "source_location": "L438",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_441",
+      "source": "secretaria_views_rationale_438",
       "target": "secretaria_views_alumnolistview_retirar",
       "confidence_score": 1.0
     },
@@ -67264,9 +66885,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L472",
+      "source_location": "L469",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_472",
+      "source": "secretaria_views_rationale_469",
       "target": "secretaria_views_alumnolistview_reactivar",
       "confidence_score": 1.0
     },
@@ -67274,9 +66895,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L498",
+      "source_location": "L495",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_498",
+      "source": "secretaria_views_rationale_495",
       "target": "secretaria_views_alumnolistview_perform_destroy",
       "confidence_score": 1.0
     },
@@ -67294,9 +66915,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L517",
+      "source_location": "L514",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_517",
+      "source": "secretaria_views_rationale_514",
       "target": "secretaria_views_inscripcionnuevaview",
       "confidence_score": 1.0
     },
@@ -67378,9 +66999,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L682",
+      "source_location": "L679",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_682",
+      "source": "secretaria_views_rationale_679",
       "target": "secretaria_views_representantealumnosview",
       "confidence_score": 1.0
     },
@@ -67419,9 +67040,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L706",
+      "source_location": "L701",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_706",
+      "source": "secretaria_views_rationale_701",
       "target": "secretaria_views_inscripcionexistenteview",
       "confidence_score": 1.0
     },
@@ -67482,9 +67103,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L791",
+      "source_location": "L786",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_791",
+      "source": "secretaria_views_rationale_786",
       "target": "secretaria_views_nombre_grado_completo",
       "confidence_score": 1.0
     },
@@ -67502,9 +67123,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L798",
+      "source_location": "L793",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_798",
+      "source": "secretaria_views_rationale_793",
       "target": "secretaria_views_gradoslistview",
       "confidence_score": 1.0
     },
@@ -67522,9 +67143,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L815",
+      "source_location": "L810",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_815",
+      "source": "secretaria_views_rationale_810",
       "target": "secretaria_views_matriculagradoview",
       "confidence_score": 1.0
     },
@@ -67553,9 +67174,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L855",
+      "source_location": "L850",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_855",
+      "source": "secretaria_views_rationale_850",
       "target": "secretaria_views_exportarmatriculagradoexcelview",
       "confidence_score": 1.0
     },
@@ -67584,9 +67205,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L926",
+      "source_location": "L921",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_926",
+      "source": "secretaria_views_rationale_921",
       "target": "secretaria_views_exportarmatriculagradopdfview",
       "confidence_score": 1.0
     },
@@ -67605,9 +67226,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "octopus-api/secretaria/views.py",
-      "source_location": "L1016",
+      "source_location": "L1011",
       "weight": 1.0,
-      "source": "secretaria_views_rationale_1016",
+      "source": "secretaria_views_rationale_1011",
       "target": "secretaria_views_representanteviewset",
       "confidence_score": 1.0
     },
@@ -98229,5 +97850,5 @@
       "source_file": "octopus-api/media/comprobantes"
     }
   ],
-  "built_at_commit": "c2bf5f3d478c2ea1c1737bb97518d772b385df14"
+  "built_at_commit": "b9f2c882af7c6519c6efedb175f580d500d102fb"
 }
