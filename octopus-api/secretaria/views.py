@@ -84,6 +84,7 @@ class ConfiguracionSistemaView(APIView):
     def post(self, request):
         config = ConfiguracionSistema.objects.first()
         estaba_abierto = config.inscripciones_abiertas if config else False
+        dia_limite_anterior = config.dia_limite_pago if config else None
 
         if config:
             serializer = ConfiguracionSistemaSerializer(config, data=request.data, partial=True)
@@ -92,6 +93,15 @@ class ConfiguracionSistemaView(APIView):
 
         serializer.is_valid(raise_exception=True)
         config = serializer.save()
+
+        # Propagar el día límite de pago a los alumnos: la mora y las
+        # notificaciones leen Alumno.dia_limite_pago, así que sin esta
+        # sincronización el valor de Configuración no tendría efecto real.
+        alumnos_actualizados = 0
+        if config.dia_limite_pago and config.dia_limite_pago != dia_limite_anterior:
+            alumnos_actualizados = Alumno.todos.exclude(
+                dia_limite_pago=config.dia_limite_pago
+            ).update(dia_limite_pago=config.dia_limite_pago)
 
         # Al abrir el proceso de inscripciones, generar CuotaInscripcion para todos los alumnos activos
         cuotas_generadas = 0
@@ -126,12 +136,15 @@ class ConfiguracionSistemaView(APIView):
                 "fecha_fin_inscripciones":     str(config.fecha_fin_inscripciones),
                 "dia_limite_pago":             config.dia_limite_pago,
                 "cuotas_inscripcion_generadas": cuotas_generadas,
+                "alumnos_dia_limite_actualizados": alumnos_actualizados,
             }
         )
 
         response_data = ConfiguracionSistemaSerializer(config).data
         if cuotas_generadas > 0:
             response_data['cuotas_inscripcion_generadas'] = cuotas_generadas
+        if alumnos_actualizados > 0:
+            response_data['alumnos_dia_limite_actualizados'] = alumnos_actualizados
         return Response(response_data)
 
 

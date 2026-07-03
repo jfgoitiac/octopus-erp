@@ -137,7 +137,11 @@ class AlumnoSerializer(serializers.ModelSerializer):
                 request.user if request else None
             )
 
-        # 3. Crear el alumno vinculado al representante
+        # 3. Día límite de pago desde Configuración (salvo que venga explícito)
+        from .services import dia_limite_pago_global
+        validated_data.setdefault('dia_limite_pago', dia_limite_pago_global())
+
+        # 4. Crear el alumno vinculado al representante
         alumno = Alumno.objects.create(
             representante=representante,
             **validated_data
@@ -273,10 +277,15 @@ class InscripcionSerializer(serializers.ModelSerializer):
                 if not cedula_escolar:
                     alumno_data['cedula_escolar'] = generate_temporary_cedula_escolar(request_user)
                 
-                alumno, _ = Alumno.objects.update_or_create(
+                alumno, alumno_creado = Alumno.objects.update_or_create(
                     cedula_escolar=alumno_data['cedula_escolar'],
                     defaults={**alumno_data, 'representante': representante}
                 )
+                # Alumno nuevo: día límite de pago desde Configuración
+                if alumno_creado:
+                    from .services import dia_limite_pago_global
+                    alumno.dia_limite_pago = dia_limite_pago_global()
+                    alumno.save(update_fields=['dia_limite_pago'])
 
                 # 2b. Validar que no exista inscripción previa para el mismo período
                 periodo = validated_data.get('periodo_escolar')

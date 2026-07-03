@@ -232,3 +232,71 @@ class InscripcionGeneraDeudaTest(GeneracionMensualidadesBase):
             .values_list('mes', 'anio')
         )
         self.assertEqual(meses, [(7, 2026)])
+
+
+class DiaLimitePagoGlobalTest(GeneracionMensualidadesBase):
+    """El día límite configurado en ConfiguracionSistema debe propagarse a los
+    alumnos existentes y aplicarse como default a los alumnos nuevos."""
+
+    def setUp(self):
+        super().setUp()
+        from secretaria.models import ConfiguracionSistema
+        self.config = ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2026, 7, 1),
+            fecha_fin_inscripciones=date(2026, 7, 1),  # cerradas (no genera cuotas)
+            fecha_inicio_ano_escolar=date(2026, 9, 15),
+            fecha_fin_ano_escolar=date(2027, 7, 15),
+            periodo_escolar_activo='2026-2027',
+            dia_limite_pago=5,
+        )
+        self.admin = User.objects.create_superuser(
+            username='admin', password='x', email='admin@test.com'
+        )
+
+    def _post_config(self, payload):
+        from rest_framework.test import APIClient
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        return client.post('/api/secretaria/configuracion/', payload, format='json')
+
+    def test_cambio_de_dia_limite_se_propaga_a_alumnos(self):
+        Alumno.todos.filter(pk=self.alumno.pk).update(dia_limite_pago=5)
+        retirado = _crear_alumno(
+            'E1000009', self.representante, activo=False, dia_limite_pago=5
+        )
+        resp = self._post_config({'dia_limite_pago': 1})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data.get('alumnos_dia_limite_actualizados'), 2)
+
+        self.alumno.refresh_from_db()
+        retirado.refresh_from_db()
+        self.assertEqual(self.alumno.dia_limite_pago, 1)
+        # También los retirados, para que al reactivarlos queden consistentes
+        self.assertEqual(retirado.dia_limite_pago, 1)
+
+    def test_sin_cambio_no_toca_alumnos(self):
+        resp = self._post_config({'dia_limite_pago': 5})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertNotIn('alumnos_dia_limite_actualizados', resp.data)
+
+    def test_alumno_nuevo_toma_dia_limite_de_configuracion(self):
+        self.config.dia_limite_pago = 3
+        self.config.save(update_fields=['dia_limite_pago'])
+
+        from secretaria.serializers import AlumnoSerializer
+        request = type('R', (), {'user': self.admin})()
+        serializer = AlumnoSerializer(
+            data={
+                'nombre': 'Luis', 'apellido': 'Nuevo',
+                'cedula_escolar': 'E2000001',
+                'fecha_nacimiento': '2016-03-01', 'genero': 'masculino',
+                'representante': {
+                    'cedula': 'V11111111', 'nombre': 'Maria', 'apellido': 'Perez',
+                    'telefono': '0412', 'correo': 'maria@test.com', 'direccion': 'Calle 1',
+                },
+            },
+            context={'request': request},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        alumno = serializer.save()
+        self.assertEqual(alumno.dia_limite_pago, 3)

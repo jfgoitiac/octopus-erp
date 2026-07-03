@@ -70,3 +70,14 @@ def generate_temporary_cedula_escolar(request_user):
         # Verifica la unicidad en la base de datos (extremadamente improbable que se repita)
         if not Alumno.objects.filter(cedula_escolar=generated_id).exists():
             return generated_id
+
+
+def dia_limite_pago_global():
+    """
+    Día límite de pago definido en ConfiguracionSistema (fallback 5).
+    Fuente de verdad para alumnos nuevos; al cambiarlo en Configuración se
+    propaga a los alumnos existentes (ConfiguracionSistemaView).
+    """
+    from .models import ConfiguracionSistema
+    config = ConfiguracionSistema.objects.first()
+    return config.dia_limite_pago if config and config.dia_limite_pago else 5
