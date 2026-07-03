@@ -206,8 +206,16 @@ class AlumnoInscripcionSerializer(serializers.ModelSerializer):
             'nombre', 'apellido', 'cedula_escolar', 'fecha_nacimiento',
             'genero', 'representante'
         ]
+        # Sin validador de unicidad en cedula_escolar (mismo patrón que la cédula
+        # del representante): al reinscribir un alumno existente el frontend envía
+        # su cédula real y create() lo resuelve con update_or_create. Con el
+        # validador activo, la reinscripción fallaba con "ya existe" antes de
+        # llegar a las validaciones de cuota de inscripción y período.
         extra_kwargs = {
-            'cedula_escolar': {'allow_null': True, 'allow_blank': True, 'required': False}
+            'cedula_escolar': {
+                'allow_null': True, 'allow_blank': True, 'required': False,
+                'validators': [],
+            }
         }
 
 
@@ -307,6 +315,14 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     alumno=alumno,
                     periodo_escolar=inscripcion.periodo_escolar,
                     defaults={'monto_usd': monto_insc}
+                )
+
+                # 5. Generar las mensualidades del período escolar (desde el mes
+                # actual hasta julio). Así el alumno entra al ciclo de cobranza
+                # sin pasos manuales y la mora se activa sola al vencer cada mes.
+                from cobranza.services import generar_mensualidades_alumno_periodo
+                generar_mensualidades_alumno_periodo(
+                    alumno, inscripcion.periodo_escolar
                 )
 
                 return inscripcion
