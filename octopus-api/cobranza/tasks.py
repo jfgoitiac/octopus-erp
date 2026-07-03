@@ -141,6 +141,47 @@ def actualizar_tasa_bcv_automatica(self):
         return None
 
 @shared_task
+def generar_mensualidades_mes_actual():
+    """
+    Se ejecuta el día 1 de cada mes (Celery Beat) y crea la mensualidad del mes
+    en curso para todos los alumnos activos no becados que aún no la tengan.
+
+    Con esto la mora aparece sola al vencer el dia_limite_pago de cada alumno,
+    sin que cobranza tenga que generar mensualidades a mano. Agosto se omite
+    (vacaciones, fuera del período escolar Sep–Jul). Idempotente: si la
+    mensualidad ya existe no crea duplicados (unique alumno+mes+anio).
+    """
+    from .services import generar_mensualidades, mes_en_periodo_lectivo
+
+    hoy = date.today()
+    print(f"[{datetime.now()}] Iniciando generación de mensualidades {hoy.month}/{hoy.year}...")
+
+    if not mes_en_periodo_lectivo(hoy.month):
+        print(f"[{datetime.now()}] Mes {hoy.month} fuera del período escolar. No se genera nada.")
+        return 0
+
+    alumnos = Alumno.objects.filter(activo=True).exclude(estatus_financiero='becado')
+    creadas = generar_mensualidades(alumnos, [(hoy.month, hoy.year)])
+
+    if creadas:
+        User = get_user_model()
+        system_user = User.objects.filter(is_superuser=True).first()
+        if system_user:
+            LogAuditoria.objects.create(
+                usuario=system_user,
+                accion="GENERACION_MENSUALIDADES_AUTOMATICA",
+                modulo="COBRANZA",
+                detalles=(
+                    f"Se generaron {creadas} mensualidades de "
+                    f"{hoy.month}/{hoy.year} para alumnos activos."
+                )
+            )
+
+    print(f"[{datetime.now()}] Generación finalizada: {creadas} mensualidades nuevas.")
+    return creadas
+
+
+@shared_task
 def verificar_solvencia_estudiantil_automatica():
     """
     Se ejecuta diariamente para sincronizar Alumno.estatus_financiero con el

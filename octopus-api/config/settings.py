@@ -237,6 +237,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cobranza.tasks.verificar_solvencia_estudiantil_automatica',
         'schedule': crontab(hour=0, minute=30),
     },
+    # Generar la mensualidad del mes en curso para todos los alumnos activos
+    # (día 1 a las 00:05, antes de verificar-solvencia-diaria de las 00:30)
+    'generar-mensualidades-mes': {
+        'task': 'cobranza.tasks.generar_mensualidades_mes_actual',
+        'schedule': crontab(hour=0, minute=5, day_of_month='1'),
+    },
 }
 # ── Fin Celery Beat ────────────────────────────────────────────────────────────
 
