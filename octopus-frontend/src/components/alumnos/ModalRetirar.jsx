@@ -1,14 +1,32 @@
+import { useEffect, useRef } from 'react';
 import { X, Trash2, Loader2 } from 'lucide-react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
-const ModalRetirar = ({ alumno, motivo, setMotivo, saving, onClose, onConfirmar }) => (
+const ModalRetirar = ({ alumno, motivo, setMotivo, saving, onClose, onConfirmar }) => {
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [onClose]);
+
+    return (
     <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         style={{ background: 'rgba(43,48,58,0.5)' }}>
-        <div className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
-             style={{ background: 'var(--porcelain)' }}>
+         style={{ background: 'rgba(43,48,58,0.5)' }} onClick={onClose}>
+        <div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-retirar-titulo"
+            className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
+            style={{ background: 'var(--porcelain)' }}
+            onClick={(e) => e.stopPropagation()}>
 
             <div className="p-6 flex justify-between items-center"
                  style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                <h3 className="font-bold">Procesar Retiro</h3>
+                <h3 id="modal-retirar-titulo" className="font-bold">Procesar Retiro</h3>
                 <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--red)' }}>
                     <X size={20} />
                 </button>
@@ -46,6 +64,7 @@ const ModalRetirar = ({ alumno, motivo, setMotivo, saving, onClose, onConfirmar 
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export default ModalRetirar;

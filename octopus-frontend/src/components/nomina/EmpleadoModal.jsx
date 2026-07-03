@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { EmpleadoForm } from './EmpleadoForm';
 import { useEscape } from '../../hooks/useEscape';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 /**
  * Modal unificado para registrar y editar empleados.
@@ -11,6 +13,7 @@ export function EmpleadoModal({
     title,
     data,
     onChange,
+    errors = {},
     bancosNomina,
     onSubmit,
     onClose,
@@ -20,13 +23,16 @@ export function EmpleadoModal({
     showTipoSelect = false,
 }) {
     useEscape(true, onClose);
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
 
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
             style={{ background: 'rgba(43,48,58,0.5)' }}
+            onClick={e => { if (e.target === e.currentTarget) onClose(); }}
             role="dialog" aria-modal="true" aria-labelledby="emp-modal-title">
 
-            <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+            <div ref={containerRef} className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl flex flex-col"
                 style={{ background: 'var(--porcelain)', maxHeight: '92vh' }}>
 
                 <div className="flex justify-between items-center px-5 py-4 flex-shrink-0"
@@ -43,6 +49,7 @@ export function EmpleadoModal({
                     <EmpleadoForm
                         data={data}
                         onChange={onChange}
+                        errors={errors}
                         bancosNomina={bancosNomina}
                         showTipoSelect={showTipoSelect}
                         autoFocusNombre

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-    Download, Loader2, RefreshCcw, Plus,
+    Loader2, RefreshCcw, Plus,
     FileSpreadsheet, Pencil, GraduationCap, Briefcase, Wrench,
     Receipt, Search, AlertTriangle,
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useSyncedLocalStorage } from '../hooks/useSyncedLocalStorage';
 import { loadCestaConfig } from '../constants/avec';
 import { ReciboModal } from '../components/nomina/ReciboModal';
 import { EmpleadoModal } from '../components/nomina/EmpleadoModal';
+import SkeletonFila from '../components/nomina/SkeletonFila';
 
 // ── Tabs de estamento ────────────────────────────────────────────────────────
 const TABS = [
@@ -24,9 +25,9 @@ const Nomina = () => {
         busqueda, setBusqueda, empleadosPorTab,
         exportingExcel, handleExportExcel,
         showRegisterModal,
-        newEmployeeData, handleNewChange,
+        newEmployeeData, handleNewChange, registerErrors,
         isRegistering, handleRegisterEmployee, handleOpenRegisterModal, handleCloseRegisterModal,
-        showEditModal, editEmployeeData, handleEditChange,
+        showEditModal, editEmployeeData, handleEditChange, editErrors,
         isSaving, handleOpenEditModal, handleSaveEmployee, handleCloseEditModal,
     } = useNomina();
 
@@ -38,9 +39,29 @@ const Nomina = () => {
     const cestaConfig = useSyncedLocalStorage(loadCestaConfig);
 
     if (loading) return (
-        <div className="flex flex-col items-center justify-center p-20">
-            <Loader2 className="animate-spin mb-3" size={36} style={{ color: 'var(--pb)' }} />
-            <p className="text-sm font-medium" style={{ color: 'var(--ash)' }}>Cargando nómina...</p>
+        <div className="animate-fadeIn">
+            <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Gestión de Nómina</h2>
+                    <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>Registro y administración del personal</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="rounded-xl p-4 animate-pulse"
+                        style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                        <div className="h-3 w-24 rounded mb-3" style={{ background: 'var(--border-md)' }} />
+                        <div className="h-5 w-32 rounded" style={{ background: 'var(--border-md)' }} />
+                    </div>
+                ))}
+            </div>
+            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <table className="w-full text-left">
+                    <tbody>
+                        {[...Array(6)].map((_, i) => <SkeletonFila key={i} />)}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 
@@ -264,6 +285,7 @@ const Nomina = () => {
                     title={`Registrar ${activeTabDef?.label || 'empleado'}`}
                     data={newEmployeeData}
                     onChange={handleNewChange}
+                    errors={registerErrors}
                     bancosNomina={bancosNomina}
                     onSubmit={handleRegisterEmployee}
                     onClose={handleCloseRegisterModal}
@@ -281,6 +303,7 @@ const Nomina = () => {
                     title={`Editar — ${editEmployeeData.nombre} ${editEmployeeData.apellido}`}
                     data={editEmployeeData}
                     onChange={handleEditChange}
+                    errors={editErrors}
                     bancosNomina={bancosNomina}
                     onSubmit={handleSaveEmployee}
                     onClose={handleCloseEditModal}

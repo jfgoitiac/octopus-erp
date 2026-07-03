@@ -3,13 +3,13 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SSO_TOPE, SSO_PCT, SPF_PCT, FAOV_PCT } from '../constants/avec';
+import { fmtBs } from '../constants/nominaFmt';
 
 // Fallback usado solo si el llamador no pasa un objeto institucion.
 // El valor real viene de GET /api/secretaria/configuracion/ vía useInstitucionPDF.
 const INST_DEFAULT = { nombre: 'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA', logoColegio: null, logoAvec: null };
 
-export const fmtBs = (n) =>
-    (parseFloat(n) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export { fmtBs };
 
 // ── Lógica interna compartida para el recibo AVEC ────────────────────────────
 function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {

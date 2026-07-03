@@ -16,5 +16,5 @@ export const exportarMorososExcel = (busqueda, signal) => {
 export const getBancos = (signal) =>
     apiClient.get('cobranza/bancos/', signal ? { signal } : undefined);
 
-export const sincronizarTasa = () =>
-    apiClient.post('cobranza/sincronizar-tasa/', {});
+export const sincronizarTasa = (signal) =>
+    apiClient.post('cobranza/sincronizar-tasa/', {}, signal ? { signal } : undefined);

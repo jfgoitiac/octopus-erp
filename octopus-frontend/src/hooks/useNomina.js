@@ -23,14 +23,16 @@ function cleanNullables(payload) {
     NULLABLE_FIELDS.forEach(f => { if (payload[f] === '') payload[f] = null; });
 }
 
-// Retorna un nuevo objeto con fecha_ingreso normalizada a YYYY-MM-DD.
-// No muta el payload original.
-function normalizeFechas(payload) {
-    if (payload.fecha_ingreso && /^\d{2}\/\d{2}\/\d{4}$/.test(payload.fecha_ingreso)) {
-        const [d, m, y] = payload.fecha_ingreso.split('/');
-        return { ...payload, fecha_ingreso: `${y}-${m}-${d}` };
-    }
-    return payload;
+// Valida los campos comunes del formulario de empleado.
+// Retorna un objeto { campo: mensaje } — vacío si no hay errores.
+function validarEmpleado({ nombre, apellido, cedula, cargo }) {
+    const errs = {};
+    if (!nombre.trim())  errs.nombre  = 'El nombre es obligatorio.';
+    if (!apellido.trim()) errs.apellido = 'El apellido es obligatorio.';
+    if (!cedula.trim())  errs.cedula  = 'La cédula es obligatoria.';
+    else if (!validarCedula(cedula)) errs.cedula = 'Formato inválido. Usa V-12345678 o E-12345678.';
+    if (!cargo.trim())   errs.cargo   = 'El cargo es obligatorio.';
+    return errs;
 }
 
 export function useNomina() {
@@ -48,11 +50,13 @@ export function useNomina() {
     const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [newEmployeeData,   setNewEmployeeData]   = useState(EMPTY_EMP);
     const [isRegistering,     setIsRegistering]     = useState(false);
+    const [registerErrors,    setRegisterErrors]    = useState({});
 
     // ── Edición ───────────────────────────────────────────────────────────────
     const [showEditModal,    setShowEditModal]    = useState(false);
     const [editEmployeeData, setEditEmployeeData] = useState(null);
     const [isSaving,         setIsSaving]         = useState(false);
+    const [editErrors,       setEditErrors]       = useState({});
 
     // ── Carga inicial / refresco ──────────────────────────────────────────────
     const fetchData = useCallback(async (signal) => {
@@ -109,29 +113,22 @@ export function useNomina() {
     const handleNewChange = (e) => {
         const { name, value } = e.target;
         setNewEmployeeData(prev => ({ ...prev, [name]: value }));
+        setRegisterErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
     };
 
     const handleRegisterEmployee = async (e) => {
         e.preventDefault();
-        const { nombre, apellido, cedula, cargo } = newEmployeeData;
-        if (!nombre.trim() || !apellido.trim()) {
-            toast.warning('Nombre y apellido son obligatorios.'); return;
-        }
-        if (!cedula.trim()) {
-            toast.warning('La cédula es obligatoria.'); return;
-        }
-        if (!validarCedula(cedula)) {
-            toast.warning('Formato de cédula inválido. Usa V-12345678 o E-12345678.'); return;
-        }
-        if (!cargo.trim()) {
-            toast.warning('El cargo es obligatorio.'); return;
+        const errs = validarEmpleado(newEmployeeData);
+        if (Object.keys(errs).length > 0) {
+            setRegisterErrors(errs);
+            toast.warning('Revisa los campos marcados.');
+            return;
         }
         setIsRegistering(true);
         try {
-            let payload = { ...newEmployeeData };
+            const payload = { ...newEmployeeData };
             if (!payload.banco) payload.banco = null;
             cleanNullables(payload);
-            payload = normalizeFechas(payload);
             await axiosInstance.post('rrhh/empleados/', payload);
             toast.success('Empleado registrado exitosamente.');
             setShowRegisterModal(false);
@@ -145,12 +142,14 @@ export function useNomina() {
 
     const handleOpenRegisterModal = (tipo = 'docente') => {
         setNewEmployeeData({ ...EMPTY_EMP, tipo_personal: tipo });
+        setRegisterErrors({});
         setShowRegisterModal(true);
     };
 
     const handleCloseRegisterModal = () => {
         setShowRegisterModal(false);
         setNewEmployeeData(EMPTY_EMP);
+        setRegisterErrors({});
     };
 
     // ── Handlers edición ──────────────────────────────────────────────────────
@@ -176,38 +175,32 @@ export function useNomina() {
             telefono:          emp.telefono          || '',
             correo:            emp.correo            || '',
         });
+        setEditErrors({});
         setShowEditModal(true);
     };
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
         setEditEmployeeData(prev => ({ ...prev, [name]: value }));
+        setEditErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
     };
 
     const handleSaveEmployee = async (e) => {
         e.preventDefault();
         if (!editEmployeeData) return;
-        const { nombre, apellido, cedula, cargo } = editEmployeeData;
-        if (!nombre.trim() || !apellido.trim()) {
-            toast.warning('Nombre y apellido son obligatorios.'); return;
-        }
-        if (!cedula.trim()) {
-            toast.warning('La cédula es obligatoria.'); return;
-        }
-        if (!validarCedula(cedula)) {
-            toast.warning('Formato de cédula inválido. Usa V-12345678 o E-12345678.'); return;
-        }
-        if (!cargo.trim()) {
-            toast.warning('El cargo es obligatorio.'); return;
+        const errs = validarEmpleado(editEmployeeData);
+        if (Object.keys(errs).length > 0) {
+            setEditErrors(errs);
+            toast.warning('Revisa los campos marcados.');
+            return;
         }
         setIsSaving(true);
         try {
             const id = editEmployeeData.id;
-            let payload = { ...editEmployeeData };
+            const payload = { ...editEmployeeData };
             delete payload.id;
             if (!payload.banco) payload.banco = null;
             cleanNullables(payload);
-            payload = normalizeFechas(payload);
             await axiosInstance.patch(`rrhh/empleados/${id}/`, payload);
             toast.success('Empleado actualizado exitosamente.');
             setShowEditModal(false);
@@ -222,6 +215,7 @@ export function useNomina() {
     const handleCloseEditModal = () => {
         setShowEditModal(false);
         setEditEmployeeData(null);
+        setEditErrors({});
     };
 
     // ── Exportaciones ─────────────────────────────────────────────────────────
@@ -263,10 +257,10 @@ export function useNomina() {
         exportingExcel, handleExportExcel,
         // Registro
         showRegisterModal, setShowRegisterModal,
-        newEmployeeData, handleNewChange,
+        newEmployeeData, handleNewChange, registerErrors,
         isRegistering, handleRegisterEmployee, handleOpenRegisterModal, handleCloseRegisterModal,
         // Edición
-        showEditModal, editEmployeeData, handleEditChange,
+        showEditModal, editEmployeeData, handleEditChange, editErrors,
         isSaving, handleOpenEditModal, handleSaveEmployee, handleCloseEditModal,
     };
 }

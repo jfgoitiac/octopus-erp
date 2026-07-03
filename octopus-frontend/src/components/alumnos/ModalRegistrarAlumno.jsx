@@ -1,7 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { X, Save, GraduationCap, UserCircle, Loader2 } from 'lucide-react';
-import DatePickerES from '../DatePickerES';
+import { parse, format, isValid } from 'date-fns';
+import SmartDateInput from '../SmartDateInput';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+
+function parseISODate(str) {
+    if (!str) return null;
+    const parsed = parse(str, 'yyyy-MM-dd', new Date());
+    return isValid(parsed) ? parsed : null;
+}
 
 const inputClass = "w-full px-3 py-2 rounded-lg text-sm outline-none";
 const inputStyle = { border: '0.5px solid var(--border-md)', color: 'var(--jet)' };
@@ -27,16 +34,26 @@ const ModalRegistrarAlumno = ({
 
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
+    const fechaNacimientoDate = useMemo(
+        () => parseISODate(form.fecha_nacimiento),
+        [form.fecha_nacimiento]
+    );
+
+    const handleFechaNacimiento = (date) => {
+        setForm(prev => ({ ...prev, fecha_nacimiento: date ? format(date, 'yyyy-MM-dd') : '' }));
+    };
+
     return (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-             style={{ background: 'rgba(43,48,58,0.5)' }}>
+             style={{ background: 'rgba(43,48,58,0.5)' }} onClick={onClose}>
             <div
                 ref={containerRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="modal-registrar-titulo"
                 className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
-                style={{ background: 'var(--porcelain)' }}>
+                style={{ background: 'var(--porcelain)' }}
+                onClick={(e) => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="p-6 flex justify-between items-center"
@@ -82,8 +99,9 @@ const ModalRegistrarAlumno = ({
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                     Fecha Nacimiento
                                 </label>
-                                <DatePickerES className={inputClass} style={{ ...inputStyle, background: '#fff' }}
-                                    value={form.fecha_nacimiento} required onChange={set('fecha_nacimiento')} />
+                                <SmartDateInput className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={fechaNacimientoDate} onChange={handleFechaNacimiento}
+                                    aria-label="Fecha de nacimiento" />
                             </div>
                             <div>
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>

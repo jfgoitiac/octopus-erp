@@ -177,8 +177,8 @@ export function useAlumnos() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast.success('Archivo Excel descargado.');
-        } catch {
-            toast.error('No se pudo generar el Excel.');
+        } catch (err) {
+            toast.error(parseApiError(err) || 'No se pudo generar el Excel.');
         } finally {
             setExportingExcel(false);
         }

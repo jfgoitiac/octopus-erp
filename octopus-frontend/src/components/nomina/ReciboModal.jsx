@@ -1,17 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Download, X, Receipt, DollarSign } from 'lucide-react';
+import { Download, X, Receipt, DollarSign, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import {
     SSO_TOPE, SSO_PCT, SPF_PCT, FAOV_PCT,
     calcAVEC, calcSueldoBase, EMPTY_RECIBO,
 } from '../../constants/avec';
-import { fmtBs, generarReciboAVECPDF, generarReciboSimplePDF } from '../../utils/nominaPDF';
+import { fmtBs } from '../../constants/nominaFmt';
 import { useEscape } from '../../hooks/useEscape';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useInstitucionPDF } from '../../hooks/useInstitucionPDF';
 
 registerLocale('es', es);
@@ -88,8 +89,11 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
         cesta_tasa:         cestaConfig.tasa_bcv          || '',
         sueldo_base_simple: emp.sueldo_base != null ? String(emp.sueldo_base) : '',
     }));
+    const [generando, setGenerando] = useState(false);
 
     useEscape(true, onClose);
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -138,7 +142,8 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
     }, [reciboData, emp, cestaConfig, esDocente]);
 
     // ── Generar PDF ────────────────────────────────────────────────────────────
-    const handleGenerar = () => {
+    // jsPDF/jspdf-autotable se cargan aquí bajo demanda, no en el bundle inicial de Nomina.
+    const handleGenerar = async () => {
         if (!reciboData.mes) { toast.warning('Selecciona el período.'); return; }
         if (!reciboCalc)     { toast.error('Error en el cálculo.');    return; }
 
@@ -158,29 +163,39 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
             if (reciboCalc.sueldoBase <= 0) {
                 toast.error('Sueldo base resultó en 0. Verifica el costo/hora y las H/Sem.'); return;
             }
-            generarReciboAVECPDF(emp, { ...reciboData, sueldo_base: String(reciboCalc.sueldoBase) },
-                reciboCalc, reciboCalc.cesta, institucion);
-        } else {
-            if (!reciboData.sueldo_base_simple || parseFloat(reciboData.sueldo_base_simple) <= 0) {
-                toast.warning('Ingresa el sueldo / salario bruto mensual.'); return;
-            }
-            generarReciboSimplePDF(emp, {
-                ...reciboData,
-                sueldo_base:       reciboData.sueldo_base_simple,
-                otras_deducciones: reciboData.otras_deducciones,
-            }, institucion);
+        } else if (!reciboData.sueldo_base_simple || parseFloat(reciboData.sueldo_base_simple) <= 0) {
+            toast.warning('Ingresa el sueldo / salario bruto mensual.'); return;
         }
 
-        toast.success('Recibo generado correctamente.');
-        onClose();
+        setGenerando(true);
+        try {
+            const { generarReciboAVECPDF, generarReciboSimplePDF } = await import('../../utils/nominaPDF');
+            if (reciboCalc.esDocente) {
+                generarReciboAVECPDF(emp, { ...reciboData, sueldo_base: String(reciboCalc.sueldoBase) },
+                    reciboCalc, reciboCalc.cesta, institucion);
+            } else {
+                generarReciboSimplePDF(emp, {
+                    ...reciboData,
+                    sueldo_base:       reciboData.sueldo_base_simple,
+                    otras_deducciones: reciboData.otras_deducciones,
+                }, institucion);
+            }
+            toast.success('Recibo generado correctamente.');
+            onClose();
+        } catch {
+            toast.error('No se pudo generar el recibo. Intenta de nuevo.');
+        } finally {
+            setGenerando(false);
+        }
     };
 
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
             style={{ background: 'rgba(43,48,58,0.65)' }}
+            onClick={e => { if (e.target === e.currentTarget) onClose(); }}
             role="dialog" aria-modal="true" aria-labelledby="recibo-modal-title">
 
-            <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+            <div ref={containerRef} className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
                 style={{ background: 'var(--porcelain)', maxHeight: '92vh' }}>
 
                 {/* ── Header ───────────────────────────────────────────────── */}
@@ -427,10 +442,13 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                         Cancelar
                     </button>
-                    <button onClick={handleGenerar}
-                        className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white"
+                    <button onClick={handleGenerar} disabled={generando}
+                        className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                         style={{ background: 'var(--pb)' }}>
-                        <Download size={15} /> Descargar Recibo PDF
+                        {generando
+                            ? <><Loader2 size={15} className="animate-spin" /> Generando...</>
+                            : <><Download size={15} /> Descargar Recibo PDF</>
+                        }
                     </button>
                 </div>
             </div>

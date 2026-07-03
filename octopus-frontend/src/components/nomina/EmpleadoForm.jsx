@@ -1,4 +1,6 @@
-import { parse, differenceInYears, isValid } from 'date-fns';
+import { useMemo } from 'react';
+import { parse, format, differenceInYears, isValid } from 'date-fns';
+import SmartDateInput from '../SmartDateInput';
 import { CATEGORIAS_DOCENTE } from '../../constants/avec';
 
 const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm outline-none';
@@ -7,10 +9,16 @@ const labelCls   = 'block text-[11px] uppercase tracking-widest mb-1.5';
 const labelStyle = { color: 'var(--ash)' };
 const Req        = () => <span style={{ color: 'var(--red)' }}>*</span>;
 
+// fecha_ingreso se guarda en el estado como ISO (yyyy-MM-dd), igual que la API.
+function parseISODate(str) {
+    if (!str) return null;
+    const parsed = parse(str, 'yyyy-MM-dd', new Date());
+    return isValid(parsed) ? parsed : null;
+}
+
 function calcularAnosServicio(fechaStr) {
-    if (!fechaStr || fechaStr.length < 10) return null;
-    const fecha = parse(fechaStr, 'dd/MM/yyyy', new Date());
-    if (!isValid(fecha) || fecha >= new Date()) return null;
+    const fecha = parseISODate(fechaStr);
+    if (!fecha || fecha >= new Date()) return null;
     return differenceInYears(new Date(), fecha);
 }
 
@@ -23,20 +31,32 @@ function SectionLabel({ text }) {
     );
 }
 
-export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = false, autoFocusNombre = false }) {
+const errorStyle = { border: '0.5px solid #ef4444' };
+
+function FieldError({ text }) {
+    if (!text) return null;
+    return <p className="text-[10px] mt-1" style={{ color: '#ef4444' }} role="alert">{text}</p>;
+}
+
+export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTipoSelect = false, autoFocusNombre = false }) {
     const tipo = data.tipo_personal || 'docente';
     const isDocente        = tipo === 'docente';
     const isAdministrativo = tipo === 'administrativo';
 
-    const handleFechaIngresoChange = (e) => {
-        onChange(e);
-        const anos = calcularAnosServicio(e.target.value);
+    const handleFechaIngresoChange = (date) => {
+        const iso = date ? format(date, 'yyyy-MM-dd') : '';
+        onChange({ target: { name: 'fecha_ingreso', value: iso } });
+        const anos = calcularAnosServicio(iso);
         if (anos !== null) {
             onChange({ target: { name: 'anos_servicio', value: String(anos) } });
         }
     };
 
-    const anosCalculados = calcularAnosServicio(data.fecha_ingreso);
+    const anosCalculados  = calcularAnosServicio(data.fecha_ingreso);
+    const fechaIngresoDate = useMemo(
+        () => parseISODate(data.fecha_ingreso),
+        [data.fecha_ingreso]
+    );
 
     return (
         <div className="space-y-3">
@@ -58,13 +78,16 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                 <div>
                     <label className={labelCls} style={labelStyle}>Nombre <Req /></label>
                     <input name="nombre" value={data.nombre} onChange={onChange}
-                        placeholder="Juan" className={inputCls} style={inputStyle}
-                        autoFocus={autoFocusNombre} />
+                        placeholder="Juan" className={inputCls} style={{ ...inputStyle, ...(errors.nombre ? errorStyle : {}) }}
+                        autoFocus={autoFocusNombre} aria-invalid={!!errors.nombre} />
+                    <FieldError text={errors.nombre} />
                 </div>
                 <div>
                     <label className={labelCls} style={labelStyle}>Apellido <Req /></label>
                     <input name="apellido" value={data.apellido} onChange={onChange}
-                        placeholder="Pérez" className={inputCls} style={inputStyle} />
+                        placeholder="Pérez" className={inputCls} style={{ ...inputStyle, ...(errors.apellido ? errorStyle : {}) }}
+                        aria-invalid={!!errors.apellido} />
+                    <FieldError text={errors.apellido} />
                 </div>
             </div>
 
@@ -73,20 +96,25 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                 <div>
                     <label className={labelCls} style={labelStyle}>Cédula <Req /></label>
                     <input name="cedula" value={data.cedula} onChange={onChange}
-                        placeholder="V-12345678" className={inputCls} style={inputStyle} />
-                    <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
-                        Formato: V-12345678 o E-12345678
-                    </p>
+                        placeholder="V-12345678" className={inputCls} style={{ ...inputStyle, ...(errors.cedula ? errorStyle : {}) }}
+                        aria-invalid={!!errors.cedula} />
+                    {errors.cedula
+                        ? <FieldError text={errors.cedula} />
+                        : <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>Formato: V-12345678 o E-12345678</p>
+                    }
                 </div>
                 <div>
                     <label className={labelCls} style={labelStyle}>Cargo <Req /></label>
                     <input name="cargo" value={data.cargo} onChange={onChange}
+                        className={inputCls}
+                        style={{ ...inputStyle, ...(errors.cargo ? errorStyle : {}) }}
+                        aria-invalid={!!errors.cargo}
                         placeholder={
                             isDocente        ? 'Profesor / Maestro' :
                             isAdministrativo ? 'Secretaria / Contador' :
                             'Obrero / Vigilante'
-                        }
-                        className={inputCls} style={inputStyle} />
+                        } />
+                    <FieldError text={errors.cargo} />
                 </div>
             </div>
 
@@ -121,8 +149,15 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                         </div>
                         <div>
                             <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>
-                            <input name="fecha_ingreso" value={data.fecha_ingreso} onChange={handleFechaIngresoChange}
-                                placeholder="15/09/1993" className={inputCls} style={inputStyle} />
+                            <SmartDateInput
+                                id="fecha_ingreso"
+                                value={fechaIngresoDate}
+                                onChange={handleFechaIngresoChange}
+                                placeholder="15/09/1993"
+                                className={inputCls}
+                                style={inputStyle}
+                                aria-label="Fecha de ingreso"
+                            />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -169,8 +204,15 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>
-                            <input name="fecha_ingreso" value={data.fecha_ingreso} onChange={handleFechaIngresoChange}
-                                placeholder="15/09/1993" className={inputCls} style={inputStyle} />
+                            <SmartDateInput
+                                id="fecha_ingreso"
+                                value={fechaIngresoDate}
+                                onChange={handleFechaIngresoChange}
+                                placeholder="15/09/1993"
+                                className={inputCls}
+                                style={inputStyle}
+                                aria-label="Fecha de ingreso"
+                            />
                         </div>
                         <div>
                             <label className={labelCls} style={labelStyle}>Años de Servicio</label>
@@ -203,8 +245,15 @@ export function EmpleadoForm({ data, onChange, bancosNomina, showTipoSelect = fa
                     <SectionLabel text="Datos laborales" />
                     <div>
                         <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>
-                        <input name="fecha_ingreso" value={data.fecha_ingreso} onChange={handleFechaIngresoChange}
-                            placeholder="15/09/1993" className={inputCls} style={inputStyle} />
+                        <SmartDateInput
+                            id="fecha_ingreso"
+                            value={fechaIngresoDate}
+                            onChange={handleFechaIngresoChange}
+                            placeholder="15/09/1993"
+                            className={inputCls}
+                            style={inputStyle}
+                            aria-label="Fecha de ingreso"
+                        />
                         {anosCalculados !== null && (
                             <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
                                 {anosCalculados} año{anosCalculados !== 1 ? 's' : ''} de servicio

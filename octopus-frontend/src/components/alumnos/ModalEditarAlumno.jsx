@@ -1,8 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { X, Save, GraduationCap, UserCircle, Loader2 } from 'lucide-react';
-import DatePickerES from '../DatePickerES';
+import { parse, format, isValid } from 'date-fns';
+import SmartDateInput from '../SmartDateInput';
 import GradoSelect from '../GradoSelect';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+
+function parseISODate(str) {
+    if (!str) return null;
+    const parsed = parse(str, 'yyyy-MM-dd', new Date());
+    return isValid(parsed) ? parsed : null;
+}
 
 const Campo = ({ label, children }) => (
     <div>
@@ -31,16 +38,26 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
 
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
+    const fechaNacimientoDate = useMemo(
+        () => parseISODate(form.fecha_nacimiento),
+        [form.fecha_nacimiento]
+    );
+
+    const handleFechaNacimiento = (date) => {
+        setForm(prev => ({ ...prev, fecha_nacimiento: date ? format(date, 'yyyy-MM-dd') : '' }));
+    };
+
     return (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-             style={{ background: 'rgba(43,48,58,0.5)' }}>
+             style={{ background: 'rgba(43,48,58,0.5)' }} onClick={onClose}>
             <div
                 ref={containerRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="modal-editar-titulo"
                 className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
-                style={{ background: 'var(--porcelain)' }}>
+                style={{ background: 'var(--porcelain)' }}
+                onClick={(e) => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="p-6 flex justify-between items-center"
@@ -86,10 +103,11 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                 />
                             </Campo>
                             <Campo label="Fecha de Nacimiento">
-                                <DatePickerES
+                                <SmartDateInput
                                     className={inputClass} style={inputStyle}
-                                    value={form.fecha_nacimiento}
-                                    onChange={set('fecha_nacimiento')} />
+                                    value={fechaNacimientoDate}
+                                    onChange={handleFechaNacimiento}
+                                    aria-label="Fecha de nacimiento" />
                             </Campo>
                             <Campo label="Género">
                                 <select className={inputClass} style={inputStyle}
