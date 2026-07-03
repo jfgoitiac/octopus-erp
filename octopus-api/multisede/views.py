@@ -363,8 +363,12 @@ class DashboardSedeView(APIView):
             .order_by('grado_seccion')
         )
 
-        # Morosos con nombre
-        morosos_qs = alumnos_qs.filter(estatus_financiero='mora').values(
+        # Morosos con nombre — criterio canónico EN VIVO (cobranza/mora.py),
+        # no el campo persistido que depende de la corrida nocturna de Celery
+        from cobranza.mora import annotate_en_mora
+        morosos_qs = annotate_en_mora(
+            alumnos_qs.exclude(estatus_financiero='becado')
+        ).filter(en_mora=True).values(
             'id', 'nombre', 'apellido', 'grado_seccion'
         )[:20]
 

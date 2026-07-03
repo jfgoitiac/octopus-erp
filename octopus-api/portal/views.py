@@ -112,10 +112,16 @@ class PortalDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        from cobranza.mora import annotate_en_mora, estatus_financiero_actual
+
         representante = _get_representante(request)
-        alumnos = list(Alumno.objects.filter(
+        # Estatus EN VIVO (criterio canónico) para que el portal coincida con
+        # los módulos de alumnos y morosos sin esperar la corrida nocturna.
+        alumnos = list(annotate_en_mora(Alumno.objects.filter(
             representante=representante, activo=True
-        ))
+        )))
+        for a in alumnos:
+            a.estatus_financiero = estatus_financiero_actual(a)
 
         hoy = date.today()
 
@@ -736,8 +742,10 @@ class AdminComprobantesView(APIView):
                         estatus='completado',
                     )
                     mensualidad.pagos.add(pago_creado)
-                    alumno.estatus_financiero = 'solvente'
-                    alumno.save(update_fields=['estatus_financiero'])
+                    # Recalcular con el criterio canónico: aprobar un comprobante
+                    # de un mes no implica solvencia si debe meses anteriores.
+                    from cobranza.mora import sincronizar_estatus_alumno
+                    sincronizar_estatus_alumno(alumno)
                 except Exception as exc:
                     logger.error(
                         'No se pudo crear Pago al aprobar comprobante #%s: %s',

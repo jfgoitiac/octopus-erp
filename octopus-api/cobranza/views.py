@@ -269,13 +269,21 @@ class BuscarAlumnoCobranzaView(APIView):
             .values('id', 'periodo_escolar', 'monto_usd')
             .order_by('-periodo_escolar')
         )
+        # Estatus EN VIVO con el criterio canónico (cobranza/mora.py), no el
+        # campo persistido que solo se sincroniza con la corrida nocturna.
+        from secretaria.models import Alumno as AlumnoModel
+        from .mora import annotate_en_mora, estatus_financiero_actual
+        alumno_anotado = annotate_en_mora(
+            AlumnoModel.todos.filter(pk=alumno.pk), hoy
+        ).first() or alumno
+
         return {
             'id':                            alumno.id,
             'nombre':                        alumno.nombre,
             'nombre_completo':               f"{alumno.nombre} {alumno.apellido}",
             'cedula_escolar':                alumno.cedula_escolar,
             'grado':                         alumno.grado_seccion or 'Sin grado',
-            'estatus':                       alumno.estatus_financiero,
+            'estatus':                       estatus_financiero_actual(alumno_anotado),
             'mensualidades_pendientes':      mensualidades,
             'mensualidades_futuras':         mensualidades_futuras,
             'cuotas_inscripcion_pendientes': cuotas_inscripcion,
@@ -416,8 +424,10 @@ class RegistrarPagoView(APIView):
                     Mensualidad.objects.filter(id__in=mensualidad_ids, alumno=alumno)
                 )
 
-            alumno.estatus_financiero = 'solvente'
-            alumno.save(update_fields=['estatus_financiero'])
+            # Recalcular con el criterio canónico: pagar un mes no implica
+            # solvencia si quedan meses anteriores impagos.
+            from .mora import sincronizar_estatus_alumno
+            sincronizar_estatus_alumno(alumno)
 
         cuota_inscripcion_ids = data.get('cuota_inscripcion_ids', [])
         if cuota_inscripcion_ids:

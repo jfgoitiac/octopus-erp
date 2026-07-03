@@ -389,7 +389,10 @@ class AlumnoListView(viewsets.ModelViewSet):
                 "cambios":   cambios_detectados
             }
         )
-        return Response(AlumnoSerializer(alumno).data, status=status.HTTP_200_OK)
+        # Responder con el estatus en vivo (criterio canónico)
+        from cobranza.mora import annotate_en_mora
+        alumno_anotado = annotate_en_mora(Alumno.todos.filter(pk=alumno.pk)).first() or alumno
+        return Response(AlumnoSerializer(alumno_anotado).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])  # NUEVO
     def asignar_grado(self, request, pk=None):
@@ -684,9 +687,11 @@ class RepresentanteAlumnosView(APIView):
 
     def get(self, request, cedula):
         try:
+            from cobranza.mora import annotate_en_mora
             representante = Representante.objects.get(cedula=cedula)
-            alumnos = Alumno.objects.filter(representante=representante)
-            
+            # Estatus en vivo (criterio canónico) — el serializer lo lee de la anotación
+            alumnos = annotate_en_mora(Alumno.objects.filter(representante=representante))
+
             return Response({
                 "representante": RepresentanteSerializer(representante).data,
                 "alumnos": AlumnoSerializer(alumnos, many=True).data

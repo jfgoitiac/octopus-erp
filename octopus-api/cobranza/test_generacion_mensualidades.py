@@ -234,6 +234,42 @@ class InscripcionGeneraDeudaTest(GeneracionMensualidadesBase):
         self.assertEqual(meses, [(7, 2026)])
 
 
+class SincronizarEstatusTest(GeneracionMensualidadesBase):
+    """Tras un pago, el estatus persistido debe recalcularse con el criterio
+    canónico — pagar un mes no implica solvencia si debe meses anteriores."""
+
+    def test_pagar_un_mes_no_da_solvencia_si_debe_anteriores(self):
+        from .mora import sincronizar_estatus_alumno
+        generar_mensualidades([self.alumno], [(5, 2026), (6, 2026)])
+        hoy = date(2026, 7, 2)
+
+        estatus = sincronizar_estatus_alumno(self.alumno, hoy)
+        self.assertEqual(estatus, 'mora')
+
+        # Paga mayo pero sigue debiendo junio → sigue en mora
+        Mensualidad.objects.filter(alumno=self.alumno, mes=5).update(pagado=True)
+        estatus = sincronizar_estatus_alumno(self.alumno, hoy)
+        self.assertEqual(estatus, 'mora')
+        self.alumno.refresh_from_db()
+        self.assertEqual(self.alumno.estatus_financiero, 'mora')
+
+        # Paga todo → solvente
+        Mensualidad.objects.filter(alumno=self.alumno).update(pagado=True)
+        estatus = sincronizar_estatus_alumno(self.alumno, hoy)
+        self.assertEqual(estatus, 'solvente')
+        self.alumno.refresh_from_db()
+        self.assertEqual(self.alumno.estatus_financiero, 'solvente')
+
+    def test_becado_no_se_toca(self):
+        from .mora import sincronizar_estatus_alumno
+        becado = _crear_alumno(
+            'E1000005', self.representante, estatus_financiero='becado'
+        )
+        self.assertEqual(sincronizar_estatus_alumno(becado), 'becado')
+        becado.refresh_from_db()
+        self.assertEqual(becado.estatus_financiero, 'becado')
+
+
 class DiaLimitePagoGlobalTest(GeneracionMensualidadesBase):
     """El día límite configurado en ConfiguracionSistema debe propagarse a los
     alumnos existentes y aplicarse como default a los alumnos nuevos."""

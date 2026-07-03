@@ -125,3 +125,22 @@ def estatus_financiero_actual(alumno):
     if en_mora is None:
         return alumno.estatus_financiero
     return 'mora' if en_mora else 'solvente'
+
+
+def sincronizar_estatus_alumno(alumno, hoy=None):
+    """
+    Recalcula el estatus con el criterio canónico y lo persiste si cambió.
+    Usar tras registrar/aprobar un pago: antes se asignaba 'solvente' a ciegas,
+    dejando solvente a alumnos que aún debían meses anteriores (divergencia
+    entre módulos hasta la corrida nocturna de Celery). Devuelve el estatus.
+    """
+    if alumno.estatus_financiero == 'becado':
+        return 'becado'
+
+    from secretaria.models import Alumno
+    anotado = annotate_en_mora(Alumno.todos.filter(pk=alumno.pk), hoy).first()
+    nuevo = 'mora' if (anotado and anotado.en_mora) else 'solvente'
+    if alumno.estatus_financiero != nuevo:
+        alumno.estatus_financiero = nuevo
+        alumno.save(update_fields=['estatus_financiero'])
+    return nuevo

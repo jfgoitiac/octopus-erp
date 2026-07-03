@@ -90,7 +90,12 @@ class SedeResumenSerializer(serializers.ModelSerializer):
 
     def get_morosos(self, obj):
         from .views import _get_alumnos_de_sede
-        return _get_alumnos_de_sede(obj, self._total_sedes()).filter(estatus_financiero='mora').count()
+        from cobranza.mora import annotate_en_mora
+        # Criterio canónico en vivo, igual que la lista de morosos
+        return annotate_en_mora(
+            _get_alumnos_de_sede(obj, self._total_sedes())
+            .exclude(estatus_financiero='becado')
+        ).filter(en_mora=True).count()
 
 
 # ─────────────────────────────────────────────

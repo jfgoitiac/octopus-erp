@@ -112,8 +112,12 @@ class DashboardConsolidadoNPlusOneTest(TestCase):
         # mock: evita que el signal post_save intente agendar notificaciones
         # vía Celery contra un broker Redis que no existe en tests (sin esto,
         # el test tarda varios minutos por los reintentos de conexión).
+        # El moroso debe una mensualidad vencida (2020); el solvente tiene solo
+        # deuda futura no vencida — así el conteo de morosos (criterio canónico
+        # en vivo) y la deuda total son consistentes entre sí.
+        anio_mensualidad = 2020 if moroso else date.today().year + 1
         with mock.patch('portal.tasks.programar_notificaciones_mensualidad'):
-            Mensualidad.objects.create(alumno=alumno, mes=1, anio=2020, monto_usd=Decimal('35.00'))
+            Mensualidad.objects.create(alumno=alumno, mes=1, anio=anio_mensualidad, monto_usd=Decimal('35.00'))
         Pago.objects.create(
             alumno=alumno, usuario_receptor=self.user, metodo_pago='efectivo',
             monto_usd=Decimal('20.00'), tasa_aplicada=Decimal('40.00'),
