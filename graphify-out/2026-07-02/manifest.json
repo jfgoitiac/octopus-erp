@@ -260,9 +260,9 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/services.py": {
-    "mtime": 1779302845.6876256,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
-    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+    "mtime": 1783049485.2844388,
+    "ast_hash": "20cb9d08415ae9e5e427e404116ef192",
+    "semantic_hash": ""
   },
   "octopus-api/cobranza/signals.py": {
     "mtime": 1782947595.8997548,
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tasks.py": {
-    "mtime": 1782936046.5581791,
-    "ast_hash": "7aa5c87bc14378fac1c3382161831b51",
+    "mtime": 1783049485.2844388,
+    "ast_hash": "fa2b98a602122397764eeb789751d4f0",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests.py": {
@@ -295,8 +295,8 @@
     "semantic_hash": "079b03ce93ed11fdc3f9e799fe609f61"
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1782947595.8997548,
-    "ast_hash": "28c818f3c0bc114fe57491f9e6df8805",
+    "mtime": 1783049485.2844388,
+    "ast_hash": "aea891e2ad373def3a2fc8d7cc85b2a6",
     "semantic_hash": ""
   },
   "octopus-api/config/__init__.py": {
@@ -320,8 +320,8 @@
     "semantic_hash": "a27e1ececd1ed435b2706fc2fc5c0720"
   },
   "octopus-api/config/settings.py": {
-    "mtime": 1782933400.481053,
-    "ast_hash": "15885a6bda1cdc96ff8a44441894debc",
+    "mtime": 1783049485.2844388,
+    "ast_hash": "9850494c7613b4576e5de9c6346094b6",
     "semantic_hash": ""
   },
   "octopus-api/config/urls.py": {
@@ -785,8 +785,8 @@
     "semantic_hash": "40fc32735efd2558574907c81ea1f951"
   },
   "octopus-api/secretaria/serializers.py": {
-    "mtime": 1782936056.613022,
-    "ast_hash": "354b14225010a3dab8df4c269b45978c",
+    "mtime": 1783049485.2844388,
+    "ast_hash": "531b2dad370f0feeeb482b888dc0aee7",
     "semantic_hash": ""
   },
   "octopus-api/secretaria/services.py": {
@@ -2620,8 +2620,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1783022162.151636,
-    "ast_hash": "b6439f2d6646cd6d2746c959541cc890",
+    "mtime": 1783049518.277373,
+    "ast_hash": "28916e481aa4bcb25f55ddeb346e9967",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -2752,6 +2752,26 @@
   "octopus-frontend/src/constants/nominaFmt.js": {
     "mtime": 1783018290.973758,
     "ast_hash": "2ef3a2ba3d782ed82af82274d9b4c944",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/__init__.py": {
+    "mtime": 1783049136.5437098,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/__init__.py": {
+    "mtime": 1783049136.5441308,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/generar_mensualidades.py": {
+    "mtime": 1783049158.0402403,
+    "ast_hash": "5e9c652f2362c18b7547b50d9c4cad56",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_generacion_mensualidades.py": {
+    "mtime": 1783049240.310569,
+    "ast_hash": "a8f43ebb49207ae153fa40df2b98de2a",
     "semantic_hash": ""
   }
 }

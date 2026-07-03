@@ -785,14 +785,14 @@
     "semantic_hash": "40fc32735efd2558574907c81ea1f951"
   },
   "octopus-api/secretaria/serializers.py": {
-    "mtime": 1783049485.2844388,
-    "ast_hash": "531b2dad370f0feeeb482b888dc0aee7",
+    "mtime": 1783050067.403295,
+    "ast_hash": "02c75804a90aca0ed156021ca4974d61",
     "semantic_hash": ""
   },
   "octopus-api/secretaria/services.py": {
-    "mtime": 1779577626.768092,
-    "ast_hash": "590556dcc197eab4f48b7a51f18676ae",
-    "semantic_hash": "590556dcc197eab4f48b7a51f18676ae"
+    "mtime": 1783050028.9353852,
+    "ast_hash": "cfb1c941da29c9f949e1e3d3106136e5",
+    "semantic_hash": ""
   },
   "octopus-api/secretaria/tests.py": {
     "mtime": 1782947957.7358854,
@@ -805,8 +805,8 @@
     "semantic_hash": "1eb87501159c7a6c06fafe5ec722adb4"
   },
   "octopus-api/secretaria/views.py": {
-    "mtime": 1783007020.5285568,
-    "ast_hash": "f3af9b24db6f11faa5a206a60e3d2b38",
+    "mtime": 1783050052.0908108,
+    "ast_hash": "1aa744ae31dd51a1a93c6e55efbe02c3",
     "semantic_hash": ""
   },
   "octopus-api/seed_docentes.py": {
@@ -1770,8 +1770,8 @@
     "semantic_hash": "eebb6e5e5a18aff2425b4dd63aad1d3d"
   },
   "octopus-frontend/src/hooks/useConfiguracion.js": {
-    "mtime": 1782932285.2966943,
-    "ast_hash": "04ff2a182f8fe454bf284fc4f4ddd321",
+    "mtime": 1783050293.3290756,
+    "ast_hash": "ed773581b9e7b473d9c52f089fb7c737",
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useConfiguracionNotificaciones.js": {
@@ -2770,8 +2770,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_generacion_mensualidades.py": {
-    "mtime": 1783049240.310569,
-    "ast_hash": "a8f43ebb49207ae153fa40df2b98de2a",
+    "mtime": 1783050177.0604436,
+    "ast_hash": "a3962455bc15ac37d8d191c57d54b011",
     "semantic_hash": ""
   }
 }
