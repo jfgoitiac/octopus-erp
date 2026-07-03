@@ -1615,8 +1615,8 @@
     "semantic_hash": "ff7b64e89e2bf1c5ad2c3aa1428641e4"
   },
   "octopus-frontend/src/components/nomina/ReciboModal.jsx": {
-    "mtime": 1783018261.34919,
-    "ast_hash": "68b5bf59edd8f353677fccfc53d9149a",
+    "mtime": 1783018368.6770241,
+    "ast_hash": "4fd83560a99a0179e960c2fded6e3eac",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/nomina/reciboStyles.js": {
@@ -2005,8 +2005,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Nomina.jsx": {
-    "mtime": 1783018216.117665,
-    "ast_hash": "28af945bb2d08923232d56e5990a7bed",
+    "mtime": 1783018427.7245395,
+    "ast_hash": "dd74abc2b74fd9b7b9bb11ec79759ce1",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/NotFound.jsx": {
@@ -2135,9 +2135,9 @@
     "semantic_hash": "d79d4ff03fc17b995d563837c5611795"
   },
   "octopus-frontend/src/utils/nominaPDF.js": {
-    "mtime": 1780767940.2136476,
-    "ast_hash": "c00a49982f205cf1f4545d27575107d5",
-    "semantic_hash": "c00a49982f205cf1f4545d27575107d5"
+    "mtime": 1783018297.6896083,
+    "ast_hash": "62e5f182c1ee70d0d20e378cc8861305",
+    "semantic_hash": ""
   },
   "octopus-frontend/src/utils/notas.utils.js": {
     "mtime": 1780349890.8170261,
@@ -2620,8 +2620,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1783018221.8943172,
-    "ast_hash": "4b217eaf05530d692c8b57d8337ecfbd",
+    "mtime": 1783022162.151636,
+    "ast_hash": "b6439f2d6646cd6d2746c959541cc890",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -2742,6 +2742,16 @@
   "octopus-frontend/src/utils/formato.js": {
     "mtime": 1783009429.0593896,
     "ast_hash": "c68bc0a3fbf9ae0bfa406446ade50b03",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/SkeletonFila.jsx": {
+    "mtime": 1783018403.0017056,
+    "ast_hash": "b221d0d3b92b4fff7a901dbf740d4586",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/nominaFmt.js": {
+    "mtime": 1783018290.973758,
+    "ast_hash": "2ef3a2ba3d782ed82af82274d9b4c944",
     "semantic_hash": ""
   }
 }

@@ -3714,7 +3714,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_exports",
-      "community": 15,
+      "community": 30,
       "norm_label": "exports.py"
     },
     {
@@ -3764,7 +3764,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_filters",
-      "community": 15,
+      "community": 88,
       "norm_label": "filters.py"
     },
     {
@@ -3784,7 +3784,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "cobranza_filters_meta",
-      "community": 15,
+      "community": 88,
       "norm_label": "meta"
     },
     {
@@ -4374,7 +4374,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_mora",
-      "community": 62,
+      "community": 30,
       "norm_label": "mora.py"
     },
     {
@@ -4384,7 +4384,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "cobranza_mora_hoy",
-      "community": 62,
+      "community": 30,
       "norm_label": "_hoy()"
     },
     {
@@ -4394,7 +4394,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "cobranza_mora_condicion_mora",
-      "community": 62,
+      "community": 30,
       "norm_label": "_condicion_mora()"
     },
     {
@@ -4404,7 +4404,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "cobranza_mora_annotate_en_mora",
-      "community": 62,
+      "community": 30,
       "norm_label": "annotate_en_mora()"
     },
     {
@@ -4414,7 +4414,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "cobranza_mora_annotate_mora_detalle",
-      "community": 62,
+      "community": 30,
       "norm_label": "annotate_mora_detalle()"
     },
     {
@@ -4434,7 +4434,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_1",
-      "community": 62,
+      "community": 30,
       "norm_label": "fuente de verdad unica para el calculo de morosidad.  antes existian dos criteri"
     },
     {
@@ -4444,7 +4444,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_38",
-      "community": 62,
+      "community": 30,
       "norm_label": "devuelve (deuda_mes_pasado, deuda_mes_actual) como expresiones para anotar     s"
     },
     {
@@ -4454,7 +4454,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_67",
-      "community": 62,
+      "community": 30,
       "norm_label": "anota `en_mora` (booleanfield) sobre un queryset de alumno segun el criterio"
     },
     {
@@ -4464,7 +4464,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "cobranza_mora_rationale_84",
-      "community": 62,
+      "community": 30,
       "norm_label": "como annotate_en_mora pero ademas anota `monto_adeudado` y `meses_adeudados`"
     },
     {
@@ -4494,7 +4494,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "cobranza_serializers_bancoinstitucionalserializer",
-      "community": 92,
+      "community": 15,
       "norm_label": "bancoinstitucionalserializer"
     },
     {
@@ -4524,7 +4524,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "cobranza_serializers_dashboardstatsserializer",
-      "community": 88,
+      "community": 15,
       "norm_label": "dashboardstatsserializer"
     },
     {
@@ -4774,7 +4774,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "cobranza_tasks_verificar_solvencia_estudiantil_automatica",
-      "community": 62,
+      "community": 30,
       "norm_label": "verificar_solvencia_estudiantil_automatica()"
     },
     {
@@ -4794,7 +4794,7 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "cobranza_tasks_rationale_145",
-      "community": 62,
+      "community": 30,
       "norm_label": "se ejecuta diariamente para sincronizar alumno.estatus_financiero con el     cr"
     },
     {
@@ -5104,7 +5104,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "cobranza_utils_generar_pdf_recibo",
-      "community": 15,
+      "community": 30,
       "norm_label": "generar_pdf_recibo()"
     },
     {
@@ -5184,7 +5184,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "cobranza_utils_rationale_149",
-      "community": 15,
+      "community": 30,
       "norm_label": "genera comprobante de pago en pdf.     acepta lista de pagos (operacion multipa"
     },
     {
@@ -5324,7 +5324,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "cobranza_views_dashboardstatsview_get",
-      "community": 15,
+      "community": 30,
       "norm_label": ".get()"
     },
     {
@@ -5384,7 +5384,7 @@
       "source_location": "L327",
       "_origin": "ast",
       "id": "cobranza_views_bancoslistview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5404,7 +5404,7 @@
       "source_location": "L349",
       "_origin": "ast",
       "id": "cobranza_views_registrarpagoview_post",
-      "community": 15,
+      "community": 62,
       "norm_label": ".post()"
     },
     {
@@ -5424,7 +5424,7 @@
       "source_location": "L458",
       "_origin": "ast",
       "id": "cobranza_views_reciboview_get",
-      "community": 15,
+      "community": 30,
       "norm_label": ".get()"
     },
     {
@@ -5444,7 +5444,7 @@
       "source_location": "L494",
       "_origin": "ast",
       "id": "cobranza_views_auditoriadiariaview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5464,7 +5464,7 @@
       "source_location": "L553",
       "_origin": "ast",
       "id": "cobranza_views_historicomensualview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5484,7 +5484,7 @@
       "source_location": "L616",
       "_origin": "ast",
       "id": "cobranza_views_exportarauditoriaexcelview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5514,7 +5514,7 @@
       "source_location": "L665",
       "_origin": "ast",
       "id": "cobranza_views_configuracioncobranzaview_post",
-      "community": 15,
+      "community": 62,
       "norm_label": ".post()"
     },
     {
@@ -5534,7 +5534,7 @@
       "source_location": "L692",
       "_origin": "ast",
       "id": "cobranza_views_actualizarmensualidadesview_patch",
-      "community": 15,
+      "community": 62,
       "norm_label": ".patch()"
     },
     {
@@ -5554,7 +5554,7 @@
       "source_location": "L721",
       "_origin": "ast",
       "id": "cobranza_views_generaranualidadview_post",
-      "community": 15,
+      "community": 62,
       "norm_label": ".post()"
     },
     {
@@ -5564,7 +5564,7 @@
       "source_location": "L775",
       "_origin": "ast",
       "id": "cobranza_views_bancosadminview",
-      "community": 92,
+      "community": 15,
       "norm_label": "bancosadminview"
     },
     {
@@ -5574,7 +5574,7 @@
       "source_location": "L779",
       "_origin": "ast",
       "id": "cobranza_views_bancosadminview_get",
-      "community": 92,
+      "community": 15,
       "norm_label": ".get()"
     },
     {
@@ -5584,7 +5584,7 @@
       "source_location": "L784",
       "_origin": "ast",
       "id": "cobranza_views_bancosadminview_post",
-      "community": 92,
+      "community": 15,
       "norm_label": ".post()"
     },
     {
@@ -5654,7 +5654,7 @@
       "source_location": "L844",
       "_origin": "ast",
       "id": "cobranza_views_consultacomprobantesview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5674,7 +5674,7 @@
       "source_location": "L932",
       "_origin": "ast",
       "id": "cobranza_views_comprobantedetalleview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5714,7 +5714,7 @@
       "source_location": "L1019",
       "_origin": "ast",
       "id": "cobranza_views_mensualidadespuntualidadview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5764,7 +5764,7 @@
       "source_location": "L1178",
       "_origin": "ast",
       "id": "cobranza_views_exportarmorososexcelview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5784,7 +5784,7 @@
       "source_location": "L1208",
       "_origin": "ast",
       "id": "cobranza_views_confignominaview_get",
-      "community": 15,
+      "community": 62,
       "norm_label": ".get()"
     },
     {
@@ -5834,7 +5834,7 @@
       "source_location": "L776",
       "_origin": "ast",
       "id": "cobranza_views_rationale_776",
-      "community": 92,
+      "community": 15,
       "norm_label": "lista todos los bancos (activos e inactivos) y permite crear nuevos."
     },
     {
@@ -20004,7 +20004,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "api_apiclient_apiclient",
-      "community": 20,
+      "community": 311,
       "norm_label": "apiclient"
     },
     {
@@ -20074,7 +20074,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "api_cobranza_service_sincronizartasa",
-      "community": 17,
+      "community": 28,
       "norm_label": "sincronizartasa()"
     },
     {
@@ -20124,7 +20124,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "api_inscripciones_service_fetchalumnosporrepresentante",
-      "community": 108,
+      "community": 31,
       "norm_label": "fetchalumnosporrepresentante()"
     },
     {
@@ -20394,7 +20394,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_datepickeres",
-      "community": 108,
+      "community": 113,
       "norm_label": "datepickeres.jsx"
     },
     {
@@ -20404,7 +20404,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_datepickeres_parselocaldate",
-      "community": 108,
+      "community": 113,
       "norm_label": "parselocaldate()"
     },
     {
@@ -20414,7 +20414,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "components_datepickeres_toisostring",
-      "community": 108,
+      "community": 113,
       "norm_label": "toisostring()"
     },
     {
@@ -20424,7 +20424,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "components_datepickeres_datepickeres",
-      "community": 108,
+      "community": 113,
       "norm_label": "datepickeres()"
     },
     {
@@ -20594,7 +20594,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_smartdateinput",
-      "community": 108,
+      "community": 113,
       "norm_label": "smartdateinput.jsx"
     },
     {
@@ -20604,7 +20604,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "components_smartdateinput_smartdateinput",
-      "community": 108,
+      "community": 113,
       "norm_label": "smartdateinput()"
     },
     {
@@ -20684,7 +20684,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_modaleditaralumno",
-      "community": 28,
+      "community": 113,
       "norm_label": "modaleditaralumno.jsx"
     },
     {
@@ -20694,7 +20694,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "alumnos_modaleditaralumno_parseisodate",
-      "community": 28,
+      "community": 113,
       "norm_label": "parseisodate()"
     },
     {
@@ -20704,7 +20704,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "alumnos_modaleditaralumno_campo",
-      "community": 28,
+      "community": 113,
       "norm_label": "campo()"
     },
     {
@@ -20714,7 +20714,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "alumnos_modaleditaralumno_inputstyle",
-      "community": 28,
+      "community": 113,
       "norm_label": "inputstyle"
     },
     {
@@ -20724,7 +20724,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "alumnos_modaleditaralumno_modaleditaralumno",
-      "community": 28,
+      "community": 113,
       "norm_label": "modaleditaralumno()"
     },
     {
@@ -20734,7 +20734,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "alumnos_modalregistraralumno",
-      "community": 108,
+      "community": 113,
       "norm_label": "modalregistraralumno.jsx"
     },
     {
@@ -20744,7 +20744,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "alumnos_modalregistraralumno_parseisodate",
-      "community": 108,
+      "community": 113,
       "norm_label": "parseisodate()"
     },
     {
@@ -20754,7 +20754,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "alumnos_modalregistraralumno_inputstyle",
-      "community": 108,
+      "community": 113,
       "norm_label": "inputstyle"
     },
     {
@@ -20764,7 +20764,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "alumnos_modalregistraralumno_modalregistraralumno",
-      "community": 108,
+      "community": 113,
       "norm_label": "modalregistraralumno()"
     },
     {
@@ -21284,7 +21284,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno",
-      "community": 108,
+      "community": 31,
       "norm_label": "pasoalumno.jsx"
     },
     {
@@ -21294,7 +21294,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno_parseisodate",
-      "community": 108,
+      "community": 31,
       "norm_label": "parseisodate()"
     },
     {
@@ -21304,7 +21304,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno_labels_alumno",
-      "community": 108,
+      "community": 31,
       "norm_label": "labels_alumno"
     },
     {
@@ -21314,7 +21314,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "inscripciones_pasoalumno_pasoalumno",
-      "community": 108,
+      "community": 31,
       "norm_label": "pasoalumno()"
     },
     {
@@ -21424,7 +21424,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inscripciones_skeletoncard",
-      "community": 108,
+      "community": 31,
       "norm_label": "skeletoncard.jsx"
     },
     {
@@ -21434,7 +21434,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "inscripciones_skeletoncard_skeletoncard",
-      "community": 108,
+      "community": 31,
       "norm_label": "skeletoncard()"
     },
     {
@@ -21811,7 +21811,7 @@
       "label": "EmpleadoModal()",
       "file_type": "code",
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoModal.jsx",
-      "source_location": "L10",
+      "source_location": "L12",
       "_origin": "ast",
       "id": "nomina_empleadomodal_empleadomodal",
       "community": 27,
@@ -21871,7 +21871,7 @@
       "label": "inputStyle",
       "file_type": "code",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "nomina_recibomodal_inputstyle",
       "community": 10,
@@ -21881,7 +21881,7 @@
       "label": "labelStyle",
       "file_type": "code",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L23",
+      "source_location": "L24",
       "_origin": "ast",
       "id": "nomina_recibomodal_labelstyle",
       "community": 10,
@@ -21891,7 +21891,7 @@
       "label": "MonthInput",
       "file_type": "code",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L26",
+      "source_location": "L27",
       "_origin": "ast",
       "id": "nomina_recibomodal_monthinput",
       "community": 10,
@@ -21901,7 +21901,7 @@
       "label": "DocenteBanner()",
       "file_type": "code",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L41",
+      "source_location": "L42",
       "_origin": "ast",
       "id": "nomina_recibomodal_docentebanner",
       "community": 10,
@@ -21911,11 +21911,31 @@
       "label": "ReciboModal()",
       "file_type": "code",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L78",
+      "source_location": "L79",
       "_origin": "ast",
       "id": "nomina_recibomodal_recibomodal",
       "community": 10,
       "norm_label": "recibomodal()"
+    },
+    {
+      "label": "SkeletonFila.jsx",
+      "file_type": "code",
+      "source_file": "octopus-frontend/src/components/nomina/SkeletonFila.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "nomina_skeletonfila",
+      "community": 108,
+      "norm_label": "skeletonfila.jsx"
+    },
+    {
+      "label": "SkeletonFila()",
+      "file_type": "code",
+      "source_file": "octopus-frontend/src/components/nomina/SkeletonFila.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "nomina_skeletonfila_skeletonfila",
+      "community": 108,
+      "norm_label": "skeletonfila()"
     },
     {
       "label": "reciboStyles.js",
@@ -22044,7 +22064,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "notas_modallapso",
-      "community": 33,
+      "community": 303,
       "norm_label": "modallapso.jsx"
     },
     {
@@ -22054,7 +22074,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "notas_modallapso_field_style",
-      "community": 33,
+      "community": 303,
       "norm_label": "field_style"
     },
     {
@@ -22064,7 +22084,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "notas_modallapso_modallapso",
-      "community": 33,
+      "community": 303,
       "norm_label": "modallapso()"
     },
     {
@@ -22504,7 +22524,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "constants_avec",
-      "community": 10,
+      "community": 108,
       "norm_label": "avec.js"
     },
     {
@@ -22524,7 +22544,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "constants_avec_prima_docente_pct",
-      "community": 10,
+      "community": 108,
       "norm_label": "prima_docente_pct"
     },
     {
@@ -22534,7 +22554,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "constants_avec_postgrado_pct",
-      "community": 10,
+      "community": 108,
       "norm_label": "postgrado_pct"
     },
     {
@@ -22544,7 +22564,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "constants_avec_calcprimaantiguedad",
-      "community": 10,
+      "community": 108,
       "norm_label": "calcprimaantiguedad()"
     },
     {
@@ -22554,7 +22574,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "constants_avec_calcprimapostgrado",
-      "community": 10,
+      "community": 108,
       "norm_label": "calcprimapostgrado()"
     },
     {
@@ -22564,7 +22584,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "constants_avec_calcavec",
-      "community": 10,
+      "community": 108,
       "norm_label": "calcavec()"
     },
     {
@@ -22584,7 +22604,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "constants_avec_validarcedula",
-      "community": 10,
+      "community": 108,
       "norm_label": "validarcedula()"
     },
     {
@@ -22594,7 +22614,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "constants_avec_buildcategoriasdefault",
-      "community": 10,
+      "community": 108,
       "norm_label": "buildcategoriasdefault()"
     },
     {
@@ -22604,7 +22624,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "constants_avec_cesta_default",
-      "community": 10,
+      "community": 108,
       "norm_label": "cesta_default"
     },
     {
@@ -22614,7 +22634,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "constants_avec_loadcestaconfig",
-      "community": 10,
+      "community": 108,
       "norm_label": "loadcestaconfig()"
     },
     {
@@ -22624,7 +22644,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "constants_avec_savecestaconfig",
-      "community": 10,
+      "community": 108,
       "norm_label": "savecestaconfig()"
     },
     {
@@ -22634,7 +22654,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "constants_avec_empty_recibo",
-      "community": 10,
+      "community": 108,
       "norm_label": "empty_recibo"
     },
     {
@@ -22644,7 +22664,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "constants_avec_empty_emp",
-      "community": 10,
+      "community": 108,
       "norm_label": "empty_emp"
     },
     {
@@ -22734,7 +22754,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "constants_horarios_buildhorablocks",
-      "community": 27,
+      "community": 84,
       "norm_label": "buildhorablocks()"
     },
     {
@@ -22776,6 +22796,26 @@
       "id": "constants_horarios_getcolor",
       "community": 27,
       "norm_label": "getcolor()"
+    },
+    {
+      "label": "nominaFmt.js",
+      "file_type": "code",
+      "source_file": "octopus-frontend/src/constants/nominaFmt.js",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "constants_nominafmt",
+      "community": 10,
+      "norm_label": "nominafmt.js"
+    },
+    {
+      "label": "fmtBs()",
+      "file_type": "code",
+      "source_file": "octopus-frontend/src/constants/nominaFmt.js",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "constants_nominafmt_fmtbs",
+      "community": 10,
+      "norm_label": "fmtbs()"
     },
     {
       "label": "recibo.js",
@@ -23024,7 +23064,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "hooks_usealumnos_usealumnos",
-      "community": 17,
+      "community": 28,
       "norm_label": "usealumnos()"
     },
     {
@@ -23084,7 +23124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usebancoscobranza",
-      "community": 20,
+      "community": 311,
       "norm_label": "usebancoscobranza.js"
     },
     {
@@ -23094,7 +23134,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_usebancoscobranza_usebancoscobranza",
-      "community": 20,
+      "community": 311,
       "norm_label": "usebancoscobranza()"
     },
     {
@@ -23104,7 +23144,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usebancosnomina",
-      "community": 20,
+      "community": 311,
       "norm_label": "usebancosnomina.js"
     },
     {
@@ -23114,7 +23154,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_usebancosnomina_usebancosnomina",
-      "community": 20,
+      "community": 311,
       "norm_label": "usebancosnomina()"
     },
     {
@@ -23164,7 +23204,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_useconfiguracion",
-      "community": 20,
+      "community": 311,
       "norm_label": "useconfiguracion.js"
     },
     {
@@ -23174,7 +23214,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_useconfiguracion_useconfiguracion",
-      "community": 20,
+      "community": 311,
       "norm_label": "useconfiguracion()"
     },
     {
@@ -23314,7 +23354,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usegrados",
-      "community": 20,
+      "community": 311,
       "norm_label": "usegrados.js"
     },
     {
@@ -23324,7 +23364,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_usegrados_usegrados",
-      "community": 20,
+      "community": 311,
       "norm_label": "usegrados()"
     },
     {
@@ -23404,7 +23444,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_useinstitucionpdf",
-      "community": 10,
+      "community": 311,
       "norm_label": "useinstitucionpdf.js"
     },
     {
@@ -23414,7 +23454,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "hooks_useinstitucionpdf_useinstitucionpdf",
-      "community": 10,
+      "community": 311,
       "norm_label": "useinstitucionpdf()"
     },
     {
@@ -23434,7 +23474,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "hooks_uselapsos_uselapsos",
-      "community": 33,
+      "community": 303,
       "norm_label": "uselapsos()"
     },
     {
@@ -23444,7 +23484,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_uselogosrecibo",
-      "community": 10,
+      "community": 311,
       "norm_label": "uselogosrecibo.js"
     },
     {
@@ -23454,7 +23494,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "hooks_uselogosrecibo_compressimage",
-      "community": 10,
+      "community": 311,
       "norm_label": "compressimage()"
     },
     {
@@ -23464,7 +23504,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "hooks_uselogosrecibo_uselogosrecibo",
-      "community": 10,
+      "community": 311,
       "norm_label": "uselogosrecibo()"
     },
     {
@@ -23474,7 +23514,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_uselogssistemas",
-      "community": 310,
+      "community": 20,
       "norm_label": "uselogssistemas.js"
     },
     {
@@ -23564,7 +23604,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "hooks_usemensualidadesalumno_usemensualidadesalumno",
-      "community": 17,
+      "community": 28,
       "norm_label": "usemensualidadesalumno()"
     },
     {
@@ -23614,7 +23654,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usenomina",
-      "community": 10,
+      "community": 108,
       "norm_label": "usenomina.js"
     },
     {
@@ -23624,7 +23664,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "hooks_usenomina_parseapierror",
-      "community": 10,
+      "community": 108,
       "norm_label": "parseapierror()"
     },
     {
@@ -23634,7 +23674,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "hooks_usenomina_nullable_fields",
-      "community": 10,
+      "community": 108,
       "norm_label": "nullable_fields"
     },
     {
@@ -23644,7 +23684,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "hooks_usenomina_cleannullables",
-      "community": 10,
+      "community": 108,
       "norm_label": "cleannullables()"
     },
     {
@@ -23654,7 +23694,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "hooks_usenomina_validarempleado",
-      "community": 10,
+      "community": 108,
       "norm_label": "validarempleado()"
     },
     {
@@ -23664,7 +23704,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "hooks_usenomina_usenomina",
-      "community": 10,
+      "community": 108,
       "norm_label": "usenomina()"
     },
     {
@@ -23684,7 +23724,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "hooks_usenotas_usenotas",
-      "community": 33,
+      "community": 303,
       "norm_label": "usenotas()"
     },
     {
@@ -23694,7 +23734,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usenotificaciones",
-      "community": 20,
+      "community": 311,
       "norm_label": "usenotificaciones.js"
     },
     {
@@ -23704,7 +23744,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "hooks_usenotificaciones_usenotificaciones",
-      "community": 20,
+      "community": 311,
       "norm_label": "usenotificaciones()"
     },
     {
@@ -23854,7 +23894,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usesyncedlocalstorage",
-      "community": 10,
+      "community": 108,
       "norm_label": "usesyncedlocalstorage.js"
     },
     {
@@ -23864,7 +23904,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "hooks_usesyncedlocalstorage_usesyncedlocalstorage",
-      "community": 10,
+      "community": 108,
       "norm_label": "usesyncedlocalstorage()"
     },
     {
@@ -23894,7 +23934,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_usetiposcargo",
-      "community": 20,
+      "community": 311,
       "norm_label": "usetiposcargo.js"
     },
     {
@@ -23904,7 +23944,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_usetiposcargo_usetiposcargo",
-      "community": 20,
+      "community": 311,
       "norm_label": "usetiposcargo()"
     },
     {
@@ -24454,7 +24494,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_configuracion",
-      "community": 20,
+      "community": 311,
       "norm_label": "configuracion.jsx"
     },
     {
@@ -24464,7 +24504,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "pages_configuracion_tipo_labels",
-      "community": 20,
+      "community": 311,
       "norm_label": "tipo_labels"
     },
     {
@@ -24474,7 +24514,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "pages_configuracion_configuracion",
-      "community": 20,
+      "community": 311,
       "norm_label": "configuracion()"
     },
     {
@@ -24844,7 +24884,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "pages_listaalumnos_listaalumnos",
-      "community": 17,
+      "community": 28,
       "norm_label": "listaalumnos()"
     },
     {
@@ -24984,27 +25024,27 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_nomina",
-      "community": 10,
+      "community": 108,
       "norm_label": "nomina.jsx"
     },
     {
       "label": "TABS",
       "file_type": "code",
       "source_file": "octopus-frontend/src/pages/Nomina.jsx",
-      "source_location": "L15",
+      "source_location": "L16",
       "_origin": "ast",
       "id": "pages_nomina_tabs",
-      "community": 10,
+      "community": 108,
       "norm_label": "tabs"
     },
     {
       "label": "Nomina()",
       "file_type": "code",
       "source_file": "octopus-frontend/src/pages/Nomina.jsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "pages_nomina_nomina",
-      "community": 10,
+      "community": 108,
       "norm_label": "nomina()"
     },
     {
@@ -25034,7 +25074,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_notas",
-      "community": 33,
+      "community": 303,
       "norm_label": "notas.jsx"
     },
     {
@@ -25044,7 +25084,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "pages_notas_input_style",
-      "community": 33,
+      "community": 303,
       "norm_label": "input_style"
     },
     {
@@ -25054,7 +25094,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "pages_notas_notas",
-      "community": 33,
+      "community": 303,
       "norm_label": "notas()"
     },
     {
@@ -25764,7 +25804,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "api_portal_service_subircomprobante",
-      "community": 311,
+      "community": 35,
       "norm_label": "subircomprobante()"
     },
     {
@@ -25784,7 +25824,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "api_portal_service_getbancos",
-      "community": 311,
+      "community": 35,
       "norm_label": "getbancos()"
     },
     {
@@ -25794,7 +25834,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "api_portal_service_getconfigcolegio",
-      "community": 35,
+      "community": 39,
       "norm_label": "getconfigcolegio()"
     },
     {
@@ -25854,7 +25894,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_comprobantepagomodal",
-      "community": 311,
+      "community": 35,
       "norm_label": "comprobantepagomodal.jsx"
     },
     {
@@ -25864,7 +25904,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_comprobantepagomodal_tipos_permitidos",
-      "community": 311,
+      "community": 35,
       "norm_label": "tipos_permitidos"
     },
     {
@@ -25874,7 +25914,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "components_comprobantepagomodal_metodos_con_referencia",
-      "community": 311,
+      "community": 35,
       "norm_label": "metodos_con_referencia"
     },
     {
@@ -25884,7 +25924,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "components_comprobantepagomodal_comprobantepagomodal",
-      "community": 311,
+      "community": 35,
       "norm_label": "comprobantepagomodal()"
     },
     {
@@ -25914,7 +25954,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_portallayout",
-      "community": 35,
+      "community": 39,
       "norm_label": "portallayout.jsx"
     },
     {
@@ -25924,7 +25964,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_portallayout_portallayout",
-      "community": 35,
+      "community": 39,
       "norm_label": "portallayout()"
     },
     {
@@ -26034,7 +26074,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "context_portalauthcontext_useportalauth",
-      "community": 35,
+      "community": 39,
       "norm_label": "useportalauth()"
     },
     {
@@ -26481,21 +26521,11 @@
       "label": "INST_DEFAULT",
       "file_type": "code",
       "source_file": "octopus-frontend/src/utils/nominaPDF.js",
-      "source_location": "L9",
+      "source_location": "L10",
       "_origin": "ast",
       "id": "utils_nominapdf_inst_default",
       "community": 10,
       "norm_label": "inst_default"
-    },
-    {
-      "label": "fmtBs()",
-      "file_type": "code",
-      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
-      "source_location": "L11",
-      "_origin": "ast",
-      "id": "utils_nominapdf_fmtbs",
-      "community": 10,
-      "norm_label": "fmtbs()"
     },
     {
       "label": "_buildReciboAVECDoc()",
@@ -26604,7 +26634,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "utils_notas_utils_nombres_lapso",
-      "community": 33,
+      "community": 303,
       "norm_label": "nombres_lapso"
     },
     {
@@ -27728,10 +27758,30 @@
       "norm_label": "\ud83d\udfe2 menor \u2014 pendiente, fuera de alcance"
     },
     {
-      "label": "CHECKLIST",
+      "label": "M\u00d3DULO NOMINA",
       "file_type": "document",
       "source_file": "NOTAS_TECNICAS.md",
       "source_location": "L59",
+      "_origin": "ast",
+      "id": "notas_tecnicas_m\u00f3dulo_nomina",
+      "community": 80,
+      "norm_label": "modulo nomina"
+    },
+    {
+      "label": "\ud83d\udfe2 MENOR \u2014 pendiente, fuera de alcance",
+      "file_type": "document",
+      "source_file": "NOTAS_TECNICAS.md",
+      "source_location": "L69",
+      "_origin": "ast",
+      "id": "notas_tecnicas_menor_pendiente_fuera_de_alcance_69",
+      "community": 80,
+      "norm_label": "\ud83d\udfe2 menor \u2014 pendiente, fuera de alcance"
+    },
+    {
+      "label": "CHECKLIST",
+      "file_type": "document",
+      "source_file": "NOTAS_TECNICAS.md",
+      "source_location": "L76",
       "_origin": "ast",
       "id": "notas_tecnicas_checklist",
       "community": 80,
@@ -79839,9 +79889,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalEditarAlumno.jsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modaleditaralumno",
-      "target": "components_smartdateinput",
-      "confidence_score": 1.0
+      "target": "components_smartdateinput"
     },
     {
       "relation": "imports_from",
@@ -79850,9 +79900,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalRegistrarAlumno.jsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalregistraralumno",
-      "target": "components_smartdateinput",
-      "confidence_score": 1.0
+      "target": "components_smartdateinput"
     },
     {
       "relation": "contains",
@@ -79882,9 +79932,9 @@
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoForm.jsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nomina_empleadoform",
-      "target": "components_smartdateinput",
-      "confidence_score": 1.0
+      "target": "components_smartdateinput"
     },
     {
       "relation": "imports_from",
@@ -79904,9 +79954,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalEditarAlumno.jsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modaleditaralumno",
-      "target": "components_smartdateinput_smartdateinput",
-      "confidence_score": 1.0
+      "target": "components_smartdateinput_smartdateinput"
     },
     {
       "relation": "imports",
@@ -79915,9 +79965,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalRegistrarAlumno.jsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalregistraralumno",
-      "target": "components_smartdateinput_smartdateinput",
-      "confidence_score": 1.0
+      "target": "components_smartdateinput_smartdateinput"
     },
     {
       "relation": "imports",
@@ -79937,9 +79987,9 @@
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoForm.jsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nomina_empleadoform",
-      "target": "components_smartdateinput_smartdateinput",
-      "confidence_score": 1.0
+      "target": "components_smartdateinput_smartdateinput"
     },
     {
       "relation": "imports",
@@ -80109,9 +80159,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalConfirmarReactivar.jsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalconfirmarreactivar",
-      "target": "hooks_usefocustrap",
-      "confidence_score": 1.0
+      "target": "hooks_usefocustrap"
     },
     {
       "relation": "imports",
@@ -80120,9 +80170,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalConfirmarReactivar.jsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalconfirmarreactivar",
-      "target": "hooks_usefocustrap_usefocustrap",
-      "confidence_score": 1.0
+      "target": "hooks_usefocustrap_usefocustrap"
     },
     {
       "relation": "imports_from",
@@ -80142,9 +80192,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalConfirmarReactivar.jsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalconfirmarreactivar_modalconfirmarreactivar",
-      "target": "hooks_usefocustrap_usefocustrap",
-      "confidence_score": 1.0
+      "target": "hooks_usefocustrap_usefocustrap"
     },
     {
       "relation": "imports",
@@ -80193,9 +80243,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalEditarAlumno.jsx",
       "source_location": "L8",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modaleditaralumno",
-      "target": "alumnos_modaleditaralumno_parseisodate",
-      "confidence_score": 1.0
+      "target": "alumnos_modaleditaralumno_parseisodate"
     },
     {
       "relation": "imports_from",
@@ -80278,9 +80328,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalRegistrarAlumno.jsx",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalregistraralumno",
-      "target": "alumnos_modalregistraralumno_parseisodate",
-      "confidence_score": 1.0
+      "target": "alumnos_modalregistraralumno_parseisodate"
     },
     {
       "relation": "imports_from",
@@ -80354,9 +80404,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalRetirar.jsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalretirar",
-      "target": "hooks_usefocustrap",
-      "confidence_score": 1.0
+      "target": "hooks_usefocustrap"
     },
     {
       "relation": "imports",
@@ -80365,9 +80415,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalRetirar.jsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalretirar",
-      "target": "hooks_usefocustrap_usefocustrap",
-      "confidence_score": 1.0
+      "target": "hooks_usefocustrap_usefocustrap"
     },
     {
       "relation": "imports_from",
@@ -80387,9 +80437,9 @@
       "source_file": "octopus-frontend/src/components/alumnos/ModalRetirar.jsx",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "alumnos_modalretirar_modalretirar",
-      "target": "hooks_usefocustrap_usefocustrap",
-      "confidence_score": 1.0
+      "target": "hooks_usefocustrap_usefocustrap"
     },
     {
       "relation": "imports",
@@ -82388,9 +82438,9 @@
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoForm.jsx",
       "source_location": "L34",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nomina_empleadoform",
-      "target": "nomina_empleadoform_errorstyle",
-      "confidence_score": 1.0
+      "target": "nomina_empleadoform_errorstyle"
     },
     {
       "relation": "contains",
@@ -82398,9 +82448,9 @@
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoForm.jsx",
       "source_location": "L36",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nomina_empleadoform",
-      "target": "nomina_empleadoform_fielderror",
-      "confidence_score": 1.0
+      "target": "nomina_empleadoform_fielderror"
     },
     {
       "relation": "contains",
@@ -82428,9 +82478,9 @@
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoForm.jsx",
       "source_location": "L13",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nomina_empleadoform",
-      "target": "nomina_empleadoform_parseisodate",
-      "confidence_score": 1.0
+      "target": "nomina_empleadoform_parseisodate"
     },
     {
       "relation": "contains",
@@ -82470,9 +82520,9 @@
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoForm.jsx",
       "source_location": "L20",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nomina_empleadoform_calcularanosservicio",
-      "target": "nomina_empleadoform_parseisodate",
-      "confidence_score": 1.0
+      "target": "nomina_empleadoform_parseisodate"
     },
     {
       "relation": "calls",
@@ -82519,6 +82569,28 @@
       "target": "hooks_useescape_useescape"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/EmpleadoModal.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "nomina_empleadomodal",
+      "target": "hooks_usefocustrap",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/EmpleadoModal.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "nomina_empleadomodal",
+      "target": "hooks_usefocustrap_usefocustrap",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "octopus-frontend/src/components/nomina/EmpleadoModal.jsx",
@@ -82549,6 +82621,17 @@
       "weight": 1.0,
       "source": "nomina_empleadomodal_empleadomodal",
       "target": "hooks_useescape_useescape"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "octopus-frontend/src/components/nomina/EmpleadoModal.jsx",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "nomina_empleadomodal_empleadomodal",
+      "target": "hooks_usefocustrap_usefocustrap"
     },
     {
       "relation": "imports",
@@ -82805,6 +82888,28 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "nomina_recibomodal",
+      "target": "constants_nominafmt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "nomina_recibomodal",
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
       "source_location": "L14",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -82821,6 +82926,28 @@
       "confidence_score": 1.0,
       "source": "nomina_recibomodal",
       "target": "hooks_useescape_useescape"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "nomina_recibomodal",
+      "target": "hooks_usefocustrap",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "nomina_recibomodal",
+      "target": "hooks_usefocustrap_usefocustrap",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports_from",
@@ -82914,17 +83041,6 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "nomina_recibomodal",
-      "target": "utils_nominapdf_fmtbs"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L13",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "nomina_recibomodal",
       "target": "utils_nominapdf_generarreciboavecpdf"
     },
     {
@@ -82954,11 +83070,22 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L55",
+      "source_location": "L56",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "nomina_recibomodal_docentebanner",
-      "target": "utils_nominapdf_fmtbs"
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
+      "source_location": "L291",
+      "weight": 1.0,
+      "source": "nomina_recibomodal_recibomodal",
+      "target": "constants_nominafmt_fmtbs"
     },
     {
       "relation": "calls",
@@ -82977,10 +83104,10 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L81",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "nomina_recibomodal_recibomodal",
-      "target": "hooks_useinstitucionpdf_useinstitucionpdf"
+      "target": "hooks_usefocustrap_usefocustrap"
     },
     {
       "relation": "calls",
@@ -82988,10 +83115,10 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "octopus-frontend/src/components/nomina/ReciboModal.jsx",
-      "source_location": "L276",
+      "source_location": "L81",
       "weight": 1.0,
       "source": "nomina_recibomodal_recibomodal",
-      "target": "utils_nominapdf_fmtbs"
+      "target": "hooks_useinstitucionpdf_useinstitucionpdf"
     },
     {
       "relation": "imports",
@@ -83003,6 +83130,38 @@
       "confidence_score": 1.0,
       "source": "pages_nomina",
       "target": "nomina_recibomodal_recibomodal"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/components/nomina/SkeletonFila.jsx",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "nomina_skeletonfila",
+      "target": "nomina_skeletonfila_skeletonfila",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/pages/Nomina.jsx",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "pages_nomina",
+      "target": "nomina_skeletonfila",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/pages/Nomina.jsx",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "pages_nomina",
+      "target": "nomina_skeletonfila_skeletonfila",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -84240,9 +84399,9 @@
       "source_file": "octopus-frontend/src/hooks/useNomina.js",
       "source_location": "L33",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hooks_usenomina_validarempleado",
-      "target": "constants_avec_validarcedula",
-      "confidence_score": 1.0
+      "target": "constants_avec_validarcedula"
     },
     {
       "relation": "calls",
@@ -84485,6 +84644,93 @@
       "confidence_score": 1.0,
       "source": "hooks_usehorarios",
       "target": "constants_horarios_horas_fin"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/constants/nominaFmt.js",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "constants_nominafmt",
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "utils_nominapdf",
+      "target": "constants_nominafmt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/pages/Pagos.jsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "pages_pagos",
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/pages/Pagos.jsx",
+      "source_location": "L969",
+      "weight": 1.0,
+      "source": "pages_pagos_pagos",
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "utils_nominapdf",
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
+      "source_location": "L135",
+      "weight": 1.0,
+      "source": "utils_nominapdf_buildreciboavecdoc",
+      "target": "constants_nominafmt_fmtbs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
+      "source_location": "L282",
+      "weight": 1.0,
+      "source": "utils_nominapdf_generarrecibosimplepdf",
+      "target": "constants_nominafmt_fmtbs"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
+      "source_location": "L485",
+      "weight": 1.0,
+      "source": "utils_nominapdf_recibosimplebytes",
+      "target": "constants_nominafmt_fmtbs"
     },
     {
       "relation": "contains",
@@ -86370,9 +86616,9 @@
       "source_file": "octopus-frontend/src/hooks/useNomina.js",
       "source_location": "L28",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hooks_usenomina",
-      "target": "hooks_usenomina_validarempleado",
-      "confidence_score": 1.0
+      "target": "hooks_usenomina_validarempleado"
     },
     {
       "relation": "imports_from",
@@ -88474,17 +88720,6 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "pages_pagos",
-      "target": "utils_nominapdf_fmtbs"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/pages/Pagos.jsx",
-      "source_location": "L11",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "pages_pagos",
       "target": "utils_nominapdf_generarplanillabancaribepdf"
     },
     {
@@ -88563,17 +88798,6 @@
       "confidence_score": 1.0,
       "source": "pages_pagos_pagos",
       "target": "pages_pagos_usefocustrap"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/pages/Pagos.jsx",
-      "source_location": "L969",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "pages_pagos_pagos",
-      "target": "utils_nominapdf_fmtbs"
     },
     {
       "relation": "calls",
@@ -90449,16 +90673,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "octopus-frontend/src/utils/nominaPDF.js",
-      "source_location": "L11",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "utils_nominapdf",
-      "target": "utils_nominapdf_fmtbs"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
       "source_location": "L317",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -90544,39 +90758,6 @@
       "confidence_score": 1.0,
       "source": "utils_nominapdf",
       "target": "utils_nominapdf_txtbancaribe"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
-      "source_location": "L135",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "utils_nominapdf_buildreciboavecdoc",
-      "target": "utils_nominapdf_fmtbs"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
-      "source_location": "L282",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "utils_nominapdf_generarrecibosimplepdf",
-      "target": "utils_nominapdf_fmtbs"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "octopus-frontend/src/utils/nominaPDF.js",
-      "source_location": "L485",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "utils_nominapdf_recibosimplebytes",
-      "target": "utils_nominapdf_fmtbs"
     },
     {
       "relation": "calls",
@@ -91671,8 +91852,18 @@
       "source_file": "NOTAS_TECNICAS.md",
       "source_location": "L43",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "notas_tecnicas",
-      "target": "notas_tecnicas_m\u00f3dulo_lista_alumnos",
+      "target": "notas_tecnicas_m\u00f3dulo_lista_alumnos"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "NOTAS_TECNICAS.md",
+      "source_location": "L59",
+      "weight": 1.0,
+      "source": "notas_tecnicas",
+      "target": "notas_tecnicas_m\u00f3dulo_nomina",
       "confidence_score": 1.0
     },
     {
@@ -91711,8 +91902,18 @@
       "source_file": "NOTAS_TECNICAS.md",
       "source_location": "L52",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "notas_tecnicas_m\u00f3dulo_lista_alumnos",
-      "target": "notas_tecnicas_menor_pendiente_fuera_de_alcance",
+      "target": "notas_tecnicas_menor_pendiente_fuera_de_alcance"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "NOTAS_TECNICAS.md",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "notas_tecnicas_m\u00f3dulo_nomina",
+      "target": "notas_tecnicas_menor_pendiente_fuera_de_alcance_69",
       "confidence_score": 1.0
     },
     {
