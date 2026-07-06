@@ -147,8 +147,9 @@ def generar_mensualidades_mes_actual():
     en curso para todos los alumnos activos no becados que aún no la tengan.
 
     Con esto la mora aparece sola al vencer el dia_limite_pago de cada alumno,
-    sin que cobranza tenga que generar mensualidades a mano. Agosto se omite
-    (vacaciones, fuera del período escolar Sep–Jul). Idempotente: si la
+    sin que cobranza tenga que generar mensualidades a mano. Los meses fuera
+    del año escolar activo (ConfiguracionSistema.fecha_inicio_ano_escolar..
+    fecha_fin_ano_escolar, ej. vacaciones) se omiten. Idempotente: si la
     mensualidad ya existe no crea duplicados (unique alumno+mes+anio).
     """
     from .services import generar_mensualidades, mes_en_periodo_lectivo
@@ -156,8 +157,8 @@ def generar_mensualidades_mes_actual():
     hoy = date.today()
     print(f"[{datetime.now()}] Iniciando generación de mensualidades {hoy.month}/{hoy.year}...")
 
-    if not mes_en_periodo_lectivo(hoy.month):
-        print(f"[{datetime.now()}] Mes {hoy.month} fuera del período escolar. No se genera nada.")
+    if not mes_en_periodo_lectivo(hoy.month, hoy.year):
+        print(f"[{datetime.now()}] Mes {hoy.month}/{hoy.year} fuera del período escolar activo. No se genera nada.")
         return 0
 
     alumnos = Alumno.objects.filter(activo=True).exclude(estatus_financiero='becado')

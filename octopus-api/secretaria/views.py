@@ -316,6 +316,18 @@ class AlumnoListView(viewsets.ModelViewSet):
         from cobranza.mora import annotate_en_mora
         qs = annotate_en_mora(qs)
 
+        # Estado de inscripción EN VIVO para el período escolar activo: se anota
+        # `inscrito_periodo_activo` para que el serializer no dependa de
+        # `grado_seccion` (que no se limpia al cambiar de año escolar).
+        config = ConfiguracionSistema.objects.first()
+        periodo_activo = config.periodo_escolar_activo if config else None
+        if periodo_activo:
+            qs = qs.annotate(
+                inscrito_periodo_activo=models.Exists(
+                    Inscripcion.objects.filter(alumno_id=models.OuterRef('pk'), periodo_escolar=periodo_activo)
+                )
+            )
+
         # Filtro por estatus financiero (mora, solvente, becado) sobre el estado real
         estatus = self.request.query_params.get('estatus', '')
         if estatus == 'mora':

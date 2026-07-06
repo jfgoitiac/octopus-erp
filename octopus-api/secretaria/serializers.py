@@ -114,6 +114,10 @@ class AlumnoSerializer(serializers.ModelSerializer):
         en_mora = getattr(instance, 'en_mora', None)
         if en_mora is not None and instance.estatus_financiero != 'becado':
             data['estatus_financiero'] = 'mora' if en_mora else 'solvente'
+
+        inscrito_periodo_activo = getattr(instance, 'inscrito_periodo_activo', None)
+        if instance.activo and inscrito_periodo_activo is not None:
+            data['estado_inscripcion'] = 'inscrito' if inscrito_periodo_activo else 'sin_inscribir'
         return data
 
     @transaction.atomic

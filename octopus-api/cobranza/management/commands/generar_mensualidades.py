@@ -3,31 +3,34 @@ Comando de corrección/backfill de mensualidades.
 
 Uso típico (data ya cargada en el servidor, sin mensualidades generadas):
 
-    python manage.py generar_mensualidades              # mes actual → julio
+    python manage.py generar_mensualidades              # mes actual → fin de clases
     python manage.py generar_mensualidades --dry-run    # solo muestra qué haría
     python manage.py generar_mensualidades --desde 2026-05   # backfill desde mayo
 
-Genera las mensualidades faltantes del período escolar vigente (Sep–Jul) para
-todos los alumnos activos no becados. Es idempotente: los meses que ya existen
-no se tocan. No dispara emails al crear (bulk_create no ejecuta señales); las
-notificaciones salen luego por la tarea diaria de revisión de vencimientos.
+Genera las mensualidades faltantes del año escolar activo (según
+ConfiguracionSistema.fecha_inicio_ano_escolar / fecha_fin_ano_escolar) para
+todos los alumnos activos no becados. No genera nada fuera de ese rango de
+fechas. Es idempotente: los meses que ya existen no se tocan. No dispara
+emails al crear (bulk_create no ejecuta señales); las notificaciones salen
+luego por la tarea diaria de revisión de vencimientos.
 """
 from datetime import date
 
 from django.core.management.base import BaseCommand, CommandError
 
 from cobranza.services import (
+    configuracion_activa,
     generar_mensualidades,
-    meses_periodo_escolar,
+    meses_ano_escolar,
     monto_mensualidad_defecto,
-    periodo_escolar_de_fecha,
+    rango_ano_escolar,
 )
 from secretaria.models import Alumno
 
 
 class Command(BaseCommand):
     help = (
-        "Genera las mensualidades faltantes del período escolar vigente "
+        "Genera las mensualidades faltantes del año escolar activo "
         "para todos los alumnos activos no becados (idempotente)."
     )
 
@@ -35,7 +38,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--desde',
             help="Mes inicial en formato YYYY-MM (default: mes actual). "
-                 "Debe pertenecer al período escolar vigente.",
+                 "Debe pertenecer al año escolar activo.",
         )
         parser.add_argument(
             '--dry-run',
@@ -55,17 +58,24 @@ class Command(BaseCommand):
         else:
             anio_desde, mes_desde = hoy.year, hoy.month
 
-        anio_inicio, anio_fin = periodo_escolar_de_fecha(hoy)
+        config = configuracion_activa()
+        rango = rango_ano_escolar(config)
+        if not rango:
+            raise CommandError(
+                "No hay año escolar configurado (ConfiguracionSistema.fecha_inicio_ano_escolar "
+                "/ fecha_fin_ano_escolar). Configure el período activo antes de generar mensualidades."
+            )
+        fecha_inicio, fecha_fin = rango
+
         meses = [
-            (m, a) for (m, a) in meses_periodo_escolar(anio_inicio, anio_fin)
+            (m, a) for (m, a) in meses_ano_escolar(fecha_inicio, fecha_fin)
             if (a, m) >= (anio_desde, mes_desde)
         ]
 
         if not meses:
             self.stdout.write(self.style.WARNING(
                 f"No hay meses que generar desde {mes_desde}/{anio_desde} "
-                f"dentro del período {anio_inicio}-{anio_fin} (¿vacaciones de agosto "
-                f"o fecha fuera del período?)."
+                f"dentro del año escolar activo ({fecha_inicio} → {fecha_fin})."
             ))
             return
 
@@ -73,9 +83,9 @@ class Command(BaseCommand):
         total_alumnos = alumnos.count()
         monto = monto_mensualidad_defecto()
 
-        rango = f"{meses[0][0]}/{meses[0][1]} → {meses[-1][0]}/{meses[-1][1]}"
+        rango_meses = f"{meses[0][0]}/{meses[0][1]} → {meses[-1][0]}/{meses[-1][1]}"
         self.stdout.write(
-            f"Período escolar {anio_inicio}-{anio_fin} | Meses: {rango} | "
+            f"Año escolar activo {fecha_inicio} → {fecha_fin} | Meses: {rango_meses} | "
             f"Alumnos activos no becados: {total_alumnos} | Monto: ${monto}"
         )
 
@@ -99,7 +109,7 @@ class Command(BaseCommand):
             ))
             return
 
-        creadas = generar_mensualidades(alumnos, meses, monto=monto)
+        creadas = generar_mensualidades(alumnos, meses, monto=monto, config=config)
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {creadas} mensualidades creadas "
             f"({total_alumnos} alumnos × {len(meses)} meses, los existentes se conservaron)."

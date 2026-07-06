@@ -222,24 +222,21 @@ class BuscarAlumnoCobranzaView(APIView):
         from datetime import date as _date
         hoy = _date.today()
 
-        # Determinar año escolar vigente (Sep-Jul spanning dos años)
-        if hoy.month >= 9:
-            year1, year2 = hoy.year, hoy.year + 1
-        else:
-            year1, year2 = hoy.year - 1, hoy.year
-
-        school_months = [(m, year1) for m in range(9, 13)] + [(m, year2) for m in range(1, 8)]
-
-        # Auto-crear los meses del año escolar que falten, mes actual incluido
-        # (antes solo se creaban futuros y el mes en curso nunca generaba deuda).
-        # Los becados totales no cargan mensualidades.
+        # Auto-crear los meses del año escolar activo que falten, mes actual
+        # incluido (antes solo se creaban futuros y el mes en curso nunca
+        # generaba deuda). Los becados totales no cargan mensualidades. El
+        # rango de meses sale siempre de ConfiguracionSistema (fecha de inicio
+        # y fin de clases), nunca de un rango fijo.
         if alumno.estatus_financiero != 'becado':
-            from .services import generar_mensualidades
-            meses_pendientes = [
-                (m, a) for (m, a) in school_months
-                if (a, m) >= (hoy.year, hoy.month)
-            ]
-            generar_mensualidades([alumno], meses_pendientes)
+            from .services import generar_mensualidades, meses_ano_escolar, rango_ano_escolar
+            rango = rango_ano_escolar()
+            if rango:
+                fecha_inicio, fecha_fin = rango
+                meses_pendientes = [
+                    (m, a) for (m, a) in meses_ano_escolar(fecha_inicio, fecha_fin)
+                    if (a, m) >= (hoy.year, hoy.month)
+                ]
+                generar_mensualidades([alumno], meses_pendientes)
 
         def to_list(qs):
             return [
@@ -744,20 +741,18 @@ class GenerarAnualidadView(APIView):
         except Alumno.DoesNotExist:
             return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-        param = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()
-        monto_defecto = Decimal(param.valor) if param and param.valor else Decimal('35.00')
+        from .services import generar_mensualidades, meses_ano_escolar, rango_ano_escolar
 
-        anio_actual = date.today().year
-        creadas = 0
-        for mes in range(1, 13):
-            _, created = Mensualidad.objects.get_or_create(
-                alumno=alumno,
-                mes=mes,
-                anio=anio_actual,
-                defaults={'monto_usd': monto_defecto, 'pagado': False}
+        rango = rango_ano_escolar()
+        if not rango:
+            return Response(
+                {"error": "No hay año escolar configurado (fecha de inicio/fin de clases)."},
+                status=status.HTTP_400_BAD_REQUEST
             )
-            if created:
-                creadas += 1
+        fecha_inicio, fecha_fin = rango
+        meses = meses_ano_escolar(fecha_inicio, fecha_fin)
+
+        creadas = generar_mensualidades([alumno], meses)
 
         LogAuditoria.objects.create(
             usuario=request.user,
@@ -767,7 +762,7 @@ class GenerarAnualidadView(APIView):
                 "alumno_id":   alumno.id,
                 "nombre":      f"{alumno.nombre} {alumno.apellido}",
                 "meses_nuevos": creadas,
-                "anio":        anio_actual,
+                "ano_escolar": f"{fecha_inicio} - {fecha_fin}",
             }
         )
 

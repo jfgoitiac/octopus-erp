@@ -8,9 +8,11 @@ Antes la creación de registros Mensualidad estaba dispersa y era manual:
 Resultado: los alumnos cargados a la BD no tenían mensualidades y nunca
 entraban en mora (cobranza/mora.py solo evalúa registros existentes).
 
-Este módulo centraliza la regla del período escolar (Sep–Jul) y la creación
-idempotente de mensualidades para que la tarea mensual de Celery, la
-inscripción y el comando de backfill usen exactamente el mismo criterio.
+Este módulo centraliza la regla del período escolar activo — leída siempre de
+ConfiguracionSistema.fecha_inicio_ano_escolar / fecha_fin_ano_escolar, nunca de
+meses fijos — y la creación idempotente de mensualidades, para que la tarea
+mensual de Celery, la inscripción y el comando de backfill usen exactamente el
+mismo criterio. Ninguna mensualidad se genera fuera de ese rango de fechas.
 
 Nota: se usa bulk_create (no dispara la señal post_save de Mensualidad) para
 no enviar el email de "día 0" al crear meses futuros o históricos. Las
@@ -23,10 +25,6 @@ from decimal import Decimal
 
 from .models import Mensualidad, ParametroGlobal
 
-# El año escolar va de septiembre (año 1) a julio (año 2). Agosto es vacaciones.
-MES_INICIO_PERIODO = 9
-MES_FIN_PERIODO = 7
-
 
 def monto_mensualidad_defecto():
     """Monto base de la mensualidad desde ParametroGlobal (fallback 35.00 USD)."""
@@ -37,24 +35,35 @@ def monto_mensualidad_defecto():
         return Decimal('35.00')
 
 
-def periodo_escolar_de_fecha(hoy=None):
-    """
-    Devuelve (anio_inicio, anio_fin) del período escolar que contiene la fecha.
-    Sep–Dic pertenecen al período que inicia ese año; Ene–Ago al que inició el
-    año anterior (agosto se asocia al período recién terminado).
-    """
-    hoy = hoy or date.today()
-    if hoy.month >= MES_INICIO_PERIODO:
-        return hoy.year, hoy.year + 1
-    return hoy.year - 1, hoy.year
+def configuracion_activa():
+    """Instancia única de ConfiguracionSistema, o None si aún no existe."""
+    from secretaria.models import ConfiguracionSistema
+    return ConfiguracionSistema.objects.order_by('id').first()
 
 
-def meses_periodo_escolar(anio_inicio, anio_fin):
-    """Lista [(mes, anio), ...] del período escolar: Sep–Dic año 1 + Ene–Jul año 2."""
-    return (
-        [(m, anio_inicio) for m in range(MES_INICIO_PERIODO, 13)] +
-        [(m, anio_fin) for m in range(1, MES_FIN_PERIODO + 1)]
-    )
+def rango_ano_escolar(config=None):
+    """
+    (fecha_inicio, fecha_fin) del año escolar activo, tomado directamente de
+    ConfiguracionSistema. Devuelve None si no hay configuración o le faltan
+    las fechas de inicio/fin de clases.
+    """
+    config = config or configuracion_activa()
+    if not config or not config.fecha_inicio_ano_escolar or not config.fecha_fin_ano_escolar:
+        return None
+    return config.fecha_inicio_ano_escolar, config.fecha_fin_ano_escolar
+
+
+def meses_ano_escolar(fecha_inicio, fecha_fin):
+    """Lista [(mes, anio), ...] entre fecha_inicio y fecha_fin (inclusive)."""
+    meses = []
+    anio, mes = fecha_inicio.year, fecha_inicio.month
+    while (anio, mes) <= (fecha_fin.year, fecha_fin.month):
+        meses.append((mes, anio))
+        mes += 1
+        if mes > 12:
+            mes = 1
+            anio += 1
+    return meses
 
 
 def parsear_periodo_escolar(periodo):
@@ -71,22 +80,37 @@ def parsear_periodo_escolar(periodo):
         return None
 
 
-def mes_en_periodo_lectivo(mes):
-    """True si el mes pertenece al año escolar (excluye agosto, vacaciones)."""
-    return mes != 8
+def mes_en_periodo_lectivo(mes, anio, config=None):
+    """True si (mes, anio) cae dentro del año escolar activo configurado."""
+    rango = rango_ano_escolar(config)
+    if not rango:
+        return False
+    fecha_inicio, fecha_fin = rango
+    inicio = (fecha_inicio.year, fecha_inicio.month)
+    fin = (fecha_fin.year, fecha_fin.month)
+    return inicio <= (anio, mes) <= fin
 
 
-def generar_mensualidades(alumnos, meses, monto=None):
+def generar_mensualidades(alumnos, meses, monto=None, config=None):
     """
     Crea (idempotente) las mensualidades indicadas para los alumnos dados.
 
     alumnos: iterable/queryset de Alumno.
-    meses:   lista de tuplas (mes, anio).
+    meses:   lista de tuplas (mes, anio). Cualquier mes fuera del año escolar
+             activo (ConfiguracionSistema.fecha_inicio_ano_escolar..
+             fecha_fin_ano_escolar) se descarta antes de crear nada.
     monto:   Decimal opcional; por defecto MONTO_MENSUALIDAD_DEFECTO.
 
-    Devuelve la cantidad de mensualidades realmente creadas.
+    Devuelve la cantidad de mensualidades realmente creadas (0 si no hay
+    período escolar configurado).
     """
-    meses = [(m, a) for (m, a) in meses if mes_en_periodo_lectivo(m)]
+    rango = rango_ano_escolar(config)
+    if not rango:
+        return 0
+    fecha_inicio, fecha_fin = rango
+    inicio = (fecha_inicio.year, fecha_inicio.month)
+    fin = (fecha_fin.year, fecha_fin.month)
+    meses = [(m, a) for (m, a) in meses if inicio <= (a, m) <= fin]
     if not meses:
         return 0
 
@@ -119,20 +143,34 @@ def generar_mensualidades(alumnos, meses, monto=None):
 
 def generar_mensualidades_alumno_periodo(alumno, periodo, desde=None, monto=None):
     """
-    Genera las mensualidades del período escolar (ej: '2025-2026') para un
-    alumno, desde la fecha `desde` (default: hoy) hasta el fin del período.
-    Pensado para el momento de la inscripción: un alumno que ingresa a mitad
-    de año no debe cargar deuda de meses previos a su ingreso.
+    Genera las mensualidades de un alumno desde la fecha `desde` (default:
+    hoy, nunca antes del inicio de clases) hasta el fin del año escolar activo
+    (ConfiguracionSistema.fecha_fin_ano_escolar). Pensado para el momento de
+    la inscripción: un alumno que ingresa a mitad de año no debe cargar deuda
+    de meses previos a su ingreso, y ninguno debe cargarse fuera del rango de
+    clases configurado.
 
-    Devuelve la cantidad creada (0 si el período es inválido).
+    `periodo` solo se valida por formato (ej: '2025-2026'); el rango real de
+    fechas siempre sale de la configuración vigente.
+
+    Devuelve la cantidad creada (0 si el período es inválido o no hay
+    configuración de año escolar).
     """
-    anios = parsear_periodo_escolar(periodo)
-    if not anios:
+    if not parsear_periodo_escolar(periodo):
         return 0
 
+    config = configuracion_activa()
+    rango = rango_ano_escolar(config)
+    if not rango:
+        return 0
+    fecha_inicio, fecha_fin = rango
+
     desde = desde or date.today()
+    if desde < fecha_inicio:
+        desde = fecha_inicio
+
     meses = [
-        (m, a) for (m, a) in meses_periodo_escolar(*anios)
+        (m, a) for (m, a) in meses_ano_escolar(fecha_inicio, fecha_fin)
         if (a, m) >= (desde.year, desde.month)
     ]
-    return generar_mensualidades([alumno], meses, monto=monto)
+    return generar_mensualidades([alumno], meses, monto=monto, config=config)

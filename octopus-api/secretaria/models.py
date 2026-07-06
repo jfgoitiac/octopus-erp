@@ -184,10 +184,18 @@ class Alumno(models.Model):
 
     @property
     def estado_inscripcion(self):
-        """Retorna el estado de inscripción del alumno."""
+        """Retorna el estado de inscripción del alumno para el período escolar activo.
+
+        `grado_seccion` no se limpia al cambiar de año (la promoción masiva y la
+        asignación de grado lo mutan directamente), así que no sirve para saber si
+        el alumno ya tiene una inscripción vigente. La fuente de verdad es
+        `Inscripcion.periodo_escolar` comparado contra el período activo.
+        """
         if not self.activo:
             return 'retirado'
-        if self.grado_seccion:
+        config = ConfiguracionSistema.objects.first()
+        periodo_activo = config.periodo_escolar_activo if config else None
+        if periodo_activo and Inscripcion.objects.filter(alumno=self, periodo_escolar=periodo_activo).exists():
             return 'inscrito'
         return 'sin_inscribir'
 

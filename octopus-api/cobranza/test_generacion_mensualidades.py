@@ -15,14 +15,14 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 
-from secretaria.models import Alumno, ConfiguracionGrado, Representante
+from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Representante
 from .models import CuotaInscripcion, Mensualidad, ParametroGlobal
 from .mora import annotate_en_mora
 from .services import (
     generar_mensualidades,
     generar_mensualidades_alumno_periodo,
-    meses_periodo_escolar,
-    periodo_escolar_de_fecha,
+    meses_ano_escolar,
+    rango_ano_escolar,
 )
 from .tasks import generar_mensualidades_mes_actual
 
@@ -47,6 +47,13 @@ def _crear_alumno(cedula, representante, **kwargs):
 
 class GeneracionMensualidadesBase(TestCase):
     def setUp(self):
+        self.config = ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2026, 1, 1),
+            fecha_fin_inscripciones=date(2026, 12, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+            periodo_escolar_activo='2025-2026',
+        )
         self.representante = Representante.objects.create(
             cedula='V11111111', nombre='Maria', apellido='Perez',
             telefono='0412', correo='maria@test.com', direccion='Calle 1',
@@ -57,17 +64,24 @@ class GeneracionMensualidadesBase(TestCase):
 class ServicioGeneracionTest(GeneracionMensualidadesBase):
 
     def test_crea_mensualidades_y_es_idempotente(self):
-        creadas = generar_mensualidades([self.alumno], [(7, 2026), (9, 2026)])
+        creadas = generar_mensualidades([self.alumno], [(6, 2026), (7, 2026)])
         self.assertEqual(creadas, 2)
         # Segunda corrida no duplica
-        creadas = generar_mensualidades([self.alumno], [(7, 2026), (9, 2026)])
+        creadas = generar_mensualidades([self.alumno], [(6, 2026), (7, 2026)])
         self.assertEqual(creadas, 0)
         self.assertEqual(Mensualidad.objects.filter(alumno=self.alumno).count(), 2)
 
-    def test_excluye_agosto(self):
-        creadas = generar_mensualidades([self.alumno], [(8, 2026)])
+    def test_excluye_meses_fuera_del_ano_escolar_activo(self):
+        """Agosto/2026 y septiembre/2025 quedan fuera de 1/sep/2025-31/jul/2026."""
+        creadas = generar_mensualidades([self.alumno], [(8, 2026), (8, 2025)])
         self.assertEqual(creadas, 0)
-        self.assertFalse(Mensualidad.objects.filter(alumno=self.alumno, mes=8).exists())
+        self.assertFalse(Mensualidad.objects.filter(alumno=self.alumno).exists())
+
+    def test_sin_configuracion_no_genera_nada(self):
+        ConfiguracionSistema.objects.all().delete()
+        creadas = generar_mensualidades([self.alumno], [(7, 2026)])
+        self.assertEqual(creadas, 0)
+        self.assertFalse(Mensualidad.objects.filter(alumno=self.alumno).exists())
 
     def test_usa_monto_de_parametro_global(self):
         ParametroGlobal.objects.create(clave='MONTO_MENSUALIDAD_DEFECTO', valor='42.50')
@@ -75,15 +89,14 @@ class ServicioGeneracionTest(GeneracionMensualidadesBase):
         m = Mensualidad.objects.get(alumno=self.alumno, mes=7, anio=2026)
         self.assertEqual(m.monto_usd, Decimal('42.50'))
 
-    def test_periodo_escolar_de_fecha(self):
-        self.assertEqual(periodo_escolar_de_fecha(date(2026, 7, 2)), (2025, 2026))
-        self.assertEqual(periodo_escolar_de_fecha(date(2026, 9, 1)), (2026, 2027))
-        # Agosto pertenece al período recién terminado
-        self.assertEqual(periodo_escolar_de_fecha(date(2026, 8, 15)), (2025, 2026))
+    def test_rango_ano_escolar_toma_las_fechas_de_configuracion(self):
+        self.assertEqual(
+            rango_ano_escolar(), (date(2025, 9, 1), date(2026, 7, 31))
+        )
 
-    def test_meses_periodo_escolar(self):
-        meses = meses_periodo_escolar(2025, 2026)
-        self.assertEqual(len(meses), 11)  # Sep-Dic + Ene-Jul, sin agosto
+    def test_meses_ano_escolar(self):
+        meses = meses_ano_escolar(date(2025, 9, 1), date(2026, 7, 31))
+        self.assertEqual(len(meses), 11)  # Sep-Dic 2025 + Ene-Jul 2026
         self.assertEqual(meses[0], (9, 2025))
         self.assertEqual(meses[-1], (7, 2026))
 
@@ -290,15 +303,15 @@ class DiaLimitePagoGlobalTest(GeneracionMensualidadesBase):
 
     def setUp(self):
         super().setUp()
-        from secretaria.models import ConfiguracionSistema
-        self.config = ConfiguracionSistema.objects.create(
-            fecha_inicio_inscripciones=date(2026, 7, 1),
-            fecha_fin_inscripciones=date(2026, 7, 1),  # cerradas (no genera cuotas)
-            fecha_inicio_ano_escolar=date(2026, 9, 15),
-            fecha_fin_ano_escolar=date(2027, 7, 15),
-            periodo_escolar_activo='2026-2027',
-            dia_limite_pago=5,
-        )
+        # Reutiliza el ConfiguracionSistema único creado en la base (singleton:
+        # las vistas siempre usan ConfiguracionSistema.objects.first()).
+        self.config.fecha_inicio_inscripciones = date(2026, 7, 1)
+        self.config.fecha_fin_inscripciones = date(2026, 7, 1)  # cerradas (no genera cuotas)
+        self.config.fecha_inicio_ano_escolar = date(2026, 9, 15)
+        self.config.fecha_fin_ano_escolar = date(2027, 7, 15)
+        self.config.periodo_escolar_activo = '2026-2027'
+        self.config.dia_limite_pago = 5
+        self.config.save()
         self.admin = User.objects.create_superuser(
             username='admin', password='x', email='admin@test.com'
         )
