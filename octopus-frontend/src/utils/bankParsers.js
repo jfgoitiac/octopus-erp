@@ -7,7 +7,19 @@ export const BANKS = [
   { id: 'tesoro',    label: 'Banco del Tesoro',  color: '#1a3a5c' },
 ];
 
-const n = (s = '') => s.toString().toLowerCase().trim();
+// Algunos bancos (ej. Banco del Tesoro) exportan HTML donde SheetJS solo decodifica
+// un set reducido de entidades, dejando cosas como "D&eacute;bito" sin convertir.
+// Decodificamos las entidades acentuadas más comunes y luego quitamos tildes para
+// que la detección de columnas no dependa de que el acento esté bien codificado.
+const HTML_ENTITIES = {
+  aacute: 'a', eacute: 'e', iacute: 'i', oacute: 'o', uacute: 'u',
+  ntilde: 'n', uuml: 'u', amp: '&', nbsp: ' ',
+};
+const decodeEntities = (s) => s.replace(/&([a-zA-Z]+);/g, (m, name) => HTML_ENTITIES[name.toLowerCase()] ?? m);
+
+const n = (s = '') => decodeEntities(s.toString())
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().trim();
 
 function findCol(headers, candidates) {
   for (const c of candidates) {
@@ -97,13 +109,16 @@ function genericParse(rows, bankId) {
 
     if (!fecha || !referencia || referencia.length < 3) continue;
 
-    let monto = 0;
+    let monto;
+    let tipo;
     if (montoIdx !== -1 && row[montoIdx] !== '' && row[montoIdx] != null) {
       monto = parseAmount(row[montoIdx]);
+      tipo  = /^\s*-|\(.*\)/.test(row[montoIdx]?.toString() || '') ? 'egreso' : 'ingreso';
     } else {
       const deb = parseAmount(row[debitoIdx]);
       const cre = parseAmount(row[creditoIdx]);
       monto = cre || deb;
+      tipo  = deb > 0 ? 'egreso' : 'ingreso';
     }
 
     if (monto === 0) continue;
@@ -112,6 +127,7 @@ function genericParse(rows, bankId) {
       fecha:       formatDate(fecha),
       referencia,
       monto,
+      tipo,
       descripcion: descIdx !== -1 ? (row[descIdx]?.toString().trim() || '') : '',
       banco:       bankId,
     });

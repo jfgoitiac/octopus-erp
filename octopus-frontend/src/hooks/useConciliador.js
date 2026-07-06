@@ -3,6 +3,17 @@ import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { BANKS, parseStatement } from '../utils/bankParsers';
 
+// Recorta bytes de espacio en blanco (\t \n \r espacio) al inicio del buffer
+// para que XLSX.read detecte correctamente formatos como HTML (<table>)
+// cuya firma de bytes cae en el mismo caso que "texto plano" si hay padding.
+function trimLeadingWhitespace(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const whitespace = new Set([0x09, 0x0a, 0x0d, 0x20]);
+  let start = 0;
+  while (start < bytes.length && whitespace.has(bytes[start])) start++;
+  return start === 0 ? buffer : bytes.slice(start).buffer;
+}
+
 export function useConciliador() {
   const [bank, setBank]                       = useState('');
   const [transactions, setTransactions]       = useState([]);
@@ -25,7 +36,15 @@ export function useConciliador() {
     setLoading(true);
     try {
       const buffer = await file.arrayBuffer();
-      const wb     = XLSX.read(buffer, { type: 'array', cellDates: false });
+      // Algunos bancos (ej. Banco del Tesoro) exportan tablas HTML con extensión
+      // .xls/.xlsx que arrancan con saltos de línea/espacios en blanco. SheetJS
+      // detecta el formato leyendo el primer byte crudo, así que ese padding lo
+      // hace confundir el archivo con texto plano y no detecta ninguna fila.
+      const trimmed = trimLeadingWhitespace(buffer);
+      // raw:true evita que SheetJS "adivine" números en tablas HTML (ej. interpreta
+      // "124000,00" como 12400000 al asumir la coma como separador de miles en vez
+      // de decimal). Dejamos el texto crudo y parseAmount() hace la conversión.
+      const wb     = XLSX.read(trimmed, { type: 'array', cellDates: false, raw: true });
       const ws     = wb.Sheets[wb.SheetNames[0]];
       const rows   = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
       const txs    = parseStatement(rows, bank);

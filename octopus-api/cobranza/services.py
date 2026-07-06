@@ -143,12 +143,19 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
 
 def generar_mensualidades_alumno_periodo(alumno, periodo, desde=None, monto=None):
     """
-    Genera las mensualidades de un alumno desde la fecha `desde` (default:
-    hoy, nunca antes del inicio de clases) hasta el fin del año escolar activo
-    (ConfiguracionSistema.fecha_fin_ano_escolar). Pensado para el momento de
-    la inscripción: un alumno que ingresa a mitad de año no debe cargar deuda
-    de meses previos a su ingreso, y ninguno debe cargarse fuera del rango de
-    clases configurado.
+    Genera únicamente la PRIMERA mensualidad exigible de un alumno recién
+    inscrito (nunca antes del inicio de clases), no todo el año escolar
+    restante. Esa mensualidad se cobra junto con la cuota de inscripción,
+    como adelanto del mes siguiente; el resto del período lo va generando
+    mes a mes la tarea mensual de Celery (generar_mensualidades_mes_actual),
+    que es la que efectivamente activa la mora al vencer cada mes.
+
+    Ejemplo: si la inscripción ocurre en julio y el año escolar empieza en
+    septiembre, se genera solo septiembre (no agosto, que queda fuera del
+    período de clases, ni el resto del año).
+
+    Un alumno que ingresa a mitad de año (con clases ya en curso) solo carga
+    la mensualidad del mes de su ingreso, no la de meses previos.
 
     `periodo` solo se valida por formato (ej: '2025-2026'); el rango real de
     fechas siempre sale de la configuración vigente.
@@ -173,4 +180,8 @@ def generar_mensualidades_alumno_periodo(alumno, periodo, desde=None, monto=None
         (m, a) for (m, a) in meses_ano_escolar(fecha_inicio, fecha_fin)
         if (a, m) >= (desde.year, desde.month)
     ]
-    return generar_mensualidades([alumno], meses, monto=monto, config=config)
+    if not meses:
+        return 0
+
+    primer_mes = meses[0]
+    return generar_mensualidades([alumno], [primer_mes], monto=monto, config=config)

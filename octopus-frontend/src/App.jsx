@@ -175,7 +175,7 @@ function App() {
 
               {/* Administración del sistema */}
               <Route path="sistemas" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Sistemas />
                 </ProtectedRoute>
               } />
@@ -185,34 +185,34 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="configuracion" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Configuracion />
                 </ProtectedRoute>
               } />
               <Route path="configuracion/notificaciones" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <ConfiguracionNotificaciones />
                 </ProtectedRoute>
               } />
 
               {/* Módulo Académico */}
               <Route path="notas" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
                   <Notas />
                 </ProtectedRoute>
               } />
               <Route path="boletin" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
                   <Boletin />
                 </ProtectedRoute>
               } />
               <Route path="asistencia" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
                   <Asistencia />
                 </ProtectedRoute>
               } />
               <Route path="horarios" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Horarios />
                 </ProtectedRoute>
               } />

@@ -101,15 +101,30 @@ class ServicioGeneracionTest(GeneracionMensualidadesBase):
         self.assertEqual(meses[-1], (7, 2026))
 
     def test_alumno_periodo_solo_desde_mes_de_ingreso(self):
-        """Un alumno inscrito a mitad de año no carga deuda de meses previos."""
+        """Un alumno inscrito a mitad de año solo carga el mes de su ingreso,
+        no meses previos ni el resto del año (eso lo genera Celery mes a mes)."""
         creadas = generar_mensualidades_alumno_periodo(
             self.alumno, '2025-2026', desde=date(2026, 2, 10)
         )
-        # Feb, Mar, Abr, May, Jun, Jul de 2026
-        self.assertEqual(creadas, 6)
+        self.assertEqual(creadas, 1)
+        self.assertTrue(
+            Mensualidad.objects.filter(alumno=self.alumno, mes=2, anio=2026).exists()
+        )
         self.assertFalse(
             Mensualidad.objects.filter(alumno=self.alumno, anio=2025).exists()
         )
+
+    def test_inscripcion_antes_del_inicio_de_clases_carga_solo_el_mes_siguiente(self):
+        """Inscripción en julio, año escolar arranca en septiembre: se carga
+        solo septiembre (adelantado), nunca agosto ni el resto del período."""
+        creadas = generar_mensualidades_alumno_periodo(
+            self.alumno, '2025-2026', desde=date(2025, 7, 15)
+        )
+        self.assertEqual(creadas, 1)
+        self.assertTrue(
+            Mensualidad.objects.filter(alumno=self.alumno, mes=9, anio=2025).exists()
+        )
+        self.assertEqual(Mensualidad.objects.filter(alumno=self.alumno).count(), 1)
 
     def test_alumno_periodo_invalido_no_crea_nada(self):
         self.assertEqual(

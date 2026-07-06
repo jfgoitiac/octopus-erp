@@ -226,9 +226,6 @@ const SmartDateInput = ({
                     <button
                         type="button"
                         onClick={() => {
-                            // withPortal ignora la prop `open` para decidir si renderiza
-                            // el calendario (usa su estado interno) — hay que abrirlo/
-                            // cerrarlo a través del ref imperativo, no de esa prop.
                             const dp = datePickerRef.current;
                             if (dp) dp.setOpen(!calendarioAbierto);
                         }}
@@ -236,15 +233,19 @@ const SmartDateInput = ({
                         tabIndex={-1}
                         style={{
                             position: "absolute",
-                            right: 6,
+                            right: 8,
                             top: "50%",
                             transform: "translateY(-50%)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             background: "none",
                             border: "none",
                             padding: 2,
                             lineHeight: 0,
                             cursor: "pointer",
-                            color: "var(--ash)",
+                            color: calendarioAbierto ? "var(--pb)" : "var(--ash)",
+                            transition: "color 0.15s ease",
                         }}
                     >
                         <CalendarDays size={16} aria-hidden="true" />
@@ -263,11 +264,14 @@ const SmartDateInput = ({
                         showMonthDropdown
                         showYearDropdown
                         dropdownMode="scroll"
-                        withPortal
+                        popperPlacement="bottom-end"
+                        popperModifiers={[
+                            { name: "offset", options: { offset: [0, 6] } },
+                        ]}
                         customInput={
                             <input
                                 readOnly
-                                style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                                style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", pointerEvents: "none" }}
                             />
                         }
                     />

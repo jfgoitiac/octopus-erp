@@ -39,10 +39,10 @@ const navSections = [
   {
     label: 'Académico',
     items: [
-      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'sistemas', 'administrador', 'secretaria'] },
-      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director', 'administrador'] },
-      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'administrador', 'secretaria'] },
-      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas', 'administrador'] },
+      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'sistemas', 'secretaria'] },
+      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director'] },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria'] },
+      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas'] },
     ],
   },
   {
@@ -55,9 +55,9 @@ const navSections = [
   {
     label: 'Sistema',
     items: [
-      { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas','administrador'] },
-      { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas','administrador'] },
-      { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas','administrador'] },
+      { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas'] },
+      { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas'] },
+      { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas'] },
       { name: 'Auditoría', path: '/auditoria', icon: ShieldCheck, roles: ['director'] },
     ],
   },

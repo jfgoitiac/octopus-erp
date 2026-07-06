@@ -330,9 +330,9 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     defaults={'monto_usd': monto_insc}
                 )
 
-                # 5. Generar las mensualidades del período escolar (desde el mes
-                # actual hasta julio). Así el alumno entra al ciclo de cobranza
-                # sin pasos manuales y la mora se activa sola al vencer cada mes.
+                # 5. Cargar como deuda, junto con la inscripción, solo el mes
+                # siguiente exigible (adelantado, pagable por cualquier medio).
+                # El resto del período lo genera mes a mes la tarea de Celery.
                 from cobranza.services import generar_mensualidades_alumno_periodo
                 generar_mensualidades_alumno_periodo(
                     alumno, inscripcion.periodo_escolar

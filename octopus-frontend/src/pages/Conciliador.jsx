@@ -121,11 +121,11 @@ function TransactionsTable({ transactions }) {
         <table className="w-full text-sm" aria-label="Transacciones cargadas">
           <thead>
             <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-              {['Fecha', 'Referencia', 'Descripción', 'Monto (Bs.)'].map((h, i) => (
+              {['Fecha', 'Referencia', 'Descripción', 'Tipo', 'Monto (Bs.)'].map((h, i) => (
                 <th
                   key={h}
                   scope="col"
-                  className={`px-4 py-3 text-${i === 3 ? 'right' : 'left'} text-[11px] font-medium uppercase tracking-wider`}
+                  className={`px-4 py-3 text-${i === 4 ? 'right' : 'left'} text-[11px] font-medium uppercase tracking-wider`}
                   style={{ color: 'var(--ash)' }}
                 >
                   {h}
@@ -146,6 +146,17 @@ function TransactionsTable({ transactions }) {
                 <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--jet)' }}>{tx.referencia}</td>
                 <td className="px-4 py-2.5 text-xs max-w-xs truncate" style={{ color: 'var(--ash)' }} title={tx.descripcion}>
                   {tx.descripcion || '—'}
+                </td>
+                <td className="px-4 py-2.5 text-xs">
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide"
+                    style={{
+                      color:      tx.tipo === 'egreso' ? 'var(--red)' : 'var(--green, #16a34a)',
+                      background: tx.tipo === 'egreso' ? 'var(--red-light)' : 'var(--green-light, #f0fdf4)',
+                    }}
+                  >
+                    {tx.tipo === 'egreso' ? 'Egreso' : 'Ingreso'}
+                  </span>
                 </td>
                 <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-xs" style={{ color: 'var(--jet)' }}>
                   {fmt(tx.monto)}
@@ -270,10 +281,22 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
                     className="rounded-xl p-4"
                     style={{ background: 'var(--green-light, #f0fdf4)', border: '1.5px solid var(--green, #16a34a)' }}
                   >
-                    <div className="flex items-center gap-2 mb-3">
-                      <CheckCircle size={16} style={{ color: 'var(--green, #16a34a)' }} />
-                      <span className="text-sm font-semibold" style={{ color: 'var(--green, #16a34a)' }}>
-                        {results.length > 1 ? `Coincidencia ${i + 1}` : 'Transacción encontrada'}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle size={16} style={{ color: 'var(--green, #16a34a)' }} />
+                        <span className="text-sm font-semibold" style={{ color: 'var(--green, #16a34a)' }}>
+                          {results.length > 1 ? `Coincidencia ${i + 1}` : 'Transacción encontrada'}
+                        </span>
+                      </div>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide"
+                        style={{
+                          color:      tx.tipo === 'egreso' ? 'var(--red)' : 'var(--green, #16a34a)',
+                          background: tx.tipo === 'egreso' ? 'var(--red-light)' : 'var(--white, #fff)',
+                          border:     `1px solid ${tx.tipo === 'egreso' ? 'var(--red)' : 'var(--green, #16a34a)'}`,
+                        }}
+                      >
+                        {tx.tipo === 'egreso' ? 'Egreso' : 'Ingreso'}
                       </span>
                     </div>
                     <div className="space-y-2.5">

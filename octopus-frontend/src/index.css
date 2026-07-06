@@ -244,7 +244,7 @@ html { scroll-behavior: smooth; }
 
 /* Popover — sin triángulo */
 .react-datepicker__triangle { display: none; }
-.react-datepicker-popper { z-index: 50; }
+.react-datepicker-popper { z-index: 60; }
 
 body {
   background-color: var(--bg);
