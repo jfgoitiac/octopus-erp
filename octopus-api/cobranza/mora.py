@@ -17,6 +17,8 @@ Criterio de MORA (alumno activo, no becado):
   - Deuda de meses anteriores: cualquier mensualidad de un mes/año previo sin pagar.
   - Deuda del mes actual: mensualidad del mes actual sin pagar y hoy ya alcanzó
     (o pasó) el dia_limite_pago del alumno.
+  - Deuda de inscripción: cualquier cuota de inscripción sin pagar (no tiene
+    fecha límite propia, se considera vencida desde que se genera).
 """
 from datetime import date
 from decimal import Decimal
@@ -27,7 +29,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
-from .models import Mensualidad
+from .models import CuotaInscripcion, Mensualidad
 
 
 def _hoy(hoy=None):
@@ -36,8 +38,9 @@ def _hoy(hoy=None):
 
 def _condicion_mora(hoy):
     """
-    Devuelve (deuda_mes_pasado, deuda_mes_actual) como expresiones para anotar
-    sobre un queryset de Alumno. OuterRef('pk') referencia al Alumno.
+    Devuelve (deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion) como
+    expresiones para anotar sobre un queryset de Alumno. OuterRef('pk')
+    referencia al Alumno.
     """
     deuda_mes_pasado = Exists(
         Mensualidad.objects.filter(
@@ -60,7 +63,14 @@ def _condicion_mora(hoy):
         ) & Q(dia_limite_pago__lte=hoy.day)
     )
 
-    return deuda_mes_pasado, deuda_mes_actual
+    deuda_inscripcion = Exists(
+        CuotaInscripcion.objects.filter(
+            alumno=OuterRef('pk'),
+            pagado=False,
+        )
+    )
+
+    return deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion
 
 
 def annotate_en_mora(alumno_qs, hoy=None):
@@ -70,10 +80,10 @@ def annotate_en_mora(alumno_qs, hoy=None):
     consumidor (la tarea Celery los excluye; el serializer conserva la etiqueta).
     """
     hoy = _hoy(hoy)
-    deuda_mes_pasado, deuda_mes_actual = _condicion_mora(hoy)
+    deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion = _condicion_mora(hoy)
     return alumno_qs.annotate(
         en_mora=Case(
-            When(deuda_mes_pasado | deuda_mes_actual, then=Value(True)),
+            When(deuda_mes_pasado | deuda_mes_actual | deuda_inscripcion, then=Value(True)),
             default=Value(False),
             output_field=BooleanField(),
         )
@@ -82,8 +92,10 @@ def annotate_en_mora(alumno_qs, hoy=None):
 
 def annotate_mora_detalle(alumno_qs, hoy=None):
     """
-    Como annotate_en_mora pero además anota `monto_adeudado` y `meses_adeudados`
-    (suma y conteo de mensualidades vencidas: meses anteriores + mes actual).
+    Como annotate_en_mora pero además anota `monto_adeudado` y `meses_adeudados`.
+    `monto_adeudado` suma mensualidades vencidas (meses anteriores + mes actual)
+    más cuotas de inscripción impagas. `meses_adeudados` cuenta solo mensualidades,
+    ya que la inscripción no es una deuda mensual.
     Usado por la lista de morosos y su exportación a Excel.
     """
     hoy = _hoy(hoy)
@@ -101,9 +113,16 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
         Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
         .values('alumno').annotate(c=Count('id')).values('c')[:1]
     )
+    inscripcion_subq = (
+        CuotaInscripcion.objects.filter(alumno=OuterRef('pk'), pagado=False)
+        .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
+    )
     return alumno_qs.annotate(
         monto_adeudado=Coalesce(
             Subquery(debt_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
+            Decimal('0.00'),
+        ) + Coalesce(
+            Subquery(inscripcion_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
             Decimal('0.00'),
         ),
         meses_adeudados=Coalesce(

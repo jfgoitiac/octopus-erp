@@ -260,6 +260,20 @@ class SincronizarEstatusTest(GeneracionMensualidadesBase):
         self.alumno.refresh_from_db()
         self.assertEqual(self.alumno.estatus_financiero, 'solvente')
 
+    def test_cuota_inscripcion_impaga_pone_en_mora_sin_deuda_de_mensualidades(self):
+        """Un alumno al día con sus mensualidades pero con la cuota de
+        inscripción impaga debe aparecer en mora, no solvente (bug reportado:
+        el módulo de alumnos lo mostraba solvente porque el criterio canónico
+        solo miraba Mensualidad)."""
+        CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            monto_usd=Decimal('50.00'), pagado=False,
+        )
+        alumno = annotate_en_mora(
+            Alumno.objects.filter(pk=self.alumno.pk), hoy=date(2026, 7, 2)
+        ).get()
+        self.assertTrue(alumno.en_mora)
+
     def test_becado_no_se_toca(self):
         from .mora import sincronizar_estatus_alumno
         becado = _crear_alumno(

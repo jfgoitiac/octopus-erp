@@ -49,7 +49,7 @@ export default function DatePickerES({ value, onChange, className, style, name, 
             required={required}
             showMonthDropdown
             showYearDropdown
-            dropdownMode="select"
+            dropdownMode="scroll"
         />
     );
 }

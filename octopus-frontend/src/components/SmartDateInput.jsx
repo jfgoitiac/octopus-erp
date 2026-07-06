@@ -262,7 +262,7 @@ const SmartDateInput = ({
                         dateFormat="dd/MM/yyyy"
                         showMonthDropdown
                         showYearDropdown
-                        dropdownMode="select"
+                        dropdownMode="scroll"
                         withPortal
                         customInput={
                             <input
