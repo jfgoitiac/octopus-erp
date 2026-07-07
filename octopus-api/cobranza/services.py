@@ -11,8 +11,13 @@ entraban en mora (cobranza/mora.py solo evalúa registros existentes).
 Este módulo centraliza la regla del período escolar activo — leída siempre de
 ConfiguracionSistema.fecha_inicio_ano_escolar / fecha_fin_ano_escolar, nunca de
 meses fijos — y la creación idempotente de mensualidades, para que la tarea
-mensual de Celery, la inscripción y el comando de backfill usen exactamente el
-mismo criterio. Ninguna mensualidad se genera fuera de ese rango de fechas.
+mensual de Celery y el comando de backfill usen exactamente el mismo criterio.
+Ninguna mensualidad se genera fuera de ese rango de fechas.
+
+La inscripción (secretaria/serializers.py) solo cobra la cuota de inscripción;
+no genera ninguna Mensualidad. La primera mensualidad del alumno la crea la
+tarea mensual de Celery (generar_mensualidades_mes_actual) el día 1 del mes
+en que le corresponda pagar.
 
 Nota: se usa bulk_create (no dispara la señal post_save de Mensualidad) para
 no enviar el email de "día 0" al crear meses futuros o históricos. Las
@@ -20,7 +25,6 @@ notificaciones de cobranza siguen saliendo por la tarea diaria
 portal.tasks.revisar_y_programar_notificaciones_pendientes, que se basa en la
 fecha de vencimiento real de cada mensualidad.
 """
-from datetime import date
 from decimal import Decimal
 
 from .models import Mensualidad, ParametroGlobal
@@ -64,20 +68,6 @@ def meses_ano_escolar(fecha_inicio, fecha_fin):
             mes = 1
             anio += 1
     return meses
-
-
-def parsear_periodo_escolar(periodo):
-    """
-    Convierte un string tipo '2025-2026' en (2025, 2026).
-    Devuelve None si el formato no es válido.
-    """
-    try:
-        anio_inicio, anio_fin = (int(p) for p in str(periodo).split('-'))
-        if anio_fin != anio_inicio + 1:
-            return None
-        return anio_inicio, anio_fin
-    except (ValueError, AttributeError):
-        return None
 
 
 def mes_en_periodo_lectivo(mes, anio, config=None):
@@ -139,49 +129,3 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
 
     Mensualidad.objects.bulk_create(nuevas, batch_size=500, ignore_conflicts=True)
     return len(nuevas)
-
-
-def generar_mensualidades_alumno_periodo(alumno, periodo, desde=None, monto=None):
-    """
-    Genera únicamente la PRIMERA mensualidad exigible de un alumno recién
-    inscrito (nunca antes del inicio de clases), no todo el año escolar
-    restante. Esa mensualidad se cobra junto con la cuota de inscripción,
-    como adelanto del mes siguiente; el resto del período lo va generando
-    mes a mes la tarea mensual de Celery (generar_mensualidades_mes_actual),
-    que es la que efectivamente activa la mora al vencer cada mes.
-
-    Ejemplo: si la inscripción ocurre en julio y el año escolar empieza en
-    septiembre, se genera solo septiembre (no agosto, que queda fuera del
-    período de clases, ni el resto del año).
-
-    Un alumno que ingresa a mitad de año (con clases ya en curso) solo carga
-    la mensualidad del mes de su ingreso, no la de meses previos.
-
-    `periodo` solo se valida por formato (ej: '2025-2026'); el rango real de
-    fechas siempre sale de la configuración vigente.
-
-    Devuelve la cantidad creada (0 si el período es inválido o no hay
-    configuración de año escolar).
-    """
-    if not parsear_periodo_escolar(periodo):
-        return 0
-
-    config = configuracion_activa()
-    rango = rango_ano_escolar(config)
-    if not rango:
-        return 0
-    fecha_inicio, fecha_fin = rango
-
-    desde = desde or date.today()
-    if desde < fecha_inicio:
-        desde = fecha_inicio
-
-    meses = [
-        (m, a) for (m, a) in meses_ano_escolar(fecha_inicio, fecha_fin)
-        if (a, m) >= (desde.year, desde.month)
-    ]
-    if not meses:
-        return 0
-
-    primer_mes = meses[0]
-    return generar_mensualidades([alumno], [primer_mes], monto=monto, config=config)

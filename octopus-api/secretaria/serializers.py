@@ -378,14 +378,6 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     defaults={'monto_usd': monto_insc}
                 )
 
-                # 5. Cargar como deuda, junto con la inscripción, solo el mes
-                # siguiente exigible (adelantado, pagable por cualquier medio).
-                # El resto del período lo genera mes a mes la tarea de Celery.
-                from cobranza.services import generar_mensualidades_alumno_periodo
-                generar_mensualidades_alumno_periodo(
-                    alumno, inscripcion.periodo_escolar
-                )
-
                 return inscripcion
 
             except DjangoValidationError as e:

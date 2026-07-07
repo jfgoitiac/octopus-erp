@@ -4,7 +4,7 @@ Tests de la generación automática de mensualidades:
   - Tarea mensual de Celery (generar_mensualidades_mes_actual)
   - Comando de backfill (manage.py generar_mensualidades)
   - Integración con el criterio de mora
-  - Inscripción: genera mensualidades y bloquea si hay cuota de inscripción impaga
+  - Inscripción: solo cobra la cuota de inscripción y bloquea si hay una impaga
 """
 from datetime import date
 from decimal import Decimal
@@ -20,7 +20,6 @@ from .models import CuotaInscripcion, Mensualidad, ParametroGlobal
 from .mora import annotate_en_mora
 from .services import (
     generar_mensualidades,
-    generar_mensualidades_alumno_periodo,
     meses_ano_escolar,
     rango_ano_escolar,
 )
@@ -100,37 +99,6 @@ class ServicioGeneracionTest(GeneracionMensualidadesBase):
         self.assertEqual(meses[0], (9, 2025))
         self.assertEqual(meses[-1], (7, 2026))
 
-    def test_alumno_periodo_solo_desde_mes_de_ingreso(self):
-        """Un alumno inscrito a mitad de año solo carga el mes de su ingreso,
-        no meses previos ni el resto del año (eso lo genera Celery mes a mes)."""
-        creadas = generar_mensualidades_alumno_periodo(
-            self.alumno, '2025-2026', desde=date(2026, 2, 10)
-        )
-        self.assertEqual(creadas, 1)
-        self.assertTrue(
-            Mensualidad.objects.filter(alumno=self.alumno, mes=2, anio=2026).exists()
-        )
-        self.assertFalse(
-            Mensualidad.objects.filter(alumno=self.alumno, anio=2025).exists()
-        )
-
-    def test_inscripcion_antes_del_inicio_de_clases_carga_solo_el_mes_siguiente(self):
-        """Inscripción en julio, año escolar arranca en septiembre: se carga
-        solo septiembre (adelantado), nunca agosto ni el resto del período."""
-        creadas = generar_mensualidades_alumno_periodo(
-            self.alumno, '2025-2026', desde=date(2025, 7, 15)
-        )
-        self.assertEqual(creadas, 1)
-        self.assertTrue(
-            Mensualidad.objects.filter(alumno=self.alumno, mes=9, anio=2025).exists()
-        )
-        self.assertEqual(Mensualidad.objects.filter(alumno=self.alumno).count(), 1)
-
-    def test_alumno_periodo_invalido_no_crea_nada(self):
-        self.assertEqual(
-            generar_mensualidades_alumno_periodo(self.alumno, 'periodo-roto'), 0
-        )
-
 
 class TareaMensualTest(GeneracionMensualidadesBase):
 
@@ -201,7 +169,8 @@ class ComandoBackfillTest(GeneracionMensualidadesBase):
 
 class InscripcionGeneraDeudaTest(GeneracionMensualidadesBase):
     """Valida el flujo completo de inscripción: bloqueo por cuota impaga y
-    generación automática de mensualidades al inscribir."""
+    que al inscribir solo se cobre la cuota de inscripción (ninguna
+    Mensualidad; esas las genera después la tarea mensual de Celery)."""
 
     def setUp(self):
         super().setUp()
@@ -241,12 +210,10 @@ class InscripcionGeneraDeudaTest(GeneracionMensualidadesBase):
         # No se generó deuda de mensualidades porque la inscripción se revirtió
         self.assertFalse(Mensualidad.objects.filter(alumno=self.alumno).exists())
 
-    def test_inscripcion_exitosa_genera_mensualidades_del_periodo(self):
-        with patch('secretaria.serializers.date', _FechaFija, create=True), \
-             patch('cobranza.services.date', _FechaFija):
-            serializer = self._serializer()
-            self.assertTrue(serializer.is_valid(), serializer.errors)
-            inscripcion = serializer.save()
+    def test_inscripcion_exitosa_solo_cobra_la_cuota_de_inscripcion(self):
+        serializer = self._serializer()
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        inscripcion = serializer.save()
 
         # Cuota de inscripción cargada como deuda del período
         self.assertTrue(
@@ -254,12 +221,10 @@ class InscripcionGeneraDeudaTest(GeneracionMensualidadesBase):
                 alumno=inscripcion.alumno, periodo_escolar='2025-2026', pagado=False
             ).exists()
         )
-        # Mensualidades desde el mes actual (jul/2026) hasta el fin del período
-        meses = list(
-            Mensualidad.objects.filter(alumno=inscripcion.alumno)
-            .values_list('mes', 'anio')
+        # No se genera ninguna Mensualidad al inscribir
+        self.assertFalse(
+            Mensualidad.objects.filter(alumno=inscripcion.alumno).exists()
         )
-        self.assertEqual(meses, [(7, 2026)])
 
 
 class SincronizarEstatusTest(GeneracionMensualidadesBase):
