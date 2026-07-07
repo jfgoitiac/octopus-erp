@@ -64,7 +64,7 @@ export const construirItemsRecibo = ({
         const c = cuotasSolvencia?.find(x => x.id === id);
         if (c) itemsRecibo.push({
             concepto: 'SOLVENCIA',
-            descripcion: `Período ${c.periodo_escolar}`,
+            descripcion: c.concepto || `Período ${c.periodo_escolar}`,
             monto_usd: c.monto_usd,
             monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
         });

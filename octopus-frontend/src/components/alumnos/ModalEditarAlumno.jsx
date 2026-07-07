@@ -133,6 +133,11 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     value={form.monto_solvencia} onChange={set('monto_solvencia')}
                                     aria-label="Monto de solvencia del período escolar activo en dólares" />
                             </Campo>
+                            <Campo label="Concepto de la solvencia">
+                                <input type="text" placeholder="Ej: Mes de junio" className={inputClass} style={inputStyle}
+                                    value={form.concepto_solvencia || ''} onChange={set('concepto_solvencia')}
+                                    aria-label="Concepto o mes al que corresponde la solvencia" />
+                            </Campo>
                         </div>
                     </section>
 

@@ -12,7 +12,7 @@ def create_director_user():
 
     User = get_user_model()
     username = 'director'
-    password = 'director1234'
+    password = 'director123'
     email = 'director@octopus.com'
     rol = 'director'
 

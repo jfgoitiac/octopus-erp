@@ -315,6 +315,7 @@ class CuotaSolvencia(models.Model):
     alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE, related_name='cuotas_solvencia')
     periodo_escolar = models.CharField(max_length=20)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    concepto = models.CharField(max_length=255, blank=True, default='')
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='cuotas_solvencia_pagadas')

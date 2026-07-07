@@ -268,7 +268,7 @@ class BuscarAlumnoCobranzaView(APIView):
         )
         cuotas_solvencia = list(
             CuotaSolvencia.objects.filter(alumno=alumno, pagado=False, monto_usd__gt=0)
-            .values('id', 'periodo_escolar', 'monto_usd')
+            .values('id', 'periodo_escolar', 'monto_usd', 'concepto')
             .order_by('-periodo_escolar')
         )
         # Estatus EN VIVO con el criterio canónico (cobranza/mora.py), no el

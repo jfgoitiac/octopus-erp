@@ -13,6 +13,7 @@ const INITIAL_EDIT_FORM = {
     id: '', nombre: '', apellido: '', cedula_escolar: '', grado_seccion: '',
     fecha_nacimiento: '', estatus_financiero: '', porcentaje_beca: '', genero: '',
     monto_solvencia: '0.00',
+    concepto_solvencia: '',
     rep_id: '', rep_nombre: '', rep_apellido: '', rep_cedula: '',
     rep_telefono: '', rep_correo: '', rep_direccion: '',
 };
@@ -260,6 +261,7 @@ export function useAlumnos() {
                     estatus_financiero: d.estatus_financiero || 'solvente',
                     porcentaje_beca: d.porcentaje_beca || 0,
                     monto_solvencia: d.monto_solvencia || '0.00',
+                    concepto_solvencia: d.concepto_solvencia || '',
                     rep_id: d.representante?.id || '',
                     rep_nombre: d.representante?.nombre || '',
                     rep_apellido: d.representante?.apellido || '',
@@ -296,6 +298,7 @@ export function useAlumnos() {
                 estatus_financiero: editForm.estatus_financiero,
                 porcentaje_beca: Number(editForm.porcentaje_beca) || 0,
                 monto_solvencia: Number(editForm.monto_solvencia) || 0,
+                concepto_solvencia: editForm.concepto_solvencia?.trim() || '',
                 representante: {
                     id: editForm.rep_id,
                     cedula: editForm.rep_cedula?.trim(),

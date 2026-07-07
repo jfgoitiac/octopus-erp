@@ -150,11 +150,18 @@ const CobranzaStep1 = ({
                                                 checked={selectedSolvencias.includes(c.id)}
                                                 onChange={() => toggleSolvencia(c.id)}
                                                 style={{ accentColor: '#dc2626', width: 15, height: 15 }}
-                                                aria-label={`Solvencia ${c.periodo_escolar}`}
+                                                aria-label={`Solvencia ${c.concepto || c.periodo_escolar}`}
                                             />
-                                            <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                                Solvencia {c.periodo_escolar}
-                                            </span>
+                                            <div>
+                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                    {c.concepto || `Solvencia ${c.periodo_escolar}`}
+                                                </span>
+                                                {c.concepto && (
+                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                                                        Solvencia {c.periodo_escolar}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="text-right">
                                             <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
