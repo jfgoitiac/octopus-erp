@@ -300,3 +300,38 @@
 - [DEUDA BAJA] El botón de calendario de `SmartDateInput` no cierra el popper al
   presionar Tab (solo con Escape o clic afuera). Verificar navegación por teclado
   completa si se usa en formularios con muchos campos.
+
+---
+
+## Revisión de ListaAlumnos / useAlumnos — 2026-07-07
+
+### Mejoras aplicadas
+
+- [RESUELTO 2026-07-07] `fetchData` en `useAlumnos.js` volvía a pedir
+  `cobranza/configuracion/` cada vez que cambiaba `busqueda` o `mostrarInactivos`
+  (iba en el mismo `Promise.all` que la lista de alumnos), aunque los montos de
+  configuración no dependen del filtro. Se separó en un `useEffect` propio que
+  carga la configuración una sola vez al montar el hook.
+- [RESUELTO 2026-07-07] El panel "Configuración" en `ListaAlumnos.jsx` no se
+  cerraba al hacer click afuera ni con Escape. Se agregó `ref` + listeners de
+  `mousedown`/`keydown` para cerrarlo como cualquier dropdown estándar.
+- [RESUELTO 2026-07-07] `ListaAlumnos.jsx` tenía una función local
+  `handleAsignarGrado` con el mismo nombre que `alumnos.handleAsignarGrado`
+  (del hook). Funcionaban por estar en namespaces distintos, pero el nombre
+  duplicado confundía la lectura. Renombrada a `handleAbrirAsignarGrado`.
+
+### Deuda técnica anotada, no implementada
+
+- [DEUDA MEDIA] `useAlumnos.js` (hook único de ~390 líneas) mezcla ocho
+  responsabilidades: lista, configuración de montos, export a Excel, registro,
+  edición, asignar grado, retiro y reactivación. Son +50 propiedades retornadas
+  en un solo objeto. Se recomienda dividir en hooks más chicos
+  (`useAlumnosList`, `useAlumnoRegistro`, `useAlumnoEdicion`,
+  `useAlumnoAcciones` para grado/retiro/reactivar) que `ListaAlumnos.jsx`
+  componga. Es un refactor de superficie amplia (toca el único consumidor del
+  hook por completo) — requiere aprobación antes de tocarlo.
+- [DEUDA MEDIA] La tabla de `ListaAlumnos.jsx` no tiene paginación: `GET
+  secretaria/alumnos/` trae todos los alumnos del colegio de una sola vez.
+  Con colegios grandes (500+ alumnos) esto puede ser pesado. Requiere que el
+  backend exponga paginación (cursor o page-number) antes de adaptar el
+  frontend — coordinar con backend primero.

@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Settings, Save, UserMinus, RefreshCcw, PlusCircle, Download, Loader2, X } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
@@ -28,9 +28,27 @@ const ListaAlumnos = () => {
     // UI-only state (no lógica de negocio)
     const [showConfig, setShowConfig] = useState(false);
     const [showFichaSidebar, setShowFichaSidebar] = useState(false);
+    const configRef = useRef(null);
 
     const alumnos = useAlumnos();
     const mensualidades = useMensualidadesAlumno();
+
+    // Cierra el panel de configuración al hacer click afuera o presionar Escape
+    useEffect(() => {
+        if (!showConfig) return;
+        const handleClickOutside = (e) => {
+            if (configRef.current && !configRef.current.contains(e.target)) setShowConfig(false);
+        };
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') setShowConfig(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [showConfig]);
 
     const handleSyncTasa = async () => {
         try {
@@ -47,7 +65,7 @@ const ListaAlumnos = () => {
         setShowFichaSidebar(true);
     };
 
-    const handleAsignarGrado = (alumno) => {
+    const handleAbrirAsignarGrado = (alumno) => {
         alumnos.setSelectedAlumno(alumno);
         alumnos.setShowAsignarGradoModal(true);
     };
@@ -95,7 +113,7 @@ const ListaAlumnos = () => {
                     </button>
 
                     {/* Panel de configuración */}
-                    <div className="relative">
+                    <div className="relative" ref={configRef}>
                         <button
                             onClick={() => setShowConfig(!showConfig)}
                             aria-expanded={showConfig}
@@ -205,7 +223,7 @@ const ListaAlumnos = () => {
                         editModalLoading={alumnos.editModalLoading}
                         onVerFicha={handleVerFicha}
                         onEditarAlumno={alumnos.handleOpenEditModal}
-                        onAsignarGrado={handleAsignarGrado}
+                        onAsignarGrado={handleAbrirAsignarGrado}
                         onRetirar={handleRetirar}
                         onReactivar={alumnos.solicitarReactivar}
                         onAjustarDeuda={handleAjustarDeuda}

@@ -74,13 +74,8 @@ export function useAlumnos() {
             if (mostrarInactivos) params.append('todos', 'true');
             if (busqueda) params.append('buscar', busqueda);
 
-            const [resAlumnos, resConfig] = await Promise.all([
-                axiosInstance.get(`secretaria/alumnos/?${params.toString()}`, { signal }),
-                axiosInstance.get('cobranza/configuracion/', { signal }),
-            ]);
-            setAlumnos(resAlumnos?.data || []);
-            setMontoDefecto(resConfig?.data?.monto_defecto || '35.00');
-            setMontoInscripcion(resConfig?.data?.monto_inscripcion || '50.00');
+            const res = await axiosInstance.get(`secretaria/alumnos/?${params.toString()}`, { signal });
+            setAlumnos(res?.data || []);
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
             toast.error(parseApiError(err));
@@ -94,6 +89,21 @@ export function useAlumnos() {
         const timer = setTimeout(() => fetchData(controller.signal), 500);
         return () => { clearTimeout(timer); controller.abort(); };
     }, [fetchData]);
+
+    // La configuración de montos no depende de la búsqueda/filtro: se carga una sola vez al montar
+    useEffect(() => {
+        const controller = new AbortController();
+        axiosInstance.get('cobranza/configuracion/', { signal: controller.signal })
+            .then(res => {
+                setMontoDefecto(res?.data?.monto_defecto || '35.00');
+                setMontoInscripcion(res?.data?.monto_inscripcion || '50.00');
+            })
+            .catch(err => {
+                if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+                toast.error(parseApiError(err));
+            });
+        return () => controller.abort();
+    }, []);
 
     // Refetch post-mutación con AbortController rastreado para limpieza al desmontar
     const refetchAfterMutation = useCallback(() => {
