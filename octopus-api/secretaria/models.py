@@ -271,6 +271,14 @@ class Inscripcion(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['alumno', 'periodo_escolar'],
+                name='unica_inscripcion_por_periodo',
+            ),
+        ]
+
     def clean(self):
         # Evitar inscripción duplicada para el mismo alumno y período
         qs = Inscripcion.objects.filter(alumno=self.alumno, periodo_escolar=self.periodo_escolar)

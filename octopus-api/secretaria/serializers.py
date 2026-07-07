@@ -407,7 +407,16 @@ class InscripcionSerializer(serializers.ModelSerializer):
             except DjangoValidationError as e:
                 # Captura validaciones de integridad/cupos desde el modelo y fuerza rollback
                 raise serializers.ValidationError(e.message_dict)
-            except IntegrityError:
+            except IntegrityError as e:
+                # La UniqueConstraint (alumno, periodo_escolar) es la última línea
+                # de defensa real contra la condición de carrera de doble inscripción
+                # (la validación de "2b" arriba es solo UX preventiva, no atómica).
+                if 'unica_inscripcion_por_periodo' in str(e):
+                    raise serializers.ValidationError({
+                        "non_field_errors": [
+                            f"{alumno.nombre} {alumno.apellido} ya está inscrito/a para el período {periodo}."
+                        ]
+                    })
                 # Maneja colisiones de base de datos inesperadas
                 raise serializers.ValidationError({
                     "error": "No se pudo completar la inscripción por un conflicto de datos. Por favor, verifique e intente de nuevo."
