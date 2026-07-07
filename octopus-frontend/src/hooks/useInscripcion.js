@@ -19,6 +19,11 @@ function parseApiError(err) {
     if (!data) return 'Error de conexión.';
     if (data.error) return data.error;
     if (data.detail) return data.detail;
+    if (data.non_field_errors) {
+        return Array.isArray(data.non_field_errors)
+            ? data.non_field_errors.join(' ')
+            : data.non_field_errors;
+    }
     if (typeof data === 'object') {
         return Object.entries(data)
             .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)

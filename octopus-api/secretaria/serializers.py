@@ -335,14 +335,15 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     })
 
                 # 2c. Validar que no tenga cuotas de inscripción impagas
-                from cobranza.models import CuotaInscripcion, CuotaSolvencia, ParametroGlobal
+                from django.db.models import Q
+                from cobranza.models import CuotaInscripcion, CuotaSolvencia, Mensualidad, ParametroGlobal
                 cuota_impaga = CuotaInscripcion.objects.filter(alumno=alumno, pagado=False).first()
                 if cuota_impaga:
                     raise serializers.ValidationError({
                         "non_field_errors": [
                             f"{alumno.nombre} {alumno.apellido} tiene una cuota de inscripción pendiente "
                             f"del período {cuota_impaga.periodo_escolar} (${cuota_impaga.monto_usd}). "
-                            "Debe cancelarla antes de realizar una nueva inscripción."
+                            "Debe realizar los pagos pendientes antes de continuar."
                         ]
                     })
 
@@ -356,9 +357,32 @@ class InscripcionSerializer(serializers.ModelSerializer):
                         "non_field_errors": [
                             f"{alumno.nombre} {alumno.apellido} tiene una solvencia pendiente "
                             f"del período {solvencia_impaga.periodo_escolar} (${solvencia_impaga.monto_usd}). "
-                            "Debe cancelarla antes de realizar una nueva inscripción."
+                            "Debe realizar los pagos pendientes antes de continuar."
                         ]
                     })
+
+                # 2e. Validar que no tenga mensualidades vencidas impagas. Mismo
+                # criterio canónico que cobranza/mora.py: meses anteriores sin
+                # pagar, o el mes actual sin pagar si ya se alcanzó el día
+                # límite de pago del alumno. Los becados quedan exentos.
+                if alumno.estatus_financiero != 'becado':
+                    hoy = date.today()
+                    mensualidad_vencida = Mensualidad.objects.filter(
+                        alumno=alumno, pagado=False
+                    ).filter(
+                        Q(anio__lt=hoy.year) |
+                        Q(anio=hoy.year, mes__lt=hoy.month) |
+                        Q(anio=hoy.year, mes=hoy.month, alumno__dia_limite_pago__lte=hoy.day)
+                    ).order_by('anio', 'mes').first()
+                    if mensualidad_vencida:
+                        raise serializers.ValidationError({
+                            "non_field_errors": [
+                                f"{alumno.nombre} {alumno.apellido} tiene mensualidades pendientes "
+                                f"desde {mensualidad_vencida.get_mes_display()} {mensualidad_vencida.anio} "
+                                f"(${mensualidad_vencida.monto_usd}). "
+                                "Debe realizar los pagos pendientes antes de continuar."
+                            ]
+                        })
 
                 # 3. Módulo de Inscripción (Asignación de Grado y Estatus)
                 # Al estar dentro de with transaction.atomic(), cualquier error aquí revierte al alumno y representante.
