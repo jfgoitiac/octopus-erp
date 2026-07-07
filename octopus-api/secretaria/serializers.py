@@ -384,6 +384,24 @@ class InscripcionSerializer(serializers.ModelSerializer):
                             ]
                         })
 
+                # 2f. Lock real de cupos: mismo patrón que Alumno.reactivar()
+                # (models.py). La validación de validate() es solo UX preventiva
+                # (lectura sin lock, puede quedar desactualizada); esta lectura
+                # bajo select_for_update(), dentro de la misma transacción, es
+                # la que realmente impide sobrevender el cupo bajo concurrencia.
+                grado_seccion = validated_data.get('grado_seccion')
+                config_grado = ConfiguracionGrado.objects.select_for_update().filter(
+                    grado_seccion=grado_seccion
+                ).first()
+                if not config_grado:
+                    raise serializers.ValidationError({
+                        "grado_seccion": f"El grado {grado_seccion} no ha sido configurado en el sistema."
+                    })
+                if config_grado.cupos_disponibles <= 0:
+                    raise serializers.ValidationError({
+                        "grado_seccion": f"No hay cupos disponibles para {grado_seccion}. Capacidad máxima de {config_grado.cupos_maximos} alcanzada."
+                    })
+
                 # 3. Módulo de Inscripción (Asignación de Grado y Estatus)
                 # Al estar dentro de with transaction.atomic(), cualquier error aquí revierte al alumno y representante.
                 inscripcion = Inscripcion.objects.create(
