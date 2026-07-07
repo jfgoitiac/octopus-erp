@@ -301,13 +301,27 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     })
 
                 # 2c. Validar que no tenga cuotas de inscripción impagas
-                from cobranza.models import CuotaInscripcion, ParametroGlobal
+                from cobranza.models import CuotaInscripcion, CuotaSolvencia, ParametroGlobal
                 cuota_impaga = CuotaInscripcion.objects.filter(alumno=alumno, pagado=False).first()
                 if cuota_impaga:
                     raise serializers.ValidationError({
                         "non_field_errors": [
                             f"{alumno.nombre} {alumno.apellido} tiene una cuota de inscripción pendiente "
                             f"del período {cuota_impaga.periodo_escolar} (${cuota_impaga.monto_usd}). "
+                            "Debe cancelarla antes de realizar una nueva inscripción."
+                        ]
+                    })
+
+                # 2d. Validar que no tenga solvencia impaga (solo bloquea si el
+                # monto asignado es mayor a 0; el default de $0 no es exigible).
+                solvencia_impaga = CuotaSolvencia.objects.filter(
+                    alumno=alumno, pagado=False, monto_usd__gt=0
+                ).first()
+                if solvencia_impaga:
+                    raise serializers.ValidationError({
+                        "non_field_errors": [
+                            f"{alumno.nombre} {alumno.apellido} tiene una solvencia pendiente "
+                            f"del período {solvencia_impaga.periodo_escolar} (${solvencia_impaga.monto_usd}). "
                             "Debe cancelarla antes de realizar una nueva inscripción."
                         ]
                     })

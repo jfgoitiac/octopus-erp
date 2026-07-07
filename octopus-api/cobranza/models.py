@@ -89,6 +89,7 @@ class Pago(models.Model):
     CONCEPTOS = (
         ('mensualidad', 'Mensualidad Escolar'),
         ('inscripcion', 'Inscripción'),
+        ('solvencia', 'Solvencia'),
         ('materiales', 'Materiales'),
         ('actividades', 'Actividades Extraescolares'),
         ('multa', 'Multa'),
@@ -303,6 +304,27 @@ class CuotaInscripcion(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - Inscripción {self.periodo_escolar} - {'Pagada' if self.pagado else 'Pendiente'}"
+
+
+class CuotaSolvencia(models.Model):
+    """
+    Cargo anual de solvencia por período escolar. El monto se define por
+    alumno (por defecto 0, no exigible) y, si es mayor a 0, debe pagarse
+    antes de poder inscribir al alumno en ese período (ver InscripcionSerializer).
+    """
+    alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE, related_name='cuotas_solvencia')
+    periodo_escolar = models.CharField(max_length=20)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    pagado = models.BooleanField(default=False)
+    fecha_pago = models.DateTimeField(blank=True, null=True)
+    pagos = models.ManyToManyField(Pago, blank=True, related_name='cuotas_solvencia_pagadas')
+
+    class Meta:
+        unique_together = ('alumno', 'periodo_escolar')
+        ordering = ['-periodo_escolar']
+
+    def __str__(self):
+        return f"{self.alumno.nombre} - Solvencia {self.periodo_escolar} - {'Pagada' if self.pagado else 'Pendiente'}"
 
 
 class CierreCaja(models.Model):

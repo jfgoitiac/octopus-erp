@@ -9,9 +9,11 @@ export const construirItemsRecibo = ({
     selectedMens,
     selectedFuturas,
     selectedCuotas,
+    selectedSolvencias,
     mensualidades,
     mensualidadesFuturas,
     cuotasInscripcion,
+    cuotasSolvencia,
     montosParciales,
     tasa,
     CONCEPTOS,
@@ -52,6 +54,16 @@ export const construirItemsRecibo = ({
         const c = cuotasInscripcion.find(x => x.id === id);
         if (c) itemsRecibo.push({
             concepto: 'INSCRIPCIÓN',
+            descripcion: `Período ${c.periodo_escolar}`,
+            monto_usd: c.monto_usd,
+            monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
+        });
+    });
+
+    (selectedSolvencias || []).forEach(id => {
+        const c = cuotasSolvencia?.find(x => x.id === id);
+        if (c) itemsRecibo.push({
+            concepto: 'SOLVENCIA',
             descripcion: `Período ${c.periodo_escolar}`,
             monto_usd: c.monto_usd,
             monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',

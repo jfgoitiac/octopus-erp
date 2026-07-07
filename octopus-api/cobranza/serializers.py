@@ -153,6 +153,11 @@ class PagoCreateSerializer(serializers.Serializer):
         required=False,
         allow_empty=True
     )
+    cuota_solvencia_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True
+    )
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))

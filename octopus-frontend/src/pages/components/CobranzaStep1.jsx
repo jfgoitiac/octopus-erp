@@ -13,6 +13,9 @@ const CobranzaStep1 = ({
     cuotasInscripcion,
     selectedCuotas,
     toggleCuota,
+    cuotasSolvencia,
+    selectedSolvencias,
+    toggleSolvencia,
     mensualidades,
     selectedMens,
     toggleMens,
@@ -113,6 +116,44 @@ const CobranzaStep1 = ({
                                             />
                                             <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                                                 Inscripción {c.periodo_escolar}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
+                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Solvencia pendiente */}
+                    {alumnoId && cuotasSolvencia.length > 0 && (
+                        <div className="rounded-xl p-4" style={{ border: '1.5px solid #dc262644', background: '#fef2f2' }}>
+                            <p className="text-[11px] uppercase tracking-widest mb-3 font-bold" style={{ color: '#b91c1c' }}>
+                                Solvencia pendiente
+                            </p>
+                            <div className="space-y-2">
+                                {cuotasSolvencia.map(c => (
+                                    <label
+                                        key={c.id}
+                                        className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
+                                        style={{
+                                            border: selectedSolvencias.includes(c.id) ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
+                                            background: selectedSolvencias.includes(c.id) ? '#fee2e2' : '#fff',
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSolvencias.includes(c.id)}
+                                                onChange={() => toggleSolvencia(c.id)}
+                                                style={{ accentColor: '#dc2626', width: 15, height: 15 }}
+                                                aria-label={`Solvencia ${c.periodo_escolar}`}
+                                            />
+                                            <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                Solvencia {c.periodo_escolar}
                                             </span>
                                         </div>
                                         <div className="text-right">
@@ -286,7 +327,7 @@ const CobranzaStep1 = ({
                                     type="button"
                                     onClick={() => setStep(2)}
                                     disabled={!alumnoId || (
-                                        (mensualidades.length > 0 || cuotasInscripcion.length > 0) &&
+                                        (mensualidades.length > 0 || cuotasInscripcion.length > 0 || cuotasSolvencia.length > 0) &&
                                         !haySeleccion
                                     )}
                                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 min-h-[44px]"

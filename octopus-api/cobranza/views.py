@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Q
-from .models import BancoInstitucional, CuotaInscripcion, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
+from .models import BancoInstitucional, CuotaInscripcion, CuotaSolvencia, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
 from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza
@@ -266,6 +266,11 @@ class BuscarAlumnoCobranzaView(APIView):
             .values('id', 'periodo_escolar', 'monto_usd')
             .order_by('-periodo_escolar')
         )
+        cuotas_solvencia = list(
+            CuotaSolvencia.objects.filter(alumno=alumno, pagado=False, monto_usd__gt=0)
+            .values('id', 'periodo_escolar', 'monto_usd')
+            .order_by('-periodo_escolar')
+        )
         # Estatus EN VIVO con el criterio canónico (cobranza/mora.py), no el
         # campo persistido que solo se sincroniza con la corrida nocturna.
         from secretaria.models import Alumno as AlumnoModel
@@ -284,6 +289,7 @@ class BuscarAlumnoCobranzaView(APIView):
             'mensualidades_pendientes':      mensualidades,
             'mensualidades_futuras':         mensualidades_futuras,
             'cuotas_inscripcion_pendientes': cuotas_inscripcion,
+            'cuotas_solvencia_pendientes':   cuotas_solvencia,
         }
 
     def _rep_data(self, rep):
@@ -435,6 +441,17 @@ class RegistrarPagoView(APIView):
             for pago in pagos_creados:
                 pago.cuotas_inscripcion_pagadas.set(
                     CuotaInscripcion.objects.filter(id__in=cuota_inscripcion_ids, alumno=alumno)
+                )
+
+        cuota_solvencia_ids = data.get('cuota_solvencia_ids', [])
+        if cuota_solvencia_ids:
+            CuotaSolvencia.objects.filter(
+                id__in=cuota_solvencia_ids, alumno=alumno
+            ).update(pagado=True, fecha_pago=timezone.now())
+
+            for pago in pagos_creados:
+                pago.cuotas_solvencia_pagadas.set(
+                    CuotaSolvencia.objects.filter(id__in=cuota_solvencia_ids, alumno=alumno)
                 )
 
         LogAuditoria.objects.create(

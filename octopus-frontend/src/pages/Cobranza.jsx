@@ -29,6 +29,7 @@ const METODOS_PAGO = [
 const CONCEPTOS = [
     { value: 'mensualidad', label: 'Mensualidad' },
     { value: 'inscripcion',  label: 'Inscripción' },
+    { value: 'solvencia',    label: 'Solvencia 2025 - 2026' },
     { value: 'materiales',   label: 'Materiales' },
     { value: 'actividades',  label: 'Actividades' },
     { value: 'multa',        label: 'Multa' },
@@ -74,6 +75,8 @@ const Cobranza = () => {
     const [selectedMens, setSelectedMens]         = useState([]);
     const [cuotasInscripcion, setCuotasInscripcion] = useState([]);
     const [selectedCuotas, setSelectedCuotas]     = useState([]);
+    const [cuotasSolvencia, setCuotasSolvencia]   = useState([]);
+    const [selectedSolvencias, setSelectedSolvencias] = useState([]);
     const [concepto, setConcepto]                 = useState('mensualidad');
     const [lineas, setLineas]                     = useState([crearLinea()]);
     const [bancos, setBancos]                     = useState([]);
@@ -116,6 +119,12 @@ const Cobranza = () => {
             return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
         }, 0), [cuotasInscripcion, selectedCuotas]);
 
+    const solvenciasUSD = useMemo(() =>
+        selectedSolvencias.reduce((s, id) => {
+            const c = cuotasSolvencia.find(x => x.id === id);
+            return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
+        }, 0), [cuotasSolvencia, selectedSolvencias]);
+
     const futurasUSD = useMemo(() =>
         selectedFuturas.reduce((s, id) => {
             const m = mensualidadesFuturas.find(x => x.id === id);
@@ -124,8 +133,8 @@ const Cobranza = () => {
             return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0);
         }, 0), [mensualidadesFuturas, selectedFuturas, montosParciales]);
 
-    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0 || selectedFuturas.length > 0;
-    const totalSelUSD  = mensUSD + cuotasUSD + futurasUSD;
+    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0 || selectedFuturas.length > 0 || selectedSolvencias.length > 0;
+    const totalSelUSD  = mensUSD + cuotasUSD + futurasUSD + solvenciasUSD;
     const deudaVES   = haySeleccion ? totalSelUSD * tasa : 0;
     const pagoVES    = totalVES;
     const totalGenUSD = haySeleccion ? totalSelUSD : totalUSD;
@@ -160,8 +169,8 @@ const Cobranza = () => {
     const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
         setEstatusFinanciero(''); setAlumnoId(null);
-        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
-        setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
+        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]);
+        setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setMontosParciales({});
     }, []);
 
     const buscarAlumno = useCallback((val) => {
@@ -184,7 +193,7 @@ const Cobranza = () => {
                         ''
                     );
                     setAlumnosRep(alumnos);
-                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setMontosParciales({});
+                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setMontosParciales({});
                     // Si hay exactamente un alumno, seleccionarlo automáticamente
                     if (alumnos.length === 1) {
                         const alu = alumnos[0];
@@ -195,9 +204,10 @@ const Cobranza = () => {
                         setMensualidades(alu.mensualidades_pendientes || []);
                         setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
                         setMensualidadesFuturas(alu.mensualidades_futuras || []);
+                        setCuotasSolvencia(alu.cuotas_solvencia_pendientes || []);
                     } else {
                         setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
-                        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]);
+                        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]);
                     }
                 } catch (err) {
                     if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -248,9 +258,11 @@ const Cobranza = () => {
         setMensualidades(alu.mensualidades_pendientes || []);
         setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
         setMensualidadesFuturas(alu.mensualidades_futuras || []);
+        setCuotasSolvencia(alu.cuotas_solvencia_pendientes || []);
         setSelectedMens([]);
         setSelectedCuotas([]);
         setSelectedFuturas([]);
+        setSelectedSolvencias([]);
         setMontosParciales({});
     };
 
@@ -265,6 +277,9 @@ const Cobranza = () => {
 
     const toggleCuota = (id) =>
         setSelectedCuotas(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+    const toggleSolvencia = (id) =>
+        setSelectedSolvencias(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
     const actualizarLinea = (idx, field, val) =>
         setLineas(p => p.map((l, i) => i === idx ? { ...l, [field]: val } : l));
@@ -302,6 +317,7 @@ const Cobranza = () => {
                     id, monto_usd: buildMontoPago(id, mensualidadesFuturas),
                 })),
                 cuota_inscripcion_ids: selectedCuotas,
+                cuota_solvencia_ids: selectedSolvencias,
                 vuelto_usd: parseFloat(vueltoUSD.toFixed(2)),
                 vuelto_ves: parseFloat(vueltoVES.toFixed(2)),
                 pagos: lineas.map(l => ({
@@ -324,9 +340,11 @@ const Cobranza = () => {
                     selectedMens,
                     selectedFuturas,
                     selectedCuotas,
+                    selectedSolvencias,
                     mensualidades,
                     mensualidadesFuturas,
                     cuotasInscripcion,
+                    cuotasSolvencia,
                     montosParciales,
                     tasa,
                     CONCEPTOS,
@@ -363,6 +381,7 @@ const Cobranza = () => {
                 setAlumnoId(null); setRepresentanteNombre(''); setAlumnosRep([]);
                 setLineas([crearLinea()]); setMensualidades([]); setSelectedMens([]);
                 setCuotasInscripcion([]); setSelectedCuotas([]);
+                setCuotasSolvencia([]); setSelectedSolvencias([]);
                 setMensualidadesFuturas([]); setSelectedFuturas([]); setMontosParciales({});
                 setConfirming(false);
                 setStep(1);
@@ -405,6 +424,9 @@ const Cobranza = () => {
             cuotasInscripcion={cuotasInscripcion}
             selectedCuotas={selectedCuotas}
             toggleCuota={toggleCuota}
+            cuotasSolvencia={cuotasSolvencia}
+            selectedSolvencias={selectedSolvencias}
+            toggleSolvencia={toggleSolvencia}
             mensualidades={mensualidades}
             selectedMens={selectedMens}
             toggleMens={toggleMens}
