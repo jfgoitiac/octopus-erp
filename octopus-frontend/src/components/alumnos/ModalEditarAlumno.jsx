@@ -128,10 +128,10 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                 <input type="number" min="0" max="100" className={inputClass} style={inputStyle}
                                     value={form.porcentaje_beca} onChange={set('porcentaje_beca')} />
                             </Campo>
-                            <Campo label="Solvencia 2025 - 2026 (USD)">
+                            <Campo label="Solvencia del período activo (USD)">
                                 <input type="number" min="0" step="0.01" className={inputClass} style={inputStyle}
                                     value={form.monto_solvencia} onChange={set('monto_solvencia')}
-                                    aria-label="Monto de solvencia 2025-2026 en dólares" />
+                                    aria-label="Monto de solvencia del período escolar activo en dólares" />
                             </Campo>
                         </div>
                     </section>

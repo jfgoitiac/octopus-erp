@@ -29,7 +29,7 @@ const METODOS_PAGO = [
 const CONCEPTOS = [
     { value: 'mensualidad', label: 'Mensualidad' },
     { value: 'inscripcion',  label: 'Inscripción' },
-    { value: 'solvencia',    label: 'Solvencia 2025 - 2026' },
+    { value: 'solvencia',    label: 'Solvencia' },
     { value: 'materiales',   label: 'Materiales' },
     { value: 'actividades',  label: 'Actividades' },
     { value: 'multa',        label: 'Multa' },

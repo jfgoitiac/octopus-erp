@@ -308,9 +308,15 @@ class Inscripcion(models.Model):
         self.full_clean()
 
         # Al inscribirse actualizar grado en el alumno
-        self.alumno.grado_seccion      = self.grado_seccion
-        self.alumno.estatus_financiero = 'solvente'
+        self.alumno.grado_seccion = self.grado_seccion
         self.alumno.save()
+
+        # La fuente de verdad del estatus financiero es cobranza.mora, no un
+        # valor fijo aquí (ver auditoría 2026-07-07): forzar 'solvente' dejaba
+        # el campo persistido desactualizado frente a mensualidades/cuotas
+        # impagas ya existentes del alumno.
+        from cobranza.mora import sincronizar_estatus_alumno
+        sincronizar_estatus_alumno(self.alumno)
 
         super().save(*args, **kwargs)
 
