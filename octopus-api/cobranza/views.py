@@ -1130,8 +1130,10 @@ class ListaMorososView(APIView):
 
       - Vencidas:   mensualidades de meses anteriores sin pagar.
       - Mes actual: sin pagar y hoy > dia_limite_pago del alumno.
+      - Inscripción/solvencia impagas también cuentan como mora (ver cobranza/mora.py).
 
-    Incluye monto_adeudado y meses_adeudados por alumno (sin N+1 queries).
+    Incluye monto_adeudado, meses_adeudados y monto_solvencia_adeudado (aparte,
+    sin sumarse a monto_adeudado) por alumno, sin N+1 queries.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1182,8 +1184,9 @@ class ListaMorososView(APIView):
                     'cedula':   a.representante.cedula,
                     'telefono': a.representante.telefono,
                 } if a.representante else None,
-                'monto_adeudado':  str(a.monto_adeudado),
-                'meses_adeudados': a.meses_adeudados,
+                'monto_adeudado':            str(a.monto_adeudado),
+                'meses_adeudados':            a.meses_adeudados,
+                'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
             }
             for a in qs
         ]
@@ -1214,6 +1217,7 @@ class ExportarMorososExcelView(APIView):
             ('Tel. Representante',  lambda a: a.representante.telefono if a.representante else ''),
             ('Meses Adeudados',     'meses_adeudados'),
             ('Monto Adeudado (USD)','monto_adeudado'),
+            ('Solvencia Adeudada (USD)', 'monto_solvencia_adeudado'),
         ]
         return ExcelExporter.export(qs, columns, f'morosos_{hoy}')
 

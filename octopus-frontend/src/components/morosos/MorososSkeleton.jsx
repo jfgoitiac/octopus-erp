@@ -33,6 +33,8 @@ const SkeletonRow = () => (
         <td className="px-4 py-3"><Bone className="h-2.5 w-24" /></td>
         {/* Deuda */}
         <td className="px-4 py-3"><Bone className="h-2.5 w-14" /></td>
+        {/* Solvencia */}
+        <td className="px-4 py-3"><Bone className="h-2.5 w-14" /></td>
         {/* Acción */}
         <td className="px-4 py-3"><Bone className="h-7 w-16 rounded-lg" /></td>
     </tr>

@@ -6,7 +6,7 @@ import MorososSummary from '../components/morosos/MorososSummary';
 import MorososSkeleton from '../components/morosos/MorososSkeleton';
 import MorososRow from '../components/morosos/MorososRow';
 
-const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', ''];
+const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', 'Solvencia (USD)', ''];
 
 const Morosos = () => {
     const [busqueda, setBusqueda] = useState('');
@@ -16,6 +16,7 @@ const Morosos = () => {
         loading,
         exportingExcel,
         totalDeudaUSD,
+        totalSolvenciaUSD,
         refetch,
         handleExportExcel,
     } = useMorosos(busqueda);
@@ -26,6 +27,7 @@ const Morosos = () => {
             <MorososSummary
                 count={alumnos.length}
                 totalDeudaUSD={totalDeudaUSD}
+                totalSolvenciaUSD={totalSolvenciaUSD}
                 tasa={tasa}
                 loading={loading}
             />
@@ -105,7 +107,7 @@ const Morosos = () => {
                                 <MorososSkeleton rows={6} />
                             ) : alumnos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-12 text-center">
+                                    <td colSpan={8} className="px-4 py-12 text-center">
                                         <div className="flex flex-col items-center gap-2">
                                             <AlertTriangle size={28} style={{ color: 'var(--ash)' }} />
                                             <p className="text-xs" style={{ color: 'var(--ash)' }}>

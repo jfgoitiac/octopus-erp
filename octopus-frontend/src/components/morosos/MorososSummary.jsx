@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { fmt } from '../../utils/format';
 
-const CARDS = (count, totalUSD, totalVES, tasaDisponible) => [
+const CARDS = (count, totalUSD, totalVES, tasaDisponible, totalSolvenciaUSD) => [
     {
         label: 'Alumnos en mora',
         value: count,
@@ -21,6 +21,13 @@ const CARDS = (count, totalUSD, totalVES, tasaDisponible) => [
         value: tasaDisponible ? `Bs. ${fmt(totalVES, 0)}` : '—',
         color: '#7c3aed',
         bg: '#f5f3ff',
+        Icon: null,
+    },
+    {
+        label: 'Solvencia adeudada (USD)',
+        value: `$${fmt(totalSolvenciaUSD, 2)}`,
+        color: '#be123c',
+        bg: '#fff1f2',
         Icon: null,
     },
 ];
@@ -57,12 +64,12 @@ const SummaryCard = ({ label, value, color, bg, Icon, loading }) => (
     </div>
 );
 
-const MorososSummary = ({ count, totalDeudaUSD, tasa, loading }) => {
+const MorososSummary = ({ count, totalDeudaUSD, totalSolvenciaUSD, tasa, loading }) => {
     const totalVES = totalDeudaUSD * tasa;
-    const cards = CARDS(count, totalDeudaUSD, totalVES, tasa > 0);
+    const cards = CARDS(count, totalDeudaUSD, totalVES, tasa > 0, totalSolvenciaUSD);
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             {cards.map(card => (
                 <SummaryCard key={card.label} {...card} loading={loading} />
             ))}

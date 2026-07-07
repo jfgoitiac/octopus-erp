@@ -64,11 +64,17 @@ export function useMorosos(busqueda) {
         [alumnos]
     );
 
+    const totalSolvenciaUSD = useMemo(
+        () => alumnos.reduce((s, a) => s + parseFloat(a.monto_solvencia_adeudado || 0), 0),
+        [alumnos]
+    );
+
     return {
         alumnos,
         loading,
         exportingExcel,
         totalDeudaUSD,
+        totalSolvenciaUSD,
         refetch,
         handleExportExcel,
     };
