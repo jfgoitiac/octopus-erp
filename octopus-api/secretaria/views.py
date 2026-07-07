@@ -241,16 +241,39 @@ class PromocionAlumnosView(APIView):
         if config_grados_to_update:
             ConfiguracionGrado.objects.bulk_update(config_grados_to_update, ['cupos_utilizados'])
 
+        # Generar CuotaInscripcion del nuevo período para los alumnos promovidos
+        # (los no_mapeados, ej. egresados, no continúan y no deben generar cuota)
+        from cobranza.models import CuotaInscripcion, ParametroGlobal
+        from decimal import Decimal
+
+        param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
+        monto = Decimal(param.valor) if param and param.valor else Decimal('50.00')
+
+        cuotas_nuevas = [
+            CuotaInscripcion(
+                alumno=alumno,
+                periodo_escolar=periodo_destino,
+                monto_usd=monto,
+                pagado=False,
+            )
+            for alumno in alumnos_a_promover
+        ]
+        cuotas_generadas = 0
+        if cuotas_nuevas:
+            CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
+            cuotas_generadas = len(cuotas_nuevas)
+
         LogAuditoria.objects.create(
             usuario=request.user,
             accion="PROMOCION_ALUMNOS",
             modulo="SISTEMAS",
             detalles={
-                "total_promovidos": len(promovidos),
-                "periodo_origen":   periodo_origen,
-                "periodo_destino":  periodo_destino,
-                "alumnos_ids":      promovidos,
-                "no_mapeados":      len(no_mapeados),
+                "total_promovidos":       len(promovidos),
+                "periodo_origen":         periodo_origen,
+                "periodo_destino":        periodo_destino,
+                "alumnos_ids":            promovidos,
+                "no_mapeados":            len(no_mapeados),
+                "cuotas_inscripcion_generadas": cuotas_generadas,
             }
         )
 
@@ -259,6 +282,7 @@ class PromocionAlumnosView(APIView):
             "total_promovidos": len(promovidos),
             "no_mapeados":      no_mapeados,
             "periodo_destino":  periodo_destino,
+            "cuotas_inscripcion_generadas": cuotas_generadas,
         }, status=status.HTTP_200_OK)
 
 
