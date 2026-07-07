@@ -20,6 +20,14 @@ correspondiente. El comando `generar_solvencias` requiere pasar `--periodo` manu
 ## `CuotaInscripcion` no tiene CRUD administrativo (a diferencia de `CuotaSolvencia`)
 
 `CuotaInscripcion` no está registrada en Django admin ni tiene endpoint propio para editar `monto_usd` fuera del
-flujo automático de `InscripcionSerializer`. `CuotaSolvencia` sí se registró en `cobranza/admin.py` para permitir
-editar el monto por alumno (ya que por diseño nace en $0 y se ajusta caso por caso), pero sigue siendo Django admin
-puro — no hay pantalla dedicada en el frontend de Cobranza/Secretaría para esta edición masiva.
+flujo automático de `InscripcionSerializer`. `CuotaSolvencia` sí se registró en `cobranza/admin.py` (edición masiva
+por Django admin) y además se puede editar por alumno individual desde el módulo de Alumnos del frontend
+(`ModalEditarAlumno.jsx` → campo "Solvencia 2025 - 2026" → `secretaria/alumnos/{id}/update_info/`), ya que por
+diseño nace en $0 y se ajusta caso por caso.
+
+## `monto_solvencia` en `AlumnoUpdateSerializer` acopla `secretaria` a `cobranza`
+
+`AlumnoUpdateSerializer.update()` (secretaria/serializers.py) importa `CuotaSolvencia` de la app `cobranza` para
+persistir el monto de solvencia junto con los demás datos del alumno. Es el mismo patrón usado para `Representante`
+(otro modelo relacionado editado desde el mismo serializer), pero introduce un acoplamiento cruzado de apps que no
+existía antes en este serializer. Si `cobranza` cambia su modelo de `CuotaSolvencia`, este punto se rompe también.

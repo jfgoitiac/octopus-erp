@@ -384,6 +384,14 @@ class AlumnoListView(viewsets.ModelViewSet):
                     valor_actual = getattr(rep_instance, rep_attr, None)
                     if str(valor_actual) != str(rep_value):
                         cambios_detectados.append(f"Rep.{rep_attr}: {valor_actual} -> {rep_value}")
+            elif attr == 'monto_solvencia':
+                from cobranza.models import CuotaSolvencia
+                config = ConfiguracionSistema.objects.first()
+                periodo = config.periodo_escolar_activo if config else None
+                cuota_actual = CuotaSolvencia.objects.filter(alumno=alumno, periodo_escolar=periodo).first()
+                valor_actual = cuota_actual.monto_usd if cuota_actual else None
+                if str(valor_actual) != str(value):
+                    cambios_detectados.append(f"Solvencia {periodo}: {valor_actual} -> {value}")
             else:
                 valor_actual = getattr(alumno, attr, None)
                 if str(valor_actual) != str(value):

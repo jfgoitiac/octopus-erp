@@ -98,10 +98,26 @@ class AlumnoSerializer(serializers.ModelSerializer):
     activo                 = serializers.BooleanField(read_only=True)
     fecha_retiro           = serializers.DateTimeField(read_only=True)
     motivo_retiro          = serializers.CharField(read_only=True)
+    monto_solvencia        = serializers.SerializerMethodField()
+    solvencia_pagada       = serializers.SerializerMethodField()
 
     class Meta:
         model  = Alumno
         fields = '__all__'
+
+    def get_monto_solvencia(self, instance):
+        from cobranza.models import CuotaSolvencia
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        cuota = CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
+        return str(cuota.monto_usd) if cuota else '0.00'
+
+    def get_solvencia_pagada(self, instance):
+        from cobranza.models import CuotaSolvencia
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        cuota = CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
+        return cuota.pagado if cuota else True
 
     def to_representation(self, instance):
         """
@@ -155,6 +171,9 @@ class AlumnoSerializer(serializers.ModelSerializer):
 
 class AlumnoUpdateSerializer(serializers.ModelSerializer):
     representante = RepresentanteSerializer(required=False)
+    # No es un campo del modelo Alumno: se persiste en CuotaSolvencia (app cobranza)
+    # del período escolar activo. Ver update() más abajo.
+    monto_solvencia = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
 
     class Meta:
         model  = Alumno
@@ -163,7 +182,7 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
             'fecha_nacimiento', 'genero', 'estatus_financiero',
             'porcentaje_beca', 'representante', 'direccion',
             'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
-            'contacto_emergencia_parentesco'
+            'contacto_emergencia_parentesco', 'monto_solvencia',
         ]
         extra_kwargs = {
             'cedula_escolar':    {'allow_null': True, 'allow_blank': True, 'required': False},
@@ -173,6 +192,21 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         representante_data = validated_data.pop('representante', None)
+        monto_solvencia = validated_data.pop('monto_solvencia', None)
+
+        if monto_solvencia is not None:
+            from cobranza.models import CuotaSolvencia
+            from .models import ConfiguracionSistema
+            config = ConfiguracionSistema.objects.first()
+            periodo = config.periodo_escolar_activo if config else None
+            if not periodo:
+                raise serializers.ValidationError({
+                    "monto_solvencia": ["No hay un período escolar activo configurado."]
+                })
+            CuotaSolvencia.objects.update_or_create(
+                alumno=instance, periodo_escolar=periodo,
+                defaults={'monto_usd': monto_solvencia}
+            )
 
         if representante_data:
             if instance.representante:
