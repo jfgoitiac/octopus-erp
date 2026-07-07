@@ -137,21 +137,24 @@ class Alumno(models.Model):
     objects = AlumnoManager()       # Por defecto: solo activos
     todos   = AlumnoManagerCompleto()  # Todos: activos + retirados
 
+    @transaction.atomic
     def retirar(self, motivo=''):
-        """Soft delete — preserva historial de pagos y libera cupo."""
+        """Soft delete — preserva historial de pagos y libera cupo de forma atómica."""
         self.activo        = False
         self.fecha_retiro  = timezone.now()
         self.motivo_retiro = motivo
         self.save(update_fields=['activo', 'fecha_retiro', 'motivo_retiro'])
 
         if self.grado_seccion:
-            try:
-                ConfiguracionGrado.objects.filter(
-                    grado_seccion=self.grado_seccion,
-                    cupos_utilizados__gt=0
-                ).update(cupos_utilizados=F('cupos_utilizados') - 1)
-            except Exception:
-                pass
+            # Mismo patrón de locking que reactivar(), por simetría (auditoría
+            # 2026-07-07): bloqueamos la fila antes de decrementar el cupo.
+            config = ConfiguracionGrado.objects.select_for_update().filter(
+                grado_seccion=self.grado_seccion
+            ).first()
+            if config and config.cupos_utilizados > 0:
+                ConfiguracionGrado.objects.filter(pk=config.pk).update(
+                    cupos_utilizados=F('cupos_utilizados') - 1
+                )
 
     @transaction.atomic
     def reactivar(self):
