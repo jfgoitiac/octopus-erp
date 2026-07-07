@@ -157,6 +157,31 @@ Solo se anota deuda técnica, no se implementó ninguna corrección.
 4. **Estatus financiero de doble fuente de verdad** — riesgo de mostrar "solvente" en una pantalla y "en mora" en otra para el mismo alumno el mismo día, dependiendo de si la vista lee el campo persistido o la anotación en vivo.
 5. **Falta de paginación en alumnos** — hoy bajo impacto (volumen pequeño de alumnos por colegio), pero es el tipo de deuda técnica que se vuelve un incidente de producción sin aviso previo cuando un colegio grande se sube a la plataforma.
 
+### Resolución (2026-07-07, pasada de fixes)
+
+1. 🔴 Alto — Doble inscripción sin constraint de BD — ✅ RESUELTO
+   - `UniqueConstraint(fields=['alumno','periodo_escolar'], name='unica_inscripcion_por_periodo')` agregada a `Inscripcion.Meta` + migración `0010_inscripcion_unica_inscripcion_por_periodo` aplicada.
+   - Verificado antes de migrar: no existían duplicados (alumno, periodo_escolar) en la BD actual.
+   - `InscripcionSerializer.create` ahora captura el `IntegrityError` de esa constraint específica y devuelve "ya está inscrito/a para el período" en vez del mensaje genérico de conflicto.
+
+2. 🔴 Alto — Sobreventa de cupos sin `select_for_update` — ✅ RESUELTO
+   - Dentro del mismo `transaction.atomic()` de `InscripcionSerializer.create`, se relee `ConfiguracionGrado` con `select_for_update()` justo antes de crear la `Inscripcion` (mismo patrón que `Alumno.reactivar()`). La validación de `validate()` queda solo como UX preventiva.
+   - Tests agregados en `secretaria/tests.py` (`InscripcionLockingCuposTest`): uno confirma que `select_for_update()` se invoca sobre `ConfiguracionGrado`, otro simula la condición de carrera (dos serializers que pasan la validación temprana con el cupo aún libre, pero solo el primero en llegar al `create()` bajo lock logra inscribirse).
+
+3. 🟠 Medio — `InscripcionExistenteView` sin uso — ✅ RESUELTO
+   - Confirmado por grep que ningún componente del frontend ni test la invocaba. Se eliminó la vista (`views.py`) y su ruta (`urls.py`).
+
+4. 🟠 Medio — Estatus financiero de doble fuente de verdad — ✅ RESUELTO
+   - `Inscripcion.save()` ya no fuerza `alumno.estatus_financiero = 'solvente'`; ahora llama a `cobranza.mora.sincronizar_estatus_alumno(alumno)`, el mismo criterio canónico usado tras registrar pagos.
+   - Verificado (grep) que las pantallas/exports que muestran el estatus ya priorizan la anotación en vivo (`estatus_financiero_actual` / `en_mora`) sobre el campo persistido; no se detectaron consumidores rotos por este cambio.
+
+5. 🟡 Bajo — Asimetría de locking en `retirar()` vs `reactivar()` — ✅ RESUELTO
+   - `Alumno.retirar()` ahora usa `@transaction.atomic` + `select_for_update()` sobre `ConfiguracionGrado`, igual que `reactivar()`.
+
+6. 🟠 Medio — Falta de paginación en alumnos — ⏳ PENDIENTE (fuera de alcance de esta pasada, a propósito).
+
+Verificación: `python manage.py test secretaria cobranza` → 31 tests, todos OK. No se tocó código de frontend en esta pasada, así que no se corrió `eslint`/`vite build`.
+
 ---
 
 ## Auditoría Inscripciones y Alumnos (fecha 2026-07-07)
