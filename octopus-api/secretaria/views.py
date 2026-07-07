@@ -747,30 +747,6 @@ class RepresentanteAlumnosView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-class InscripcionExistenteView(APIView):
-    """
-    Procesa la inscripción de un alumno que ya existe en el sistema.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        # Refactorizado para usar el serializador y unificar validaciones de cupos/duplicados
-        serializer = InscripcionSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        inscripcion = serializer.save()
-
-        LogAuditoria.objects.create(
-            usuario=request.user,
-            accion="INSCRIPCION_EXISTENTE",
-            modulo="SECRETARIA",
-            detalles={
-                "alumno": f"{inscripcion.alumno.nombre} {inscripcion.alumno.apellido}",
-                "grado": inscripcion.grado_seccion,
-                "periodo": inscripcion.periodo_escolar
-            }
-        )
-        return Response({"mensaje": "Inscripción exitosa", "inscripcion_id": inscripcion.id}, status=status.HTTP_201_CREATED)
-
 # ─────────────────────────────────────────────
 # CONFIGURACIÓN DE GRADOS
 # ─────────────────────────────────────────────

@@ -6,7 +6,7 @@ from .views import (
     ExportarAlumnosExcelView, ExportarRepresentantesExcelView,
     GradosListView, MatriculaGradoView,
     ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
-    InscripcionExistenteView, InscripcionNuevaView, LogAuditoriaListView,
+    InscripcionNuevaView, LogAuditoriaListView,
     PromocionAlumnosView, RepresentanteAlumnosView, RepresentanteViewSet,
     buscar_representante_por_cedula,
 )
@@ -22,7 +22,6 @@ urlpatterns = [
 
     # Inscripción
     path('inscripcion-nueva/',                    InscripcionNuevaView.as_view(),         name='inscripcion-nueva'),
-    path('inscripcion-existente/',                InscripcionExistenteView.as_view(),     name='inscripcion-existente'),
     path('inscripciones/<int:pk>/comprobante/',   ComprobanteInscripcionView.as_view(),   name='comprobante-inscripcion'),
 
     # Representante
