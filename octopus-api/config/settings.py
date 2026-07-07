@@ -22,6 +22,26 @@ AUTH_COOKIE_SECURE = os.environ.get('AUTH_COOKIE_SECURE', 'False' if DEBUG else 
 # Permite manejar listas separadas por espacios o comas desde variables de entorno
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]').replace(',', ' ').split()
 
+# Sin esto, un 500 en producción (DEBUG=False) se reporta por email a ADMINS —
+# si ADMINS está vacío (como aquí), el error se pierde sin dejar rastro alguno,
+# ni en consola ni en journalctl. Se fuerza el traceback completo a stderr.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
+
 # Definición de Aplicaciones
 INSTALLED_APPS = [
     'django.contrib.admin',
