@@ -1,6 +1,6 @@
 import { useEffect, useContext } from 'react';
 import {
-    Settings, Calendar, UserPlus, AlertTriangle, Save,
+    Settings, Calendar, Wallet, AlertTriangle, Save,
     RefreshCcw, CheckCircle, X, Loader2, BarChart3, Clock,
     Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark,
     Image, Upload, Trash, MessageCircle, Bell, CheckCircle2, XCircle, ExternalLink, Check,
@@ -30,9 +30,8 @@ const Configuracion = () => {
     const { user } = useContext(AuthContext);
 
     const {
-        config, loading, saving, periodoDestino, setPeriodoDestino,
-        showPromoModal, setShowPromoModal, promoting,
-        fetchConfig, handleConfigChange, handleSaveConfig, handlePromote,
+        config, loading, saving, cargandoCuotas,
+        fetchConfig, handleConfigChange, handleSaveConfig, handleCargarCuotasInscripcion,
     } = useConfiguracion();
 
     const {
@@ -489,20 +488,21 @@ const Configuracion = () => {
                         </div>
                     </div>
 
-                    {/* Zona Crítica: Promover Alumnos */}
+                    {/* Cargar Monto de Inscripción */}
                     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                        <div className="px-5 py-3 flex items-center gap-2" style={{ background: 'var(--red-light)', borderBottom: '0.5px solid var(--border-md)' }}>
-                            <AlertTriangle size={13} style={{ color: 'var(--red)' }} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--red)' }}>Zona Crítica</span>
+                        <div className="px-5 py-3 flex items-center gap-2" style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
+                            <Wallet size={13} style={{ color: 'var(--pb)' }} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Cobranza</span>
                         </div>
                         <div className="p-5 space-y-3">
                             <p className="text-xs leading-relaxed" style={{ color: 'var(--ash)' }}>
-                                Mueve todos los alumnos activos al grado siguiente para iniciar el nuevo período escolar.
+                                Genera la cuota de inscripción del período activo para los alumnos que aún no la tienen. Es seguro repetir esta acción: a quien ya se le cargó, no se le vuelve a cobrar.
                             </p>
-                            <button type="button" onClick={() => setShowPromoModal(true)}
-                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white"
-                                style={{ background: 'var(--jet)' }}>
-                                <UserPlus size={15} /> Promover Alumnos
+                            <button type="button" onClick={handleCargarCuotasInscripcion} disabled={cargandoCuotas}
+                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                                style={{ background: 'var(--pb)' }}>
+                                {cargandoCuotas ? <Loader2 className="animate-spin" size={15} /> : <Wallet size={15} />}
+                                Cargar Monto de Inscripción
                             </button>
                         </div>
                     </div>
@@ -1323,46 +1323,6 @@ const Configuracion = () => {
                                 {bancoNominaSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
                             </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showPromoModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="px-6 py-5 flex flex-col items-center text-center" style={{ background: 'var(--red-light)', borderBottom: '0.5px solid var(--border-md)' }}>
-                            <div className="p-3 rounded-full mb-3" style={{ background: 'rgba(220,38,38,0.12)' }}>
-                                <AlertTriangle size={24} style={{ color: 'var(--red)' }} />
-                            </div>
-                            <h3 className="text-base font-bold" style={{ color: 'var(--jet)' }}>Confirmar Promoción Masiva</h3>
-                            <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--ash)' }}>
-                                Se moverán todos los alumnos activos al grado superior para el período <b style={{ color: 'var(--jet)' }}>{periodoDestino}</b>. Esta acción no se puede deshacer.
-                            </p>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Período Destino <span className="normal-case opacity-60">(formato YYYY-YYYY)</span>
-                                </label>
-                                <input type="text" value={periodoDestino} onChange={(e) => setPeriodoDestino(e.target.value)}
-                                    className="w-full px-3 py-2.5 rounded-lg outline-none font-bold text-center text-base"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="2026-2027" />
-                            </div>
-                            <div className="flex gap-3">
-                                <button type="button" onClick={() => setShowPromoModal(false)}
-                                    className="flex-1 py-2.5 rounded-lg text-sm font-medium"
-                                    style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
-                                    Cancelar
-                                </button>
-                                <button type="button" onClick={handlePromote} disabled={promoting}
-                                    className="flex-[2] py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
-                                    style={{ background: 'var(--red)' }}>
-                                    {promoting ? <Loader2 className="animate-spin" size={16} /> : <UserPlus size={16} />}
-                                    Iniciar Proceso
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>

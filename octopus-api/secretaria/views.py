@@ -150,6 +150,68 @@ class ConfiguracionSistemaView(APIView):
 
 
 # ─────────────────────────────────────────────
+# CARGA MANUAL DE CUOTAS DE INSCRIPCIÓN
+# ─────────────────────────────────────────────
+class CargarCuotasInscripcionView(APIView):
+    """Genera las CuotaInscripcion faltantes del período activo para los
+    alumnos activos. Idempotente: bulk_create(ignore_conflicts=True) más el
+    unique_together (alumno, periodo_escolar) del modelo impiden la doble
+    carga sin importar cuántas veces se ejecute."""
+    permission_classes = [IsSystemAdminOrDirector]
+
+    @transaction.atomic
+    def post(self, request):
+        from decimal import Decimal
+        from cobranza.models import CuotaInscripcion, ParametroGlobal
+
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        if not periodo:
+            return Response(
+                {"error": "No hay período escolar activo configurado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
+        monto = Decimal(param.valor) if param and param.valor else Decimal('50.00')
+
+        alumnos_activos = list(Alumno.objects.filter(activo=True))
+        existentes = set(
+            CuotaInscripcion.objects
+            .filter(periodo_escolar=periodo, alumno_id__in=[a.id for a in alumnos_activos])
+            .values_list('alumno_id', flat=True)
+        )
+        faltantes = [a for a in alumnos_activos if a.id not in existentes]
+
+        cuotas_nuevas = [
+            CuotaInscripcion(alumno=a, periodo_escolar=periodo, monto_usd=monto, pagado=False)
+            for a in faltantes
+        ]
+        CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="CARGA_CUOTAS_INSCRIPCION",
+            modulo="COBRANZA",
+            detalles={
+                "periodo_escolar": periodo,
+                "monto_usd": str(monto),
+                "alumnos_activos": len(alumnos_activos),
+                "ya_tenian_cuota": len(existentes),
+                "cuotas_generadas": len(cuotas_nuevas),
+            }
+        )
+
+        return Response({
+            "mensaje": f"{len(cuotas_nuevas)} cuota(s) de inscripción generada(s) para el período {periodo}.",
+            "periodo_escolar": periodo,
+            "alumnos_activos": len(alumnos_activos),
+            "ya_tenian_cuota": len(existentes),
+            "cuotas_generadas": len(cuotas_nuevas),
+        })
+
+
+# ─────────────────────────────────────────────
 # PROMOCIÓN AUTOMÁTICA DE ALUMNOS (NUEVO)
 # ─────────────────────────────────────────────
 class PromocionAlumnosView(APIView):

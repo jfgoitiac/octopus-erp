@@ -25,21 +25,13 @@ export function useConfiguracion() {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [periodoDestino, setPeriodoDestino] = useState('');
-    const [showPromoModal, setShowPromoModal] = useState(false);
-    const [promoting, setPromoting] = useState(false);
+    const [cargandoCuotas, setCargandoCuotas] = useState(false);
 
     const fetchConfig = useCallback(async () => {
         setLoading(true);
         try {
             const res = await axiosInstance.get('secretaria/configuracion/');
             setConfig(res?.data || {});
-            if (res?.data?.periodo_escolar_activo) {
-                const parts = res.data.periodo_escolar_activo.split('-');
-                if (parts.length === 2) {
-                    setPeriodoDestino(`${parseInt(parts[0]) + 1}-${parseInt(parts[1]) + 1}`);
-                }
-            }
         } catch (err) {
             const msg = err.response?.data?.error || err.response?.data?.detail || "Error al cargar la configuración.";
             toast.error(msg);
@@ -77,28 +69,21 @@ export function useConfiguracion() {
         }
     };
 
-    const handlePromote = async () => {
-        if (!/^\d{4}-\d{4}$/.test(periodoDestino)) {
-            toast.error("El período debe tener el formato YYYY-YYYY (Ej: 2026-2027)");
-            return;
-        }
-        setPromoting(true);
+    const handleCargarCuotasInscripcion = async () => {
+        setCargandoCuotas(true);
         try {
-            const res = await axiosInstance.post('secretaria/promover-alumnos/', { periodo_destino: periodoDestino });
-            toast.success(res?.data?.mensaje || "Proceso de promoción completado.");
-            setShowPromoModal(false);
-            fetchConfig();
+            const res = await axiosInstance.post('secretaria/cargar-cuotas-inscripcion/');
+            toast.success(res?.data?.mensaje || "Cuotas de inscripción cargadas.");
         } catch (err) {
-            const msg = err.response?.data?.error || err.response?.data?.detail || "Error crítico durante la promoción masiva.";
+            const msg = err.response?.data?.error || err.response?.data?.detail || "No se pudieron cargar las cuotas de inscripción.";
             toast.error(msg);
         } finally {
-            setPromoting(false);
+            setCargandoCuotas(false);
         }
     };
 
     return {
-        config, loading, saving, periodoDestino, setPeriodoDestino,
-        showPromoModal, setShowPromoModal, promoting,
-        fetchConfig, handleConfigChange, handleSaveConfig, handlePromote,
+        config, loading, saving, cargandoCuotas,
+        fetchConfig, handleConfigChange, handleSaveConfig, handleCargarCuotasInscripcion,
     };
 }
