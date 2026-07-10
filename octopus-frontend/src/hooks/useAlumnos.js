@@ -6,7 +6,12 @@ import { parseApiError } from '../utils/apiError';
 const INITIAL_REGISTER_FORM = {
     nombre: '', apellido: '', cedula_escolar: '', fecha_nacimiento: '', genero: 'masculino',
     porcentaje_beca: 0,
+    direccion: '',
+    contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '',
+    lugar_nacimiento: '', pais_nacimiento: '', estado_nacimiento: '',
+    peso: '', estatura: '', institucion_procedencia: '', bautizado: '', alergico: '',
     rep_cedula: '', rep_nombre: '', rep_apellido: '', rep_telefono: '', rep_correo: '', rep_direccion: '',
+    rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
 };
 
 const INITIAL_EDIT_FORM = {
@@ -14,8 +19,14 @@ const INITIAL_EDIT_FORM = {
     fecha_nacimiento: '', estatus_financiero: '', porcentaje_beca: '', genero: '',
     monto_solvencia: '0.00',
     concepto_solvencia: '',
+    monto_proyecto_inversion: '0.00',
+    direccion: '',
+    contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '',
+    lugar_nacimiento: '', pais_nacimiento: '', estado_nacimiento: '',
+    peso: '', estatura: '', institucion_procedencia: '', bautizado: '', alergico: '',
     rep_id: '', rep_nombre: '', rep_apellido: '', rep_cedula: '',
     rep_telefono: '', rep_correo: '', rep_direccion: '',
+    rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
 };
 
 export function useAlumnos() {
@@ -28,6 +39,7 @@ export function useAlumnos() {
     // --- Configuración montos ---
     const [montoDefecto, setMontoDefecto] = useState('35.00');
     const [montoInscripcion, setMontoInscripcion] = useState('50.00');
+    const [montoProyectoInversion, setMontoProyectoInversion] = useState('0.00');
     const [savingConfig, setSavingConfig] = useState(false);
 
     // --- Export ---
@@ -98,6 +110,7 @@ export function useAlumnos() {
             .then(res => {
                 setMontoDefecto(res?.data?.monto_defecto || '35.00');
                 setMontoInscripcion(res?.data?.monto_inscripcion || '50.00');
+                setMontoProyectoInversion(res?.data?.monto_proyecto_inversion || '0.00');
             })
             .catch(err => {
                 if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -130,6 +143,9 @@ export function useAlumnos() {
                     rep_telefono: rep.telefono || '',
                     rep_correo: rep.correo || '',
                     rep_direccion: rep.direccion || '',
+                    rep_parentesco: rep.parentesco || '',
+                    rep_nacionalidad: rep.nacionalidad || '',
+                    rep_nivel_estudio: rep.nivel_estudio || '',
                 }));
                 setRepFound(true);
                 toast.info('Representante encontrado. Datos precargados.');
@@ -156,6 +172,7 @@ export function useAlumnos() {
             await axiosInstance.post('cobranza/configuracion/', {
                 monto_defecto: montoDefecto,
                 monto_inscripcion: montoInscripcion,
+                monto_proyecto_inversion: montoProyectoInversion,
             });
             toast.success('Configuración actualizada globalmente.');
         } catch (err) {
@@ -208,6 +225,7 @@ export function useAlumnos() {
             ...prev,
             rep_cedula: '', rep_nombre: '', rep_apellido: '',
             rep_telefono: '', rep_correo: '', rep_direccion: '',
+            rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
         }));
     };
 
@@ -222,6 +240,18 @@ export function useAlumnos() {
                 fecha_nacimiento: registerForm.fecha_nacimiento,
                 genero: registerForm.genero,
                 porcentaje_beca: Number(registerForm.porcentaje_beca) || 0,
+                direccion: registerForm.direccion || '',
+                contacto_emergencia_nombre: registerForm.contacto_emergencia_nombre || '',
+                contacto_emergencia_telefono: registerForm.contacto_emergencia_telefono || '',
+                contacto_emergencia_parentesco: registerForm.contacto_emergencia_parentesco || '',
+                lugar_nacimiento: registerForm.lugar_nacimiento || '',
+                pais_nacimiento: registerForm.pais_nacimiento || '',
+                estado_nacimiento: registerForm.estado_nacimiento || '',
+                peso: registerForm.peso === '' ? null : registerForm.peso,
+                estatura: registerForm.estatura === '' ? null : registerForm.estatura,
+                institucion_procedencia: registerForm.institucion_procedencia || '',
+                bautizado: registerForm.bautizado === '' ? null : registerForm.bautizado === 'true',
+                alergico: registerForm.alergico || '',
                 representante: {
                     cedula: registerForm.rep_cedula.trim(),
                     nombre: registerForm.rep_nombre,
@@ -229,6 +259,9 @@ export function useAlumnos() {
                     telefono: registerForm.rep_telefono,
                     correo: registerForm.rep_correo,
                     direccion: registerForm.rep_direccion,
+                    parentesco: registerForm.rep_parentesco || '',
+                    nacionalidad: registerForm.rep_nacionalidad || '',
+                    nivel_estudio: registerForm.rep_nivel_estudio || '',
                 },
             };
             await axiosInstance.post('secretaria/alumnos/', payload);
@@ -262,6 +295,19 @@ export function useAlumnos() {
                     porcentaje_beca: d.porcentaje_beca || 0,
                     monto_solvencia: d.monto_solvencia || '0.00',
                     concepto_solvencia: d.concepto_solvencia || '',
+                    monto_proyecto_inversion: d.monto_proyecto_inversion || '0.00',
+                    direccion: d.direccion || '',
+                    contacto_emergencia_nombre: d.contacto_emergencia_nombre || '',
+                    contacto_emergencia_telefono: d.contacto_emergencia_telefono || '',
+                    contacto_emergencia_parentesco: d.contacto_emergencia_parentesco || '',
+                    lugar_nacimiento: d.lugar_nacimiento || '',
+                    pais_nacimiento: d.pais_nacimiento || '',
+                    estado_nacimiento: d.estado_nacimiento || '',
+                    peso: d.peso ?? '',
+                    estatura: d.estatura ?? '',
+                    institucion_procedencia: d.institucion_procedencia || '',
+                    bautizado: d.bautizado === null || d.bautizado === undefined ? '' : String(d.bautizado),
+                    alergico: d.alergico || '',
                     rep_id: d.representante?.id || '',
                     rep_nombre: d.representante?.nombre || '',
                     rep_apellido: d.representante?.apellido || '',
@@ -269,6 +315,9 @@ export function useAlumnos() {
                     rep_telefono: d.representante?.telefono || '',
                     rep_correo: d.representante?.correo || '',
                     rep_direccion: d.representante?.direccion || '',
+                    rep_parentesco: d.representante?.parentesco || '',
+                    rep_nacionalidad: d.representante?.nacionalidad || '',
+                    rep_nivel_estudio: d.representante?.nivel_estudio || '',
                 });
                 setShowEditModal(true);
             }
@@ -299,6 +348,19 @@ export function useAlumnos() {
                 porcentaje_beca: Number(editForm.porcentaje_beca) || 0,
                 monto_solvencia: Number(editForm.monto_solvencia) || 0,
                 concepto_solvencia: editForm.concepto_solvencia?.trim() || '',
+                monto_proyecto_inversion: Number(editForm.monto_proyecto_inversion) || 0,
+                direccion: editForm.direccion?.trim() || '',
+                contacto_emergencia_nombre: editForm.contacto_emergencia_nombre?.trim() || '',
+                contacto_emergencia_telefono: editForm.contacto_emergencia_telefono?.trim() || '',
+                contacto_emergencia_parentesco: editForm.contacto_emergencia_parentesco?.trim() || '',
+                lugar_nacimiento: editForm.lugar_nacimiento?.trim() || '',
+                pais_nacimiento: editForm.pais_nacimiento?.trim() || '',
+                estado_nacimiento: editForm.estado_nacimiento?.trim() || '',
+                peso: editForm.peso === '' ? null : editForm.peso,
+                estatura: editForm.estatura === '' ? null : editForm.estatura,
+                institucion_procedencia: editForm.institucion_procedencia?.trim() || '',
+                bautizado: editForm.bautizado === '' ? null : editForm.bautizado === 'true',
+                alergico: editForm.alergico?.trim() || '',
                 representante: {
                     id: editForm.rep_id,
                     cedula: editForm.rep_cedula?.trim(),
@@ -307,6 +369,9 @@ export function useAlumnos() {
                     telefono: editForm.rep_telefono?.trim() || '',
                     correo: editForm.rep_correo?.trim() || '',
                     direccion: editForm.rep_direccion?.trim() || '',
+                    parentesco: editForm.rep_parentesco?.trim() || '',
+                    nacionalidad: editForm.rep_nacionalidad?.trim() || '',
+                    nivel_estudio: editForm.rep_nivel_estudio?.trim() || '',
                 },
             };
             const response = await axiosInstance.patch(
@@ -379,7 +444,8 @@ export function useAlumnos() {
         // Lista
         alumnos, setAlumnos, busqueda, setBusqueda, mostrarInactivos, setMostrarInactivos, loading, fetchData,
         // Config
-        montoDefecto, setMontoDefecto, montoInscripcion, setMontoInscripcion, savingConfig, handleSaveConfig,
+        montoDefecto, setMontoDefecto, montoInscripcion, setMontoInscripcion,
+        montoProyectoInversion, setMontoProyectoInversion, savingConfig, handleSaveConfig,
         // Export
         exportingExcel, handleExportExcel,
         // Selección

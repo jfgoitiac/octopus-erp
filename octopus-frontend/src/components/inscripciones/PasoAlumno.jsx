@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { UserPlus, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import { UserPlus, ArrowRight, ArrowLeft, AlertCircle, X, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { parse, format, isValid } from 'date-fns';
 import SmartDateInput from '../SmartDateInput';
 import { fetchAlumnosPorRepresentante } from '../../api/inscripciones.service';
 import { SkeletonCard } from './SkeletonCard';
+import ModalCompletarAlumno from './ModalCompletarAlumno';
+import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
+
+const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_BYTES_FOTO = 5 * 1024 * 1024; // 5 MB
 
 function parseISODate(str) {
     if (!str) return null;
@@ -23,6 +28,8 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     const [loading,      setLoading]      = useState(true);
     const [showFormNuevo, setShowFormNuevo] = useState(false);
     const [errores,      setErrores]      = useState({});
+    const [fotoPreview,  setFotoPreview]  = useState(null);
+    const [modalCompletar, setModalCompletar] = useState(false);
 
     const fetchAlumnos = useCallback(async (signal) => {
         setLoading(true);
@@ -64,7 +71,9 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
 
     const handleSelectExistente = (alu) => {
         setDatos(prev => ({ ...prev, alumno: alu, esAlumnoNuevo: false }));
+        setFotoPreview(null);
         setShowFormNuevo(false);
+        if (camposFaltantesAlumno(alu).length > 0) setModalCompletar(true);
     };
 
     const handleActivarNuevo = () => {
@@ -73,15 +82,61 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
             alumno: {
                 nombre: '', apellido: '', cedula_escolar: '',
                 fecha_nacimiento: '', genero: 'masculino',
+                direccion: '', foto: null,
+                contacto_emergencia_nombre: '', contacto_emergencia_telefono: '',
+                contacto_emergencia_parentesco: '',
+                lugar_nacimiento: '', pais_nacimiento: '', estado_nacimiento: '',
+                peso: '', estatura: '', institucion_procedencia: '',
+                bautizado: null, alergico: '',
             },
             esAlumnoNuevo: true,
         }));
+        setFotoPreview(null);
         setShowFormNuevo(true);
+    };
+
+    const handleFotoChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!TIPOS_FOTO_PERMITIDOS.includes(file.type)) {
+            toast.error('Formato no permitido. Solo JPG, PNG o WEBP.');
+            e.target.value = '';
+            return;
+        }
+        if (file.size > MAX_BYTES_FOTO) {
+            toast.error('La foto supera el límite de 5 MB.');
+            e.target.value = '';
+            return;
+        }
+
+        setDatos(prev => ({ ...prev, alumno: { ...prev.alumno, foto: file } }));
+        setFotoPreview(URL.createObjectURL(file));
+    };
+
+    const handleQuitarFoto = () => {
+        setDatos(prev => ({ ...prev, alumno: { ...prev.alumno, foto: null } }));
+        setFotoPreview(null);
+    };
+
+    const handleBautizadoChange = (e) => {
+        const { value } = e.target;
+        setDatos(prev => ({
+            ...prev,
+            alumno: { ...prev.alumno, bautizado: value === '' ? null : value === 'true' },
+        }));
     };
 
     const handleContinuar = () => {
         if (!datos.alumno) return;
-        if (!datos.esAlumnoNuevo) { onContinuar(); return; }
+        if (!datos.esAlumnoNuevo) {
+            if (camposFaltantesAlumno(datos.alumno).length > 0) {
+                setModalCompletar(true);
+                return;
+            }
+            onContinuar();
+            return;
+        }
 
         const errs = {};
         if (!datos.alumno.nombre?.trim())           errs.nombre           = 'Requerido';
@@ -160,6 +215,38 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                     })
                 }
             </div>
+
+            {datos.alumno && !datos.esAlumnoNuevo && camposFaltantesAlumno(datos.alumno).length > 0 && (
+                <div
+                    className="p-4 rounded-2xl flex items-center justify-between gap-4 flex-wrap"
+                    style={{ background: '#fef2f2', border: '0.5px solid #fecaca' }}
+                >
+                    <div className="flex items-center gap-2 text-sm" style={{ color: '#b91c1c' }}>
+                        <AlertCircle size={18} aria-hidden="true" />
+                        <span>Este alumno tiene datos obligatorios pendientes por completar.</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setModalCompletar(true)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                        style={{ background: '#b91c1c' }}
+                    >
+                        Completar datos
+                    </button>
+                </div>
+            )}
+
+            {modalCompletar && datos.alumno && (
+                <ModalCompletarAlumno
+                    alumno={datos.alumno}
+                    onClose={() => setModalCompletar(false)}
+                    onGuardar={(alumnoActualizado) => {
+                        setDatos(prev => ({ ...prev, alumno: alumnoActualizado }));
+                        setModalCompletar(false);
+                        toast.success('Datos del alumno actualizados.');
+                    }}
+                />
+            )}
 
             {showFormNuevo && (
                 <div
@@ -251,6 +338,220 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                             {errores.genero && (
                                 <p className="text-[10px] mt-1 text-red-500">{errores.genero}</p>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Foto del estudiante */}
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Foto del estudiante
+                        </label>
+                        {fotoPreview ? (
+                            <div className="relative w-28 h-28">
+                                <img
+                                    src={fotoPreview}
+                                    alt="Vista previa de la foto del estudiante"
+                                    className="w-28 h-28 rounded-2xl object-cover"
+                                    style={{ border: '0.5px solid var(--border-md)' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleQuitarFoto}
+                                    aria-label="Quitar foto"
+                                    className="absolute -top-2 -right-2 w-7 h-7 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors"
+                                >
+                                    <X size={14} className="text-white" aria-hidden="true" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label
+                                className="flex flex-col items-center justify-center gap-2 w-28 h-28 rounded-2xl border-2 border-dashed cursor-pointer transition-all"
+                                style={{ borderColor: 'var(--border-md)' }}
+                            >
+                                <Camera size={22} style={{ color: 'var(--pb)' }} aria-hidden="true" />
+                                <span className="text-[10px]" style={{ color: 'var(--ash)' }}>Subir foto</span>
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    className="hidden"
+                                    onChange={handleFotoChange}
+                                />
+                            </label>
+                        )}
+                    </div>
+
+                    {/* Datos de nacimiento y procedencia */}
+                    <div>
+                        <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
+                            Nacimiento y procedencia
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label htmlFor="alu-lugar_nacimiento" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Lugar de nacimiento
+                                </label>
+                                <input
+                                    id="alu-lugar_nacimiento" type="text" name="lugar_nacimiento"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.lugar_nacimiento || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="alu-pais_nacimiento" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    País
+                                </label>
+                                <input
+                                    id="alu-pais_nacimiento" type="text" name="pais_nacimiento"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.pais_nacimiento || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="alu-estado_nacimiento" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Estado
+                                </label>
+                                <input
+                                    id="alu-estado_nacimiento" type="text" name="estado_nacimiento"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.estado_nacimiento || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div className="md:col-span-3">
+                                <label htmlFor="alu-institucion_procedencia" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Institución de procedencia
+                                </label>
+                                <input
+                                    id="alu-institucion_procedencia" type="text" name="institucion_procedencia"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.institucion_procedencia || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Salud */}
+                    <div>
+                        <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
+                            Salud
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label htmlFor="alu-peso" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Peso (kg)
+                                </label>
+                                <input
+                                    id="alu-peso" type="number" step="0.01" name="peso"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.peso || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="alu-estatura" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Estatura (cm)
+                                </label>
+                                <input
+                                    id="alu-estatura" type="number" step="0.01" name="estatura"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.estatura || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="alu-bautizado" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Bautizado
+                                </label>
+                                <select
+                                    id="alu-bautizado" name="bautizado"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.bautizado === null || datos.alumno.bautizado === undefined ? '' : String(datos.alumno.bautizado)}
+                                    onChange={handleBautizadoChange}
+                                >
+                                    <option value="">No especifica</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div className="md:col-span-3">
+                                <label htmlFor="alu-alergico" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Alérgico a
+                                </label>
+                                <input
+                                    id="alu-alergico" type="text" name="alergico"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.alergico || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Dirección y contacto de emergencia */}
+                    <div>
+                        <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
+                            Dirección y contacto de emergencia
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label htmlFor="alu-direccion" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Dirección del estudiante
+                                </label>
+                                <textarea
+                                    id="alu-direccion" name="direccion" rows="2"
+                                    className="w-full p-3 rounded-xl text-sm outline-none resize-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.direccion || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="alu-contacto_emergencia_nombre" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Contacto de emergencia
+                                </label>
+                                <input
+                                    id="alu-contacto_emergencia_nombre" type="text" name="contacto_emergencia_nombre"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.contacto_emergencia_nombre || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="alu-contacto_emergencia_telefono" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Teléfono de emergencia
+                                </label>
+                                <input
+                                    id="alu-contacto_emergencia_telefono" type="tel" name="contacto_emergencia_telefono"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.contacto_emergencia_telefono || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="alu-contacto_emergencia_parentesco" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Parentesco del contacto
+                                </label>
+                                <input
+                                    id="alu-contacto_emergencia_parentesco" type="text" name="contacto_emergencia_parentesco"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.alumno.contacto_emergencia_parentesco || ''}
+                                    onChange={handleNewAlumnoChange}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

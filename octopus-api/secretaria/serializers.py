@@ -61,12 +61,21 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
     cantidad_alumnos  = serializers.IntegerField(read_only=True)
     portal_creado     = serializers.SerializerMethodField()
     portal_activo     = serializers.SerializerMethodField()
+    # No es campo del modelo Representante: se persiste en CuotaProyectoInversion
+    # (app cobranza) del período escolar activo. Ver to_representation()/update()
+    # más abajo. El valor se resuelve vía prefetch en RepresentanteViewSet.get_queryset
+    # (to_attr='_cuota_proyecto_periodo_activo') para no escalar en O(n) en el listado.
+    monto_proyecto_inversion = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
 
     class Meta:
         model  = Representante
         fields = [
             'id', 'cedula', 'nombre', 'apellido', 'telefono', 'correo', 'direccion',
+            'parentesco', 'nacionalidad', 'nivel_estudio',
             'cantidad_alumnos', 'portal_creado', 'portal_activo',
+            'monto_proyecto_inversion',
         ]
 
     def get_portal_creado(self, obj):
@@ -76,6 +85,47 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'portal_user'):
             return obj.portal_user.esta_activo
         return False
+
+    def _cuota_proyecto_activo(self, instance):
+        cuotas = getattr(instance, '_cuota_proyecto_periodo_activo', None)
+        if cuotas is not None:
+            return cuotas[0] if cuotas else None
+        from cobranza.models import CuotaProyectoInversion
+        from .models import ConfiguracionSistema
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        if not periodo:
+            return None
+        return CuotaProyectoInversion.objects.filter(representante=instance, periodo_escolar=periodo).first()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        cuota = self._cuota_proyecto_activo(instance)
+        data['monto_proyecto_inversion'] = str(cuota.monto_usd) if cuota else '0.00'
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('monto_proyecto_inversion', None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        monto_proyecto_inversion = validated_data.pop('monto_proyecto_inversion', None)
+        instance = super().update(instance, validated_data)
+        if monto_proyecto_inversion is not None:
+            from cobranza.models import CuotaProyectoInversion
+            from .models import ConfiguracionSistema
+            config = ConfiguracionSistema.objects.first()
+            periodo = config.periodo_escolar_activo if config else None
+            if not periodo:
+                raise serializers.ValidationError({
+                    "monto_proyecto_inversion": ["No hay un período escolar activo configurado."]
+                })
+            cuota, _ = CuotaProyectoInversion.objects.update_or_create(
+                representante=instance, periodo_escolar=periodo,
+                defaults={'monto_usd': monto_proyecto_inversion}
+            )
+            instance._cuota_proyecto_periodo_activo = [cuota]
+        return instance
 
     def validate_cedula(self, value):
         qs = Representante.objects.filter(cedula=value)
@@ -101,6 +151,7 @@ class AlumnoSerializer(serializers.ModelSerializer):
     monto_solvencia        = serializers.SerializerMethodField()
     concepto_solvencia     = serializers.SerializerMethodField()
     solvencia_pagada       = serializers.SerializerMethodField()
+    monto_proyecto_inversion = serializers.SerializerMethodField()
 
     class Meta:
         model  = Alumno
@@ -126,6 +177,18 @@ class AlumnoSerializer(serializers.ModelSerializer):
         periodo = config.periodo_escolar_activo if config else None
         cuota = CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
         return cuota.pagado if cuota else True
+
+    def get_monto_proyecto_inversion(self, instance):
+        from cobranza.models import CuotaProyectoInversion
+        if not instance.representante:
+            return '0.00'
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        cuota = (
+            CuotaProyectoInversion.objects.filter(representante=instance.representante, periodo_escolar=periodo).first()
+            if periodo else None
+        )
+        return str(cuota.monto_usd) if cuota else '0.00'
 
     def to_representation(self, instance):
         """
@@ -183,15 +246,23 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
     # del período escolar activo. Ver update() más abajo.
     monto_solvencia = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     concepto_solvencia = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    # No es campo del modelo Alumno: se persiste en CuotaProyectoInversion (app
+    # cobranza) del período escolar activo, contra el REPRESENTANTE del alumno
+    # (no contra el alumno) — ver update() más abajo.
+    monto_proyecto_inversion = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
 
     class Meta:
         model  = Alumno
         fields = [
             'nombre', 'apellido', 'cedula_escolar', 'grado_seccion',
             'fecha_nacimiento', 'genero', 'estatus_financiero',
-            'porcentaje_beca', 'representante', 'direccion',
+            'porcentaje_beca', 'representante', 'direccion', 'foto',
             'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
             'contacto_emergencia_parentesco', 'monto_solvencia', 'concepto_solvencia',
+            'monto_proyecto_inversion',
+            'lugar_nacimiento', 'pais_nacimiento', 'estado_nacimiento',
+            'peso', 'estatura', 'institucion_procedencia',
+            'bautizado', 'alergico',
         ]
         extra_kwargs = {
             'cedula_escolar':    {'allow_null': True, 'allow_blank': True, 'required': False},
@@ -203,6 +274,7 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
         representante_data = validated_data.pop('representante', None)
         monto_solvencia = validated_data.pop('monto_solvencia', None)
         concepto_solvencia = validated_data.pop('concepto_solvencia', None)
+        monto_proyecto_inversion = validated_data.pop('monto_proyecto_inversion', None)
 
         if monto_solvencia is not None or concepto_solvencia is not None:
             from cobranza.models import CuotaSolvencia
@@ -240,6 +312,24 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
                 )
                 instance.representante = representante
 
+        if monto_proyecto_inversion is not None:
+            from cobranza.models import CuotaProyectoInversion
+            from .models import ConfiguracionSistema
+            if not instance.representante:
+                raise serializers.ValidationError({
+                    "monto_proyecto_inversion": ["El alumno no tiene un representante asignado."]
+                })
+            config = ConfiguracionSistema.objects.first()
+            periodo = config.periodo_escolar_activo if config else None
+            if not periodo:
+                raise serializers.ValidationError({
+                    "monto_proyecto_inversion": ["No hay un período escolar activo configurado."]
+                })
+            CuotaProyectoInversion.objects.update_or_create(
+                representante=instance.representante, periodo_escolar=periodo,
+                defaults={'monto_usd': monto_proyecto_inversion}
+            )
+
         if 'cedula_escolar' in validated_data and validated_data['cedula_escolar'] == '':
             validated_data['cedula_escolar'] = None
 
@@ -261,7 +351,12 @@ class AlumnoInscripcionSerializer(serializers.ModelSerializer):
         model  = Alumno
         fields = [
             'nombre', 'apellido', 'cedula_escolar', 'fecha_nacimiento',
-            'genero', 'representante'
+            'genero', 'representante', 'direccion', 'foto',
+            'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
+            'contacto_emergencia_parentesco',
+            'lugar_nacimiento', 'pais_nacimiento', 'estado_nacimiento',
+            'peso', 'estatura', 'institucion_procedencia',
+            'bautizado', 'alergico',
         ]
         # Sin validador de unicidad en cedula_escolar (mismo patrón que la cédula
         # del representante): al reinscribir un alumno existente el frontend envía
@@ -278,11 +373,18 @@ class AlumnoInscripcionSerializer(serializers.ModelSerializer):
 
 class InscripcionSerializer(serializers.ModelSerializer):
     alumno = AlumnoInscripcionSerializer()
+    datos_administrativos = serializers.SerializerMethodField()
 
     class Meta:
         model = Inscripcion
         fields = '__all__'
         read_only_fields = ['fecha_inscripcion', 'usuario_registro']
+
+    def get_datos_administrativos(self, instance):
+        if not instance.pk:
+            return None
+        from cobranza.services import calcular_datos_administrativos_inscripcion
+        return calcular_datos_administrativos_inscripcion(instance)
 
     def validate(self, attrs):
         """
@@ -320,7 +422,11 @@ class InscripcionSerializer(serializers.ModelSerializer):
                 if not cedula_rep:
                     raise serializers.ValidationError({"alumno": {"representante": {"cedula": ["Requerida"]}}})
 
-                representante, _ = Representante.objects.get_or_create(
+                # update_or_create (no get_or_create): si el representante ya existe,
+                # el formulario de inscripción puede traer datos recién completados
+                # (ver ModalCompletarRepresentante) y deben persistirse igual que con
+                # el alumno más abajo.
+                representante, _ = Representante.objects.update_or_create(
                     cedula=cedula_rep,
                     defaults=representante_data
                 )
@@ -351,7 +457,7 @@ class InscripcionSerializer(serializers.ModelSerializer):
 
                 # 2c. Validar que no tenga cuotas de inscripción impagas
                 from django.db.models import Q
-                from cobranza.models import CuotaInscripcion, CuotaSolvencia, Mensualidad, ParametroGlobal
+                from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad, ParametroGlobal
                 cuota_impaga = CuotaInscripcion.objects.filter(alumno=alumno, pagado=False).first()
                 if cuota_impaga:
                     raise serializers.ValidationError({
@@ -359,6 +465,23 @@ class InscripcionSerializer(serializers.ModelSerializer):
                             f"{alumno.nombre} {alumno.apellido} tiene una cuota de inscripción pendiente "
                             f"del período {cuota_impaga.periodo_escolar} (${cuota_impaga.monto_usd}). "
                             "Debe realizar los pagos pendientes antes de continuar."
+                        ]
+                    })
+
+                # 2c-bis. Validar que el REPRESENTANTE no tenga Proyecto de Inversión impago.
+                # A diferencia de las cuotas anteriores (por alumno), esta es por
+                # representante: si está impaga, bloquea a TODOS sus hijos, no solo
+                # al que se está inscribiendo.
+                proyecto_impago = CuotaProyectoInversion.objects.filter(
+                    representante=representante, pagado=False
+                ).first()
+                if proyecto_impago:
+                    raise serializers.ValidationError({
+                        "non_field_errors": [
+                            f"El representante {representante.nombre} {representante.apellido} tiene el "
+                            f"Proyecto de Inversión pendiente del período {proyecto_impago.periodo_escolar} "
+                            f"(${proyecto_impago.monto_usd}). Debe realizar el pago antes de inscribir a "
+                            "cualquiera de sus representados."
                         ]
                     })
 
@@ -433,6 +556,16 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     alumno=alumno,
                     periodo_escolar=inscripcion.periodo_escolar,
                     defaults={'monto_usd': monto_insc}
+                )
+
+                # 4b. Red de seguridad: si el representante es nuevo y no pasó por la
+                # generación bulk (apertura de inscripciones / carga manual), se crea
+                # aquí su Proyecto de Inversión del período con el monto por defecto.
+                from cobranza.services import monto_proyecto_inversion_defecto
+                CuotaProyectoInversion.objects.get_or_create(
+                    representante=representante,
+                    periodo_escolar=inscripcion.periodo_escolar,
+                    defaults={'monto_usd': monto_proyecto_inversion_defecto()}
                 )
 
                 return inscripcion

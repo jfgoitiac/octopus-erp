@@ -31,7 +31,7 @@ const CONCEPTOS = [
     { value: 'inscripcion',  label: 'Inscripción' },
     { value: 'solvencia',    label: 'Solvencia' },
     { value: 'materiales',   label: 'Materiales' },
-    { value: 'actividades',  label: 'Actividades' },
+    { value: 'proyecto_inversion', label: 'Proyecto de Inversión' },
     { value: 'multa',        label: 'Multa' },
     { value: 'otro',         label: 'Otro' },
 ];
@@ -77,6 +77,8 @@ const Cobranza = () => {
     const [selectedCuotas, setSelectedCuotas]     = useState([]);
     const [cuotasSolvencia, setCuotasSolvencia]   = useState([]);
     const [selectedSolvencias, setSelectedSolvencias] = useState([]);
+    const [cuotasProyectoInversion, setCuotasProyectoInversion] = useState([]);
+    const [selectedProyectos, setSelectedProyectos] = useState([]);
     const [concepto, setConcepto]                 = useState('mensualidad');
     const [lineas, setLineas]                     = useState([crearLinea()]);
     const [bancos, setBancos]                     = useState([]);
@@ -125,6 +127,12 @@ const Cobranza = () => {
             return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
         }, 0), [cuotasSolvencia, selectedSolvencias]);
 
+    const proyectosUSD = useMemo(() =>
+        selectedProyectos.reduce((s, id) => {
+            const c = cuotasProyectoInversion.find(x => x.id === id);
+            return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
+        }, 0), [cuotasProyectoInversion, selectedProyectos]);
+
     const futurasUSD = useMemo(() =>
         selectedFuturas.reduce((s, id) => {
             const m = mensualidadesFuturas.find(x => x.id === id);
@@ -133,8 +141,8 @@ const Cobranza = () => {
             return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0);
         }, 0), [mensualidadesFuturas, selectedFuturas, montosParciales]);
 
-    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0 || selectedFuturas.length > 0 || selectedSolvencias.length > 0;
-    const totalSelUSD  = mensUSD + cuotasUSD + futurasUSD + solvenciasUSD;
+    const haySeleccion = selectedMens.length > 0 || selectedCuotas.length > 0 || selectedFuturas.length > 0 || selectedSolvencias.length > 0 || selectedProyectos.length > 0;
+    const totalSelUSD  = mensUSD + cuotasUSD + futurasUSD + solvenciasUSD + proyectosUSD;
     const deudaVES   = haySeleccion ? totalSelUSD * tasa : 0;
     const pagoVES    = totalVES;
     const totalGenUSD = haySeleccion ? totalSelUSD : totalUSD;
@@ -169,8 +177,8 @@ const Cobranza = () => {
     const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
         setEstatusFinanciero(''); setAlumnoId(null);
-        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]);
-        setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setMontosParciales({});
+        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]); setCuotasProyectoInversion([]);
+        setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setSelectedProyectos([]); setMontosParciales({});
     }, []);
 
     const buscarAlumno = useCallback((val) => {
@@ -193,7 +201,7 @@ const Cobranza = () => {
                         ''
                     );
                     setAlumnosRep(alumnos);
-                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setMontosParciales({});
+                    setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setSelectedProyectos([]); setMontosParciales({});
                     // Si hay exactamente un alumno, seleccionarlo automáticamente
                     if (alumnos.length === 1) {
                         const alu = alumnos[0];
@@ -205,9 +213,10 @@ const Cobranza = () => {
                         setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
                         setMensualidadesFuturas(alu.mensualidades_futuras || []);
                         setCuotasSolvencia(alu.cuotas_solvencia_pendientes || []);
+                        setCuotasProyectoInversion(alu.cuotas_proyecto_inversion_pendientes || []);
                     } else {
                         setNombreAlumno(''); setEstatusFinanciero(''); setAlumnoId(null);
-                        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]);
+                        setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]); setCuotasProyectoInversion([]);
                     }
                 } catch (err) {
                     if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -259,10 +268,12 @@ const Cobranza = () => {
         setCuotasInscripcion(alu.cuotas_inscripcion_pendientes || []);
         setMensualidadesFuturas(alu.mensualidades_futuras || []);
         setCuotasSolvencia(alu.cuotas_solvencia_pendientes || []);
+        setCuotasProyectoInversion(alu.cuotas_proyecto_inversion_pendientes || []);
         setSelectedMens([]);
         setSelectedCuotas([]);
         setSelectedFuturas([]);
         setSelectedSolvencias([]);
+        setSelectedProyectos([]);
         setMontosParciales({});
     };
 
@@ -280,6 +291,9 @@ const Cobranza = () => {
 
     const toggleSolvencia = (id) =>
         setSelectedSolvencias(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+    const toggleProyecto = (id) =>
+        setSelectedProyectos(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
     const actualizarLinea = (idx, field, val) =>
         setLineas(p => p.map((l, i) => i === idx ? { ...l, [field]: val } : l));
@@ -318,6 +332,7 @@ const Cobranza = () => {
                 })),
                 cuota_inscripcion_ids: selectedCuotas,
                 cuota_solvencia_ids: selectedSolvencias,
+                proyecto_inversion_ids: selectedProyectos,
                 vuelto_usd: parseFloat(vueltoUSD.toFixed(2)),
                 vuelto_ves: parseFloat(vueltoVES.toFixed(2)),
                 pagos: lineas.map(l => ({
@@ -341,10 +356,12 @@ const Cobranza = () => {
                     selectedFuturas,
                     selectedCuotas,
                     selectedSolvencias,
+                    selectedProyectos,
                     mensualidades,
                     mensualidadesFuturas,
                     cuotasInscripcion,
                     cuotasSolvencia,
+                    cuotasProyectoInversion,
                     montosParciales,
                     tasa,
                     CONCEPTOS,
@@ -382,6 +399,7 @@ const Cobranza = () => {
                 setLineas([crearLinea()]); setMensualidades([]); setSelectedMens([]);
                 setCuotasInscripcion([]); setSelectedCuotas([]);
                 setCuotasSolvencia([]); setSelectedSolvencias([]);
+                setCuotasProyectoInversion([]); setSelectedProyectos([]);
                 setMensualidadesFuturas([]); setSelectedFuturas([]); setMontosParciales({});
                 setConfirming(false);
                 setStep(1);
@@ -427,6 +445,9 @@ const Cobranza = () => {
             cuotasSolvencia={cuotasSolvencia}
             selectedSolvencias={selectedSolvencias}
             toggleSolvencia={toggleSolvencia}
+            cuotasProyectoInversion={cuotasProyectoInversion}
+            selectedProyectos={selectedProyectos}
+            toggleProyecto={toggleProyecto}
             mensualidades={mensualidades}
             selectedMens={selectedMens}
             toggleMens={toggleMens}

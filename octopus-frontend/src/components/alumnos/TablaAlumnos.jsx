@@ -1,4 +1,4 @@
-import { User, FileText, Edit2, GraduationCap, UserMinus, RefreshCcw, DollarSign, ExternalLink, Loader2 } from 'lucide-react';
+import { User, FileText, Edit2, GraduationCap, UserMinus, RefreshCcw, DollarSign, Receipt, ExternalLink, Loader2 } from 'lucide-react';
 
 const EstadoBadge = ({ alumno }) => {
     const estado = !alumno.activo ? 'Retirado' : (alumno.grado_seccion ? 'Inscrito' : 'Sin inscribir');
@@ -36,6 +36,7 @@ const TablaAlumnos = ({
     onRetirar,
     onReactivar,
     onAjustarDeuda,
+    onAjustarInscripcion,
     onIrCobranza,
 }) => {
     if (alumnos.length === 0) {
@@ -162,6 +163,16 @@ const TablaAlumnos = ({
                                             title="Ajustar Deuda" aria-label="Ajustar deuda del alumno"
                                             style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                             <DollarSign size={18} />
+                                        </button>
+                                    )}
+
+                                    {isCajero && (
+                                        <button
+                                            onClick={() => onAjustarInscripcion(alumno)}
+                                            className="p-2 rounded-lg transition-all"
+                                            title="Ajustar Inscripción" aria-label="Ajustar monto de inscripción del alumno"
+                                            style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
+                                            <Receipt size={18} />
                                         </button>
                                     )}
 

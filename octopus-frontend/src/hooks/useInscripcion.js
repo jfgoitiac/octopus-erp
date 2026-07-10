@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { crearInscripcion, descargarComprobanteBlob } from '../api/inscripciones.service';
+import { crearInscripcion, descargarComprobanteBlob, subirFotoAlumno } from '../api/inscripciones.service';
 
 export const ESTADO_INICIAL = {
     representante:       null,
@@ -11,6 +11,7 @@ export const ESTADO_INICIAL = {
     tipo_ingreso:        'nuevo',
     documentos_completos: false,
     periodo_escolar:     '',
+    nro_solvencia:       '',
     inscripcion_id:      null,
 };
 
@@ -32,18 +33,28 @@ function parseApiError(err) {
     return 'Error inesperado.';
 }
 
+// Convierte '' a null para campos numéricos/opcionales — un string vacío no
+// es un Decimal válido para DRF, pero null sí (los campos son null=True).
+const vacioANulo = (v) => (v === '' || v === undefined ? null : v);
+
 // Construye el payload con campos explícitos — evita enviar
 // propiedades internas del objeto alumno/representante al backend.
 // Siempre se envían los datos completos porque el backend usa get_or_create/
 // update_or_create por cédula y no acepta objetos con solo {id}.
+// La foto NO va aquí: InscripcionSerializer escribe alumno.representante de
+// forma anidada, algo que DRF no soporta en un body multipart, así que el
+// archivo se sube aparte con subirFotoAlumno() después de crear la inscripción.
 function buildPayload(datos) {
     const repBase = {
-        cedula:    datos.representante.cedula,
-        nombre:    datos.representante.nombre,
-        apellido:  datos.representante.apellido,
-        telefono:  datos.representante.telefono  || '',
-        correo:    datos.representante.correo    || '',
-        direccion: datos.representante.direccion || '',
+        cedula:        datos.representante.cedula,
+        nombre:        datos.representante.nombre,
+        apellido:      datos.representante.apellido,
+        telefono:      datos.representante.telefono  || '',
+        correo:        datos.representante.correo    || '',
+        direccion:     datos.representante.direccion || '',
+        parentesco:    datos.representante.parentesco    || '',
+        nacionalidad:  datos.representante.nacionalidad  || '',
+        nivel_estudio: datos.representante.nivel_estudio || '',
     };
 
     const alumnoBase = {
@@ -52,6 +63,18 @@ function buildPayload(datos) {
         cedula_escolar:   datos.alumno.cedula_escolar || '',
         fecha_nacimiento: datos.alumno.fecha_nacimiento,
         genero:           datos.alumno.genero,
+        direccion:        datos.alumno.direccion || '',
+        contacto_emergencia_nombre:     datos.alumno.contacto_emergencia_nombre     || '',
+        contacto_emergencia_telefono:   datos.alumno.contacto_emergencia_telefono   || '',
+        contacto_emergencia_parentesco: datos.alumno.contacto_emergencia_parentesco || '',
+        lugar_nacimiento:        datos.alumno.lugar_nacimiento        || '',
+        pais_nacimiento:         datos.alumno.pais_nacimiento         || '',
+        estado_nacimiento:       datos.alumno.estado_nacimiento       || '',
+        peso:                    vacioANulo(datos.alumno.peso),
+        estatura:                vacioANulo(datos.alumno.estatura),
+        institucion_procedencia: datos.alumno.institucion_procedencia || '',
+        bautizado:               datos.alumno.bautizado ?? null,
+        alergico:                datos.alumno.alergico || '',
     };
 
     return {
@@ -60,6 +83,7 @@ function buildPayload(datos) {
         tipo_ingreso:         datos.tipo_ingreso,
         periodo_escolar:      datos.periodo_escolar,
         documentos_completos: datos.documentos_completos,
+        nro_solvencia:        datos.nro_solvencia || '',
     };
 }
 
@@ -76,6 +100,14 @@ export function useInscripcion() {
             if (res.status === 201) {
                 setDatos(prev => ({ ...prev, inscripcion_id: res.data.inscripcion_id }));
                 setExito(true);
+
+                if (datos.alumno?.foto instanceof File) {
+                    try {
+                        await subirFotoAlumno(res.data.alumno_id, datos.alumno.foto);
+                    } catch {
+                        toast.warning('La inscripción se registró, pero la foto no pudo subirse. Puedes agregarla luego desde la ficha del alumno.');
+                    }
+                }
             }
         } catch (err) {
             toast.error(parseApiError(err));

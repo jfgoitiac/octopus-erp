@@ -7,7 +7,7 @@ import {
     restablecerContrasenaPortal,
 } from '../api/portalAdmin.service';
 
-const FORM_EMPTY = { nombre: '', apellido: '', cedula: '', telefono: '', correo: '', direccion: '' };
+const FORM_EMPTY = { nombre: '', apellido: '', cedula: '', telefono: '', correo: '', direccion: '', monto_proyecto_inversion: '0.00' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseApiError(err) {
@@ -108,6 +108,7 @@ export function useRepresentantes() {
             telefono:  rep.telefono  || '',
             correo:    rep.correo    || '',
             direccion: rep.direccion || '',
+            monto_proyecto_inversion: rep.monto_proyecto_inversion ?? '0.00',
         });
         setFormErrors({});
         setShowModal(true);
@@ -142,6 +143,7 @@ export function useRepresentantes() {
                     telefono:  form.telefono.trim(),
                     correo:    form.correo.trim(),
                     direccion: form.direccion.trim(),
+                    monto_proyecto_inversion: Number(form.monto_proyecto_inversion) || 0,
                 });
                 toast.success('Representante actualizado.');
             } else {

@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
+from reportlab.lib.utils import ImageReader
 
 from .models import TasaCambio, ParametroGlobal
 
@@ -365,9 +366,18 @@ def generar_pdf_recibo(pagos):
 
 def generar_pdf_inscripcion(inscripcion):
     """
-    Genera comprobante de inscripción en PDF con ReportLab.
+    Genera comprobante de inscripción en PDF con ReportLab, replicando el
+    layout de 3 secciones de la planilla física: Datos del Estudiante,
+    Datos del Representante y Datos Administrativos (este último calculado
+    en tiempo real desde Pago/CuotaInscripcion, nunca editado a mano salvo
+    nro_solvencia — ver cobranza.services.calcular_datos_administrativos_inscripcion).
     """
+    from .services import calcular_datos_administrativos_inscripcion
+
     nombre_colegio, rif_colegio, dir_colegio = _get_config_colegio()
+    alumno = inscripcion.alumno
+    representante = alumno.representante
+    datos_admin = calcular_datos_administrativos_inscripcion(inscripcion)
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -376,56 +386,49 @@ def generar_pdf_inscripcion(inscripcion):
     azul = HexColor("#0fa3b1")
     jet = HexColor("#2b303a")
     ash = HexColor("#9a8c98")
+    bg_admin = HexColor("#f0f9ff")
+    white = HexColor("#ffffff")
 
+    margin = 0.8 * inch
+    content_w = width - 2 * margin
+
+    def fmt(v):
+        return str(v) if v not in (None, '') else '—'
+
+    def bool_display(v):
+        return {True: 'Sí', False: 'No'}.get(v, '—')
+
+    def fecha_fmt(dt):
+        return dt.strftime('%d/%m/%Y %H:%M') if dt else '—'
+
+    # ── Encabezado ──────────────────────────────────────────────────────────
     c.setFillColor(jet)
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(0.8 * inch, height - 1.0 * inch, nombre_colegio.upper())
+    c.drawString(margin, height - 1.0 * inch, nombre_colegio.upper())
 
     c.setFillColor(ash)
     c.setFont("Helvetica", 9)
     linea_y = height - 1.2 * inch
     if rif_colegio:
-        c.drawString(0.8 * inch, linea_y, rif_colegio)
+        c.drawString(margin, linea_y, rif_colegio)
         linea_y -= 0.15 * inch
     if dir_colegio:
-        c.drawString(0.8 * inch, linea_y, dir_colegio)
+        c.drawString(margin, linea_y, dir_colegio)
 
     c.setFillColor(jet)
     c.setFont("Helvetica-Bold", 13)
-    c.drawRightString(width - 0.8 * inch, height - 1.0 * inch, "COMPROBANTE DE INSCRIPCIÓN")
+    c.drawRightString(width - margin, height - 1.0 * inch, "COMPROBANTE DE INSCRIPCIÓN")
     c.setFont("Helvetica-Bold", 15)
-    c.drawRightString(width - 0.8 * inch, height - 1.25 * inch, f"Nº {inscripcion.id:06d}")
+    c.drawRightString(width - margin, height - 1.25 * inch, f"Nº {inscripcion.id:06d}")
 
     c.setStrokeColor(azul)
     c.setLineWidth(2)
-    c.line(0.8 * inch, height - 1.6 * inch, width - 0.8 * inch, height - 1.6 * inch)
+    c.line(margin, height - 1.5 * inch, width - margin, height - 1.5 * inch)
 
-    alumno = inscripcion.alumno
-    representante = alumno.representante
-
-    c.setFillColor(jet)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(0.8 * inch, height - 2.0 * inch, "DATOS DEL ESTUDIANTE")
-
-    c.setFont("Helvetica", 10)
-    c.drawString(0.8 * inch, height - 2.25 * inch, f"Nombre:          {alumno.nombre} {alumno.apellido}")
-    c.drawString(0.8 * inch, height - 2.45 * inch, f"Cédula Escolar:  {alumno.cedula_escolar or 'Temporal'}")
-    c.drawString(0.8 * inch, height - 2.65 * inch, f"Grado/Sección:    {inscripcion.grado_seccion}")
-    c.drawString(0.8 * inch, height - 2.85 * inch, f"Período Escolar: {inscripcion.periodo_escolar}")
-    c.drawString(0.8 * inch, height - 3.05 * inch, f"Tipo de Ingreso: {inscripcion.get_tipo_ingreso_display()}")
-
-    c.drawRightString(width - 0.8 * inch, height - 2.25 * inch, f"Fecha: {inscripcion.fecha_inscripcion.strftime('%d/%m/%Y')}")
-    c.drawRightString(width - 0.8 * inch, height - 2.45 * inch, f"Hora:  {inscripcion.fecha_inscripcion.strftime('%H:%M')}")
-
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(0.8 * inch, height - 3.4 * inch, "DATOS DEL REPRESENTANTE")
-
-    c.setFont("Helvetica", 10)
-    c.drawString(0.8 * inch, height - 3.65 * inch, f"Representante: {representante.nombre} {representante.apellido}")
-    c.drawString(0.8 * inch, height - 3.85 * inch, f"Cédula:    {representante.cedula}")
-    c.drawString(0.8 * inch, height - 4.05 * inch, f"Teléfono:  {representante.telefono}")
-    c.drawString(0.8 * inch, height - 4.25 * inch, f"Correo:    {representante.correo}")
-
+    # ── Marca de agua ──────────────────────────────────────────────────────────
+    # Se dibuja antes que las secciones: cada caja de sección tiene fondo opaco
+    # (ver draw_seccion) y la tapa en su área, dejándola visible solo en los
+    # márgenes/espacios en blanco de la página.
     c.saveState()
     c.setFillColor(HexColor("#e8f8fa"))
     c.setFont("Helvetica-Bold", 52)
@@ -434,26 +437,137 @@ def generar_pdf_inscripcion(inscripcion):
     c.drawCentredString(0, 0, "INSCRIPCIÓN VÁLIDA")
     c.restoreState()
 
-    c.setStrokeColor(HexColor("#e2e5ea"))
-    c.setLineWidth(1)
-    c.line(0.8 * inch, 3.0 * inch, width - 0.8 * inch, 3.0 * inch)
+    cursor_y = [height - 1.75 * inch]  # lista para poder mutarlo dentro de draw_seccion
 
+    def draw_seccion(titulo, campos, bg=None, foto_path=None):
+        """Dibuja una caja de sección con título y líneas de texto; opcionalmente
+        reserva espacio a la derecha para una foto. Devuelve el y inferior."""
+        line_h = 0.20 * inch
+        pad_top = 0.10 * inch
+        pad_bottom = 0.12 * inch
+        titulo_h = 0.28 * inch
+
+        alto_contenido = len(campos) * line_h + pad_top + pad_bottom
+        if foto_path is not None:
+            alto_contenido = max(alto_contenido, 1.3 * inch + pad_top + pad_bottom)
+        alto_caja = titulo_h + alto_contenido
+
+        y_top = cursor_y[0]
+        y_bottom = y_top - alto_caja
+
+        # Fondo opaco (blanco por defecto) para tapar la marca de agua, que se
+        # dibuja antes de las secciones y de lo contrario queda encima del texto.
+        c.setFillColor(bg or white)
+        c.rect(margin, y_bottom, content_w, alto_caja, fill=1, stroke=0)
+        c.setStrokeColor(azul)
+        c.setLineWidth(1)
+        c.rect(margin, y_bottom, content_w, alto_caja, fill=0, stroke=1)
+
+        c.setFillColor(azul)
+        c.rect(margin, y_top - titulo_h, content_w, titulo_h, fill=1, stroke=0)
+        c.setFillColor(white)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margin + 0.12 * inch, y_top - titulo_h + 0.08 * inch, titulo)
+
+        c.setFont("Helvetica", 9)
+        y = y_top - titulo_h - pad_top - 0.10 * inch
+        for linea in campos:
+            c.setFillColor(jet)
+            c.drawString(margin + 0.12 * inch, y, linea)
+            y -= line_h
+
+        if foto_path is not None:
+            foto_w = 1.0 * inch
+            foto_h = 1.2 * inch
+            foto_x = width - margin - 0.12 * inch - foto_w
+            foto_y = y_top - titulo_h - pad_top - foto_h
+            try:
+                c.drawImage(
+                    ImageReader(foto_path), foto_x, foto_y,
+                    width=foto_w, height=foto_h,
+                    preserveAspectRatio=True, anchor='n', mask='auto',
+                )
+            except Exception:
+                logger.warning("No se pudo embeber la foto del alumno %s en el PDF", alumno.id)
+
+        cursor_y[0] = y_bottom - 0.18 * inch
+        return cursor_y[0]
+
+    # ── Foto del alumno (si existe en disco) ──────────────────────────────────
+    foto_path = None
+    if alumno.foto and alumno.foto.name:
+        try:
+            foto_path = alumno.foto.path
+        except Exception:
+            foto_path = None
+
+    # ── Sección 1: Datos del Estudiante ────────────────────────────────────────
+    campos_estudiante = [
+        f"Nombre y Apellido: {alumno.nombre} {alumno.apellido}",
+        f"Cédula Escolar: {alumno.cedula_escolar or 'Temporal'}",
+        f"Fecha de Nacimiento: {alumno.fecha_nacimiento.strftime('%d/%m/%Y')}    Género: {alumno.get_genero_display()}",
+        f"Lugar de Nacimiento: {fmt(alumno.lugar_nacimiento)}    País: {fmt(alumno.pais_nacimiento)}    Estado: {fmt(alumno.estado_nacimiento)}",
+        f"Peso: {fmt(alumno.peso)} kg    Estatura: {fmt(alumno.estatura)} cm    Bautizado: {bool_display(alumno.bautizado)}",
+        f"Institución de Procedencia: {fmt(alumno.institucion_procedencia)}",
+        f"Alérgico a: {fmt(alumno.alergico)}",
+        f"Dirección: {fmt(alumno.direccion)}",
+        f"Contacto de Emergencia: {fmt(alumno.contacto_emergencia_nombre)}  "
+        f"Tel: {fmt(alumno.contacto_emergencia_telefono)}  ({fmt(alumno.contacto_emergencia_parentesco)})",
+        f"Grado/Sección: {inscripcion.grado_seccion}    Período: {inscripcion.periodo_escolar}    "
+        f"Ingreso: {inscripcion.get_tipo_ingreso_display()}",
+    ]
+    draw_seccion("DATOS DEL ESTUDIANTE", campos_estudiante, foto_path=foto_path)
+
+    # ── Sección 2: Datos del Representante ─────────────────────────────────────
+    parentesco_display = representante.get_parentesco_display() if representante.parentesco else '—'
+    campos_representante = [
+        f"Nombre y Apellido: {representante.nombre} {representante.apellido}",
+        f"Cédula: {representante.cedula}    Parentesco: {parentesco_display}",
+        f"Nacionalidad: {fmt(representante.nacionalidad)}    Nivel de Estudio: {fmt(representante.nivel_estudio)}",
+        f"Teléfono: {representante.telefono}    Correo: {representante.correo}",
+        f"Dirección: {fmt(representante.direccion)}",
+    ]
+    draw_seccion("DATOS DEL REPRESENTANTE", campos_representante)
+
+    # ── Sección 3: Datos Administrativos (solo lectura, calculado) ────────────
+    campos_admin = [
+        f"Monto por Transferencia: $ {datos_admin['monto_transferencia']:,.2f}    "
+        f"Nº de Transferencia: {fmt(datos_admin['nro_transferencia'])}",
+        f"Monto en Efectivo: $ {datos_admin['monto_efectivo']:,.2f}",
+        f"Banco Destino: {fmt(datos_admin['banco_destino'])}    "
+        f"Banco de Procedencia: {fmt(datos_admin['banco_procedencia'])}",
+        f"Fecha de Pago: {fecha_fmt(datos_admin['fecha_pago'])}",
+        f"Fecha de Inscripción: {fecha_fmt(datos_admin['fecha_inscripcion'])}",
+        f"Nº de Solvencia: {fmt(datos_admin['nro_solvencia'])}",
+    ]
+    draw_seccion("DATOS ADMINISTRATIVOS (auto-generado)", campos_admin, bg=bg_admin)
+
+    # ── Firmas ───────────────────────────────────────────────────────────────
+    firma_y = max(cursor_y[0], 1.1 * inch)
+    c.setStrokeColor(ash)
     c.setDash(1, 2)
-    c.line(1.5 * inch, 2.5 * inch, 3.5 * inch, 2.5 * inch)
-    c.line(width - 1.5 * inch, 2.5 * inch, width - 3.5 * inch, 2.5 * inch)
+    c.line(1.5 * inch, firma_y, 3.5 * inch, firma_y)
+    c.line(width - 1.5 * inch, firma_y, width - 3.5 * inch, firma_y)
     c.setDash(1, 0)
 
     c.setFont("Helvetica", 8)
-    c.drawCentredString(2.5 * inch, 2.3 * inch, "Firma del Representante")
-    c.drawCentredString(width - 2.5 * inch, 2.3 * inch, "Sello y Firma Autorizada")
+    c.setFillColor(jet)
+    c.drawCentredString(2.5 * inch, firma_y - 0.2 * inch, "Firma del Representante")
+    c.drawCentredString(width - 2.5 * inch, firma_y - 0.2 * inch, "Sello y Firma Autorizada")
 
     c.setFont("Helvetica-Bold", 7)
     c.setFillColor(jet)
-    c.drawCentredString(width / 2, 1.2 * inch, "ESTE DOCUMENTO ES VÁLIDO COMO COMPROBANTE DE INSCRIPCIÓN PARA EL PERÍODO INDICADO")
-    
+    c.drawCentredString(
+        width / 2, 0.6 * inch,
+        "ESTE DOCUMENTO ES VÁLIDO COMO COMPROBANTE DE INSCRIPCIÓN PARA EL PERÍODO INDICADO",
+    )
+
     c.setFont("Helvetica", 7)
     c.setFillColor(ash)
-    c.drawCentredString(width / 2, 1.0 * inch, f"Registrado por: {inscripcion.usuario_registro.username.upper()} | ID Inscripción: {inscripcion.id}")
+    c.drawCentredString(
+        width / 2, 0.4 * inch,
+        f"Registrado por: {inscripcion.usuario_registro.username.upper()} | ID Inscripción: {inscripcion.id}",
+    )
 
     c.showPage()
     c.save()

@@ -15,7 +15,7 @@ const CONCEPTOS = [
     { value: 'mensualidad', label: 'Mensualidad' },
     { value: 'inscripcion',  label: 'Inscripción' },
     { value: 'materiales',   label: 'Materiales' },
-    { value: 'actividades',  label: 'Actividades' },
+    { value: 'proyecto_inversion', label: 'Proyecto de Inversión' },
     { value: 'multa',        label: 'Multa' },
     { value: 'otro',         label: 'Otro' },
 ];

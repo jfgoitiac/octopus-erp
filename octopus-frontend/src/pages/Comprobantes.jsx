@@ -26,7 +26,7 @@ const CONCEPTOS = [
   { value: 'mensualidad', label: 'Mensualidad Escolar' },
   { value: 'inscripcion', label: 'Inscripción' },
   { value: 'materiales', label: 'Materiales' },
-  { value: 'actividades', label: 'Actividades Extraescolares' },
+  { value: 'proyecto_inversion', label: 'Proyecto de Inversión' },
   { value: 'multa', label: 'Multa' },
   { value: 'otro', label: 'Otro' },
 ];

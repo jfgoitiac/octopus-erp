@@ -92,6 +92,22 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
                         />
                     </Field>
 
+                    {editando && (
+                        <Field
+                            id="rep-monto-proyecto-inversion"
+                            label="Proyecto de Inversión del período activo (USD)"
+                            error={formErrors.monto_proyecto_inversion}
+                        >
+                            <input
+                                id="rep-monto-proyecto-inversion"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                {...field('monto_proyecto_inversion')}
+                            />
+                        </Field>
+                    )}
+
                     <div className="flex gap-2 pt-1">
                         <button
                             type="button"

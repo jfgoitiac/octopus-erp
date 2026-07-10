@@ -55,12 +55,24 @@ class ConfiguracionSistema(models.Model):  # NUEVO
 # REPRESENTANTE
 # ─────────────────────────────────────────────
 class Representante(models.Model):
+    PARENTESCOS = (
+        ('padre', 'Padre'),
+        ('madre', 'Madre'),
+        ('tutor', 'Tutor'),
+        ('otro',  'Otro'),
+    )
+
     cedula    = models.CharField(max_length=15, unique=True)
     nombre    = models.CharField(max_length=100)
     apellido  = models.CharField(max_length=100)
     telefono  = models.CharField(max_length=20)
     correo    = models.EmailField()
     direccion = models.TextField()
+
+    # Datos de planilla (NUEVO)
+    parentesco    = models.CharField(max_length=10, choices=PARENTESCOS, blank=True, default='')
+    nacionalidad  = models.CharField(max_length=50, blank=True, default='')
+    nivel_estudio = models.CharField(max_length=100, blank=True, default='')
 
     def __str__(self):
         return f"{self.cedula} - {self.nombre} {self.apellido}"
@@ -102,6 +114,17 @@ class Alumno(models.Model):
     fecha_nacimiento = models.DateField()
     genero           = models.CharField(max_length=15, choices=GENEROS, default='masculino')
     direccion        = models.TextField(blank=True, default='')  # NUEVO
+    foto             = models.ImageField(upload_to='alumnos/fotos/', null=True, blank=True)
+
+    # Datos de nacimiento y procedencia (NUEVO — planilla física)
+    lugar_nacimiento       = models.CharField(max_length=100, blank=True, default='')
+    pais_nacimiento        = models.CharField(max_length=100, blank=True, default='')
+    estado_nacimiento      = models.CharField(max_length=100, blank=True, default='')
+    peso                     = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    estatura                 = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    institucion_procedencia  = models.CharField(max_length=150, blank=True, default='')
+    bautizado                = models.BooleanField(null=True, blank=True, default=None)
+    alergico                 = models.TextField(blank=True, null=True)
 
     # Contacto de emergencia (NUEVO)
     contacto_emergencia_nombre      = models.CharField(max_length=200, blank=True, default='')
@@ -270,6 +293,7 @@ class Inscripcion(models.Model):
     tipo_ingreso         = models.CharField(max_length=15, choices=TIPOS_INGRESO)
     fecha_inscripcion    = models.DateTimeField(auto_now_add=True)
     documentos_completos = models.BooleanField(default=False)
+    nro_solvencia        = models.CharField(max_length=50, blank=True, default='')  # NUEVO — dato manual de planilla
     usuario_registro     = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT
     )

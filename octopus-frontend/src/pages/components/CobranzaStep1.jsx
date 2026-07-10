@@ -16,6 +16,9 @@ const CobranzaStep1 = ({
     cuotasSolvencia,
     selectedSolvencias,
     toggleSolvencia,
+    cuotasProyectoInversion,
+    selectedProyectos,
+    toggleProyecto,
     mensualidades,
     selectedMens,
     toggleMens,
@@ -161,6 +164,46 @@ const CobranzaStep1 = ({
                                                         Solvencia {c.periodo_escolar}
                                                     </p>
                                                 )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
+                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Proyecto de Inversión pendiente (del representante, no solo de este alumno) */}
+                    {alumnoId && cuotasProyectoInversion.length > 0 && (
+                        <div className="rounded-xl p-4" style={{ border: '1.5px solid #dc262644', background: '#fef2f2' }}>
+                            <p className="text-[11px] uppercase tracking-widest mb-3 font-bold" style={{ color: '#b91c1c' }}>
+                                Proyecto de Inversión pendiente (representante)
+                            </p>
+                            <div className="space-y-2">
+                                {cuotasProyectoInversion.map(c => (
+                                    <label
+                                        key={c.id}
+                                        className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
+                                        style={{
+                                            border: selectedProyectos.includes(c.id) ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
+                                            background: selectedProyectos.includes(c.id) ? '#fee2e2' : '#fff',
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedProyectos.includes(c.id)}
+                                                onChange={() => toggleProyecto(c.id)}
+                                                style={{ accentColor: '#dc2626', width: 15, height: 15 }}
+                                                aria-label={`Proyecto de Inversión ${c.periodo_escolar}`}
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                    Proyecto de Inversión {c.periodo_escolar}
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="text-right">
@@ -334,7 +377,7 @@ const CobranzaStep1 = ({
                                     type="button"
                                     onClick={() => setStep(2)}
                                     disabled={!alumnoId || (
-                                        (mensualidades.length > 0 || cuotasInscripcion.length > 0 || cuotasSolvencia.length > 0) &&
+                                        (mensualidades.length > 0 || cuotasInscripcion.length > 0 || cuotasSolvencia.length > 0 || cuotasProyectoInversion.length > 0) &&
                                         !haySeleccion
                                     )}
                                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 min-h-[44px]"

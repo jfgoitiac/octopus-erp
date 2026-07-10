@@ -91,7 +91,7 @@ class Pago(models.Model):
         ('inscripcion', 'Inscripción'),
         ('solvencia', 'Solvencia'),
         ('materiales', 'Materiales'),
-        ('actividades', 'Actividades Extraescolares'),
+        ('proyecto_inversion', 'Proyecto de Inversión'),
         ('multa', 'Multa'),
         ('otro', 'Otro'),
     )
@@ -101,6 +101,10 @@ class Pago(models.Model):
     operacion_uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     factura_id = models.CharField(max_length=20, unique=True, null=True, blank=True, editable=False, db_index=True)
     banco_receptor = models.ForeignKey(BancoInstitucional, on_delete=models.PROTECT, null=True, blank=True)
+    banco_procedencia = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Banco emisor del pagador (distinto de banco_receptor, que es el banco destino del colegio)"
+    )
     metodo_pago = models.CharField(max_length=20, choices=METODOS)
     concepto = models.CharField(max_length=20, choices=CONCEPTOS, default='mensualidad')
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text="Monto captado en divisas")
@@ -297,6 +301,8 @@ class CuotaInscripcion(models.Model):
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='cuotas_inscripcion_pagadas')
+    # Auditoría automática: registra cada cambio de monto con usuario, fecha y valores anteriores
+    history = HistoricalRecords()
 
     class Meta:
         unique_together = ('alumno', 'periodo_escolar')
@@ -326,6 +332,42 @@ class CuotaSolvencia(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - Solvencia {self.periodo_escolar} - {'Pagada' if self.pagado else 'Pendiente'}"
+
+
+class CuotaProyectoInversion(models.Model):
+    """
+    Cargo por período escolar del "Proyecto de Inversión", a nivel de
+    REPRESENTANTE (no de alumno): si un representante tiene varios hijos
+    inscritos, se cobra una sola vez por período, no una vez por hijo.
+
+    Se genera junto con CuotaInscripcion (al abrir inscripciones o al cargar
+    cuotas manualmente) usando el monto por defecto de ParametroGlobal
+    (MONTO_PROYECTO_INVERSION_DEFECTO). El monto es ajustable por
+    representante (ver AlumnoUpdateSerializer.monto_proyecto_inversion) sin
+    afectar a otros representantes.
+
+    Si está impaga, bloquea la inscripción de CUALQUIER alumno de ese
+    representante (ver InscripcionSerializer), igual que una mensualidad o
+    cuota de inscripción vencida.
+    """
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE,
+        related_name='cuotas_proyecto_inversion'
+    )
+    periodo_escolar = models.CharField(max_length=20)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    pagado = models.BooleanField(default=False)
+    fecha_pago = models.DateTimeField(blank=True, null=True)
+    pagos = models.ManyToManyField(Pago, blank=True, related_name='proyectos_inversion_pagados')
+    # Auditoría automática: registra cada cambio de monto con usuario, fecha y valores anteriores
+    history = HistoricalRecords()
+
+    class Meta:
+        unique_together = ('representante', 'periodo_escolar')
+        ordering = ['-periodo_escolar']
+
+    def __str__(self):
+        return f"{self.representante.nombre} {self.representante.apellido} - Proyecto de Inversión {self.periodo_escolar} - {'Pagado' if self.pagado else 'Pendiente'}"
 
 
 class CierreCaja(models.Model):

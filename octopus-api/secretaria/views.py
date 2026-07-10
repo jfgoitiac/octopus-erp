@@ -105,9 +105,12 @@ class ConfiguracionSistemaView(APIView):
             ).update(dia_limite_pago=config.dia_limite_pago)
 
         # Al abrir el proceso de inscripciones, generar CuotaInscripcion para todos los alumnos activos
+        # y CuotaProyectoInversion para sus representantes (una sola vez por representante, no por hijo)
         cuotas_generadas = 0
+        proyectos_generados = 0
         if config.inscripciones_abiertas and not estaba_abierto:
-            from cobranza.models import CuotaInscripcion, ParametroGlobal
+            from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
+            from cobranza.services import monto_proyecto_inversion_defecto
             from decimal import Decimal
 
             param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
@@ -127,6 +130,20 @@ class ConfiguracionSistemaView(APIView):
             CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
             cuotas_generadas = len(cuotas_nuevas)
 
+            monto_proyecto = monto_proyecto_inversion_defecto()
+            representantes_ids = {alumno.representante_id for alumno in alumnos_activos}
+            proyectos_nuevos = [
+                CuotaProyectoInversion(
+                    representante_id=representante_id,
+                    periodo_escolar=periodo,
+                    monto_usd=monto_proyecto,
+                    pagado=False,
+                )
+                for representante_id in representantes_ids
+            ]
+            CuotaProyectoInversion.objects.bulk_create(proyectos_nuevos, ignore_conflicts=True)
+            proyectos_generados = len(proyectos_nuevos)
+
         LogAuditoria.objects.create(
             usuario=request.user,
             accion="ACTUALIZACION_CONFIGURACION",
@@ -137,6 +154,7 @@ class ConfiguracionSistemaView(APIView):
                 "fecha_fin_inscripciones":     str(config.fecha_fin_inscripciones),
                 "dia_limite_pago":             config.dia_limite_pago,
                 "cuotas_inscripcion_generadas": cuotas_generadas,
+                "proyectos_inversion_generados": proyectos_generados,
                 "alumnos_dia_limite_actualizados": alumnos_actualizados,
             }
         )
@@ -144,6 +162,8 @@ class ConfiguracionSistemaView(APIView):
         response_data = ConfiguracionSistemaSerializer(config).data
         if cuotas_generadas > 0:
             response_data['cuotas_inscripcion_generadas'] = cuotas_generadas
+        if proyectos_generados > 0:
+            response_data['proyectos_inversion_generados'] = proyectos_generados
         if alumnos_actualizados > 0:
             response_data['alumnos_dia_limite_actualizados'] = alumnos_actualizados
         return Response(response_data)
@@ -162,7 +182,8 @@ class CargarCuotasInscripcionView(APIView):
     @transaction.atomic
     def post(self, request):
         from decimal import Decimal
-        from cobranza.models import CuotaInscripcion, ParametroGlobal
+        from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
+        from cobranza.services import monto_proyecto_inversion_defecto
 
         config = ConfiguracionSistema.objects.first()
         periodo = config.periodo_escolar_activo if config else None
@@ -189,6 +210,26 @@ class CargarCuotasInscripcionView(APIView):
         ]
         CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
 
+        # CuotaProyectoInversion: una por representante (no por alumno), mismo criterio idempotente
+        monto_proyecto = monto_proyecto_inversion_defecto()
+        representantes_ids = {a.representante_id for a in alumnos_activos}
+        representantes_existentes = set(
+            CuotaProyectoInversion.objects
+            .filter(periodo_escolar=periodo, representante_id__in=representantes_ids)
+            .values_list('representante_id', flat=True)
+        )
+        representantes_faltantes = representantes_ids - representantes_existentes
+        proyectos_nuevos = [
+            CuotaProyectoInversion(
+                representante_id=representante_id,
+                periodo_escolar=periodo,
+                monto_usd=monto_proyecto,
+                pagado=False,
+            )
+            for representante_id in representantes_faltantes
+        ]
+        CuotaProyectoInversion.objects.bulk_create(proyectos_nuevos, ignore_conflicts=True)
+
         LogAuditoria.objects.create(
             usuario=request.user,
             accion="CARGA_CUOTAS_INSCRIPCION",
@@ -199,6 +240,8 @@ class CargarCuotasInscripcionView(APIView):
                 "alumnos_activos": len(alumnos_activos),
                 "ya_tenian_cuota": len(existentes),
                 "cuotas_generadas": len(cuotas_nuevas),
+                "monto_proyecto_inversion": str(monto_proyecto),
+                "proyectos_inversion_generados": len(proyectos_nuevos),
             }
         )
 
@@ -208,6 +251,7 @@ class CargarCuotasInscripcionView(APIView):
             "alumnos_activos": len(alumnos_activos),
             "ya_tenian_cuota": len(existentes),
             "cuotas_generadas": len(cuotas_nuevas),
+            "proyectos_inversion_generados": len(proyectos_nuevos),
         })
 
 
@@ -478,6 +522,17 @@ class AlumnoListView(viewsets.ModelViewSet):
                 valor_actual = cuota_actual.monto_usd if cuota_actual else None
                 if str(valor_actual) != str(value):
                     cambios_detectados.append(f"Solvencia {periodo}: {valor_actual} -> {value}")
+            elif attr == 'monto_proyecto_inversion':
+                from cobranza.models import CuotaProyectoInversion
+                config = ConfiguracionSistema.objects.first()
+                periodo = config.periodo_escolar_activo if config else None
+                cuota_actual = (
+                    CuotaProyectoInversion.objects.filter(representante=alumno.representante, periodo_escolar=periodo).first()
+                    if alumno.representante else None
+                )
+                valor_actual = cuota_actual.monto_usd if cuota_actual else None
+                if str(valor_actual) != str(value):
+                    cambios_detectados.append(f"Proyecto Inversión {periodo}: {valor_actual} -> {value}")
             else:
                 valor_actual = getattr(alumno, attr, None)
                 if str(valor_actual) != str(value):
@@ -1101,8 +1156,29 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        from cobranza.models import CuotaProyectoInversion
+        from .models import ConfiguracionSistema
+
         qs = Representante.objects.select_related('portal_user').annotate(
             cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True))
+        )
+        # Prefetch de la cuota de Proyecto de Inversión del período activo (a lo
+        # sumo una por representante, por unique_together) para que el serializer
+        # no dispare una query por fila en el listado.
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        # Siempre se adjunta el prefetch (con queryset vacío si no hay período
+        # activo) para que el serializer nunca caiga en su fallback por-fila.
+        cuota_qs = (
+            CuotaProyectoInversion.objects.filter(periodo_escolar=periodo)
+            if periodo else CuotaProyectoInversion.objects.none()
+        )
+        qs = qs.prefetch_related(
+            models.Prefetch(
+                'cuotas_proyecto_inversion',
+                queryset=cuota_qs,
+                to_attr='_cuota_proyecto_periodo_activo',
+            )
         )
         buscar = self.request.query_params.get('buscar', '').strip()
         if buscar:

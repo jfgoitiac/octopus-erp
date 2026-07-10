@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Q
-from .models import BancoInstitucional, CuotaInscripcion, CuotaSolvencia, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
+from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
 from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza
@@ -271,6 +271,13 @@ class BuscarAlumnoCobranzaView(APIView):
             .values('id', 'periodo_escolar', 'monto_usd', 'concepto')
             .order_by('-periodo_escolar')
         )
+        # Proyecto de Inversión: cuota del REPRESENTANTE (no del alumno), por
+        # eso se filtra por alumno.representante en vez de por alumno.
+        cuotas_proyecto_inversion = list(
+            CuotaProyectoInversion.objects.filter(representante=alumno.representante, pagado=False)
+            .values('id', 'periodo_escolar', 'monto_usd')
+            .order_by('-periodo_escolar')
+        )
         # Estatus EN VIVO con el criterio canónico (cobranza/mora.py), no el
         # campo persistido que solo se sincroniza con la corrida nocturna.
         from secretaria.models import Alumno as AlumnoModel
@@ -290,6 +297,7 @@ class BuscarAlumnoCobranzaView(APIView):
             'mensualidades_futuras':         mensualidades_futuras,
             'cuotas_inscripcion_pendientes': cuotas_inscripcion,
             'cuotas_solvencia_pendientes':   cuotas_solvencia,
+            'cuotas_proyecto_inversion_pendientes': cuotas_proyecto_inversion,
         }
 
     def _rep_data(self, rep):
@@ -452,6 +460,20 @@ class RegistrarPagoView(APIView):
             for pago in pagos_creados:
                 pago.cuotas_solvencia_pagadas.set(
                     CuotaSolvencia.objects.filter(id__in=cuota_solvencia_ids, alumno=alumno)
+                )
+
+        # Proyecto de Inversión: cuota por REPRESENTANTE, no por alumno. El pago
+        # se registra contra el alumno seleccionado, pero la cuota que se salda
+        # pertenece a su representante.
+        proyecto_inversion_ids = data.get('proyecto_inversion_ids', [])
+        if proyecto_inversion_ids:
+            CuotaProyectoInversion.objects.filter(
+                id__in=proyecto_inversion_ids, representante=alumno.representante
+            ).update(pagado=True, fecha_pago=timezone.now())
+
+            for pago in pagos_creados:
+                pago.proyectos_inversion_pagados.set(
+                    CuotaProyectoInversion.objects.filter(id__in=proyecto_inversion_ids, representante=alumno.representante)
                 )
 
         LogAuditoria.objects.create(
@@ -681,14 +703,17 @@ class ConfiguracionCobranzaView(APIView):
     def get(self, request):
         param_mens = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()
         param_insc = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
+        param_proyecto = ParametroGlobal.objects.filter(clave="MONTO_PROYECTO_INVERSION_DEFECTO").first()
         return Response({
             'monto_defecto': param_mens.valor if param_mens else '35.00',
             'monto_inscripcion': param_insc.valor if param_insc else '50.00',
+            'monto_proyecto_inversion': param_proyecto.valor if param_proyecto else '0.00',
         })
 
     def post(self, request):
         monto = request.data.get('monto_defecto')
         monto_insc = request.data.get('monto_inscripcion')
+        monto_proyecto = request.data.get('monto_proyecto_inversion')
         response_data = {}
         if monto is not None:
             ParametroGlobal.objects.update_or_create(
@@ -702,6 +727,12 @@ class ConfiguracionCobranzaView(APIView):
                 defaults={'valor': str(monto_insc), 'descripcion': 'Monto base cuota de inscripción por defecto'}
             )
             response_data['monto_inscripcion'] = monto_insc
+        if monto_proyecto is not None:
+            ParametroGlobal.objects.update_or_create(
+                clave="MONTO_PROYECTO_INVERSION_DEFECTO",
+                defaults={'valor': str(monto_proyecto), 'descripcion': 'Monto base Proyecto de Inversión por defecto (por representante)'}
+            )
+            response_data['monto_proyecto_inversion'] = monto_proyecto
         return Response(response_data)
 
 
@@ -727,6 +758,35 @@ class ActualizarMensualidadesView(APIView):
             monto = item.get('monto_usd')
             if mensualidad_id and monto is not None:
                 Mensualidad.objects.filter(id=mensualidad_id).update(
+                    monto_usd=Decimal(str(monto))
+                )
+                actualizadas += 1
+
+        return Response({'actualizadas': actualizadas})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ACTUALIZACIÓN DE MONTO DE CUOTA(S) DE INSCRIPCIÓN (ajuste por alumno)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ActualizarCuotaInscripcionView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    @transaction.atomic
+    def patch(self, request):
+        items = request.data.get('cuotas', [])
+        if not items:
+            return Response(
+                {"error": "No se enviaron cuotas de inscripción para actualizar."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        actualizadas = 0
+        for item in items:
+            cuota_id = item.get('id')
+            monto = item.get('monto_usd')
+            if cuota_id and monto is not None:
+                CuotaInscripcion.objects.filter(id=cuota_id).update(
                     monto_usd=Decimal(str(monto))
                 )
                 actualizadas += 1

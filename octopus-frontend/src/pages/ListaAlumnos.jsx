@@ -7,8 +7,10 @@ import { sincronizarTasa } from '../api/cobranza.service';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useAlumnos } from '../hooks/useAlumnos';
 import { useMensualidadesAlumno } from '../hooks/useMensualidadesAlumno';
+import { useCuotaInscripcionAlumno } from '../hooks/useCuotaInscripcionAlumno';
 import TablaAlumnos, { TablaAlumnosSkeleton } from '../components/alumnos/TablaAlumnos';
 import ModalAjustarMensualidades from '../components/alumnos/ModalAjustarMensualidades';
+import ModalAjustarInscripcion from '../components/alumnos/ModalAjustarInscripcion';
 import ModalEditarAlumno from '../components/alumnos/ModalEditarAlumno';
 import ModalRegistrarAlumno from '../components/alumnos/ModalRegistrarAlumno';
 import SidebarFichaAlumno from '../components/alumnos/SidebarFichaAlumno';
@@ -32,6 +34,7 @@ const ListaAlumnos = () => {
 
     const alumnos = useAlumnos();
     const mensualidades = useMensualidadesAlumno();
+    const cuotaInscripcion = useCuotaInscripcionAlumno();
 
     // Cierra el panel de configuración al hacer click afuera o presionar Escape
     useEffect(() => {
@@ -78,6 +81,11 @@ const ListaAlumnos = () => {
     const handleAjustarDeuda = (alumno) => {
         alumnos.setSelectedAlumno(alumno);
         mensualidades.handleOpenModal(alumno);
+    };
+
+    const handleAjustarInscripcion = (alumno) => {
+        alumnos.setSelectedAlumno(alumno);
+        cuotaInscripcion.handleOpenModal(alumno);
     };
 
     return (
@@ -155,6 +163,15 @@ const ListaAlumnos = () => {
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     value={alumnos.montoInscripcion}
                                     onChange={(e) => alumnos.setMontoInscripcion(e.target.value)} />
+                                <label className="block text-[11px] uppercase tracking-widest mb-1"
+                                       style={{ color: 'var(--ash)' }}>
+                                    Proyecto de Inversión ($, por representante)
+                                </label>
+                                <input type="number" step="0.01" inputMode="decimal"
+                                    className="w-full px-3 py-2 rounded-lg outline-none mb-3"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                    value={alumnos.montoProyectoInversion}
+                                    onChange={(e) => alumnos.setMontoProyectoInversion(e.target.value)} />
                                 {/* C-4 fix: disabled mientras guarda */}
                                 <button
                                     onClick={() => alumnos.handleSaveConfig().then(() => setShowConfig(false)).catch(() => {})}
@@ -227,6 +244,7 @@ const ListaAlumnos = () => {
                         onRetirar={handleRetirar}
                         onReactivar={alumnos.solicitarReactivar}
                         onAjustarDeuda={handleAjustarDeuda}
+                        onAjustarInscripcion={handleAjustarInscripcion}
                         onIrCobranza={(a) => navigate(`/cobranza?cedula=${a.representante?.cedula ?? a.cedula_escolar}`)}
                     />
                 )}
@@ -246,6 +264,18 @@ const ListaAlumnos = () => {
                     onGenerarAnualidad={mensualidades.handleGenerarAnualidad}
                     onUpdateMonto={mensualidades.handleUpdateMonto}
                     onBulkUpdate={mensualidades.handleBulkUpdate}
+                />
+            )}
+
+            {cuotaInscripcion.showModal && alumnos.selectedAlumno && (
+                <ModalAjustarInscripcion
+                    alumno={alumnos.selectedAlumno}
+                    cuotas={cuotaInscripcion.cuotas}
+                    loadingCuotas={cuotaInscripcion.loadingCuotas}
+                    saving={cuotaInscripcion.savingCuotas}
+                    onClose={cuotaInscripcion.handleCloseModal}
+                    onSave={cuotaInscripcion.handleSave}
+                    onUpdateMonto={cuotaInscripcion.handleUpdateMonto}
                 />
             )}
 

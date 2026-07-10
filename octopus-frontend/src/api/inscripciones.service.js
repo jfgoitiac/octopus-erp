@@ -17,3 +17,14 @@ export const crearInscripcion = (payload) =>
 
 export const descargarComprobanteBlob = (id) =>
     axiosInstance.get(`secretaria/inscripciones/${id}/comprobante/`, { responseType: 'blob' });
+
+// La foto del alumno se sube aparte porque InscripcionSerializer usa escritura
+// anidada (alumno.representante) y DRF no soporta objetos anidados en un body
+// multipart — solo el endpoint plano de update_info acepta el archivo.
+export const subirFotoAlumno = (alumnoId, file) => {
+    const formData = new FormData();
+    formData.append('foto', file);
+    return axiosInstance.patch(`secretaria/alumnos/${alumnoId}/update_info/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+};

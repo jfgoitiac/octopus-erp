@@ -138,6 +138,69 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     value={form.concepto_solvencia || ''} onChange={set('concepto_solvencia')}
                                     aria-label="Concepto o mes al que corresponde la solvencia" />
                             </Campo>
+                            <Campo label="Proyecto de Inversión del representante (USD)">
+                                <input type="number" min="0" step="0.01" className={inputClass} style={inputStyle}
+                                    value={form.monto_proyecto_inversion ?? ''} onChange={set('monto_proyecto_inversion')}
+                                    aria-label="Monto del Proyecto de Inversión del período escolar activo, a nivel del representante" />
+                            </Campo>
+                            <div className="sm:col-span-2">
+                                <Campo label="Dirección">
+                                    <textarea rows="2" className={`${inputClass} resize-none`} style={inputStyle}
+                                        value={form.direccion || ''} onChange={set('direccion')} />
+                                </Campo>
+                            </div>
+                            <Campo label="Lugar de Nacimiento">
+                                <input type="text" className={inputClass} style={inputStyle}
+                                    value={form.lugar_nacimiento || ''} onChange={set('lugar_nacimiento')} />
+                            </Campo>
+                            <Campo label="País de Nacimiento">
+                                <input type="text" className={inputClass} style={inputStyle}
+                                    value={form.pais_nacimiento || ''} onChange={set('pais_nacimiento')} />
+                            </Campo>
+                            <Campo label="Estado de Nacimiento">
+                                <input type="text" className={inputClass} style={inputStyle}
+                                    value={form.estado_nacimiento || ''} onChange={set('estado_nacimiento')} />
+                            </Campo>
+                            <Campo label="Institución de Procedencia">
+                                <input type="text" className={inputClass} style={inputStyle}
+                                    value={form.institucion_procedencia || ''} onChange={set('institucion_procedencia')} />
+                            </Campo>
+                            <Campo label="Peso (kg)">
+                                <input type="number" step="0.01" className={inputClass} style={inputStyle}
+                                    value={form.peso || ''} onChange={set('peso')} />
+                            </Campo>
+                            <Campo label="Estatura (cm)">
+                                <input type="number" step="0.01" className={inputClass} style={inputStyle}
+                                    value={form.estatura || ''} onChange={set('estatura')} />
+                            </Campo>
+                            <Campo label="Bautizado">
+                                <select className={inputClass} style={inputStyle}
+                                    value={form.bautizado ?? ''} onChange={set('bautizado')}>
+                                    <option value="">No especifica</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </Campo>
+                            <div className="sm:col-span-2">
+                                <Campo label="Alérgico a">
+                                    <input type="text" className={inputClass} style={inputStyle}
+                                        value={form.alergico || ''} onChange={set('alergico')} />
+                                </Campo>
+                            </div>
+                            <Campo label="Contacto de Emergencia">
+                                <input type="text" className={inputClass} style={inputStyle}
+                                    value={form.contacto_emergencia_nombre || ''} onChange={set('contacto_emergencia_nombre')} />
+                            </Campo>
+                            <Campo label="Teléfono de Emergencia">
+                                <input type="tel" className={inputClass} style={inputStyle}
+                                    value={form.contacto_emergencia_telefono || ''} onChange={set('contacto_emergencia_telefono')} />
+                            </Campo>
+                            <div className="sm:col-span-2">
+                                <Campo label="Parentesco del Contacto">
+                                    <input type="text" className={inputClass} style={inputStyle}
+                                        value={form.contacto_emergencia_parentesco || ''} onChange={set('contacto_emergencia_parentesco')} />
+                                </Campo>
+                            </div>
                         </div>
                     </section>
 
@@ -176,6 +239,26 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                 <Campo label="Dirección de Habitación">
                                     <textarea rows="2" className={`${inputClass} resize-none`} style={inputStyle}
                                         value={form.rep_direccion || ''} onChange={set('rep_direccion')} />
+                                </Campo>
+                            </div>
+                            <Campo label="Parentesco">
+                                <select className={inputClass} style={inputStyle}
+                                    value={form.rep_parentesco || ''} onChange={set('rep_parentesco')}>
+                                    <option value="">Seleccionar…</option>
+                                    <option value="padre">Padre</option>
+                                    <option value="madre">Madre</option>
+                                    <option value="tutor">Tutor</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </Campo>
+                            <Campo label="Nacionalidad">
+                                <input type="text" className={inputClass} style={inputStyle}
+                                    value={form.rep_nacionalidad || ''} onChange={set('rep_nacionalidad')} />
+                            </Campo>
+                            <div className="sm:col-span-2">
+                                <Campo label="Nivel de Estudio">
+                                    <input type="text" className={inputClass} style={inputStyle}
+                                        value={form.rep_nivel_estudio || ''} onChange={set('rep_nivel_estudio')} />
                                 </Campo>
                             </div>
                         </div>

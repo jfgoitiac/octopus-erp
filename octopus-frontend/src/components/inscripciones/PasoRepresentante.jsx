@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { buscarRepresentante } from '../../api/inscripciones.service';
+import ModalCompletarRepresentante from './ModalCompletarRepresentante';
+import { camposFaltantesRepresentante } from '../../utils/inscripcionValidacion';
 
 const LABELS = {
     nombre:   'Nombre',
@@ -24,11 +26,19 @@ const AUTOCOMPLETE = {
     correo:   'email',
 };
 
+const PARENTESCO_OPTIONS = [
+    { value: 'padre', label: 'Padre' },
+    { value: 'madre', label: 'Madre' },
+    { value: 'tutor', label: 'Tutor' },
+    { value: 'otro',  label: 'Otro' },
+];
+
 export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
     const [loading,      setLoading]      = useState(false);
     const [repBuscado,   setRepBuscado]   = useState(false);
     const [cedulaInput,  setCedulaInput]  = useState(datos.representante?.cedula || '');
     const [errores,      setErrores]      = useState({});
+    const [modalCompletar, setModalCompletar] = useState(false);
 
     // Debounce con AbortController — evita race condition entre requests en vuelo
     useEffect(() => {
@@ -46,12 +56,14 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                         representante:       res.data,
                         esRepresentanteNuevo: false,
                     }));
+                    if (camposFaltantesRepresentante(res.data).length > 0) setModalCompletar(true);
                 } else {
                     setDatos(prev => ({
                         ...prev,
                         representante: {
                             cedula: cedulaInput, nombre: '', apellido: '',
                             telefono: '', correo: '', direccion: '',
+                            parentesco: '', nacionalidad: '', nivel_estudio: '',
                         },
                         esRepresentanteNuevo: true,
                     }));
@@ -100,6 +112,12 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
             setErrores(errs);
             return;
         }
+
+        if (!datos.esRepresentanteNuevo && camposFaltantesRepresentante(r).length > 0) {
+            setModalCompletar(true);
+            return;
+        }
+
         onContinuar();
     };
 
@@ -196,6 +214,69 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                                     </div>
                                 ))}
 
+                                <div>
+                                    <label
+                                        htmlFor="rep-parentesco"
+                                        className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                        style={{ color: 'var(--ash)' }}
+                                    >
+                                        Parentesco
+                                    </label>
+                                    <select
+                                        id="rep-parentesco"
+                                        name="parentesco"
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                        value={datos.representante.parentesco || ''}
+                                        onChange={handleFormChange}
+                                    >
+                                        <option value="">Seleccionar…</option>
+                                        {PARENTESCO_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="rep-nacionalidad"
+                                        className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                        style={{ color: 'var(--ash)' }}
+                                    >
+                                        Nacionalidad
+                                    </label>
+                                    <input
+                                        id="rep-nacionalidad"
+                                        type="text"
+                                        name="nacionalidad"
+                                        autoComplete="off"
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                        value={datos.representante.nacionalidad || ''}
+                                        onChange={handleFormChange}
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label
+                                        htmlFor="rep-nivel_estudio"
+                                        className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                        style={{ color: 'var(--ash)' }}
+                                    >
+                                        Nivel de estudio
+                                    </label>
+                                    <input
+                                        id="rep-nivel_estudio"
+                                        type="text"
+                                        name="nivel_estudio"
+                                        autoComplete="off"
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                        value={datos.representante.nivel_estudio || ''}
+                                        onChange={handleFormChange}
+                                    />
+                                </div>
+
                                 <div className="md:col-span-2">
                                     <label
                                         htmlFor="rep-direccion"
@@ -225,33 +306,67 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                             </div>
                         </div>
                     ) : (
-                        <div
-                            className="p-8 rounded-2xl flex items-center justify-between"
-                            style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div
-                                    className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                        <div className="space-y-4">
+                            <div
+                                className="p-8 rounded-2xl flex items-center justify-between"
+                                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div
+                                        className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                                        style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}
+                                    >
+                                        <CheckCircle2 size={32} aria-hidden="true" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-lg leading-tight" style={{ color: 'var(--jet)' }}>
+                                            {datos.representante.nombre} {datos.representante.apellido}
+                                        </p>
+                                        <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
+                                            {datos.representante.cedula} · {datos.representante.telefono}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span
+                                    className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest"
                                     style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}
                                 >
-                                    <CheckCircle2 size={32} aria-hidden="true" />
-                                </div>
-                                <div>
-                                    <p className="font-medium text-lg leading-tight" style={{ color: 'var(--jet)' }}>
-                                        {datos.representante.nombre} {datos.representante.apellido}
-                                    </p>
-                                    <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
-                                        {datos.representante.cedula} · {datos.representante.telefono}
-                                    </p>
-                                </div>
+                                    Registrado
+                                </span>
                             </div>
-                            <span
-                                className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest"
-                                style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}
-                            >
-                                Registrado
-                            </span>
+
+                            {camposFaltantesRepresentante(datos.representante).length > 0 && (
+                                <div
+                                    className="p-4 rounded-2xl flex items-center justify-between gap-4 flex-wrap"
+                                    style={{ background: '#fef2f2', border: '0.5px solid #fecaca' }}
+                                >
+                                    <div className="flex items-center gap-2 text-sm" style={{ color: '#b91c1c' }}>
+                                        <AlertCircle size={18} aria-hidden="true" />
+                                        <span>Este representante tiene datos obligatorios pendientes por completar.</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalCompletar(true)}
+                                        className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                                        style={{ background: '#b91c1c' }}
+                                    >
+                                        Completar datos
+                                    </button>
+                                </div>
+                            )}
                         </div>
+                    )}
+
+                    {modalCompletar && datos.representante && (
+                        <ModalCompletarRepresentante
+                            representante={datos.representante}
+                            onClose={() => setModalCompletar(false)}
+                            onGuardar={(repActualizado) => {
+                                setDatos(prev => ({ ...prev, representante: repActualizado }));
+                                setModalCompletar(false);
+                                toast.success('Datos del representante actualizados.');
+                            }}
+                        />
                     )}
 
                     <div className="flex justify-end mt-8">

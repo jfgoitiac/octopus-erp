@@ -121,6 +121,94 @@ const ModalRegistrarAlumno = ({
                                     style={{ ...inputStyle, background: '#fff' }}
                                     value={form.porcentaje_beca} onChange={set('porcentaje_beca')} />
                             </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Dirección
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.direccion} onChange={set('direccion')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Lugar de Nacimiento
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.lugar_nacimiento} onChange={set('lugar_nacimiento')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    País de Nacimiento
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.pais_nacimiento} onChange={set('pais_nacimiento')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Estado de Nacimiento
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.estado_nacimiento} onChange={set('estado_nacimiento')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Institución de Procedencia
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.institucion_procedencia} onChange={set('institucion_procedencia')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Peso (kg)
+                                </label>
+                                <input type="number" step="0.01" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.peso} onChange={set('peso')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Estatura (cm)
+                                </label>
+                                <input type="number" step="0.01" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.estatura} onChange={set('estatura')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Bautizado
+                                </label>
+                                <select className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.bautizado} onChange={set('bautizado')}>
+                                    <option value="">No especifica</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Alérgico a
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.alergico} onChange={set('alergico')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Contacto de Emergencia
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.contacto_emergencia_nombre} onChange={set('contacto_emergencia_nombre')} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Teléfono de Emergencia
+                                </label>
+                                <input type="tel" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.contacto_emergencia_telefono} onChange={set('contacto_emergencia_telefono')} />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Parentesco del Contacto
+                                </label>
+                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.contacto_emergencia_parentesco} onChange={set('contacto_emergencia_parentesco')} />
+                            </div>
                         </div>
                     </section>
 
@@ -183,6 +271,43 @@ const ModalRegistrarAlumno = ({
                                     style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
                                     required value={form.rep_direccion} readOnly={repFound}
                                     onChange={set('rep_direccion')} />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                       style={{ color: 'var(--ash)' }}>
+                                    Parentesco
+                                </label>
+                                <select className={inputClass}
+                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
+                                    value={form.rep_parentesco} disabled={repFound}
+                                    onChange={set('rep_parentesco')}>
+                                    <option value="">Seleccionar…</option>
+                                    <option value="padre">Padre</option>
+                                    <option value="madre">Madre</option>
+                                    <option value="tutor">Tutor</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                       style={{ color: 'var(--ash)' }}>
+                                    Nacionalidad
+                                </label>
+                                <input type="text" className={inputClass}
+                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
+                                    value={form.rep_nacionalidad} readOnly={repFound}
+                                    onChange={set('rep_nacionalidad')} />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5"
+                                       style={{ color: 'var(--ash)' }}>
+                                    Nivel de Estudio
+                                </label>
+                                <input type="text" className={inputClass}
+                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
+                                    value={form.rep_nivel_estudio} readOnly={repFound}
+                                    onChange={set('rep_nivel_estudio')} />
                             </div>
                         </div>
                     </section>

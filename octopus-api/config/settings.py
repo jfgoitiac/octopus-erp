@@ -183,6 +183,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'UPDATE_LAST_LOGIN': True,
 }
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURACIÓN DEL PORTAL DE REPRESENTANTES

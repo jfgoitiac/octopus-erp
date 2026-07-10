@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
     Loader2, RefreshCcw, Plus,
     FileSpreadsheet, Pencil, GraduationCap, Briefcase, Wrench,
-    Receipt, Search, AlertTriangle,
+    Receipt, Search, AlertTriangle, Trash2,
 } from 'lucide-react';
 
 import { useNomina } from '../hooks/useNomina';
@@ -11,6 +11,7 @@ import { loadCestaConfig } from '../constants/avec';
 import { ReciboModal } from '../components/nomina/ReciboModal';
 import { EmpleadoModal } from '../components/nomina/EmpleadoModal';
 import SkeletonFila from '../components/nomina/SkeletonFila';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 // ── Tabs de estamento ────────────────────────────────────────────────────────
 const TABS = [
@@ -29,6 +30,8 @@ const Nomina = () => {
         isRegistering, handleRegisterEmployee, handleOpenRegisterModal, handleCloseRegisterModal,
         showEditModal, editEmployeeData, handleEditChange, editErrors,
         isSaving, handleOpenEditModal, handleSaveEmployee, handleCloseEditModal,
+        empleadoParaEliminar, deletingId,
+        solicitarEliminarEmpleado, cancelarEliminarEmpleado, confirmarEliminarEmpleado,
     } = useNomina();
 
     const [activeTab,  setActiveTab]  = useState('docente');
@@ -248,6 +251,15 @@ const Nomina = () => {
                                                 aria-label={`Generar recibo de ${emp.nombre} ${emp.apellido}`}>
                                                 <Receipt size={12} /> Recibo
                                             </button>
+                                            <button onClick={() => solicitarEliminarEmpleado(emp)}
+                                                disabled={deletingId === emp.id}
+                                                className="flex items-center gap-1 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium min-h-[40px] sm:min-h-0 disabled:opacity-50"
+                                                style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
+                                                aria-label={`Eliminar a ${emp.nombre} ${emp.apellido}`}>
+                                                {deletingId === emp.id
+                                                    ? <Loader2 size={12} className="animate-spin" />
+                                                    : <Trash2 size={12} />}
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -311,6 +323,18 @@ const Nomina = () => {
                     submitLabel="Guardar cambios"
                     submitIcon={Pencil}
                     showTipoSelect
+                />
+            )}
+
+            {/* ════════════════════════════════════════════════════════════
+                MODAL — ELIMINAR EMPLEADO
+            ════════════════════════════════════════════════════════════ */}
+            {empleadoParaEliminar && (
+                <ConfirmDeleteModal
+                    titulo="Eliminar empleado"
+                    nombre={`${empleadoParaEliminar.nombre} ${empleadoParaEliminar.apellido}`}
+                    onConfirm={confirmarEliminarEmpleado}
+                    onCancel={cancelarEliminarEmpleado}
                 />
             )}
 

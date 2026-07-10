@@ -219,3 +219,106 @@ No se encontraron componentes del wizard sin ruta registrada (`App.jsx:106-130`,
 1. Falta de idempotencia ante reintento tras fallo de red post-commit — puede generar alumnos duplicados silenciosamente; se suma a los riesgos de condición de carrera ya documentados arriba (constraint de BD faltante en `Inscripcion`, falta de `select_for_update` en cupos).
 2. `on_delete=CASCADE` en `Alumno.representante` con protección solo a nivel de aplicación — riesgo de pérdida de datos si el borrado no pasa por el ViewSet.
 3. Inconsistencia de `on_delete` entre `Pago` (`PROTECT`) y el resto de modelos financieros del alumno (`CASCADE`) — riesgo latente, bajo impacto actual por el uso de soft-delete.
+
+---
+
+# NUEVA PLANILLA DE INSCRIPCIÓN — CAPTURA + PDF (2026-07-09)
+
+Deuda técnica detectada al agregar los campos de la planilla física (nacimiento,
+salud/procedencia, foto, datos del representante, `nro_solvencia`) y el bloque
+"Datos Administrativos" al PDF (`cobranza/utils.py::generar_pdf_inscripcion`,
+`cobranza/services.py::calcular_datos_administrativos_inscripcion`). Solo se
+anota, no se corrige en esta fase:
+
+1. **`buildPayload` (`useInscripcion.js`) es un whitelist manual que ya se
+   desincronizaba del modelo real** — antes de esta fase descartaba en
+   silencio `direccion`/`contacto_emergencia_*` del alumno aunque el modelo y
+   el serializer ya los soportaban. Con esta fase el whitelist creció a ~20
+   campos explícitos; el riesgo de que un campo nuevo del modelo quede fuera
+   del payload sin que nadie lo note sigue igual de latente. Un serializer
+   compartido/generado a partir del modelo (o al menos un test que compare
+   claves de `buildPayload` contra `AlumnoInscripcionSerializer.Meta.fields`)
+   evitaría que se repita.
+
+2. **La foto del alumno se sube en una segunda llamada HTTP separada de la
+   creación de la inscripción** (`subirFotoAlumno` en
+   `inscripciones.service.js`, disparada después del `POST
+   secretaria/inscripcion-nueva/` en `useInscripcion.js::handleConfirmar`).
+   Motivo: `InscripcionSerializer` escribe `alumno.representante` de forma
+   anidada, y DRF no puede parsear objetos anidados desde un body
+   `multipart/form-data` (solo desde JSON), así que no se pudo mandar todo en
+   un solo request. Si la creación de la inscripción tiene éxito pero la
+   subida de la foto falla (red, timeout), la inscripción queda completa pero
+   sin foto — el usuario recibe un toast de aviso pero no hay reintento
+   automático ni cola de reintento. Es el primer formulario del proyecto que
+   combina creación anidada + upload de archivo; documentar este patrón (o
+   resolverlo con un endpoint dedicado que acepte multipart con campos planos
+   `alumno.representante.nombre`) sirve de referencia para futuros formularios
+   similares.
+
+3. **No existe endpoint HTTP dedicado para "Datos Administrativos" fuera del
+   PDF** — `calcular_datos_administrativos_inscripcion` se expone como
+   `SerializerMethodField` de solo lectura en `InscripcionSerializer`
+   (`datos_administrativos`), pensado para una futura vista en pantalla (por
+   ejemplo en el portal de representantes), pero hoy solo lo consume
+   `generar_pdf_inscripcion`. Si se necesita mostrarlo en el frontend antes de
+   imprimir, ya está listo el cálculo; falta enchufarlo en algún componente.
+
+4. **Los modales `ModalRegistrarAlumno`/`ModalEditarAlumno` no incluyen
+   uploader de foto** — se agregaron todos los campos de texto nuevos
+   (nacimiento, salud, contacto de emergencia, datos del representante) pero
+   se dejó la foto fuera de estos dos modales a propósito: ambos envían el
+   payload como JSON (`handleRegister` hace `POST` JSON, `handleSaveEdit` hace
+   `PATCH` JSON vía `update_info`), y meterle `multipart` a esos dos flujos
+   para un caso de uso secundario (alta/edición de alumno fuera del wizard de
+   inscripción) no se justificaba en esta fase. La foto solo se puede cargar
+   hoy desde el wizard de inscripción (`PasoAlumno.jsx`).
+
+5. **`ImageField` es el primer uso de Pillow como dependencia real en el
+   proyecto** (ya estaba en `requirements.txt` pero sin ningún campo que lo
+   ejercitara). No hay validación de dimensiones/aspect ratio en el modelo —
+   cualquier imagen JPG/PNG/WEBP válida se acepta sin importar su tamaño en
+   píxeles, solo se valida tipo MIME y peso (5 MB) del lado del cliente en
+   `PasoAlumno.jsx`. Si el colegio necesita fotos tipo carnet con proporción
+   fija, faltaría agregar esa validación (client-side y/o server-side).
+
+---
+
+# VALIDACIÓN DE DATOS FALTANTES EN REINSCRIPCIÓN (2026-07-10)
+
+Se detectó que, al seleccionar un alumno o representante **ya existente** en
+el wizard de inscripción, `PasoAlumno.jsx`/`PasoRepresentante.jsx` avanzaban
+sin validar que sus datos estuvieran completos (`handleContinuar` solo
+corría las validaciones de campos requeridos para el caso "nuevo"). Se
+implementó:
+
+- `utils/inscripcionValidacion.js`: define los campos "críticos" de alumno
+  (fecha de nacimiento, género, dirección, contacto de emergencia completo)
+  y representante (nombre, apellido, teléfono, correo, dirección).
+- `ModalCompletarAlumno.jsx` / `ModalCompletarRepresentante.jsx`: modal que
+  se abre automáticamente al seleccionar un registro existente con campos
+  críticos vacíos, y también al presionar "Continuar" como resguardo. No se
+  puede avanzar en el wizard hasta guardar el modal con los campos
+  obligatorios completos.
+- **Backend**: `InscripcionSerializer.create()` (`secretaria/serializers.py`)
+  usaba `Representante.objects.get_or_create()` — si el representante ya
+  existía, cualquier dato editado en el formulario (incluyendo lo recién
+  completado en el modal nuevo) se descartaba en silencio porque
+  `get_or_create` no toca una fila existente. Se cambió a `update_or_create`,
+  igual que ya se hacía con `Alumno`, para que los datos completados se
+  persistan de verdad al confirmar la inscripción.
+
+**Riesgo relacionado NO corregido (queda anotado, no se tocó):**
+`Alumno.objects.update_or_create()` en el mismo método matchea por
+`cedula_escolar`. Si el alumno existente seleccionado tiene
+`cedula_escolar` vacío (campo opcional, común en alumnos que aún no tienen
+cédula escolar asignada), el `create()` le genera una **nueva** cédula
+temporal en cada submit (`generate_temporary_cedula_escolar`) antes de hacer
+el `update_or_create` — como esa cédula generada no existe todavía, el
+`update_or_create` no encuentra coincidencia y **crea un alumno duplicado**
+en vez de actualizar el seleccionado. Esto es independiente de esta fase
+(ya ocurría antes) pero el nuevo flujo de "completar datos" hace más
+probable que un usuario reinscriba alumnos justamente en ese estado
+(sin cédula escolar todavía). Solución propuesta: que el frontend envíe el
+`id` del alumno seleccionado y que `create()` intente resolver por `id`
+antes que por `cedula_escolar` cuando el primero venga presente.

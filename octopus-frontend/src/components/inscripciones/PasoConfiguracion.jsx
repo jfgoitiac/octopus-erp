@@ -160,6 +160,25 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
                                 </div>
                             </div>
 
+                            {/* Nº de solvencia de la institución de procedencia */}
+                            <div>
+                                <label
+                                    htmlFor="nro_solvencia"
+                                    className="text-[11px] uppercase tracking-widest mb-1.5 block"
+                                    style={{ color: 'var(--ash)' }}
+                                >
+                                    Nº de Solvencia (institución de procedencia)
+                                </label>
+                                <input
+                                    id="nro_solvencia"
+                                    type="text"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+                                    value={datos.nro_solvencia || ''}
+                                    onChange={(e) => setDatos(prev => ({ ...prev, nro_solvencia: e.target.value }))}
+                                />
+                            </div>
+
                             {/* Toggle documentos completos */}
                             <div
                                 className="flex items-center justify-between p-4 rounded-xl border"

@@ -39,6 +39,15 @@ def monto_mensualidad_defecto():
         return Decimal('35.00')
 
 
+def monto_proyecto_inversion_defecto():
+    """Monto base del Proyecto de Inversión desde ParametroGlobal (fallback 0.00 USD)."""
+    param = ParametroGlobal.objects.filter(clave="MONTO_PROYECTO_INVERSION_DEFECTO").first()
+    try:
+        return Decimal(param.valor) if param and param.valor else Decimal('0.00')
+    except Exception:
+        return Decimal('0.00')
+
+
 def configuracion_activa():
     """Instancia única de ConfiguracionSistema, o None si aún no existe."""
     from secretaria.models import ConfiguracionSistema
@@ -129,3 +138,51 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
 
     Mensualidad.objects.bulk_create(nuevas, batch_size=500, ignore_conflicts=True)
     return len(nuevas)
+
+
+def calcular_datos_administrativos_inscripcion(inscripcion):
+    """Deriva el bloque 'Datos Administrativos' de la planilla desde Pago/CuotaInscripcion.
+
+    Solo lectura: nunca se persiste, se recalcula en cada consulta a partir de
+    los pagos reales asociados a la cuota de inscripción del alumno/período.
+    """
+    from .models import CuotaInscripcion
+
+    datos = {
+        'monto_transferencia': Decimal('0.00'),
+        'nro_transferencia': '',
+        'monto_efectivo': Decimal('0.00'),
+        'banco_destino': '',
+        'banco_procedencia': '',
+        'fecha_pago': None,
+        'fecha_inscripcion': inscripcion.fecha_inscripcion,
+        'nro_solvencia': inscripcion.nro_solvencia,
+    }
+
+    cuota = CuotaInscripcion.objects.filter(
+        alumno=inscripcion.alumno, periodo_escolar=inscripcion.periodo_escolar
+    ).first()
+    if not cuota:
+        return datos
+
+    referencias = []
+    ultima_fecha_pago = None
+
+    for pago in cuota.pagos.all():
+        if pago.metodo_pago in ('transferencia', 'pago_movil'):
+            datos['monto_transferencia'] += pago.monto_usd
+            if pago.referencia:
+                referencias.append(pago.referencia)
+            if not datos['banco_destino'] and pago.banco_receptor:
+                datos['banco_destino'] = pago.banco_receptor.nombre
+            if not datos['banco_procedencia'] and pago.banco_procedencia:
+                datos['banco_procedencia'] = pago.banco_procedencia
+        elif pago.metodo_pago in ('efectivo', 'efectivo_ves'):
+            datos['monto_efectivo'] += pago.monto_usd
+
+        if ultima_fecha_pago is None or pago.fecha_pago > ultima_fecha_pago:
+            ultima_fecha_pago = pago.fecha_pago
+
+    datos['nro_transferencia'] = ', '.join(referencias)
+    datos['fecha_pago'] = ultima_fecha_pago
+    return datos

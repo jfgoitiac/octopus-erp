@@ -10,10 +10,12 @@ export const construirItemsRecibo = ({
     selectedFuturas,
     selectedCuotas,
     selectedSolvencias,
+    selectedProyectos,
     mensualidades,
     mensualidadesFuturas,
     cuotasInscripcion,
     cuotasSolvencia,
+    cuotasProyectoInversion,
     montosParciales,
     tasa,
     CONCEPTOS,
@@ -65,6 +67,16 @@ export const construirItemsRecibo = ({
         if (c) itemsRecibo.push({
             concepto: 'SOLVENCIA',
             descripcion: c.concepto || `Período ${c.periodo_escolar}`,
+            monto_usd: c.monto_usd,
+            monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
+        });
+    });
+
+    (selectedProyectos || []).forEach(id => {
+        const c = cuotasProyectoInversion?.find(x => x.id === id);
+        if (c) itemsRecibo.push({
+            concepto: 'PROYECTO DE INVERSIÓN',
+            descripcion: `Período ${c.periodo_escolar}`,
             monto_usd: c.monto_usd,
             monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
         });

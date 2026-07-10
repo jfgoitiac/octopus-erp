@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    ActualizarCuotaInscripcionView,
     ActualizarMensualidadesView,
     AuditoriaDiariaView,
     BancoDetailView,
@@ -33,6 +34,7 @@ urlpatterns = [
     path('auditoria-diaria/',              AuditoriaDiariaView.as_view(),          name='auditoria-diaria'),
     path('configuracion/',                 ConfiguracionCobranzaView.as_view(),    name='cobranza-configuracion'),
     path('actualizar-mensualidades/',      ActualizarMensualidadesView.as_view(),  name='actualizar-mensualidades'),
+    path('actualizar-cuota-inscripcion/',  ActualizarCuotaInscripcionView.as_view(), name='actualizar-cuota-inscripcion'),
     path('generar-anualidad/',             GenerarAnualidadView.as_view(),         name='generar-anualidad'),
     path('bancos/admin/',                  BancosAdminView.as_view(),              name='bancos-admin'),
     path('bancos/admin/<int:pk>/',         BancoDetailView.as_view(),              name='banco-detail'),

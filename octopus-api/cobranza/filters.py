@@ -13,7 +13,7 @@ class PagoFilter(django_filters.FilterSet):
       - fecha_hasta             : Fecha/hora fin (YYYY-MM-DD o YYYY-MM-DDTHH:MM)
       - metodo_pago             : transferencia | pago_movil | punto_de_venta | zelle | efectivo | efectivo_ves
       - estatus                 : completado | anulado | en_revision
-      - concepto                : mensualidad | inscripcion | materiales | actividades | multa | otro
+      - concepto                : mensualidad | inscripcion | materiales | proyecto_inversion | multa | otro
       - monto_min               : Monto USD mínimo (inclusivo)
       - monto_max               : Monto USD máximo (inclusivo)
       - representante_documento : Búsqueda parcial (icontains) en cédula/doc. del representante

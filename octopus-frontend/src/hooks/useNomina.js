@@ -58,6 +58,10 @@ export function useNomina() {
     const [isSaving,         setIsSaving]         = useState(false);
     const [editErrors,       setEditErrors]       = useState({});
 
+    // ── Eliminación ───────────────────────────────────────────────────────────
+    const [empleadoParaEliminar, setEmpleadoParaEliminar] = useState(null);
+    const [deletingId,           setDeletingId]           = useState(null);
+
     // ── Carga inicial / refresco ──────────────────────────────────────────────
     const fetchData = useCallback(async (signal) => {
         if (isFirstLoad.current) {
@@ -218,6 +222,27 @@ export function useNomina() {
         setEditErrors({});
     };
 
+    // ── Handlers eliminación ──────────────────────────────────────────────────
+    const solicitarEliminarEmpleado = (emp) => setEmpleadoParaEliminar(emp);
+    const cancelarEliminarEmpleado  = () => setEmpleadoParaEliminar(null);
+
+    const confirmarEliminarEmpleado = async () => {
+        if (!empleadoParaEliminar) return;
+        const { id, nombre, apellido } = empleadoParaEliminar;
+        setDeletingId(id);
+        setEmpleadoParaEliminar(null);
+        try {
+            await axiosInstance.delete(`rrhh/empleados/${id}/`);
+            toast.success(`${nombre} ${apellido} eliminado exitosamente.`);
+            setEmpleados(prev => prev.filter(e => e.id !== id));
+        } catch (err) {
+            const msg = parseApiError(err);
+            if (msg) toast.error(msg);
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     // ── Exportaciones ─────────────────────────────────────────────────────────
     const handleExportExcel = async () => {
         setExportingExcel(true);
@@ -262,5 +287,8 @@ export function useNomina() {
         // Edición
         showEditModal, editEmployeeData, handleEditChange, editErrors,
         isSaving, handleOpenEditModal, handleSaveEmployee, handleCloseEditModal,
+        // Eliminación
+        empleadoParaEliminar, deletingId,
+        solicitarEliminarEmpleado, cancelarEliminarEmpleado, confirmarEliminarEmpleado,
     };
 }
