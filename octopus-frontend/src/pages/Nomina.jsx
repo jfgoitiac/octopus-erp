@@ -204,7 +204,7 @@ const Nomina = () => {
                                             {emp.nombre} {emp.apellido}
                                         </p>
                                         <p className="text-xs font-mono" style={{ color: 'var(--ash)' }}>
-                                            V-{emp.cedula}
+                                            {/^[a-zA-Z]-/.test(emp.cedula || '') ? emp.cedula : `V-${emp.cedula}`}
                                         </p>
                                     </td>
                                     <td className="px-4 py-3">

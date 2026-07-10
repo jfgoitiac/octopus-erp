@@ -93,6 +93,7 @@ class Pago(models.Model):
         ('materiales', 'Materiales'),
         ('proyecto_inversion', 'Proyecto de Inversión'),
         ('multa', 'Multa'),
+        ('mixto', 'Pago Mixto (varios conceptos)'),
         ('otro', 'Otro'),
     )
 

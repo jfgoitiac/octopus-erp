@@ -324,6 +324,7 @@ const Cobranza = () => {
                 representante_documento: cedula,
                 representante_nombre: representanteNombre,
                 mensualidad_ids: selectedMens,
+                mensualidad_adelanto_ids: selectedFuturas,
                 mensualidades_pago: selectedMens.map(id => ({
                     id, monto_usd: buildMontoPago(id, mensualidades),
                 })),
@@ -472,6 +473,11 @@ const Cobranza = () => {
             setStep={setStep}
             concepto={concepto}
             setConcepto={setConcepto}
+            haySeleccion={haySeleccion}
+            hayMens={selectedMens.length > 0 || selectedFuturas.length > 0}
+            hayInscripcion={selectedCuotas.length > 0}
+            haySolvencia={selectedSolvencias.length > 0}
+            hayProyecto={selectedProyectos.length > 0}
             selectedMens={selectedMens}
             mensualidades={mensualidades}
             requiereDivisas={requiereDivisas}

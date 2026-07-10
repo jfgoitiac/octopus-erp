@@ -31,6 +31,11 @@ const CobranzaStep2 = ({
     setStep,
     concepto,
     setConcepto,
+    haySeleccion,
+    hayMens,
+    hayInscripcion,
+    haySolvencia,
+    hayProyecto,
     selectedMens,
     mensualidades,
     requiereDivisas,
@@ -49,6 +54,13 @@ const CobranzaStep2 = ({
     metodoPagoIcons,
     children,
 }) => {
+    const conceptosDetectados = [
+        hayMens && 'Mensualidad',
+        hayInscripcion && 'Inscripción',
+        haySolvencia && 'Solvencia',
+        hayProyecto && 'Proyecto de Inversión',
+    ].filter(Boolean);
+
     const crearLinea = () => ({
         id: Date.now() + Math.random(),
         metodo_pago: 'transferencia',
@@ -112,25 +124,39 @@ const CobranzaStep2 = ({
                         <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
                             Concepto de pago
                         </label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {CONCEPTOS.map(c => (
-                                <button
-                                    key={c.value}
-                                    type="button"
-                                    onClick={() => setConcepto(c.value)}
-                                    className="py-2 px-3 rounded-lg text-xs font-medium transition-all text-center"
-                                    style={{
-                                        border: concepto === c.value ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
-                                        background: concepto === c.value ? 'var(--pb-light)' : '#fff',
-                                        color: concepto === c.value ? 'var(--pb)' : 'var(--ash)',
-                                    }}
-                                >
-                                    {c.value === 'mensualidad' && selectedMens.length === 1
-                                        ? (() => { const m = mensualidades.find(x => x.id === selectedMens[0]); return m ? `${c.label} ${m.mes} ${m.anio}` : c.label; })()
-                                        : c.label}
-                                </button>
-                            ))}
-                        </div>
+                        {haySeleccion ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {conceptosDetectados.map(label => (
+                                    <span key={label} className="py-1.5 px-3 rounded-lg text-xs font-medium"
+                                        style={{ border: '1.5px solid var(--pb)', background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                        {label}
+                                    </span>
+                                ))}
+                                {conceptosDetectados.length > 1 && (
+                                    <p className="w-full text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                        Pago mixto — se registrará con el detalle de cada deuda saldada.
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                                {CONCEPTOS.map(c => (
+                                    <button
+                                        key={c.value}
+                                        type="button"
+                                        onClick={() => setConcepto(c.value)}
+                                        className="py-2 px-3 rounded-lg text-xs font-medium transition-all text-center"
+                                        style={{
+                                            border: concepto === c.value ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
+                                            background: concepto === c.value ? 'var(--pb-light)' : '#fff',
+                                            color: concepto === c.value ? 'var(--pb)' : 'var(--ash)',
+                                        }}
+                                    >
+                                        {c.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Mensualidades seleccionadas */}

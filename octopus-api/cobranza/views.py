@@ -372,9 +372,36 @@ class RegistrarPagoView(APIView):
 
         alumno = data['alumno']
         tasa   = data['tasa']
-        concepto = data.get('concepto', 'mensualidad')
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
+
+        mensualidad_ids          = data.get('mensualidad_ids', [])
+        mensualidad_adelanto_ids = data.get('mensualidad_adelanto_ids', [])
+        cuota_inscripcion_ids    = data.get('cuota_inscripcion_ids', [])
+        cuota_solvencia_ids      = data.get('cuota_solvencia_ids', [])
+        proyecto_inversion_ids   = data.get('proyecto_inversion_ids', [])
+
+        # El concepto se deriva de las deudas realmente seleccionadas, no del
+        # selector manual: una misma transacción puede saldar cuotas de
+        # distinto tipo a la vez (p. ej. mensualidad + proyecto de inversión).
+        # Si no se seleccionó ninguna cuota estructurada (pago libre: materiales,
+        # multa, otro), se respeta el concepto elegido manualmente en el form.
+        grupos_presentes = []
+        if mensualidad_ids or mensualidad_adelanto_ids:
+            grupos_presentes.append('mensualidad')
+        if cuota_inscripcion_ids:
+            grupos_presentes.append('inscripcion')
+        if cuota_solvencia_ids:
+            grupos_presentes.append('solvencia')
+        if proyecto_inversion_ids:
+            grupos_presentes.append('proyecto_inversion')
+
+        if len(grupos_presentes) == 1:
+            concepto = grupos_presentes[0]
+        elif len(grupos_presentes) > 1:
+            concepto = 'mixto'
+        else:
+            concepto = data.get('concepto', 'mensualidad')
 
         pagos_creados = []
         for pago_item in data['pagos']:
@@ -424,15 +451,18 @@ class RegistrarPagoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        mensualidad_ids = data.get('mensualidad_ids', [])
-        if mensualidad_ids:
+        # Mensualidades del mes en curso/atrasadas y adelantos de meses futuros
+        # comparten el mismo tratamiento: ambas son filas de Mensualidad que hay
+        # que marcar como pagadas.
+        todas_mensualidades_ids = list(set(mensualidad_ids) | set(mensualidad_adelanto_ids))
+        if todas_mensualidades_ids:
             Mensualidad.objects.filter(
-                id__in=mensualidad_ids, alumno=alumno
+                id__in=todas_mensualidades_ids, alumno=alumno
             ).update(pagado=True, fecha_pago=timezone.now())
 
             for pago in pagos_creados:
                 pago.mensualidades_pagadas.set(
-                    Mensualidad.objects.filter(id__in=mensualidad_ids, alumno=alumno)
+                    Mensualidad.objects.filter(id__in=todas_mensualidades_ids, alumno=alumno)
                 )
 
             # Recalcular con el criterio canónico: pagar un mes no implica
@@ -440,7 +470,6 @@ class RegistrarPagoView(APIView):
             from .mora import sincronizar_estatus_alumno
             sincronizar_estatus_alumno(alumno)
 
-        cuota_inscripcion_ids = data.get('cuota_inscripcion_ids', [])
         if cuota_inscripcion_ids:
             CuotaInscripcion.objects.filter(
                 id__in=cuota_inscripcion_ids, alumno=alumno
@@ -451,7 +480,6 @@ class RegistrarPagoView(APIView):
                     CuotaInscripcion.objects.filter(id__in=cuota_inscripcion_ids, alumno=alumno)
                 )
 
-        cuota_solvencia_ids = data.get('cuota_solvencia_ids', [])
         if cuota_solvencia_ids:
             CuotaSolvencia.objects.filter(
                 id__in=cuota_solvencia_ids, alumno=alumno
@@ -465,7 +493,6 @@ class RegistrarPagoView(APIView):
         # Proyecto de Inversión: cuota por REPRESENTANTE, no por alumno. El pago
         # se registra contra el alumno seleccionado, pero la cuota que se salda
         # pertenece a su representante.
-        proyecto_inversion_ids = data.get('proyecto_inversion_ids', [])
         if proyecto_inversion_ids:
             CuotaProyectoInversion.objects.filter(
                 id__in=proyecto_inversion_ids, representante=alumno.representante
@@ -481,10 +508,15 @@ class RegistrarPagoView(APIView):
             accion="REGISTRO_PAGO",
             modulo="COBRANZA",
             detalles={
-                "alumno_id":             alumno.id,
-                "nombre":                f"{alumno.nombre} {alumno.apellido}",
-                "total_pagos":           len(pagos_creados),
-                "mensualidades_pagadas": mensualidad_ids,
+                "alumno_id":                     alumno.id,
+                "nombre":                        f"{alumno.nombre} {alumno.apellido}",
+                "total_pagos":                   len(pagos_creados),
+                "concepto":                      concepto,
+                "mensualidades_pagadas":         mensualidad_ids,
+                "mensualidades_adelanto_pagadas": mensualidad_adelanto_ids,
+                "cuotas_inscripcion_pagadas":    cuota_inscripcion_ids,
+                "cuotas_solvencia_pagadas":      cuota_solvencia_ids,
+                "proyectos_inversion_pagados":   proyecto_inversion_ids,
             }
         )
 
