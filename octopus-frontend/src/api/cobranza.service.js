@@ -3,6 +3,12 @@ import apiClient from './apiClient';
 export const getDeudaAlumno = (cedula, signal) =>
     apiClient.get(`cobranza/buscar/${cedula}/`, { signal });
 
+export const getCuotaInscripcionAlumno = (alumnoId, signal) =>
+    apiClient.get(`cobranza/cuota-inscripcion-alumno/${alumnoId}/`, { signal });
+
+export const getMensualidadesAlumno = (alumnoId, signal) =>
+    apiClient.get(`cobranza/mensualidades-alumno/${alumnoId}/`, { signal });
+
 export const exportarMorososExcel = (busqueda, signal) => {
     const params = {};
     if (busqueda?.trim()) params.buscar = busqueda.trim();

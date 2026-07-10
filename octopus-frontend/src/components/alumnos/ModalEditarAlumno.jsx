@@ -139,9 +139,13 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     aria-label="Concepto o mes al que corresponde la solvencia" />
                             </Campo>
                             <Campo label="Proyecto de Inversión del representante (USD)">
-                                <input type="number" min="0" step="0.01" className={inputClass} style={inputStyle}
-                                    value={form.monto_proyecto_inversion ?? ''} onChange={set('monto_proyecto_inversion')}
-                                    aria-label="Monto del Proyecto de Inversión del período escolar activo, a nivel del representante" />
+                                <input type="number" readOnly disabled className={`${inputClass} cursor-not-allowed opacity-70`}
+                                    style={inputStyle}
+                                    value={form.monto_proyecto_inversion ?? ''}
+                                    aria-label="Monto del Proyecto de Inversión del período escolar activo, a nivel del representante (solo lectura)" />
+                                <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    Se edita desde el módulo de Representantes.
+                                </p>
                             </Campo>
                             <div className="sm:col-span-2">
                                 <Campo label="Dirección">

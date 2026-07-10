@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axiosInstance from '../api/apiClient';
-import { getDeudaAlumno } from '../api/cobranza.service';
+import { getCuotaInscripcionAlumno } from '../api/cobranza.service';
 import { toast } from 'react-toastify';
 import { parseApiError } from '../utils/apiError';
 
@@ -14,8 +14,8 @@ export function useCuotaInscripcionAlumno() {
         setShowModal(true);
         setLoadingCuotas(true);
         try {
-            const res = await getDeudaAlumno(alumno.cedula_escolar);
-            setCuotas(res.data?.alumnos?.[0]?.cuotas_inscripcion_pendientes || []);
+            const res = await getCuotaInscripcionAlumno(alumno.id);
+            setCuotas(res.data?.cuotas_inscripcion_pendientes || []);
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al cargar la cuota de inscripción.');
         } finally {

@@ -348,7 +348,6 @@ export function useAlumnos() {
                 porcentaje_beca: Number(editForm.porcentaje_beca) || 0,
                 monto_solvencia: Number(editForm.monto_solvencia) || 0,
                 concepto_solvencia: editForm.concepto_solvencia?.trim() || '',
-                monto_proyecto_inversion: Number(editForm.monto_proyecto_inversion) || 0,
                 direccion: editForm.direccion?.trim() || '',
                 contacto_emergencia_nombre: editForm.contacto_emergencia_nombre?.trim() || '',
                 contacto_emergencia_telefono: editForm.contacto_emergencia_telefono?.trim() || '',

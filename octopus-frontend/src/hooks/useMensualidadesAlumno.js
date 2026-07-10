@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axiosInstance from '../api/apiClient';
-import { getDeudaAlumno } from '../api/cobranza.service';
+import { getMensualidadesAlumno } from '../api/cobranza.service';
 import { toast } from 'react-toastify';
 import { parseApiError } from '../utils/apiError';
 
@@ -16,8 +16,8 @@ export function useMensualidadesAlumno() {
         setShowModal(true);
         setLoadingMensualidades(true);
         try {
-            const res = await getDeudaAlumno(alumno.cedula_escolar);
-            setMensualidades(res.data?.alumnos?.[0]?.mensualidades_pendientes || []);
+            const res = await getMensualidadesAlumno(alumno.id);
+            setMensualidades(res.data?.mensualidades_pendientes || []);
             setTotalDeuda(res.data?.monto_total_deuda || 0);
         } catch (err) {
             toast.error(parseApiError(err) || 'Error al cargar mensualidades.');
@@ -78,8 +78,8 @@ export function useMensualidadesAlumno() {
         }
         // Carga separada: un error de red aquí no revierte la generación exitosa
         try {
-            const res = await getDeudaAlumno(alumno.cedula_escolar);
-            setMensualidades(res.data?.alumnos?.[0]?.mensualidades_pendientes || []);
+            const res = await getMensualidadesAlumno(alumno.id);
+            setMensualidades(res.data?.mensualidades_pendientes || []);
             setTotalDeuda(res.data?.monto_total_deuda || 0);
         } catch {
             toast.warn('Recarga la página para ver las mensualidades actualizadas.');

@@ -344,8 +344,9 @@ class CuotaProyectoInversion(models.Model):
     Se genera junto con CuotaInscripcion (al abrir inscripciones o al cargar
     cuotas manualmente) usando el monto por defecto de ParametroGlobal
     (MONTO_PROYECTO_INVERSION_DEFECTO). El monto es ajustable por
-    representante (ver AlumnoUpdateSerializer.monto_proyecto_inversion) sin
-    afectar a otros representantes.
+    representante (ver secretaria.serializers.RepresentanteSerializer /
+    módulo de Representantes) sin afectar a otros representantes. No es
+    editable desde la ficha del alumno (Lista de Alumnos).
 
     Si está impaga, bloquea la inscripción de CUALQUIER alumno de ese
     representante (ver InscripcionSerializer), igual que una mensualidad o

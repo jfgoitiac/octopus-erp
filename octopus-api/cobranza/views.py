@@ -757,11 +757,21 @@ class ConfiguracionCobranzaView(APIView):
             'monto_proyecto_inversion': param_proyecto.valor if param_proyecto else '0.00',
         })
 
+    @transaction.atomic
     def post(self, request):
         monto = request.data.get('monto_defecto')
         monto_insc = request.data.get('monto_inscripcion')
         monto_proyecto = request.data.get('monto_proyecto_inversion')
         response_data = {}
+
+        # Período escolar activo: las cuotas YA PAGADAS jamás se tocan (filtro
+        # pagado=False). Solo las pendientes del período activo se sincronizan
+        # con el nuevo monto por defecto, para que un cambio de configuración
+        # sí se refleje en los representantes que aún no han pagado.
+        from secretaria.models import ConfiguracionSistema
+        config = ConfiguracionSistema.objects.first()
+        periodo_activo = config.periodo_escolar_activo if config else None
+
         if monto is not None:
             ParametroGlobal.objects.update_or_create(
                 clave="MONTO_MENSUALIDAD_DEFECTO",
@@ -774,18 +784,55 @@ class ConfiguracionCobranzaView(APIView):
                 defaults={'valor': str(monto_insc), 'descripcion': 'Monto base cuota de inscripción por defecto'}
             )
             response_data['monto_inscripcion'] = monto_insc
+            if periodo_activo:
+                CuotaInscripcion.objects.filter(
+                    periodo_escolar=periodo_activo, pagado=False
+                ).update(monto_usd=Decimal(str(monto_insc)))
         if monto_proyecto is not None:
             ParametroGlobal.objects.update_or_create(
                 clave="MONTO_PROYECTO_INVERSION_DEFECTO",
                 defaults={'valor': str(monto_proyecto), 'descripcion': 'Monto base Proyecto de Inversión por defecto (por representante)'}
             )
             response_data['monto_proyecto_inversion'] = monto_proyecto
+            if periodo_activo:
+                CuotaProyectoInversion.objects.filter(
+                    periodo_escolar=periodo_activo, pagado=False
+                ).update(monto_usd=Decimal(str(monto_proyecto)))
         return Response(response_data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ACTUALIZACIÓN MASIVA DE MONTOS DE MENSUALIDADES
 # ──────────────────────────────────────────────────────────────────────────────
+
+class MensualidadesAlumnoView(APIView):
+    """
+    Devuelve las mensualidades pendientes de un alumno buscando directamente
+    por su ID, igual que CuotaInscripcionAlumnoView: BuscarAlumnoCobranzaView
+    depende de cedula_escolar y falla silenciosamente (devuelve lista vacía,
+    sin error) cuando ese campo no está cargado.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request, alumno_id):
+        from secretaria.models import Alumno
+
+        try:
+            alumno = Alumno.objects.get(id=alumno_id, activo=True)
+        except Alumno.DoesNotExist:
+            return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        mensualidades = list(
+            Mensualidad.objects.filter(alumno=alumno, pagado=False)
+            .values('id', 'mes', 'anio', 'monto_usd')
+            .order_by('anio', 'mes')
+        )
+        total_deuda = sum((m['monto_usd'] for m in mensualidades), Decimal('0.00'))
+        return Response({
+            'mensualidades_pendientes': mensualidades,
+            'monto_total_deuda': str(total_deuda),
+        })
+
 
 class ActualizarMensualidadesView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
@@ -815,6 +862,31 @@ class ActualizarMensualidadesView(APIView):
 # ──────────────────────────────────────────────────────────────────────────────
 # ACTUALIZACIÓN DE MONTO DE CUOTA(S) DE INSCRIPCIÓN (ajuste por alumno)
 # ──────────────────────────────────────────────────────────────────────────────
+
+class CuotaInscripcionAlumnoView(APIView):
+    """
+    Devuelve las cuotas de inscripción pendientes de un alumno buscando
+    directamente por su ID (a diferencia de BuscarAlumnoCobranzaView, que
+    depende de cedula_escolar y falla silenciosamente cuando ese campo está
+    vacío, algo común en alumnos recién registrados).
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request, alumno_id):
+        from secretaria.models import Alumno
+
+        try:
+            alumno = Alumno.objects.get(id=alumno_id, activo=True)
+        except Alumno.DoesNotExist:
+            return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        cuotas = list(
+            CuotaInscripcion.objects.filter(alumno=alumno, pagado=False)
+            .values('id', 'periodo_escolar', 'monto_usd')
+            .order_by('-periodo_escolar')
+        )
+        return Response({'cuotas_inscripcion_pendientes': cuotas})
+
 
 class ActualizarCuotaInscripcionView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]

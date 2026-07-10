@@ -522,17 +522,6 @@ class AlumnoListView(viewsets.ModelViewSet):
                 valor_actual = cuota_actual.monto_usd if cuota_actual else None
                 if str(valor_actual) != str(value):
                     cambios_detectados.append(f"Solvencia {periodo}: {valor_actual} -> {value}")
-            elif attr == 'monto_proyecto_inversion':
-                from cobranza.models import CuotaProyectoInversion
-                config = ConfiguracionSistema.objects.first()
-                periodo = config.periodo_escolar_activo if config else None
-                cuota_actual = (
-                    CuotaProyectoInversion.objects.filter(representante=alumno.representante, periodo_escolar=periodo).first()
-                    if alumno.representante else None
-                )
-                valor_actual = cuota_actual.monto_usd if cuota_actual else None
-                if str(valor_actual) != str(value):
-                    cambios_detectados.append(f"Proyecto Inversión {periodo}: {valor_actual} -> {value}")
             else:
                 valor_actual = getattr(alumno, attr, None)
                 if str(valor_actual) != str(value):
