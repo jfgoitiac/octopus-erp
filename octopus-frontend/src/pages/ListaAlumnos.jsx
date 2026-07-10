@@ -261,7 +261,6 @@ const ListaAlumnos = () => {
                     saving={mensualidades.savingMensualidades}
                     onClose={mensualidades.handleCloseModal}
                     onSave={mensualidades.handleSave}
-                    onGenerarAnualidad={mensualidades.handleGenerarAnualidad}
                     onUpdateMonto={mensualidades.handleUpdateMonto}
                     onBulkUpdate={mensualidades.handleBulkUpdate}
                 />

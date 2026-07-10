@@ -262,6 +262,20 @@ class PagoCreateSerializer(serializers.Serializer):
                     "Verifique antes de continuar."
                 )
 
+        # Adelantos de mensualidades futuras: solo se aceptan en Zelle o
+        # Efectivo Divisas (USD), para evitar descuadres de tasa/cambio entre
+        # el momento del adelanto y el mes en que realmente se factura.
+        if data.get('mensualidad_adelanto_ids'):
+            metodos_no_permitidos = {
+                p['metodo_pago'] for p in data['pagos']
+                if p['metodo_pago'] not in ('zelle', 'efectivo')
+            }
+            if metodos_no_permitidos:
+                raise serializers.ValidationError(
+                    "Los adelantos de mensualidades solo se pueden pagar con Zelle o "
+                    "Efectivo Divisas (USD)."
+                )
+
         return data
 
 

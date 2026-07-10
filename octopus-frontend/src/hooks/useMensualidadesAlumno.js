@@ -66,34 +66,12 @@ export function useMensualidadesAlumno() {
         }
     };
 
-    const handleGenerarAnualidad = async (alumno) => {
-        setSavingMensualidades(true);
-        try {
-            await axiosInstance.post('cobranza/generar-anualidad/', { alumno_id: alumno.id });
-            toast.success('Año completo generado.');
-        } catch (err) {
-            toast.error(parseApiError(err) || 'Error al generar los meses del año.');
-            setSavingMensualidades(false);
-            return;
-        }
-        // Carga separada: un error de red aquí no revierte la generación exitosa
-        try {
-            const res = await getMensualidadesAlumno(alumno.id);
-            setMensualidades(res.data?.mensualidades_pendientes || []);
-            setTotalDeuda(res.data?.monto_total_deuda || 0);
-        } catch {
-            toast.warn('Recarga la página para ver las mensualidades actualizadas.');
-        } finally {
-            setSavingMensualidades(false);
-        }
-    };
-
     return {
         showModal, setShowModal,
         mensualidades, totalDeuda,
         loadingMensualidades, savingMensualidades,
         handleOpenModal, handleCloseModal,
         handleUpdateMonto, handleBulkUpdate,
-        handleSave, handleGenerarAnualidad,
+        handleSave,
     };
 }

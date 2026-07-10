@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, Save, Calendar, History, Loader2 } from 'lucide-react';
+import { X, Save, History, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -22,7 +22,6 @@ const ModalAjustarMensualidades = ({
     saving,
     onClose,
     onSave,
-    onGenerarAnualidad,
     onUpdateMonto,
     onBulkUpdate,
 }) => {
@@ -84,13 +83,6 @@ const ModalAjustarMensualidades = ({
                             <h3 className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
                                 Herramientas de Ajuste
                             </h3>
-                            <button
-                                onClick={() => onGenerarAnualidad(alumno)}
-                                disabled={saving}
-                                className="flex items-center gap-1 text-[10px] font-bold hover:underline disabled:opacity-50"
-                                style={{ color: 'var(--pb)' }}>
-                                <Calendar size={12} /> Generar Año Completo
-                            </button>
                         </div>
 
                         {mensualidades.length > 0 && (

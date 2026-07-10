@@ -210,14 +210,17 @@ class DashboardStatsView(APIView):
 # BÚSQUEDA DE ALUMNO/REPRESENTANTE PARA COBRANZA
 # ──────────────────────────────────────────────────────────────────────────────
 
+MES_NOMBRES = {
+    1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+    5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+    9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre',
+}
+
+
 class BuscarAlumnoCobranzaView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
-    MES_NOMBRES = {
-        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
-        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
-        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre',
-    }
+    MES_NOMBRES = MES_NOMBRES
 
     def _alumno_data(self, alumno):
         from datetime import date as _date
@@ -811,23 +814,46 @@ class MensualidadesAlumnoView(APIView):
     por su ID, igual que CuotaInscripcionAlumnoView: BuscarAlumnoCobranzaView
     depende de cedula_escolar y falla silenciosamente (devuelve lista vacía,
     sin error) cuando ese campo no está cargado.
+
+    Replica también el auto-generado de meses pendientes del año escolar
+    activo que hace BuscarAlumnoCobranzaView._alumno_data — si no se hace
+    aquí, un alumno cuyo representante nunca fue buscado por cédula se queda
+    sin mensualidades creadas y este endpoint (y el modal de Ajustar
+    Mensualidades) lo muestra como si no tuviera nada pendiente.
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     def get(self, request, alumno_id):
+        from datetime import date as _date
         from secretaria.models import Alumno
+        from .services import generar_mensualidades, meses_ano_escolar, rango_ano_escolar
 
         try:
             alumno = Alumno.objects.get(id=alumno_id, activo=True)
         except Alumno.DoesNotExist:
             return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
+        if alumno.estatus_financiero != 'becado':
+            hoy = _date.today()
+            rango = rango_ano_escolar()
+            if rango:
+                fecha_inicio, fecha_fin = rango
+                meses_pendientes = [
+                    (m, a) for (m, a) in meses_ano_escolar(fecha_inicio, fecha_fin)
+                    if (a, m) >= (hoy.year, hoy.month)
+                ]
+                generar_mensualidades([alumno], meses_pendientes)
+
         mensualidades = list(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
             .values('id', 'mes', 'anio', 'monto_usd')
             .order_by('anio', 'mes')
         )
-        total_deuda = sum((m['monto_usd'] for m in mensualidades), Decimal('0.00'))
+        for m in mensualidades:
+            m['mes'] = MES_NOMBRES.get(m['mes'], str(m['mes']))
+            m['monto_usd'] = str(m['monto_usd'])
+
+        total_deuda = sum((Decimal(m['monto_usd']) for m in mensualidades), Decimal('0.00'))
         return Response({
             'mensualidades_pendientes': mensualidades,
             'monto_total_deuda': str(total_deuda),
@@ -911,62 +937,6 @@ class ActualizarCuotaInscripcionView(APIView):
                 actualizadas += 1
 
         return Response({'actualizadas': actualizadas})
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# GENERAR ANUALIDAD (crea los 12 meses del año para un alumno)
-# ──────────────────────────────────────────────────────────────────────────────
-
-class GenerarAnualidadView(APIView):
-    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
-
-    @transaction.atomic
-    def post(self, request):
-        from datetime import date
-        from secretaria.models import Alumno
-
-        alumno_id = request.data.get('alumno_id')
-        if not alumno_id:
-            return Response(
-                {"error": "El campo alumno_id es requerido."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            alumno = Alumno.objects.get(id=alumno_id, activo=True)
-        except Alumno.DoesNotExist:
-            return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        from .services import generar_mensualidades, meses_ano_escolar, rango_ano_escolar
-
-        rango = rango_ano_escolar()
-        if not rango:
-            return Response(
-                {"error": "No hay año escolar configurado (fecha de inicio/fin de clases)."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        fecha_inicio, fecha_fin = rango
-        meses = meses_ano_escolar(fecha_inicio, fecha_fin)
-
-        creadas = generar_mensualidades([alumno], meses)
-
-        LogAuditoria.objects.create(
-            usuario=request.user,
-            accion="GENERACION_ANUALIDAD",
-            modulo="COBRANZA",
-            detalles={
-                "alumno_id":   alumno.id,
-                "nombre":      f"{alumno.nombre} {alumno.apellido}",
-                "meses_nuevos": creadas,
-                "ano_escolar": f"{fecha_inicio} - {fecha_fin}",
-            }
-        )
-
-        return Response({
-            'mensaje':  f"Se generaron {creadas} mensualidades nuevas para {alumno.nombre} {alumno.apellido}.",
-            'creadas':  creadas,
-            'alumno_id': alumno.id,
-        }, status=status.HTTP_201_CREATED)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
