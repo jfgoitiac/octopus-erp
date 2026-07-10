@@ -22,6 +22,7 @@ const Inscripciones            = lazy(() => import('./pages/Inscripciones'));
 const CobranzaDashboard        = lazy(() => import('./pages/CobranzaDashboard'));
 const Cobranza                 = lazy(() => import('./pages/Cobranza'));
 const Comprobantes             = lazy(() => import('./pages/Comprobantes'));
+const ConsultaSolvencia        = lazy(() => import('./pages/ConsultaSolvencia'));
 const ListaAlumnos             = lazy(() => import('./pages/ListaAlumnos'));
 const Grados                   = lazy(() => import('./pages/Grados'));
 const Morosos                  = lazy(() => import('./pages/Morosos'));
@@ -143,6 +144,11 @@ function App() {
               <Route path="comprobantes" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.CAJA}>
                   <Comprobantes />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/solvencia" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.CAJA}>
+                  <ConsultaSolvencia />
                 </ProtectedRoute>
               } />
               <Route path="conciliador" element={

@@ -145,15 +145,18 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
 
     Solo lectura: nunca se persiste, se recalcula en cada consulta a partir de
     los pagos reales asociados a la cuota de inscripción del alumno/período.
+
+    Agrupa los pagos por método de pago realmente utilizado, de modo que el
+    comprobante solo muestre los campos correspondientes a ese método (p. ej.
+    banco/referencia para transferencia o pago móvil, pero no para efectivo).
     """
     from .models import CuotaInscripcion
 
+    METODOS_CON_BANCO = ('transferencia', 'pago_movil', 'punto_de_venta')
+    METODOS_CON_REFERENCIA = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle', 'stripe')
+
     datos = {
-        'monto_transferencia': Decimal('0.00'),
-        'nro_transferencia': '',
-        'monto_efectivo': Decimal('0.00'),
-        'banco_destino': '',
-        'banco_procedencia': '',
+        'metodos_pago': [],
         'fecha_pago': None,
         'fecha_inscripcion': inscripcion.fecha_inscripcion,
         'nro_solvencia': inscripcion.nro_solvencia,
@@ -165,24 +168,32 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
     if not cuota:
         return datos
 
-    referencias = []
+    agrupados = {}
     ultima_fecha_pago = None
 
     for pago in cuota.pagos.all():
-        if pago.metodo_pago in ('transferencia', 'pago_movil'):
-            datos['monto_transferencia'] += pago.monto_usd
-            if pago.referencia:
-                referencias.append(pago.referencia)
-            if not datos['banco_destino'] and pago.banco_receptor:
-                datos['banco_destino'] = pago.banco_receptor.nombre
-            if not datos['banco_procedencia'] and pago.banco_procedencia:
-                datos['banco_procedencia'] = pago.banco_procedencia
-        elif pago.metodo_pago in ('efectivo', 'efectivo_ves'):
-            datos['monto_efectivo'] += pago.monto_usd
+        grupo = agrupados.setdefault(pago.metodo_pago, {
+            'metodo_display': pago.get_metodo_pago_display(),
+            'monto': Decimal('0.00'),
+            'referencias': [],
+            'banco_destino': '',
+            'banco_procedencia': '',
+        })
+        grupo['monto'] += pago.monto_usd
+        if pago.metodo_pago in METODOS_CON_REFERENCIA and pago.referencia:
+            grupo['referencias'].append(pago.referencia)
+        if pago.metodo_pago in METODOS_CON_BANCO:
+            if not grupo['banco_destino'] and pago.banco_receptor:
+                grupo['banco_destino'] = pago.banco_receptor.nombre
+            if not grupo['banco_procedencia'] and pago.banco_procedencia:
+                grupo['banco_procedencia'] = pago.banco_procedencia
 
         if ultima_fecha_pago is None or pago.fecha_pago > ultima_fecha_pago:
             ultima_fecha_pago = pago.fecha_pago
 
-    datos['nro_transferencia'] = ', '.join(referencias)
+    for grupo in agrupados.values():
+        grupo['referencia'] = ', '.join(grupo.pop('referencias'))
+        datos['metodos_pago'].append(grupo)
+
     datos['fecha_pago'] = ultima_fecha_pago
     return datos

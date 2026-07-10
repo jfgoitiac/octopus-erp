@@ -32,4 +32,29 @@ export function camposFaltantesRepresentante(representante) {
     return camposFaltantes(representante, CAMPOS_CRITICOS_REPRESENTANTE);
 }
 
+// Parentesco del representante respecto al alumno — se reutiliza como fuente
+// por defecto del contacto de emergencia (ver useContactoEmergencia).
+export const PARENTESCO_OPTIONS = [
+    { value: 'padre', label: 'Padre' },
+    { value: 'madre', label: 'Madre' },
+    { value: 'tutor', label: 'Tutor' },
+    { value: 'otro',  label: 'Otro' },
+];
+
+export function labelParentesco(value) {
+    return PARENTESCO_OPTIONS.find(o => o.value === value)?.label || value || '';
+}
+
+// Deriva los datos de contacto de emergencia a partir del representante —
+// en la gran mayoría de los casos el representante ES el contacto de
+// emergencia, así que evita pedirle al usuario que retipee lo mismo dos veces.
+export function contactoEmergenciaDesdeRepresentante(representante) {
+    if (!representante) return { contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '' };
+    return {
+        contacto_emergencia_nombre:     `${representante.nombre || ''} ${representante.apellido || ''}`.trim(),
+        contacto_emergencia_telefono:   representante.telefono || '',
+        contacto_emergencia_parentesco: labelParentesco(representante.parentesco),
+    };
+}
+
 export { CAMPOS_CRITICOS_ALUMNO, CAMPOS_CRITICOS_REPRESENTANTE };

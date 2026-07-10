@@ -146,6 +146,80 @@ def _get_config_colegio():
     return "UNIDAD EDUCATIVA", "", ""
 
 
+def _wrap_text(c, text, font, size, max_width):
+    """Envuelve `text` en líneas que no excedan `max_width` con la fuente/tamaño dados."""
+    words = text.split(' ')
+    lines = []
+    current = ''
+    for word in words:
+        candidate = f'{current} {word}'.strip()
+        if not current or c.stringWidth(candidate, font, size) <= max_width:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _draw_colegio_header(c, width, height, margin, nombre_colegio, rif_colegio, dir_colegio,
+                          titulo, subtitulo):
+    """
+    Dibuja el encabezado común a los comprobantes: nombre del colegio a la
+    izquierda, título del documento a la derecha. Cuando el nombre del
+    colegio es largo, se ajusta a hasta 2 líneas en vez de invadir el bloque
+    del título (bug reportado: nombres largos se superponían con
+    "COMPROBANTE DE INSCRIPCIÓN" / "RECIBO DE PAGO"). Si el nombre ocupa una
+    segunda línea, el resto de la página se desplaza hacia abajo con
+    `c.translate` para no chocar con el divisor dorado ni las secciones
+    siguientes, que siguen posicionándose con offsets relativos a `height`.
+    """
+    octopus_blue = HexColor("#1e293b")
+    header_ash = HexColor("#64748b")
+
+    titulo_font, titulo_size = "Helvetica-Bold", 12
+    subtitulo_font, subtitulo_size = "Helvetica-Bold", 14
+    title_width = max(
+        c.stringWidth(titulo, titulo_font, titulo_size),
+        c.stringWidth(subtitulo, subtitulo_font, subtitulo_size),
+    )
+    left_max_width = (width - 2 * margin) - title_width - 0.3 * inch
+
+    name_font, name_size = "Helvetica-Bold", 16
+    nombre = nombre_colegio.upper()
+    nombre_lineas = _wrap_text(c, nombre, name_font, name_size, left_max_width)
+    if len(nombre_lineas) > 2:
+        name_size = 13
+        nombre_lineas = _wrap_text(c, nombre, name_font, name_size, left_max_width)[:2]
+
+    name_line_h = name_size + 4
+    c.setFillColor(octopus_blue)
+    c.setFont(name_font, name_size)
+    y = height - 1 * inch
+    for linea in nombre_lineas:
+        c.drawString(margin, y, linea)
+        y -= name_line_h
+
+    c.setFillColor(header_ash)
+    c.setFont("Helvetica", 9)
+    if rif_colegio:
+        c.drawString(margin, y, rif_colegio)
+        y -= 0.15 * inch
+    if dir_colegio:
+        c.drawString(margin, y, dir_colegio)
+
+    c.setFillColor(octopus_blue)
+    c.setFont(titulo_font, titulo_size)
+    c.drawRightString(width - margin, height - 1 * inch, titulo)
+    c.setFont(subtitulo_font, subtitulo_size)
+    c.drawRightString(width - margin, height - 1.25 * inch, subtitulo)
+
+    extra_offset = (len(nombre_lineas) - 1) * name_line_h
+    if extra_offset:
+        c.translate(0, -extra_offset)
+
+
 def generar_pdf_recibo(pagos):
     """
     Genera comprobante de pago en PDF.
@@ -170,25 +244,9 @@ def generar_pdf_recibo(pagos):
     row_alt = HexColor("#f8fafc")
 
     # ── Cabecera ──────────────────────────────────────────────────────────────
-    c.setFillColor(octopus_blue)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(0.8 * inch, height - 1 * inch, nombre_colegio.upper())
-
-    c.setFillColor(ash)
-    c.setFont("Helvetica", 9)
-    linea_y = height - 1.2 * inch
-    if rif_colegio:
-        c.drawString(0.8 * inch, linea_y, rif_colegio)
-        linea_y -= 0.15 * inch
-    if dir_colegio:
-        c.drawString(0.8 * inch, linea_y, dir_colegio)
-
-    c.setFillColor(octopus_blue)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawRightString(width - 0.8 * inch, height - 1 * inch, "RECIBO DE PAGO")
-    c.setFont("Helvetica-Bold", 14)
     factura_label = pago.factura_id if pago.factura_id else f"Nº {pago.id:06d}"
-    c.drawRightString(width - 0.8 * inch, height - 1.25 * inch, factura_label)
+    _draw_colegio_header(c, width, height, 0.8 * inch, nombre_colegio, rif_colegio, dir_colegio,
+                          "RECIBO DE PAGO", factura_label)
 
     c.setStrokeColor(octopus_gold)
     c.setLineWidth(2)
@@ -402,28 +460,16 @@ def generar_pdf_inscripcion(inscripcion):
         return dt.strftime('%d/%m/%Y %H:%M') if dt else '—'
 
     # ── Encabezado ──────────────────────────────────────────────────────────
-    c.setFillColor(jet)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(margin, height - 1.0 * inch, nombre_colegio.upper())
+    # Mismo estilo/colores que generar_pdf_recibo (recibo de cobranza), para
+    # que ambos comprobantes compartan encabezado.
+    octopus_gold = HexColor("#f59e0b")
 
-    c.setFillColor(ash)
-    c.setFont("Helvetica", 9)
-    linea_y = height - 1.2 * inch
-    if rif_colegio:
-        c.drawString(margin, linea_y, rif_colegio)
-        linea_y -= 0.15 * inch
-    if dir_colegio:
-        c.drawString(margin, linea_y, dir_colegio)
+    _draw_colegio_header(c, width, height, margin, nombre_colegio, rif_colegio, dir_colegio,
+                          "COMPROBANTE DE INSCRIPCIÓN", f"Nº {inscripcion.id:06d}")
 
-    c.setFillColor(jet)
-    c.setFont("Helvetica-Bold", 13)
-    c.drawRightString(width - margin, height - 1.0 * inch, "COMPROBANTE DE INSCRIPCIÓN")
-    c.setFont("Helvetica-Bold", 15)
-    c.drawRightString(width - margin, height - 1.25 * inch, f"Nº {inscripcion.id:06d}")
-
-    c.setStrokeColor(azul)
+    c.setStrokeColor(octopus_gold)
     c.setLineWidth(2)
-    c.line(margin, height - 1.5 * inch, width - margin, height - 1.5 * inch)
+    c.line(margin, height - 1.6 * inch, width - margin, height - 1.6 * inch)
 
     # ── Marca de agua ──────────────────────────────────────────────────────────
     # Se dibuja antes que las secciones: cada caja de sección tiene fondo opaco
@@ -530,16 +576,25 @@ def generar_pdf_inscripcion(inscripcion):
     draw_seccion("DATOS DEL REPRESENTANTE", campos_representante)
 
     # ── Sección 3: Datos Administrativos (solo lectura, calculado) ────────────
-    campos_admin = [
-        f"Monto por Transferencia: $ {datos_admin['monto_transferencia']:,.2f}    "
-        f"Nº de Transferencia: {fmt(datos_admin['nro_transferencia'])}",
-        f"Monto en Efectivo: $ {datos_admin['monto_efectivo']:,.2f}",
-        f"Banco Destino: {fmt(datos_admin['banco_destino'])}    "
-        f"Banco de Procedencia: {fmt(datos_admin['banco_procedencia'])}",
-        f"Fecha de Pago: {fecha_fmt(datos_admin['fecha_pago'])}",
-        f"Fecha de Inscripción: {fecha_fmt(datos_admin['fecha_inscripcion'])}",
-        f"Nº de Solvencia: {fmt(datos_admin['nro_solvencia'])}",
-    ]
+    campos_admin = []
+    if datos_admin['metodos_pago']:
+        for metodo in datos_admin['metodos_pago']:
+            campos_admin.append(
+                f"Método de Pago: {metodo['metodo_display']}    "
+                f"Monto: $ {metodo['monto']:,.2f}"
+            )
+            if metodo['banco_destino'] or metodo['banco_procedencia']:
+                campos_admin.append(
+                    f"Banco Destino: {fmt(metodo['banco_destino'])}    "
+                    f"Banco de Procedencia: {fmt(metodo['banco_procedencia'])}"
+                )
+            if metodo['referencia']:
+                campos_admin.append(f"Nº de Referencia: {metodo['referencia']}")
+    else:
+        campos_admin.append("Método de Pago: —    Monto: $ 0.00")
+    campos_admin.append(f"Fecha de Pago: {fecha_fmt(datos_admin['fecha_pago'])}")
+    campos_admin.append(f"Fecha de Inscripción: {fecha_fmt(datos_admin['fecha_inscripcion'])}")
+    campos_admin.append(f"Nº de Solvencia: {fmt(datos_admin['nro_solvencia'])}")
     draw_seccion("DATOS ADMINISTRATIVOS (auto-generado)", campos_admin, bg=bg_admin)
 
     # ── Firmas ───────────────────────────────────────────────────────────────

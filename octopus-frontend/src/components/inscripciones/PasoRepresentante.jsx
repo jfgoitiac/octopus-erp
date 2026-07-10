@@ -3,7 +3,7 @@ import { Search, Loader2, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-r
 import { toast } from 'react-toastify';
 import { buscarRepresentante } from '../../api/inscripciones.service';
 import ModalCompletarRepresentante from './ModalCompletarRepresentante';
-import { camposFaltantesRepresentante } from '../../utils/inscripcionValidacion';
+import { camposFaltantesRepresentante, PARENTESCO_OPTIONS } from '../../utils/inscripcionValidacion';
 
 const LABELS = {
     nombre:   'Nombre',
@@ -25,13 +25,6 @@ const AUTOCOMPLETE = {
     telefono: 'tel',
     correo:   'email',
 };
-
-const PARENTESCO_OPTIONS = [
-    { value: 'padre', label: 'Padre' },
-    { value: 'madre', label: 'Madre' },
-    { value: 'tutor', label: 'Tutor' },
-    { value: 'otro',  label: 'Otro' },
-];
 
 export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
     const [loading,      setLoading]      = useState(false);

@@ -47,7 +47,7 @@ const ReciboCobranzaDoc = ({ data }) => {
     nroControl, mes, año, fechaPago,
     nombreEstudiante, grado, representante, ciRepresentante,
     tasa, items = [], observaciones,
-    logoColegio, logoAvec,
+    logoColegio, logoAvec, numeroSolvencia,
   } = data;
 
   const tasaNum = parseFloat(tasa) || 0;
@@ -189,6 +189,13 @@ const ReciboCobranzaDoc = ({ data }) => {
               {fmtZ(totalVes)}
             </td>
           </tr>
+          {numeroSolvencia && (
+            <tr>
+              <td colSpan={3} style={{ ...lb, fontSize: '8.5px', color: NAVY }}>
+                Solvencia: {numeroSolvencia}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 

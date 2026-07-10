@@ -308,6 +308,28 @@ implementó:
   igual que ya se hacía con `Alumno`, para que los datos completados se
   persistan de verdad al confirmar la inscripción.
 
+---
+
+# BUG — INSCRIPCIONES PERMITIDAS CON PERÍODO CERRADO (2026-07-10)
+
+Reportado por el usuario: el wizard de inscripción dejaba registrar alumnos
+aunque el período configurado (`ConfiguracionSistema.fecha_inicio/fin_inscripciones`)
+ya estuviera cerrado. Verificado: `inscripciones_abiertas` (property del
+modelo) solo se leía como badge visual en `Configuracion.jsx` — ni
+`InscripcionSerializer.validate()`/`create()` en el backend ni el wizard
+(`PasoConfiguracion.jsx`) lo comprobaban antes de crear la `Inscripcion`.
+
+**Corregido:**
+- `secretaria/serializers.py::InscripcionSerializer.validate()` ahora rechaza
+  la inscripción con `non_field_errors` si `ConfiguracionSistema.inscripciones_abiertas`
+  es `False` (mismo patrón que el chequeo de cupos existente en el mismo método).
+  Si no hay `ConfiguracionSistema` configurada, no bloquea (mismo criterio que
+  el resto del código ante configuración ausente).
+- `PasoConfiguracion.jsx` muestra un banner de aviso con las fechas vigentes
+  y deshabilita el botón "Revisar Inscripción" cuando `config.inscripciones_abiertas === false`.
+- Tests agregados en `secretaria/tests.py` (`InscripcionPeriodoCerradoTest`):
+  confirma rechazo con período cerrado y aceptación con período abierto.
+
 **Riesgo relacionado NO corregido (queda anotado, no se tocó):**
 `Alumno.objects.update_or_create()` en el mismo método matchea por
 `cedula_escolar`. Si el alumno existente seleccionado tiene
@@ -322,3 +344,44 @@ probable que un usuario reinscriba alumnos justamente en ese estado
 (sin cédula escolar todavía). Solución propuesta: que el frontend envíe el
 `id` del alumno seleccionado y que `create()` intente resolver por `id`
 antes que por `cedula_escolar` cuando el primero venga presente.
+
+---
+
+# CONTACTO DE EMERGENCIA = DATOS DEL REPRESENTANTE (2026-07-10)
+
+Reportado por el usuario: en el paso de datos del alumno del wizard, la
+sección "Contacto de emergencia" pedía retipear nombre/teléfono/parentesco
+aunque en la gran mayoría de los casos el contacto de emergencia **es** el
+propio representante ya capturado en el paso anterior — duplicación de
+tipeo y fuente de errores (datos desincronizados entre representante y
+"contacto de emergencia" del mismo alumno).
+
+**Implementado:**
+- `utils/inscripcionValidacion.js`: `contactoEmergenciaDesdeRepresentante()`
+  deriva `{contacto_emergencia_nombre, contacto_emergencia_telefono,
+  contacto_emergencia_parentesco}` a partir del representante. Se
+  centralizó también `PARENTESCO_OPTIONS`/`labelParentesco()` (antes
+  duplicado como JSX plano en `PasoRepresentante.jsx` y
+  `ModalCompletarRepresentante.jsx`).
+- `PasoAlumno.jsx` (alumno nuevo): checkbox "Usar los datos del
+  representante como contacto de emergencia", marcado por defecto si el
+  representante ya tiene nombre+teléfono. Al marcarlo, los 3 campos se
+  autocompletan y se deshabilitan; al desmarcarlo quedan editables para
+  cargar un contacto distinto.
+- `ModalCompletarAlumno.jsx` (alumno existente con datos pendientes): mismo
+  checkbox, pero solo se ofrece marcado por defecto si el alumno **no**
+  trae ya un contacto de emergencia propio cargado — para no pisar en
+  silencio un dato manual distinto que alguien ya haya guardado.
+
+**Bug preexistente relacionado, corregido en la misma pasada:**
+La validación inline de `PasoAlumno.jsx::handleContinuar` para alumno
+**nuevo** nunca exigió `direccion`/`contacto_emergencia_*` como requerido
+(solo nombre/apellido/fecha_nacimiento/género), a diferencia de
+`CAMPOS_CRITICOS_ALUMNO` (`inscripcionValidacion.js`) y de
+`ModalCompletarAlumno` (que sí lo exige para alumnos ya existentes). Antes
+del checkbox esto ya permitía crear un alumno nuevo sin contacto de
+emergencia; con el checkbox habría sido aún más fácil pasarlo por alto si
+el representante no tiene teléfono (arranca desmarcado) o el usuario lo
+desmarca y deja el campo vacío. Se agregaron los 4 campos al bloque `errs`
+de `handleContinuar`, con el mismo estilo de borde/mensaje de error que ya
+usan `nombre`/`apellido`/etc. en ese mismo formulario.

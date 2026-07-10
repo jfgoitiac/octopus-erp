@@ -388,9 +388,20 @@ class InscripcionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """
-        Validación preventiva de aforo antes de iniciar el proceso de guardado.
-        Impide escrituras innecesarias en el banco de alumnos si no hay cupo.
+        Validación preventiva de período de inscripciones y aforo antes de
+        iniciar el proceso de guardado. Impide escrituras innecesarias en el
+        banco de alumnos si el período está cerrado o no hay cupo.
         """
+        config = ConfiguracionSistema.objects.first()
+        if config and not config.inscripciones_abiertas:
+            raise serializers.ValidationError({
+                "non_field_errors": [
+                    "El período de inscripciones está cerrado "
+                    f"(vigente del {config.fecha_inicio_inscripciones.strftime('%d/%m/%Y')} "
+                    f"al {config.fecha_fin_inscripciones.strftime('%d/%m/%Y')})."
+                ]
+            })
+
         grado_seccion = attrs.get('grado_seccion')
         try:
             config = ConfiguracionGrado.objects.get(grado_seccion=grado_seccion)

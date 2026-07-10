@@ -9,10 +9,11 @@ import logging
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Q
-from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad, ParametroGlobal, Pago, TasaCambio, TransferenciaInterna
-from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer
+from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
+from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer
+from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from .utils import generar_pdf_recibo
-from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza
+from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
 from usuarios.models import LogAuditoria
 
 logger = logging.getLogger(__name__)
@@ -493,6 +494,7 @@ class RegistrarPagoView(APIView):
         # Proyecto de Inversión: cuota por REPRESENTANTE, no por alumno. El pago
         # se registra contra el alumno seleccionado, pero la cuota que se salda
         # pertenece a su representante.
+        numero_solvencia = None
         if proyecto_inversion_ids:
             CuotaProyectoInversion.objects.filter(
                 id__in=proyecto_inversion_ids, representante=alumno.representante
@@ -502,6 +504,15 @@ class RegistrarPagoView(APIView):
                 pago.proyectos_inversion_pagados.set(
                     CuotaProyectoInversion.objects.filter(id__in=proyecto_inversion_ids, representante=alumno.representante)
                 )
+
+            # Al completar el proyecto de inversión, si el representante ya no
+            # tiene deuda pendiente (inscripción + sin mora), se emite (o se
+            # confirma) su número de solvencia, ligado a esta factura.
+            solvencia = generar_o_verificar_solvencia(
+                alumno.representante, pago=pagos_creados[-1]
+            )
+            if solvencia:
+                numero_solvencia = solvencia.numero
 
         LogAuditoria.objects.create(
             usuario=request.user,
@@ -517,11 +528,15 @@ class RegistrarPagoView(APIView):
                 "cuotas_inscripcion_pagadas":    cuota_inscripcion_ids,
                 "cuotas_solvencia_pagadas":      cuota_solvencia_ids,
                 "proyectos_inversion_pagados":   proyecto_inversion_ids,
+                "numero_solvencia_generado":     numero_solvencia,
             }
         )
 
         return Response(
-            {'pagos': PagoSerializer(pagos_creados, many=True).data},
+            {
+                'pagos': PagoSerializer(pagos_creados, many=True).data,
+                'numero_solvencia': numero_solvencia,
+            },
             status=status.HTTP_201_CREATED
         )
 
@@ -1331,6 +1346,78 @@ class ConfigNominaView(APIView):
             return Response(_json.loads(param.valor))
         except Exception:
             return Response({})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SOLVENCIA DEL REPRESENTANTE
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ConsultaSolvenciaView(APIView):
+    """Busca la solvencia de un representante por su cédula. Es intransferible:
+    solo existe (o no) una por representante, nunca por alumno."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        cedula = (request.query_params.get('cedula') or '').strip()
+        if not cedula:
+            return Response({"error": "Debe indicar la cédula del representante."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from secretaria.models import Representante
+        representante = Representante.objects.filter(cedula=cedula).first()
+        if not representante:
+            return Response({"error": "No existe ningún representante con esa cédula."}, status=status.HTTP_404_NOT_FOUND)
+
+        # No solo lee: también verifica en este momento si el representante ya
+        # cumple el criterio (proyecto de inversión + inscripción pagados, sin
+        # mora) y, de ser así, la emite. Esto cubre a quienes completaron su
+        # pago antes de que existiera este mecanismo automático, o cuyo pago
+        # se registró por una vía que no pasó por RegistrarPagoView.
+        solvencia = generar_o_verificar_solvencia(representante)
+        if not solvencia:
+            return Response({
+                "tiene_solvencia": False,
+                "representante_cedula": representante.cedula,
+                "representante_nombre": f"{representante.nombre} {representante.apellido}".strip(),
+            }, status=status.HTTP_200_OK)
+
+        data = SolvenciaRepresentanteSerializer(solvencia).data
+        data["tiene_solvencia"] = True
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class EmitirSolvenciaManualView(APIView):
+    """Emisión manual de solvencia — exclusiva del rol Director. No valida
+    elegibilidad automática (mora/pagos): es una excepción bajo su criterio."""
+    permission_classes = [permissions.IsAuthenticated, IsDirector]
+
+    def post(self, request):
+        cedula = (request.data.get('cedula') or '').strip()
+        observaciones = request.data.get('observaciones', '') or ''
+        if not cedula:
+            return Response({"error": "Debe indicar la cédula del representante."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from secretaria.models import Representante
+        representante = Representante.objects.filter(cedula=cedula).first()
+        if not representante:
+            return Response({"error": "No existe ningún representante con esa cédula."}, status=status.HTTP_404_NOT_FOUND)
+
+        solvencia, creada = emitir_solvencia_manual(representante, request.user, observaciones=observaciones)
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="EMISION_SOLVENCIA_MANUAL",
+            modulo="COBRANZA",
+            detalles={
+                "representante_cedula": representante.cedula,
+                "numero_solvencia": solvencia.numero,
+                "ya_existia": not creada,
+                "observaciones": observaciones,
+            }
+        )
+
+        data = SolvenciaRepresentanteSerializer(solvencia).data
+        data["ya_existia"] = not creada
+        return Response(data, status=status.HTTP_200_OK if not creada else status.HTTP_201_CREATED)
 
     def put(self, request):
         valor = _json.dumps(request.data)

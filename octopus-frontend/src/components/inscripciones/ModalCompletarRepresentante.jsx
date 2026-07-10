@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { camposFaltantesRepresentante } from '../../utils/inscripcionValidacion';
+import { camposFaltantesRepresentante, PARENTESCO_OPTIONS } from '../../utils/inscripcionValidacion';
 
 const Campo = ({ label, requerido, error, children }) => (
     <div>
@@ -108,10 +108,9 @@ const ModalCompletarRepresentante = ({ representante, onClose, onGuardar }) => {
                         <Campo label="Parentesco">
                             <select className={inputClass} style={inputStyle('parentesco')} value={form.parentesco || ''} onChange={set('parentesco')}>
                                 <option value="">Seleccionar…</option>
-                                <option value="padre">Padre</option>
-                                <option value="madre">Madre</option>
-                                <option value="tutor">Tutor</option>
-                                <option value="otro">Otro</option>
+                                {PARENTESCO_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
                             </select>
                         </Campo>
                         <Campo label="Nacionalidad">

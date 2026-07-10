@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from portal.models import RepresentanteUser
-from .models import ConfiguracionGrado, Representante
+from .models import ConfiguracionGrado, ConfiguracionSistema, Representante
 from .serializers import InscripcionSerializer
 
 User = get_user_model()
@@ -163,3 +163,47 @@ class InscripcionLockingCuposTest(TestCase):
         self.config_grado.refresh_from_db()
         self.assertEqual(self.config_grado.cupos_utilizados, 1)
         self.assertEqual(self.config_grado.cupos_disponibles, 0)
+
+
+class InscripcionPeriodoCerradoTest(TestCase):
+    """
+    El sistema permitía crear inscripciones aunque el período configurado
+    (ConfiguracionSistema.fecha_inicio/fin_inscripciones) ya estuviera
+    cerrado: `inscripciones_abiertas` solo se usaba como badge visual en
+    Configuracion.jsx, sin ningún chequeo real en el serializer.
+    """
+
+    def setUp(self):
+        from datetime import date, timedelta
+
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='sistemas1', password='clave123456')
+        ConfiguracionGrado.objects.update_or_create(
+            grado_seccion='Grado Test Periodo', defaults={'cupos_maximos': 10, 'cupos_utilizados': 0}
+        )
+        self.hoy = date.today()
+        self.timedelta = timedelta
+
+    def test_no_permite_inscribir_con_periodo_cerrado(self):
+        ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=self.hoy - self.timedelta(days=60),
+            fecha_fin_inscripciones=self.hoy - self.timedelta(days=30),
+            fecha_inicio_ano_escolar=self.hoy - self.timedelta(days=300),
+            fecha_fin_ano_escolar=self.hoy + self.timedelta(days=60),
+        )
+        payload = _payload_inscripcion('V20000001', 'E20000001', 'Grado Test Periodo')
+        serializer = InscripcionSerializer(data=payload, context={'request': _FakeRequest(self.user)})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('non_field_errors', serializer.errors)
+        self.assertIn('cerrado', str(serializer.errors['non_field_errors']))
+
+    def test_permite_inscribir_con_periodo_abierto(self):
+        ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=self.hoy - self.timedelta(days=10),
+            fecha_fin_inscripciones=self.hoy + self.timedelta(days=10),
+            fecha_inicio_ano_escolar=self.hoy - self.timedelta(days=300),
+            fecha_fin_ano_escolar=self.hoy + self.timedelta(days=60),
+        )
+        payload = _payload_inscripcion('V20000002', 'E20000002', 'Grado Test Periodo')
+        serializer = InscripcionSerializer(data=payload, context={'request': _FakeRequest(self.user)})
+        self.assertTrue(serializer.is_valid(), serializer.errors)

@@ -4,7 +4,7 @@ import { parse, format, isValid } from 'date-fns';
 import { toast } from 'react-toastify';
 import SmartDateInput from '../SmartDateInput';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
+import { camposFaltantesAlumno, contactoEmergenciaDesdeRepresentante } from '../../utils/inscripcionValidacion';
 
 function parseISODate(str) {
     if (!str) return null;
@@ -29,13 +29,32 @@ const REQUERIDOS = ['fecha_nacimiento', 'genero', 'direccion', 'contacto_emergen
 // Modal que fuerza a completar los datos críticos de un alumno ya existente
 // antes de poder continuar con la inscripción — evita reinscribir con fichas
 // incompletas (dirección, contacto de emergencia, etc.).
-const ModalCompletarAlumno = ({ alumno, onClose, onGuardar }) => {
+const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
-    const [form, setForm] = useState(() => ({ ...alumno }));
+    // Solo se ofrece por defecto si el alumno no trae ya un contacto propio
+    // distinto — así no se pisa un dato manual ya cargado.
+    const sinContactoPropio = !alumno.contacto_emergencia_nombre?.trim()
+        && !alumno.contacto_emergencia_telefono?.trim()
+        && !alumno.contacto_emergencia_parentesco?.trim();
+    const usarRepInicial = sinContactoPropio && !!(representante?.nombre && representante?.telefono);
+
+    const [form, setForm] = useState(() => ({
+        ...alumno,
+        ...(usarRepInicial ? contactoEmergenciaDesdeRepresentante(representante) : {}),
+    }));
     const [errores, setErrores] = useState({});
+    const [usarRepComoContacto, setUsarRepComoContacto] = useState(usarRepInicial);
 
     const faltantesIniciales = useMemo(() => camposFaltantesAlumno(alumno), [alumno]);
+
+    const handleToggleUsarRepContacto = (checked) => {
+        setUsarRepComoContacto(checked);
+        if (checked) {
+            setForm(prev => ({ ...prev, ...contactoEmergenciaDesdeRepresentante(representante) }));
+            setErrores(prev => ({ ...prev, contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '' }));
+        }
+    };
 
     const inputStyle = (campo) => ({
         border: `0.5px solid ${errores[campo] ? '#f87171' : 'var(--border-md)'}`,
@@ -136,16 +155,30 @@ const ModalCompletarAlumno = ({ alumno, onClose, onGuardar }) => {
                         <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
                             Contacto de emergencia
                         </h4>
+                        {representante?.nombre && representante?.telefono && (
+                            <div className="flex items-center gap-2 mb-3">
+                                <input
+                                    id="modal-usar-rep-contacto"
+                                    type="checkbox"
+                                    checked={usarRepComoContacto}
+                                    onChange={(e) => handleToggleUsarRepContacto(e.target.checked)}
+                                    className="w-4 h-4 rounded"
+                                />
+                                <label htmlFor="modal-usar-rep-contacto" className="text-xs" style={{ color: 'var(--ash)' }}>
+                                    Usar los datos del representante ({representante.nombre} {representante.apellido}) como contacto de emergencia
+                                </label>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Campo label="Nombre del contacto" requerido error={errores.contacto_emergencia_nombre}>
-                                <input type="text" className={inputClass} style={inputStyle('contacto_emergencia_nombre')} value={form.contacto_emergencia_nombre || ''} onChange={set('contacto_emergencia_nombre')} />
+                                <input type="text" disabled={usarRepComoContacto} className={`${inputClass} disabled:opacity-60`} style={inputStyle('contacto_emergencia_nombre')} value={form.contacto_emergencia_nombre || ''} onChange={set('contacto_emergencia_nombre')} />
                             </Campo>
                             <Campo label="Teléfono del contacto" requerido error={errores.contacto_emergencia_telefono}>
-                                <input type="tel" className={inputClass} style={inputStyle('contacto_emergencia_telefono')} value={form.contacto_emergencia_telefono || ''} onChange={set('contacto_emergencia_telefono')} />
+                                <input type="tel" disabled={usarRepComoContacto} className={`${inputClass} disabled:opacity-60`} style={inputStyle('contacto_emergencia_telefono')} value={form.contacto_emergencia_telefono || ''} onChange={set('contacto_emergencia_telefono')} />
                             </Campo>
                             <div className="md:col-span-2">
                                 <Campo label="Parentesco del contacto" requerido error={errores.contacto_emergencia_parentesco}>
-                                    <input type="text" className={inputClass} style={inputStyle('contacto_emergencia_parentesco')} value={form.contacto_emergencia_parentesco || ''} onChange={set('contacto_emergencia_parentesco')} />
+                                    <input type="text" disabled={usarRepComoContacto} className={`${inputClass} disabled:opacity-60`} style={inputStyle('contacto_emergencia_parentesco')} value={form.contacto_emergencia_parentesco || ''} onChange={set('contacto_emergencia_parentesco')} />
                                 </Campo>
                             </div>
                         </div>

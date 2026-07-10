@@ -393,6 +393,7 @@ const Cobranza = () => {
                     tasa,
                     items:            itemsRecibo,
                     pagos:            pagosRecibo,
+                    numeroSolvencia:  res.data.numero_solvencia || null,
                 });
 
                 setCedula(''); setNombreAlumno(''); setGradoAlumno(''); setEstatusFinanciero('');

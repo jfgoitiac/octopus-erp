@@ -11,7 +11,9 @@ from .views import (
     ConfiguracionCobranzaView,
     ConfigNominaView,
     ConsultaComprobantesView,
+    ConsultaSolvenciaView,
     DashboardStatsView,
+    EmitirSolvenciaManualView,
     ExportarAuditoriaExcelView,
     ExportarMorososExcelView,
     GenerarAnualidadView,
@@ -47,4 +49,6 @@ urlpatterns = [
     path('morosos/',                       ListaMorososView.as_view(),             name='morosos-dinamico'),
     path('morosos/exportar-excel/',        ExportarMorososExcelView.as_view(),     name='morosos-exportar-excel'),
     path('config-nomina/',                 ConfigNominaView.as_view(),             name='config-nomina'),
+    path('solvencia/',                     ConsultaSolvenciaView.as_view(),        name='consulta-solvencia'),
+    path('solvencia/manual/',              EmitirSolvenciaManualView.as_view(),    name='emitir-solvencia-manual'),
 ]

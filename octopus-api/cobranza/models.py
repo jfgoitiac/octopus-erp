@@ -371,6 +371,47 @@ class CuotaProyectoInversion(models.Model):
         return f"{self.representante.nombre} {self.representante.apellido} - Proyecto de Inversión {self.periodo_escolar} - {'Pagado' if self.pagado else 'Pendiente'}"
 
 
+class SolvenciaRepresentante(models.Model):
+    """
+    Constancia de solvencia del representante: se emite una sola vez, es
+    intransferible (OneToOne) y certifica que, al momento de completar el
+    pago de inscripción + proyecto de inversión, el representante no tenía
+    ninguna deuda pendiente (mora) en ninguno de sus alumnos.
+
+    ORIGEN:
+      - 'automatica': generada por el sistema al registrar el pago que
+        completa el proyecto de inversión (ver cobranza/solvencia.py).
+      - 'manual': emitida a mano por un Director cuando el criterio
+        automático no aplica (caso excepcional).
+    """
+    ORIGENES = (
+        ('automatica', 'Automática'),
+        ('manual', 'Manual (Director)'),
+    )
+
+    representante = models.OneToOneField(
+        'secretaria.Representante', on_delete=models.PROTECT,
+        related_name='solvencia'
+    )
+    numero = models.CharField(max_length=20, unique=True, editable=False)
+    periodo_escolar = models.CharField(max_length=20)
+    origen = models.CharField(max_length=15, choices=ORIGENES, default='automatica')
+    fecha_generacion = models.DateTimeField(auto_now_add=True)
+    pago_generador = models.ForeignKey(
+        Pago, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='solvencias_generadas'
+    )
+    emitida_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='solvencias_emitidas_manualmente',
+        help_text="Solo aplica para origen='manual'"
+    )
+    observaciones = models.TextField(blank=True, default='')
+
+    def __str__(self):
+        return f"{self.numero} - {self.representante.cedula}"
+
+
 class CierreCaja(models.Model):
     usuario_cierre = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     fecha_cierre = models.DateTimeField(auto_now_add=True) # Cambio a DateTime para soportar turnos exactos

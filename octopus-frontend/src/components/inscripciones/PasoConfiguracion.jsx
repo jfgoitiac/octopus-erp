@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { fetchConfiguracionInscripcion } from '../../api/inscripciones.service';
 import { SkeletonGrado } from './SkeletonGrado';
 
@@ -30,8 +32,9 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
         return () => controller.abort();
     }, [setDatos]);
 
-    const seleccionado  = grados.find(g => g.grado_seccion === datos.grado_seccion);
-    const cuposAgotados = (seleccionado?.cupos_disponibles ?? 1) <= 0;
+    const seleccionado       = grados.find(g => g.grado_seccion === datos.grado_seccion);
+    const cuposAgotados      = (seleccionado?.cupos_disponibles ?? 1) <= 0;
+    const inscripcionesCerradas = config != null && !config.inscripciones_abiertas;
 
     if (loading) return (
         <div className="max-w-5xl mx-auto space-y-10 animate-fadeIn">
@@ -49,6 +52,26 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
 
     return (
         <div className="max-w-5xl mx-auto space-y-10 animate-fadeIn">
+            {inscripcionesCerradas && (
+                <div
+                    className="flex items-start gap-3 p-4 rounded-2xl"
+                    style={{ background: '#fef2f2', border: '0.5px solid #fecaca' }}
+                    role="alert"
+                >
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" style={{ color: '#dc2626' }} aria-hidden="true" />
+                    <p className="text-sm" style={{ color: '#991b1b' }}>
+                        El período de inscripciones está cerrado
+                        {config?.fecha_inicio_inscripciones && config?.fecha_fin_inscripciones && (
+                            <> (vigente del{' '}
+                                {format(parseISO(config.fecha_inicio_inscripciones), "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                                {' '}al{' '}
+                                {format(parseISO(config.fecha_fin_inscripciones), "dd 'de' MMMM 'de' yyyy", { locale: es })})
+                            </>
+                        )}
+                        . No es posible registrar nuevas inscripciones en este momento.
+                    </p>
+                </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* Lista de grados */}
@@ -220,7 +243,7 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
                 </button>
                 <button
                     type="button"
-                    disabled={!datos.grado_seccion || cuposAgotados}
+                    disabled={!datos.grado_seccion || cuposAgotados || inscripcionesCerradas}
                     onClick={onContinuar}
                     className="px-10 py-4 rounded-2xl text-sm font-medium text-white flex items-center gap-2 transition-all disabled:opacity-50"
                     style={{ background: 'var(--pb)' }}

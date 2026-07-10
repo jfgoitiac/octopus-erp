@@ -247,6 +247,7 @@ export default function Comprobantes() {
       items,
       pagos,
       observaciones:   c.observaciones     || '',
+      numeroSolvencia: c.numero_solvencia  || null,
     });
   };
 

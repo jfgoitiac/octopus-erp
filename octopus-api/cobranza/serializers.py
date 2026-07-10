@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import BancoInstitucional, CierreCaja, Pago, TasaCambio
+from .models import BancoInstitucional, CierreCaja, Pago, SolvenciaRepresentante, TasaCambio
 from secretaria.models import Alumno
 
 class BancoInstitucionalSerializer(serializers.ModelSerializer):
@@ -71,6 +71,13 @@ class ComprobanteSerializer(serializers.ModelSerializer):
     total_ves = serializers.SerializerMethodField()
     total_usd = serializers.SerializerMethodField()
     representante_nombre = serializers.SerializerMethodField()
+    numero_solvencia = serializers.SerializerMethodField()
+
+    def get_numero_solvencia(self, obj):
+        """Solo la factura que generó la solvencia la muestra en reimpresión,
+        igual que en la impresión original — es intransferible a otras facturas."""
+        solvencia = obj.solvencias_generadas.first()
+        return solvencia.numero if solvencia else None
 
     def get_representante_nombre(self, obj):
         """Devuelve el nombre completo del representante.
@@ -121,8 +128,26 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             'concepto_display', 'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago',
             'referencia', 'estatus', 'estatus_display', 'observaciones',
             'representante_documento', 'representante_nombre',
-            'desglose_pagos', 'total_ves', 'total_usd',
+            'desglose_pagos', 'total_ves', 'total_usd', 'numero_solvencia',
         ]
+
+class SolvenciaRepresentanteSerializer(serializers.ModelSerializer):
+    representante_cedula = serializers.ReadOnlyField(source='representante.cedula')
+    representante_nombre = serializers.SerializerMethodField()
+    origen_display = serializers.CharField(source='get_origen_display', read_only=True)
+    emitida_por_nombre = serializers.ReadOnlyField(source='emitida_por.username', allow_null=True)
+
+    def get_representante_nombre(self, obj):
+        return f"{obj.representante.nombre} {obj.representante.apellido}".strip()
+
+    class Meta:
+        model = SolvenciaRepresentante
+        fields = [
+            'id', 'numero', 'representante_cedula', 'representante_nombre',
+            'periodo_escolar', 'origen', 'origen_display', 'fecha_generacion',
+            'pago_generador', 'emitida_por_nombre', 'observaciones',
+        ]
+
 
 class PagoItemSerializer(serializers.Serializer):
     """Esquema estricto para cada método de pago dentro de una transacción."""

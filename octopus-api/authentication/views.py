@@ -51,6 +51,26 @@ class IsSystemAdminOrDirector(permissions.BasePermission):
         except PerfilUsuario.DoesNotExist:
             return False
 
+
+class IsDirector(permissions.BasePermission):
+    """
+    Exclusivo del rol director (o superusuario). Usado para acciones
+    excepcionales que no deben delegarse ni a sistemas ni a administrador,
+    como la emisión manual de solvencia.
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser:
+            return True
+
+        try:
+            perfil = request.user.perfil
+            return perfil.esta_activo and perfil.rol == 'director'
+        except PerfilUsuario.DoesNotExist:
+            return False
+
 # --- VISTA DE LOGIN (JWT) ---
 class LoginView(TokenObtainPairView):
     """
