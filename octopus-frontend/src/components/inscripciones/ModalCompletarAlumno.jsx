@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { parse, format, isValid } from 'date-fns';
+import { parse, format, isValid, differenceInYears } from 'date-fns';
 import { toast } from 'react-toastify';
 import SmartDateInput from '../SmartDateInput';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -72,6 +72,13 @@ const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => 
         if (errores.fecha_nacimiento) setErrores(prev => ({ ...prev, fecha_nacimiento: '' }));
     };
 
+    // Edad calculada automáticamente a partir de la fecha de nacimiento —
+    // nunca se captura a mano.
+    const edadCalculada = useMemo(
+        () => (fechaNacimientoDate ? differenceInYears(new Date(), fechaNacimientoDate) : null),
+        [fechaNacimientoDate]
+    );
+
     const handleGuardar = () => {
         const errs = {};
         REQUERIDOS.forEach(campo => {
@@ -136,6 +143,11 @@ const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => 
                                 value={fechaNacimientoDate} onChange={handleFechaNacimiento}
                                 aria-label="Fecha de nacimiento"
                             />
+                            {edadCalculada !== null && (
+                                <p className="text-[11px] mt-1.5" style={{ color: 'var(--ash)' }}>
+                                    Edad: {edadCalculada} {edadCalculada === 1 ? 'año' : 'años'}
+                                </p>
+                            )}
                         </Campo>
                         <Campo label="Género" requerido error={errores.genero}>
                             <select className={inputClass} style={inputStyle('genero')} value={form.genero || ''} onChange={set('genero')}>

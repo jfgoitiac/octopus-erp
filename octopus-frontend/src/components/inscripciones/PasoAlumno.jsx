@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserPlus, ArrowRight, ArrowLeft, AlertCircle, X, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { parse, format, isValid } from 'date-fns';
+import { parse, format, isValid, differenceInYears } from 'date-fns';
 import SmartDateInput from '../SmartDateInput';
 import { fetchAlumnosPorRepresentante } from '../../api/inscripciones.service';
 import { SkeletonCard } from './SkeletonCard';
@@ -68,6 +68,13 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     const fechaNacimientoDate = useMemo(
         () => parseISODate(datos.alumno?.fecha_nacimiento),
         [datos.alumno?.fecha_nacimiento]
+    );
+
+    // Edad calculada automáticamente a partir de la fecha de nacimiento —
+    // nunca se captura a mano.
+    const edadCalculada = useMemo(
+        () => (fechaNacimientoDate ? differenceInYears(new Date(), fechaNacimientoDate) : null),
+        [fechaNacimientoDate]
     );
 
     const handleSelectExistente = (alu) => {
@@ -331,6 +338,11 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                             />
                             {errores.fecha_nacimiento && (
                                 <p className="text-[10px] mt-1 text-red-500">{errores.fecha_nacimiento}</p>
+                            )}
+                            {edadCalculada !== null && (
+                                <p className="text-[11px] mt-1.5" style={{ color: 'var(--ash)' }}>
+                                    Edad: {edadCalculada} {edadCalculada === 1 ? 'año' : 'años'}
+                                </p>
                             )}
                         </div>
 

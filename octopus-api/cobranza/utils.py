@@ -551,7 +551,7 @@ def generar_pdf_inscripcion(inscripcion):
     campos_estudiante = [
         f"Nombre y Apellido: {alumno.nombre} {alumno.apellido}",
         f"Cédula Escolar: {alumno.cedula_escolar or 'Temporal'}",
-        f"Fecha de Nacimiento: {alumno.fecha_nacimiento.strftime('%d/%m/%Y')}    Género: {alumno.get_genero_display()}",
+        f"Fecha de Nacimiento: {alumno.fecha_nacimiento.strftime('%d/%m/%Y') if alumno.fecha_nacimiento else 'No especificada'}    Género: {alumno.get_genero_display()}",
         f"Lugar de Nacimiento: {fmt(alumno.lugar_nacimiento)}    País: {fmt(alumno.pais_nacimiento)}    Estado: {fmt(alumno.estado_nacimiento)}",
         f"Peso: {fmt(alumno.peso)} kg    Estatura: {fmt(alumno.estatura)} cm    Bautizado: {bool_display(alumno.bautizado)}",
         f"Institución de Procedencia: {fmt(alumno.institucion_procedencia)}",

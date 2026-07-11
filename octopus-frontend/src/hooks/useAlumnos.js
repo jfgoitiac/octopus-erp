@@ -237,7 +237,7 @@ export function useAlumnos() {
                 nombre: registerForm.nombre,
                 apellido: registerForm.apellido,
                 cedula_escolar: registerForm.cedula_escolar.trim() || null,
-                fecha_nacimiento: registerForm.fecha_nacimiento,
+                fecha_nacimiento: registerForm.fecha_nacimiento || null,
                 genero: registerForm.genero,
                 porcentaje_beca: Number(registerForm.porcentaje_beca) || 0,
                 direccion: registerForm.direccion || '',

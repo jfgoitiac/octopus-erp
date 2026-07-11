@@ -111,7 +111,7 @@ class Alumno(models.Model):
     cedula_escolar   = models.CharField(max_length=20, unique=True, blank=True, null=True)
     nombre           = models.CharField(max_length=100)
     apellido         = models.CharField(max_length=100)
-    fecha_nacimiento = models.DateField()
+    fecha_nacimiento = models.DateField(null=True, blank=True)
     genero           = models.CharField(max_length=15, choices=GENEROS, default='masculino')
     direccion        = models.TextField(blank=True, default='')  # NUEVO
     foto             = models.ImageField(upload_to='alumnos/fotos/', null=True, blank=True)

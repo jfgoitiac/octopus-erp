@@ -42,6 +42,23 @@ Boletín, Asistencia
 
 ## MÓDULO LISTA ALUMNOS
 
+### Cambio de negocio 2026-07-11 — Fecha de nacimiento ya no es obligatoria
+
+- Alcance: crear alumno (`ModalRegistrarAlumno`) y editar alumno (`ModalEditarAlumno`) desde Lista de Alumnos. **No** se tocó el wizard de inscripción (`PasoAlumno.jsx`, `ModalCompletarAlumno.jsx`, `inscripcionValidacion.js`), que sigue exigiéndola — decisión explícita del usuario, pendiente de confirmar si también debe relajarse ahí.
+- Backend: `Alumno.fecha_nacimiento` pasó de `DateField()` a `DateField(null=True, blank=True)` (migración `secretaria/0012_alumno_fecha_nacimiento_opcional.py`, aplicada). `AlumnoSerializer` (creación) hereda `required=False`/`allow_null=True` automáticamente del modelo; `AlumnoUpdateSerializer` ya lo permitía.
+- Se corrigió `cobranza/utils.py` (generación de PDF de ficha del alumno): llamaba `alumno.fecha_nacimiento.strftime(...)` sin guardas — ahora muestra "No especificada" si es `None`.
+- `useAlumnos.js::handleRegister` ahora envía `null` en vez de `""` cuando el campo queda vacío (mismo patrón que `handleSaveEdit`, que ya lo hacía).
+- 🟡 Pendiente de revisar si aplica: cualquier otro reporte/PDF/exportación que asuma `fecha_nacimiento` no nulo (se auditó `cobranza/utils.py`; no se encontraron otros usos de `.strftime()`/aritmética directa sobre el campo en el backend al momento de este cambio, pero conviene revisar de nuevo si se agregan reportes nuevos).
+
+### Bugs corregidos 2026-07-11
+
+- ✅ **Fecha de nacimiento "desaparecía" al reabrir Editar Información**: no era un problema de guardado — `SmartDateInput.jsx` inicializaba su estado interno `display` en `""` y solo lo sincronizaba con la prop `value` cuando ésta *cambiaba* tras el montaje. Como `ModalEditarAlumno` se desmonta/remonta en cada apertura (render condicional en `ListaAlumnos.jsx`), cada apertura era un "primer render" y el campo nunca se pintaba con la fecha ya persistida en el backend. Corregido con inicialización perezosa de `display` a partir de `value`. Afecta también a `ModalRegistrarAlumno` y el wizard de inscripción, que comparten el componente.
+- ✅ **Modal de Editar Información se cerraba solo mientras se editaba**: el fondo (`backdrop`) usaba `onClick={onClose}`, que se dispara con cualquier `click` — incluido el que el navegador genera cuando el usuario selecciona texto arrastrando el mouse desde un input (ej. "Dirección") y suelta el botón fuera del modal. Corregido en `ModalEditarAlumno.jsx` con detección `mousedown`+`mouseup` sobre el backdrop mismo (`e.target === e.currentTarget` en ambos eventos), en vez de un solo `onClick`.
+
+### 🟡 Pendiente — mismo patrón de cierre en otros modales
+
+El `onClick={onClose}` en el backdrop (vulnerable a la misma selección-de-texto-que-cierra) sigue presente, sin corregir, en ~19 modales más del proyecto (`ModalAjustarMensualidades`, `ModalRegistrarAlumno`, `ModalAjustarInscripcion`, `ModalRetirar`, `ModalAsignarGrado`, `ModalRepresentante`, modales de horarios/nómina/sistemas, etc.). No se tocaron en esta pasada por estar fuera del alcance solicitado (solo Lista de Alumnos). Si se repite la queja en otro módulo, aplicar el mismo fix de `mousedown`/`mouseup`, idealmente extrayéndolo a un hook o componente `ModalBackdrop` reutilizable en vez de duplicarlo modal por modal.
+
 Auditoría 2026-07-02. Resuelto en esta pasada:
 - ✅ Migración de `DatePickerES` (sin portal, se recortaba en modales con `overflow-y-auto`) a `SmartDateInput` en ModalEditarAlumno y ModalRegistrarAlumno.
 - ✅ Focus trap + cierre con Escape agregado a ModalRetirar y ModalConfirmarReactivar (antes inconsistente con el resto de modales del módulo).

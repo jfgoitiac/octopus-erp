@@ -19,7 +19,9 @@ const SmartDateInput = ({
     showCalendar = true,
     "aria-label": ariaLabel = "Campo de fecha",
 }) => {
-    const [display, setDisplay] = useState("");
+    const [display, setDisplay] = useState(() =>
+        value instanceof Date && isValid(value) ? format(value, "dd/MM/yyyy") : ""
+    );
     const [error, setError] = useState("");
     const [calendarioAbierto, setCalendarioAbierto] = useState(false);
     const inputRef = useRef(null);
