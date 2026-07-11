@@ -118,7 +118,6 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4"
-      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div
         ref={containerRef}

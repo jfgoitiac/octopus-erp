@@ -17,7 +17,6 @@ export function TestSendModal({ rule, onSend, sending, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
         {/* Header */}

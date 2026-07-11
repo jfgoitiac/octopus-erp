@@ -61,7 +61,7 @@ function buildPayload(datos) {
         nombre:           datos.alumno.nombre,
         apellido:         datos.alumno.apellido,
         cedula_escolar:   datos.alumno.cedula_escolar || '',
-        fecha_nacimiento: datos.alumno.fecha_nacimiento,
+        fecha_nacimiento: datos.alumno.fecha_nacimiento || null,
         genero:           datos.alumno.genero,
         direccion:        datos.alumno.direccion || '',
         contacto_emergencia_nombre:     datos.alumno.contacto_emergencia_nombre     || '',

@@ -142,7 +142,24 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
         return value
 
 
-class AlumnoSerializer(serializers.ModelSerializer):
+class NormalizaFechaNacimientoMixin:
+    """
+    Trata '' como ausencia de valor en fecha_nacimiento. El campo es opcional
+    a nivel de modelo (null=True, blank=True), pero DateField no soporta
+    allow_blank: un string vacío no pasa por la rama allow_null y DRF intenta
+    parsearlo como fecha, fallando con "Fecha con formato erróneo" en vez de
+    tratarlo como ausente. Cualquier cliente que envíe '' (en lugar de omitir
+    el campo o mandar null) queda cubierto sin depender de que cada
+    formulario del frontend recuerde sanearlo antes de enviar.
+    """
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and data.get('fecha_nacimiento') == '':
+            data = data.copy()
+            data['fecha_nacimiento'] = None
+        return super().to_internal_value(data)
+
+
+class AlumnoSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerializer):
     representante = RepresentanteSerializer()
     estado_inscripcion     = serializers.ReadOnlyField()  # NUEVO
     activo                 = serializers.BooleanField(read_only=True)
@@ -221,6 +238,10 @@ class AlumnoSerializer(serializers.ModelSerializer):
             cedula=cedula_rep,
             defaults=representante_data
         )
+        if not representante.activo:
+            representante.activo = True
+            representante.fecha_eliminacion = None
+            representante.save(update_fields=['activo', 'fecha_eliminacion'])
 
         # 2. Generar cédula escolar temporal si viene vacía o nula
         if not validated_data.get('cedula_escolar'):
@@ -240,7 +261,7 @@ class AlumnoSerializer(serializers.ModelSerializer):
         return alumno
 
 
-class AlumnoUpdateSerializer(serializers.ModelSerializer):
+class AlumnoUpdateSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerializer):
     representante = RepresentanteSerializer(required=False)
     # No son campos del modelo Alumno: se persisten en CuotaSolvencia (app cobranza)
     # del período escolar activo. Ver update() más abajo.
@@ -304,6 +325,10 @@ class AlumnoUpdateSerializer(serializers.ModelSerializer):
                 representante, _ = Representante.objects.get_or_create(
                     cedula=cedula, defaults=representante_data
                 )
+                if not representante.activo:
+                    representante.activo = True
+                    representante.fecha_eliminacion = None
+                    representante.save(update_fields=['activo', 'fecha_eliminacion'])
                 instance.representante = representante
 
         if 'cedula_escolar' in validated_data and validated_data['cedula_escolar'] == '':
@@ -320,7 +345,7 @@ class AsignarGradoSerializer(serializers.Serializer):  # NUEVO
     grado_seccion = serializers.CharField(max_length=50)
 
 
-class AlumnoInscripcionSerializer(serializers.ModelSerializer):
+class AlumnoInscripcionSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerializer):
     representante = RepresentanteSerializer()
 
     class Meta:
@@ -417,6 +442,10 @@ class InscripcionSerializer(serializers.ModelSerializer):
                     cedula=cedula_rep,
                     defaults=representante_data
                 )
+                if not representante.activo:
+                    representante.activo = True
+                    representante.fecha_eliminacion = None
+                    representante.save(update_fields=['activo', 'fecha_eliminacion'])
 
                 # 2. Paso al Banco de Alumnos (Biografía)
                 cedula_escolar = alumno_data.get('cedula_escolar')

@@ -30,20 +30,6 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
 
-    // Evita que una selección de texto (arrastrar el mouse desde un input hacia
-    // afuera del modal) se interprete como un click en el fondo y lo cierre:
-    // solo cierra si el mousedown Y el mouseup ocurrieron sobre el fondo mismo.
-    const mouseDownOnBackdropRef = useRef(false);
-
-    const handleBackdropMouseDown = (e) => {
-        mouseDownOnBackdropRef.current = e.target === e.currentTarget;
-    };
-
-    const handleBackdropMouseUp = (e) => {
-        if (mouseDownOnBackdropRef.current && e.target === e.currentTarget) onClose();
-        mouseDownOnBackdropRef.current = false;
-    };
-
     useEffect(() => {
         const handler = (e) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', handler);
@@ -63,9 +49,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
 
     return (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-             style={{ background: 'rgba(43,48,58,0.5)' }}
-             onMouseDown={handleBackdropMouseDown}
-             onMouseUp={handleBackdropMouseUp}>
+             style={{ background: 'rgba(43,48,58,0.5)' }}>
             <div
                 ref={containerRef}
                 role="dialog"

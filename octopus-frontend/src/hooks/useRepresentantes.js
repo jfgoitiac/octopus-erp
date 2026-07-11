@@ -183,7 +183,7 @@ export function useRepresentantes() {
             if (selectedRep?.id === confirmDelete.id) closeFicha();
             fetchRepresentantes();
         } catch (err) {
-            toast.error(err.response?.data?.error || 'No se pudo eliminar. Puede tener alumnos activos.');
+            toast.error(err.response?.data?.error || 'No se pudo eliminar el representante.');
         } finally {
             setDeleting(false);
         }

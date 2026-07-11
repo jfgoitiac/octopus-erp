@@ -74,6 +74,11 @@ class Representante(models.Model):
     nacionalidad  = models.CharField(max_length=50, blank=True, default='')
     nivel_estudio = models.CharField(max_length=100, blank=True, default='')
 
+    # Soft Delete — evita que on_delete=CASCADE de Alumno.representante borre
+    # físicamente el historial de alumnos retirados al eliminar un representante.
+    activo         = models.BooleanField(default=True)
+    fecha_eliminacion = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.cedula} - {self.nombre} {self.apellido}"
 

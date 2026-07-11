@@ -402,3 +402,61 @@ el representante no tiene teléfono (arranca desmarcado) o el usuario lo
 desmarca y deja el campo vacío. Se agregaron los 4 campos al bloque `errs`
 de `handleContinuar`, con el mismo estilo de borde/mensaje de error que ya
 usan `nombre`/`apellido`/etc. en ese mismo formulario.
+
+---
+
+# ELIMINAR REPRESENTANTE — SOFT DELETE EN CASCADA (2026-07-11)
+
+Reportado por el usuario: preguntó si se podía editar/eliminar un representante
+ya registrado. Editar ya existía (dos vías: módulo `Representantes` y desde la
+ficha del alumno vía `ModalEditarAlumno`). Eliminar existía pero solo
+**bloqueaba** el borrado si el representante tenía alumnos activos
+(`RepresentanteViewSet.destroy`, `views.py`), sin ofrecer una vía para
+eliminarlo junto con sus alumnos. El usuario pidió que sí se pudiera, y eligió
+explícitamente la opción de **soft-delete** (retirar al alumno, conservando su
+historial) en vez de borrado físico.
+
+**Bug detectado de paso** (relacionado con el hallazgo "Medio" de la auditoría
+2026-07-07, línea 228 de este archivo): el guardia de `destroy()` solo
+comprobaba `rep.alumnos.filter(activo=True).exists()`. Si el representante
+tenía **únicamente alumnos ya retirados** (`activo=False`), el chequeo pasaba
+y se ejecutaba `rep.delete()` — como `Alumno.representante` tiene
+`on_delete=CASCADE` y no es nullable, eso borraba físicamente esos alumnos
+retirados y su historial (mensualidades, cuotas; los pagos vía `PROTECT`
+habrían bloqueado el delete solo si tenían pagos asociados; sin pagos, se
+perdían sin aviso).
+
+**Implementado:**
+- `Representante` ganó soft-delete propio: campos `activo` (default `True`) y
+  `fecha_eliminacion` (`secretaria/models.py`, migración
+  `0013_representante_activo_representante_fecha_eliminacion`). Esto evita
+  depender de `on_delete=CASCADE` para "borrar" — ya no se llama nunca
+  `rep.delete()` real desde el endpoint.
+- `RepresentanteViewSet.destroy()` ahora, dentro de `transaction.atomic()`:
+  retira (`Alumno.retirar()`, soft-delete existente) todos los alumnos activos
+  vinculados, y marca el representante como `activo=False` en vez de
+  bloquear o borrar físicamente. Se conserva el historial completo de ambos.
+- `RepresentanteViewSet.get_queryset()` y `ExportarRepresentantesExcelView`
+  filtran `activo=True` para que los representantes eliminados no aparezcan en
+  el listado ni en el export Excel.
+- Los tres puntos donde se resuelve un representante por cédula
+  (`get_or_create`/`update_or_create` en `serializers.py`: creación de alumno,
+  `AlumnoUpdateSerializer.update`, `InscripcionSerializer.create`) ahora
+  **reactivan** automáticamente al representante si estaba inactivo — cubre el
+  caso de que alguien vuelva a inscribir un alumno con la cédula de un
+  representante previamente eliminado (la cédula sigue siendo `unique`, así
+  que sin esto el alta habría fallado con `IntegrityError` o habría dejado el
+  representante reutilizado pero invisible en el listado).
+- Frontend: mensaje del modal de confirmación en `Representantes.jsx`
+  actualizado para explicar que los alumnos activos vinculados también se
+  retirarán automáticamente.
+
+**No implementado / fuera de alcance de esta pasada:**
+- No se agregó una vista/filtro en el módulo `Representantes` para ver los
+  representantes eliminados ni para "deshacer" la eliminación manualmente
+  (sí queda reversible de forma indirecta: basta con reinscribir con la misma
+  cédula y se reactiva). Si el negocio necesita un botón explícito de
+  "restaurar", falta construirlo.
+- El comando de management `borrar_alumnos_representantes.py` sigue haciendo
+  `Representante.objects.all().delete()` (hard delete real) — es una
+  herramienta de mantenimiento/dev, no parte del flujo de usuario, no se tocó.

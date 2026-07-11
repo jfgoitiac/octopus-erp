@@ -192,7 +192,6 @@ export function ReciboModal({ emp, cestaConfig, onClose }) {
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
             style={{ background: 'rgba(43,48,58,0.65)' }}
-            onClick={e => { if (e.target === e.currentTarget) onClose(); }}
             role="dialog" aria-modal="true" aria-labelledby="recibo-modal-title">
 
             <div ref={containerRef} className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"

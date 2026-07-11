@@ -778,7 +778,7 @@ class ExportarRepresentantesExcelView(APIView):
         buscar    = request.query_params.get('buscar', '').strip()
         min_hijos = request.query_params.get('min_hijos', '')
 
-        qs = Representante.objects.annotate(
+        qs = Representante.objects.filter(activo=True).annotate(
             cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True))
         ).order_by('apellido', 'nombre')
 
@@ -1148,7 +1148,7 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         from cobranza.models import CuotaProyectoInversion
         from .models import ConfiguracionSistema
 
-        qs = Representante.objects.select_related('portal_user').annotate(
+        qs = Representante.objects.filter(activo=True).select_related('portal_user').annotate(
             cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True))
         )
         # Prefetch de la cuota de Proyecto de Inversión del período activo (a lo
@@ -1187,13 +1187,19 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
         return [permissions.IsAuthenticated()]
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         rep = self.get_object()
-        tiene_alumnos = rep.alumnos.filter(activo=True).exists()
-        if tiene_alumnos:
-            return Response(
-                {"error": "No se puede eliminar un representante con alumnos activos vinculados."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        rep.delete()
+
+        # Soft delete en cascada: se retiran (no se borran) los alumnos activos
+        # vinculados para preservar su historial de pagos/facturas, y el propio
+        # representante se marca inactivo en vez de eliminarse físicamente.
+        # (Si se hiciera rep.delete() directo, on_delete=CASCADE en
+        # Alumno.representante borraría también los alumnos ya retirados.)
+        for alumno in rep.alumnos.filter(activo=True):
+            alumno.retirar(motivo=f'Representante {rep.cedula} eliminado')
+
+        rep.activo = False
+        rep.fecha_eliminacion = timezone.now()
+        rep.save(update_fields=['activo', 'fecha_eliminacion'])
         return Response(status=status.HTTP_204_NO_CONTENT)

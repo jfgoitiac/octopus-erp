@@ -53,6 +53,27 @@ const ListaAlumnos = () => {
         };
     }, [showConfig]);
 
+    // Atajo "N": abre el modal de Registrar Alumno (ignora si se está escribiendo
+    // en un campo o si ya hay algún modal abierto)
+    useEffect(() => {
+        if (!isSecretaria) return;
+        const handleKeyN = (e) => {
+            if (e.key !== 'n' && e.key !== 'N') return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+            if (
+                alumnos.showRegisterModal || alumnos.showEditModal || alumnos.showAsignarGradoModal ||
+                alumnos.showRetirarModal || alumnos.alumnoParaReactivar ||
+                mensualidades.showModal || cuotaInscripcion.showModal || showFichaSidebar || showConfig
+            ) return;
+            e.preventDefault();
+            alumnos.setShowRegisterModal(true);
+        };
+        document.addEventListener('keydown', handleKeyN);
+        return () => document.removeEventListener('keydown', handleKeyN);
+    }, [isSecretaria, alumnos, mensualidades.showModal, cuotaInscripcion.showModal, showFichaSidebar, showConfig]);
+
     const handleSyncTasa = async () => {
         try {
             await sincronizarTasa();

@@ -94,7 +94,7 @@ const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => 
 
     return (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-             style={{ background: 'rgba(43,48,58,0.5)' }} onClick={onClose}>
+             style={{ background: 'rgba(43,48,58,0.5)' }}>
             <div
                 ref={containerRef}
                 role="dialog"

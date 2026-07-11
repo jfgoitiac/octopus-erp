@@ -150,7 +150,8 @@ const Representantes = () => {
                             <p className="text-sm font-semibold mb-1" style={{ color: 'var(--jet)' }}>¿Eliminar representante?</p>
                             <p className="text-xs" style={{ color: 'var(--ash)' }}>
                                 Se eliminará a <strong>{rep.confirmDelete.nombre} {rep.confirmDelete.apellido}</strong>.
-                                {' '}No se puede deshacer. Los representantes con alumnos activos no pueden eliminarse.
+                                {' '}Si tiene alumnos activos vinculados, también serán retirados automáticamente
+                                (se conserva su historial de pagos y facturas). Esta acción no se puede deshacer.
                             </p>
                         </div>
                         <div className="flex gap-2 px-5 pb-4">

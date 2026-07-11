@@ -193,7 +193,6 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
       aria-labelledby="search-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(43,48,58,0.5)', backdropFilter: 'blur(4px)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div
         className="rounded-2xl w-full max-w-md"
