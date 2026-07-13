@@ -23,12 +23,20 @@ function parseApiError(err) {
     return 'Error inesperado.';
 }
 
+const PAGE_SIZE = 20;
+
 export function useRepresentantes() {
     // --- Lista ---
     const [representantes, setRepresentantes] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [busqueda, setBusqueda] = useState('');
-    const [minHijos, setMinHijos] = useState('');
+    const [busqueda, setBusquedaRaw] = useState('');
+    const [minHijos, setMinHijosRaw] = useState('');
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    // Cambiar búsqueda o filtro reinicia siempre a la página 1
+    const setBusqueda = useCallback((v) => { setBusquedaRaw(v); setPage(1); }, []);
+    const setMinHijos = useCallback((v) => { setMinHijosRaw(v); setPage(1); }, []);
 
     // --- Export ---
     const [exportingExcel, setExportingExcel] = useState(false);
@@ -59,15 +67,19 @@ export function useRepresentantes() {
             const params = new URLSearchParams();
             if (busqueda.trim()) params.append('buscar', busqueda.trim());
             if (minHijos) params.append('min_hijos', minHijos);
+            params.append('page', String(page));
+            params.append('page_size', String(PAGE_SIZE));
             const res = await axiosInstance.get(`secretaria/representantes/?${params}`, { signal });
             setRepresentantes(res.data?.results ?? res.data ?? []);
+            setTotal(res.data?.count ?? 0);
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+            if (err.response?.status === 404 && page > 1) { setPage(1); return; }
             toast.error('Error al cargar la lista de representantes.');
         } finally {
             setLoading(false);
         }
-    }, [busqueda, minHijos]);
+    }, [busqueda, minHijos, page]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -266,6 +278,8 @@ export function useRepresentantes() {
     return {
         // Lista
         representantes, loading, busqueda, setBusqueda, minHijos, setMinHijos,
+        // Paginación
+        page, setPage, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), pageSize: PAGE_SIZE,
         // Export
         exportingExcel, handleExportExcel,
         // Ficha

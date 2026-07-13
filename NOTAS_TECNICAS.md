@@ -55,6 +55,30 @@ Boletín, Asistencia
 - ✅ **Fecha de nacimiento "desaparecía" al reabrir Editar Información**: no era un problema de guardado — `SmartDateInput.jsx` inicializaba su estado interno `display` en `""` y solo lo sincronizaba con la prop `value` cuando ésta *cambiaba* tras el montaje. Como `ModalEditarAlumno` se desmonta/remonta en cada apertura (render condicional en `ListaAlumnos.jsx`), cada apertura era un "primer render" y el campo nunca se pintaba con la fecha ya persistida en el backend. Corregido con inicialización perezosa de `display` a partir de `value`. Afecta también a `ModalRegistrarAlumno` y el wizard de inscripción, que comparten el componente.
 - ✅ **Modal de Editar Información se cerraba solo mientras se editaba**: el fondo (`backdrop`) usaba `onClick={onClose}`, que se dispara con cualquier `click` — incluido el que el navegador genera cuando el usuario selecciona texto arrastrando el mouse desde un input (ej. "Dirección") y suelta el botón fuera del modal. Corregido en `ModalEditarAlumno.jsx` con detección `mousedown`+`mouseup` sobre el backdrop mismo (`e.target === e.currentTarget` en ambos eventos), en vez de un solo `onClick`.
 
+## PAGINACIÓN DE LISTADOS 2026-07-12
+
+### Alcance implementado
+
+Paginación server-side (DRF `PageNumberPagination`, `page_size=20`, `page_size_query_param=page_size`, `max_page_size=100`) en las 3 listas de mayor volumen:
+
+- **Alumnos** (`AlumnoListView`, `secretaria/alumnos/`) + `useAlumnos.js` + `ListaAlumnos.jsx`
+- **Representantes** (`RepresentanteViewSet`, `secretaria/representantes/`) + `useRepresentantes.js` + `Representantes.jsx`
+- **Morosos** (`ListaMorososView`, `cobranza/morosos/` — es `APIView`, se paginó manualmente instanciando el paginador) + `useMorosos.js` + `Morosos.jsx`
+
+Clase de paginación centralizada en `octopus-api/config/pagination.py` (`StandardResultsPagination`), reutilizable para futuras listas.
+Componente reutilizable `octopus-frontend/src/components/shared/Pagination.jsx` (Anterior/Siguiente + números de página, mismo estilo visual que ya usaba `Comprobantes.jsx`).
+
+Cambiar la búsqueda o cualquier filtro reinicia siempre a la página 1 (wrapeando los setters de `busqueda`/`mostrarInactivos`/`minHijos` dentro de cada hook). Si la página actual queda fuera de rango tras una mutación (ej. retirar el último alumno de la última página → DRF responde 404 "Invalid page"), el hook vuelve automáticamente a la página 1 en vez de mostrar un error.
+
+**Morosos — cuidado con las tarjetas de resumen financiero**: `MorososSummary` (deuda total, solvencia adeudada) mostraba totales calculados con `.reduce()` sobre el array `alumnos` en el frontend. Al paginar, ese array pasó a contener solo la página actual (20 filas), lo que habría mostrado montos truncados/incorrectos. Se corrigió agregando `total_deuda_usd` y `total_solvencia_usd` al backend (`qs.aggregate(Sum(...))` sobre el queryset completo, antes de paginar) y el frontend ahora lee esos campos en vez de recalcular sobre la página visible. Si se pagina alguna otra lista con tarjetas de totales agregados, revisar el mismo patrón.
+
+Se detectaron y corrigieron dos consumidores adicionales de `secretaria/alumnos/` que esperaban un array plano y se habrían roto con la respuesta paginada `{count, next, previous, results}`: `PasoAlumno.jsx` (wizard de inscripción, búsqueda de hijos por representante) y `useBoletin.js` (búsqueda de alumno para boletín). Ambos ahora leen `res.data?.results ?? res.data ?? []`.
+
+### Fuera de alcance (decisión explícita, no paginado)
+
+- **Nómina/Empleados** (`EmpleadoViewSet`, `useNomina.js`): dataset típicamente pequeño (personal de un colegio) y ya usa tabs (Docente/Apoyo/Administrativo) con filtrado client-side sobre el array completo (`empleadosPorTab` en `useNomina.js`). Paginar el endpoint rompería ese filtrado por tab sin una relectura de arquitectura (habría que paginar por tab en el backend). Se dejó fuera por desproporción costo/beneficio; revisar si la nómina crece significativamente.
+- **Notas** (`NotasGradoView`) y **Asistencia** (`AsistenciaView`), en `academico/views.py`: no son listados generales, son grillas acotadas a un solo `grado_seccion` (típicamente ≤40 alumnos) que el docente carga y guarda en bloque de una sola vez. Paginar rompería el flujo de "ver y guardar todo el curso junto".
+
 ### 🟡 Pendiente — mismo patrón de cierre en otros modales
 
 El `onClick={onClose}` en el backdrop (vulnerable a la misma selección-de-texto-que-cierra) sigue presente, sin corregir, en ~19 modales más del proyecto (`ModalAjustarMensualidades`, `ModalRegistrarAlumno`, `ModalAjustarInscripcion`, `ModalRetirar`, `ModalAsignarGrado`, `ModalRepresentante`, modales de horarios/nómina/sistemas, etc.). No se tocaron en esta pasada por estar fuera del alcance solicitado (solo Lista de Alumnos). Si se repite la queja en otro módulo, aplicar el mismo fix de `mousedown`/`mouseup`, idealmente extrayéndolo a un hook o componente `ModalBackdrop` reutilizable en vez de duplicarlo modal por modal.

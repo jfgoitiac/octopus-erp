@@ -5,6 +5,7 @@ import { useMorosos } from '../hooks/useMorosos';
 import MorososSummary from '../components/morosos/MorososSummary';
 import MorososSkeleton from '../components/morosos/MorososSkeleton';
 import MorososRow from '../components/morosos/MorososRow';
+import Pagination from '../components/shared/Pagination';
 
 const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', 'Solvencia (USD)', ''];
 
@@ -19,13 +20,18 @@ const Morosos = () => {
         totalSolvenciaUSD,
         refetch,
         handleExportExcel,
+        page,
+        setPage,
+        total,
+        totalPages,
+        pageSize,
     } = useMorosos(busqueda);
 
     return (
         <div className="flex flex-col gap-5 anim-fade-up">
 
             <MorososSummary
-                count={alumnos.length}
+                count={total}
                 totalDeudaUSD={totalDeudaUSD}
                 totalSolvenciaUSD={totalSolvenciaUSD}
                 tasa={tasa}
@@ -128,6 +134,15 @@ const Morosos = () => {
                         </tbody>
                     </table>
                 </div>
+                {!loading && (
+                    <Pagination
+                        page={page}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        total={total}
+                        pageSize={pageSize}
+                    />
+                )}
             </div>
         </div>
     );

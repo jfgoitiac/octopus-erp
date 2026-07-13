@@ -17,6 +17,7 @@ import SidebarFichaAlumno from '../components/alumnos/SidebarFichaAlumno';
 import ModalAsignarGrado from '../components/alumnos/ModalAsignarGrado';
 import ModalRetirar from '../components/alumnos/ModalRetirar';
 import ModalConfirmarReactivar from '../components/alumnos/ModalConfirmarReactivar';
+import Pagination from '../components/shared/Pagination';
 
 const ListaAlumnos = () => {
     const { user } = useContext(AuthContext);
@@ -267,6 +268,15 @@ const ListaAlumnos = () => {
                         onAjustarDeuda={handleAjustarDeuda}
                         onAjustarInscripcion={handleAjustarInscripcion}
                         onIrCobranza={(a) => navigate(`/cobranza?cedula=${a.representante?.cedula ?? a.cedula_escolar}`)}
+                    />
+                )}
+                {!alumnos.loading && (
+                    <Pagination
+                        page={alumnos.page}
+                        totalPages={alumnos.totalPages}
+                        onPageChange={alumnos.setPage}
+                        total={alumnos.total}
+                        pageSize={alumnos.pageSize}
                     />
                 )}
             </div>

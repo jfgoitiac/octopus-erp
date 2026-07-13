@@ -37,7 +37,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         try {
             const cedula = datos.representante?.cedula ?? '';
             const res    = await fetchAlumnosPorRepresentante(cedula, signal);
-            setAlumnos(res.data || []);
+            setAlumnos(res.data?.results ?? res.data ?? []);
         } catch (err) {
             if (err.name !== 'CanceledError') toast.error('Error al cargar alumnos vinculados');
         } finally {

@@ -29,12 +29,20 @@ const INITIAL_EDIT_FORM = {
     rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
 };
 
+const PAGE_SIZE = 20;
+
 export function useAlumnos() {
     // --- Lista ---
     const [alumnos, setAlumnos] = useState([]);
-    const [busqueda, setBusqueda] = useState('');
-    const [mostrarInactivos, setMostrarInactivos] = useState(false);
+    const [busqueda, setBusquedaRaw] = useState('');
+    const [mostrarInactivos, setMostrarInactivosRaw] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    // Cambiar búsqueda o filtro reinicia siempre a la página 1
+    const setBusqueda = useCallback((v) => { setBusquedaRaw(v); setPage(1); }, []);
+    const setMostrarInactivos = useCallback((v) => { setMostrarInactivosRaw(v); setPage(1); }, []);
 
     // --- Configuración montos ---
     const [montoDefecto, setMontoDefecto] = useState('35.00');
@@ -86,16 +94,21 @@ export function useAlumnos() {
             const params = new URLSearchParams();
             if (mostrarInactivos) params.append('todos', 'true');
             if (busqueda) params.append('buscar', busqueda);
+            params.append('page', String(page));
+            params.append('page_size', String(PAGE_SIZE));
 
             const res = await axiosInstance.get(`secretaria/alumnos/?${params.toString()}`, { signal });
-            setAlumnos(res?.data || []);
+            setAlumnos(res?.data?.results ?? res?.data ?? []);
+            setTotal(res?.data?.count ?? 0);
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+            // Página fuera de rango (p.ej. tras retirar el último alumno de la última página): volver a la 1
+            if (err.response?.status === 404 && page > 1) { setPage(1); return; }
             toast.error(parseApiError(err));
         } finally {
             setLoading(false);
         }
-    }, [mostrarInactivos, busqueda]);
+    }, [mostrarInactivos, busqueda, page]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -442,6 +455,8 @@ export function useAlumnos() {
     return {
         // Lista
         alumnos, setAlumnos, busqueda, setBusqueda, mostrarInactivos, setMostrarInactivos, loading, fetchData,
+        // Paginación
+        page, setPage, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), pageSize: PAGE_SIZE,
         // Config
         montoDefecto, setMontoDefecto, montoInscripcion, setMontoInscripcion,
         montoProyectoInversion, setMontoProyectoInversion, savingConfig, handleSaveConfig,

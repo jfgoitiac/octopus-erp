@@ -22,6 +22,7 @@ from .services import generate_temporary_cedula_escolar
 from authentication.views import IsSystemAdminOrDirector
 from usuarios.models import LogAuditoria
 from django.db.models import Count
+from config.pagination import StandardResultsPagination
 from .serializers import (
     AlumnoRetirarSerializer, AlumnoSerializer, AlumnoUpdateSerializer,
     AsignarGradoSerializer, BienNacionalSerializer, ConfiguracionGradoSerializer,
@@ -420,6 +421,7 @@ class BienNacionalViewSet(viewsets.ModelViewSet):
 class AlumnoListView(viewsets.ModelViewSet):
     serializer_class   = AlumnoSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class    = StandardResultsPagination
 
     def get_queryset(self):
         # Docentes y secretaria ven solo activos
@@ -1143,6 +1145,7 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
     """CRUD completo de representantes con búsqueda y conteo de alumnos vinculados."""
     serializer_class   = RepresentanteCRUDSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class    = StandardResultsPagination
 
     def get_queryset(self):
         from cobranza.models import CuotaProyectoInversion

@@ -1,29 +1,42 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import { exportarMorososExcel } from '../api/cobranza.service';
 
+const PAGE_SIZE = 20;
+
 export function useMorosos(busqueda) {
     const [alumnos, setAlumnos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [exportingExcel, setExportingExcel] = useState(false);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [totalDeudaBackendUSD, setTotalDeudaBackendUSD] = useState(0);
+    const [totalSolvenciaBackendUSD, setTotalSolvenciaBackendUSD] = useState(0);
 
     const fetchMorosos = useCallback(async (signal) => {
         setLoading(true);
         try {
-            const params = {};
+            const params = { page, page_size: PAGE_SIZE };
             if (busqueda?.trim()) params.buscar = busqueda.trim();
             const res = await apiClient.get('cobranza/morosos/', { params, signal });
             setAlumnos(res.data?.results ?? res.data ?? []);
+            setTotal(res.data?.count ?? 0);
+            setTotalDeudaBackendUSD(parseFloat(res.data?.total_deuda_usd || 0));
+            setTotalSolvenciaBackendUSD(parseFloat(res.data?.total_solvencia_usd || 0));
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+            if (err.response?.status === 404 && page > 1) { setPage(1); return; }
             setAlumnos([]);
             toast.error('No se pudo cargar la lista de morosos. Intenta de nuevo.');
         } finally {
             setLoading(false);
         }
-    }, [busqueda]);
+    }, [busqueda, page]);
+
+    // Cambiar la búsqueda reinicia siempre a la página 1
+    useEffect(() => { setPage(1); }, [busqueda]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -59,15 +72,10 @@ export function useMorosos(busqueda) {
         }
     }, [busqueda]);
 
-    const totalDeudaUSD = useMemo(
-        () => alumnos.reduce((s, a) => s + parseFloat(a.monto_adeudado || 0), 0),
-        [alumnos]
-    );
-
-    const totalSolvenciaUSD = useMemo(
-        () => alumnos.reduce((s, a) => s + parseFloat(a.monto_solvencia_adeudado || 0), 0),
-        [alumnos]
-    );
+    // Totales agregados por el backend sobre TODOS los morosos (no solo la
+    // página actual), para que las tarjetas de resumen no queden truncadas.
+    const totalDeudaUSD = totalDeudaBackendUSD;
+    const totalSolvenciaUSD = totalSolvenciaBackendUSD;
 
     return {
         alumnos,
@@ -77,5 +85,7 @@ export function useMorosos(busqueda) {
         totalSolvenciaUSD,
         refetch,
         handleExportExcel,
+        // Paginación
+        page, setPage, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), pageSize: PAGE_SIZE,
     };
 }

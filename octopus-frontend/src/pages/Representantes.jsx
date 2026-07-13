@@ -5,6 +5,7 @@ import { useRepresentantes } from '../hooks/useRepresentantes';
 import TablaRepresentantes, { TablaRepresentantesSkeleton } from '../components/representantes/TablaRepresentantes';
 import RepresentanteFicha from '../components/representantes/RepresentanteFicha';
 import ModalRepresentante from '../components/representantes/ModalRepresentante';
+import Pagination from '../components/shared/Pagination';
 
 const INPUT_STYLE = {
     background: 'var(--bg)', border: '0.5px solid var(--border-md)',
@@ -105,6 +106,15 @@ const Representantes = () => {
                             )}
                         </table>
                     </div>
+                    {!rep.loading && (
+                        <Pagination
+                            page={rep.page}
+                            totalPages={rep.totalPages}
+                            onPageChange={rep.setPage}
+                            total={rep.total}
+                            pageSize={rep.pageSize}
+                        />
+                    )}
                 </div>
             </div>
 

@@ -40,7 +40,7 @@ export function useBoletin() {
       setBusquedaLoading(true);
       try {
         const res = await buscarAlumnos(busqueda, controller.signal);
-        setAlumnos(res.data || []);
+        setAlumnos(res.data?.results ?? res.data ?? []);
         setShowDropdown(true);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;

@@ -15,6 +15,7 @@ from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
 from usuarios.models import LogAuditoria
+from config.pagination import StandardResultsPagination
 
 logger = logging.getLogger(__name__)
 
@@ -1315,9 +1316,20 @@ class ListaMorososView(APIView):
 
     def get(self, request):
         from datetime import date as _date
+        from django.db.models import Sum
         hoy    = _date.today()
         buscar = request.query_params.get('buscar', '').strip()
         qs     = self._build_qs(hoy, buscar)
+
+        # Totales sobre el queryset completo (no solo la página actual), para
+        # que las tarjetas de resumen financiero no queden truncadas al paginar.
+        agregados = qs.aggregate(
+            total_deuda_usd=Sum('monto_adeudado'),
+            total_solvencia_usd=Sum('monto_solvencia_adeudado'),
+        )
+
+        paginator = StandardResultsPagination()
+        pagina = paginator.paginate_queryset(qs, request, view=self)
 
         results = [
             {
@@ -1337,9 +1349,12 @@ class ListaMorososView(APIView):
                 'meses_adeudados':            a.meses_adeudados,
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
             }
-            for a in qs
+            for a in pagina
         ]
-        return Response({'count': len(results), 'results': results})
+        response = paginator.get_paginated_response(results)
+        response.data['total_deuda_usd'] = str(agregados['total_deuda_usd'] or 0)
+        response.data['total_solvencia_usd'] = str(agregados['total_solvencia_usd'] or 0)
+        return response
 
 
 class ExportarMorososExcelView(APIView):
