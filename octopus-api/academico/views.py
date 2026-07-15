@@ -228,7 +228,9 @@ class NotasGradoView(APIView):
         alumnos = Alumno.objects.filter(grado_seccion=materia.grado_seccion)
 
         # Notas existentes — aplicar filtros adicionales vía query params
-        notas_qs = Nota.objects.filter(materia=materia, lapso=lapso)
+        # select_related evita 3 queries por nota (alumno, materia, lapso) que
+        # NotaSerializer dispara vía sus SerializerMethodField
+        notas_qs = Nota.objects.filter(materia=materia, lapso=lapso).select_related('alumno', 'materia', 'lapso')
         filterset = NotaFilter(request.query_params, queryset=notas_qs)
         if filterset.is_valid():
             notas_qs = filterset.qs
@@ -291,14 +293,18 @@ class NotasGradoView(APIView):
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Prefetch de todos los alumnos del payload en una sola query (antes:
+        # 1 query por fila con Alumno.objects.get() dentro del loop).
+        alumno_ids  = [item['alumno_id'] for item in notas_data]
+        alumnos_map = {a.id: a for a in Alumno.objects.filter(pk__in=alumno_ids)}
+
         guardadas = []
         errores   = []
 
         for item in notas_data:
             alumno_id = item['alumno_id']
-            try:
-                alumno = Alumno.objects.get(pk=alumno_id)
-            except Alumno.DoesNotExist:
+            alumno = alumnos_map.get(alumno_id)
+            if alumno is None:
                 errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
                 continue
 
@@ -307,6 +313,13 @@ class NotasGradoView(APIView):
                 materia=materia,
                 lapso=lapso,
             )
+            # Reasigna los objetos ya en memoria: get_or_create no cachea las
+            # relaciones FK cuando toma la rama "get" (registro ya existente),
+            # así que sin esto NotaSerializer(nota).data dispararía 3 queries
+            # más (alumno, materia, lapso) por cada nota ya existente.
+            nota.alumno  = alumno
+            nota.materia = materia
+            nota.lapso   = lapso
             nota.evaluacion_1  = item.get('evaluacion_1')
             nota.evaluacion_2  = item.get('evaluacion_2')
             nota.evaluacion_3  = item.get('evaluacion_3')
@@ -390,14 +403,18 @@ class AsistenciaView(APIView):
         fecha     = datos['fecha']
         registros = datos['registros']
 
+        # Prefetch de todos los alumnos del payload en una sola query (antes:
+        # 1 query por fila con Alumno.objects.get() dentro del loop).
+        alumno_ids  = [item['alumno_id'] for item in registros]
+        alumnos_map = {a.id: a for a in Alumno.objects.filter(pk__in=alumno_ids)}
+
         guardadas = []
         errores   = []
 
         for item in registros:
             alumno_id = item['alumno_id']
-            try:
-                alumno = Alumno.objects.get(pk=alumno_id)
-            except Alumno.DoesNotExist:
+            alumno = alumnos_map.get(alumno_id)
+            if alumno is None:
                 errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
                 continue
 
@@ -411,6 +428,10 @@ class AsistenciaView(APIView):
                     'registrado_por': request.user,
                 }
             )
+            # update_or_create no cachea la relación FK cuando toma la rama
+            # "update" (registro ya existente) — sin esto AsistenciaSerializer
+            # dispararía 1 query más (alumno) por cada registro ya existente.
+            asistencia.alumno = alumno
             guardadas.append(AsistenciaSerializer(asistencia).data)
 
         return Response({

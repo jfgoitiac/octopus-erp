@@ -6,7 +6,8 @@ import SmartDateInput from '../SmartDateInput';
 import { fetchAlumnosPorRepresentante } from '../../api/inscripciones.service';
 import { SkeletonCard } from './SkeletonCard';
 import ModalCompletarAlumno from './ModalCompletarAlumno';
-import { camposFaltantesAlumno, contactoEmergenciaDesdeRepresentante } from '../../utils/inscripcionValidacion';
+import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
+import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES_FOTO = 5 * 1024 * 1024; // 5 MB
@@ -30,7 +31,6 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     const [errores,      setErrores]      = useState({});
     const [fotoPreview,  setFotoPreview]  = useState(null);
     const [modalCompletar, setModalCompletar] = useState(false);
-    const [usarRepComoContacto, setUsarRepComoContacto] = useState(true);
 
     const fetchAlumnos = useCallback(async (signal) => {
         setLoading(true);
@@ -85,37 +85,20 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     };
 
     const handleActivarNuevo = () => {
-        // Por defecto el contacto de emergencia es el propio representante —
-        // evita reescribir nombre/teléfono que ya se capturaron en el paso anterior.
-        const usarRep = !!(datos.representante?.nombre && datos.representante?.telefono);
         setDatos(prev => ({
             ...prev,
             alumno: {
                 nombre: '', apellido: '', cedula_escolar: '',
                 fecha_nacimiento: '', genero: 'masculino',
-                direccion: '', foto: null,
-                ...(usarRep
-                    ? contactoEmergenciaDesdeRepresentante(prev.representante)
-                    : { contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '' }),
-                lugar_nacimiento: '', pais_nacimiento: '', estado_nacimiento: '',
+                foto: null,
+                lugar_nacimiento: '', pais_nacimiento: 'Venezuela', estado_nacimiento: '',
                 peso: '', estatura: '', institucion_procedencia: '',
                 bautizado: null, alergico: '',
             },
             esAlumnoNuevo: true,
         }));
-        setUsarRepComoContacto(usarRep);
         setFotoPreview(null);
         setShowFormNuevo(true);
-    };
-
-    const handleToggleUsarRepContacto = (checked) => {
-        setUsarRepComoContacto(checked);
-        if (checked) {
-            setDatos(prev => ({
-                ...prev,
-                alumno: { ...prev.alumno, ...contactoEmergenciaDesdeRepresentante(prev.representante) },
-            }));
-        }
     };
 
     const handleFotoChange = (e) => {
@@ -166,10 +149,6 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         if (!datos.alumno.apellido?.trim())          errs.apellido         = 'Requerido';
         if (!datos.alumno.fecha_nacimiento)          errs.fecha_nacimiento = 'Requerido';
         if (!datos.alumno.genero)                    errs.genero           = 'Requerido';
-        if (!datos.alumno.direccion?.trim())         errs.direccion        = 'Requerido';
-        if (!datos.alumno.contacto_emergencia_nombre?.trim())     errs.contacto_emergencia_nombre     = 'Requerido';
-        if (!datos.alumno.contacto_emergencia_telefono?.trim())   errs.contacto_emergencia_telefono   = 'Requerido';
-        if (!datos.alumno.contacto_emergencia_parentesco?.trim()) errs.contacto_emergencia_parentesco = 'Requerido';
 
         if (Object.keys(errs).length > 0) {
             setErrores(errs);
@@ -223,7 +202,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                                     {alu.nombre} {alu.apellido}
                                 </p>
                                 <p className="text-[10px] font-mono mt-1" style={{ color: 'var(--ash)' }}>
-                                    {alu.cedula_escolar || 'Sin Cédula Escolar'}
+                                    {mostrarCedula(alu.cedula_escolar, 'Sin Cédula Escolar')}
                                 </p>
                                 <div className="mt-4 flex items-center justify-between">
                                     <span
@@ -300,6 +279,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                                     id={`alu-${field}`}
                                     type="text"
                                     name={field}
+                                    placeholder={field === 'cedula_escolar' ? 'Se autogenera si se deja en blanco' : undefined}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                                     style={{
                                         border: `0.5px solid ${errores[field] ? '#f87171' : 'var(--border-md)'}`,
@@ -528,86 +508,6 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                                     value={datos.alumno.alergico || ''}
                                     onChange={handleNewAlumnoChange}
                                 />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Dirección y contacto de emergencia */}
-                    <div>
-                        <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
-                            Dirección y contacto de emergencia
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <label htmlFor="alu-direccion" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Dirección del estudiante <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                    id="alu-direccion" name="direccion" rows="2"
-                                    className="w-full p-3 rounded-xl text-sm outline-none resize-none"
-                                    style={{ border: `0.5px solid ${errores.direccion ? '#f87171' : 'var(--border-md)'}`, background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                    value={datos.alumno.direccion || ''}
-                                    onChange={handleNewAlumnoChange}
-                                />
-                                {errores.direccion && <p className="text-[10px] mt-1 text-red-500">{errores.direccion}</p>}
-                            </div>
-
-                            {datos.representante && (
-                                <div className="md:col-span-2 flex items-center gap-2">
-                                    <input
-                                        id="alu-usar-rep-contacto"
-                                        type="checkbox"
-                                        checked={usarRepComoContacto}
-                                        onChange={(e) => handleToggleUsarRepContacto(e.target.checked)}
-                                        className="w-4 h-4 rounded"
-                                    />
-                                    <label htmlFor="alu-usar-rep-contacto" className="text-xs" style={{ color: 'var(--ash)' }}>
-                                        Usar los datos del representante ({datos.representante.nombre} {datos.representante.apellido}) como contacto de emergencia
-                                    </label>
-                                </div>
-                            )}
-
-                            <div>
-                                <label htmlFor="alu-contacto_emergencia_nombre" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Contacto de emergencia <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="alu-contacto_emergencia_nombre" type="text" name="contacto_emergencia_nombre"
-                                    disabled={usarRepComoContacto}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60"
-                                    style={{ border: `0.5px solid ${errores.contacto_emergencia_nombre ? '#f87171' : 'var(--border-md)'}`, background: usarRepComoContacto ? 'var(--ash-light)' : 'var(--porcelain)', color: 'var(--jet)' }}
-                                    value={datos.alumno.contacto_emergencia_nombre || ''}
-                                    onChange={handleNewAlumnoChange}
-                                />
-                                {errores.contacto_emergencia_nombre && <p className="text-[10px] mt-1 text-red-500">{errores.contacto_emergencia_nombre}</p>}
-                            </div>
-                            <div>
-                                <label htmlFor="alu-contacto_emergencia_telefono" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Teléfono de emergencia <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="alu-contacto_emergencia_telefono" type="tel" name="contacto_emergencia_telefono"
-                                    disabled={usarRepComoContacto}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60"
-                                    style={{ border: `0.5px solid ${errores.contacto_emergencia_telefono ? '#f87171' : 'var(--border-md)'}`, background: usarRepComoContacto ? 'var(--ash-light)' : 'var(--porcelain)', color: 'var(--jet)' }}
-                                    value={datos.alumno.contacto_emergencia_telefono || ''}
-                                    onChange={handleNewAlumnoChange}
-                                />
-                                {errores.contacto_emergencia_telefono && <p className="text-[10px] mt-1 text-red-500">{errores.contacto_emergencia_telefono}</p>}
-                            </div>
-                            <div className="md:col-span-2">
-                                <label htmlFor="alu-contacto_emergencia_parentesco" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Parentesco del contacto <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="alu-contacto_emergencia_parentesco" type="text" name="contacto_emergencia_parentesco"
-                                    disabled={usarRepComoContacto}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60"
-                                    style={{ border: `0.5px solid ${errores.contacto_emergencia_parentesco ? '#f87171' : 'var(--border-md)'}`, background: usarRepComoContacto ? 'var(--ash-light)' : 'var(--porcelain)', color: 'var(--jet)' }}
-                                    value={datos.alumno.contacto_emergencia_parentesco || ''}
-                                    onChange={handleNewAlumnoChange}
-                                />
-                                {errores.contacto_emergencia_parentesco && <p className="text-[10px] mt-1 text-red-500">{errores.contacto_emergencia_parentesco}</p>}
                             </div>
                         </div>
                     </div>

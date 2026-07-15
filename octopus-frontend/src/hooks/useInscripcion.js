@@ -52,7 +52,6 @@ function buildPayload(datos) {
         telefono:      datos.representante.telefono  || '',
         correo:        datos.representante.correo    || '',
         direccion:     datos.representante.direccion || '',
-        parentesco:    datos.representante.parentesco    || '',
         nacionalidad:  datos.representante.nacionalidad  || '',
         nivel_estudio: datos.representante.nivel_estudio || '',
     };
@@ -63,10 +62,10 @@ function buildPayload(datos) {
         cedula_escolar:   datos.alumno.cedula_escolar || '',
         fecha_nacimiento: datos.alumno.fecha_nacimiento || null,
         genero:           datos.alumno.genero,
-        direccion:        datos.alumno.direccion || '',
-        contacto_emergencia_nombre:     datos.alumno.contacto_emergencia_nombre     || '',
-        contacto_emergencia_telefono:   datos.alumno.contacto_emergencia_telefono   || '',
-        contacto_emergencia_parentesco: datos.alumno.contacto_emergencia_parentesco || '',
+        // El parentesco se captura durante el paso del representante (datos.representante.parentesco),
+        // pero se persiste a nivel de Alumno: un mismo representante puede tener otros hijos con un
+        // parentesco distinto (ej: padre de uno, tío de otro).
+        parentesco:       datos.representante.parentesco || '',
         lugar_nacimiento:        datos.alumno.lugar_nacimiento        || '',
         pais_nacimiento:         datos.alumno.pais_nacimiento         || '',
         estado_nacimiento:       datos.alumno.estado_nacimiento       || '',

@@ -70,6 +70,7 @@ const Cobranza = () => {
     const [gradoAlumno,  setGradoAlumno]          = useState('');
     const [estatusFinanciero, setEstatusFinanciero] = useState('');
     const [representanteNombre, setRepresentanteNombre] = useState('');
+    const [representanteCedula, setRepresentanteCedula] = useState('');
     const [alumnosRep, setAlumnosRep]             = useState([]);
     const [mensualidades, setMensualidades]       = useState([]);
     const [selectedMens, setSelectedMens]         = useState([]);
@@ -175,7 +176,7 @@ const Cobranza = () => {
     const requiereDivisas = hayAdelantos || hayParciales;
 
     const resetBusqueda = useCallback(() => {
-        setRepresentanteNombre(''); setAlumnosRep([]); setNombreAlumno('');
+        setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]); setNombreAlumno('');
         setEstatusFinanciero(''); setAlumnoId(null);
         setMensualidades([]); setCuotasInscripcion([]); setMensualidadesFuturas([]); setCuotasSolvencia([]); setCuotasProyectoInversion([]);
         setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setSelectedProyectos([]); setMontosParciales({});
@@ -200,6 +201,7 @@ const Cobranza = () => {
                         `${rep.nombre || ''} ${rep.apellido || ''}`.trim() ||
                         ''
                     );
+                    setRepresentanteCedula(rep.cedula || '');
                     setAlumnosRep(alumnos);
                     setSelectedMens([]); setSelectedCuotas([]); setSelectedFuturas([]); setSelectedSolvencias([]); setSelectedProyectos([]); setMontosParciales({});
                     // Si hay exactamente un alumno, seleccionarlo automáticamente
@@ -259,7 +261,6 @@ const Cobranza = () => {
     }, [location.search, buscarAlumno]);
 
     const selAlumno = (alu) => {
-        setCedula(alu.cedula_escolar);
         setNombreAlumno(alu.nombre_completo || alu.nombre);
         setGradoAlumno(alu.grado || '');
         setEstatusFinanciero(alu.estatus);
@@ -321,7 +322,7 @@ const Cobranza = () => {
             const res = await axiosInstance.post('cobranza/registrar-pago/', {
                 alumno_id: alumnoId,
                 concepto,
-                representante_documento: cedula,
+                representante_documento: representanteCedula || cedula,
                 representante_nombre: representanteNombre,
                 mensualidad_ids: selectedMens,
                 mensualidad_adelanto_ids: selectedFuturas,
@@ -388,7 +389,7 @@ const Cobranza = () => {
                     nombreEstudiante: nombreAlumno,
                     grado:            gradoAlumno,
                     representante:    representanteNombre,
-                    ciRepresentante:  cedula,
+                    ciRepresentante:  representanteCedula || cedula,
                     cajero:           user?.username || '',
                     tasa,
                     items:            itemsRecibo,
@@ -397,7 +398,7 @@ const Cobranza = () => {
                 });
 
                 setCedula(''); setNombreAlumno(''); setGradoAlumno(''); setEstatusFinanciero('');
-                setAlumnoId(null); setRepresentanteNombre(''); setAlumnosRep([]);
+                setAlumnoId(null); setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
                 setLineas([crearLinea()]); setMensualidades([]); setSelectedMens([]);
                 setCuotasInscripcion([]); setSelectedCuotas([]);
                 setCuotasSolvencia([]); setSelectedSolvencias([]);

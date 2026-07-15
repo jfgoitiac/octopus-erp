@@ -1,4 +1,5 @@
 import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2, Monitor, ShieldOff, KeyRound } from 'lucide-react';
+import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const CONTACTO_FIELDS = [
     { icon: Phone,  field: 'telefono' },
@@ -84,7 +85,7 @@ const RepresentanteFicha = ({
                             {alu.nombre} {alu.apellido}
                         </p>
                         <p className="text-[10px] mt-0.5" style={{ color: 'var(--ash)' }}>
-                            {alu.grado_seccion || 'Sin grado'} · {alu.cedula_escolar}
+                            {alu.grado_seccion || 'Sin grado'} · {mostrarCedula(alu.cedula_escolar, 'Sin cédula')}
                         </p>
                     </div>
                     <span

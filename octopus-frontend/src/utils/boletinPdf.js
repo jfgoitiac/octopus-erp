@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { mostrarCedula } from './cedulaEscolar';
 
 const BRAND = '#003366';
 
@@ -48,7 +49,7 @@ export function generarBoletinPDF(boletin) {
   doc.setFont('helvetica', 'bold');
   doc.text('Cédula:', col2, infoY);
   doc.setFont('helvetica', 'normal');
-  doc.text(boletin.alumno?.cedula_escolar || 'N/A', col2 + 16, infoY);
+  doc.text(mostrarCedula(boletin.alumno?.cedula_escolar, 'N/A'), col2 + 16, infoY);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Grado:', col1, infoY + 6);

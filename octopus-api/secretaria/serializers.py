@@ -73,7 +73,7 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
         model  = Representante
         fields = [
             'id', 'cedula', 'nombre', 'apellido', 'telefono', 'correo', 'direccion',
-            'parentesco', 'nacionalidad', 'nivel_estudio',
+            'nacionalidad', 'nivel_estudio',
             'cantidad_alumnos', 'portal_creado', 'portal_activo',
             'monto_proyecto_inversion',
         ]
@@ -174,37 +174,54 @@ class AlumnoSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerialize
         model  = Alumno
         fields = '__all__'
 
-    def get_monto_solvencia(self, instance):
+    def _periodo_activo(self):
+        """Cachea ConfiguracionSistema.objects.first() en la instancia del serializer
+        (reusada para todas las filas cuando many=True) — evita repetir la misma
+        query por cada uno de los 4 métodos y por cada alumno de la página."""
+        if not hasattr(self, '_config_activo_cache'):
+            self._config_activo_cache = ConfiguracionSistema.objects.first()
+        config = self._config_activo_cache
+        return config.periodo_escolar_activo if config else None
+
+    def _cuota_solvencia(self, instance):
+        """Usa el prefetch de AlumnoListView.get_queryset (to_attr=
+        '_cuota_solvencia_periodo_activo') si está presente, evitando 1 query
+        extra por alumno; si no está prefetched (ej. instancia suelta fuera de
+        listado), cae al query individual de siempre."""
+        cuotas = getattr(instance, '_cuota_solvencia_periodo_activo', None)
+        if cuotas is not None:
+            return cuotas[0] if cuotas else None
         from cobranza.models import CuotaSolvencia
-        config = ConfiguracionSistema.objects.first()
-        periodo = config.periodo_escolar_activo if config else None
-        cuota = CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
+        periodo = self._periodo_activo()
+        return CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
+
+    def get_monto_solvencia(self, instance):
+        cuota = self._cuota_solvencia(instance)
         return str(cuota.monto_usd) if cuota else '0.00'
 
     def get_concepto_solvencia(self, instance):
-        from cobranza.models import CuotaSolvencia
-        config = ConfiguracionSistema.objects.first()
-        periodo = config.periodo_escolar_activo if config else None
-        cuota = CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
+        cuota = self._cuota_solvencia(instance)
         return cuota.concepto if cuota else ''
 
     def get_solvencia_pagada(self, instance):
-        from cobranza.models import CuotaSolvencia
-        config = ConfiguracionSistema.objects.first()
-        periodo = config.periodo_escolar_activo if config else None
-        cuota = CuotaSolvencia.objects.filter(alumno=instance, periodo_escolar=periodo).first() if periodo else None
+        cuota = self._cuota_solvencia(instance)
         return cuota.pagado if cuota else True
 
     def get_monto_proyecto_inversion(self, instance):
-        from cobranza.models import CuotaProyectoInversion
         if not instance.representante:
             return '0.00'
-        config = ConfiguracionSistema.objects.first()
-        periodo = config.periodo_escolar_activo if config else None
-        cuota = (
-            CuotaProyectoInversion.objects.filter(representante=instance.representante, periodo_escolar=periodo).first()
-            if periodo else None
-        )
+        cuotas = getattr(instance.representante, '_cuota_proyecto_periodo_activo', None)
+        if cuotas is not None:
+            cuota = cuotas[0] if cuotas else None
+        else:
+            from cobranza.models import CuotaProyectoInversion
+            periodo = self._periodo_activo()
+            cuota = (
+                CuotaProyectoInversion.objects.filter(
+                    representante=instance.representante, periodo_escolar=periodo
+                ).first()
+                if periodo else None
+            )
         return str(cuota.monto_usd) if cuota else '0.00'
 
     def to_representation(self, instance):
@@ -273,9 +290,8 @@ class AlumnoUpdateSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSer
         fields = [
             'nombre', 'apellido', 'cedula_escolar', 'grado_seccion',
             'fecha_nacimiento', 'genero', 'estatus_financiero',
-            'porcentaje_beca', 'representante', 'direccion', 'foto',
-            'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
-            'contacto_emergencia_parentesco', 'monto_solvencia', 'concepto_solvencia',
+            'porcentaje_beca', 'representante', 'direccion', 'foto', 'parentesco',
+            'monto_solvencia', 'concepto_solvencia',
             'lugar_nacimiento', 'pais_nacimiento', 'estado_nacimiento',
             'peso', 'estatura', 'institucion_procedencia',
             'bautizado', 'alergico',
@@ -352,9 +368,7 @@ class AlumnoInscripcionSerializer(NormalizaFechaNacimientoMixin, serializers.Mod
         model  = Alumno
         fields = [
             'nombre', 'apellido', 'cedula_escolar', 'fecha_nacimiento',
-            'genero', 'representante', 'direccion', 'foto',
-            'contacto_emergencia_nombre', 'contacto_emergencia_telefono',
-            'contacto_emergencia_parentesco',
+            'genero', 'representante', 'direccion', 'foto', 'parentesco',
             'lugar_nacimiento', 'pais_nacimiento', 'estado_nacimiento',
             'peso', 'estatura', 'institucion_procedencia',
             'bautizado', 'alergico',
@@ -603,6 +617,29 @@ class InscripcionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "error": "No se pudo completar la inscripción por un conflicto de datos. Por favor, verifique e intente de nuevo."
                 })
+
+
+class InscripcionListSerializer(serializers.ModelSerializer):
+    """Solo lectura, liviano: para la consulta/reimpresión de comprobantes.
+    A diferencia de InscripcionSerializer (escritura, anidado) no dispara
+    validaciones ni carga datos administrativos de cobranza.
+    """
+    alumno_nombre = serializers.CharField(source='alumno.nombre', read_only=True)
+    alumno_apellido = serializers.CharField(source='alumno.apellido', read_only=True)
+    cedula_escolar = serializers.CharField(source='alumno.cedula_escolar', read_only=True)
+    representante_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Inscripcion
+        fields = [
+            'id', 'alumno_nombre', 'alumno_apellido', 'cedula_escolar',
+            'representante_nombre', 'periodo_escolar', 'grado_seccion',
+            'tipo_ingreso', 'fecha_inscripcion',
+        ]
+
+    def get_representante_nombre(self, instance):
+        rep = instance.alumno.representante
+        return f"{rep.nombre} {rep.apellido}".strip() if rep else ''
 
 
 class LogAuditoriaSerializer(serializers.ModelSerializer):

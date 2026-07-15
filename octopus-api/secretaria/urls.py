@@ -4,8 +4,9 @@ from .views import (
     AlumnoListView, BienNacionalViewSet, CargarCuotasInscripcionView, ConfiguracionGradoViewSet,
     ConfiguracionSistemaView, ComprobanteInscripcionView,
     ExportarAlumnosExcelView, ExportarRepresentantesExcelView,
-    GradosListView, MatriculaGradoView,
+    GradosListView, InscripcionListView, MatriculaGradoView,
     ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
+    ImportarEstudiantesView,
     InscripcionNuevaView, LogAuditoriaListView,
     PromocionAlumnosView, RepresentanteAlumnosView, RepresentanteViewSet,
     buscar_representante_por_cedula,
@@ -22,6 +23,7 @@ urlpatterns = [
 
     # Inscripción
     path('inscripcion-nueva/',                    InscripcionNuevaView.as_view(),         name='inscripcion-nueva'),
+    path('inscripciones/',                        InscripcionListView.as_view(),          name='inscripciones-lista'),
     path('inscripciones/<int:pk>/comprobante/',   ComprobanteInscripcionView.as_view(),   name='comprobante-inscripcion'),
 
     # Representante
@@ -32,6 +34,7 @@ urlpatterns = [
     path('configuracion/',                        ConfiguracionSistemaView.as_view(),     name='configuracion-sistema'),
     path('promover-alumnos/',                     PromocionAlumnosView.as_view(),         name='promover-alumnos'),
     path('cargar-cuotas-inscripcion/',             CargarCuotasInscripcionView.as_view(),  name='cargar-cuotas-inscripcion'),
+    path('importar-estudiantes/',                  ImportarEstudiantesView.as_view(),      name='importar-estudiantes'),
 
     # Auditoría
     path('auditoria/',                            LogAuditoriaListView.as_view(),         name='auditoria-lista'),

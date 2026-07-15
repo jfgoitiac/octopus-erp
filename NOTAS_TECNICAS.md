@@ -484,3 +484,54 @@ perdían sin aviso).
 - El comando de management `borrar_alumnos_representantes.py` sigue haciendo
   `Representante.objects.all().delete()` (hard delete real) — es una
   herramienta de mantenimiento/dev, no parte del flujo de usuario, no se tocó.
+
+---
+
+# IMPORTACIÓN MASIVA DE ESTUDIANTES DESDE EXCEL (2026-07-15)
+
+Se agregó `ImportarEstudiantesView` (`secretaria/views.py`,
+`secretaria/import_estudiantes.py`) para cargar la matrícula histórica del
+colegio desde un `.xlsx`, con botón en Sistemas › Usuarios › Consola de
+mantenimiento. Solo crea Representante + Alumno (Banco de Alumnos, sin
+`Inscripcion` ni cuotas — decisión explícita del usuario, es carga
+histórica, no una inscripción nueva).
+
+**Deuda técnica anotada, no corregida (son problemas del archivo fuente, no
+del sistema):**
+
+1. **El archivo Excel real entregado por el colegio trae errores de
+   captura**: en la sección "6to Grado" el teléfono del representante quedó
+   tipeado en la columna de correo (el parser lo detecta y recupera
+   automáticamente solo para esa sección — `SECCIONES_TELEFONO_DESPLAZADO`
+   en `import_estudiantes.py`); en las 4 secciones de "Año" (1ro-4to,
+   ~156 estudiantes) no hay fecha de nacimiento capturada en absoluto; y
+   varias cédulas de representante llegan con el formato de Excel corrupto
+   (ej. `36.111535` en vez de `36.111.535` — el punto de miles sobrante se
+   interpretó como separador decimal y se perdió un dígito). El parser
+   marca estas filas con `warnings` pero **no puede recuperar el dígito
+   perdido**; quedan para corrección manual desde Lista de Alumnos después
+   de importar.
+
+2. **`grado_seccion` de preescolar usa la convención por edad** (`Sala 3`,
+   `Sala 4`, `Sala 5`), no los nombres literales del Excel (`SALA A/B/C`)
+   — decisión explícita del usuario para seguir la misma convención que ya
+   usan `secretaria/seeds.py` y `PromocionAlumnosView.MAPA_GRADOS`. Si en
+   el futuro el colegio nombra sus salas de otra forma, el mapeo
+   `MAPA_SECCIONES` en `import_estudiantes.py` es el único lugar a tocar.
+
+3. **`cupos_maximos` se auto-ajusta durante el import** si la cantidad real
+   de estudiantes de un grado supera el cupo configurado (con margen de 5)
+   — decisión explícita del usuario para no bloquear la carga histórica.
+   Esto significa que tras importar, los cupos configurados reflejan la
+   matrícula real ya cargada, no un límite pensado deliberadamente por el
+   colegio; conviene que alguien revise y ajuste `cupos_maximos` por grado
+   después de la primera carga si se quiere usarlos como tope real de
+   inscripción a futuro.
+
+4. **No hay endpoint para deshacer una importación** — si se carga el
+   archivo equivocado o dos veces, hay que retirar/eliminar los alumnos
+   creados manualmente desde Lista de Alumnos. No se implementó por no ser
+   parte del alcance pedido; si el import se usa con frecuencia (cargas
+   recurrentes de varios colegios) valdría la pena un botón de
+   "deshacer último import" basado en el `LogAuditoria` que ya se registra
+   (`accion="IMPORTAR_ESTUDIANTES"`).

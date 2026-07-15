@@ -174,21 +174,31 @@ class DashboardStatsView(APIView):
         cobrado_hoy_ves = pagos_hoy.aggregate(t=Sum('monto_ves'))['t'] or Decimal('0')
         pagos_hoy_count = pagos_hoy.aggregate(c=Count('id'))['c'] or 0
 
-        # Ocupación y morosidad por grado
+        # Ocupación y morosidad por grado — antes 2 queries POR grado (una de
+        # ellas con 4 Exists() anidados), ~30-40 queries pesadas por carga del
+        # dashboard. Ahora 2 agregaciones totales, sin importar cuántos grados
+        # existan.
         configs = ConfiguracionGrado.objects.order_by('grado_seccion')
+
+        totales_por_grado = {
+            row['grado_seccion']: row['total']
+            for row in activos.values('grado_seccion').annotate(total=Count('id'))
+        }
+        morosos_por_grado = {
+            row['grado_seccion']: row['morosos']
+            for row in annotate_en_mora(activos.exclude(estatus_financiero='becado'))
+                .values('grado_seccion')
+                .annotate(morosos=Count('id', filter=Q(en_mora=True)))
+        }
+
         grados = []
         for cfg in configs:
-            alumnos_grado = activos.filter(grado_seccion=cfg.grado_seccion)
-            total_grado   = alumnos_grado.count()
-            morosos_grado = annotate_en_mora(
-                alumnos_grado.exclude(estatus_financiero='becado')
-            ).filter(en_mora=True).count()
             grados.append({
                 'grado':            cfg.grado_seccion,
                 'cupos_maximos':    cfg.cupos_maximos,
                 'cupos_utilizados': cfg.cupos_utilizados,
-                'total_alumnos':    total_grado,
-                'morosos':          morosos_grado,
+                'total_alumnos':    totales_por_grado.get(cfg.grado_seccion, 0),
+                'morosos':          morosos_por_grado.get(cfg.grado_seccion, 0),
             })
 
         return Response({
@@ -1084,7 +1094,9 @@ class ConsultaComprobantesView(APIView):
         pagos_dict = {
             p.id: p for p in Pago.objects.filter(id__in=rep_ids).select_related(
                 'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-            )
+            ).prefetch_related('solvencias_generadas')
+            # prefetch evita que ComprobanteSerializer.get_numero_solvencia dispare
+            # 1 query por fila (hasta 100 extra por página sin esto)
         }
         pagos = [pagos_dict[rid] for rid in rep_ids if rid in pagos_dict]
 

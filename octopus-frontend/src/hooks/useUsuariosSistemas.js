@@ -10,6 +10,8 @@ export function useUsuariosSistemas() {
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [backingUp,  setBackingUp]  = useState(false);
     const [syncingBCV, setSyncingBCV] = useState(false);
+    const [importingPreview, setImportingPreview] = useState(false);
+    const [importingConfirm, setImportingConfirm] = useState(false);
 
     const fetchUsers = useCallback(async (signal) => {
         setLoadingUsers(true);
@@ -122,11 +124,48 @@ export function useUsuariosSistemas() {
         }
     }, []);
 
+    const previewImportEstudiantes = useCallback(async (archivo) => {
+        setImportingPreview(true);
+        try {
+            const formData = new FormData();
+            formData.append('archivo', archivo);
+            const res = await axiosInstance.post('secretaria/importar-estudiantes/?preview=true', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return res.data;
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al leer el archivo');
+            return null;
+        } finally {
+            setImportingPreview(false);
+        }
+    }, []);
+
+    const confirmarImportEstudiantes = useCallback(async (archivo) => {
+        setImportingConfirm(true);
+        try {
+            const formData = new FormData();
+            formData.append('archivo', archivo);
+            const res = await axiosInstance.post('secretaria/importar-estudiantes/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            toast.success(`Se importaron ${res.data.creados} estudiantes correctamente`);
+            return res.data;
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al importar los estudiantes');
+            return null;
+        } finally {
+            setImportingConfirm(false);
+        }
+    }, []);
+
     return {
         usuarios,
         loadingUsers,
         backingUp,
         syncingBCV,
+        importingPreview,
+        importingConfirm,
         fetchUsers,
         createUser,
         deleteUser,
@@ -134,5 +173,7 @@ export function useUsuariosSistemas() {
         resetPassword,
         downloadBackup,
         syncBCV,
+        previewImportEstudiantes,
+        confirmarImportEstudiantes,
     };
 }

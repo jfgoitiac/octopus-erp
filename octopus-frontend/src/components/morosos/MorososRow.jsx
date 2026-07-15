@@ -2,6 +2,7 @@ import { GraduationCap, Phone, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InitialsAvatar from '../shared/InitialsAvatar';
 import { fmt } from '../../utils/format';
+import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const MorososRow = ({ alu, animDelay }) => {
     const navigate = useNavigate();
@@ -41,7 +42,7 @@ const MorososRow = ({ alu, animDelay }) => {
 
             {/* Cédula */}
             <td className="px-4 py-3 text-xs font-mono" style={{ color: 'var(--ash)' }}>
-                {alu.cedula_escolar ?? '—'}
+                {mostrarCedula(alu.cedula_escolar)}
             </td>
 
             {/* Grado */}

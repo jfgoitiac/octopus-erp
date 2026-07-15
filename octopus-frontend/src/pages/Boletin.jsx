@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { FileText, Download, Eye, Search, User, Loader2, GraduationCap } from 'lucide-react';
 import { useBoletin } from '../hooks/useBoletin';
 import { generarBoletinPDF } from '../utils/boletinPdf';
+import { mostrarCedula } from '../utils/cedulaEscolar';
 
 const NOTA_MINIMA = 10;
 
@@ -177,7 +178,7 @@ const Boletin = () => {
           >
             {[
               { label: 'Alumno', val: `${boletin.alumno?.nombre} ${boletin.alumno?.apellido}` },
-              { label: 'Cédula Escolar', val: boletin.alumno?.cedula_escolar || 'N/A' },
+              { label: 'Cédula Escolar', val: mostrarCedula(boletin.alumno?.cedula_escolar, 'N/A') },
               { label: 'Grado', val: boletin.alumno?.grado_seccion || 'N/A' },
               { label: 'Lapso', val: `${boletin.lapso?.nombre} — ${boletin.lapso?.periodo_escolar}` },
             ].map(item => (

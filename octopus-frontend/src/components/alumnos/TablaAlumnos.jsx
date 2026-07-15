@@ -1,4 +1,5 @@
 import { User, FileText, Edit2, GraduationCap, UserMinus, RefreshCcw, DollarSign, Receipt, ExternalLink, Loader2 } from 'lucide-react';
+import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const EstadoBadge = ({ alumno }) => {
     const estado = !alumno.activo ? 'Retirado' : (alumno.grado_seccion ? 'Inscrito' : 'Sin inscribir');
@@ -76,7 +77,7 @@ const TablaAlumnos = ({
                                             {alumno.nombre} {alumno.apellido}
                                         </p>
                                         <p className="text-xs" style={{ color: 'var(--ash)' }}>
-                                            CI: {alumno.cedula_escolar || 'N/A'}
+                                            CI: {mostrarCedula(alumno.cedula_escolar, 'N/A')}
                                         </p>
                                     </div>
                                 </div>

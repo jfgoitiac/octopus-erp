@@ -152,7 +152,19 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
                                         <button
                                             key={t}
                                             type="button"
-                                            onClick={() => setDatos(prev => ({ ...prev, tipo_ingreso: t }))}
+                                            onClick={() => setDatos(prev => {
+                                                // Alumno regular: ya viene de este mismo colegio, así que se
+                                                // autocompleta la institución de procedencia (solo si está vacía,
+                                                // para no pisar algo que el usuario ya haya escrito).
+                                                const institucionAuto = t === 'regular' && config?.nombre_colegio && !prev.alumno?.institucion_procedencia;
+                                                return {
+                                                    ...prev,
+                                                    tipo_ingreso: t,
+                                                    alumno: institucionAuto
+                                                        ? { ...prev.alumno, institucion_procedencia: config.nombre_colegio }
+                                                        : prev.alumno,
+                                                };
+                                            })}
                                             aria-pressed={datos.tipo_ingreso === t}
                                             className="flex-1 py-2 rounded-lg text-xs font-medium uppercase transition-all"
                                             style={{

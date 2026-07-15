@@ -10,6 +10,7 @@ import { es } from 'date-fns/locale';
 import apiClient from '../api/apiClient';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
 import { printComprobanteCompacto } from '../utils/printComprobanteCompacto';
+import { mostrarCedula } from '../utils/cedulaEscolar';
 
 const METODOS = [
   { value: '', label: 'Todos los métodos' },
@@ -562,7 +563,7 @@ export default function Comprobantes() {
                           {c.nombre_alumno} {c.apellido_alumno}
                         </p>
                         <p className="text-xs font-mono" style={{ color: 'var(--ash)' }}>
-                          {c.cedula_escolar || '—'}
+                          {mostrarCedula(c.cedula_escolar)}
                         </p>
                       </div>
                       <EstatusBadge estatus={c.estatus} />
@@ -667,7 +668,7 @@ export default function Comprobantes() {
                             {c.nombre_alumno} {c.apellido_alumno}
                           </p>
                           <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--ash)' }}>
-                            {c.cedula_escolar || '—'}
+                            {mostrarCedula(c.cedula_escolar)}
                           </p>
                         </td>
 

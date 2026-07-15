@@ -2,16 +2,17 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 import { parseApiError } from '../utils/apiError';
+import { cedulaParaEditar } from '../utils/cedulaEscolar';
 
 const INITIAL_REGISTER_FORM = {
     nombre: '', apellido: '', cedula_escolar: '', fecha_nacimiento: '', genero: 'masculino',
     porcentaje_beca: 0,
+    parentesco: '',
     direccion: '',
-    contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '',
-    lugar_nacimiento: '', pais_nacimiento: '', estado_nacimiento: '',
+    lugar_nacimiento: '', pais_nacimiento: 'Venezuela', estado_nacimiento: '',
     peso: '', estatura: '', institucion_procedencia: '', bautizado: '', alergico: '',
     rep_cedula: '', rep_nombre: '', rep_apellido: '', rep_telefono: '', rep_correo: '', rep_direccion: '',
-    rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
+    rep_nacionalidad: 'Venezolana', rep_nivel_estudio: '',
 };
 
 const INITIAL_EDIT_FORM = {
@@ -20,13 +21,13 @@ const INITIAL_EDIT_FORM = {
     monto_solvencia: '0.00',
     concepto_solvencia: '',
     monto_proyecto_inversion: '0.00',
+    parentesco: '',
     direccion: '',
-    contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '',
     lugar_nacimiento: '', pais_nacimiento: '', estado_nacimiento: '',
     peso: '', estatura: '', institucion_procedencia: '', bautizado: '', alergico: '',
     rep_id: '', rep_nombre: '', rep_apellido: '', rep_cedula: '',
     rep_telefono: '', rep_correo: '', rep_direccion: '',
-    rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
+    rep_nacionalidad: '', rep_nivel_estudio: '',
 };
 
 const PAGE_SIZE = 20;
@@ -156,7 +157,6 @@ export function useAlumnos() {
                     rep_telefono: rep.telefono || '',
                     rep_correo: rep.correo || '',
                     rep_direccion: rep.direccion || '',
-                    rep_parentesco: rep.parentesco || '',
                     rep_nacionalidad: rep.nacionalidad || '',
                     rep_nivel_estudio: rep.nivel_estudio || '',
                 }));
@@ -238,7 +238,7 @@ export function useAlumnos() {
             ...prev,
             rep_cedula: '', rep_nombre: '', rep_apellido: '',
             rep_telefono: '', rep_correo: '', rep_direccion: '',
-            rep_parentesco: '', rep_nacionalidad: '', rep_nivel_estudio: '',
+            rep_nacionalidad: 'Venezolana', rep_nivel_estudio: '',
         }));
     };
 
@@ -253,10 +253,8 @@ export function useAlumnos() {
                 fecha_nacimiento: registerForm.fecha_nacimiento || null,
                 genero: registerForm.genero,
                 porcentaje_beca: Number(registerForm.porcentaje_beca) || 0,
+                parentesco: registerForm.parentesco || '',
                 direccion: registerForm.direccion || '',
-                contacto_emergencia_nombre: registerForm.contacto_emergencia_nombre || '',
-                contacto_emergencia_telefono: registerForm.contacto_emergencia_telefono || '',
-                contacto_emergencia_parentesco: registerForm.contacto_emergencia_parentesco || '',
                 lugar_nacimiento: registerForm.lugar_nacimiento || '',
                 pais_nacimiento: registerForm.pais_nacimiento || '',
                 estado_nacimiento: registerForm.estado_nacimiento || '',
@@ -272,7 +270,6 @@ export function useAlumnos() {
                     telefono: registerForm.rep_telefono,
                     correo: registerForm.rep_correo,
                     direccion: registerForm.rep_direccion,
-                    parentesco: registerForm.rep_parentesco || '',
                     nacionalidad: registerForm.rep_nacionalidad || '',
                     nivel_estudio: registerForm.rep_nivel_estudio || '',
                 },
@@ -300,19 +297,20 @@ export function useAlumnos() {
                     id: d.id,
                     nombre: d.nombre || '',
                     apellido: d.apellido || '',
-                    cedula_escolar: d.cedula_escolar || '',
+                    cedula_escolar: cedulaParaEditar(d.cedula_escolar),
                     grado_seccion: d.grado_seccion ? d.grado_seccion.split(' - ')[0] : '',
                     fecha_nacimiento: d.fecha_nacimiento || '',
                     genero: d.genero || '',
                     estatus_financiero: d.estatus_financiero || 'solvente',
                     porcentaje_beca: d.porcentaje_beca || 0,
-                    monto_solvencia: d.monto_solvencia || '0.00',
+                    // El backend responde '0.00' tanto si no hay cuota de solvencia registrada
+                    // como si la hay con monto 0 — se usa como señal de "sin definir" y se
+                    // precarga con el monto por defecto de la configuración, editable igual.
+                    monto_solvencia: (d.monto_solvencia && d.monto_solvencia !== '0.00') ? d.monto_solvencia : montoDefecto,
                     concepto_solvencia: d.concepto_solvencia || '',
                     monto_proyecto_inversion: d.monto_proyecto_inversion || '0.00',
+                    parentesco: d.parentesco || '',
                     direccion: d.direccion || '',
-                    contacto_emergencia_nombre: d.contacto_emergencia_nombre || '',
-                    contacto_emergencia_telefono: d.contacto_emergencia_telefono || '',
-                    contacto_emergencia_parentesco: d.contacto_emergencia_parentesco || '',
                     lugar_nacimiento: d.lugar_nacimiento || '',
                     pais_nacimiento: d.pais_nacimiento || '',
                     estado_nacimiento: d.estado_nacimiento || '',
@@ -328,7 +326,6 @@ export function useAlumnos() {
                     rep_telefono: d.representante?.telefono || '',
                     rep_correo: d.representante?.correo || '',
                     rep_direccion: d.representante?.direccion || '',
-                    rep_parentesco: d.representante?.parentesco || '',
                     rep_nacionalidad: d.representante?.nacionalidad || '',
                     rep_nivel_estudio: d.representante?.nivel_estudio || '',
                 });
@@ -361,10 +358,8 @@ export function useAlumnos() {
                 porcentaje_beca: Number(editForm.porcentaje_beca) || 0,
                 monto_solvencia: Number(editForm.monto_solvencia) || 0,
                 concepto_solvencia: editForm.concepto_solvencia?.trim() || '',
+                parentesco: editForm.parentesco?.trim() || '',
                 direccion: editForm.direccion?.trim() || '',
-                contacto_emergencia_nombre: editForm.contacto_emergencia_nombre?.trim() || '',
-                contacto_emergencia_telefono: editForm.contacto_emergencia_telefono?.trim() || '',
-                contacto_emergencia_parentesco: editForm.contacto_emergencia_parentesco?.trim() || '',
                 lugar_nacimiento: editForm.lugar_nacimiento?.trim() || '',
                 pais_nacimiento: editForm.pais_nacimiento?.trim() || '',
                 estado_nacimiento: editForm.estado_nacimiento?.trim() || '',
@@ -381,7 +376,6 @@ export function useAlumnos() {
                     telefono: editForm.rep_telefono?.trim() || '',
                     correo: editForm.rep_correo?.trim() || '',
                     direccion: editForm.rep_direccion?.trim() || '',
-                    parentesco: editForm.rep_parentesco?.trim() || '',
                     nacionalidad: editForm.rep_nacionalidad?.trim() || '',
                     nivel_estudio: editForm.rep_nivel_estudio?.trim() || '',
                 },

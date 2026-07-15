@@ -9,8 +9,10 @@ import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
-  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck
+  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch
 } from 'lucide-react';
+
+const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
 
 const navSections = [
   {
@@ -22,6 +24,7 @@ const navSections = [
       { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza','docente'] },
       { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria','docente'] },
       { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria'] },
+      { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_LOS_ROLES },
     ],
   },
   {

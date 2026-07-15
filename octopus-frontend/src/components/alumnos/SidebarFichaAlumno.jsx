@@ -1,4 +1,5 @@
 import { X, User, Info, UserCircle, DollarSign } from 'lucide-react';
+import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const EstadoBadge = ({ alumno }) => {
     const estado = !alumno.activo ? 'Retirado' : (alumno.grado_seccion ? 'Inscrito' : 'Sin inscribir');
@@ -40,7 +41,7 @@ const SidebarFichaAlumno = ({ alumno, onClose, onIrCobranza }) => (
                     {alumno.nombre} {alumno.apellido}
                 </h2>
                 <p className="font-bold" style={{ color: 'var(--ash)' }}>
-                    Cédula: {alumno.cedula_escolar || 'Temporal'}
+                    Cédula: {mostrarCedula(alumno.cedula_escolar, 'Temporal')}
                 </p>
                 <div className="mt-2"><EstadoBadge alumno={alumno} /></div>
             </div>

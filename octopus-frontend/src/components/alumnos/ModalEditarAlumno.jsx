@@ -26,7 +26,7 @@ const inputStyle = {
 
 const inputClass = "w-full px-3 py-2 rounded-lg text-sm outline-none";
 
-const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
+const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditarSolvencia = true }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
 
@@ -37,6 +37,21 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
     }, [onClose]);
 
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+    // Igual que en el registro: mientras la dirección del representante esté vacía
+    // o siga igual a la del alumno (no fue editada a mano todavía), se sincroniza
+    // con lo que se escriba en la dirección del alumno.
+    const handleDireccionAlumno = (e) => {
+        const value = e.target.value;
+        setForm(prev => {
+            const repSincronizada = prev.rep_direccion === '' || prev.rep_direccion === prev.direccion;
+            return {
+                ...prev,
+                direccion: value,
+                rep_direccion: repSincronizada ? value : prev.rep_direccion,
+            };
+        });
+    };
 
     const fechaNacimientoDate = useMemo(
         () => parseISODate(form.fecha_nacimiento),
@@ -89,7 +104,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     value={form.apellido} onChange={set('apellido')} />
                             </Campo>
                             <Campo label="Cédula Escolar (Opcional)">
-                                <input type="text" inputMode="numeric" className={inputClass} style={inputStyle}
+                                <input type="text" inputMode="numeric" placeholder="Se autogenera si se deja en blanco" className={inputClass} style={inputStyle}
                                     value={form.cedula_escolar} onChange={set('cedula_escolar')} />
                             </Campo>
                             <Campo label="Grado / Año">
@@ -129,14 +144,22 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                     value={form.porcentaje_beca} onChange={set('porcentaje_beca')} />
                             </Campo>
                             <Campo label="Solvencia del período activo (USD)">
-                                <input type="number" min="0" step="0.01" className={inputClass} style={inputStyle}
+                                <input type="number" min="0" step="0.01" readOnly={!puedeEditarSolvencia}
+                                    disabled={!puedeEditarSolvencia}
+                                    className={`${inputClass} ${!puedeEditarSolvencia ? 'cursor-not-allowed opacity-70' : ''}`}
+                                    style={inputStyle}
                                     value={form.monto_solvencia} onChange={set('monto_solvencia')}
-                                    aria-label="Monto de solvencia del período escolar activo en dólares" />
+                                    aria-label="Monto de solvencia del período escolar activo en dólares"
+                                    title={!puedeEditarSolvencia ? 'Solo Director, Administrador o Cobranza pueden modificar este monto.' : undefined} />
                             </Campo>
                             <Campo label="Concepto de la solvencia">
-                                <input type="text" placeholder="Ej: Mes de junio" className={inputClass} style={inputStyle}
+                                <input type="text" placeholder="Ej: Mes de junio" readOnly={!puedeEditarSolvencia}
+                                    disabled={!puedeEditarSolvencia}
+                                    className={`${inputClass} ${!puedeEditarSolvencia ? 'cursor-not-allowed opacity-70' : ''}`}
+                                    style={inputStyle}
                                     value={form.concepto_solvencia || ''} onChange={set('concepto_solvencia')}
-                                    aria-label="Concepto o mes al que corresponde la solvencia" />
+                                    aria-label="Concepto o mes al que corresponde la solvencia"
+                                    title={!puedeEditarSolvencia ? 'Solo Director, Administrador o Cobranza pueden modificar este monto.' : undefined} />
                             </Campo>
                             <Campo label="Proyecto de Inversión del representante (USD)">
                                 <input type="number" readOnly disabled className={`${inputClass} cursor-not-allowed opacity-70`}
@@ -150,7 +173,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                             <div className="sm:col-span-2">
                                 <Campo label="Dirección">
                                     <textarea rows="2" className={`${inputClass} resize-none`} style={inputStyle}
-                                        value={form.direccion || ''} onChange={set('direccion')} />
+                                        value={form.direccion || ''} onChange={handleDireccionAlumno} />
                                 </Campo>
                             </div>
                             <Campo label="Lugar de Nacimiento">
@@ -191,20 +214,16 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                         value={form.alergico || ''} onChange={set('alergico')} />
                                 </Campo>
                             </div>
-                            <Campo label="Contacto de Emergencia">
-                                <input type="text" className={inputClass} style={inputStyle}
-                                    value={form.contacto_emergencia_nombre || ''} onChange={set('contacto_emergencia_nombre')} />
+                            <Campo label="Parentesco con el Representante">
+                                <select className={inputClass} style={inputStyle}
+                                    value={form.parentesco || ''} onChange={set('parentesco')}>
+                                    <option value="">Seleccionar…</option>
+                                    <option value="padre">Padre</option>
+                                    <option value="madre">Madre</option>
+                                    <option value="tutor">Tutor</option>
+                                    <option value="otro">Otro</option>
+                                </select>
                             </Campo>
-                            <Campo label="Teléfono de Emergencia">
-                                <input type="tel" className={inputClass} style={inputStyle}
-                                    value={form.contacto_emergencia_telefono || ''} onChange={set('contacto_emergencia_telefono')} />
-                            </Campo>
-                            <div className="sm:col-span-2">
-                                <Campo label="Parentesco del Contacto">
-                                    <input type="text" className={inputClass} style={inputStyle}
-                                        value={form.contacto_emergencia_parentesco || ''} onChange={set('contacto_emergencia_parentesco')} />
-                                </Campo>
-                            </div>
                         </div>
                     </section>
 
@@ -245,16 +264,6 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave }) => {
                                         value={form.rep_direccion || ''} onChange={set('rep_direccion')} />
                                 </Campo>
                             </div>
-                            <Campo label="Parentesco">
-                                <select className={inputClass} style={inputStyle}
-                                    value={form.rep_parentesco || ''} onChange={set('rep_parentesco')}>
-                                    <option value="">Seleccionar…</option>
-                                    <option value="padre">Padre</option>
-                                    <option value="madre">Madre</option>
-                                    <option value="tutor">Tutor</option>
-                                    <option value="otro">Otro</option>
-                                </select>
-                            </Campo>
                             <Campo label="Nacionalidad">
                                 <input type="text" className={inputClass} style={inputStyle}
                                     value={form.rep_nacionalidad || ''} onChange={set('rep_nacionalidad')} />

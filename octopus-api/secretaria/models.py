@@ -70,7 +70,6 @@ class Representante(models.Model):
     direccion = models.TextField()
 
     # Datos de planilla (NUEVO)
-    parentesco    = models.CharField(max_length=10, choices=PARENTESCOS, blank=True, default='')
     nacionalidad  = models.CharField(max_length=50, blank=True, default='')
     nivel_estudio = models.CharField(max_length=100, blank=True, default='')
 
@@ -131,10 +130,10 @@ class Alumno(models.Model):
     bautizado                = models.BooleanField(null=True, blank=True, default=None)
     alergico                 = models.TextField(blank=True, null=True)
 
-    # Contacto de emergencia (NUEVO)
-    contacto_emergencia_nombre      = models.CharField(max_length=200, blank=True, default='')
-    contacto_emergencia_telefono    = models.CharField(max_length=20, blank=True, default='')
-    contacto_emergencia_parentesco  = models.CharField(max_length=50, blank=True, default='')
+    # Parentesco de ESTE alumno con su representante — vive en Alumno (no en
+    # Representante) porque un mismo representante puede tener varios alumnos
+    # a cargo con parentescos distintos (ej: padre de uno, tío de otro).
+    parentesco = models.CharField(max_length=10, choices=Representante.PARENTESCOS, blank=True, default='')
 
     # Académico — grado_seccion ahora es opcional (alumno puede existir sin inscripción)
     grado_seccion      = models.CharField(max_length=50, blank=True, null=True, db_index=True)  # MODIFICADO

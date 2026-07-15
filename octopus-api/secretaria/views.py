@@ -11,14 +11,15 @@ from django.db import transaction
 from django.db import models
 from django.db.models import F
 from rest_framework.response import Response
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.views import APIView
 from .models import (
     Alumno, BienNacional, ConfiguracionGrado, ConfiguracionSistema,
     Inscripcion, Representante
 )
-from .services import generate_temporary_cedula_escolar
+from .services import generate_temporary_cedula_escolar, dia_limite_pago_global
+from .import_estudiantes import parsear_planilla
 from authentication.views import IsSystemAdminOrDirector
 from usuarios.models import LogAuditoria
 from django.db.models import Count
@@ -26,8 +27,8 @@ from config.pagination import StandardResultsPagination
 from .serializers import (
     AlumnoRetirarSerializer, AlumnoSerializer, AlumnoUpdateSerializer,
     AsignarGradoSerializer, BienNacionalSerializer, ConfiguracionGradoSerializer,
-    ConfiguracionSistemaSerializer, InscripcionSerializer, RepresentanteSerializer,
-    RepresentanteCRUDSerializer, LogAuditoriaSerializer,
+    ConfiguracionSistemaSerializer, InscripcionListSerializer, InscripcionSerializer,
+    RepresentanteSerializer, RepresentanteCRUDSerializer, LogAuditoriaSerializer,
 )
 
 
@@ -64,6 +65,24 @@ class IsDocenteOrAbove(permissions.BasePermission):
             return (
                 request.user.perfil.esta_activo and
                 request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'docente', 'cobranza']
+            )
+        except Exception:
+            return False
+
+
+class IsFinanzasOrAbove(permissions.BasePermission):
+    """Roles con acceso a finanzas (sin sistemas, que no debe ver montos)."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser:
+            return True
+
+        try:
+            return (
+                request.user.perfil.esta_activo and
+                request.user.perfil.rol in ['director', 'administrador', 'cobranza']
             )
         except Exception:
             return False
@@ -460,6 +479,33 @@ class AlumnoListView(viewsets.ModelViewSet):
                 )
             )
 
+        # Prefetch de solvencia (por alumno) y proyecto de inversión (por
+        # representante) del período activo: evita que AlumnoSerializer dispare
+        # 2 queries por cada uno de sus 4 SerializerMethodField relacionados,
+        # por cada alumno de la página (hasta 160 queries extra en una página
+        # de 20 sin este prefetch).
+        from cobranza.models import CuotaSolvencia, CuotaProyectoInversion
+        cuota_solvencia_qs = (
+            CuotaSolvencia.objects.filter(periodo_escolar=periodo_activo)
+            if periodo_activo else CuotaSolvencia.objects.none()
+        )
+        cuota_proyecto_qs = (
+            CuotaProyectoInversion.objects.filter(periodo_escolar=periodo_activo)
+            if periodo_activo else CuotaProyectoInversion.objects.none()
+        )
+        qs = qs.prefetch_related(
+            models.Prefetch(
+                'cuotas_solvencia',
+                queryset=cuota_solvencia_qs,
+                to_attr='_cuota_solvencia_periodo_activo',
+            ),
+            models.Prefetch(
+                'representante__cuotas_proyecto_inversion',
+                queryset=cuota_proyecto_qs,
+                to_attr='_cuota_proyecto_periodo_activo',
+            ),
+        )
+
         # Filtro por estatus financiero (mora, solvente, becado) sobre el estado real
         estatus = self.request.query_params.get('estatus', '')
         if estatus == 'mora':
@@ -484,7 +530,7 @@ class AlumnoListView(viewsets.ModelViewSet):
     def get_permissions(self):
         # Crear/editar: secretaria o superior
         # Listar/ver: docente o superior
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ['create', 'update', 'partial_update', 'update_info', 'destroy']:
             return [IsSecretariaOrAbove()]
         return [IsDocenteOrAbove()]
 
@@ -508,6 +554,30 @@ class AlumnoListView(viewsets.ModelViewSet):
         serializer = AlumnoUpdateSerializer(alumno, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
+        # El monto/concepto de solvencia es un dato financiero: solo finanzas puede
+        # cambiarlo, aunque secretaría pueda editar el resto de los datos del alumno.
+        # El frontend siempre manda ambos campos en el payload, así que solo bloqueamos
+        # cuando el valor efectivamente difiere del actual (no por su sola presencia).
+        cuota_solvencia_actual = None
+        if 'monto_solvencia' in serializer.validated_data or 'concepto_solvencia' in serializer.validated_data:
+            from cobranza.models import CuotaSolvencia
+            config  = ConfiguracionSistema.objects.first()
+            periodo = config.periodo_escolar_activo if config else None
+            cuota_solvencia_actual = CuotaSolvencia.objects.filter(alumno=alumno, periodo_escolar=periodo).first()
+
+            monto_cambia = 'monto_solvencia' in serializer.validated_data and str(
+                cuota_solvencia_actual.monto_usd if cuota_solvencia_actual else None
+            ) != str(serializer.validated_data['monto_solvencia'])
+            concepto_cambia = 'concepto_solvencia' in serializer.validated_data and str(
+                cuota_solvencia_actual.concepto if cuota_solvencia_actual else ''
+            ) != str(serializer.validated_data['concepto_solvencia'])
+
+            if (monto_cambia or concepto_cambia) and not IsFinanzasOrAbove().has_permission(request, self):
+                return Response(
+                    {"error": "No tiene permiso para modificar el monto de solvencia."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         cambios_detectados = []
         for attr, value in serializer.validated_data.items():
             if attr == 'representante':
@@ -517,11 +587,8 @@ class AlumnoListView(viewsets.ModelViewSet):
                     if str(valor_actual) != str(rep_value):
                         cambios_detectados.append(f"Rep.{rep_attr}: {valor_actual} -> {rep_value}")
             elif attr == 'monto_solvencia':
-                from cobranza.models import CuotaSolvencia
-                config = ConfiguracionSistema.objects.first()
                 periodo = config.periodo_escolar_activo if config else None
-                cuota_actual = CuotaSolvencia.objects.filter(alumno=alumno, periodo_escolar=periodo).first()
-                valor_actual = cuota_actual.monto_usd if cuota_actual else None
+                valor_actual = cuota_solvencia_actual.monto_usd if cuota_solvencia_actual else None
                 if str(valor_actual) != str(value):
                     cambios_detectados.append(f"Solvencia {periodo}: {valor_actual} -> {value}")
             else:
@@ -700,6 +767,27 @@ class InscripcionNuevaView(APIView):
 
 
 # ─────────────────────────────────────────────
+# CONSULTA DE INSCRIPCIÓN (para reimpresión de comprobantes)
+# ─────────────────────────────────────────────
+class InscripcionListView(generics.ListAPIView):
+    """Listado de inscripciones por nombre/apellido del alumno, disponible para
+    cualquier rol autenticado — se usa para localizar y reimprimir comprobantes."""
+    serializer_class    = InscripcionListSerializer
+    permission_classes  = [permissions.IsAuthenticated]
+    pagination_class    = StandardResultsPagination
+
+    def get_queryset(self):
+        qs = Inscripcion.objects.select_related('alumno', 'alumno__representante').order_by('-fecha_inscripcion')
+        buscar = self.request.query_params.get('buscar', '')
+        if buscar:
+            qs = qs.filter(
+                models.Q(alumno__nombre__icontains=buscar) |
+                models.Q(alumno__apellido__icontains=buscar)
+            )
+        return qs
+
+
+# ─────────────────────────────────────────────
 # COMPROBANTE DE INSCRIPCIÓN PDF (NUEVO)
 # ─────────────────────────────────────────────
 class ComprobanteInscripcionView(APIView):
@@ -842,8 +930,12 @@ class RepresentanteAlumnosView(APIView):
         try:
             from cobranza.mora import annotate_en_mora
             representante = Representante.objects.get(cedula=cedula)
-            # Estatus en vivo (criterio canónico) — el serializer lo lee de la anotación
-            alumnos = annotate_en_mora(Alumno.objects.filter(representante=representante))
+            # Estatus en vivo (criterio canónico) — el serializer lo lee de la anotación.
+            # select_related evita que AlumnoSerializer dispare una query aparte por
+            # cada alumno para anidar RepresentanteSerializer(instance.representante).
+            alumnos = annotate_en_mora(
+                Alumno.objects.filter(representante=representante).select_related('representante')
+            )
 
             return Response({
                 "representante": RepresentanteSerializer(representante).data,
@@ -875,6 +967,150 @@ class ConfiguracionGradoViewSet(viewsets.ModelViewSet):
                 "cupos_actuales": instance.cupos_utilizados,
             }
         )
+
+
+# ─────────────────────────────────────────────
+# IMPORTACIÓN MASIVA DE ESTUDIANTES (Banco de Alumnos)
+# ─────────────────────────────────────────────
+class ImportarEstudiantesView(APIView):
+    """Carga masiva de la planilla histórica de matrícula (.xlsx).
+
+    Solo crea/vincula Representante y Alumno (Banco de Alumnos) con su
+    grado_seccion — a propósito NO crea Inscripcion ni cuotas, para no
+    tratar a estudiantes ya matriculados como una inscripción nueva (ver
+    auditoría 2026-07-15). El período de inscripciones se gestiona aparte
+    con el flujo normal (CargarCuotasInscripcionView, etc.).
+
+    ?preview=true: parsea el archivo y devuelve el resumen SIN escribir nada.
+    Sin ese parámetro: ejecuta la importación dentro de una transacción.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    # Margen que se suma a cupos_maximos cuando la cantidad real de
+    # alumnos importados supera el cupo configurado (decisión del usuario:
+    # auto-ajustar en vez de bloquear el import).
+    MARGEN_CUPOS = 5
+
+    def post(self, request):
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            return Response({"error": "Debe adjuntar un archivo .xlsx"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            filas = parsear_planilla(archivo)
+        except Exception:
+            return Response(
+                {"error": "No se pudo leer el archivo. Verifique que sea un .xlsx válido con el formato esperado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not filas:
+            return Response(
+                {"error": "No se encontraron estudiantes reconocibles en el archivo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        es_preview = request.query_params.get('preview', '').lower() == 'true'
+
+        if es_preview:
+            resumen = [
+                {
+                    "fila_excel":     f['fila_excel'],
+                    "nombre":         f"{f['nombre']} {f['apellido']}".strip(),
+                    "grado_seccion":  f['grado_seccion'],
+                    "representante":  f"{f['representante']['nombre']} {f['representante']['apellido']}".strip(),
+                    "warnings":       f['warnings'],
+                    "errors":         f['errors'],
+                }
+                for f in filas
+            ]
+            return Response({
+                "total":        len(filas),
+                "con_errores":  sum(1 for f in filas if f['errors']),
+                "con_warnings": sum(1 for f in filas if f['warnings'] and not f['errors']),
+                "filas":        resumen,
+            })
+
+        return self._confirmar_importacion(request, filas)
+
+    @transaction.atomic
+    def _confirmar_importacion(self, request, filas):
+        creados = []
+        vinculados_representante_existente = []
+        omitidos = []
+        cupos_ajustados = {}
+
+        for f in filas:
+            if f['errors']:
+                omitidos.append({"fila_excel": f['fila_excel'], "errores": f['errors']})
+                continue
+
+            rep_data = f['representante']
+            representante, rep_creado = Representante.objects.get_or_create(
+                cedula=rep_data['cedula'],
+                defaults={
+                    'nombre':    rep_data['nombre'],
+                    'apellido':  rep_data['apellido'],
+                    'telefono':  rep_data['telefono'],
+                    'correo':    rep_data['correo'],
+                    'direccion': '',
+                }
+            )
+            if not rep_creado:
+                vinculados_representante_existente.append(representante.cedula)
+            if not representante.activo:
+                representante.activo = True
+                representante.fecha_eliminacion = None
+                representante.save(update_fields=['activo', 'fecha_eliminacion'])
+
+            cedula_escolar = f['cedula_escolar'] or generate_temporary_cedula_escolar(request.user)
+
+            grado_seccion = f['grado_seccion']
+            config_grado, _ = ConfiguracionGrado.objects.select_for_update().get_or_create(
+                grado_seccion=grado_seccion,
+                defaults={'cupos_maximos': self.MARGEN_CUPOS}
+            )
+
+            alumno = Alumno.objects.create(
+                cedula_escolar=cedula_escolar,
+                nombre=f['nombre'],
+                apellido=f['apellido'],
+                fecha_nacimiento=f['fecha_nacimiento'],
+                genero=f['genero'],
+                lugar_nacimiento=f['lugar_nacimiento'],
+                direccion=f['direccion'],
+                grado_seccion=grado_seccion,
+                representante=representante,
+                dia_limite_pago=dia_limite_pago_global(),
+            )
+            creados.append({"id": alumno.id, "nombre": f"{alumno.nombre} {alumno.apellido}", "grado_seccion": grado_seccion})
+            cupos_ajustados[grado_seccion] = cupos_ajustados.get(grado_seccion, 0) + 1
+
+        # Sincroniza cupos_utilizados y sube cupos_maximos si el import superó
+        # el cupo configurado (decisión del usuario: auto-ajustar, no bloquear).
+        for grado_seccion, cantidad_nueva in cupos_ajustados.items():
+            config_grado = ConfiguracionGrado.objects.select_for_update().get(grado_seccion=grado_seccion)
+            nuevos_cupos_utilizados = config_grado.cupos_utilizados + cantidad_nueva
+            config_grado.cupos_utilizados = nuevos_cupos_utilizados
+            config_grado.cupos_maximos = max(config_grado.cupos_maximos, nuevos_cupos_utilizados + self.MARGEN_CUPOS)
+            config_grado.save(update_fields=['cupos_utilizados', 'cupos_maximos'])
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="IMPORTAR_ESTUDIANTES",
+            modulo="SECRETARIA",
+            detalles={
+                "creados":       len(creados),
+                "omitidos":      len(omitidos),
+                "grados_afectados": list(cupos_ajustados.keys()),
+            }
+        )
+
+        return Response({
+            "creados":                              len(creados),
+            "vinculados_representante_existente":   len(set(vinculados_representante_existente)),
+            "omitidos":                              omitidos,
+        }, status=status.HTTP_201_CREATED)
 
 
 # ─────────────────────────────────────────────

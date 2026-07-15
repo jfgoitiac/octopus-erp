@@ -451,13 +451,13 @@ def generar_pdf_inscripcion(inscripcion):
     content_w = width - 2 * margin
 
     def fmt(v):
-        return str(v) if v not in (None, '') else '—'
+        return str(v) if v not in (None, '') else ''
 
     def bool_display(v):
-        return {True: 'Sí', False: 'No'}.get(v, '—')
+        return {True: 'Sí', False: 'No'}.get(v, '')
 
     def fecha_fmt(dt):
-        return dt.strftime('%d/%m/%Y %H:%M') if dt else '—'
+        return dt.strftime('%d/%m/%Y %H:%M') if dt else ''
 
     # ── Encabezado ──────────────────────────────────────────────────────────
     # Mismo estilo/colores que generar_pdf_recibo (recibo de cobranza), para
@@ -550,22 +550,20 @@ def generar_pdf_inscripcion(inscripcion):
     # ── Sección 1: Datos del Estudiante ────────────────────────────────────────
     campos_estudiante = [
         f"Nombre y Apellido: {alumno.nombre} {alumno.apellido}",
-        f"Cédula Escolar: {alumno.cedula_escolar or 'Temporal'}",
-        f"Fecha de Nacimiento: {alumno.fecha_nacimiento.strftime('%d/%m/%Y') if alumno.fecha_nacimiento else 'No especificada'}    Género: {alumno.get_genero_display()}",
+        f"Cédula Escolar: {fmt(alumno.cedula_escolar)}",
+        f"Fecha de Nacimiento: {alumno.fecha_nacimiento.strftime('%d/%m/%Y') if alumno.fecha_nacimiento else ''}    Género: {alumno.get_genero_display()}",
         f"Lugar de Nacimiento: {fmt(alumno.lugar_nacimiento)}    País: {fmt(alumno.pais_nacimiento)}    Estado: {fmt(alumno.estado_nacimiento)}",
         f"Peso: {fmt(alumno.peso)} kg    Estatura: {fmt(alumno.estatura)} cm    Bautizado: {bool_display(alumno.bautizado)}",
         f"Institución de Procedencia: {fmt(alumno.institucion_procedencia)}",
         f"Alérgico a: {fmt(alumno.alergico)}",
         f"Dirección: {fmt(alumno.direccion)}",
-        f"Contacto de Emergencia: {fmt(alumno.contacto_emergencia_nombre)}  "
-        f"Tel: {fmt(alumno.contacto_emergencia_telefono)}  ({fmt(alumno.contacto_emergencia_parentesco)})",
         f"Grado/Sección: {inscripcion.grado_seccion}    Período: {inscripcion.periodo_escolar}    "
         f"Ingreso: {inscripcion.get_tipo_ingreso_display()}",
     ]
     draw_seccion("DATOS DEL ESTUDIANTE", campos_estudiante, foto_path=foto_path)
 
     # ── Sección 2: Datos del Representante ─────────────────────────────────────
-    parentesco_display = representante.get_parentesco_display() if representante.parentesco else '—'
+    parentesco_display = alumno.get_parentesco_display() if alumno.parentesco else ''
     campos_representante = [
         f"Nombre y Apellido: {representante.nombre} {representante.apellido}",
         f"Cédula: {representante.cedula}    Parentesco: {parentesco_display}",

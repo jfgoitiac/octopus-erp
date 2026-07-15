@@ -4,7 +4,7 @@ import { parse, format, isValid, differenceInYears } from 'date-fns';
 import { toast } from 'react-toastify';
 import SmartDateInput from '../SmartDateInput';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { camposFaltantesAlumno, contactoEmergenciaDesdeRepresentante } from '../../utils/inscripcionValidacion';
+import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
 
 function parseISODate(str) {
     if (!str) return null;
@@ -24,37 +24,24 @@ const Campo = ({ label, requerido, error, children }) => (
 
 const inputClass = "w-full px-3 py-2 rounded-lg text-sm outline-none";
 
-const REQUERIDOS = ['fecha_nacimiento', 'genero', 'direccion', 'contacto_emergencia_nombre', 'contacto_emergencia_telefono', 'contacto_emergencia_parentesco'];
+const REQUERIDOS = ['nombre', 'apellido', 'fecha_nacimiento', 'genero'];
 
 // Modal que fuerza a completar los datos críticos de un alumno ya existente
 // antes de poder continuar con la inscripción — evita reinscribir con fichas
-// incompletas (dirección, contacto de emergencia, etc.).
-const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => {
+// incompletas (dirección, etc.).
+const ModalCompletarAlumno = ({ alumno, onClose, onGuardar }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
-    // Solo se ofrece por defecto si el alumno no trae ya un contacto propio
-    // distinto — así no se pisa un dato manual ya cargado.
-    const sinContactoPropio = !alumno.contacto_emergencia_nombre?.trim()
-        && !alumno.contacto_emergencia_telefono?.trim()
-        && !alumno.contacto_emergencia_parentesco?.trim();
-    const usarRepInicial = sinContactoPropio && !!(representante?.nombre && representante?.telefono);
 
-    const [form, setForm] = useState(() => ({
-        ...alumno,
-        ...(usarRepInicial ? contactoEmergenciaDesdeRepresentante(representante) : {}),
-    }));
+    // OJO: cedula_escolar NO se vacía aunque sea temporal — en el flujo de
+    // inscripción el backend usa este valor como llave de update_or_create
+    // (ver InscripcionSerializer.create en secretaria/serializers.py). Vaciarlo
+    // generaría una cédula temporal nueva y duplicaría al alumno en vez de
+    // actualizarlo.
+    const [form, setForm] = useState(() => ({ ...alumno }));
     const [errores, setErrores] = useState({});
-    const [usarRepComoContacto, setUsarRepComoContacto] = useState(usarRepInicial);
 
     const faltantesIniciales = useMemo(() => camposFaltantesAlumno(alumno), [alumno]);
-
-    const handleToggleUsarRepContacto = (checked) => {
-        setUsarRepComoContacto(checked);
-        if (checked) {
-            setForm(prev => ({ ...prev, ...contactoEmergenciaDesdeRepresentante(representante) }));
-            setErrores(prev => ({ ...prev, contacto_emergencia_nombre: '', contacto_emergencia_telefono: '', contacto_emergencia_parentesco: '' }));
-        }
-    };
 
     const inputStyle = (campo) => ({
         border: `0.5px solid ${errores[campo] ? '#f87171' : 'var(--border-md)'}`,
@@ -128,14 +115,14 @@ const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => 
 
                 <div className="p-6 overflow-y-auto space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Campo label="Nombre">
+                        <Campo label="Nombre" requerido error={errores.nombre}>
                             <input type="text" className={inputClass} style={inputStyle('nombre')} value={form.nombre || ''} onChange={set('nombre')} />
                         </Campo>
-                        <Campo label="Apellido">
+                        <Campo label="Apellido" requerido error={errores.apellido}>
                             <input type="text" className={inputClass} style={inputStyle('apellido')} value={form.apellido || ''} onChange={set('apellido')} />
                         </Campo>
                         <Campo label="Cédula Escolar (Opcional)">
-                            <input type="text" className={inputClass} style={inputStyle('cedula_escolar')} value={form.cedula_escolar || ''} onChange={set('cedula_escolar')} />
+                            <input type="text" placeholder="Se autogenera si se deja en blanco" className={inputClass} style={inputStyle('cedula_escolar')} value={form.cedula_escolar || ''} onChange={set('cedula_escolar')} />
                         </Campo>
                         <Campo label="Fecha de nacimiento" requerido error={errores.fecha_nacimiento}>
                             <SmartDateInput
@@ -156,44 +143,6 @@ const ModalCompletarAlumno = ({ alumno, representante, onClose, onGuardar }) => 
                                 <option value="femenino">Femenino</option>
                             </select>
                         </Campo>
-                        <div className="md:col-span-2">
-                            <Campo label="Dirección del estudiante" requerido error={errores.direccion}>
-                                <textarea rows="2" className={`${inputClass} resize-none`} style={inputStyle('direccion')} value={form.direccion || ''} onChange={set('direccion')} />
-                            </Campo>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
-                            Contacto de emergencia
-                        </h4>
-                        {representante?.nombre && representante?.telefono && (
-                            <div className="flex items-center gap-2 mb-3">
-                                <input
-                                    id="modal-usar-rep-contacto"
-                                    type="checkbox"
-                                    checked={usarRepComoContacto}
-                                    onChange={(e) => handleToggleUsarRepContacto(e.target.checked)}
-                                    className="w-4 h-4 rounded"
-                                />
-                                <label htmlFor="modal-usar-rep-contacto" className="text-xs" style={{ color: 'var(--ash)' }}>
-                                    Usar los datos del representante ({representante.nombre} {representante.apellido}) como contacto de emergencia
-                                </label>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Campo label="Nombre del contacto" requerido error={errores.contacto_emergencia_nombre}>
-                                <input type="text" disabled={usarRepComoContacto} className={`${inputClass} disabled:opacity-60`} style={inputStyle('contacto_emergencia_nombre')} value={form.contacto_emergencia_nombre || ''} onChange={set('contacto_emergencia_nombre')} />
-                            </Campo>
-                            <Campo label="Teléfono del contacto" requerido error={errores.contacto_emergencia_telefono}>
-                                <input type="tel" disabled={usarRepComoContacto} className={`${inputClass} disabled:opacity-60`} style={inputStyle('contacto_emergencia_telefono')} value={form.contacto_emergencia_telefono || ''} onChange={set('contacto_emergencia_telefono')} />
-                            </Campo>
-                            <div className="md:col-span-2">
-                                <Campo label="Parentesco del contacto" requerido error={errores.contacto_emergencia_parentesco}>
-                                    <input type="text" disabled={usarRepComoContacto} className={`${inputClass} disabled:opacity-60`} style={inputStyle('contacto_emergencia_parentesco')} value={form.contacto_emergencia_parentesco || ''} onChange={set('contacto_emergencia_parentesco')} />
-                                </Campo>
-                            </div>
-                        </div>
                     </div>
 
                     <div>

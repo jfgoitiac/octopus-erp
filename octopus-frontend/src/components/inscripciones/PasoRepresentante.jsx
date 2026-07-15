@@ -56,7 +56,7 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                         representante: {
                             cedula: cedulaInput, nombre: '', apellido: '',
                             telefono: '', correo: '', direccion: '',
-                            parentesco: '', nacionalidad: '', nivel_estudio: '',
+                            parentesco: '', nacionalidad: 'Venezolana', nivel_estudio: '',
                         },
                         esRepresentanteNuevo: true,
                     }));

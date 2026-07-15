@@ -27,6 +27,7 @@ const ListaAlumnos = () => {
     // Q-5 fix: optional chaining redundante eliminado
     const isSecretaria = !!user && ['director', 'administrador', 'secretaria', 'sistemas'].includes(user.rol);
     const isCajero     = !!user && ['director', 'administrador', 'cajero', 'cobranza'].includes(user.rol);
+    const puedeEditarSolvencia = !!user && ['director', 'administrador', 'cobranza'].includes(user.rol);
 
     // UI-only state (no lógica de negocio)
     const [showConfig, setShowConfig] = useState(false);
@@ -316,6 +317,7 @@ const ListaAlumnos = () => {
                     saving={alumnos.savingEdit}
                     onClose={() => alumnos.setShowEditModal(false)}
                     onSave={alumnos.handleSaveEdit}
+                    puedeEditarSolvencia={puedeEditarSolvencia}
                 />
             )}
 

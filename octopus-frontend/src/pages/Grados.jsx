@@ -3,6 +3,7 @@ import {
   FileSpreadsheet, FileText, ChevronRight, Loader2, Search,
 } from 'lucide-react';
 import { useMatriculaGrado, nombreGradoCompleto } from '../hooks/useMatriculaGrado';
+import { mostrarCedula } from '../utils/cedulaEscolar';
 
 const ORDEN_OPTS = [
   { value: 'apellido', label: 'Alfabético' },
@@ -208,10 +209,6 @@ function BarraControles({ buscar, onBuscar, orden, onCambiarOrden, exportando, o
     </div>
   );
 }
-
-// Las cédulas generadas automáticamente tienen formato 99YYYYMMDDHHMMSSRRRR (20 chars)
-const esCedulaTemporal = (cedula) => cedula?.startsWith('99') && cedula.length >= 18;
-const mostrarCedula = (cedula) => (cedula && !esCedulaTemporal(cedula)) ? cedula : '—';
 
 // ── TablaAlumnos ──────────────────────────────────────────────────────────────
 

@@ -75,9 +75,12 @@ class ComprobanteSerializer(serializers.ModelSerializer):
 
     def get_numero_solvencia(self, obj):
         """Solo la factura que generó la solvencia la muestra en reimpresión,
-        igual que en la impresión original — es intransferible a otras facturas."""
-        solvencia = obj.solvencias_generadas.first()
-        return solvencia.numero if solvencia else None
+        igual que en la impresión original — es intransferible a otras facturas.
+        Usa list(...all())[0] en vez de .first(): con prefetch_related
+        ('solvencias_generadas') aplicado en la vista, .first() ignoraría el
+        cache del prefetch y dispararía una query nueva por cada fila igual."""
+        solvencias = list(obj.solvencias_generadas.all())
+        return solvencias[0].numero if solvencias else None
 
     def get_representante_nombre(self, obj):
         """Devuelve el nombre completo del representante.

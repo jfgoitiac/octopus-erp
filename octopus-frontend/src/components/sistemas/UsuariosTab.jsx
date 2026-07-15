@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UserPlus, UserCog, Key, Trash2, Settings, ShieldAlert,
-         RefreshCcw, Loader2, Database, RefreshCw } from 'lucide-react';
+         RefreshCcw, Loader2, Database, RefreshCw, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useUsuariosSistemas } from '../../hooks/useUsuariosSistemas';
@@ -9,18 +9,21 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import CrearUsuarioModal from './modals/CrearUsuarioModal';
 import EditRolModal from './modals/EditRolModal';
 import ResetPasswordModal from './modals/ResetPasswordModal';
+import ImportarEstudiantesModal from './modals/ImportarEstudiantesModal';
 
 const UsuariosTab = () => {
     const {
         usuarios, loadingUsers, backingUp, syncingBCV,
+        importingPreview, importingConfirm,
         fetchUsers, createUser, deleteUser, editRol, resetPassword,
-        downloadBackup, syncBCV,
+        downloadBackup, syncBCV, previewImportEstudiantes, confirmarImportEstudiantes,
     } = useUsuariosSistemas();
 
     const [showCrear,  setShowCrear]  = useState(false);
     const [showEditRol, setShowEditRol] = useState(false);
     const [showReset,  setShowReset]  = useState(false);
     const [showDelete, setShowDelete] = useState(false);
+    const [showImportar, setShowImportar] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
 
     useEffect(() => {
@@ -163,6 +166,13 @@ const UsuariosTab = () => {
                                 : <><Database size={14} /> Respaldar base de datos</>
                             }
                         </button>
+                        <button onClick={() => setShowImportar(true)} disabled={backingUp || syncingBCV}
+                            className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 flex items-center gap-2"
+                            style={{ background: 'rgba(255,255,255,0.07)', color: '#e2e8f0' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}>
+                            <Upload size={14} /> Cargar base de estudiantes (Excel)
+                        </button>
                     </div>
                 </div>
 
@@ -202,6 +212,15 @@ const UsuariosTab = () => {
                     nombre={selectedUser.username}
                     onConfirm={handleConfirmDelete}
                     onCancel={() => { setShowDelete(false); setSelectedUser(null); }}
+                />
+            )}
+            {showImportar && (
+                <ImportarEstudiantesModal
+                    onClose={() => setShowImportar(false)}
+                    onPreview={previewImportEstudiantes}
+                    onConfirm={confirmarImportEstudiantes}
+                    loadingPreview={importingPreview}
+                    loadingConfirm={importingConfirm}
                 />
             )}
         </>

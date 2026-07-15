@@ -34,6 +34,22 @@ const ModalRegistrarAlumno = ({
 
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
+    // La dirección del alumno se captura primero en este formulario — mientras el
+    // representante no tenga una dirección propia (o siga igual a la del alumno,
+    // es decir aún no la editó a mano), se mantiene sincronizada con la del alumno.
+    // Si el usuario edita la dirección del representante directamente, deja de sincronizarse.
+    const handleDireccionAlumno = (e) => {
+        const value = e.target.value;
+        setForm(prev => {
+            const repSincronizada = !repFound && (prev.rep_direccion === '' || prev.rep_direccion === prev.direccion);
+            return {
+                ...prev,
+                direccion: value,
+                rep_direccion: repSincronizada ? value : prev.rep_direccion,
+            };
+        });
+    };
+
     const fechaNacimientoDate = useMemo(
         () => parseISODate(form.fecha_nacimiento),
         [form.fecha_nacimiento]
@@ -92,7 +108,7 @@ const ModalRegistrarAlumno = ({
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                     Cédula (Opcional)
                                 </label>
-                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                <input type="text" placeholder="Se autogenera si se deja en blanco" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
                                     onChange={set('cedula_escolar')} />
                             </div>
                             <div>
@@ -126,7 +142,7 @@ const ModalRegistrarAlumno = ({
                                     Dirección
                                 </label>
                                 <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
-                                    value={form.direccion} onChange={set('direccion')} />
+                                    value={form.direccion} onChange={handleDireccionAlumno} />
                             </div>
                             <div>
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
@@ -190,24 +206,16 @@ const ModalRegistrarAlumno = ({
                             </div>
                             <div>
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Contacto de Emergencia
+                                    Parentesco con el Representante
                                 </label>
-                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
-                                    value={form.contacto_emergencia_nombre} onChange={set('contacto_emergencia_nombre')} />
-                            </div>
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Teléfono de Emergencia
-                                </label>
-                                <input type="tel" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
-                                    value={form.contacto_emergencia_telefono} onChange={set('contacto_emergencia_telefono')} />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Parentesco del Contacto
-                                </label>
-                                <input type="text" className={inputClass} style={{ ...inputStyle, background: '#fff' }}
-                                    value={form.contacto_emergencia_parentesco} onChange={set('contacto_emergencia_parentesco')} />
+                                <select className={inputClass} style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.parentesco} onChange={set('parentesco')}>
+                                    <option value="">Seleccionar…</option>
+                                    <option value="padre">Padre</option>
+                                    <option value="madre">Madre</option>
+                                    <option value="tutor">Tutor</option>
+                                    <option value="otro">Otro</option>
+                                </select>
                             </div>
                         </div>
                     </section>
@@ -273,22 +281,6 @@ const ModalRegistrarAlumno = ({
                                     onChange={set('rep_direccion')} />
                             </div>
 
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5"
-                                       style={{ color: 'var(--ash)' }}>
-                                    Parentesco
-                                </label>
-                                <select className={inputClass}
-                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
-                                    value={form.rep_parentesco} disabled={repFound}
-                                    onChange={set('rep_parentesco')}>
-                                    <option value="">Seleccionar…</option>
-                                    <option value="padre">Padre</option>
-                                    <option value="madre">Madre</option>
-                                    <option value="tutor">Tutor</option>
-                                    <option value="otro">Otro</option>
-                                </select>
-                            </div>
                             <div>
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5"
                                        style={{ color: 'var(--ash)' }}>
