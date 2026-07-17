@@ -122,6 +122,15 @@ def _escribir_valor(cell, valor):
     # (patrón de la mayoría de los campos), se escribe ahí; si no, se agrega
     # el valor a continuación de la etiqueta en el mismo renglón.
     if len(paragraphs) > 1 and not ultimo.text.strip():
+        # Algunas etiquetas reservan hasta 2 párrafos en blanco antes del
+        # que realmente recibe el valor (espacio pensado para llenado a
+        # mano). En un campo autocompletado esos renglones vacíos de más
+        # no cumplen ningún propósito y sólo agrandan la celda — se
+        # eliminan, dejando únicamente la etiqueta y el párrafo con el
+        # valor.
+        for parrafo_vacio in paragraphs[1:-1]:
+            if not parrafo_vacio.text.strip():
+                parrafo_vacio._element.getparent().remove(parrafo_vacio._element)
         run = ultimo.add_run(str(valor))
     else:
         # Tab a un punto fijo del ancho de la celda en vez de 2 espacios
@@ -138,11 +147,13 @@ def _escribir_valor(cell, valor):
         else:
             run = ultimo.add_run(f'  {valor}')
     run.font.bold = False
-    # 8pt, igual que la etiqueta (w:sz=16 en la plantilla) — un valor más
-    # grande que la etiqueta en la misma línea aumenta la altura de esa
-    # línea y, multiplicado por las ~14 celdas que comparten renglón con
-    # su etiqueta, es lo que hacía desbordar a una segunda página.
-    run.font.size = Pt(8)
+    # 10pt (etiqueta queda en 8pt, w:sz=16 en la plantilla) para que el
+    # valor se distinga de la etiqueta. Un valor más grande que la
+    # etiqueta en la misma línea aumenta la altura de esa línea y,
+    # multiplicado por las ~14 celdas que comparten renglón con su
+    # etiqueta, es lo que puede desbordar a una segunda página — si eso
+    # pasa, hay que revisar márgenes en vez de subir más este tamaño.
+    run.font.size = Pt(10)
 
 
 def _rellenar_tabla(table, mapa_etiquetas, valores):
