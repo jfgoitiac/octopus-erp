@@ -25,6 +25,7 @@ const navSections = [
       { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria','docente'] },
       { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria'] },
       { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_LOS_ROLES },
+      { name: 'Pre-Inscripción', path: '/preinscripcion', icon: FileText, roles: ['director','sistemas','administrador','secretaria'] },
     ],
   },
   {

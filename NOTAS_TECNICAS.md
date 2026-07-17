@@ -535,3 +535,333 @@ del sistema):**
    recurrentes de varios colegios) valdría la pena un botón de
    "deshacer último import" basado en el `LogAuditoria` que ya se registra
    (`accion="IMPORTAR_ESTUDIANTES"`).
+
+---
+
+# MÓDULO PRE-INSCRIPCIÓN — MAIL MERGE SOBRE PLANILLA OFICIAL (2026-07-16)
+
+Se agregó el módulo "Pre-Inscripción": rellena automáticamente
+`secretaria/templates_docx/planilla_preinscripcion.docx` (copia de la planilla
+física del colegio) con los datos de un alumno, sin generar el documento
+desde cero. Backend: `secretaria/utils_preinscripcion.py` (relleno con
+`python-docx`, localizando celdas por el texto de su etiqueta dentro de las 3
+tablas de la plantilla) + `PlanillaPreinscripcionView` (individual) y
+`PlanillaPreinscripcionMasivaView` (.zip con todos los alumnos activos).
+Decisiones tomadas explícitamente por el usuario (ver conversación de
+aprobación del diseño):
+
+1. **No existe cédula de identidad del alumno en el modelo** — solo
+   `cedula_escolar` (matrícula interna). Se decidió NO agregar un campo
+   nuevo; el campo "CÉDULA" de la sección Estudiante queda siempre en
+   blanco en el documento generado. Si el colegio lo pide más adelante,
+   agregar `Alumno.cedula_identidad` y sumarlo a `LABEL_MAP_ESTUDIANTE` en
+   `utils_preinscripcion.py`.
+
+2. **El modo masivo genera para el 100% de `Alumno.objects.filter(activo=True)`**,
+   sin filtrar por `periodo_escolar_activo` — decisión explícita del
+   usuario. Puede incluir alumnos de períodos anteriores que no se
+   re-inscribieron en el actual. Si se necesita acotar, filtrar en
+   `PlanillaPreinscripcionMasivaView.post` (`views.py`) usando el mismo
+   patrón que `AlumnoListView.get_queryset` (anotación contra
+   `ConfiguracionSistema.periodo_escolar_activo`).
+
+3. **Generación del .zip masivo es síncrona, en memoria, sin cola de
+   trabajo** — el proyecto ya tiene Celery instalado (`requirements.txt`,
+   usado para notificaciones de cobranza) pero no se conectó aquí.
+   **Verificado con datos reales** (prueba en navegador, 2026-07-16, 451
+   alumnos activos del colegio): el backend genera el .zip completo
+   (28.8 MB) en ~29s — funciona, pero superaba el timeout global de
+   `axiosInstance` (15s, `apiClient.js`), lo que provocaba un
+   `net::ERR_FAILED`/broken pipe en el navegador y el usuario veía el
+   botón fallar aunque el backend sí hubiera terminado. **Corregido**:
+   `descargarPreinscripcionMasivaBlob` (`preinscripcion.service.js`) usa
+   un timeout propio de 120s en vez del default de `axiosInstance`. Si el
+   colegio crece a varios miles de alumnos y se acerca de nuevo a ese
+   límite, ahí sí conviene mover `generar_zip_preinscripciones` a una
+   tarea Celery que notifique cuando el .zip esté listo (patrón ya usado
+   en notificaciones de cobranza), en vez de seguir subiendo el timeout.
+   **Nota relacionada, no corregida**: otros endpoints pesados del
+   proyecto (`ImportarEstudiantesView`, `ExportarAlumnosExcelView`) usan
+   el mismo `axiosInstance` con el timeout global de 15s y podrían tener
+   la misma vulnerabilidad con datasets grandes — no se verificó ni se
+   tocó en esta pasada, pero es el mismo patrón de riesgo.
+
+4. **`_resolver_valores` reconstruye "Nº de transferencia"/"Monto
+   transferencia"/"Monto efectivo"/bancos a partir de
+   `calcular_datos_administrativos_inscripcion()`**, que agrupa pagos por
+   método pero solo expone `metodo_display` (texto legible), no el código
+   crudo (`transferencia`, `efectivo`, etc.). El emparejamiento se hace
+   comparando `metodo_display` contra `dict(Pago.METODOS)[...]`
+   (`_buscar_metodo`/`_sumar_montos_efectivo` en `utils_preinscripcion.py`).
+   Es correcto mientras los textos de `Pago.METODOS` no cambien, pero es
+   un acoplamiento implícito por string en vez de por código — si se
+   renombra un método de pago en `cobranza/models.py`, hay que revisar
+   este archivo también.
+
+5. **Permiso `IsSecretariaOrAbove`** en ambos endpoints nuevos —
+   deliberadamente más restrictivo que el endpoint vecino
+   `ComprobanteInscripcionView` (que usa `IsAuthenticated`), porque el
+   documento de pre-inscripción expone cédulas y datos personales del
+   alumno y del representante juntos. Si se agregan más roles al sistema,
+   revisar si `IsSecretariaOrAbove` sigue siendo el criterio correcto para
+   este endpoint específico.
+
+6. **La plantilla se rellena localizando celdas por el texto exacto de su
+   etiqueta** (`_normalizar_etiqueta` + `LABEL_MAP_ESTUDIANTE/REPRESENTANTE/ADMINISTRATIVO`
+   en `utils_preinscripcion.py`), no por marcadores `{{ }}` — se descartó
+   `docxtpl` a propósito (ver decisión del usuario) porque habría exigido
+   editar manualmente `planilla_preinscripcion.docx` en Word para insertar
+   placeholders Jinja, con riesgo de que Word partiera el tag en varios
+   `<w:r>` y lo corrompiera. **Consecuencia**: si alguien reemplaza
+   `templates_docx/planilla_preinscripcion.docx` por una versión nueva del
+   colegio con el texto de las etiquetas modificado (aunque sea un cambio
+   de mayúsculas/tildes/espacios), el mapeo deja de encontrar esas celdas
+   y el campo queda en blanco sin ningún error visible — no hay validación
+   que avise si una etiqueta esperada no se encontró en la plantilla.
+
+7. **Rediseño (mismo día, tras primera revisión del usuario): módulo
+   independiente + búsqueda por Alumno, no por Inscripcion.** La primera
+   versión colgaba el botón individual de `ConsultaInscripcion.jsx`
+   (requería una `Inscripcion` existente) y el masivo de `ListaAlumnos.jsx`.
+   El usuario pidió explícitamente que fuera un módulo propio y que el
+   individual funcionara **sin que el alumno esté inscrito todavía** (es
+   una *pre*-inscripción). Cambios:
+   - `PlanillaPreinscripcionView` ahora recibe `pk` de **Alumno**, no de
+     `Inscripcion` (`secretaria/urls.py`: `alumnos/<int:pk>/preinscripcion/`,
+     antes `inscripciones/<int:pk>/preinscripcion/`). Internamente busca la
+     inscripción más reciente del alumno si existe (`Inscripcion.objects.filter(alumno=alumno)...first()`),
+     igual que ya hacía `generar_zip_preinscripciones` — el masivo nunca
+     tuvo esta limitación, solo el individual.
+   - Nueva página `pages/Preinscripcion.jsx` con buscador propio (nombre/
+     apellido/cédula, vía `secretaria/alumnos/?buscar=`) que muestra el
+     `estado_inscripcion` de cada resultado (Inscrito/Sin inscribir/Retirado)
+     y un botón "Generar Pre-Inscripción" por fila, más "Generar para
+     todos" arriba. Ruta `/preinscripcion`, entrada propia en el sidebar
+     (sección Principal), rol `SECRETARIA_ADMIN`.
+   - Se revirtieron por completo los cambios en `ConsultaInscripcion.jsx`
+     y `ListaAlumnos.jsx` (sin botones de Pre-Inscripción ahí).
+   - Verificado en navegador con datos reales del colegio: búsqueda
+     "ACOSTA" → alumno con estado "Sin inscribir" → generación individual
+     exitosa (63 KB, campos de estudiante/representante correctos, bloque
+     administrativo en blanco por no tener inscripción/pagos) → "Generar
+     para todos" desde el nuevo módulo, exitoso (mismo .zip de siempre).
+
+8. **Durante la verificación en navegador se observó, una vez, un campo
+   ("Cursará") en blanco en un documento real** pese a que el dato
+   (`Alumno.grado_seccion`) existía en la BD. Se investigó a fondo: la
+   función de relleno (`_resolver_valores`/`_escribir_valor`) se probó
+   correcta en más de media docena de escenarios aislados (llamada
+   directa, `Client` de pruebas de Django, réplica exacta del queryset de
+   la vista) y **siempre** produjo el valor correcto. Solo falló al pasar
+   por un proceso `runserver` que, se descubrió después, no era el único
+   escuchando en ese puerto — quedaron procesos duplicados de intentos
+   previos de este mismo ciclo de pruebas (`Stop-Process`/`TaskStop` no
+   siempre mata al hijo real de Django cuando el autoreload está activo).
+   Con un proceso único y limpio el problema no volvió a aparecer en
+   ninguna repetición. Se documenta por transparencia, no como bug
+   pendiente: no hay evidencia de que el código de producción tenga este
+   problema, pero si alguna vez se reporta un campo vacío de forma
+   intermitente en producción (sirviendo con `gunicorn`/`uwsgi`, no con
+   `runserver`), vale la pena descartar primero múltiples workers con
+   conexiones a la BD en estados distintos antes de sospechar de
+   `utils_preinscripcion.py`.
+
+---
+
+# PLANTILLA — SEGUNDA PÁGINA EN BLANCO (2026-07-17)
+
+Reportado por el usuario: `planilla_preinscripcion.docx` generaba/mostraba
+2 páginas, la segunda completamente vacía. Diagnóstico (sin herramienta de
+render disponible por defecto en el entorno — Word estaba instalado en la
+máquina, así que se usó `pywin32`/COM para abrir el documento con
+`Word.Application`, contar páginas reales con `ComputeStatistics` y
+exportar a PDF para inspección visual — más confiable que inferir el
+layout leyendo el XML a mano):
+
+- Se descartaron primero las causas obvias: no había `<w:br w:type="page"/>`
+  explícito, un solo `sectPr`, sin `pageBreakBefore`, y los 3 objetos
+  flotantes (logos + cuadro de texto del encabezado) están anclados cerca
+  del borde superior de la página, no fuera de ella. El texto del
+  encabezado institucional aparece "duplicado" en el XML, pero es el
+  patrón normal `mc:AlternateContent` (versión moderna `wps:txbx` +
+  versión de respaldo VML `w:pict` para compatibilidad) — **no** es una
+  duplicación real, solo se renderiza una de las dos.
+- Causa real, confirmada con Word vía COM (`doc.GoTo` a la página 2 +
+  `Information(wdActiveEndPageNumber)` sobre el final de la última
+  tabla): el documento entero cabía en la página 1 con margen de sobra,
+  pero el **último párrafo del cuerpo** (el que OOXML exige después de la
+  tercera tabla, antes de `sectPr`) era el único de todo el documento sin
+  formato explícito — heredaba el estilo `Normal` por defecto (11pt,
+  interlineado 1.15, 10pt de espacio posterior) mientras el resto de la
+  plantilla usa 10pt sin espaciado extra. Ese sobrante, sumado al margen
+  inferior original (0.5"), era justo lo suficiente para empujar la marca
+  de párrafo final (invisible) a una página 2 nueva y totalmente en
+  blanco.
+- **Corregido en `templates_docx/planilla_preinscripcion.docx`**: se
+  igualó el formato del último párrafo al del resto del documento (10pt,
+  vía `w:pPr/w:rPr/w:sz`) y se redujo el margen inferior de la página de
+  720 a 500 twips (0.5" → ~0.35", imperceptible e igual dentro del área
+  imprimible de cualquier impresora estándar). Con la plantilla vacía
+  esto ya alcanzaba para 1 sola página.
+- **Segunda causa, encontrada al probar con datos reales**: con la
+  plantilla corregida pero rellenada por `generar_planilla_preinscripcion`,
+  volvía a aparecer la página 2 en blanco. Motivo: `_escribir_valor()`
+  (`utils_preinscripcion.py`) usaba `Pt(9)` para el texto insertado,
+  mientras las etiquetas de la plantilla usan 8pt (`w:sz w:val="16"`). En
+  las ~14 celdas donde el valor se agrega en el mismo renglón que su
+  etiqueta (patrón "append inline", ver punto 6 más arriba), un run de
+  9pt conviviendo con uno de 8pt en la misma línea sube la altura de esa
+  línea a la del run más alto — repetido en 14 líneas, alcanza para
+  desbordar el margen ya ajustado. **Corregido**: el valor insertado ahora
+  usa `Pt(8)`, igual que la etiqueta.
+- **Verificado**: 1 página con la plantilla vacía, 1 página con datos
+  reales típicos, y 1 página en una prueba de estrés con nombres/
+  direcciones/institución deliberadamente largos (para simular el peor
+  caso de un representante o alumno con datos extensos). Si en el futuro
+  se habilitan más campos opcionales muy largos (ej. `alergico` con texto
+  extenso) y vuelve a aparecer una página 2, el mismo método de
+  diagnóstico (Word vía COM, `ComputeStatistics` + `GoTo`) es el más
+  confiable — evita perder tiempo adivinando por XML como se hizo aquí al
+  principio.
+
+---
+
+# PLANILLA DE PRE-INSCRIPCIÓN — CAPITALIZACIÓN, ALINEACIÓN Y DOCUMENTO ÚNICO (2026-07-17)
+
+## Capitalización y alineación (`utils_preinscripcion.py`)
+
+- **`_capitalizar_nombre_propio()`** normaliza apellido/nombre/dirección/
+  institución de procedencia (estudiante y representante) a Title Case,
+  respetando conectores (`de`, `del`, `la`, `las`, `los`, `y`, `e`) que
+  quedan en minúscula salvo al abrir el texto. No maneja nombres compuestos
+  con guion (`maría-josé` queda `María-josé`, no `María-José`) — no se
+  encontraron casos así en los datos del colegio, pero si aparecen habría
+  que capitalizar también tras el guion.
+- **Alineación**: se reemplazó el separador fijo de 2 espacios por un tab
+  stop calculado al 45% del ancho de la celda (`cell.width`), con fallback
+  al separador de 2 espacios si `cell.width` es `None` (celdas sin ancho
+  explícito en la plantilla, caso raro de `gridSpan`). Con fuente
+  proporcional esto alinea mejor que espacios literales porque no depende
+  del largo en caracteres de la etiqueta, pero **no se verificó
+  visualmente abriendo el .docx en Word/LibreOffice** en este entorno (sin
+  acceso a un visor de documentos) — se verificó por código que el
+  `w:tab` y el `w:tabs/w:tab` quedan bien formados en el XML resultante,
+  pero falta la confirmación visual pedida en los criterios de aceptación,
+  especialmente con nombres/direcciones largos que podrían necesitar
+  ajustar el 45% si el valor colisiona con el borde de la celda.
+- Se probó con datos reales sintéticos (vía Django ORM, alumno con
+  apellido/nombre en minúsculas y mayúsculas mezcladas) que el texto se
+  capitaliza correctamente y que el documento generado sigue teniendo la
+  misma cantidad de tablas/celdas que antes — no se corrió la prueba de
+  estrés de "1 sola página" con nombres largos que sí se hizo en la
+  auditoría anterior (línea 717 de este archivo); conviene repetirla tras
+  este cambio, ya que el tab (`\t{valor}`) es un carácter distinto al
+  espacio y en teoría no debería afectar la altura de línea, pero no se
+  midió con Word real.
+
+## Documento único combinado (`generar_documento_unico_preinscripciones`)
+
+- Se implementó la combinación **sin agregar `docxcompose`** ni ninguna
+  dependencia nueva: `_combinar_documentos()` copia los elementos del
+  `<w:body>` de cada `Document` (python-docx) generado dentro del body del
+  primero, insertando un salto de página entre cada uno y preservando un
+  solo `<w:sectPr>` al final (si se copian los `sectPr` de documentos
+  intermedios, Word interpreta cada uno como un salto de **sección**
+  nuevo, no de página, y evalúa el layout de forma distinta). Como todos
+  los documentos parten de la misma plantilla y es un salto de página
+  simple (no de sección), el encabezado con el logo se repite
+  automáticamente en cada página sin trabajo adicional.
+
+- **Bug encontrado y corregido durante la verificación**: el orden
+  alfabético se calculaba con `sorted(alumnos, key=lambda a: (a.apellido,
+  a.nombre))` — comparación case-sensitive por ASCII, donde cualquier
+  apellido en mayúsculas (`"BRICEÑO"`) ordena *antes* que cualquiera en
+  minúsculas (`"alvarez"`), rompiendo el orden alfabético real esperado
+  con datos mixtos (frecuentes en este proyecto, ver
+  `_capitalizar_nombre_propio` arriba). Corregido comparando `.lower()`
+  en ambos campos.
+
+- **🔴 Bug crítico encontrado en la primera entrega y corregido — el
+  `.docx` generado estaba corrupto** (2026-07-17). El usuario adjuntó el
+  `.docx` de "documento único" ya generado (451 alumnos,
+  `C:\Users\PC\Downloads\preinscripciones.docx`) para revisión. `python-docx`
+  lo leía de vuelta sin errores (por eso los tests automáticos con
+  `python-docx` de la primera pasada no lo detectaron), pero **Microsoft
+  Word se negaba a abrirlo** ("El archivo parece estar corrompido").
+  Diagnosticado abriendo el archivo con Word real vía COM (`pywin32`,
+  disponible en este entorno) y aislando la causa combinando solo copias
+  vacías de la plantilla (sin datos de alumno) hasta reproducir el error
+  con el mínimo caso posible:
+  - **Causa**: la plantilla trae 3 imágenes embebidas en el cuerpo (el
+    logo del colegio), cada una con un `<wp:docPr id="...">` fijo. Como
+    los 451 documentos se generan desde la misma plantilla, los 451
+    comparten los mismos 3 `docPr id`. Al concatenar sus `<w:body>` en uno
+    solo, terminan más de 1300 elementos `docPr` repitiendo solo 3 valores
+    de `id` — Word no logra resolver a qué imagen corresponde cada uno y
+    marca el archivo como corrupto al abrirlo. `python-docx` no valida
+    esto al guardar ni al releer, por lo que el problema pasaba
+    inadvertido sin abrir el archivo en Word real.
+  - **Corregido**: `_renumerar_docpr()` (nueva función) reasigna un `id`
+    único a cada `docPr` de cada documento antes de combinarlos, usando un
+    contador (`itertools.count`) compartido entre todos.
+  - **Verificado con Word real** (COM): el archivo original de 451
+    alumnos, regenerado con el fix, **abre sin errores** y reporta
+    exactamente **451 páginas** (antes ni siquiera abría). También se
+    probó con 1, 2, 3 y 5 documentos combinados para confirmar el patrón.
+
+- **🟠 Segundo bug encontrado durante el mismo diagnóstico: página en
+  blanco entre cada planilla**. Al arreglar la corrupción y volver a medir
+  con Word, 3 documentos combinados daban **5 páginas** en vez de 3 (patrón
+  exacto: `[planilla][blanco][planilla][blanco][planilla]`). Causa:
+  `Document.add_page_break()` crea un `<w:p>` **nuevo** para alojar el
+  salto de página. La plantilla está ajustada al límite exacto de 1 página
+  por planilla (ver "PLANTILLA — SEGUNDA PÁGINA EN BLANCO", más arriba en
+  este archivo: margen inferior y tamaño de fuente recortados a propósito,
+  sin margen de sobra) — ese párrafo adicional ya no cabe en la página que
+  se acaba de llenar, desborda solo él a la página siguiente, y como es el
+  párrafo que contiene el salto, dispara un segundo salto real, empujando
+  la siguiente planilla una página más allá y dejando una página casi
+  vacía en el medio. **Corregido**: `_insertar_salto_pagina_en_ultimo_parrafo()`
+  agrega el `<w:br w:type="page"/>` como un run **dentro del último
+  párrafo ya existente** de la planilla anterior (que ya cabía en su
+  página) en vez de crear un párrafo nuevo. Verificado con Word real: 1,
+  2, 3 y 5 documentos combinados dan exactamente esa cantidad de páginas,
+  sin blancos intermedias.
+
+- **Verificado end-to-end con los 451 alumnos reales del colegio**
+  (2026-07-17, mismo dataset de la auditoría del .zip del 2026-07-16):
+  `generar_documento_unico_preinscripciones` tarda **18s** y produce un
+  `.docx` de **3.9 MB** — bien por debajo del timeout de 120s de
+  `descargarPreinscripcionMasivaBlob`; el riesgo de timeout que se había
+  dejado como pendiente en la primera pasada queda descartado para el
+  tamaño actual del colegio. Abierto con Word real: sin errores, 451
+  páginas exactas (1 por alumno), orden alfabético correcto.
+
+- El endpoint (`PlanillaPreinscripcionMasivaView`) reordena por
+  `.order_by('apellido', 'nombre')` a nivel de queryset (case-sensitive en
+  SQLite/Postgres por default) y **además** `generar_documento_unico_preinscripciones`
+  reordena en Python con `.lower()` antes de combinar — la ordenación de
+  BD queda redundante para el modo `unico` pero se dejó tal cual porque el
+  modo `individual` (.zip) sigue dependiendo de ella y cambiarla afecta a
+  ambos.
+
+## Pendiente de esta pasada
+
+- **Verificación visual pixel-a-pixel de la alineación con tab stops** —
+  se confirmó que el `.docx` combinado abre correctamente en Word real y
+  que cada planilla ocupa exactamente 1 página (con datos reales de los
+  451 alumnos), pero no se hizo una revisión visual campo por campo de
+  que el tab stop al 45% del ancho de celda quede "prolijo" en todos los
+  casos (nombres/direcciones muy largos podrían acercarse al borde de la
+  celda). Recomendado que alguien lo revise abriendo el archivo en Word
+  antes de considerar cerrado ese criterio de aceptación específico.
+- **Lección para la próxima vez que se genere/edite un `.docx`
+  programáticamente en este proyecto**: `python-docx` NO valida la
+  integridad OOXML al guardar ni al releer — un archivo puede "andar" con
+  `python-docx` y estar corrupto para Word. Este entorno tiene Word
+  instalado (confirmado vía registro de Windows) y se le pudo instalar
+  `pywin32` para abrir archivos con Word real por COM y leer
+  `ComputeStatistics(wdStatisticPages)` como verificación de que el
+  archivo realmente abre y cuántas páginas tiene — usar ese método (no
+  solo re-leer con `python-docx`) para verificar cualquier `.docx`
+  generado o combinado programáticamente antes de darlo por bueno.

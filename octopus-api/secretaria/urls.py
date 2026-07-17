@@ -8,6 +8,7 @@ from .views import (
     ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
     ImportarEstudiantesView,
     InscripcionNuevaView, LogAuditoriaListView,
+    PlanillaPreinscripcionView, PlanillaPreinscripcionMasivaView,
     PromocionAlumnosView, RepresentanteAlumnosView, RepresentanteViewSet,
     buscar_representante_por_cedula,
 )
@@ -25,6 +26,11 @@ urlpatterns = [
     path('inscripcion-nueva/',                    InscripcionNuevaView.as_view(),         name='inscripcion-nueva'),
     path('inscripciones/',                        InscripcionListView.as_view(),          name='inscripciones-lista'),
     path('inscripciones/<int:pk>/comprobante/',   ComprobanteInscripcionView.as_view(),   name='comprobante-inscripcion'),
+
+    # Pre-Inscripción — por Alumno, no por Inscripcion (el estudiante puede
+    # no estar inscrito todavía).
+    path('alumnos/<int:pk>/preinscripcion/',      PlanillaPreinscripcionView.as_view(),   name='planilla-preinscripcion'),
+    path('preinscripcion-masiva/',                PlanillaPreinscripcionMasivaView.as_view(), name='planilla-preinscripcion-masiva'),
 
     # Representante
     path('representante/<str:cedula>/',           buscar_representante_por_cedula,        name='buscar-representante'),
