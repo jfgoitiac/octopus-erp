@@ -21,6 +21,11 @@ echo ""
 echo "▶ Instalando dependencias Python..."
 "$VENV/pip" install -r "$BACKEND/requirements.txt" --quiet
 
+echo "▶ Verificando postgresql-client (pg_dump, requerido para el respaldo de BD)..."
+if ! command -v pg_dump &> /dev/null; then
+    sudo apt-get install -y postgresql-client
+fi
+
 echo "▶ Aplicando migraciones..."
 "$VENV/python" "$BACKEND/manage.py" migrate --noinput
 

@@ -1,4 +1,6 @@
 import os
+import shutil
+import sqlite3
 import subprocess
 from datetime import datetime
 from django.conf import settings
@@ -167,8 +169,8 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def backup(self, request):
         """
-        Genera un volcado SQL de la base de datos SQLite y lo sirve para descarga.
-        Restringido a roles director, administrador y sistemas.
+        Genera un volcado SQL de la base de datos (SQLite en dev, PostgreSQL en producción)
+        y lo sirve para descarga. Restringido a roles director, administrador y sistemas.
         """
         rol = getattr(request.user.perfil, 'rol', None) if hasattr(request.user, 'perfil') else None
         if not (request.user.is_superuser or rol in ('director', 'administrador', 'sistemas')):
@@ -178,10 +180,10 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Aseguramos que db_path sea un string, ya que en settings se define como un objeto Path
-            db_path = str(settings.DATABASES['default']['NAME'])
+            db_config = settings.DATABASES['default']
+            engine = db_config['ENGINE']
             backup_dir = os.path.join(settings.MEDIA_ROOT, 'backups')
-            
+
             if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir, exist_ok=True)
 
@@ -189,10 +191,43 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             filename = f"backup_{fecha_str}.sql"
             file_path = os.path.join(backup_dir, filename)
 
-            # Ejecutar el dump de SQLite hacia el archivo de destino
-            with open(file_path, 'w', encoding='utf-8') as f:
-                # Usamos shell=False por seguridad y verificamos que el comando exista
-                subprocess.run(['sqlite3', db_path, '.dump'], stdout=f, check=True, shell=False)
+            if 'sqlite3' in engine:
+                # Volcado con el módulo estándar sqlite3: no depende de ningún binario externo.
+                db_path = str(db_config['NAME'])
+                source_conn = sqlite3.connect(db_path)
+                try:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        for line in source_conn.iterdump():
+                            f.write(f'{line}\n')
+                finally:
+                    source_conn.close()
+
+            elif 'postgresql' in engine:
+                # pg_dump debe estar instalado en el servidor (paquete postgresql-client).
+                if not shutil.which('pg_dump'):
+                    raise RuntimeError(
+                        "pg_dump no está instalado en el servidor. "
+                        "Instala el paquete 'postgresql-client' para habilitar el respaldo."
+                    )
+
+                env = os.environ.copy()
+                if db_config.get('PASSWORD'):
+                    env['PGPASSWORD'] = db_config['PASSWORD']
+
+                cmd = [
+                    'pg_dump',
+                    '--no-owner',
+                    '--no-privileges',
+                    '-h', db_config.get('HOST') or 'localhost',
+                    '-p', str(db_config.get('PORT') or '5432'),
+                    '-U', db_config.get('USER') or '',
+                    '-d', db_config['NAME'],
+                    '-f', file_path,
+                ]
+                subprocess.run(cmd, check=True, shell=False, env=env)
+
+            else:
+                raise RuntimeError(f"Motor de base de datos no soportado para respaldo: {engine}")
 
             LogAuditoria.objects.create(
                 usuario=request.user,

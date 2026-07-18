@@ -130,7 +130,10 @@ Ver `.env.example` para la lista completa documentada.
 
 - Cambiar `DJANGO_DEBUG=False`
 - Generar `DJANGO_SECRET_KEY` nueva con `python -c "import secrets; print(secrets.token_hex(50))"`
-- Configurar PostgreSQL
+- Configurar PostgreSQL (`DB_ENGINE=postgresql` en `.env`, ver `.env.example`)
+- Instalar el paquete de sistema `postgresql-client` en el VPS (provee `pg_dump`,
+  usado por el botón "Respaldar base de datos" de Sistemas › Usuarios):
+  `sudo apt-get install -y postgresql-client`
 - Configurar SMTP real para emails
 - Usar Redis externo (Redis Cloud, ElastiCache)
 - Configurar nginx para servir archivos `media/`
