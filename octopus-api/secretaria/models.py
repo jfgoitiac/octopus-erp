@@ -31,6 +31,8 @@ class ConfiguracionSistema(models.Model):  # NUEVO
     color_primario   = models.CharField(max_length=7, default='#0fa3b1', help_text='Color hex, ej: #0fa3b1')
     color_secundario = models.CharField(max_length=7, default='#1f3864', help_text='Color hex secundario')
     logo_url         = models.URLField(blank=True, default='', help_text='URL del logo del colegio (externo)')
+    logo_colegio     = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo del colegio para recibos de pago')
+    logo_avec        = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo de AVEC para recibos de pago')
 
     class Meta:
         verbose_name = "Configuración del Sistema"

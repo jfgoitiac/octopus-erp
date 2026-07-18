@@ -50,7 +50,7 @@ export const PantallaExito = ({ alumno, grado, onReiniciar, onDescargar }) => {
                 >
                     {descargando
                         ? <><Loader2 className="animate-spin" size={16} aria-hidden="true" /> Generando comprobante…</>
-                        : <><FileText size={16} aria-hidden="true" /> Ver Comprobante PDF</>
+                        : <><FileText size={16} aria-hidden="true" /> Descargar Comprobante</>
                     }
                 </button>
                 <button

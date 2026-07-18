@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { fmtN, fmtZ } from './formato';
+import { getLogosInstitucionales } from './logosInstitucionales';
 
 const NAVY   = '#003366';
 const RED    = '#CC0000';
@@ -250,10 +251,8 @@ const ReciboCobranzaDoc = ({ data }) => {
   );
 };
 
-export const printReciboCobranza = (data) => {
-  const storedLogos = (() => {
-    try { return JSON.parse(localStorage.getItem('octopus_logos_recibo') || '{}'); } catch { return {}; }
-  })();
+export const printReciboCobranza = async (data) => {
+  const storedLogos = await getLogosInstitucionales();
 
   const fullData = {
     ...data,

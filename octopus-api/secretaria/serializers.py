@@ -18,6 +18,22 @@ class ConfiguracionSistemaSerializer(serializers.ModelSerializer):  # NUEVO
         model  = ConfiguracionSistema
         fields = '__all__'
 
+    def _validar_logo(self, imagen):
+        if not imagen:
+            return imagen
+        if imagen.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("La imagen no debe superar 2MB.")
+        content_type = getattr(imagen, 'content_type', '')
+        if content_type not in ('image/png', 'image/jpeg', 'image/webp'):
+            raise serializers.ValidationError("Formato de imagen no soportado. Use PNG, JPG o WEBP.")
+        return imagen
+
+    def validate_logo_colegio(self, imagen):
+        return self._validar_logo(imagen)
+
+    def validate_logo_avec(self, imagen):
+        return self._validar_logo(imagen)
+
 
 class BienNacionalSerializer(serializers.ModelSerializer):
     nombre_responsable = serializers.ReadOnlyField(source='responsable_asignado.username')

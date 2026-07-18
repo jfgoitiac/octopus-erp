@@ -123,24 +123,25 @@ export function useInscripcion() {
         }
         try {
             const res = await descargarComprobanteBlob(targetId);
-            const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-            const newTab = window.open(url, '_blank', 'noopener,noreferrer');
-            if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
-                const a = Object.assign(document.createElement('a'), {
-                    href:     url,
-                    download: `comprobante_inscripcion_${targetId}.pdf`,
-                });
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
+            // .docx (misma planilla oficial que la pre-inscripción), no PDF —
+            // no hay preview embebida en el navegador, se descarga directo.
+            const url = URL.createObjectURL(new Blob([res.data], {
+                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            }));
+            const a = Object.assign(document.createElement('a'), {
+                href:     url,
+                download: `comprobante_inscripcion_${targetId}.docx`,
+            });
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             // 5 s es suficiente para que el browser cargue el blob antes de revocarlo
             setTimeout(() => URL.revokeObjectURL(url), 5000);
         } catch (err) {
             if (err.response?.status === 404) {
                 toast.error('Comprobante no encontrado. Intenta descargarlo desde el historial.');
             } else {
-                toast.error('No se pudo generar el comprobante PDF. Intenta nuevamente.');
+                toast.error('No se pudo generar el comprobante. Intenta nuevamente.');
             }
         }
     }, [datos.inscripcion_id]);

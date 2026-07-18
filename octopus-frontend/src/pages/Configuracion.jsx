@@ -78,8 +78,8 @@ const Configuracion = () => {
 
     const {
         logosRecibo, showLogosModal, setShowLogosModal, logosForm,
-        openLogosModal, handleLogosUpload, handleRemoveLogo, handleSaveLogos,
-    } = useLogosRecibo();
+        openLogosModal, handleLogosUpload, handleRemoveLogo, handleSaveLogos, savingLogos,
+    } = useLogosRecibo(config, fetchConfig);
 
     const handleRefreshAll = () => {
         fetchConfig();
@@ -1081,18 +1081,19 @@ const Configuracion = () => {
                         </div>
                         <div className="px-6 pb-6">
                             <p className="text-[11px] mb-4 px-3 py-2 rounded-lg" style={{ color: 'var(--ash)', background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                Los logos se guardan localmente en este navegador y se cargan automáticamente al generar recibos de pago.
+                                Los logos se guardan en el servidor y estarán disponibles desde cualquier dispositivo al generar recibos de pago.
                             </p>
                             <div className="flex gap-3">
-                                <button type="button" onClick={() => setShowLogosModal(false)}
+                                <button type="button" onClick={() => setShowLogosModal(false)} disabled={savingLogos}
                                     className="flex-1 py-2.5 rounded-lg text-sm font-medium"
                                     style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                     Cancelar
                                 </button>
-                                <button type="button" onClick={handleSaveLogos}
+                                <button type="button" onClick={handleSaveLogos} disabled={savingLogos}
                                     className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
                                     style={{ background: 'var(--pb)' }}>
-                                    <Save size={16} /> Guardar logos
+                                    {savingLogos ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                    Guardar logos
                                 </button>
                             </div>
                         </div>

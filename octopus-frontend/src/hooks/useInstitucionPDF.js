@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useConfiguracion } from './useConfiguracion';
-import { useLogosRecibo } from './useLogosRecibo';
+import { getLogosInstitucionales } from '../utils/logosInstitucionales';
 
 const NOMBRE_FALLBACK = 'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA';
 
@@ -15,11 +15,15 @@ const NOMBRE_FALLBACK = 'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA';
  */
 export function useInstitucionPDF() {
     const { config } = useConfiguracion();
-    const { logosRecibo } = useLogosRecibo();
+    const [logos, setLogos] = useState({ logoColegio: null, logoAvec: null });
+
+    useEffect(() => {
+        getLogosInstitucionales().then(setLogos);
+    }, []);
 
     return useMemo(() => ({
         nombre:      config?.nombre_colegio || NOMBRE_FALLBACK,
-        logoColegio: logosRecibo?.logoColegio || null,
-        logoAvec:    logosRecibo?.logoAvec    || null,
-    }), [config?.nombre_colegio, logosRecibo?.logoColegio, logosRecibo?.logoAvec]);
+        logoColegio: logos.logoColegio,
+        logoAvec:    logos.logoAvec,
+    }), [config?.nombre_colegio, logos]);
 }

@@ -98,7 +98,7 @@ class ConfiguracionSistemaView(APIView):
         config = ConfiguracionSistema.objects.first()
         if not config:
             return Response({}, status=status.HTTP_200_OK)
-        serializer = ConfiguracionSistemaSerializer(config)
+        serializer = ConfiguracionSistemaSerializer(config, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
@@ -112,6 +112,19 @@ class ConfiguracionSistemaView(APIView):
 
         serializer.is_valid(raise_exception=True)
         config = serializer.save()
+
+        # DRF's FileField rechaza string vacío como "invalid" (no lo interpreta como
+        # borrar), así que el frontend manda un flag aparte para eliminar un logo.
+        hubo_borrado = False
+        for campo in ('logo_colegio', 'logo_avec'):
+            if str(request.data.get(f'{campo}_clear', '')).lower() in ('true', '1'):
+                archivo = getattr(config, campo)
+                if archivo:
+                    archivo.delete(save=False)
+                setattr(config, campo, None)
+                hubo_borrado = True
+        if hubo_borrado:
+            config.save()
 
         # Propagar el día límite de pago a los alumnos: la mora y las
         # notificaciones leen Alumno.dia_limite_pago, así que sin esta
@@ -179,7 +192,7 @@ class ConfiguracionSistemaView(APIView):
             }
         )
 
-        response_data = ConfiguracionSistemaSerializer(config).data
+        response_data = ConfiguracionSistemaSerializer(config, context={'request': request}).data
         if cuotas_generadas > 0:
             response_data['cuotas_inscripcion_generadas'] = cuotas_generadas
         if proyectos_generados > 0:
@@ -847,27 +860,36 @@ class InscripcionListView(generics.ListAPIView):
 
 
 # ─────────────────────────────────────────────
-# COMPROBANTE DE INSCRIPCIÓN PDF (NUEVO)
+# COMPROBANTE DE INSCRIPCIÓN (.docx) — misma planilla oficial que la
+# pre-inscripción (utils_preinscripcion.generar_planilla_preinscripcion),
+# ya con los datos administrativos confirmados de la inscripción.
 # ─────────────────────────────────────────────
 class ComprobanteInscripcionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
+        from django.http import FileResponse
+        from .utils_preinscripcion import generar_planilla_preinscripcion
         try:
-            from django.http import FileResponse
-            from cobranza.utils import generar_pdf_inscripcion
-            inscripcion = Inscripcion.objects.select_related('alumno', 'usuario_registro').get(pk=pk)
-            pdf_buffer  = generar_pdf_inscripcion(inscripcion)
-            return FileResponse(
-                pdf_buffer,
-                as_attachment=False,
-                filename=f"Comprobante_Inscripcion_{pk}.pdf",
-                content_type='application/pdf'
-            )
+            inscripcion = Inscripcion.objects.select_related(
+                'alumno', 'alumno__representante', 'usuario_registro'
+            ).get(pk=pk)
         except Inscripcion.DoesNotExist:
             return Response({"error": "Inscripción no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            buffer = generar_planilla_preinscripcion(inscripcion.alumno, inscripcion, campos_seleccionados=None)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        alumno = inscripcion.alumno
+        nombre = f"Comprobante_Inscripcion_{alumno.apellido}_{alumno.nombre}_{pk}".replace(' ', '_')
+        return FileResponse(
+            buffer,
+            as_attachment=True,
+            filename=f"{nombre}.docx",
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
 
 
 # ─────────────────────────────────────────────

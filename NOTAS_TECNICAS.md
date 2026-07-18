@@ -865,3 +865,79 @@ layout leyendo el XML a mano):
   archivo realmente abre y cuántas páginas tiene — usar ese método (no
   solo re-leer con `python-docx`) para verificar cualquier `.docx`
   generado o combinado programáticamente antes de darlo por bueno.
+
+---
+
+# BUG — LOGOS DEL RECIBO NO SE VEÍAN EN OTROS DISPOSITIVOS (2026-07-18)
+
+Reportado por el usuario: el logo del colegio y el de AVEC (Configuración ›
+Logos del Recibo de Pago) se veían bien en la PC donde se subieron, pero
+"desaparecían" al entrar desde otro dispositivo. Causa confirmada: no era
+caché — `useLogosRecibo.js` guardaba los logos como base64 en
+`localStorage` (`octopus_logos_recibo`), nunca se enviaban al backend. Cada
+dispositivo/navegador tenía su propio `localStorage`, así que solo el que
+subió el logo lo tenía.
+
+**Implementado (movidos al backend, VPS Hostinger con disco persistente,
+no requiere S3/Cloudinary):**
+
+- `ConfiguracionSistema` (`secretaria/models.py`) ganó `logo_colegio` y
+  `logo_avec` (`ImageField(upload_to='configuracion/logos/')`), migración
+  `0016_configuracionsistema_logo_avec_and_more`. Se mantuvo `logo_url`
+  (URL externa) sin tocar — es un campo distinto, no relacionado.
+- `ConfiguracionSistemaSerializer` valida tipo (`image/png|jpeg|webp`) y
+  peso (máx. 2 MB) de ambos campos.
+- `ConfiguracionSistemaView.post` (`secretaria/views.py`) ya aceptaba
+  multipart sin cambios (DRF trae `MultiPartParser` por defecto). Se
+  agregó manejo explícito de borrado: DRF's `FileField` rechaza un string
+  vacío como dato inválido (no lo interpreta como "borrar el archivo"), así
+  que el frontend manda un flag `logo_colegio_clear=true`/`logo_avec_clear=true`
+  aparte, y la vista borra el archivo del disco (`.delete(save=False)`)
+  y limpia el campo antes de guardar. Las 3 instancias de
+  `ConfiguracionSistemaSerializer` en la vista ahora reciben
+  `context={'request': request}` para que las URLs de los `ImageField`
+  salgan absolutas (con host) en vez de rutas relativas `/media/...`.
+- `useLogosRecibo.js` (frontend) reescrito: ya no usa `localStorage`, sube
+  el archivo real vía `multipart/form-data` al mismo endpoint de
+  configuración (`secretaria/configuracion/`) y lee el estado actual desde
+  `config.logo_colegio`/`config.logo_avec` (prop compartida con
+  `useConfiguracion`).
+- `utils/logosInstitucionales.js` (nuevo): helper con caché en memoria que
+  hace `GET secretaria/configuracion/` y descarga cada logo como blob,
+  convertido a data-URI (`FileReader.readAsDataURL`). Necesario porque
+  `jsPDF.addImage()` (usado en `nominaPDF.js`) solo acepta data-URIs/
+  `HTMLImageElement`/`HTMLCanvasElement`, no URLs remotas — así que no basta
+  con devolver la URL del backend, hay que descargarla y convertirla antes
+  de dibujar el PDF. Se invalida (`invalidateLogosInstitucionalesCache`)
+  cada vez que se guardan logos nuevos desde Configuración.
+- Consumidores migrados de `localStorage` a este helper:
+  `utils/printReciboCobranza.jsx` (ahora `async`, ambos callers —
+  `Comprobantes.jsx`, `Cobranza.jsx` — no usaban el valor de retorno, no
+  hizo falta tocarlos), `hooks/useRecibo.js` (precarga los logos
+  institucionales como valor inicial editable del formulario de recibo de
+  nómina, vía `useEffect` en vez de lectura síncrona de `localStorage` en
+  el `useState` inicial), `hooks/useInstitucionPDF.js` (ya no delega en
+  `useLogosRecibo`, llama directo a `getLogosInstitucionales()`).
+- **Migración one-shot de datos existentes**: `useLogosRecibo.js` detecta,
+  la primera vez que carga `Configuracion.jsx` tras este cambio, si el
+  navegador actual tiene logos guardados en el `localStorage` viejo
+  (`octopus_logos_recibo`) y el backend todavía no tiene logos propios —
+  en ese caso los sube automáticamente (conversión data-URI → `Blob` vía
+  `atob`) y limpia la clave de `localStorage`. Así el usuario no pierde lo
+  que ya había configurado en su PC habitual. Si la subida falla (red), no
+  borra `localStorage` — reintenta en la próxima carga.
+
+**No corregido / fuera de alcance:**
+
+- No se agregó validación de dimensiones/aspect ratio a `logo_colegio`/
+  `logo_avec` (mismo criterio que `Alumno.foto`, ver auditoría
+  2026-07-09 más arriba en este archivo) — solo tipo MIME y peso.
+- El módulo de nómina (`Recibos.jsx` / `useRecibo.js`) permite seguir
+  subiendo un logo **distinto** por recibo individual como override manual
+  (comportamiento preexistente, no relacionado con el bug reportado) — ese
+  override sigue siendo solo en memoria del formulario, no se persiste en
+  ningún lado; es intencional, es un ajuste puntual por documento, no la
+  configuración institucional.
+- No se probó manualmente en un segundo dispositivo real (solo se verificó
+  el flujo de subida/lectura contra el backend) — recomendado que el
+  usuario confirme entrando desde su celular u otra PC tras el deploy.

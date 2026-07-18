@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getMonth, getYear } from 'date-fns';
 import {
@@ -9,20 +9,17 @@ import {
   LOGO_MAX_BYTES,
 } from '../constants/recibo';
 import { loadCestaConfig } from '../constants/avec';
+import { getLogosInstitucionales } from '../utils/logosInstitucionales';
 
-const initInfo = () => {
-  let logos = {};
-  try { logos = JSON.parse(localStorage.getItem('octopus_logos_recibo') || '{}'); } catch {}
-  return {
-    nombre: '', cedula: '', horasSemana: '', cargo: '',
-    fechaIngreso: '', titulo: '', categoriaDocente: '', nivel: '',
-    mes:        MESES[getMonth(new Date())],
-    año:        String(getYear(new Date())),
-    tipoRecibo: TIPO_RECIBO_DEFAULT,
-    logoColegio: logos.logoColegio || null,
-    logoAvec:    logos.logoAvec    || null,
-  };
-};
+const initInfo = () => ({
+  nombre: '', cedula: '', horasSemana: '', cargo: '',
+  fechaIngreso: '', titulo: '', categoriaDocente: '', nivel: '',
+  mes:        MESES[getMonth(new Date())],
+  año:        String(getYear(new Date())),
+  tipoRecibo: TIPO_RECIBO_DEFAULT,
+  logoColegio: null,
+  logoAvec:    null,
+});
 
 export function useRecibo() {
   // El contador arranca en 10 para nunca colisionar con los IDs fijos de DEFAULT_*
@@ -30,6 +27,15 @@ export function useRecibo() {
   const nextId = useCallback(() => ++uidRef.current, []);
 
   const [info,        setInfo]        = useState(initInfo);
+
+  // Precarga los logos institucionales (colegio/AVEC) guardados en Configuración,
+  // como punto de partida editable — el usuario puede seguir cambiándolos abajo.
+  useEffect(() => {
+    getLogosInstitucionales().then(({ logoColegio, logoAvec }) => {
+      setInfo(p => ({ ...p, logoColegio: p.logoColegio ?? logoColegio, logoAvec: p.logoAvec ?? logoAvec }));
+    });
+  }, []);
+
   const [asignaciones, setAsignaciones] = useState(() => DEFAULT_ASIGNACIONES.map(r => ({ ...r })));
   const [retenciones,  setRetenciones]  = useState(() => DEFAULT_RETENCIONES.map(r => ({ ...r })));
   const [alimentario, setAlimentario]  = useState({
