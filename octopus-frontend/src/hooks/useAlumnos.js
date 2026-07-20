@@ -308,9 +308,10 @@ export function useAlumnos() {
                     estatus_financiero: d.estatus_financiero || 'solvente',
                     porcentaje_beca: d.porcentaje_beca || 0,
                     // El backend responde '0.00' tanto si no hay cuota de solvencia registrada
-                    // como si la hay con monto 0 explícito, así que se usa el flag
-                    // solvencia_definida (no el valor) para decidir si precargar el default.
-                    monto_solvencia: d.solvencia_definida ? d.monto_solvencia : montoDefecto,
+                    // como si la hay con monto 0 explícito. Para alumnos sin solvencia definida
+                    // se precarga en 0 (la mayoría está solvente); el flag solvencia_definida
+                    // evita pisar un monto ya guardado explícitamente.
+                    monto_solvencia: d.solvencia_definida ? d.monto_solvencia : '0.00',
                     concepto_solvencia: d.concepto_solvencia || '',
                     monto_proyecto_inversion: d.monto_proyecto_inversion || '0.00',
                     parentesco: d.parentesco || '',

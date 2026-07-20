@@ -121,8 +121,14 @@ export function useConfiguracionNotificaciones() {
         setTestResult(null);
         try {
             const { data } = await axiosInstance.post('notificaciones/probar/', testForm);
-            setTestResult({ ok: true, data });
-            toast.success('Prueba enviada.');
+            const resultados = data.resultados || {};
+            const fallo = Object.values(resultados).some(v => v !== 'enviado');
+            setTestResult({ ok: !fallo, data });
+            if (fallo) {
+                toast.error('El envío de prueba falló — revisa la configuración.');
+            } else {
+                toast.success('Prueba enviada.');
+            }
         } catch (err) {
             setTestResult({ ok: false, data: err.response?.data });
             toast.error('Error al enviar prueba.');
