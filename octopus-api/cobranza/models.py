@@ -41,7 +41,6 @@ class TransferenciaInterna(models.Model):
 
 class BancoInstitucional(models.Model):
     TIPOS = (
-        ('general',        'General (todos los métodos)'),
         ('transferencia',  'Transferencia Bancaria'),
         ('pago_movil',     'Pago Móvil'),
         ('punto_de_venta', 'Punto de Venta'),
@@ -51,7 +50,9 @@ class BancoInstitucional(models.Model):
     nombre        = models.CharField(max_length=50, unique=True)
     numero_cuenta = models.CharField(max_length=20, blank=True, null=True)
     activo        = models.BooleanField(default=True)
-    tipo          = models.CharField(max_length=20, choices=TIPOS, default='general')
+    # Un mismo banco puede aceptar varios métodos de pago a la vez
+    # (ej. Banesco con Punto de Venta y Transferencia).
+    tipos         = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.nombre

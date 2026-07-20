@@ -20,7 +20,6 @@ import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
 
 const TIPO_LABELS = {
-    general:        'General',
     transferencia:  'Transferencia',
     pago_movil:     'Pago Móvil',
     punto_de_venta: 'Punto de Venta',
@@ -613,12 +612,14 @@ const Configuracion = () => {
                                         <tr key={banco.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
                                             <td className="px-5 py-3.5">
                                                 <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{banco.nombre}</p>
-                                                <div className="flex items-center gap-2 mt-0.5">
+                                                <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
                                                     <span className="text-[10px]" style={{ color: 'var(--ash)' }}>{banco.numero_cuenta || '—'}</span>
-                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
-                                                        style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                                        {TIPO_LABELS[banco.tipo] || banco.tipo}
-                                                    </span>
+                                                    {(banco.tipos || []).map(t => (
+                                                        <span key={t} className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                                                            style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                                            {TIPO_LABELS[t] || t}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5">
@@ -1260,14 +1261,25 @@ const Configuracion = () => {
                                     placeholder="Opcional" />
                             </div>
                             <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Tipo de Banco</label>
-                                <select value={bancoForm.tipo} onChange={e => setBancoForm(p => ({ ...p, tipo: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}>
-                                    {Object.entries(TIPO_LABELS).map(([val, label]) => (
-                                        <option key={val} value={val}>{label}</option>
-                                    ))}
-                                </select>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Métodos de Pago Aceptados</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {Object.entries(TIPO_LABELS).map(([val, label]) => {
+                                        const checked = (bancoForm.tipos || []).includes(val);
+                                        return (
+                                            <label key={val} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
+                                                style={{ border: '0.5px solid var(--border-md)', background: checked ? 'var(--pb-light)' : '#fff', color: 'var(--jet)' }}>
+                                                <input type="checkbox" checked={checked}
+                                                    onChange={e => setBancoForm(p => ({
+                                                        ...p,
+                                                        tipos: e.target.checked
+                                                            ? [...(p.tipos || []), val]
+                                                            : (p.tipos || []).filter(t => t !== val),
+                                                    }))} />
+                                                {label}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
                             </div>
                             {bancoEditando && (
                                 <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>

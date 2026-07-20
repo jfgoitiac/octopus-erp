@@ -4,6 +4,12 @@ from .models import BancoInstitucional, CierreCaja, Pago, SolvenciaRepresentante
 from secretaria.models import Alumno
 
 class BancoInstitucionalSerializer(serializers.ModelSerializer):
+    tipos = serializers.ListField(
+        child=serializers.ChoiceField(choices=BancoInstitucional.TIPOS),
+        allow_empty=True,
+        required=False,
+    )
+
     class Meta:
         model = BancoInstitucional
         fields = '__all__'

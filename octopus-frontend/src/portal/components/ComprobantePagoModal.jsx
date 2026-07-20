@@ -201,7 +201,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
             {bancos.map(b => (
               <div key={b.id} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
                 <span className="text-xs text-gray-700 font-medium">{b.nombre}</span>
-                <span className="text-xs text-gray-500">{b.numero_cuenta || b.tipo}</span>
+                <span className="text-xs text-gray-500">{b.numero_cuenta || (b.tipos || []).join(', ')}</span>
               </div>
             ))}
           </div>

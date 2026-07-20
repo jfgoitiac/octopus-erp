@@ -7,7 +7,7 @@ export function useBancosCobranza() {
     const [bancosLoading, setBancosLoading] = useState(false);
     const [showBancoModal, setShowBancoModal] = useState(false);
     const [bancoEditando, setBancoEditando] = useState(null);
-    const [bancoForm, setBancoForm] = useState({ nombre: '', numero_cuenta: '', tipo: 'general', activo: true });
+    const [bancoForm, setBancoForm] = useState({ nombre: '', numero_cuenta: '', tipos: [], activo: true });
     const [bancoSaving, setBancoSaving] = useState(false);
     const [showDeleteBancoModal, setShowDeleteBancoModal] = useState(false);
     const [bancoAEliminar, setBancoAEliminar] = useState(null);
@@ -28,18 +28,19 @@ export function useBancosCobranza() {
 
     const openCreateModal = () => {
         setBancoEditando(null);
-        setBancoForm({ nombre: '', numero_cuenta: '', tipo: 'general', activo: true });
+        setBancoForm({ nombre: '', numero_cuenta: '', tipos: [], activo: true });
         setShowBancoModal(true);
     };
 
     const openEditModal = (banco) => {
         setBancoEditando(banco);
-        setBancoForm({ nombre: banco.nombre, numero_cuenta: banco.numero_cuenta || '', tipo: banco.tipo, activo: banco.activo });
+        setBancoForm({ nombre: banco.nombre, numero_cuenta: banco.numero_cuenta || '', tipos: banco.tipos || [], activo: banco.activo });
         setShowBancoModal(true);
     };
 
     const handleSaveBanco = async () => {
         if (!bancoForm.nombre.trim()) { toast.error("El nombre del banco es requerido."); return; }
+        if (!bancoForm.tipos || bancoForm.tipos.length === 0) { toast.error("Selecciona al menos un método de pago."); return; }
         setBancoSaving(true);
         try {
             if (bancoEditando) {
