@@ -17,6 +17,7 @@ import SidebarFichaAlumno from '../components/alumnos/SidebarFichaAlumno';
 import ModalAsignarGrado from '../components/alumnos/ModalAsignarGrado';
 import ModalRetirar from '../components/alumnos/ModalRetirar';
 import ModalConfirmarReactivar from '../components/alumnos/ModalConfirmarReactivar';
+import ModalConfirmarQuitarGrado from '../components/alumnos/ModalConfirmarQuitarGrado';
 import Pagination from '../components/shared/Pagination';
 
 const ListaAlumnos = () => {
@@ -66,7 +67,7 @@ const ListaAlumnos = () => {
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
             if (
                 alumnos.showRegisterModal || alumnos.showEditModal || alumnos.showAsignarGradoModal ||
-                alumnos.showRetirarModal || alumnos.alumnoParaReactivar ||
+                alumnos.showRetirarModal || alumnos.alumnoParaReactivar || alumnos.alumnoParaQuitarGrado ||
                 mensualidades.showModal || cuotaInscripcion.showModal || showFichaSidebar || showConfig
             ) return;
             e.preventDefault();
@@ -264,6 +265,7 @@ const ListaAlumnos = () => {
                         onVerFicha={handleVerFicha}
                         onEditarAlumno={alumnos.handleOpenEditModal}
                         onAsignarGrado={handleAbrirAsignarGrado}
+                        onQuitarGrado={alumnos.solicitarQuitarGrado}
                         onRetirar={handleRetirar}
                         onReactivar={alumnos.solicitarReactivar}
                         onAjustarDeuda={handleAjustarDeuda}
@@ -371,6 +373,15 @@ const ListaAlumnos = () => {
                     saving={alumnos.savingReactivar}
                     onConfirmar={alumnos.handleReactivar}
                     onCancelar={alumnos.cancelarReactivar}
+                />
+            )}
+
+            {alumnos.alumnoParaQuitarGrado && (
+                <ModalConfirmarQuitarGrado
+                    alumno={alumnos.alumnoParaQuitarGrado}
+                    saving={alumnos.savingQuitarGrado}
+                    onConfirmar={alumnos.handleQuitarGrado}
+                    onCancelar={alumnos.cancelarQuitarGrado}
                 />
             )}
         </div>

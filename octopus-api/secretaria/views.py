@@ -608,7 +608,7 @@ class AlumnoListView(viewsets.ModelViewSet):
         # Eliminación definitiva (temporal): solo director/sistemas/admin
         if self.action in ['eliminar_definitivo', 'eliminar_todos']:
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
-        if self.action in ['create', 'update', 'partial_update', 'update_info', 'destroy']:
+        if self.action in ['create', 'update', 'partial_update', 'update_info', 'destroy', 'quitar_grado']:
             return [IsSecretariaOrAbove()]
         return [IsDocenteOrAbove()]
 
@@ -731,6 +731,46 @@ class AlumnoListView(viewsets.ModelViewSet):
         )
         return Response(
             {"mensaje": f"Grado asignado: {grado_nuevo}"},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=['post'])  # NUEVO
+    @transaction.atomic
+    def quitar_grado(self, request, pk=None):
+        """Quita el grado asignado a un alumno individual, liberando su cupo."""
+        alumno = self.get_object()
+        grado_anterior = alumno.grado_seccion
+        if not grado_anterior:
+            return Response(
+                {"error": "El alumno no tiene un grado asignado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Mismo patrón de locking que retirar()/reactivar(), para decrementar
+        # el cupo de forma atómica.
+        config = ConfiguracionGrado.objects.select_for_update().filter(
+            grado_seccion=grado_anterior
+        ).first()
+        if config and config.cupos_utilizados > 0:
+            ConfiguracionGrado.objects.filter(pk=config.pk).update(
+                cupos_utilizados=F('cupos_utilizados') - 1
+            )
+
+        alumno.grado_seccion = None
+        alumno.save(update_fields=['grado_seccion'])
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="QUITAR_GRADO_INDIVIDUAL",
+            modulo="SECRETARIA",
+            detalles={
+                "alumno_id":      alumno.id,
+                "nombre":         f"{alumno.nombre} {alumno.apellido}",
+                "grado_anterior": grado_anterior,
+            }
+        )
+        return Response(
+            {"mensaje": f"Se quitó el grado {grado_anterior} al alumno."},
             status=status.HTTP_200_OK
         )
 

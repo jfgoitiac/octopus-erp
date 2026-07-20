@@ -76,6 +76,10 @@ export function useAlumnos() {
     const [savingGrado, setSavingGrado] = useState(false);
     const [showAsignarGradoModal, setShowAsignarGradoModal] = useState(false);
 
+    // --- Quitar grado (individual) ---
+    const [alumnoParaQuitarGrado, setAlumnoParaQuitarGrado] = useState(null);
+    const [savingQuitarGrado, setSavingQuitarGrado] = useState(false);
+
     // --- Retirar ---
     const [motivoRetiro, setMotivoRetiro] = useState('');
     const [savingRetiro, setSavingRetiro] = useState(false);
@@ -427,6 +431,24 @@ export function useAlumnos() {
         }
     };
 
+    const solicitarQuitarGrado = (alumno) => setAlumnoParaQuitarGrado(alumno);
+    const cancelarQuitarGrado = () => setAlumnoParaQuitarGrado(null);
+
+    const handleQuitarGrado = async () => {
+        if (!alumnoParaQuitarGrado) return;
+        setSavingQuitarGrado(true);
+        try {
+            await axiosInstance.post(`secretaria/alumnos/${alumnoParaQuitarGrado.id}/quitar_grado/`);
+            toast.success('Grado removido correctamente.');
+            setAlumnoParaQuitarGrado(null);
+            refetchAfterMutation();
+        } catch (err) {
+            toast.error(parseApiError(err) || 'Error al quitar el grado.');
+        } finally {
+            setSavingQuitarGrado(false);
+        }
+    };
+
     // UX-3 fix: reemplaza window.confirm con modal controlado
     const solicitarReactivar = (alumno) => setAlumnoParaReactivar(alumno);
     const cancelarReactivar = () => setAlumnoParaReactivar(null);
@@ -467,6 +489,8 @@ export function useAlumnos() {
         handleOpenEditModal, handleSaveEdit,
         // Asignar grado
         nuevoGrado, setNuevoGrado, savingGrado, showAsignarGradoModal, setShowAsignarGradoModal, handleAsignarGrado,
+        // Quitar grado
+        alumnoParaQuitarGrado, savingQuitarGrado, solicitarQuitarGrado, cancelarQuitarGrado, handleQuitarGrado,
         // Retirar
         motivoRetiro, setMotivoRetiro, savingRetiro, showRetirarModal, setShowRetirarModal, handleRetirar,
         // Reactivar

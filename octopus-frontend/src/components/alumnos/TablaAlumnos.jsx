@@ -1,4 +1,4 @@
-import { User, FileText, Edit2, GraduationCap, UserMinus, RefreshCcw, DollarSign, Receipt, ExternalLink, Loader2 } from 'lucide-react';
+import { User, FileText, Edit2, GraduationCap, XCircle, UserMinus, RefreshCcw, DollarSign, Receipt, ExternalLink, Loader2 } from 'lucide-react';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const EstadoBadge = ({ alumno }) => {
@@ -34,6 +34,7 @@ const TablaAlumnos = ({
     onVerFicha,
     onEditarAlumno,
     onAsignarGrado,
+    onQuitarGrado,
     onRetirar,
     onReactivar,
     onAjustarDeuda,
@@ -134,6 +135,16 @@ const TablaAlumnos = ({
                                             title="Asignar Grado" aria-label="Asignar grado al alumno"
                                             style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                             <GraduationCap size={18} />
+                                        </button>
+                                    )}
+
+                                    {isSecretaria && alumno.grado_seccion && (
+                                        <button
+                                            onClick={() => onQuitarGrado(alumno)}
+                                            className="p-2 rounded-lg transition-all"
+                                            title="Quitar Grado" aria-label="Quitar grado al alumno"
+                                            style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                                            <XCircle size={18} />
                                         </button>
                                     )}
 
