@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import NotificacionLog, ConfiguracionNotificaciones
+from .models import NotificacionLog, ConfiguracionNotificaciones, PerfilEmailRemitente
 
 
 @admin.register(NotificacionLog)
@@ -13,13 +13,23 @@ class NotificacionLogAdmin(admin.ModelAdmin):
 @admin.register(ConfiguracionNotificaciones)
 class ConfiguracionNotificacionesAdmin(admin.ModelAdmin):
     fieldsets = (
-        ('Email SMTP', {
-            'fields': ('email_activo', 'email_host', 'email_port', 'email_use_tls',
-                       'email_host_user', 'email_host_password', 'email_from', 'director_email'),
+        ('Email (legado — ver Perfiles de Email por Área)', {
+            'fields': ('director_email',),
         }),
         ('WhatsApp', {
             'fields': ('whatsapp_activo', 'whatsapp_proveedor', 'director_whatsapp',
                        'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
                        'meta_whatsapp_token', 'meta_whatsapp_phone_id'),
+        }),
+    )
+
+
+@admin.register(PerfilEmailRemitente)
+class PerfilEmailRemitenteAdmin(admin.ModelAdmin):
+    list_display = ['area', 'email_activo', 'email_host_user']
+    fieldsets = (
+        (None, {
+            'fields': ('area', 'email_activo', 'email_host', 'email_port',
+                       'email_use_tls', 'email_host_user', 'email_host_password', 'email_from'),
         }),
     )

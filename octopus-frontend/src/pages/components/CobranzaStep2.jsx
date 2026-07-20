@@ -68,6 +68,7 @@ const CobranzaStep2 = ({
         monto_ves: '',
         banco_receptor_id: '',
         referencia: '',
+        numero_lote: '',
     });
 
     return (
@@ -312,20 +313,38 @@ const CobranzaStep2 = ({
                                             </select>
                                         </div>
                                     )}
-                                    <div className={requiereBanco(l.metodo_pago) ? '' : 'col-span-2'}>
+                                    <div className={requiereBanco(l.metodo_pago) && l.metodo_pago !== 'punto_de_venta' ? '' : 'col-span-2'}>
                                         <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                            Nº de referencia
+                                            Nº de referencia{l.metodo_pago === 'punto_de_venta' ? ' (4 dígitos)' : ''}
                                         </label>
                                         <input
                                             type="text"
                                             className="w-full px-3 py-2 rounded-lg text-xs outline-none"
                                             style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
-                                            placeholder={requiereBanco(l.metodo_pago) ? 'Ej: 000123456' : 'Opcional'}
+                                            placeholder={l.metodo_pago === 'punto_de_venta' ? 'Ej: 1234' : requiereBanco(l.metodo_pago) ? 'Ej: 000123456' : 'Opcional'}
                                             value={l.referencia}
-                                            onChange={e => actualizarLinea(i, 'referencia', e.target.value)}
+                                            onChange={e => actualizarLinea(i, 'referencia', l.metodo_pago === 'punto_de_venta' ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value)}
+                                            maxLength={l.metodo_pago === 'punto_de_venta' ? 4 : undefined}
                                             aria-label="Número de referencia"
                                         />
                                     </div>
+                                    {l.metodo_pago === 'punto_de_venta' && (
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                                Nº de lote (4 dígitos)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                                                style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                placeholder="Ej: 0042"
+                                                value={l.numero_lote}
+                                                onChange={e => actualizarLinea(i, 'numero_lote', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                maxLength={4}
+                                                aria-label="Número de lote"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}

@@ -451,6 +451,7 @@ class RegistrarPagoView(APIView):
                 tasa_aplicada=tasa.valor_bs,
                 monto_ves=monto_ves_final,
                 referencia=pago_item.get('referencia', '') or '',
+                numero_lote=pago_item.get('numero_lote', '') or '',
                 observaciones=pago_item.get('observaciones', '') or '',
                 representante_documento=data.get('representante_documento', '') or '',
                 representante_nombre=data.get('representante_nombre', '') or '',

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Mail, MessageSquare, Eye, EyeOff, Send, Settings, Loader2 } from 'lucide-react';
-import { useConfiguracionNotificaciones } from '../../hooks/useConfiguracionNotificaciones';
+import { useConfiguracionNotificaciones, AREAS_EMAIL } from '../../hooks/useConfiguracionNotificaciones';
 
 // Extiende el hook con estados de visibilidad de credenciales que son UI-only.
 function useNotifCfg() {
@@ -60,11 +60,12 @@ const Toggle = ({ campo, form, setField }) => (
 // ── Componente principal ────────────────────────────────────────────────────
 
 const NotificacionesTab = () => {
+    const [areaActiva, setAreaActiva] = useState(AREAS_EMAIL[0].value);
     const {
-        form, loading,
-        savingEmail, savingWhatsApp,
+        form, perfiles, loading,
+        savingEmailArea, savingWhatsApp,
         testForm, setTestForm, testLoading,
-        setField, saveEmail, saveWhatsApp, sendTest,
+        setField, setPerfilField, saveEmailArea, saveWhatsApp, sendTest,
         showEmailPass,   setShowEmailPass,
         showTwilioToken, setShowTwilioToken,
         showMetaToken,   setShowMetaToken,
@@ -81,6 +82,7 @@ const NotificacionesTab = () => {
     if (!form) return null;
 
     const shared = { form, setField };
+    const perfilShared = { form: perfiles[areaActiva], setField: (k, v) => setPerfilField(areaActiva, k, v) };
 
     return (
         <div className="space-y-5">
@@ -97,38 +99,54 @@ const NotificacionesTab = () => {
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
                         <span className="text-xs" style={{ color: 'var(--ash)' }}>
-                            {form.email_activo ? 'Activo' : 'Inactivo'}
+                            {perfiles[areaActiva]?.email_activo ? 'Activo' : 'Inactivo'}
                         </span>
-                        <Toggle campo="email_activo" {...shared} />
+                        <Toggle campo="email_activo" {...perfilShared} />
                     </label>
                 </div>
 
+                <div className="px-5 pt-3 flex items-center gap-2" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                    {AREAS_EMAIL.map(({ value, label }) => (
+                        <button
+                            key={value}
+                            type="button"
+                            onClick={() => setAreaActiva(value)}
+                            className="px-3 py-2 text-sm font-medium -mb-px"
+                            style={areaActiva === value
+                                ? { color: 'var(--pb)', borderBottom: '2px solid var(--pb)' }
+                                : { color: 'var(--ash)', borderBottom: '2px solid transparent' }}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
                 <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputRow label="Servidor SMTP"      campo="email_host"           placeholder="smtp.gmail.com"                    {...shared} />
-                    <InputRow label="Puerto"             campo="email_port"           placeholder="587" type="number"                 {...shared} />
-                    <InputRow label="Usuario / correo"   campo="email_host_user"      placeholder="noreply@colegio.edu.ve"            {...shared} />
-                    <InputRow label="Remitente visible"  campo="email_from"           placeholder="Colegio <noreply@colegio.edu.ve>"  {...shared} />
+                    <InputRow label="Servidor SMTP"      campo="email_host"           placeholder="smtp.hostinger.com"                {...perfilShared} />
+                    <InputRow label="Puerto"             campo="email_port"           placeholder="465" type="number"                 {...perfilShared} />
+                    <InputRow label="Usuario / correo"   campo="email_host_user"      placeholder="cobranza@colegio.edu.ve"           {...perfilShared} />
+                    <InputRow label="Remitente visible"  campo="email_from"           placeholder="Cobranza <cobranza@colegio.edu.ve>" {...perfilShared} />
                     <InputRow label="Email del director" campo="director_email"       placeholder="director@colegio.edu.ve"           {...shared} />
                     <SecretInput label="Contraseña / App Password" campo="email_host_password"
                         placeholder="••••••••••••"
-                        show={showEmailPass} onToggle={() => setShowEmailPass(v => !v)} {...shared} />
+                        show={showEmailPass} onToggle={() => setShowEmailPass(v => !v)} {...perfilShared} />
                     <div className="flex items-center gap-2">
                         <input type="checkbox" id="tls"
-                            checked={!!form.email_use_tls}
-                            onChange={e => setField('email_use_tls', e.target.checked)}
+                            checked={!!perfiles[areaActiva]?.email_use_tls}
+                            onChange={e => setPerfilField(areaActiva, 'email_use_tls', e.target.checked)}
                             className="rounded" />
                         <label htmlFor="tls" className="text-sm" style={{ color: 'var(--jet)' }}>
-                            Usar TLS (recomendado)
+                            Usar TLS (ignorado si el puerto es 465 — se usa SSL)
                         </label>
                     </div>
                 </div>
 
                 <div className="px-5 pb-4 flex justify-end">
-                    <button type="button" onClick={saveEmail} disabled={savingEmail}
+                    <button type="button" onClick={() => saveEmailArea(areaActiva)} disabled={savingEmailArea[areaActiva]}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                         style={{ background: 'var(--pb)' }}>
-                        {savingEmail ? <Loader2 className="animate-spin" size={14} /> : <Settings size={14} />}
-                        {savingEmail ? 'Guardando...' : 'Guardar email'}
+                        {savingEmailArea[areaActiva] ? <Loader2 className="animate-spin" size={14} /> : <Settings size={14} />}
+                        {savingEmailArea[areaActiva] ? 'Guardando...' : 'Guardar email'}
                     </button>
                 </div>
             </div>
@@ -219,6 +237,16 @@ const NotificacionesTab = () => {
                         <option value="whatsapp">WhatsApp</option>
                         <option value="ambos">Ambos</option>
                     </select>
+                    {testForm.canal !== 'whatsapp' && (
+                        <select value={testForm.area}
+                            onChange={e => setTestForm(prev => ({ ...prev, area: e.target.value }))}
+                            className="px-3 py-2 rounded-lg text-sm outline-none appearance-none"
+                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', minWidth: 160 }}>
+                            {AREAS_EMAIL.map(({ value, label }) => (
+                                <option key={value} value={value}>{label}</option>
+                            ))}
+                        </select>
+                    )}
                     <input type="text"
                         placeholder={testForm.canal === 'email' ? 'correo@ejemplo.com' : '+584120000000'}
                         value={testForm.destino}

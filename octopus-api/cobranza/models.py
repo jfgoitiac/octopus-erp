@@ -119,6 +119,10 @@ class Pago(models.Model):
     )
     fecha_pago = models.DateTimeField(auto_now_add=True, db_index=True)
     referencia = models.CharField(max_length=100, blank=True, null=True)
+    numero_lote = models.CharField(
+        max_length=10, blank=True, null=True,
+        help_text="Número de lote del cierre de punto de venta (agrupa varias transacciones del mismo corte/día, no es único)"
+    )
     observaciones = models.TextField(blank=True, null=True)
     representante_documento = models.CharField(max_length=30, blank=True, null=True)
     estatus = models.CharField(
@@ -175,6 +179,19 @@ class Pago(models.Model):
         return ' '.join(ref.upper().split()) if ref else ''
 
     def clean(self):
+        if self.metodo_pago == 'punto_de_venta':
+            ref_pos = (self.referencia or '').strip()
+            lote_pos = (self.numero_lote or '').strip()
+            if not ref_pos.isdigit() or len(ref_pos) != 4:
+                raise ValidationError({
+                    'referencia': "Punto de Venta requiere un número de referencia de 4 dígitos."
+                })
+            if not lote_pos.isdigit() or len(lote_pos) != 4:
+                raise ValidationError({
+                    'numero_lote': "Punto de Venta requiere un número de lote de 4 dígitos."
+                })
+            self.numero_lote = lote_pos
+
         ref_limpia = self.normalizar_referencia(self.referencia) if self.referencia else None
 
         # Persistir la referencia normalizada para que el UniqueConstraint

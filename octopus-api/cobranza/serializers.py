@@ -48,7 +48,7 @@ class PagoSerializer(serializers.ModelSerializer):
             'id', 'factura_id', 'alumno', 'nombre_alumno', 'apellido_alumno',
             'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
             'metodo_pago', 'concepto', 'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago',
-            'referencia', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'
+            'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'
         ]
         read_only_fields = ['factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada']
 
@@ -60,7 +60,7 @@ class DesglosePagoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pago
         fields = ['id', 'factura_id', 'metodo_pago', 'metodo_pago_display', 'banco_nombre',
-                  'monto_usd', 'monto_ves', 'tasa_aplicada', 'referencia']
+                  'monto_usd', 'monto_ves', 'tasa_aplicada', 'referencia', 'numero_lote']
 
 
 class ComprobanteSerializer(serializers.ModelSerializer):
@@ -168,6 +168,7 @@ class PagoItemSerializer(serializers.Serializer):
                                                   min_value=Decimal('0'), required=False, default=Decimal('0'))
     banco_receptor_id = serializers.IntegerField(required=False, allow_null=True)
     referencia        = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    numero_lote       = serializers.CharField(max_length=10, required=False, allow_blank=True, default='')
     observaciones     = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
 
 
@@ -229,6 +230,19 @@ class PagoCreateSerializer(serializers.Serializer):
                     BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
                 except BancoInstitucional.DoesNotExist:
                     raise serializers.ValidationError(f"Pago {i}: Banco receptor no encontrado.")
+
+            # --- Punto de Venta: referencia y lote son de 4 dígitos ---
+            if pago_item['metodo_pago'] == 'punto_de_venta':
+                ref_pos = pago_item.get('referencia', '').strip()
+                lote_pos = pago_item.get('numero_lote', '').strip()
+                if not ref_pos.isdigit() or len(ref_pos) != 4:
+                    raise serializers.ValidationError(
+                        f"Pago {i}: Punto de Venta requiere un número de referencia de 4 dígitos."
+                    )
+                if not lote_pos.isdigit() or len(lote_pos) != 4:
+                    raise serializers.ValidationError(
+                        f"Pago {i}: Punto de Venta requiere un número de lote de 4 dígitos."
+                    )
 
             # --- Validación antifraude de referencia ---
             ref_raw = pago_item.get('referencia', '').strip()

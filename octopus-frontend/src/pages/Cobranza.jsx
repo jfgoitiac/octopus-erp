@@ -47,6 +47,7 @@ const crearLinea = () => ({
     monto_ves: '',
     banco_receptor_id: '',
     referencia: '',
+    numero_lote: '',
 });
 
 const metodoPagoIcons = {
@@ -312,6 +313,9 @@ const Cobranza = () => {
         }
         const sinBanco = lineas.some(l => requiereBanco(l.metodo_pago) && !l.banco_receptor_id);
         if (sinBanco) { toast.error('Selecciona el banco receptor para todos los métodos de pago.'); return; }
+        const posInvalido = lineas.some(l => l.metodo_pago === 'punto_de_venta' &&
+            (!/^\d{4}$/.test(l.referencia || '') || !/^\d{4}$/.test(l.numero_lote || '')));
+        if (posInvalido) { toast.error('Punto de Venta requiere referencia y número de lote de 4 dígitos.'); return; }
         setLoading(true);
         try {
             const buildMontoPago = (id, lista) => {
@@ -344,6 +348,7 @@ const Cobranza = () => {
                     monto_ves: esBolivares(l.metodo_pago) ? parseFloat(l.monto_ves) || 0 : 0,
                     banco_receptor_id: l.banco_receptor_id || null,
                     referencia: l.referencia || '',
+                    numero_lote: l.numero_lote || '',
                     observaciones: '',
                 })),
             });

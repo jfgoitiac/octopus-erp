@@ -2,14 +2,12 @@ import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
+export const AREAS_EMAIL = [
+    { value: 'cobranza', label: 'Cobranza' },
+    { value: 'control_estudios', label: 'Control de Estudios' },
+];
+
 export const EMPTY_FORM = {
-    email_activo: false,
-    email_host: '',
-    email_port: 587,
-    email_use_tls: true,
-    email_host_user: '',
-    email_host_password: '',
-    email_from: '',
     director_email: '',
     whatsapp_activo: false,
     whatsapp_proveedor: '',
@@ -21,14 +19,19 @@ export const EMPTY_FORM = {
     director_whatsapp: '',
 };
 
+export const EMPTY_PERFIL_EMAIL = {
+    email_activo: false,
+    email_host: 'smtp.hostinger.com',
+    email_port: 465,
+    email_use_tls: true,
+    email_host_user: '',
+    email_host_password: '',
+    email_from: '',
+};
+
 const SECRET_FIELDS = ['email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'];
 
 const isSecretMasked = (val) => typeof val === 'string' && val.startsWith('••••');
-
-const EMAIL_KEYS = [
-    'email_activo', 'email_host', 'email_port', 'email_use_tls',
-    'email_host_user', 'email_host_password', 'email_from', 'director_email',
-];
 
 const WHATSAPP_KEYS = [
     'whatsapp_activo', 'whatsapp_proveedor',
@@ -36,13 +39,17 @@ const WHATSAPP_KEYS = [
     'meta_whatsapp_token', 'meta_whatsapp_phone_id', 'director_whatsapp',
 ];
 
+const emptyPerfiles = () =>
+    AREAS_EMAIL.reduce((acc, { value }) => ({ ...acc, [value]: EMPTY_PERFIL_EMAIL }), {});
+
 export function useConfiguracionNotificaciones() {
     const [form, setFormState] = useState(EMPTY_FORM);
-    const [original, setOriginal] = useState(EMPTY_FORM);
+    const [perfiles, setPerfiles] = useState(emptyPerfiles);
+    const [perfilesOriginal, setPerfilesOriginal] = useState(emptyPerfiles);
     const [loading, setLoading] = useState(true);
-    const [savingEmail, setSavingEmail] = useState(false);
+    const [savingEmailArea, setSavingEmailArea] = useState({});
     const [savingWhatsApp, setSavingWhatsApp] = useState(false);
-    const [testForm, setTestForm] = useState({ canal: 'email', destino: '', mensaje: '' });
+    const [testForm, setTestForm] = useState({ canal: 'email', destino: '', mensaje: '', area: 'cobranza' });
     const [testLoading, setTestLoading] = useState(false);
     const [testResult, setTestResult] = useState(null);
 
@@ -50,71 +57,77 @@ export function useConfiguracionNotificaciones() {
         setFormState(prev => ({ ...prev, [key]: value }));
     }, []);
 
-    const applyData = useCallback((data) => {
-        const merged = { ...EMPTY_FORM, ...data };
-        setFormState(merged);
-        setOriginal(merged);
+    const setPerfilField = useCallback((area, key, value) => {
+        setPerfiles(prev => ({ ...prev, [area]: { ...prev[area], [key]: value } }));
     }, []);
-
-    const reloadConfig = useCallback(async () => {
-        const { data } = await axiosInstance.get('notificaciones/configuracion/');
-        applyData(data);
-    }, [applyData]);
 
     const fetchConfig = useCallback(async () => {
         try {
-            await reloadConfig();
+            const [{ data: cfgData }, ...perfilRes] = await Promise.all([
+                axiosInstance.get('notificaciones/configuracion/'),
+                ...AREAS_EMAIL.map(({ value }) => axiosInstance.get(`notificaciones/perfiles-email/${value}/`)),
+            ]);
+            setFormState({ ...EMPTY_FORM, ...cfgData });
+            const nuevos = {};
+            AREAS_EMAIL.forEach(({ value }, i) => {
+                nuevos[value] = { ...EMPTY_PERFIL_EMAIL, ...perfilRes[i].data };
+            });
+            setPerfiles(nuevos);
+            setPerfilesOriginal(nuevos);
         } catch {
             toast.error('Error al cargar la configuración de notificaciones.');
         } finally {
             setLoading(false);
         }
-    }, [reloadConfig]);
+    }, []);
 
     useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
-    // Builds the PATCH payload. Secrets are omitted if unchanged or masked
-    // (sending '' could clear stored credentials on the backend).
-    const buildPayload = useCallback((keys) => {
-        const payload = {};
-        keys.forEach(key => {
-            const val = form[key];
-            if (SECRET_FIELDS.includes(key)) {
-                if (val && !isSecretMasked(val) && val !== original[key]) {
+    const saveEmailArea = useCallback(async (area) => {
+        setSavingEmailArea(prev => ({ ...prev, [area]: true }));
+        try {
+            const payload = {};
+            Object.keys(EMPTY_PERFIL_EMAIL).forEach(key => {
+                const val = perfiles[area][key];
+                if (SECRET_FIELDS.includes(key)) {
+                    if (val && !isSecretMasked(val) && val !== perfilesOriginal[area][key]) payload[key] = val;
+                } else {
                     payload[key] = val;
                 }
-            } else {
-                payload[key] = val;
-            }
-        });
-        return payload;
-    }, [form, original]);
-
-    const saveEmail = useCallback(async () => {
-        setSavingEmail(true);
-        try {
-            await axiosInstance.patch('notificaciones/configuracion/', buildPayload(EMAIL_KEYS));
+            });
+            const { data } = await axiosInstance.patch(`notificaciones/perfiles-email/${area}/`, payload);
+            const actualizado = { ...EMPTY_PERFIL_EMAIL, ...data };
+            setPerfiles(prev => ({ ...prev, [area]: actualizado }));
+            setPerfilesOriginal(prev => ({ ...prev, [area]: actualizado }));
             toast.success('Configuración de email guardada.');
-            try { await reloadConfig(); } catch { /* save succeeded, silent reload failure */ }
         } catch (err) {
             toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al guardar.');
         } finally {
-            setSavingEmail(false);
+            setSavingEmailArea(prev => ({ ...prev, [area]: false }));
         }
-    }, [buildPayload, reloadConfig]);
+    }, [perfiles, perfilesOriginal]);
 
     const saveWhatsApp = useCallback(async () => {
         setSavingWhatsApp(true);
         try {
-            await axiosInstance.patch('notificaciones/configuracion/', buildPayload(WHATSAPP_KEYS));
+            const payload = {};
+            WHATSAPP_KEYS.forEach(key => {
+                const val = form[key];
+                if (SECRET_FIELDS.includes(key)) {
+                    if (val && !isSecretMasked(val)) payload[key] = val;
+                } else {
+                    payload[key] = val;
+                }
+            });
+            const { data } = await axiosInstance.patch('notificaciones/configuracion/', payload);
+            setFormState({ ...EMPTY_FORM, ...data });
             toast.success('Configuración de WhatsApp guardada.');
-            try { await reloadConfig(); } catch { /* save succeeded, silent reload failure */ }
         } catch (err) {
             toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al guardar.');
         } finally {
             setSavingWhatsApp(false);
         }
-    }, [buildPayload, reloadConfig]);
+    }, [form]);
 
     const sendTest = useCallback(async () => {
         setTestLoading(true);
@@ -139,8 +152,9 @@ export function useConfiguracionNotificaciones() {
 
     return {
         form,
+        perfiles,
         loading,
-        savingEmail,
+        savingEmailArea,
         savingWhatsApp,
         testForm,
         setTestForm,
@@ -148,7 +162,8 @@ export function useConfiguracionNotificaciones() {
         testResult,
         setTestResult,
         setField,
-        saveEmail,
+        setPerfilField,
+        saveEmailArea,
         saveWhatsApp,
         sendTest,
     };

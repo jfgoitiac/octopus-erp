@@ -4,7 +4,7 @@ import {
     CheckCircle2, XCircle, Bell, Send,
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-import { useConfiguracionNotificaciones } from '../hooks/useConfiguracionNotificaciones';
+import { useConfiguracionNotificaciones, AREAS_EMAIL } from '../hooks/useConfiguracionNotificaciones';
 
 // ─── Primitive form components (defined at module level to prevent remount on re-render) ───
 
@@ -111,6 +111,7 @@ const ConfiguracionNotificaciones = () => {
     const { user } = useContext(AuthContext);
     const testSectionRef = useRef(null);
 
+    const [areaActiva, setAreaActiva] = useState(AREAS_EMAIL[0].value);
     const [visibleSecrets, setVisibleSecrets] = useState({
         email_host_password: false,
         twilio_auth_token: false,
@@ -118,19 +119,22 @@ const ConfiguracionNotificaciones = () => {
     });
 
     const {
-        form, loading,
-        savingEmail, savingWhatsApp,
+        form, perfiles, loading,
+        savingEmailArea, savingWhatsApp,
         testForm, setTestForm,
         testLoading, testResult,
-        setField,
-        saveEmail, saveWhatsApp, sendTest,
+        setField, setPerfilField,
+        saveEmailArea, saveWhatsApp, sendTest,
     } = useConfiguracionNotificaciones();
 
     const toggleSecret = (key) =>
         setVisibleSecrets(prev => ({ ...prev, [key]: !prev[key] }));
 
-    const scrollToTest = (canal) => {
-        setTestForm(p => ({ ...p, canal }));
+    const perfilForm = perfiles[areaActiva];
+    const setPerfilFieldActivo = (key, value) => setPerfilField(areaActiva, key, value);
+
+    const scrollToTest = (canal, area) => {
+        setTestForm(p => ({ ...p, canal, ...(area ? { area } : {}) }));
         testSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
@@ -180,35 +184,53 @@ const ConfiguracionNotificaciones = () => {
                                 <Mail size={17} style={{ color: 'var(--pb)' }} />
                                 <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Correo Electrónico</span>
                             </div>
-                            <Toggle fieldKey="email_activo" form={form} setField={setField} label="Activo" />
+                            <Toggle fieldKey="email_activo" form={perfilForm} setField={setPerfilFieldActivo} label="Activo" />
                         </div>
+
+                        {/* Tabs por área */}
+                        <div className="px-5 pt-4 flex items-center gap-2" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                            {AREAS_EMAIL.map(({ value, label }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setAreaActiva(value)}
+                                    className="px-3 py-2 text-sm font-medium -mb-px"
+                                    style={areaActiva === value
+                                        ? { color: 'var(--pb)', borderBottom: '2px solid var(--pb)' }
+                                        : { color: 'var(--ash)', borderBottom: '2px solid transparent' }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
                         <div className="p-5 space-y-4">
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <FieldLabel htmlFor="email_host">Servidor SMTP</FieldLabel>
-                                    <TextInput fieldKey="email_host" form={form} setField={setField} placeholder="smtp.gmail.com" />
+                                    <TextInput fieldKey="email_host" form={perfilForm} setField={setPerfilFieldActivo} placeholder="smtp.hostinger.com" />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="email_port">Puerto</FieldLabel>
-                                    <TextInput fieldKey="email_port" form={form} setField={setField} placeholder="587" type="number" />
+                                    <TextInput fieldKey="email_port" form={perfilForm} setField={setPerfilFieldActivo} placeholder="465" type="number" />
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-3 py-1">
-                                <Toggle fieldKey="email_use_tls" form={form} setField={setField} label="Usar TLS" />
+                                <Toggle fieldKey="email_use_tls" form={perfilForm} setField={setPerfilFieldActivo} label="Usar TLS (ignorado si el puerto es 465 — se usa SSL)" />
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <FieldLabel htmlFor="email_host_user">Usuario SMTP</FieldLabel>
-                                    <TextInput fieldKey="email_host_user" form={form} setField={setField} placeholder="tu@gmail.com" />
+                                    <TextInput fieldKey="email_host_user" form={perfilForm} setField={setPerfilFieldActivo} placeholder="cobranza@colegio.edu.ve" />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="email_host_password">Contraseña SMTP</FieldLabel>
                                     <SecretInput
                                         fieldKey="email_host_password"
-                                        form={form}
-                                        setField={setField}
+                                        form={perfilForm}
+                                        setField={setPerfilFieldActivo}
                                         show={visibleSecrets.email_host_password}
                                         onToggle={() => toggleSecret('email_host_password')}
                                         placeholder="Contraseña de aplicación"
@@ -219,7 +241,7 @@ const ConfiguracionNotificaciones = () => {
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <FieldLabel htmlFor="email_from">Remitente (From)</FieldLabel>
-                                    <TextInput fieldKey="email_from" form={form} setField={setField} placeholder='Colegio <no-reply@colegio.edu.ve>' />
+                                    <TextInput fieldKey="email_from" form={perfilForm} setField={setPerfilFieldActivo} placeholder='Cobranza <cobranza@colegio.edu.ve>' />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="director_email">Email del Director</FieldLabel>
@@ -229,16 +251,16 @@ const ConfiguracionNotificaciones = () => {
 
                             <div className="flex flex-wrap items-center gap-3 pt-2">
                                 <button
-                                    onClick={saveEmail}
-                                    disabled={savingEmail}
+                                    onClick={() => saveEmailArea(areaActiva)}
+                                    disabled={savingEmailArea[areaActiva]}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}
                                 >
-                                    {savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    {savingEmailArea[areaActiva] ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                                     Guardar configuración email
                                 </button>
                                 <button
-                                    onClick={() => scrollToTest('email')}
+                                    onClick={() => scrollToTest('email', areaActiva)}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
                                     style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)', background: 'var(--bg)' }}
                                 >
@@ -356,7 +378,7 @@ const ConfiguracionNotificaciones = () => {
                             <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Probar conexión</span>
                         </div>
                         <div className="p-5 space-y-4">
-                            <div className="grid sm:grid-cols-3 gap-4">
+                            <div className="grid sm:grid-cols-4 gap-4">
                                 <div>
                                     <FieldLabel htmlFor="test_canal">Canal</FieldLabel>
                                     <select
@@ -371,7 +393,23 @@ const ConfiguracionNotificaciones = () => {
                                         <option value="ambos">Ambos</option>
                                     </select>
                                 </div>
-                                <div className="sm:col-span-2">
+                                {testForm.canal !== 'whatsapp' && (
+                                    <div>
+                                        <FieldLabel htmlFor="test_area">Área (email)</FieldLabel>
+                                        <select
+                                            id="test_area"
+                                            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                            value={testForm.area}
+                                            onChange={e => setTestForm(p => ({ ...p, area: e.target.value }))}
+                                        >
+                                            {AREAS_EMAIL.map(({ value, label }) => (
+                                                <option key={value} value={value}>{label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                <div className={testForm.canal !== 'whatsapp' ? 'sm:col-span-2' : 'sm:col-span-3'}>
                                     <FieldLabel htmlFor="test_destino">
                                         {testForm.canal === 'whatsapp' ? 'Número destino' : 'Email destino'}
                                     </FieldLabel>

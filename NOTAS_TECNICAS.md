@@ -941,3 +941,84 @@ no requiere S3/Cloudinary):**
 - No se probó manualmente en un segundo dispositivo real (solo se verificó
   el flujo de subida/lectura contra el backend) — recomendado que el
   usuario confirme entrando desde su celular u otra PC tras el deploy.
+
+## MÓDULO NOTIFICACIONES — 2026-07-20
+
+### 🔴 CRÍTICO (corregido)
+
+1. **Toast de "prueba enviada" mentía sobre el resultado real** — ✅ RESUELTO
+   - `useConfiguracionNotificaciones.js` (`sendTest`) y `useNotificaciones.js`
+     (`handleEnviarPrueba`) mostraban `toast.success` con solo recibir un
+     200 HTTP, sin mirar `resultados.email === 'fallido'` que ya devolvía
+     el backend. Esta es la causa raíz de "dice que funciona pero el
+     correo nunca llega" reportado por el usuario — no era problema de
+     configuración SMTP.
+   - Corregido en ambos hooks: ahora el toast y `testResult.ok` reflejan
+     el resultado real por canal.
+
+2. **Sin soporte SSL implícito (puerto 465)** — ✅ RESUELTO
+   - `notificaciones/services.py::enviar_email` solo pasaba `use_tls` a
+     `get_connection()`, nunca `use_ssl`. Hostinger (y muchos proveedores)
+     usan puerto 465 con SSL implícito, no STARTTLS — con la config vieja,
+     usar 465 rompía la conexión o silenciosamente no llegaba a intentar
+     el envío real. Ahora se detecta `puerto == 465 → use_ssl=True` y se
+     ignora el toggle de TLS en ese caso.
+
+### 🟡 MEDIO — arquitectura ampliada, no corregido del todo
+
+3. **Dos implementaciones paralelas de "configuración de notificaciones"** — ⏳ PENDIENTE
+   - `pages/Configuracion.jsx` + `hooks/useNotificaciones.js` tiene una
+     card de "estado" (líneas ~822-860) que lee `configNotif.email?.activo`,
+     `configNotif.email?.host`, etc. — un shape **anidado** que el backend
+     nunca devolvió (el endpoint `notificaciones/configuracion/` siempre
+     devolvió un dict plano: `email_activo`, `email_host`...). Esa card
+     probablemente muestra guiones/vacío desde que se escribió; es código
+     muerto o roto, no se tocó porque no es la pantalla real que usa el
+     usuario (esa es `ConfiguracionNotificaciones.jsx`).
+   - Hay además un formulario de "prueba" duplicado en `Configuracion.jsx`
+     (`handleEnviarPrueba`) que apunta al mismo endpoint `notificaciones/probar/`
+     que la pantalla real `ConfiguracionNotificaciones.jsx`. Sugerido:
+     eliminar la card de estado rota y el formulario de prueba duplicado
+     de `Configuracion.jsx`, dejando `ConfiguracionNotificaciones.jsx`
+     como única fuente de verdad. No implementado — cambio de UI que
+     conviene confirmar con el usuario antes de borrar código visible.
+
+### Ampliación: remitente por área (cobranza / control de estudios)
+
+- Nuevo modelo `PerfilEmailRemitente` (`notificaciones/models.py`) —
+  credenciales SMTP independientes por área (`cobranza`,
+  `control_estudios`), en vez del singleton único `ConfiguracionNotificaciones`
+  que antes servía **todos** los correos del sistema.
+- Migración `0003_perfilemailremitente_alter_notificacionlog_tipo.py` copia
+  la config SMTP existente al perfil `cobranza` (data migration), así no
+  se pierde lo ya configurado en producción.
+- `ConfiguracionNotificaciones` (singleton) ahora solo guarda
+  `director_email` + campos de WhatsApp — los campos `email_*` quedan en
+  el modelo por compatibilidad de la migración de datos pero ya no se
+  exponen ni editan vía `ConfiguracionNotificacionesView` (ver
+  `CAMPOS_EMAIL` en `notificaciones/views.py`). Podrían eliminarse en una
+  migración futura si se confirma que nada más los lee.
+- `enviar_email()` ahora recibe `area='cobranza'` (default) y busca el
+  perfil correspondiente; se agregó soporte de `adjuntos` (lista de
+  tuplas `(nombre, bytes, mimetype)`) para poder mandar el comprobante
+  `.docx` de inscripción adjunto.
+- `notificar_comprobante_inscripcion()` (nuevo, en `services.py`) se
+  dispara vía Celery (`task_notificar_comprobante_inscripcion`) desde
+  `InscripcionNuevaView.post` (`secretaria/views.py`) — envía desde el
+  perfil `control_estudios` al crear una inscripción. **No** se dispara
+  al reimprimir el comprobante desde `ComprobanteInscripcionView` (correcto:
+  ese endpoint es solo para descarga manual, no debe reenviar el correo).
+- **Pendiente de configurar en producción**: crear la segunda casilla en
+  Hostinger (ej. `controldeestudios@clhma.com`) y cargar sus credenciales
+  en la pestaña "Control de Estudios" de `ConfiguracionNotificaciones.jsx`
+  — sin esto, los comprobantes de inscripción no se envían (el perfil
+  queda con `email_activo=False` por default y `enviar_email` no
+  intenta la conexión SMTP).
+- **No verificado en navegador**: el build de frontend y `manage.py check`
+  pasan limpios, pero no se pudo hacer login end-to-end en un servidor de
+  desarrollo local para probar clic-a-clic (no había credenciales de un
+  usuario con rol autorizado disponibles en este entorno, y no se debe
+  resetear contraseñas de usuarios existentes sin permiso explícito).
+  Recomendado que el usuario pruebe el flujo completo (pestañas, guardar,
+  probar email, crear una inscripción de prueba) antes de darlo por
+  cerrado.
