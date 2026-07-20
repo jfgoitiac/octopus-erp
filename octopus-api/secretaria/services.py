@@ -67,8 +67,9 @@ def generate_temporary_cedula_escolar(request_user):
         
         generated_id = f"99{timestamp_part}{random_part}"
         
-        # Verifica la unicidad en la base de datos (extremadamente improbable que se repita)
-        if not Alumno.objects.filter(cedula_escolar=generated_id).exists():
+        # Verifica unicidad contra TODOS los alumnos (incluye retirados), ya que
+        # la constraint unique de la BD no distingue por el campo `activo`.
+        if not Alumno.todos.filter(cedula_escolar=generated_id).exists():
             return generated_id
 
 
