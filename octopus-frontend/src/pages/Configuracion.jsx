@@ -1,9 +1,10 @@
-import { useEffect, useContext } from 'react';
+import { useEffect, useContext, useState } from 'react';
 import {
     Settings, Calendar, Wallet, AlertTriangle, Save,
     RefreshCcw, CheckCircle, X, Loader2, BarChart3, Clock,
     Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark,
     Image, Upload, Trash, MessageCircle, Bell, CheckCircle2, XCircle, ExternalLink, Check,
+    GraduationCap,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -28,10 +29,12 @@ const TIPO_LABELS = {
 
 const Configuracion = () => {
     const { user } = useContext(AuthContext);
+    const [showQuitarGradosModal, setShowQuitarGradosModal] = useState(false);
 
     const {
-        config, loading, saving, cargandoCuotas,
+        config, loading, saving, cargandoCuotas, quitandoGrados,
         fetchConfig, handleConfigChange, handleSaveConfig, handleCargarCuotasInscripcion,
+        handleQuitarGradosAlumnos,
     } = useConfiguracion();
 
     const {
@@ -502,6 +505,25 @@ const Configuracion = () => {
                                 style={{ background: 'var(--pb)' }}>
                                 {cargandoCuotas ? <Loader2 className="animate-spin" size={15} /> : <Wallet size={15} />}
                                 Cargar Monto de Inscripción
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Iniciar Nueva Inscripción — quita el grado a todos los alumnos */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3 flex items-center gap-2" style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
+                            <GraduationCap size={13} style={{ color: 'var(--red)' }} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Nuevo Período</span>
+                        </div>
+                        <div className="p-5 space-y-3">
+                            <p className="text-xs leading-relaxed" style={{ color: 'var(--ash)' }}>
+                                Quita el grado a todos los alumnos activos para arrancar el proceso de inscripción del nuevo período. Todos quedarán como "sin inscribir" hasta que se les asigne grado de nuevo. Esta acción no elimina alumnos ni su historial de pagos.
+                            </p>
+                            <button type="button" onClick={() => setShowQuitarGradosModal(true)} disabled={quitandoGrados}
+                                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                                style={{ background: 'var(--red)' }}>
+                                {quitandoGrados ? <Loader2 className="animate-spin" size={15} /> : <GraduationCap size={15} />}
+                                Quitar Grado a Todos los Alumnos
                             </button>
                         </div>
                     </div>
@@ -1360,6 +1382,37 @@ const Configuracion = () => {
                     onConfirm={handleDeleteBancoNomina}
                     onCancel={() => { setShowDeleteBancoNominaModal(false); setBancoNominaAEliminar(null); }}
                 />
+            )}
+
+            {showQuitarGradosModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
+                    style={{ background: 'rgba(43,48,58,0.55)' }}>
+                    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp"
+                        style={{ background: 'var(--porcelain)' }}>
+                        <div className="p-6 flex flex-col items-center text-center"
+                            style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                            <AlertTriangle size={28} className="mb-3" />
+                            <h3 className="text-base font-bold">Quitar Grado a Todos los Alumnos</h3>
+                            <p className="text-sm mt-1 opacity-80">
+                                Se le quitará el grado a <b>todos los alumnos activos</b> y quedarán "sin inscribir".
+                                Esta acción no se puede deshacer. ¿Continuar?
+                            </p>
+                        </div>
+                        <div className="flex gap-3 p-6">
+                            <button type="button" onClick={() => setShowQuitarGradosModal(false)}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button"
+                                onClick={async () => { setShowQuitarGradosModal(false); await handleQuitarGradosAlumnos(); }}
+                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                style={{ background: 'var(--red)' }}>
+                                <GraduationCap size={16} /> Quitar Grados
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

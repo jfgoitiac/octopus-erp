@@ -5,6 +5,18 @@ import axiosInstance from '../api/apiClient';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// DRF devuelve errores como string, {error|detail: "..."} o {campo: ["msg", ...]}.
+// Aplana cualquiera de esas formas al mensaje más específico disponible.
+const extractErrorMessage = (err, fallback) => {
+    const data = err.response?.data;
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (data.error) return data.error;
+    if (data.detail) return data.detail;
+    const mensajes = Object.values(data).flat().filter(Boolean);
+    return mensajes.length ? mensajes.join(' ') : fallback;
+};
+
 export function useUsuariosSistemas() {
     const [usuarios,   setUsuarios]   = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(true);
@@ -20,7 +32,7 @@ export function useUsuariosSistemas() {
             setUsuarios(res.data);
         } catch (err) {
             if (err.name === 'CanceledError') return;
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al cargar usuarios');
+            toast.error(extractErrorMessage(err, 'Error al cargar usuarios'));
         } finally {
             setLoadingUsers(false);
         }
@@ -42,7 +54,7 @@ export function useUsuariosSistemas() {
             await fetchUsers();
             return true;
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al crear el usuario');
+            toast.error(extractErrorMessage(err, 'Error al crear el usuario'));
             return false;
         }
     }, [fetchUsers]);
@@ -54,7 +66,7 @@ export function useUsuariosSistemas() {
             setUsuarios(prev => prev.filter(u => u.id !== userId));
             return true;
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al eliminar el usuario');
+            toast.error(extractErrorMessage(err, 'Error al eliminar el usuario'));
             return false;
         }
     }, []);
@@ -66,7 +78,7 @@ export function useUsuariosSistemas() {
             await fetchUsers();
             return true;
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al actualizar el rol');
+            toast.error(extractErrorMessage(err, 'Error al actualizar el rol'));
             return false;
         }
     }, [fetchUsers]);
@@ -83,7 +95,7 @@ export function useUsuariosSistemas() {
             toast.success('Contraseña restablecida con éxito');
             return true;
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al resetear contraseña');
+            toast.error(extractErrorMessage(err, 'Error al resetear contraseña'));
             return false;
         }
     }, []);
@@ -102,7 +114,7 @@ export function useUsuariosSistemas() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al generar el respaldo');
+            toast.error(extractErrorMessage(err, 'Error al generar el respaldo'));
         } finally {
             setBackingUp(false);
         }
@@ -134,7 +146,7 @@ export function useUsuariosSistemas() {
             });
             return res.data;
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al leer el archivo');
+            toast.error(extractErrorMessage(err, 'Error al leer el archivo'));
             return null;
         } finally {
             setImportingPreview(false);
@@ -152,7 +164,7 @@ export function useUsuariosSistemas() {
             toast.success(`Se importaron ${res.data.creados} estudiantes correctamente`);
             return res.data;
         } catch (err) {
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al importar los estudiantes');
+            toast.error(extractErrorMessage(err, 'Error al importar los estudiantes'));
             return null;
         } finally {
             setImportingConfirm(false);

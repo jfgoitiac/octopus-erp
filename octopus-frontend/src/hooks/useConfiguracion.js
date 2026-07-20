@@ -26,6 +26,7 @@ export function useConfiguracion() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [cargandoCuotas, setCargandoCuotas] = useState(false);
+    const [quitandoGrados, setQuitandoGrados] = useState(false);
 
     const fetchConfig = useCallback(async () => {
         setLoading(true);
@@ -87,8 +88,22 @@ export function useConfiguracion() {
         }
     };
 
+    const handleQuitarGradosAlumnos = async () => {
+        setQuitandoGrados(true);
+        try {
+            const res = await axiosInstance.post('secretaria/quitar-grados-alumnos/');
+            toast.success(res?.data?.mensaje || "Se quitó el grado a todos los alumnos.");
+        } catch (err) {
+            const msg = err.response?.data?.error || err.response?.data?.detail || "No se pudo quitar el grado a los alumnos.";
+            toast.error(msg);
+        } finally {
+            setQuitandoGrados(false);
+        }
+    };
+
     return {
-        config, loading, saving, cargandoCuotas,
+        config, loading, saving, cargandoCuotas, quitandoGrados,
         fetchConfig, handleConfigChange, handleSaveConfig, handleCargarCuotasInscripcion,
+        handleQuitarGradosAlumnos,
     };
 }

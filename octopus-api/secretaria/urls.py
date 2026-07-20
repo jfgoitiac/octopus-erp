@@ -9,7 +9,7 @@ from .views import (
     ImportarEstudiantesView,
     InscripcionNuevaView, LogAuditoriaListView,
     PlanillaPreinscripcionView, PlanillaPreinscripcionMasivaView,
-    PromocionAlumnosView, RepresentanteAlumnosView, RepresentanteViewSet,
+    PromocionAlumnosView, QuitarGradosAlumnosView, RepresentanteAlumnosView, RepresentanteViewSet,
     buscar_representante_por_cedula,
 )
 
@@ -39,6 +39,7 @@ urlpatterns = [
     # Configuración del sistema
     path('configuracion/',                        ConfiguracionSistemaView.as_view(),     name='configuracion-sistema'),
     path('promover-alumnos/',                     PromocionAlumnosView.as_view(),         name='promover-alumnos'),
+    path('quitar-grados-alumnos/',                QuitarGradosAlumnosView.as_view(),      name='quitar-grados-alumnos'),
     path('cargar-cuotas-inscripcion/',             CargarCuotasInscripcionView.as_view(),  name='cargar-cuotas-inscripcion'),
     path('importar-estudiantes/',                  ImportarEstudiantesView.as_view(),      name='importar-estudiantes'),
 

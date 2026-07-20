@@ -1,13 +1,22 @@
-import { useState, useEffect } from 'react';
-import { User, Mail, Lock, Eye, EyeOff, X, UserPlus, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { User, Mail, Lock, Eye, EyeOff, X, UserPlus, Loader2, Check, AlertCircle } from 'lucide-react';
 import { ROL_OPTIONS } from '../../../constants/roles';
 
 const EMPTY_FORM = { username: '', email: '', password: '', rol: 'cajero' };
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Espeja las reglas activas en AUTH_PASSWORD_VALIDATORS (config/settings.py del backend)
+// para dar feedback inmediato antes de enviar el formulario.
+const PASSWORD_RULES = [
+    { test: (v) => v.length >= 8,        label: 'Al menos 8 caracteres' },
+    { test: (v) => !/^\d+$/.test(v) && v.length > 0, label: 'No puede ser completamente numérica' },
+];
 
 const CrearUsuarioModal = ({ onClose, onCreate }) => {
     const [formData,     setFormData]     = useState(EMPTY_FORM);
     const [showPassword, setShowPassword] = useState(false);
     const [loading,      setLoading]      = useState(false);
+    const [touched,      setTouched]      = useState({});
 
     useEffect(() => {
         const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -16,9 +25,20 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
     }, [onClose]);
 
     const setField = (name, value) => setFormData(prev => ({ ...prev, [name]: value }));
+    const setBlurred = (name) => setTouched(prev => ({ ...prev, [name]: true }));
+
+    const passwordChecks = useMemo(
+        () => PASSWORD_RULES.map(rule => ({ ...rule, ok: rule.test(formData.password) })),
+        [formData.password]
+    );
+    const passwordValid = passwordChecks.every(c => c.ok);
+    const emailValid = formData.email === '' || EMAIL_REGEX.test(formData.email);
+    const canSubmit = formData.username.trim() !== '' && emailValid && formData.email !== '' && passwordValid;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setTouched({ username: true, email: true, password: true });
+        if (!canSubmit) return;
         setLoading(true);
         const payload = { ...formData, username: formData.username.trim(), email: formData.email.trim() };
         const ok = await onCreate(payload);
@@ -28,8 +48,13 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
 
     const FIELDS = [
         { label: 'Usuario', name: 'username', type: 'text',  Icon: User, placeholder: 'jperez' },
-        { label: 'Correo',  name: 'email',    type: 'email', Icon: Mail, placeholder: 'usuario@colegio.com' },
+        {
+            label: 'Correo', name: 'email', type: 'email', Icon: Mail, placeholder: 'usuario@colegio.com',
+            error: touched.email && formData.email !== '' && !emailValid ? 'Correo electrónico inválido' : null,
+        },
     ];
+
+    const borderColor = (hasError) => hasError ? 'var(--red)' : 'var(--border-md)';
 
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -48,7 +73,7 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-5 space-y-4">
-                    {FIELDS.map(({ label, name, type, Icon, placeholder }) => (
+                    {FIELDS.map(({ label, name, type, Icon, placeholder, error }) => (
                         <div key={name}>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5"
                                 style={{ color: 'var(--ash)' }}>{label}</label>
@@ -57,10 +82,20 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
                                 <input type={type} placeholder={placeholder}
                                     value={formData[name]}
                                     onChange={e => setField(name, e.target.value)}
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    onBlur={() => setBlurred(name)}
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none transition-colors focus:ring-2"
+                                    style={{
+                                        border: `0.5px solid ${borderColor(error)}`,
+                                        background: '#fff', color: 'var(--jet)',
+                                        boxShadow: error ? '0 0 0 2px rgba(220,38,38,0.12)' : undefined,
+                                    }}
                                     required />
                             </div>
+                            {error && (
+                                <p className="mt-1 text-xs flex items-center gap-1" style={{ color: 'var(--red)' }}>
+                                    <AlertCircle size={12} /> {error}
+                                </p>
+                            )}
                         </div>
                     ))}
 
@@ -73,8 +108,12 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
                                 placeholder="Mínimo 8 caracteres"
                                 value={formData.password}
                                 onChange={e => setField('password', e.target.value)}
-                                className="w-full pl-9 pr-9 py-2 rounded-lg text-sm outline-none"
-                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                onBlur={() => setBlurred('password')}
+                                className="w-full pl-9 pr-9 py-2 rounded-lg text-sm outline-none transition-colors focus:ring-2"
+                                style={{
+                                    border: `0.5px solid ${borderColor(touched.password && !passwordValid)}`,
+                                    background: '#fff', color: 'var(--jet)',
+                                }}
                                 required />
                             <button type="button" onClick={() => setShowPassword(v => !v)}
                                 className="absolute right-3 top-2.5" style={{ color: 'var(--ash)' }}
@@ -82,6 +121,19 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
                                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                             </button>
                         </div>
+                        <ul className="mt-1.5 space-y-0.5">
+                            {passwordChecks.map(({ label, ok }) => (
+                                <li key={label} className="flex items-center gap-1.5 text-[11px]"
+                                    style={{ color: ok ? 'var(--green)' : 'var(--ash)' }}>
+                                    {ok
+                                        ? <Check size={11} />
+                                        : <span className="inline-block w-[11px] h-[11px] rounded-full"
+                                            style={{ border: '1.5px solid var(--border-md)' }} />
+                                    }
+                                    {label}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
 
                     <div>
@@ -103,7 +155,7 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
                             style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                             Cancelar
                         </button>
-                        <button type="submit" disabled={loading}
+                        <button type="submit" disabled={loading || (Object.keys(touched).length > 0 && !canSubmit)}
                             className="flex-1 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                             style={{ background: 'var(--pb)' }}>
                             {loading ? <Loader2 className="animate-spin" size={15} /> : <UserPlus size={15} />}

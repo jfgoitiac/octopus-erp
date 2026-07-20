@@ -426,6 +426,41 @@ class PromocionAlumnosView(APIView):
 
 
 # ─────────────────────────────────────────────
+# QUITAR GRADOS A TODOS LOS ALUMNOS (NUEVO)
+# Deja a los alumnos activos sin grado_seccion para arrancar el proceso de
+# inscripción del nuevo período desde cero (todos "sin inscribir").
+# ─────────────────────────────────────────────
+class QuitarGradosAlumnosView(APIView):
+    permission_classes = [IsSystemAdminOrDirector]
+
+    @transaction.atomic
+    def post(self, request):
+        alumnos_con_grado = Alumno.objects.filter(activo=True).exclude(grado_seccion__isnull=True).exclude(grado_seccion='')
+        total = alumnos_con_grado.count()
+        alumnos_ids = list(alumnos_con_grado.values_list('id', flat=True))
+
+        alumnos_con_grado.update(grado_seccion=None)
+
+        # Libera todos los cupos: ya no hay alumnos activos con grado asignado.
+        ConfiguracionGrado.objects.filter(cupos_utilizados__gt=0).update(cupos_utilizados=0)
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="QUITAR_GRADOS_MASIVO",
+            modulo="SISTEMAS",
+            detalles={
+                "total_afectados": total,
+                "alumnos_ids":     alumnos_ids,
+            }
+        )
+
+        return Response({
+            "mensaje":         f"Se quitó el grado a {total} alumno{'s' if total != 1 else ''}. Ya quedaron sin inscribir.",
+            "total_afectados": total,
+        }, status=status.HTTP_200_OK)
+
+
+# ─────────────────────────────────────────────
 # BIEN NACIONAL
 # ─────────────────────────────────────────────
 class BienNacionalViewSet(viewsets.ModelViewSet):
