@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 
 export const PAGE_SIZE_LOGS = 20;
 
-export function useNotificaciones() {
+export function useNotificaciones(habilitado = true) {
     const [configNotif, setConfigNotif] = useState(null);
     const [logsNotif, setLogsNotif] = useState({ total: 0, results: [] });
     const [pruebaForm, setPruebaForm] = useState({ canal: 'email', destino: '', mensaje: '' });
@@ -38,10 +38,11 @@ export function useNotificaciones() {
     }, []);
 
     useEffect(() => {
+        if (!habilitado) return;
         const controller = new AbortController();
         cargarConfigNotificaciones(undefined, undefined, undefined, controller.signal);
         return () => controller.abort();
-    }, [cargarConfigNotificaciones]);
+    }, [habilitado, cargarConfigNotificaciones]);
 
     // Cancela la petición anterior antes de lanzar una nueva desde filtros o paginación
     const dispatchCarga = useCallback((canal, estado, page) => {

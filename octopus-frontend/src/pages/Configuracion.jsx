@@ -29,6 +29,7 @@ const TIPO_LABELS = {
 const Configuracion = () => {
     const { user } = useContext(AuthContext);
     const [showQuitarGradosModal, setShowQuitarGradosModal] = useState(false);
+    const [notifAbierto, setNotifAbierto] = useState(false);
 
     const {
         config, loading, saving, cargandoCuotas, quitandoGrados,
@@ -76,7 +77,7 @@ const Configuracion = () => {
         pruebaCargando, pruebaResultado, logsFiltro, setLogsFiltro,
         logsLoading, cargarConfigNotificaciones, handleEnviarPrueba,
         aplicarFiltrosLogs, cambiarPaginaLogs,
-    } = useNotificaciones();
+    } = useNotificaciones(notifAbierto);
 
     const {
         logosRecibo, showLogosModal, setShowLogosModal, logosForm,
@@ -804,18 +805,24 @@ const Configuracion = () => {
                 </div>
             </div>
 
-            {/* Panel de Notificaciones */}
+            {/* Panel de Notificaciones — carga diferida: no pide datos hasta abrirse, para no sobrecargar esta página */}
             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                <button type="button" onClick={() => setNotifAbierto(v => !v)}
+                    className="w-full px-5 py-3.5 flex items-center gap-3 text-left"
+                    style={{ borderBottom: notifAbierto ? '0.5px solid var(--border-md)' : 'none', background: 'var(--bg)' }}>
                     <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
                         <Bell size={15} style={{ color: 'var(--pb)' }} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Notificaciones</h3>
                         <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Estado de canales, pruebas de envío e historial</p>
                     </div>
-                </div>
+                    <span className="text-xs font-medium" style={{ color: 'var(--pb)' }}>
+                        {notifAbierto ? 'Ocultar' : 'Ver notificaciones'}
+                    </span>
+                </button>
 
+                {notifAbierto && (
                 <div className="p-5 space-y-6">
 
                     {/* Estado de canales */}
@@ -982,7 +989,7 @@ const Configuracion = () => {
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                                            {['Fecha', 'Canal', 'Tipo', 'Destinatario', 'Estado', 'Proveedor'].map(h => (
+                                            {['Fecha', 'Canal', 'Tipo', 'Destinatario', 'Estado', 'Proveedor', 'Error'].map(h => (
                                                 <th key={h} className="px-4 py-3 text-[11px] uppercase tracking-widest whitespace-nowrap"
                                                     style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
                                             ))}
@@ -992,8 +999,8 @@ const Configuracion = () => {
                                         {(logsNotif.results || []).map((log, idx) => (
                                             <tr key={log.id ?? idx} style={{ borderBottom: '0.5px solid var(--border)' }}>
                                                 <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>
-                                                    {log.fecha
-                                                        ? format(new Date(log.fecha), 'dd/MM/yy HH:mm', { locale: es })
+                                                    {log.fecha_envio
+                                                        ? format(new Date(log.fecha_envio), 'dd/MM/yy HH:mm', { locale: es })
                                                         : '—'}
                                                 </td>
                                                 <td className="px-4 py-3">
@@ -1020,6 +1027,9 @@ const Configuracion = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-xs" style={{ color: 'var(--ash)' }}>{log.proveedor || '—'}</td>
+                                                <td className="px-4 py-3 text-xs max-w-xs truncate" title={log.error_detalle || ''} style={{ color: 'var(--red)' }}>
+                                                    {log.error_detalle || '—'}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1052,6 +1062,7 @@ const Configuracion = () => {
                         )}
                     </div>
                 </div>
+                )}
             </div>
 
             {/* ── Modales ── */}
