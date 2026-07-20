@@ -99,7 +99,6 @@ const Configuracion = () => {
             setShowBancoModal(false);
             setShowBancoNominaModal(false);
             setShowTipoCargoModal(false);
-            setShowPromoModal(false);
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
