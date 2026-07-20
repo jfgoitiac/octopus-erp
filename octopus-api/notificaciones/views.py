@@ -6,8 +6,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 CAMPOS_EMAIL = [
-    'email_activo', 'email_host', 'email_port', 'email_use_tls',
-    'email_host_user', 'email_host_password', 'email_from', 'director_email',
+    # La config SMTP en sí vive por área en PerfilEmailRemitente (ver
+    # PerfilEmailRemitenteView) — este singleton solo guarda el destinatario
+    # de las alertas de mora día 15.
+    'director_email',
 ]
 CAMPOS_WA = [
     'whatsapp_activo', 'whatsapp_proveedor', 'director_whatsapp',
@@ -15,29 +17,34 @@ CAMPOS_WA = [
     'meta_whatsapp_token', 'meta_whatsapp_phone_id',
 ]
 CAMPOS_SECRETOS = {'email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'}
+CAMPOS_PERFIL_EMAIL = [
+    'email_activo', 'email_host', 'email_port', 'email_use_tls',
+    'email_host_user', 'email_host_password', 'email_from',
+]
 
 
 def _check_rol(request):
     return getattr(getattr(request.user, 'perfil', None), 'rol', '') in ('director', 'sistemas', 'administrador')
 
 
+def _ocultar_secretos(data, campos):
+    """Reemplaza en `data` los campos secretos por '••••' + últimos 4 chars.
+    El frontend detecta el prefijo '••••' para saber que es un placeholder."""
+    for campo in campos:
+        val = data.get(campo)
+        if val:
+            suffix = val[-4:] if len(val) >= 4 else val
+            data[campo] = f'••••{suffix}'
+        else:
+            data[campo] = ''
+    return data
+
+
 def _cfg_to_dict(cfg):
-    """Serializa el objeto ocultando campos secretos.
-    Retorna '••••' + últimos 4 chars si hay valor, o '' si está vacío.
-    El frontend detecta el prefijo '••••' para saber que es un placeholder.
-    """
     data = {}
     for campo in CAMPOS_EMAIL + CAMPOS_WA:
-        val = getattr(cfg, campo)
-        if campo in CAMPOS_SECRETOS:
-            if val:
-                suffix = val[-4:] if len(val) >= 4 else val
-                data[campo] = f'••••{suffix}'
-            else:
-                data[campo] = ''
-        else:
-            data[campo] = val
-    return data
+        data[campo] = getattr(cfg, campo)
+    return _ocultar_secretos(data, CAMPOS_SECRETOS)
 
 
 class ProbarNotificacionView(APIView):
@@ -49,6 +56,7 @@ class ProbarNotificacionView(APIView):
         canal   = request.data.get('canal', 'email')
         destino = request.data.get('destino', '')
         mensaje = request.data.get('mensaje', 'Mensaje de prueba del sistema Octopus.')
+        area    = request.data.get('area', 'cobranza')
         if not destino:
             return Response({'error': 'destino es requerido.'}, status=400)
         resultados = {}
@@ -60,7 +68,7 @@ class ProbarNotificacionView(APIView):
                 f'<p>{mensaje}</p>'
                 '</div>'
             )
-            ok = enviar_email(destino, 'Prueba de notificacion -- Octopus', html, tipo='prueba')
+            ok = enviar_email(destino, 'Prueba de notificacion -- Octopus', html, tipo='prueba', area=area)
             resultados['email'] = 'enviado' if ok else 'fallido'
         if canal in ('whatsapp', 'ambos'):
             from notificaciones.services import enviar_whatsapp
@@ -96,6 +104,44 @@ class ConfiguracionNotificacionesView(APIView):
             setattr(cfg, campo, valor)
         cfg.save()
         return Response(_cfg_to_dict(cfg))
+
+
+class PerfilEmailRemitenteView(APIView):
+    """Config SMTP por área (cobranza / control_estudios)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_perfil(self, area):
+        from .models import PerfilEmailRemitente
+        areas_validas = dict(PerfilEmailRemitente.AREAS)
+        if area not in areas_validas:
+            return None
+        perfil, _ = PerfilEmailRemitente.objects.get_or_create(area=area)
+        return perfil
+
+    def get(self, request, area):
+        if not _check_rol(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        perfil = self._get_perfil(area)
+        if perfil is None:
+            return Response({'error': 'Área inválida.'}, status=404)
+        data = {campo: getattr(perfil, campo) for campo in CAMPOS_PERFIL_EMAIL}
+        return Response(_ocultar_secretos(data, CAMPOS_SECRETOS))
+
+    def patch(self, request, area):
+        if not _check_rol(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        perfil = self._get_perfil(area)
+        if perfil is None:
+            return Response({'error': 'Área inválida.'}, status=404)
+        for campo, valor in request.data.items():
+            if campo not in CAMPOS_PERFIL_EMAIL:
+                continue
+            if campo in CAMPOS_SECRETOS and (valor == '***' or str(valor).startswith('••••')):
+                continue
+            setattr(perfil, campo, valor)
+        perfil.save()
+        data = {campo: getattr(perfil, campo) for campo in CAMPOS_PERFIL_EMAIL}
+        return Response(_ocultar_secretos(data, CAMPOS_SECRETOS))
 
 
 class LogNotificacionesView(APIView):

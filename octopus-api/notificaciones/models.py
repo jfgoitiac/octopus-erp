@@ -40,6 +40,34 @@ class ConfiguracionNotificaciones(models.Model):
         return 'Configuración de Notificaciones'
 
 
+class PerfilEmailRemitente(models.Model):
+    """Credenciales SMTP por área — cada módulo envía con su propio remitente
+    (ej. cobranza@clhma.com para pagos, controldeestudios@clhma.com para
+    comprobantes de inscripción)."""
+
+    AREAS = (
+        ('cobranza', 'Cobranza'),
+        ('control_estudios', 'Control de Estudios'),
+    )
+
+    area                 = models.CharField(max_length=20, choices=AREAS, unique=True)
+    email_activo         = models.BooleanField(default=False, verbose_name='Email activo')
+    email_host           = models.CharField(max_length=200, blank=True, default='smtp.hostinger.com')
+    email_port           = models.PositiveIntegerField(default=465)
+    email_use_tls        = models.BooleanField(default=True)
+    email_host_user      = models.CharField(max_length=200, blank=True, default='')
+    email_host_password  = models.CharField(max_length=500, blank=True, default='')
+    email_from           = models.CharField(max_length=200, blank=True, default='',
+                                            help_text='Ej: Cobranza <cobranza@colegio.edu.ve>')
+
+    class Meta:
+        verbose_name = 'Perfil de Email por Área'
+        verbose_name_plural = 'Perfiles de Email por Área'
+
+    def __str__(self):
+        return f'Perfil email — {self.get_area_display()}'
+
+
 class NotificacionLog(models.Model):
     CANALES = (('email', 'Email'), ('whatsapp', 'WhatsApp'))
     ESTADOS = (('enviado', 'Enviado'), ('fallido', 'Fallido'), ('pendiente', 'Pendiente'))
@@ -49,6 +77,7 @@ class NotificacionLog(models.Model):
         ('mora_dia_10',  'Segundo aviso (Dia 10)'),
         ('mora_dia_15',  'Alerta director (Dia 15)'),
         ('comprobante',  'Comprobante subido'),
+        ('comprobante_inscripcion', 'Comprobante de inscripción'),
         ('bienvenida',   'Bienvenida portal'),
         ('pago_exitoso', 'Pago confirmado'),
         ('prueba',       'Mensaje de prueba'),
@@ -56,7 +85,7 @@ class NotificacionLog(models.Model):
     )
 
     canal                = models.CharField(max_length=10, choices=CANALES)
-    tipo                 = models.CharField(max_length=20, choices=TIPOS, default='otro')
+    tipo                 = models.CharField(max_length=30, choices=TIPOS, default='otro')
     destinatario         = models.CharField(max_length=200)
     asunto               = models.CharField(max_length=255, blank=True)
     mensaje              = models.TextField(blank=True)

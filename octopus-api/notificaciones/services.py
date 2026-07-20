@@ -17,6 +17,15 @@ def _notif_cfg():
         return None
 
 
+def _perfil_email(area):
+    """Retorna PerfilEmailRemitente del área, o None si no existe."""
+    try:
+        from .models import PerfilEmailRemitente
+        return PerfilEmailRemitente.objects.filter(area=area).first()
+    except Exception:
+        return None
+
+
 def _log(canal, tipo, destinatario, asunto, mensaje, estado, error='',
          representante_cedula='', alumno_nombre='', proveedor=''):
     try:
@@ -53,24 +62,30 @@ def _config_colegio():
 # ── EMAIL ─────────────────────────────────────────────────────────────────────
 
 def enviar_email(destinatario, asunto, html_body, texto_plano='',
-                 tipo='otro', representante_cedula='', alumno_nombre=''):
-    """Envia un email HTML usando credenciales de BD o fallback a settings."""
+                 tipo='otro', representante_cedula='', alumno_nombre='',
+                 area='cobranza', adjuntos=None):
+    """Envia un email HTML usando el perfil SMTP del área (cobranza,
+    control_estudios) o fallback a settings. `adjuntos` es una lista opcional
+    de tuplas (nombre_archivo, contenido_bytes, mimetype)."""
     if not destinatario:
         return False
     try:
         from django.core.mail import EmailMultiAlternatives, get_connection
-        cfg = _notif_cfg()
-        if cfg and cfg.email_activo and cfg.email_host_user:
+        perfil = _perfil_email(area)
+        if perfil and perfil.email_activo and perfil.email_host_user:
+            port = int(perfil.email_port or 587)
+            use_ssl = port == 465
             conn = get_connection(
                 backend='django.core.mail.backends.smtp.EmailBackend',
-                host=cfg.email_host or 'smtp.gmail.com',
-                port=int(cfg.email_port or 587),
-                username=cfg.email_host_user,
-                password=cfg.email_host_password,
-                use_tls=cfg.email_use_tls,
+                host=perfil.email_host or 'smtp.gmail.com',
+                port=port,
+                username=perfil.email_host_user,
+                password=perfil.email_host_password,
+                use_tls=perfil.email_use_tls and not use_ssl,
+                use_ssl=use_ssl,
                 fail_silently=False,
             )
-            from_email = cfg.email_from or cfg.email_host_user
+            from_email = perfil.email_from or perfil.email_host_user
         else:
             conn = None
             from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@octopus.edu.ve')
@@ -85,6 +100,8 @@ def enviar_email(destinatario, asunto, html_body, texto_plano='',
             kwargs['connection'] = conn
         msg = EmailMultiAlternatives(**kwargs)
         msg.attach_alternative(html_body, 'text/html')
+        for nombre_archivo, contenido, mimetype in (adjuntos or []):
+            msg.attach(nombre_archivo, contenido, mimetype)
         msg.send()
         _log('email', tipo, destinatario, asunto, texto_plano, 'enviado',
              representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='smtp')
@@ -316,6 +333,46 @@ def notificar_bienvenida_portal(representante, contrasena_inicial):
         )
         enviar_whatsapp(representante.telefono, msg, tipo='bienvenida',
                         representante_cedula=representante.cedula)
+
+
+def notificar_comprobante_inscripcion(inscripcion):
+    """Envia el comprobante de inscripcion (.docx adjunto) al representante,
+    desde el perfil de email de Control de Estudios."""
+    alumno = inscripcion.alumno
+    rep    = alumno.representante
+    if not rep.correo:
+        return
+    cfg = _config_colegio()
+    ctx = {
+        'nombre_representante': f'{rep.nombre} {rep.apellido}',
+        'nombre_alumno': f'{alumno.nombre} {alumno.apellido}',
+        'periodo_escolar': inscripcion.periodo_escolar,
+        'grado_seccion': inscripcion.grado_seccion,
+    }
+    html = _render_email('comprobante_inscripcion.html', ctx)
+
+    adjuntos = []
+    try:
+        from secretaria.utils_preinscripcion import generar_planilla_preinscripcion, nombre_archivo_alumno
+        buffer = generar_planilla_preinscripcion(alumno, inscripcion, campos_seleccionados=None)
+        adjuntos.append((
+            nombre_archivo_alumno(alumno),
+            buffer.read(),
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ))
+    except Exception as e:
+        logger.warning(f'No se pudo generar el adjunto del comprobante de inscripcion: {e}')
+
+    enviar_email(
+        rep.correo,
+        f'Comprobante de inscripción -- {ctx["nombre_alumno"]}',
+        html,
+        tipo='comprobante_inscripcion',
+        representante_cedula=rep.cedula,
+        alumno_nombre=ctx['nombre_alumno'],
+        area='control_estudios',
+        adjuntos=adjuntos,
+    )
 
 
 def notificar_pago_exitoso(mensualidad, pago):

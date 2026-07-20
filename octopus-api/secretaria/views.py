@@ -903,6 +903,9 @@ class InscripcionNuevaView(APIView):
             }
         )
 
+        from notificaciones.tasks import task_notificar_comprobante_inscripcion
+        task_notificar_comprobante_inscripcion.delay(inscripcion.id)
+
         return Response(
             {
                 "mensaje":        "Inscripción exitosa",

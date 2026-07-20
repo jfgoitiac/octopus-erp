@@ -45,3 +45,14 @@ def task_notificar_pago_exitoso(mensualidad_id, pago_id):
         notificar_pago_exitoso(m, p)
     except Exception as e:
         logger.error(f'task_notificar_pago_exitoso({mensualidad_id},{pago_id}): {e}')
+
+
+@shared_task
+def task_notificar_comprobante_inscripcion(inscripcion_id):
+    try:
+        from secretaria.models import Inscripcion
+        inscripcion = Inscripcion.objects.select_related('alumno__representante').get(id=inscripcion_id)
+        from notificaciones.services import notificar_comprobante_inscripcion
+        notificar_comprobante_inscripcion(inscripcion)
+    except Exception as e:
+        logger.error(f'task_notificar_comprobante_inscripcion({inscripcion_id}): {e}')

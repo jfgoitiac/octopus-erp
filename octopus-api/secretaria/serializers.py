@@ -184,6 +184,7 @@ class AlumnoSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerialize
     monto_solvencia        = serializers.SerializerMethodField()
     concepto_solvencia     = serializers.SerializerMethodField()
     solvencia_pagada       = serializers.SerializerMethodField()
+    solvencia_definida     = serializers.SerializerMethodField()
     monto_proyecto_inversion = serializers.SerializerMethodField()
 
     class Meta:
@@ -214,6 +215,12 @@ class AlumnoSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerialize
     def get_monto_solvencia(self, instance):
         cuota = self._cuota_solvencia(instance)
         return str(cuota.monto_usd) if cuota else '0.00'
+
+    def get_solvencia_definida(self, instance):
+        """Indica si ya existe una CuotaSolvencia guardada para el período activo,
+        para distinguir "monto 0 guardado explícitamente" de "sin definir todavía"
+        (ambos casos devuelven '0.00' en get_monto_solvencia)."""
+        return self._cuota_solvencia(instance) is not None
 
     def get_concepto_solvencia(self, instance):
         cuota = self._cuota_solvencia(instance)

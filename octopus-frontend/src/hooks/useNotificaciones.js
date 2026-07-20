@@ -60,8 +60,14 @@ export function useNotificaciones() {
         setPruebaResultado(null);
         try {
             const res = await axiosInstance.post('notificaciones/probar/', pruebaForm);
-            setPruebaResultado({ ok: true, data: res.data.resultados });
-            toast.success('Mensaje de prueba enviado');
+            const resultados = res.data.resultados || {};
+            const fallo = Object.values(resultados).some(v => v !== 'enviado');
+            setPruebaResultado({ ok: true, data: resultados });
+            if (fallo) {
+                toast.error('El envío de prueba falló — revisa la configuración');
+            } else {
+                toast.success('Mensaje de prueba enviado');
+            }
         } catch (err) {
             setPruebaResultado({ ok: false, error: err.response?.data?.error || 'Error al enviar' });
             toast.error('Error al enviar prueba');

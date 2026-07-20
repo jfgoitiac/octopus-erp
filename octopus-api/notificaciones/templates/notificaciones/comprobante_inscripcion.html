@@ -1,0 +1,27 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+
+<div class="alert alert-green">
+  <strong>Inscripción registrada exitosamente.</strong>
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Le confirmamos que la inscripción de su representado ha sido registrada por Control de Estudios.
+  Adjunto a este correo encontrará el comprobante en formato Word.
+</p>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Periodo escolar</th><td>{{ periodo_escolar }}</td></tr>
+  <tr><th>Grado / Sección</th><td>{{ grado_seccion }}</td></tr>
+</table>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Guarde este correo y el comprobante adjunto como constancia de la inscripción.
+</p>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ir al Portal de Representantes</a>
+</div>
+{% endblock %}
