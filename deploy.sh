@@ -30,7 +30,7 @@ echo "▶ Aplicando migraciones..."
 "$VENV/python" "$BACKEND/manage.py" migrate --noinput
 
 echo "▶ Recolectando archivos estáticos..."
-"$VENV/python" "$BACKEND/manage.py" collectstatic --noinput --quiet
+"$VENV/python" "$BACKEND/manage.py" collectstatic --noinput -v 0
 
 # ── 3. Reiniciar backend ─────────────────────────────────────────
 echo ""
