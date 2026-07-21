@@ -152,6 +152,7 @@ export function useRepresentantes() {
                 await axiosInstance.patch(`secretaria/representantes/${editando.id}/`, {
                     nombre:    form.nombre.trim(),
                     apellido:  form.apellido.trim(),
+                    cedula:    form.cedula.trim(),
                     telefono:  form.telefono.trim(),
                     correo:    form.correo.trim(),
                     direccion: form.direccion.trim(),

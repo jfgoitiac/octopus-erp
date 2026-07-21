@@ -69,8 +69,6 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
                             id="rep-cedula"
                             inputMode="numeric"
                             {...field('cedula')}
-                            readOnly={!!editando}
-                            style={{ ...INPUT_STYLE, ...(editando ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
                         />
                     </Field>
 
