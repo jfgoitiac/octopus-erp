@@ -111,7 +111,12 @@ class IsSecretariaOrCobranzaOrAbove(permissions.BasePermission):
 # CONFIGURACIÓN DEL SISTEMA (NUEVO)
 # ─────────────────────────────────────────────
 class ConfiguracionSistemaView(APIView):
-    permission_classes = [IsSystemAdminOrDirector]
+    def get_permissions(self):
+        # Lectura (necesaria para el wizard de inscripciones, entre otros): docente o superior.
+        # Escritura (abre/cierra período, genera cuotas masivas, etc.): solo admin/director/sistemas.
+        if self.request.method == 'GET':
+            return [IsDocenteOrAbove()]
+        return [IsSystemAdminOrDirector()]
 
     def get(self, request):
         config = ConfiguracionSistema.objects.first()
