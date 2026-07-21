@@ -257,14 +257,31 @@ def generar_pdf_recibo(pagos):
     c.setFont("Helvetica-Bold", 10)
     c.drawString(0.8 * inch, height - 2.0 * inch, "DATOS DEL ALUMNO / REPRESENTANTE")
 
+    # Un mismo recibo puede saldar deudas de varios hermanos a la vez (mismo
+    # representante). El alumno "titular" (pago.alumno) es solo el dueño de la
+    # fila Pago; los alumnos realmente cubiertos se derivan de las M2M de
+    # deuda (mensualidades/cuotas) de todas las filas de la operación.
+    alumnos_operacion = {pago.alumno}
+    for p in pagos:
+        alumnos_operacion.update(m.alumno for m in p.mensualidades_pagadas.all())
+        alumnos_operacion.update(c_.alumno for c_ in p.cuotas_inscripcion_pagadas.all())
+        alumnos_operacion.update(c_.alumno for c_ in p.cuotas_solvencia_pagadas.all())
+    alumnos_operacion = sorted(alumnos_operacion, key=lambda a: a.id)
+
+    if len(alumnos_operacion) > 1:
+        nombres_estudiantes = ", ".join(f"{a.nombre} {a.apellido}" for a in alumnos_operacion)
+        niveles = ", ".join(getattr(a, 'grado_seccion', 'N/D') or 'N/D' for a in alumnos_operacion)
+    else:
+        nombres_estudiantes = f"{pago.alumno.nombre} {pago.alumno.apellido}"
+        niveles = getattr(pago.alumno, 'grado_seccion', 'N/D')
+
     c.setFont("Helvetica", 10)
     c.setFillColor(octopus_blue)
-    c.drawString(0.8 * inch, height - 2.25 * inch,
-                 f"Estudiante: {pago.alumno.nombre} {pago.alumno.apellido}")
+    c.drawString(0.8 * inch, height - 2.25 * inch, f"Estudiante(s): {nombres_estudiantes}")
     c.drawString(0.8 * inch, height - 2.45 * inch,
-                 f"Cédula Escolar: {getattr(pago.alumno, 'cedula_escolar', 'Sin Cédula')}")
+                 f"Cédula Escolar: {getattr(pago.alumno, 'cedula_escolar', 'Sin Cédula') if len(alumnos_operacion) == 1 else 'Ver desglose'}")
     c.drawString(0.8 * inch, height - 2.65 * inch,
-                 f"Nivel: {getattr(pago.alumno, 'grado_seccion', 'N/D')}")
+                 f"Nivel: {niveles}")
     rep_nombre = (pago.representante_nombre or
                   f"{getattr(pago.alumno.representante, 'nombre', '')} "
                   f"{getattr(pago.alumno.representante, 'apellido', '')}").strip()

@@ -59,6 +59,7 @@ const ReciboCobranzaDoc = ({ data }) => {
   }, 0);
 
   const emptyRows = Math.max(0, 3 - items.length);
+  const hayVariosAlumnos = new Set(items.map(it => it.alumno).filter(Boolean)).size > 1;
 
   return (
     <div style={{
@@ -158,14 +159,16 @@ const ReciboCobranzaDoc = ({ data }) => {
       {/* Detalle de conceptos */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
         <tbody>
-          <tr><td colSpan={3} style={secH}>DETALLE DE CONCEPTOS PAGADOS</td></tr>
+          <tr><td colSpan={hayVariosAlumnos ? 4 : 3} style={secH}>DETALLE DE CONCEPTOS PAGADOS</td></tr>
           <tr>
-            <td style={{ ...colH, width: '30%' }}>CONCEPTO</td>
-            <td style={{ ...colH, width: '45%' }}>PERIODO</td>
-            <td style={{ ...colH, width: '25%' }}>MONTO BS.</td>
+            {hayVariosAlumnos && <td style={{ ...colH, width: '22%' }}>ESTUDIANTE</td>}
+            <td style={{ ...colH, width: hayVariosAlumnos ? '23%' : '30%' }}>CONCEPTO</td>
+            <td style={{ ...colH, width: hayVariosAlumnos ? '35%' : '45%' }}>PERIODO</td>
+            <td style={{ ...colH, width: '20%' }}>MONTO BS.</td>
           </tr>
           {items.map((it, i) => (
             <tr key={i}>
+              {hayVariosAlumnos && <td style={l}>{it.alumno || '—'}</td>}
               <td style={lb}>{it.concepto}</td>
               <td style={l}>{it.descripcion || ''}</td>
               <td style={r}>
@@ -177,13 +180,14 @@ const ReciboCobranzaDoc = ({ data }) => {
           ))}
           {Array.from({ length: emptyRows }).map((_, i) => (
             <tr key={`e${i}`}>
+              {hayVariosAlumnos && <td style={l}>&nbsp;</td>}
               <td style={l}>&nbsp;</td>
               <td style={l}>&nbsp;</td>
               <td style={r}>&nbsp;</td>
             </tr>
           ))}
           <tr>
-            <td colSpan={2} style={{ ...rb, color: RED, textAlign: 'right', paddingRight: '14px', fontSize: '9px', border: `0.5px solid ${BORDER}` }}>
+            <td colSpan={hayVariosAlumnos ? 3 : 2} style={{ ...rb, color: RED, textAlign: 'right', paddingRight: '14px', fontSize: '9px', border: `0.5px solid ${BORDER}` }}>
               TOTAL PAGADO
             </td>
             <td style={{ ...rb, color: RED, fontSize: '9px', border: `0.5px solid ${BORDER}` }}>
@@ -192,7 +196,7 @@ const ReciboCobranzaDoc = ({ data }) => {
           </tr>
           {numeroSolvencia && (
             <tr>
-              <td colSpan={3} style={{ ...lb, fontSize: '8.5px', color: NAVY }}>
+              <td colSpan={hayVariosAlumnos ? 4 : 3} style={{ ...lb, fontSize: '8.5px', color: NAVY }}>
                 Solvencia: {numeroSolvencia}
               </td>
             </tr>

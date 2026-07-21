@@ -36,8 +36,9 @@ const CobranzaStep2 = ({
     hayInscripcion,
     haySolvencia,
     hayProyecto,
-    selectedMens,
-    mensualidades,
+    alumnosSeleccionados,
+    datosAlumnos,
+    seleccion,
     requiereDivisas,
     hayAdelantos,
     todosDivisas,
@@ -160,28 +161,46 @@ const CobranzaStep2 = ({
                         )}
                     </div>
 
-                    {/* Mensualidades seleccionadas */}
-                    {selectedMens.length > 0 && (
-                        <div className="rounded-xl px-4 py-3" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--pb)' }}>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[11px]" style={{ color: 'var(--pb)' }}>✓</span>
-                                <span className="text-xs font-semibold" style={{ color: 'var(--pb)' }}>
-                                    {selectedMens.length} mensualidad{selectedMens.length > 1 ? 'es' : ''} seleccionada{selectedMens.length > 1 ? 's' : ''}
-                                </span>
-                            </div>
-                            <div className="flex flex-wrap gap-1 pl-5">
-                                {selectedMens.map(id => {
-                                    const m = mensualidades.find(x => x.id === id);
-                                    return m ? (
-                                        <span key={id} className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                                            style={{ background: 'var(--pb)', color: '#fff' }}>
-                                            {m.mes} {m.anio}
-                                        </span>
-                                    ) : null;
+                    {/* Mensualidades seleccionadas (por alumno) */}
+                    {(() => {
+                        const totalMens = alumnosSeleccionados.reduce((s, id) => s + (seleccion[id]?.selectedMens.length || 0), 0);
+                        if (totalMens === 0) return null;
+                        return (
+                            <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--pb)' }}>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px]" style={{ color: 'var(--pb)' }}>✓</span>
+                                    <span className="text-xs font-semibold" style={{ color: 'var(--pb)' }}>
+                                        {totalMens} mensualidad{totalMens > 1 ? 'es' : ''} seleccionada{totalMens > 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                                {alumnosSeleccionados.map(id => {
+                                    const mens = seleccion[id]?.selectedMens || [];
+                                    if (mens.length === 0) return null;
+                                    const datos = datosAlumnos[id];
+                                    return (
+                                        <div key={id} className="pl-5">
+                                            {alumnosSeleccionados.length > 1 && (
+                                                <p className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--pb)' }}>
+                                                    {datos?.nombre_completo || datos?.nombre}
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap gap-1">
+                                                {mens.map(mid => {
+                                                    const m = (datos?.mensualidades_pendientes || []).find(x => x.id === mid);
+                                                    return m ? (
+                                                        <span key={mid} className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                                                            style={{ background: 'var(--pb)', color: '#fff' }}>
+                                                            {m.mes} {m.anio}
+                                                        </span>
+                                                    ) : null;
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
                                 })}
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     {/* Líneas de pago */}
                     <div className="rounded-xl p-4 space-y-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>

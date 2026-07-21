@@ -4,11 +4,9 @@ import { fmt } from '../../utils/formato';
 const ResumenPago = ({
     nombreAlumno,
     cedula,
-    selectedMens,
-    selectedFuturas,
-    mensualidades,
-    mensualidadesFuturas,
-    montosParciales,
+    alumnosSeleccionados,
+    datosAlumnos,
+    seleccion,
     confirming,
     deudaVES,
     vueltoVES,
@@ -18,7 +16,6 @@ const ResumenPago = ({
     totalGenUSD,
     totalGenVES,
     loading,
-    alumnoId,
     setConfirming,
     handleSubmit,
 }) => {
@@ -45,47 +42,63 @@ const ResumenPago = ({
                     </div>
                 </div>
 
-                {/* Mensualidades pendientes */}
-                {selectedMens.length > 0 && (
-                    <div className="mb-3 space-y-1">
-                        <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Períodos</p>
-                        {selectedMens.map(id => {
-                            const m  = mensualidades.find(x => x.id === id);
-                            if (!m) return null;
-                            const ov = montosParciales[id];
-                            const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
-                            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
-                            return (
-                                <div key={id} className="flex justify-between text-xs px-2 py-1 rounded-md"
-                                    style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                    <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
-                                    <span className="font-semibold">${fmt(monto)}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                {/* Mensualidades pendientes (por alumno) */}
+                {alumnosSeleccionados.map(id => {
+                    const datos = datosAlumnos[id];
+                    const sel   = seleccion[id];
+                    const mens  = sel?.selectedMens || [];
+                    if (mens.length === 0) return null;
+                    return (
+                        <div key={`mens-${id}`} className="mb-3 space-y-1">
+                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                Períodos{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
+                            </p>
+                            {mens.map(mid => {
+                                const m  = (datos?.mensualidades_pendientes || []).find(x => x.id === mid);
+                                if (!m) return null;
+                                const ov = sel.montosParciales[mid];
+                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
+                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                return (
+                                    <div key={mid} className="flex justify-between text-xs px-2 py-1 rounded-md"
+                                        style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                        <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        <span className="font-semibold">${fmt(monto)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
 
-                {/* Adelantos */}
-                {selectedFuturas.length > 0 && (
-                    <div className="mb-3 space-y-1">
-                        <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#7c3aed' }}>Adelantos</p>
-                        {selectedFuturas.map(id => {
-                            const m  = mensualidadesFuturas.find(x => x.id === id);
-                            if (!m) return null;
-                            const ov = montosParciales[id];
-                            const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
-                            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
-                            return (
-                                <div key={id} className="flex justify-between text-xs px-2 py-1 rounded-md"
-                                    style={{ background: '#ede9fe', color: '#7c3aed' }}>
-                                    <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
-                                    <span className="font-semibold">${fmt(monto)}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                {/* Adelantos (por alumno) */}
+                {alumnosSeleccionados.map(id => {
+                    const datos = datosAlumnos[id];
+                    const sel   = seleccion[id];
+                    const futuras = sel?.selectedFuturas || [];
+                    if (futuras.length === 0) return null;
+                    return (
+                        <div key={`fut-${id}`} className="mb-3 space-y-1">
+                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#7c3aed' }}>
+                                Adelantos{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
+                            </p>
+                            {futuras.map(mid => {
+                                const m  = (datos?.mensualidades_futuras || []).find(x => x.id === mid);
+                                if (!m) return null;
+                                const ov = sel.montosParciales[mid];
+                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
+                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                return (
+                                    <div key={mid} className="flex justify-between text-xs px-2 py-1 rounded-md"
+                                        style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                                        <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        <span className="font-semibold">${fmt(monto)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
 
                 {/* Totales */}
                 <div className="space-y-2 mb-4">
@@ -162,7 +175,7 @@ const ResumenPago = ({
                     <button
                         type="button"
                         onClick={() => setConfirming(true)}
-                        disabled={!alumnoId}
+                        disabled={alumnosSeleccionados.length === 0}
                         className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
                         style={{ background: 'var(--pb)' }}
                     >

@@ -172,33 +172,31 @@ class PagoItemSerializer(serializers.Serializer):
     observaciones     = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
 
 
-class PagoCreateSerializer(serializers.Serializer):
+class AlumnoPagoItemSerializer(serializers.Serializer):
+    """Deudas seleccionadas para UN alumno dentro de una transacción que puede
+    cubrir a varios hermanos a la vez (mismo representante, un solo recibo)."""
     alumno_id = serializers.IntegerField()
+    mensualidad_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list, allow_empty=True
+    )
+    mensualidad_adelanto_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list, allow_empty=True
+    )
+    cuota_inscripcion_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list, allow_empty=True
+    )
+    cuota_solvencia_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list, allow_empty=True
+    )
+
+
+class PagoCreateSerializer(serializers.Serializer):
+    alumnos = AlumnoPagoItemSerializer(many=True, allow_empty=False)
     concepto = serializers.CharField(max_length=20, default='mensualidad', required=False)
     pagos = PagoItemSerializer(many=True, allow_empty=False)
     representante_documento = serializers.CharField(max_length=30, required=False, allow_blank=True)
     representante_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    mensualidad_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True
-    )
-    cuota_inscripcion_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True
-    )
-    cuota_solvencia_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True
-    )
     proyecto_inversion_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True
-    )
-    mensualidad_adelanto_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
         allow_empty=True
@@ -208,10 +206,32 @@ class PagoCreateSerializer(serializers.Serializer):
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
 
     def validate(self, data):
-        try:
-            data['alumno'] = Alumno.objects.get(id=data['alumno_id'])
-        except Alumno.DoesNotExist:
-            raise serializers.ValidationError({"alumno_id": "Alumno no encontrado."})
+        alumnos_resueltos = []
+        representantes = set()
+        for item in data['alumnos']:
+            try:
+                alumno_obj = Alumno.objects.select_related('representante').get(id=item['alumno_id'])
+            except Alumno.DoesNotExist:
+                raise serializers.ValidationError({"alumnos": f"Alumno {item['alumno_id']} no encontrado."})
+            representantes.add(alumno_obj.representante_id)
+            alumnos_resueltos.append({
+                'alumno': alumno_obj,
+                'mensualidad_ids': item.get('mensualidad_ids') or [],
+                'mensualidad_adelanto_ids': item.get('mensualidad_adelanto_ids') or [],
+                'cuota_inscripcion_ids': item.get('cuota_inscripcion_ids') or [],
+                'cuota_solvencia_ids': item.get('cuota_solvencia_ids') or [],
+            })
+
+        if len(representantes) > 1:
+            raise serializers.ValidationError(
+                {"alumnos": "Todos los alumnos de una misma transacción deben pertenecer al mismo representante."}
+            )
+
+        data['alumnos_resueltos'] = alumnos_resueltos
+        # Alumno "titular" de la operación: se usa para el campo Pago.alumno
+        # (FK singular) y como referencia de representante/documento. Las
+        # deudas de cada hermano se enlazan igual vía M2M más abajo en la vista.
+        data['alumno'] = alumnos_resueltos[0]['alumno']
 
         try:
             data['tasa'] = TasaCambio.objects.latest('fecha')
@@ -288,7 +308,7 @@ class PagoCreateSerializer(serializers.Serializer):
         # Adelantos de mensualidades futuras: solo se aceptan en Zelle o
         # Efectivo Divisas (USD), para evitar descuadres de tasa/cambio entre
         # el momento del adelanto y el mes en que realmente se factura.
-        if data.get('mensualidad_adelanto_ids'):
+        if any(a['mensualidad_adelanto_ids'] for a in alumnos_resueltos):
             metodos_no_permitidos = {
                 p['metodo_pago'] for p in data['pagos']
                 if p['metodo_pago'] not in ('zelle', 'efectivo')

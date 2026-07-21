@@ -385,28 +385,27 @@ class RegistrarPagoView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        alumno = data['alumno']
+        alumno_titular    = data['alumno']
+        alumnos_resueltos = data['alumnos_resueltos']
         tasa   = data['tasa']
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
 
-        mensualidad_ids          = data.get('mensualidad_ids', [])
-        mensualidad_adelanto_ids = data.get('mensualidad_adelanto_ids', [])
-        cuota_inscripcion_ids    = data.get('cuota_inscripcion_ids', [])
-        cuota_solvencia_ids      = data.get('cuota_solvencia_ids', [])
-        proyecto_inversion_ids   = data.get('proyecto_inversion_ids', [])
+        proyecto_inversion_ids = data.get('proyecto_inversion_ids', [])
 
-        # El concepto se deriva de las deudas realmente seleccionadas, no del
+        # El concepto se deriva de las deudas realmente seleccionadas (de
+        # cualquiera de los alumnos incluidos en la operación), no del
         # selector manual: una misma transacción puede saldar cuotas de
-        # distinto tipo a la vez (p. ej. mensualidad + proyecto de inversión).
-        # Si no se seleccionó ninguna cuota estructurada (pago libre: materiales,
-        # multa, otro), se respeta el concepto elegido manualmente en el form.
+        # distinto tipo a la vez (p. ej. mensualidad + proyecto de inversión),
+        # y de varios hermanos simultáneamente. Si no se seleccionó ninguna
+        # cuota estructurada (pago libre: materiales, multa, otro), se respeta
+        # el concepto elegido manualmente en el form.
         grupos_presentes = []
-        if mensualidad_ids or mensualidad_adelanto_ids:
+        if any(a['mensualidad_ids'] or a['mensualidad_adelanto_ids'] for a in alumnos_resueltos):
             grupos_presentes.append('mensualidad')
-        if cuota_inscripcion_ids:
+        if any(a['cuota_inscripcion_ids'] for a in alumnos_resueltos):
             grupos_presentes.append('inscripcion')
-        if cuota_solvencia_ids:
+        if any(a['cuota_solvencia_ids'] for a in alumnos_resueltos):
             grupos_presentes.append('solvencia')
         if proyecto_inversion_ids:
             grupos_presentes.append('proyecto_inversion')
@@ -442,7 +441,7 @@ class RegistrarPagoView(APIView):
 
             es_primer_pago = len(pagos_creados) == 0
             pago = Pago(
-                alumno=alumno,
+                alumno=alumno_titular,
                 usuario_receptor=request.user,
                 banco_receptor=banco,
                 metodo_pago=metodo,
@@ -469,62 +468,80 @@ class RegistrarPagoView(APIView):
 
         # Mensualidades del mes en curso/atrasadas y adelantos de meses futuros
         # comparten el mismo tratamiento: ambas son filas de Mensualidad que hay
-        # que marcar como pagadas.
-        todas_mensualidades_ids = list(set(mensualidad_ids) | set(mensualidad_adelanto_ids))
-        if todas_mensualidades_ids:
+        # que marcar como pagadas. Se procesa alumno por alumno (cada hermano
+        # incluido en la operación) para no filtrar por un único `alumno`.
+        todas_mensualidades_qs = Mensualidad.objects.none()
+        for a in alumnos_resueltos:
+            ids = list(set(a['mensualidad_ids']) | set(a['mensualidad_adelanto_ids']))
+            if not ids:
+                continue
             Mensualidad.objects.filter(
-                id__in=todas_mensualidades_ids, alumno=alumno
+                id__in=ids, alumno=a['alumno']
             ).update(pagado=True, fecha_pago=timezone.now())
+            todas_mensualidades_qs |= Mensualidad.objects.filter(id__in=ids, alumno=a['alumno'])
 
+        if todas_mensualidades_qs.exists():
             for pago in pagos_creados:
-                pago.mensualidades_pagadas.set(
-                    Mensualidad.objects.filter(id__in=todas_mensualidades_ids, alumno=alumno)
-                )
+                pago.mensualidades_pagadas.set(todas_mensualidades_qs)
 
             # Recalcular con el criterio canónico: pagar un mes no implica
-            # solvencia si quedan meses anteriores impagos.
+            # solvencia si quedan meses anteriores impagos. Se recalcula por
+            # cada alumno que tuvo mensualidades en esta operación.
             from .mora import sincronizar_estatus_alumno
-            sincronizar_estatus_alumno(alumno)
+            for a in alumnos_resueltos:
+                if a['mensualidad_ids'] or a['mensualidad_adelanto_ids']:
+                    sincronizar_estatus_alumno(a['alumno'])
 
-        if cuota_inscripcion_ids:
+        todas_cuotas_inscripcion_qs = CuotaInscripcion.objects.none()
+        for a in alumnos_resueltos:
+            if not a['cuota_inscripcion_ids']:
+                continue
             CuotaInscripcion.objects.filter(
-                id__in=cuota_inscripcion_ids, alumno=alumno
+                id__in=a['cuota_inscripcion_ids'], alumno=a['alumno']
             ).update(pagado=True, fecha_pago=timezone.now())
+            todas_cuotas_inscripcion_qs |= CuotaInscripcion.objects.filter(
+                id__in=a['cuota_inscripcion_ids'], alumno=a['alumno']
+            )
 
+        if todas_cuotas_inscripcion_qs.exists():
             for pago in pagos_creados:
-                pago.cuotas_inscripcion_pagadas.set(
-                    CuotaInscripcion.objects.filter(id__in=cuota_inscripcion_ids, alumno=alumno)
-                )
+                pago.cuotas_inscripcion_pagadas.set(todas_cuotas_inscripcion_qs)
 
-        if cuota_solvencia_ids:
+        todas_cuotas_solvencia_qs = CuotaSolvencia.objects.none()
+        for a in alumnos_resueltos:
+            if not a['cuota_solvencia_ids']:
+                continue
             CuotaSolvencia.objects.filter(
-                id__in=cuota_solvencia_ids, alumno=alumno
+                id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
             ).update(pagado=True, fecha_pago=timezone.now())
+            todas_cuotas_solvencia_qs |= CuotaSolvencia.objects.filter(
+                id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
+            )
 
+        if todas_cuotas_solvencia_qs.exists():
             for pago in pagos_creados:
-                pago.cuotas_solvencia_pagadas.set(
-                    CuotaSolvencia.objects.filter(id__in=cuota_solvencia_ids, alumno=alumno)
-                )
+                pago.cuotas_solvencia_pagadas.set(todas_cuotas_solvencia_qs)
 
-        # Proyecto de Inversión: cuota por REPRESENTANTE, no por alumno. El pago
-        # se registra contra el alumno seleccionado, pero la cuota que se salda
-        # pertenece a su representante.
+        # Proyecto de Inversión: cuota por REPRESENTANTE, no por alumno (todos
+        # los alumnos de la operación comparten representante, validado en el
+        # serializer). El pago se registra contra el alumno titular, pero la
+        # cuota que se salda pertenece al representante.
         numero_solvencia = None
         if proyecto_inversion_ids:
             CuotaProyectoInversion.objects.filter(
-                id__in=proyecto_inversion_ids, representante=alumno.representante
+                id__in=proyecto_inversion_ids, representante=alumno_titular.representante
             ).update(pagado=True, fecha_pago=timezone.now())
 
             for pago in pagos_creados:
                 pago.proyectos_inversion_pagados.set(
-                    CuotaProyectoInversion.objects.filter(id__in=proyecto_inversion_ids, representante=alumno.representante)
+                    CuotaProyectoInversion.objects.filter(id__in=proyecto_inversion_ids, representante=alumno_titular.representante)
                 )
 
             # Al completar el proyecto de inversión, si el representante ya no
             # tiene deuda pendiente (inscripción + sin mora), se emite (o se
             # confirma) su número de solvencia, ligado a esta factura.
             solvencia = generar_o_verificar_solvencia(
-                alumno.representante, pago=pagos_creados[-1]
+                alumno_titular.representante, pago=pagos_creados[-1]
             )
             if solvencia:
                 numero_solvencia = solvencia.numero
@@ -534,14 +551,21 @@ class RegistrarPagoView(APIView):
             accion="REGISTRO_PAGO",
             modulo="COBRANZA",
             detalles={
-                "alumno_id":                     alumno.id,
-                "nombre":                        f"{alumno.nombre} {alumno.apellido}",
+                "alumno_id":                     alumno_titular.id,
+                "nombre":                        f"{alumno_titular.nombre} {alumno_titular.apellido}",
+                "alumnos": [
+                    {
+                        "alumno_id":                      a['alumno'].id,
+                        "nombre":                         f"{a['alumno'].nombre} {a['alumno'].apellido}",
+                        "mensualidades_pagadas":          a['mensualidad_ids'],
+                        "mensualidades_adelanto_pagadas": a['mensualidad_adelanto_ids'],
+                        "cuotas_inscripcion_pagadas":     a['cuota_inscripcion_ids'],
+                        "cuotas_solvencia_pagadas":       a['cuota_solvencia_ids'],
+                    }
+                    for a in alumnos_resueltos
+                ],
                 "total_pagos":                   len(pagos_creados),
                 "concepto":                      concepto,
-                "mensualidades_pagadas":         mensualidad_ids,
-                "mensualidades_adelanto_pagadas": mensualidad_adelanto_ids,
-                "cuotas_inscripcion_pagadas":    cuota_inscripcion_ids,
-                "cuotas_solvencia_pagadas":      cuota_solvencia_ids,
                 "proyectos_inversion_pagados":   proyecto_inversion_ids,
                 "numero_solvencia_generado":     numero_solvencia,
             }
