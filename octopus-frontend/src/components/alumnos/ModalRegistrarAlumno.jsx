@@ -264,8 +264,8 @@ const ModalRegistrarAlumno = ({
                                         {label}
                                     </label>
                                     <input type={type} inputMode={inputMode} className={inputClass}
-                                        style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
-                                        required={required} value={form[field]} readOnly={repFound}
+                                        style={{ ...inputStyle, background: '#fff' }}
+                                        required={required} value={form[field]}
                                         onChange={set(field)} />
                                 </div>
                             ))}
@@ -276,8 +276,8 @@ const ModalRegistrarAlumno = ({
                                     Dirección
                                 </label>
                                 <input type="text" className={inputClass}
-                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
-                                    required value={form.rep_direccion} readOnly={repFound}
+                                    style={{ ...inputStyle, background: '#fff' }}
+                                    required value={form.rep_direccion}
                                     onChange={set('rep_direccion')} />
                             </div>
 
@@ -287,8 +287,8 @@ const ModalRegistrarAlumno = ({
                                     Nacionalidad
                                 </label>
                                 <input type="text" className={inputClass}
-                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
-                                    value={form.rep_nacionalidad} readOnly={repFound}
+                                    style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.rep_nacionalidad}
                                     onChange={set('rep_nacionalidad')} />
                             </div>
                             <div className="sm:col-span-2">
@@ -297,8 +297,8 @@ const ModalRegistrarAlumno = ({
                                     Nivel de Estudio
                                 </label>
                                 <input type="text" className={inputClass}
-                                    style={{ ...inputStyle, background: repFound ? 'var(--porcelain)' : '#fff' }}
-                                    value={form.rep_nivel_estudio} readOnly={repFound}
+                                    style={{ ...inputStyle, background: '#fff' }}
+                                    value={form.rep_nivel_estudio}
                                     onChange={set('rep_nivel_estudio')} />
                             </div>
                         </div>
