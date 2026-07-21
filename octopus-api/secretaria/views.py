@@ -89,8 +89,8 @@ class IsFinanzasOrAbove(permissions.BasePermission):
 
 
 class IsSecretariaOrCobranzaOrAbove(permissions.BasePermission):
-    """Igual que IsSecretariaOrAbove pero también permite a cobranza editar
-    los datos del alumno (incluyendo campos financieros, ver update_info)."""
+    """Igual que IsSecretariaOrAbove pero también permite a cobranza y docente
+    editar los datos del alumno (incluyendo campos financieros, ver update_info)."""
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
@@ -101,7 +101,7 @@ class IsSecretariaOrCobranzaOrAbove(permissions.BasePermission):
         try:
             return (
                 request.user.perfil.esta_activo and
-                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'cobranza']
+                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'cobranza', 'docente']
             )
         except Exception:
             return False
@@ -623,7 +623,7 @@ class AlumnoListView(viewsets.ModelViewSet):
 
     def get_permissions(self):
         # Crear/editar: secretaria o superior
-        # Editar info del alumno (update/partial_update/update_info): también cobranza
+        # Editar info del alumno (update/partial_update/update_info): también cobranza y docente
         # Listar/ver: docente o superior
         # Eliminación definitiva (temporal): solo director/sistemas/admin
         if self.action in ['eliminar_definitivo', 'eliminar_todos']:
