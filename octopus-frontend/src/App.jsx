@@ -159,7 +159,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="cobranza/solvencia" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.CAJA}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.TODOS}>
                   <ConsultaSolvencia />
                 </ProtectedRoute>
               } />

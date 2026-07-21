@@ -70,4 +70,7 @@ export const ROLE_GROUPS = {
 
   // Docente: solo banco de estudiantes, representantes e inscripciones
   DOCENTE: [ROLES.DOCENTE],
+
+  // Todos los roles del sistema
+  TODOS: Object.values(ROLES),
 };
