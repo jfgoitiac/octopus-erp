@@ -1022,3 +1022,33 @@ no requiere S3/Cloudinary):**
   Recomendado que el usuario pruebe el flujo completo (pestañas, guardar,
   probar email, crear una inscripción de prueba) antes de darlo por
   cerrado.
+
+# COMPROBANTE DE INSCRIPCIÓN — PAGOS FUERA DE TRANSFERENCIA/EFECTIVO NO APARECÍAN (2026-07-22)
+
+Bug encontrado al revisar por qué el comprobante no mostraba "todos los datos
+disponibles en el sistema": `_buscar_metodo()` (`secretaria/utils_preinscripcion.py`)
+solo buscaba el método `transferencia` para rellenar "Nº DE TRANSFERENCIA" y
+los bancos. Un pago hecho por **Pago Móvil, Punto de Venta, Zelle o Stripe**
+quedaba completamente fuera del documento — ni monto ni referencia en ningún
+campo — aunque el pago existiera y estuviera registrado.
+
+- **Decisión del usuario**: la planilla física solo tiene casillas de
+  "TRANSFERENCIA" y "EFECTIVO" (no hay campo propio para Pago Móvil/Zelle/
+  Stripe), así que se decidió tratar Pago Móvil, Punto de Venta, Zelle y
+  Stripe como "transferencia" a efectos del documento — se suman sus montos
+  y referencias en `_combinar_metodos_transferencia()` (reemplaza a
+  `_buscar_metodo()`), y el banco de origen/destino se toma del primer
+  método que sí tenga banco asociado (Pago Móvil/Punto de Venta/
+  Transferencia; Zelle y Stripe no tienen banco en
+  `calcular_datos_administrativos_inscripcion`, `cobranza/services.py`).
+- El campo "CÉDULA" del estudiante se revisó también (candidato obvio a
+  "dato faltante") pero se mantuvo en blanco a propósito — decisión
+  reconfirmada por el usuario, ver punto 1 de la sección "MÓDULO
+  PRE-INSCRIPCIÓN" más arriba: no existe cédula de identidad del alumno en
+  el modelo, solo `cedula_escolar` (matrícula interna).
+- No se tocó `_sumar_montos_efectivo()` (efectivo/efectivo_ves siguen igual).
+- **No verificado en navegador**: no se generó un comprobante real con un
+  pago por Zelle/Pago Móvil en este entorno para confirmar visualmente el
+  resultado — se validó por lectura de código (`py_compile` limpio). Se
+  recomienda que el usuario reimprima el comprobante de un alumno con un
+  pago no-transferencia/no-efectivo para confirmar que ahora aparece.

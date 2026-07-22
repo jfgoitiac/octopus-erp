@@ -178,9 +178,28 @@ def _formatear_monto(monto):
     return f"$ {monto:.2f}" if monto else ''
 
 
-def _buscar_metodo(metodos_pago, codigo):
-    display = dict(Pago.METODOS).get(codigo)
-    return next((m for m in metodos_pago if m['metodo_display'] == display), None)
+_CODIGOS_TIPO_TRANSFERENCIA = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle', 'stripe')
+
+
+def _combinar_metodos_transferencia(metodos_pago):
+    """La planilla física solo tiene casillas de 'TRANSFERENCIA' y 'EFECTIVO'
+    — sin campos propios para Pago Móvil, Punto de Venta, Zelle o Stripe. Sin
+    este agrupamiento esos métodos quedaban totalmente fuera del comprobante
+    (ni monto ni referencia), aunque el pago sí existiera en el sistema.
+    Decisión del usuario: tratarlos todos como 'transferencia' — se suman
+    montos y referencias, y el banco de origen/destino se toma del primer
+    método que sí tenga banco asociado (Pago Móvil/Punto de Venta/
+    Transferencia; Zelle/Stripe no tienen banco en `calcular_datos_administrativos_inscripcion`)."""
+    displays = {dict(Pago.METODOS)[c] for c in _CODIGOS_TIPO_TRANSFERENCIA}
+    grupos = [m for m in metodos_pago if m['metodo_display'] in displays]
+    if not grupos:
+        return None
+    return {
+        'monto': sum((g['monto'] for g in grupos), start=0),
+        'referencia': ', '.join(g['referencia'] for g in grupos if g['referencia']),
+        'banco_destino': next((g['banco_destino'] for g in grupos if g['banco_destino']), ''),
+        'banco_procedencia': next((g['banco_procedencia'] for g in grupos if g['banco_procedencia']), ''),
+    }
 
 
 def _sumar_montos_efectivo(metodos_pago):
@@ -198,7 +217,7 @@ def _resolver_valores(alumno, inscripcion, campos_seleccionados):
     else:
         datos_admin = {'metodos_pago': [], 'fecha_pago': None, 'fecha_inscripcion': None, 'nro_solvencia': ''}
 
-    transferencia = _buscar_metodo(datos_admin['metodos_pago'], 'transferencia')
+    transferencia = _combinar_metodos_transferencia(datos_admin['metodos_pago'])
     monto_efectivo = _sumar_montos_efectivo(datos_admin['metodos_pago'])
 
     crudos = {

@@ -410,7 +410,8 @@ class PromocionAlumnosView(APIView):
 
         # Generar CuotaInscripcion del nuevo período para los alumnos promovidos
         # (los no_mapeados, ej. egresados, no continúan y no deben generar cuota)
-        from cobranza.models import CuotaInscripcion, ParametroGlobal
+        from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
+        from cobranza.services import monto_proyecto_inversion_defecto
         from decimal import Decimal
 
         param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
@@ -430,6 +431,33 @@ class PromocionAlumnosView(APIView):
             CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
             cuotas_generadas = len(cuotas_nuevas)
 
+        # Generar CuotaProyectoInversion del nuevo período por REPRESENTANTE
+        # (una sola vez aunque tenga varios hijos promovidos). Antes esta vista
+        # solo generaba CuotaInscripcion: los representantes cuyos hijos se
+        # promovían por esta vía nunca quedaban con la cuota de proyecto de
+        # inversión del nuevo período en ningún lado del sistema.
+        monto_proyecto = monto_proyecto_inversion_defecto()
+        representantes_ids = {alumno.representante_id for alumno in alumnos_a_promover}
+        representantes_existentes = set(
+            CuotaProyectoInversion.objects
+            .filter(periodo_escolar=periodo_destino, representante_id__in=representantes_ids)
+            .values_list('representante_id', flat=True)
+        )
+        representantes_faltantes = representantes_ids - representantes_existentes
+        proyectos_nuevos = [
+            CuotaProyectoInversion(
+                representante_id=representante_id,
+                periodo_escolar=periodo_destino,
+                monto_usd=monto_proyecto,
+                pagado=False,
+            )
+            for representante_id in representantes_faltantes
+        ]
+        proyectos_generados = 0
+        if proyectos_nuevos:
+            CuotaProyectoInversion.objects.bulk_create(proyectos_nuevos, ignore_conflicts=True)
+            proyectos_generados = len(proyectos_nuevos)
+
         LogAuditoria.objects.create(
             usuario=request.user,
             accion="PROMOCION_ALUMNOS",
@@ -441,6 +469,7 @@ class PromocionAlumnosView(APIView):
                 "alumnos_ids":            promovidos,
                 "no_mapeados":            len(no_mapeados),
                 "cuotas_inscripcion_generadas": cuotas_generadas,
+                "proyectos_inversion_generados": proyectos_generados,
             }
         )
 
@@ -450,6 +479,7 @@ class PromocionAlumnosView(APIView):
             "no_mapeados":      no_mapeados,
             "periodo_destino":  periodo_destino,
             "cuotas_inscripcion_generadas": cuotas_generadas,
+            "proyectos_inversion_generados": proyectos_generados,
         }, status=status.HTTP_200_OK)
 
 
