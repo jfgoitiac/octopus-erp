@@ -757,15 +757,25 @@ class ExportarAuditoriaExcelView(APIView):
         except ValueError:
             return Response({"error": "Formato inválido. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
 
+        from .services import alumnos_de_pago
+
         pagos = Pago.objects.filter(
             fecha_pago__date__gte=fi,
             fecha_pago__date__lte=ff,
-        ).select_related('alumno', 'banco_receptor', 'usuario_receptor').order_by('-fecha_pago')
+        ).select_related('alumno', 'banco_receptor', 'usuario_receptor').prefetch_related(
+            'mensualidades_pagadas__alumno',
+            'cuotas_inscripcion_pagadas__alumno',
+            'cuotas_solvencia_pagadas__alumno',
+        ).order_by('-fecha_pago')
 
+        # Un pago puede cubrir a varios hermanos en la misma transacción
+        # (Pago.alumno solo guarda al "titular"): se listan todos los alumnos
+        # realmente involucrados para no dar la impresión de que a los demás
+        # no se les cobró (ver cobranza/services.py::alumnos_de_pago).
         columns = [
             ('Fecha',          lambda x: x.fecha_pago.strftime('%d/%m/%Y %H:%M')),
-            ('Alumno',         lambda x: f"{x.alumno.nombre} {x.alumno.apellido}"),
-            ('Cédula Escolar', lambda x: x.alumno.cedula_escolar or ''),
+            ('Alumno',         lambda x: ', '.join(f"{a.nombre} {a.apellido}" for a in alumnos_de_pago(x))),
+            ('Cédula Escolar', lambda x: ', '.join((a.cedula_escolar or '') for a in alumnos_de_pago(x))),
             ('Concepto',       lambda x: x.get_concepto_display()),
             ('Método',         lambda x: x.get_metodo_pago_display()),
             ('Monto USD',      'monto_usd'),

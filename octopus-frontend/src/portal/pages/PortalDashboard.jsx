@@ -174,6 +174,28 @@ const PortalDashboard = () => {
               ))}
             </div>
           )}
+
+          {/* Otros conceptos pendientes: inscripción y proyecto de inversión.
+              No tienen botón "Pagar": el comprobante del portal solo aplica
+              a mensualidades, este pago se coordina con administración. */}
+          {resumen.otros_conceptos_pendientes?.length > 0 && (
+            <div className="space-y-2 mt-2">
+              {resumen.otros_conceptos_pendientes.map((c) => (
+                <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">{c.concepto}</p>
+                    <p className="text-xs text-gray-500">
+                      {c.alumno_nombre || 'Aplica a todos los hijos inscritos'}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">${Number(c.monto_usd).toFixed(2)}</p>
+                </div>
+              ))}
+              <p className="text-xs text-gray-400 pt-1">
+                Para pagar estos conceptos, contacta a administración.
+              </p>
+            </div>
+          )}
         </div>
       ) : null}
 

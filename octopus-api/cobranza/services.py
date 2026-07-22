@@ -30,6 +30,52 @@ from decimal import Decimal
 from .models import Mensualidad, ParametroGlobal
 
 
+def pagos_de_alumno(alumno):
+    """Pagos en los que `alumno` participó, ya sea como titular de la
+    operación (Pago.alumno) o como uno de los hermanos cuya deuda se saldó
+    en una transacción conjunta.
+
+    Pago.alumno es un FK singular: en un pago que cubre a varios hermanos en
+    la misma transacción (ver PagoCreateSerializer.validate), solo el primer
+    alumno seleccionado queda como "titular" de ese campo, aunque la deuda de
+    todos los hermanos se marca pagada correctamente vía las relaciones M2M
+    (mensualidades_pagadas, cuotas_inscripcion_pagadas, cuotas_solvencia_pagadas).
+    Filtrar solo por Pago.alumno deja a los hermanos no-titulares sin ningún
+    pago en su historial, aunque su deuda sí esté saldada — lo que hace creer
+    que nunca se les cobró y lleva a cobrarles de nuevo.
+    """
+    from django.db.models import Q
+    from .models import Pago
+    return Pago.objects.filter(
+        Q(alumno=alumno)
+        | Q(mensualidades_pagadas__alumno=alumno)
+        | Q(cuotas_inscripcion_pagadas__alumno=alumno)
+        | Q(cuotas_solvencia_pagadas__alumno=alumno)
+    ).distinct()
+
+
+def alumnos_de_pago(pago):
+    """Todos los alumnos realmente involucrados en un Pago (titular + hermanos
+    cuya deuda se saldó en la misma transacción), para reportes que necesitan
+    mostrar el desglose real en vez de solo el titular (ver pagos_de_alumno)."""
+    vistos = set()
+    alumnos = []
+
+    def agregar(alumno):
+        if alumno and alumno.id not in vistos:
+            vistos.add(alumno.id)
+            alumnos.append(alumno)
+
+    agregar(pago.alumno)
+    for m in pago.mensualidades_pagadas.all():
+        agregar(m.alumno)
+    for c in pago.cuotas_inscripcion_pagadas.all():
+        agregar(c.alumno)
+    for s in pago.cuotas_solvencia_pagadas.all():
+        agregar(s.alumno)
+    return alumnos
+
+
 def monto_mensualidad_defecto():
     """Monto base de la mensualidad desde ParametroGlobal (fallback 35.00 USD)."""
     param = ParametroGlobal.objects.filter(clave="MONTO_MENSUALIDAD_DEFECTO").first()

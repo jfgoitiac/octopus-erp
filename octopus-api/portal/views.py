@@ -11,7 +11,7 @@ from rest_framework import status, permissions
 from rest_framework.throttling import AnonRateThrottle
 
 from secretaria.models import Alumno
-from cobranza.models import Mensualidad, Pago
+from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, Mensualidad, Pago
 
 from .authentication import PortalJWTAuthentication
 from .models import ComprobantePago, RepresentanteUser
@@ -135,10 +135,26 @@ class PortalDashboardView(APIView):
         ).order_by('anio', 'mes'):
             pendientes_por_alumno[m.alumno_id].append(m)
 
+        # Cuotas de inscripción pendientes de todos los alumnos (una sola query,
+        # igual que con las mensualidades más arriba).
+        inscripcion_por_alumno = defaultdict(list)
+        for c in CuotaInscripcion.objects.filter(alumno__in=alumnos, pagado=False):
+            inscripcion_por_alumno[c.alumno_id].append(c)
+
+        # Proyecto de Inversión: cuota por REPRESENTANTE (no por alumno), se
+        # cobra una sola vez por período aunque tenga varios hijos inscritos
+        # (ver cobranza/models.py::CuotaProyectoInversion).
+        proyectos_inversion = list(
+            CuotaProyectoInversion.objects.filter(
+                representante=representante, pagado=False
+            )
+        )
+
         # Calcular resumen financiero consolidado de todos los alumnos
         total_deuda_usd = 0
         mensualidades_vencidas = []
         proximos_vencimientos = []
+        otros_conceptos_pendientes = []
 
         for alumno in alumnos:
             pendientes = pendientes_por_alumno.get(alumno.id, [])
@@ -171,6 +187,34 @@ class PortalDashboardView(APIView):
             mensualidades_vencidas.extend(vencidas_data)
             proximos_vencimientos.extend(futuras_data)
 
+            # Cuota de inscripción: no tiene fecha límite propia, se considera
+            # vencida desde que se genera (mismo criterio que cobranza/mora.py).
+            for c in inscripcion_por_alumno.get(alumno.id, []):
+                total_deuda_usd += float(c.monto_usd)
+                otros_conceptos_pendientes.append({
+                    'id': c.id,
+                    'tipo': 'inscripcion',
+                    'concepto': f'Inscripción {c.periodo_escolar}',
+                    'periodo_escolar': c.periodo_escolar,
+                    'monto_usd': str(c.monto_usd),
+                    'alumno_nombre': alumno_nombre,
+                    'alumno_id': alumno.id,
+                })
+
+        # El proyecto de inversión se cobra una sola vez por representante,
+        # aunque tenga varios hijos: se agrega una sola vez al total.
+        for p in proyectos_inversion:
+            total_deuda_usd += float(p.monto_usd)
+            otros_conceptos_pendientes.append({
+                'id': p.id,
+                'tipo': 'proyecto_inversion',
+                'concepto': f'Proyecto de Inversión {p.periodo_escolar}',
+                'periodo_escolar': p.periodo_escolar,
+                'monto_usd': str(p.monto_usd),
+                'alumno_nombre': None,
+                'alumno_id': None,
+            })
+
         # Últimos 3 pagos de todos los alumnos del representante
         ultimos_pagos = Pago.objects.filter(
             alumno__representante=representante,
@@ -190,6 +234,7 @@ class PortalDashboardView(APIView):
                 'total_deuda_usd': round(total_deuda_usd, 2),
                 'mensualidades_vencidas': mensualidades_vencidas,
                 'proximos_vencimientos': proximos_vencimientos,
+                'otros_conceptos_pendientes': otros_conceptos_pendientes,
             },
             'ultimos_pagos': PagoHistorialSerializer(ultimos_pagos, many=True).data,
         })
@@ -237,7 +282,11 @@ class PortalHistorialPagosView(APIView):
         except (ValueError, TypeError):
             page, page_size = 1, 10
 
-        pagos_qs = Pago.objects.filter(alumno=alumno).order_by('-fecha_pago')
+        from cobranza.services import pagos_de_alumno
+        # Incluye pagos donde el alumno fue el titular de la transacción y
+        # también aquellos donde fue uno de los hermanos cuya deuda se saldó
+        # en una operación conjunta (ver cobranza/services.py::pagos_de_alumno).
+        pagos_qs = pagos_de_alumno(alumno).order_by('-fecha_pago')
         total = pagos_qs.count()
         offset = (page - 1) * page_size
         pagos_pagina = pagos_qs[offset:offset + page_size]
