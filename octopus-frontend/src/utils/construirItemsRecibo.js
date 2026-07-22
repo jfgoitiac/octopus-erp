@@ -16,6 +16,7 @@ export const construirItemsRecibo = ({
     bloques = [],
     selectedProyectos = [],
     cuotasProyectoInversion = [],
+    montosParcialesProyectos = {},
     tasa,
     CONCEPTOS,
     totalUSD,
@@ -23,13 +24,16 @@ export const construirItemsRecibo = ({
 }) => {
     const itemsRecibo = [];
 
+    // Las claves de montosParciales van prefijadas por categoría (mens_, futura_,
+    // cuota_, solv_) porque cada una sale de una tabla distinta en el backend y
+    // sus IDs autoincrementales pueden coincidir entre sí.
     bloques.forEach(({ nombreAlumno, mensualidades, mensualidadesFuturas, cuotasInscripcion, cuotasSolvencia,
                        selectedMens, selectedFuturas, selectedCuotas, selectedSolvencias, montosParciales }) => {
 
         (selectedMens || []).forEach(id => {
             const m = (mensualidades || []).find(x => x.id === id);
             if (!m) return;
-            const ov = montosParciales?.[id];
+            const ov = montosParciales?.[`mens_${id}`];
             const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
             const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
             itemsRecibo.push({
@@ -44,7 +48,7 @@ export const construirItemsRecibo = ({
         (selectedFuturas || []).forEach(id => {
             const m = (mensualidadesFuturas || []).find(x => x.id === id);
             if (!m) return;
-            const ov = montosParciales?.[id];
+            const ov = montosParciales?.[`futura_${id}`];
             const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
             const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
             itemsRecibo.push({
@@ -58,22 +62,30 @@ export const construirItemsRecibo = ({
 
         (selectedCuotas || []).forEach(id => {
             const c = (cuotasInscripcion || []).find(x => x.id === id);
-            if (c) itemsRecibo.push({
+            if (!c) return;
+            const ov = montosParciales?.[`cuota_${id}`];
+            const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
+            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+            itemsRecibo.push({
                 concepto: 'INSCRIPCIÓN',
-                descripcion: `Período ${c.periodo_escolar}`,
-                monto_usd: c.monto_usd,
-                monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
+                descripcion: `Período ${c.periodo_escolar}${parcial ? ' (PARCIAL)' : ''}`,
+                monto_usd: monto.toFixed(2),
+                monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
                 alumno: nombreAlumno,
             });
         });
 
         (selectedSolvencias || []).forEach(id => {
             const c = (cuotasSolvencia || []).find(x => x.id === id);
-            if (c) itemsRecibo.push({
+            if (!c) return;
+            const ov = montosParciales?.[`solv_${id}`];
+            const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
+            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+            itemsRecibo.push({
                 concepto: 'SOLVENCIA',
-                descripcion: c.concepto || `Período ${c.periodo_escolar}`,
-                monto_usd: c.monto_usd,
-                monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
+                descripcion: `${c.concepto || `Período ${c.periodo_escolar}`}${parcial ? ' (PARCIAL)' : ''}`,
+                monto_usd: monto.toFixed(2),
+                monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
                 alumno: nombreAlumno,
             });
         });
@@ -81,11 +93,15 @@ export const construirItemsRecibo = ({
 
     (selectedProyectos || []).forEach(id => {
         const c = cuotasProyectoInversion?.find(x => x.id === id);
-        if (c) itemsRecibo.push({
+        if (!c) return;
+        const ov = montosParcialesProyectos?.[id];
+        const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
+        const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+        itemsRecibo.push({
             concepto: 'PROYECTO DE INVERSIÓN',
-            descripcion: `Período ${c.periodo_escolar}`,
-            monto_usd: c.monto_usd,
-            monto_ves: tasa > 0 ? (parseFloat(c.monto_usd) * tasa).toFixed(2) : '',
+            descripcion: `Período ${c.periodo_escolar}${parcial ? ' (PARCIAL)' : ''}`,
+            monto_usd: monto.toFixed(2),
+            monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
             alumno: null, // cuota del representante, no de un alumno puntual
         });
     });

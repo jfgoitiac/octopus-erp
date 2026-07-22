@@ -36,33 +36,68 @@ const BloqueDeudaAlumno = ({
                         Cuota de Inscripción pendiente
                     </p>
                     <div className="space-y-2">
-                        {cuotasInscripcion.map(c => (
-                            <label
-                                key={c.id}
-                                className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
-                                style={{
-                                    border: selectedCuotas.includes(c.id) ? '1.5px solid #f59e0b' : '0.5px solid #fde68a',
-                                    background: selectedCuotas.includes(c.id) ? '#fef3c7' : '#fff',
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedCuotas.includes(c.id)}
-                                        onChange={() => toggleCuota(alu.id, c.id)}
-                                        style={{ accentColor: '#f59e0b', width: 15, height: 15 }}
-                                        aria-label={`Cuota de inscripción ${c.periodo_escolar}`}
-                                    />
-                                    <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                        Inscripción {c.periodo_escolar}
-                                    </span>
+                        {cuotasInscripcion.map(c => {
+                            const isSel   = selectedCuotas.includes(c.id);
+                            const ov      = montosParciales[`cuota_${c.id}`];
+                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                            return (
+                                <div key={c.id}>
+                                    <label
+                                        className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                        style={{
+                                            border: isSel ? '1.5px solid #f59e0b' : '0.5px solid #fde68a',
+                                            background: isSel ? '#fef3c7' : '#fff',
+                                            borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSel}
+                                                onChange={() => toggleCuota(alu.id, c.id)}
+                                                style={{ accentColor: '#f59e0b', width: 15, height: 15 }}
+                                                aria-label={`Cuota de inscripción ${c.periodo_escolar}`}
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                    Inscripción {c.periodo_escolar}
+                                                </span>
+                                                {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
+                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                        </div>
+                                    </label>
+                                    {isSel && (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
+                                            style={{ background: '#fef3c7', borderLeft: '1.5px solid #f59e0b', borderRight: '1.5px solid #f59e0b', borderBottom: '1.5px solid #f59e0b' }}>
+                                            <span className="text-[10px] font-medium flex-1" style={{ color: '#b45309' }}>Monto a abonar (USD):</span>
+                                            <div className="relative">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                                                <DecimalInput
+                                                    className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
+                                                    style={{ border: '1px solid #f59e0b', background: '#fff', color: 'var(--jet)' }}
+                                                    value={ov !== undefined ? ov : c.monto_usd}
+                                                    onChange={v => setMontoParcial(alu.id, 'cuota', c.id, v)}
+                                                    max={parseFloat(c.monto_usd)}
+                                                    aria-label={`Monto a abonar para inscripción ${c.periodo_escolar}`}
+                                                />
+                                            </div>
+                                            {parcial && (
+                                                <button type="button"
+                                                    onClick={() => setMontoParcial(alu.id, 'cuota', c.id, c.monto_usd)}
+                                                    className="text-[10px] px-2 py-1 rounded-md"
+                                                    style={{ background: '#f59e0b', color: '#fff' }}>
+                                                    Completo
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
-                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
-                                </div>
-                            </label>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -74,40 +109,73 @@ const BloqueDeudaAlumno = ({
                         Solvencia pendiente
                     </p>
                     <div className="space-y-2">
-                        {cuotasSolvencia.map(c => (
-                            <label
-                                key={c.id}
-                                className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
-                                style={{
-                                    border: selectedSolvencias.includes(c.id) ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
-                                    background: selectedSolvencias.includes(c.id) ? '#fee2e2' : '#fff',
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedSolvencias.includes(c.id)}
-                                        onChange={() => toggleSolvencia(alu.id, c.id)}
-                                        style={{ accentColor: '#dc2626', width: 15, height: 15 }}
-                                        aria-label={`Solvencia ${c.concepto || c.periodo_escolar}`}
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                            {c.concepto || `Solvencia ${c.periodo_escolar}`}
-                                        </span>
-                                        {c.concepto && (
-                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
-                                                Solvencia {c.periodo_escolar}
-                                            </p>
-                                        )}
-                                    </div>
+                        {cuotasSolvencia.map(c => {
+                            const isSel   = selectedSolvencias.includes(c.id);
+                            const ov      = montosParciales[`solv_${c.id}`];
+                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                            return (
+                                <div key={c.id}>
+                                    <label
+                                        className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                        style={{
+                                            border: isSel ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
+                                            background: isSel ? '#fee2e2' : '#fff',
+                                            borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSel}
+                                                onChange={() => toggleSolvencia(alu.id, c.id)}
+                                                style={{ accentColor: '#dc2626', width: 15, height: 15 }}
+                                                aria-label={`Solvencia ${c.concepto || c.periodo_escolar}`}
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                    {c.concepto || `Solvencia ${c.periodo_escolar}`}
+                                                </span>
+                                                {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                {c.concepto && (
+                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                                                        Solvencia {c.periodo_escolar}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
+                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                        </div>
+                                    </label>
+                                    {isSel && (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
+                                            style={{ background: '#fee2e2', borderLeft: '1.5px solid #dc2626', borderRight: '1.5px solid #dc2626', borderBottom: '1.5px solid #dc2626' }}>
+                                            <span className="text-[10px] font-medium flex-1" style={{ color: '#b91c1c' }}>Monto a abonar (USD):</span>
+                                            <div className="relative">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                                                <DecimalInput
+                                                    className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
+                                                    style={{ border: '1px solid #dc2626', background: '#fff', color: 'var(--jet)' }}
+                                                    value={ov !== undefined ? ov : c.monto_usd}
+                                                    onChange={v => setMontoParcial(alu.id, 'solv', c.id, v)}
+                                                    max={parseFloat(c.monto_usd)}
+                                                    aria-label={`Monto a abonar para solvencia ${c.concepto || c.periodo_escolar}`}
+                                                />
+                                            </div>
+                                            {parcial && (
+                                                <button type="button"
+                                                    onClick={() => setMontoParcial(alu.id, 'solv', c.id, c.monto_usd)}
+                                                    className="text-[10px] px-2 py-1 rounded-md"
+                                                    style={{ background: '#dc2626', color: '#fff' }}>
+                                                    Completo
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
-                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
-                                </div>
-                            </label>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -126,7 +194,7 @@ const BloqueDeudaAlumno = ({
                     <div className="space-y-2">
                         {mensualidades.map(m => {
                             const isSel   = selectedMens.includes(m.id);
-                            const ov      = montosParciales[m.id];
+                            const ov      = montosParciales[`mens_${m.id}`];
                             const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                             return (
                                 <div key={m.id}>
@@ -166,14 +234,14 @@ const BloqueDeudaAlumno = ({
                                                     className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                     style={{ border: '1px solid var(--pb)', background: '#fff', color: 'var(--jet)' }}
                                                     value={ov !== undefined ? ov : m.monto_usd}
-                                                    onChange={v => setMontoParcial(alu.id, m.id, v)}
+                                                    onChange={v => setMontoParcial(alu.id, 'mens', m.id, v)}
                                                     max={parseFloat(m.monto_usd)}
                                                     aria-label={`Monto a abonar para mensualidad ${m.mes} ${m.anio}`}
                                                 />
                                             </div>
                                             {parcial && (
                                                 <button type="button"
-                                                    onClick={() => setMontoParcial(alu.id, m.id, m.monto_usd)}
+                                                    onClick={() => setMontoParcial(alu.id, 'mens', m.id, m.monto_usd)}
                                                     className="text-[10px] px-2 py-1 rounded-md"
                                                     style={{ background: 'var(--pb)', color: '#fff' }}>
                                                     Completo
@@ -200,7 +268,7 @@ const BloqueDeudaAlumno = ({
                         <div className="space-y-2">
                             {mensualidadesFuturas.map(m => {
                                 const isSel   = selectedFuturas.includes(m.id);
-                                const ov      = montosParciales[m.id];
+                                const ov      = montosParciales[`futura_${m.id}`];
                                 const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                                 return (
                                     <div key={m.id}>
@@ -240,14 +308,14 @@ const BloqueDeudaAlumno = ({
                                                         className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                         style={{ border: '1px solid #7c3aed', background: '#fff', color: 'var(--jet)' }}
                                                         value={ov !== undefined ? ov : m.monto_usd}
-                                                        onChange={v => setMontoParcial(alu.id, m.id, v)}
+                                                        onChange={v => setMontoParcial(alu.id, 'futura', m.id, v)}
                                                         max={parseFloat(m.monto_usd)}
                                                         aria-label={`Monto adelanto para ${m.mes} ${m.anio}`}
                                                     />
                                                 </div>
                                                 {parcial && (
                                                     <button type="button"
-                                                        onClick={() => setMontoParcial(alu.id, m.id, m.monto_usd)}
+                                                        onClick={() => setMontoParcial(alu.id, 'futura', m.id, m.monto_usd)}
                                                         className="text-[10px] px-2 py-1 rounded-md"
                                                         style={{ background: '#7c3aed', color: '#fff' }}>
                                                         Completo
@@ -281,6 +349,8 @@ const CobranzaStep1 = ({
     cuotasProyectoInversion,
     selectedProyectos,
     toggleProyecto,
+    montosParcialesProyectos,
+    setMontoParcialProyecto,
     toggleMens,
     setMontoParcial,
     toggleFutura,
@@ -379,35 +449,68 @@ const CobranzaStep1 = ({
                                 Proyecto de Inversión pendiente (representante)
                             </p>
                             <div className="space-y-2">
-                                {cuotasProyectoInversion.map(c => (
-                                    <label
-                                        key={c.id}
-                                        className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
-                                        style={{
-                                            border: selectedProyectos.includes(c.id) ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
-                                            background: selectedProyectos.includes(c.id) ? '#fee2e2' : '#fff',
-                                        }}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedProyectos.includes(c.id)}
-                                                onChange={() => toggleProyecto(c.id)}
-                                                style={{ accentColor: '#dc2626', width: 15, height: 15 }}
-                                                aria-label={`Proyecto de Inversión ${c.periodo_escolar}`}
-                                            />
-                                            <div>
-                                                <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                                    Proyecto de Inversión {c.periodo_escolar}
-                                                </span>
-                                            </div>
+                                {cuotasProyectoInversion.map(c => {
+                                    const isSel   = selectedProyectos.includes(c.id);
+                                    const ov      = montosParcialesProyectos[c.id];
+                                    const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                                    return (
+                                        <div key={c.id}>
+                                            <label
+                                                className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                                style={{
+                                                    border: isSel ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
+                                                    background: isSel ? '#fee2e2' : '#fff',
+                                                    borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSel}
+                                                        onChange={() => toggleProyecto(c.id)}
+                                                        style={{ accentColor: '#dc2626', width: 15, height: 15 }}
+                                                        aria-label={`Proyecto de Inversión ${c.periodo_escolar}`}
+                                                    />
+                                                    <div>
+                                                        <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                            Proyecto de Inversión {c.periodo_escolar}
+                                                        </span>
+                                                        {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
+                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                                </div>
+                                            </label>
+                                            {isSel && (
+                                                <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
+                                                    style={{ background: '#fee2e2', borderLeft: '1.5px solid #dc2626', borderRight: '1.5px solid #dc2626', borderBottom: '1.5px solid #dc2626' }}>
+                                                    <span className="text-[10px] font-medium flex-1" style={{ color: '#b91c1c' }}>Monto a abonar (USD):</span>
+                                                    <div className="relative">
+                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                                                        <DecimalInput
+                                                            className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
+                                                            style={{ border: '1px solid #dc2626', background: '#fff', color: 'var(--jet)' }}
+                                                            value={ov !== undefined ? ov : c.monto_usd}
+                                                            onChange={v => setMontoParcialProyecto(c.id, v)}
+                                                            max={parseFloat(c.monto_usd)}
+                                                            aria-label={`Monto a abonar para proyecto de inversión ${c.periodo_escolar}`}
+                                                        />
+                                                    </div>
+                                                    {parcial && (
+                                                        <button type="button"
+                                                            onClick={() => setMontoParcialProyecto(c.id, c.monto_usd)}
+                                                            className="text-[10px] px-2 py-1 rounded-md"
+                                                            style={{ background: '#dc2626', color: '#fff' }}>
+                                                            Completo
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
-                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
-                                        </div>
-                                    </label>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

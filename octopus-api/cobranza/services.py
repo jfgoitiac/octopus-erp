@@ -90,6 +90,21 @@ def mes_en_periodo_lectivo(mes, anio, config=None):
     return inicio <= (anio, mes) <= fin
 
 
+def monto_con_beca(monto_base, porcentaje_beca):
+    """Aplica el descuento de `porcentaje_beca` (0-100) sobre `monto_base`.
+
+    Los becados totales (estatus_financiero == 'becado') ni siquiera entran a
+    este cálculo: quedan excluidos antes de generar mensualidades, así que su
+    deuda nunca se toca. Este descuento es para becas PARCIALES (porcentaje_beca
+    entre 1 y 99) sobre alumnos que sí generan mensualidad.
+    """
+    porcentaje_beca = porcentaje_beca or 0
+    if porcentaje_beca <= 0:
+        return monto_base
+    descuento = (monto_base * Decimal(porcentaje_beca) / Decimal('100'))
+    return (monto_base - descuento).quantize(Decimal('0.01'))
+
+
 def generar_mensualidades(alumnos, meses, monto=None, config=None):
     """
     Crea (idempotente) las mensualidades indicadas para los alumnos dados.
@@ -98,7 +113,11 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
     meses:   lista de tuplas (mes, anio). Cualquier mes fuera del año escolar
              activo (ConfiguracionSistema.fecha_inicio_ano_escolar..
              fecha_fin_ano_escolar) se descarta antes de crear nada.
-    monto:   Decimal opcional; por defecto MONTO_MENSUALIDAD_DEFECTO.
+    monto:   Decimal opcional; monto BASE por defecto MONTO_MENSUALIDAD_DEFECTO.
+             El monto real de cada mensualidad se ajusta según
+             Alumno.porcentaje_beca (beca parcial): quien tiene 100% en
+             estatus_financiero='becado' no llega aquí, así que su deuda nunca
+             se modifica.
 
     Devuelve la cantidad de mensualidades realmente creadas (0 si no hay
     período escolar configurado).
@@ -113,10 +132,16 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
     if not meses:
         return 0
 
-    monto = monto if monto is not None else monto_mensualidad_defecto()
+    monto_base = monto if monto is not None else monto_mensualidad_defecto()
+    alumnos = list(alumnos)
     alumno_ids = [a.pk for a in alumnos]
     if not alumno_ids:
         return 0
+
+    montos_por_alumno = {
+        a.pk: monto_con_beca(monto_base, getattr(a, 'porcentaje_beca', 0))
+        for a in alumnos
+    }
 
     # Detectar existentes primero para crear solo lo que falta y poder
     # reportar un conteo exacto (bulk_create con ignore_conflicts no lo da).
@@ -128,7 +153,10 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
     )
 
     nuevas = [
-        Mensualidad(alumno_id=alumno_id, mes=mes, anio=anio, monto_usd=monto, pagado=False)
+        Mensualidad(
+            alumno_id=alumno_id, mes=mes, anio=anio,
+            monto_usd=montos_por_alumno[alumno_id], pagado=False,
+        )
         for alumno_id in alumno_ids
         for (mes, anio) in meses
         if (alumno_id, mes, anio) not in existentes

@@ -7,6 +7,9 @@ const ResumenPago = ({
     alumnosSeleccionados,
     datosAlumnos,
     seleccion,
+    cuotasProyectoInversion,
+    selectedProyectos,
+    montosParcialesProyectos,
     confirming,
     deudaVES,
     vueltoVES,
@@ -56,7 +59,7 @@ const ResumenPago = ({
                             {mens.map(mid => {
                                 const m  = (datos?.mensualidades_pendientes || []).find(x => x.id === mid);
                                 if (!m) return null;
-                                const ov = sel.montosParciales[mid];
+                                const ov = sel.montosParciales[`mens_${mid}`];
                                 const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
                                 const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                                 return (
@@ -85,7 +88,7 @@ const ResumenPago = ({
                             {futuras.map(mid => {
                                 const m  = (datos?.mensualidades_futuras || []).find(x => x.id === mid);
                                 if (!m) return null;
-                                const ov = sel.montosParciales[mid];
+                                const ov = sel.montosParciales[`futura_${mid}`];
                                 const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
                                 const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                                 return (
@@ -99,6 +102,87 @@ const ResumenPago = ({
                         </div>
                     );
                 })}
+
+                {/* Inscripción (por alumno) */}
+                {alumnosSeleccionados.map(id => {
+                    const datos = datosAlumnos[id];
+                    const sel   = seleccion[id];
+                    const cuotas = sel?.selectedCuotas || [];
+                    if (cuotas.length === 0) return null;
+                    return (
+                        <div key={`cuota-${id}`} className="mb-3 space-y-1">
+                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#b45309' }}>
+                                Inscripción{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
+                            </p>
+                            {cuotas.map(cid => {
+                                const c  = (datos?.cuotas_inscripcion_pendientes || []).find(x => x.id === cid);
+                                if (!c) return null;
+                                const ov = sel.montosParciales[`cuota_${cid}`];
+                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
+                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                                return (
+                                    <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
+                                        style={{ background: '#fef3c7', color: '#b45309' }}>
+                                        <span>Período {c.periodo_escolar}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        <span className="font-semibold">${fmt(monto)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
+
+                {/* Solvencia (por alumno) */}
+                {alumnosSeleccionados.map(id => {
+                    const datos = datosAlumnos[id];
+                    const sel   = seleccion[id];
+                    const solvs = sel?.selectedSolvencias || [];
+                    if (solvs.length === 0) return null;
+                    return (
+                        <div key={`solv-${id}`} className="mb-3 space-y-1">
+                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#b91c1c' }}>
+                                Solvencia{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
+                            </p>
+                            {solvs.map(cid => {
+                                const c  = (datos?.cuotas_solvencia_pendientes || []).find(x => x.id === cid);
+                                if (!c) return null;
+                                const ov = sel.montosParciales[`solv_${cid}`];
+                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
+                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                                return (
+                                    <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
+                                        style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                                        <span>{c.concepto || `Período ${c.periodo_escolar}`}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        <span className="font-semibold">${fmt(monto)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
+
+                {/* Proyecto de Inversión (representante) */}
+                {(selectedProyectos || []).length > 0 && (
+                    <div className="mb-3 space-y-1">
+                        <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#b91c1c' }}>
+                            Proyecto de Inversión
+                        </p>
+                        {selectedProyectos.map(cid => {
+                            const c = (cuotasProyectoInversion || []).find(x => x.id === cid);
+                            if (!c) return null;
+                            const ov = montosParcialesProyectos?.[cid];
+                            const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
+                            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                            return (
+                                <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
+                                    style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                                    <span>Período {c.periodo_escolar}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                    <span className="font-semibold">${fmt(monto)}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Totales */}
                 <div className="space-y-2 mb-4">

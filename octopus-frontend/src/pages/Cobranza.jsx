@@ -91,6 +91,7 @@ const Cobranza = () => {
     // que se comparte entre todos los hermanos en vez de duplicarse por hijo.
     const [cuotasProyectoInversion, setCuotasProyectoInversion] = useState([]);
     const [selectedProyectos, setSelectedProyectos] = useState([]);
+    const [montosParcialesProyectos, setMontosParcialesProyectos] = useState({});
 
     const [concepto, setConcepto]                 = useState('mensualidad');
     const [lineas, setLineas]                     = useState([crearLinea()]);
@@ -124,24 +125,30 @@ const Cobranza = () => {
         const sel   = seleccion[alumnoId];
         if (!datos || !sel) return 0;
 
-        const sumarLista = (lista, ids) => ids.reduce((s, id) => {
+        // Cada categoría de deuda tiene su propia tabla en el backend (Mensualidad,
+        // CuotaInscripcion, CuotaSolvencia), así que sus IDs autoincrementales
+        // pueden coincidir entre sí. Se prefija la clave por categoría para que
+        // los montos parciales de una no se pisen con los de otra.
+        const sumarLista = (categoria, lista, ids) => ids.reduce((s, id) => {
             const item = (lista || []).find(x => x.id === id);
             if (!item) return s;
-            const ov = sel.montosParciales[id];
+            const ov = sel.montosParciales[`${categoria}_${id}`];
             return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(item.monto_usd) || 0);
         }, 0);
 
-        return sumarLista(datos.mensualidades_pendientes, sel.selectedMens)
-             + sumarLista(datos.mensualidades_futuras, sel.selectedFuturas)
-             + sumarLista(datos.cuotas_inscripcion_pendientes, sel.selectedCuotas)
-             + sumarLista(datos.cuotas_solvencia_pendientes, sel.selectedSolvencias);
+        return sumarLista('mens', datos.mensualidades_pendientes, sel.selectedMens)
+             + sumarLista('futura', datos.mensualidades_futuras, sel.selectedFuturas)
+             + sumarLista('cuota', datos.cuotas_inscripcion_pendientes, sel.selectedCuotas)
+             + sumarLista('solv', datos.cuotas_solvencia_pendientes, sel.selectedSolvencias);
     }, [datosAlumnos, seleccion]);
 
     const proyectosUSD = useMemo(() =>
         selectedProyectos.reduce((s, id) => {
             const c = cuotasProyectoInversion.find(x => x.id === id);
-            return s + (c ? parseFloat(c.monto_usd) || 0 : 0);
-        }, 0), [cuotasProyectoInversion, selectedProyectos]);
+            if (!c) return s;
+            const ov = montosParcialesProyectos[id];
+            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0);
+        }, 0), [cuotasProyectoInversion, selectedProyectos, montosParcialesProyectos]);
 
     const totalSelUSD = useMemo(() =>
         alumnosSeleccionados.reduce((s, id) => s + subtotalAlumnoUSD(id), 0) + proyectosUSD,
@@ -175,25 +182,35 @@ const Cobranza = () => {
         }
     }, [hayAdelantos]);
 
-    const hayParciales = useMemo(() => alumnosSeleccionados.some(id => {
-        const datos = datosAlumnos[id];
-        const sel   = seleccion[id];
-        if (!datos || !sel) return false;
-        const parcialEn = (lista, ids) => ids.some(mid => {
-            const m  = (lista || []).find(x => x.id === mid);
-            const ov = sel.montosParciales[mid];
-            return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+    const hayParciales = useMemo(() => {
+        const parcialAlumno = alumnosSeleccionados.some(id => {
+            const datos = datosAlumnos[id];
+            const sel   = seleccion[id];
+            if (!datos || !sel) return false;
+            const parcialEn = (categoria, lista, ids) => ids.some(mid => {
+                const m  = (lista || []).find(x => x.id === mid);
+                const ov = sel.montosParciales[`${categoria}_${mid}`];
+                return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+            });
+            return parcialEn('mens', datos.mensualidades_pendientes, sel.selectedMens) ||
+                   parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas) ||
+                   parcialEn('cuota', datos.cuotas_inscripcion_pendientes, sel.selectedCuotas) ||
+                   parcialEn('solv', datos.cuotas_solvencia_pendientes, sel.selectedSolvencias);
         });
-        return parcialEn(datos.mensualidades_pendientes, sel.selectedMens) ||
-               parcialEn(datos.mensualidades_futuras, sel.selectedFuturas);
-    }), [alumnosSeleccionados, datosAlumnos, seleccion]);
+        const parcialProyecto = selectedProyectos.some(id => {
+            const c  = cuotasProyectoInversion.find(x => x.id === id);
+            const ov = montosParcialesProyectos[id];
+            return c && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+        });
+        return parcialAlumno || parcialProyecto;
+    }, [alumnosSeleccionados, datosAlumnos, seleccion, selectedProyectos, cuotasProyectoInversion, montosParcialesProyectos]);
 
     const requiereDivisas = hayAdelantos || hayParciales;
 
     const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
         setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
-        setCuotasProyectoInversion([]); setSelectedProyectos([]);
+        setCuotasProyectoInversion([]); setSelectedProyectos([]); setMontosParcialesProyectos({});
     }, []);
 
     const buscarAlumno = useCallback((val) => {
@@ -219,7 +236,7 @@ const Cobranza = () => {
                     setAlumnosRep(alumnos);
                     setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
                     setCuotasProyectoInversion(alumnos[0]?.cuotas_proyecto_inversion_pendientes || []);
-                    setSelectedProyectos([]);
+                    setSelectedProyectos([]); setMontosParcialesProyectos({});
                     // Si hay exactamente un alumno, seleccionarlo automáticamente
                     if (alumnos.length === 1) {
                         const alu = alumnos[0];
@@ -294,14 +311,17 @@ const Cobranza = () => {
     const toggleCuota     = (alumnoId, id) => toggleEnLista(alumnoId, 'selectedCuotas', id);
     const toggleSolvencia = (alumnoId, id) => toggleEnLista(alumnoId, 'selectedSolvencias', id);
 
-    const setMontoParcial = (alumnoId, id, val) =>
+    const setMontoParcial = (alumnoId, categoria, id, val) =>
         setSeleccion(s => ({
             ...s,
-            [alumnoId]: { ...s[alumnoId], montosParciales: { ...s[alumnoId].montosParciales, [id]: val } },
+            [alumnoId]: { ...s[alumnoId], montosParciales: { ...s[alumnoId].montosParciales, [`${categoria}_${id}`]: val } },
         }));
 
     const toggleProyecto = (id) =>
         setSelectedProyectos(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+    const setMontoParcialProyecto = (id, val) =>
+        setMontosParcialesProyectos(p => ({ ...p, [id]: val }));
 
     const actualizarLinea = (idx, field, val) =>
         setLineas(p => p.map((l, i) => i === idx ? { ...l, [field]: val } : l));
@@ -381,6 +401,7 @@ const Cobranza = () => {
                     bloques,
                     selectedProyectos,
                     cuotasProyectoInversion,
+                    montosParcialesProyectos,
                     tasa,
                     CONCEPTOS,
                     totalUSD,
@@ -425,7 +446,7 @@ const Cobranza = () => {
                 setCedula(''); setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
                 setLineas([crearLinea()]);
                 setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
-                setCuotasProyectoInversion([]); setSelectedProyectos([]);
+                setCuotasProyectoInversion([]); setSelectedProyectos([]); setMontosParcialesProyectos({});
                 setConfirming(false);
                 setStep(1);
             }
@@ -476,6 +497,8 @@ const Cobranza = () => {
             cuotasProyectoInversion={cuotasProyectoInversion}
             selectedProyectos={selectedProyectos}
             toggleProyecto={toggleProyecto}
+            montosParcialesProyectos={montosParcialesProyectos}
+            setMontoParcialProyecto={setMontoParcialProyecto}
             toggleMens={toggleMens}
             setMontoParcial={setMontoParcial}
             toggleFutura={toggleFutura}
@@ -524,6 +547,9 @@ const Cobranza = () => {
                 alumnosSeleccionados={alumnosSeleccionados}
                 datosAlumnos={datosAlumnos}
                 seleccion={seleccion}
+                cuotasProyectoInversion={cuotasProyectoInversion}
+                selectedProyectos={selectedProyectos}
+                montosParcialesProyectos={montosParcialesProyectos}
                 confirming={confirming}
                 deudaVES={deudaVES}
                 vueltoVES={vueltoVES}
