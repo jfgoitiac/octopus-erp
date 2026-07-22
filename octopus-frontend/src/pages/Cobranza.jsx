@@ -182,28 +182,21 @@ const Cobranza = () => {
         }
     }, [hayAdelantos]);
 
-    const hayParciales = useMemo(() => {
-        const parcialAlumno = alumnosSeleccionados.some(id => {
-            const datos = datosAlumnos[id];
-            const sel   = seleccion[id];
-            if (!datos || !sel) return false;
-            const parcialEn = (categoria, lista, ids) => ids.some(mid => {
-                const m  = (lista || []).find(x => x.id === mid);
-                const ov = sel.montosParciales[`${categoria}_${mid}`];
-                return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
-            });
-            return parcialEn('mens', datos.mensualidades_pendientes, sel.selectedMens) ||
-                   parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas) ||
-                   parcialEn('cuota', datos.cuotas_inscripcion_pendientes, sel.selectedCuotas) ||
-                   parcialEn('solv', datos.cuotas_solvencia_pendientes, sel.selectedSolvencias);
+    // Solo el abono de mensualidades (pendientes o adelantos) exige divisas
+    // (Efectivo USD / Zelle). Inscripción, solvencia y proyecto de inversión
+    // se pueden abonar con cualquier método de pago, incluido Bs.
+    const hayParciales = useMemo(() => alumnosSeleccionados.some(id => {
+        const datos = datosAlumnos[id];
+        const sel   = seleccion[id];
+        if (!datos || !sel) return false;
+        const parcialEn = (categoria, lista, ids) => ids.some(mid => {
+            const m  = (lista || []).find(x => x.id === mid);
+            const ov = sel.montosParciales[`${categoria}_${mid}`];
+            return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
         });
-        const parcialProyecto = selectedProyectos.some(id => {
-            const c  = cuotasProyectoInversion.find(x => x.id === id);
-            const ov = montosParcialesProyectos[id];
-            return c && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
-        });
-        return parcialAlumno || parcialProyecto;
-    }, [alumnosSeleccionados, datosAlumnos, seleccion, selectedProyectos, cuotasProyectoInversion, montosParcialesProyectos]);
+        return parcialEn('mens', datos.mensualidades_pendientes, sel.selectedMens) ||
+               parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas);
+    }), [alumnosSeleccionados, datosAlumnos, seleccion]);
 
     const requiereDivisas = hayAdelantos || hayParciales;
 
