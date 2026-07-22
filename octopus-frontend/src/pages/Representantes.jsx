@@ -132,6 +132,8 @@ const Representantes = () => {
                     onActivarPortal={rep.handleActivarPortal}
                     onDesactivarPortal={rep.handleDesactivarPortal}
                     onRestablecerContrasena={rep.handleRestablecerContrasena}
+                    cargandoProyectoId={rep.cargandoProyectoId}
+                    onCargarProyectoInversion={rep.handleCargarProyectoInversion}
                 />
             )}
 

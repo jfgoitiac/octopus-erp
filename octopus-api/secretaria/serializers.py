@@ -84,6 +84,11 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
     monto_proyecto_inversion = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, allow_null=True
     )
+    # Habilita el botón "Cargar Proyecto de Inversión" en el módulo de
+    # Representantes (carga manual puntual, ver RepresentanteViewSet.cargar_proyecto_inversion):
+    # solo tiene sentido ofrecerlo mientras el representante siga debiendo
+    # inscripción, para no forzar cobros sobre cuentas ya al día.
+    tiene_inscripcion_impaga = serializers.SerializerMethodField()
 
     class Meta:
         model  = Representante
@@ -91,11 +96,17 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
             'id', 'cedula', 'nombre', 'apellido', 'telefono', 'correo', 'direccion',
             'nacionalidad', 'nivel_estudio',
             'cantidad_alumnos', 'portal_creado', 'portal_activo',
-            'monto_proyecto_inversion',
+            'monto_proyecto_inversion', 'tiene_inscripcion_impaga',
         ]
 
     def get_portal_creado(self, obj):
         return hasattr(obj, 'portal_user')
+
+    def get_tiene_inscripcion_impaga(self, obj):
+        from cobranza.models import CuotaInscripcion
+        return CuotaInscripcion.objects.filter(
+            alumno__representante=obj, alumno__activo=True, pagado=False
+        ).exists()
 
     def get_portal_activo(self, obj):
         if hasattr(obj, 'portal_user'):

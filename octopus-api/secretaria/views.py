@@ -1721,7 +1721,7 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         return qs.order_by('apellido', 'nombre')
 
     def get_permissions(self):
-        if self.action in ['destroy', 'create', 'update', 'partial_update', 'eliminar_definitivo']:
+        if self.action in ['destroy', 'create', 'update', 'partial_update', 'eliminar_definitivo', 'cargar_proyecto_inversion']:
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
         return [permissions.IsAuthenticated()]
 
@@ -1741,6 +1741,78 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         rep.fecha_eliminacion = timezone.now()
         rep.save(update_fields=['activo', 'fecha_eliminacion'])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def cargar_proyecto_inversion(self, request, pk=None):
+        """
+        Carga manual (idempotente) de la CuotaProyectoInversion del período
+        activo para UN representante puntual, para los casos detectados donde
+        el backfill masivo no alcanzó a cubrirlo (representante nuevo, alumno
+        reasignado, etc.).
+
+        Restringida a representantes con al menos una CuotaInscripcion sin
+        pagar: si ya pagó la inscripción, se asume que el proyecto de
+        inversión ya fue cargado por el flujo normal (apertura de
+        inscripciones / carga manual / inscripción individual), y forzar la
+        carga aquí serviría solo para generar cobros duplicados o fuera de
+        lugar sobre cuentas ya al día.
+        """
+        from cobranza.models import CuotaInscripcion, CuotaProyectoInversion
+        from cobranza.services import monto_proyecto_inversion_defecto
+
+        rep = self.get_object()
+        config = ConfiguracionSistema.objects.first()
+        periodo = config.periodo_escolar_activo if config else None
+        if not periodo:
+            return Response(
+                {"error": "No hay un período escolar activo configurado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tiene_inscripcion_impaga = CuotaInscripcion.objects.filter(
+            alumno__representante=rep, alumno__activo=True, pagado=False
+        ).exists()
+        if not tiene_inscripcion_impaga:
+            return Response(
+                {"error": (
+                    "Este representante no tiene inscripción pendiente; el "
+                    "Proyecto de Inversión ya debería estar cargado por el flujo "
+                    "normal. Revise la ficha del representante antes de forzar la carga."
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # unique_together=('representante', 'periodo_escolar') respeta el "un
+        # solo cargo por período" incluso si esto se llama más de una vez.
+        cuota, creada = CuotaProyectoInversion.objects.get_or_create(
+            representante=rep, periodo_escolar=periodo,
+            defaults={'monto_usd': monto_proyecto_inversion_defecto()},
+        )
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="CARGA_MANUAL_PROYECTO_INVERSION",
+            modulo="SECRETARIA",
+            detalles={
+                "representante_id": rep.id,
+                "cedula":           rep.cedula,
+                "periodo_escolar":  periodo,
+                "monto_usd":        str(cuota.monto_usd),
+                "ya_existia":       not creada,
+            }
+        )
+
+        return Response({
+            "mensaje": (
+                f"Proyecto de Inversión del período {periodo} cargado (${cuota.monto_usd})."
+                if creada else
+                f"Este representante ya tenía el Proyecto de Inversión del período {periodo} cargado."
+            ),
+            "creada": creada,
+            "monto_usd": str(cuota.monto_usd),
+            "periodo_escolar": periodo,
+        })
 
     @action(detail=True, methods=['delete'])  # TODO-TEMPORAL: quitar tras limpieza de datos de prueba
     @transaction.atomic

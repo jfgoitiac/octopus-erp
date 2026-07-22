@@ -60,6 +60,9 @@ export function useRepresentantes() {
     // --- Portal de representantes ---
     const [portalLoading, setPortalLoading] = useState(false);
 
+    // --- Carga manual de Proyecto de Inversión ---
+    const [cargandoProyectoId, setCargandoProyectoId] = useState(null);
+
     // AbortController + debounce para evitar race conditions
     const fetchRepresentantes = useCallback(async (signal) => {
         setLoading(true);
@@ -276,6 +279,19 @@ export function useRepresentantes() {
         }
     };
 
+    const handleCargarProyectoInversion = async (rep) => {
+        setCargandoProyectoId(rep.id);
+        try {
+            const res = await axiosInstance.post(`secretaria/representantes/${rep.id}/cargar_proyecto_inversion/`);
+            toast.success(res.data?.mensaje || 'Proyecto de Inversión cargado.');
+            fetchRepresentantes();
+        } catch (err) {
+            toast.error(parseApiError(err) || 'No se pudo cargar el Proyecto de Inversión.');
+        } finally {
+            setCargandoProyectoId(null);
+        }
+    };
+
     return {
         // Lista
         representantes, loading, busqueda, setBusqueda, minHijos, setMinHijos,
@@ -292,5 +308,7 @@ export function useRepresentantes() {
         confirmDelete, setConfirmDelete, deleting, handleDelete,
         // Portal
         portalLoading, handleActivarPortal, handleDesactivarPortal, handleRestablecerContrasena,
+        // Proyecto de Inversión (carga manual)
+        cargandoProyectoId, handleCargarProyectoInversion,
     };
 }

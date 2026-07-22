@@ -1,4 +1,4 @@
-import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2, Monitor, ShieldOff, KeyRound } from 'lucide-react';
+import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2, Monitor, ShieldOff, KeyRound, DollarSign } from 'lucide-react';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
 
 const CONTACTO_FIELDS = [
@@ -18,6 +18,7 @@ const FichaAlumnosSkeleton = () => (
 const RepresentanteFicha = ({
     rep, alumnos, fichaLoading, canWrite, onClose, onEditar, onConfirmDelete,
     portalLoading, onActivarPortal, onDesactivarPortal, onRestablecerContrasena,
+    cargandoProyectoId, onCargarProyectoInversion,
 }) => (
     <div
         className="w-72 flex-shrink-0 rounded-xl flex flex-col"
@@ -100,6 +101,23 @@ const RepresentanteFicha = ({
                 </div>
             ))}
         </div>
+
+        {/* Proyecto de Inversión: carga manual puntual, solo mientras el
+            representante siga debiendo inscripción (ver secretaria/views.py::
+            RepresentanteViewSet.cargar_proyecto_inversion) */}
+        {canWrite && rep.tiene_inscripcion_impaga && (
+            <div className="px-4 py-3" style={{ borderTop: '0.5px solid var(--border)' }}>
+                <button
+                    onClick={() => onCargarProyectoInversion(rep)}
+                    disabled={cargandoProyectoId === rep.id}
+                    className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-medium disabled:opacity-60"
+                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
+                >
+                    {cargandoProyectoId === rep.id ? <Loader2 size={12} className="animate-spin" /> : <DollarSign size={12} />}
+                    Cargar Proyecto de Inversión
+                </button>
+            </div>
+        )}
 
         {/* Acceso al Portal */}
         {canWrite && (
