@@ -201,6 +201,14 @@ class PagoCreateSerializer(serializers.Serializer):
         required=False,
         allow_empty=True
     )
+    # Abono parcial por cuota de Proyecto de Inversión: {id_cuota: monto_abonado}.
+    # Si un id seleccionado no aparece aquí, se asume que se paga el saldo
+    # completo (compatibilidad con el flujo sin abono).
+    montos_proyecto_inversion = serializers.DictField(
+        child=serializers.DecimalField(max_digits=10, decimal_places=2),
+        required=False,
+        default=dict,
+    )
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))

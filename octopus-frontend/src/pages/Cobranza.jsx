@@ -354,6 +354,11 @@ const Cobranza = () => {
                 representante_documento: representanteCedula || cedula,
                 representante_nombre: representanteNombre,
                 proyecto_inversion_ids: selectedProyectos,
+                montos_proyecto_inversion: Object.fromEntries(
+                    selectedProyectos
+                        .filter(id => montosParcialesProyectos[id] !== undefined && montosParcialesProyectos[id] !== '')
+                        .map(id => [id, parseFloat(montosParcialesProyectos[id]) || 0])
+                ),
                 vuelto_usd: parseFloat(vueltoUSD.toFixed(2)),
                 vuelto_ves: parseFloat(vueltoVES.toFixed(2)),
                 pagos: lineas.map(l => ({

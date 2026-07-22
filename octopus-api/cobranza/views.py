@@ -528,9 +528,18 @@ class RegistrarPagoView(APIView):
         # cuota que se salda pertenece al representante.
         numero_solvencia = None
         if proyecto_inversion_ids:
-            CuotaProyectoInversion.objects.filter(
+            montos_proyecto_inversion = data.get('montos_proyecto_inversion') or {}
+            cuotas_proyecto = CuotaProyectoInversion.objects.filter(
                 id__in=proyecto_inversion_ids, representante=alumno_titular.representante
-            ).update(pagado=True, fecha_pago=timezone.now())
+            )
+            for cuota in cuotas_proyecto:
+                saldo = cuota.monto_usd - cuota.monto_pagado
+                abono = montos_proyecto_inversion.get(str(cuota.id), saldo)
+                cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
+                if cuota.monto_pagado >= cuota.monto_usd:
+                    cuota.pagado = True
+                    cuota.fecha_pago = timezone.now()
+                cuota.save()
 
             for pago in pagos_creados:
                 pago.proyectos_inversion_pagados.set(
@@ -1329,8 +1338,9 @@ class ListaMorososView(APIView):
       - Mes actual: sin pagar y hoy > dia_limite_pago del alumno.
       - Inscripción/solvencia impagas también cuentan como mora (ver cobranza/mora.py).
 
-    Incluye monto_adeudado, meses_adeudados y monto_solvencia_adeudado (aparte,
-    sin sumarse a monto_adeudado) por alumno, sin N+1 queries.
+    Incluye monto_adeudado, meses_adeudados, monto_solvencia_adeudado y
+    monto_proyecto_inversion_adeudado (estos dos últimos aparte, sin sumarse
+    a monto_adeudado) por alumno, sin N+1 queries.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1373,6 +1383,7 @@ class ListaMorososView(APIView):
         agregados = qs.aggregate(
             total_deuda_usd=Sum('monto_adeudado'),
             total_solvencia_usd=Sum('monto_solvencia_adeudado'),
+            total_proyecto_inversion_usd=Sum('monto_proyecto_inversion_adeudado'),
         )
 
         paginator = StandardResultsPagination()
@@ -1395,12 +1406,14 @@ class ListaMorososView(APIView):
                 'monto_adeudado':            str(a.monto_adeudado),
                 'meses_adeudados':            a.meses_adeudados,
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
+                'monto_proyecto_inversion_adeudado': str(a.monto_proyecto_inversion_adeudado),
             }
             for a in pagina
         ]
         response = paginator.get_paginated_response(results)
         response.data['total_deuda_usd'] = str(agregados['total_deuda_usd'] or 0)
         response.data['total_solvencia_usd'] = str(agregados['total_solvencia_usd'] or 0)
+        response.data['total_proyecto_inversion_usd'] = str(agregados['total_proyecto_inversion_usd'] or 0)
         return response
 
 
@@ -1429,6 +1442,7 @@ class ExportarMorososExcelView(APIView):
             ('Meses Adeudados',     'meses_adeudados'),
             ('Monto Adeudado (USD)','monto_adeudado'),
             ('Solvencia Adeudada (USD)', 'monto_solvencia_adeudado'),
+            ('Proyecto de Inversión Adeudado (USD)', 'monto_proyecto_inversion_adeudado'),
         ]
         return ExcelExporter.export(qs, columns, f'morosos_{hoy}')
 

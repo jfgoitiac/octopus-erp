@@ -23,17 +23,22 @@ Criterio de MORA (alumno activo, no becado):
     (igual que inscripción, no tiene fecha límite propia). Se cuenta aparte
     en `monto_solvencia_adeudado` — no se suma a `monto_adeudado` — para que
     morosos y su exportación puedan mostrarla como un renglón separado.
+  - Deuda de proyecto de inversión: es por REPRESENTANTE, no por alumno, así
+    que se evalúa contra `alumno.representante`. Cualquier cuota impaga o
+    parcialmente abonada (pagado=False) cuenta como mora. Se cuenta aparte en
+    `monto_proyecto_inversion_adeudado` (saldo real, no el monto bruto) por
+    el mismo motivo que la deuda de solvencia.
 """
 from datetime import date
 from decimal import Decimal
 
 from django.db.models import (
-    Q, Exists, OuterRef, Sum, Count, Subquery,
+    F, Q, Exists, OuterRef, Sum, Count, Subquery,
     DecimalField, IntegerField, BooleanField, Case, When, Value,
 )
 from django.db.models.functions import Coalesce
 
-from .models import CuotaInscripcion, CuotaSolvencia, Mensualidad
+from .models import CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad
 
 
 def _hoy(hoy=None):
@@ -42,9 +47,11 @@ def _hoy(hoy=None):
 
 def _condicion_mora(hoy):
     """
-    Devuelve (deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia)
-    como expresiones para anotar sobre un queryset de Alumno. OuterRef('pk')
-    referencia al Alumno.
+    Devuelve (deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion,
+    deuda_solvencia, deuda_proyecto_inversion) como expresiones para anotar
+    sobre un queryset de Alumno. OuterRef('pk') referencia al Alumno;
+    deuda_proyecto_inversion usa OuterRef('representante') porque esa cuota
+    es por representante, no por alumno.
     """
     deuda_mes_pasado = Exists(
         Mensualidad.objects.filter(
@@ -82,7 +89,17 @@ def _condicion_mora(hoy):
         )
     )
 
-    return deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia
+    deuda_proyecto_inversion = Exists(
+        CuotaProyectoInversion.objects.filter(
+            representante=OuterRef('representante'),
+            pagado=False,
+        )
+    )
+
+    return (
+        deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia,
+        deuda_proyecto_inversion,
+    )
 
 
 def annotate_en_mora(alumno_qs, hoy=None):
@@ -92,11 +109,15 @@ def annotate_en_mora(alumno_qs, hoy=None):
     consumidor (la tarea Celery los excluye; el serializer conserva la etiqueta).
     """
     hoy = _hoy(hoy)
-    deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia = _condicion_mora(hoy)
+    (
+        deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia,
+        deuda_proyecto_inversion,
+    ) = _condicion_mora(hoy)
     return alumno_qs.annotate(
         en_mora=Case(
             When(
-                deuda_mes_pasado | deuda_mes_actual | deuda_inscripcion | deuda_solvencia,
+                deuda_mes_pasado | deuda_mes_actual | deuda_inscripcion | deuda_solvencia
+                | deuda_proyecto_inversion,
                 then=Value(True),
             ),
             default=Value(False),
@@ -138,6 +159,11 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
         CuotaSolvencia.objects.filter(alumno=OuterRef('pk'), pagado=False, monto_usd__gt=0)
         .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
     )
+    proyecto_inversion_subq = (
+        CuotaProyectoInversion.objects.filter(representante=OuterRef('representante'), pagado=False)
+        .annotate(saldo=F('monto_usd') - F('monto_pagado'))
+        .values('representante').annotate(t=Sum('saldo')).values('t')[:1]
+    )
     return alumno_qs.annotate(
         monto_adeudado=Coalesce(
             Subquery(debt_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
@@ -152,6 +178,10 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
         ),
         monto_solvencia_adeudado=Coalesce(
             Subquery(solvencia_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
+            Decimal('0.00'),
+        ),
+        monto_proyecto_inversion_adeudado=Coalesce(
+            Subquery(proyecto_inversion_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
             Decimal('0.00'),
         ),
     )
