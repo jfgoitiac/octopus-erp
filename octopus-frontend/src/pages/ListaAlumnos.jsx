@@ -320,6 +320,8 @@ const ListaAlumnos = () => {
                     onClose={() => alumnos.setShowEditModal(false)}
                     onSave={alumnos.handleSaveEdit}
                     puedeEditarSolvencia={puedeEditarSolvencia}
+                    checkingRep={alumnos.checkingRepEdit}
+                    repEncontrado={alumnos.repEditEncontrado}
                 />
             )}
 

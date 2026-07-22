@@ -70,6 +70,14 @@ export function useAlumnos() {
     const [editModalLoading, setEditModalLoading] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [savingEdit, setSavingEdit] = useState(false);
+    const [checkingRepEdit, setCheckingRepEdit] = useState(false);
+    // Cédula del representante originalmente vinculado al alumno al abrir el modal.
+    // Mientras rep_cedula sea igual a esta, se trata como edición in-place; si cambia,
+    // se dispara la búsqueda de reasignación.
+    const [repCedulaOriginal, setRepCedulaOriginal] = useState('');
+    // null = sin verificar aún; true = existe otro representante con esa cédula (reasignación);
+    // false = cédula nueva, no pertenece a nadie (se creará un representante nuevo).
+    const [repEditEncontrado, setRepEditEncontrado] = useState(null);
 
     // --- Asignar grado ---
     const [nuevoGrado, setNuevoGrado] = useState('');
@@ -181,6 +189,51 @@ export function useAlumnos() {
         const timer = setTimeout(() => verificarRepresentante(registerForm.rep_cedula), 800);
         return () => clearTimeout(timer);
     }, [registerForm.rep_cedula, repFound, showRegisterModal, verificarRepresentante]);
+
+    // Verifica si la cédula escrita en la edición pertenece a OTRO representante ya
+    // registrado (caso: alumno mal vinculado, hay que reasignarlo al representante correcto).
+    // Si existe, precarga sus datos (de solo lectura) para que quede claro a quién se va a
+    // vincular; el backend hace la reasignación real de la FK al guardar.
+    const verificarRepresentanteEdit = useCallback(async (cedula) => {
+        setCheckingRepEdit(true);
+        try {
+            const res = await axiosInstance.get(`secretaria/representante/${cedula}/`);
+            if (res.data.existe) {
+                const rep = res.data;
+                setEditForm(prev => ({
+                    ...prev,
+                    rep_nombre: rep.nombre || '',
+                    rep_apellido: rep.apellido || '',
+                    rep_telefono: rep.telefono || '',
+                    rep_correo: rep.correo || '',
+                    rep_direccion: rep.direccion || '',
+                    rep_nacionalidad: rep.nacionalidad || '',
+                    rep_nivel_estudio: rep.nivel_estudio || '',
+                }));
+                setRepEditEncontrado(true);
+                toast.info(`Se reasignará al representante existente: ${rep.nombre} ${rep.apellido}.`);
+            } else {
+                setRepEditEncontrado(false);
+            }
+        } catch (err) {
+            if (err.response?.status !== 404) toast.error('Error al verificar representante.');
+            setRepEditEncontrado(false);
+        } finally {
+            setCheckingRepEdit(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!showEditModal) return;
+        const cedula = (editForm.rep_cedula || '').trim();
+        if (cedula.length <= 6 || cedula === repCedulaOriginal) return;
+        const timer = setTimeout(() => verificarRepresentanteEdit(cedula), 800);
+        return () => clearTimeout(timer);
+    }, [editForm.rep_cedula, showEditModal, repCedulaOriginal, verificarRepresentanteEdit]);
+
+    // Deriva si el aviso de reasignación debe mostrarse: si la cédula volvió a ser
+    // la original, no hay reasignación en curso aunque repEditEncontrado tenga un valor viejo.
+    const repEditEstado = (editForm.rep_cedula || '').trim() === repCedulaOriginal ? null : repEditEncontrado;
 
     // C-4 fix: savingConfig previene doble envío
     const handleSaveConfig = async () => {
@@ -334,6 +387,8 @@ export function useAlumnos() {
                     rep_nacionalidad: d.representante?.nacionalidad || '',
                     rep_nivel_estudio: d.representante?.nivel_estudio || '',
                 });
+                setRepCedulaOriginal(d.representante?.cedula || '');
+                setRepEditEncontrado(null);
                 setShowEditModal(true);
             }
         } catch (err) {
@@ -487,7 +542,7 @@ export function useAlumnos() {
         handleCloseRegisterModal, handleLimpiarRepresentante, handleRegister,
         // Edición
         editForm, setEditForm, editingId, editModalLoading, showEditModal, setShowEditModal, savingEdit,
-        handleOpenEditModal, handleSaveEdit,
+        handleOpenEditModal, handleSaveEdit, checkingRepEdit, repEditEncontrado: repEditEstado,
         // Asignar grado
         nuevoGrado, setNuevoGrado, savingGrado, showAsignarGradoModal, setShowAsignarGradoModal, handleAsignarGrado,
         // Quitar grado

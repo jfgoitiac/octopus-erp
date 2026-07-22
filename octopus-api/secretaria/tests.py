@@ -10,8 +10,8 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from portal.models import RepresentanteUser
-from .models import ConfiguracionGrado, ConfiguracionSistema, Representante
-from .serializers import InscripcionSerializer
+from .models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Representante
+from .serializers import AlumnoUpdateSerializer, InscripcionSerializer
 
 User = get_user_model()
 
@@ -207,3 +207,146 @@ class InscripcionPeriodoCerradoTest(TestCase):
         payload = _payload_inscripcion('V20000002', 'E20000002', 'Grado Test Periodo')
         serializer = InscripcionSerializer(data=payload, context={'request': _FakeRequest(self.user)})
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class AlumnoUpdateSerializerReasignarRepresentanteTest(TestCase):
+    """
+    Caso real reportado: un alumno quedó vinculado al representante equivocado
+    (cédula mal tipeada). Al corregir la cédula en la edición del alumno, el
+    alumno debe reasignarse al representante correcto (existente) en vez de
+    sobrescribir los datos del representante actualmente vinculado.
+    """
+
+    def setUp(self):
+        self.rep_incorrecto = Representante.objects.create(
+            cedula='V11111111', nombre='Luis', apellido='Perez',
+            telefono='0414-0000001', correo='luis@example.com', direccion='Dir 1',
+        )
+        self.rep_correcto = Representante.objects.create(
+            cedula='V22222222', nombre='Jose', apellido='Gomez',
+            telefono='0414-0000002', correo='jose@example.com', direccion='Dir 2',
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Pedro', apellido='Ramirez', representante=self.rep_incorrecto,
+        )
+
+    def test_cambiar_cedula_a_representante_existente_reasigna_sin_sobrescribir(self):
+        payload = {
+            'nombre': 'Pedro', 'apellido': 'Ramirez',
+            'representante': {
+                'cedula': self.rep_correcto.cedula,
+                # Datos "de otra persona" que NO deben pisar al rep_correcto real,
+                # tal como llega el formulario del frontend al autocompletar en
+                # solo-lectura (o si alguien los edita a mano por error).
+                'nombre': 'Nombre Erroneo', 'apellido': 'Apellido Erroneo',
+                'telefono': '0000-0000000', 'correo': 'otro@example.com',
+                'direccion': 'Otra dir', 'nacionalidad': '', 'nivel_estudio': '',
+            },
+        }
+        serializer = AlumnoUpdateSerializer(instance=self.alumno, data=payload, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        alumno_actualizado = serializer.save()
+
+        self.assertEqual(alumno_actualizado.representante_id, self.rep_correcto.id)
+
+        self.rep_correcto.refresh_from_db()
+        self.assertEqual(self.rep_correcto.nombre, 'Jose')
+        self.assertEqual(self.rep_correcto.correo, 'jose@example.com')
+
+        self.rep_incorrecto.refresh_from_db()
+        self.assertEqual(self.rep_incorrecto.nombre, 'Luis')
+        self.assertFalse(Alumno.objects.filter(representante=self.rep_incorrecto).exists())
+
+    def test_cambiar_cedula_a_una_no_registrada_crea_representante_nuevo(self):
+        payload = {
+            'nombre': 'Pedro', 'apellido': 'Ramirez',
+            'representante': {
+                'cedula': 'V33333333',
+                'nombre': 'Maria', 'apellido': 'Torres',
+                'telefono': '0414-0000003', 'correo': 'maria@example.com',
+                'direccion': 'Dir 3', 'nacionalidad': '', 'nivel_estudio': '',
+            },
+        }
+        serializer = AlumnoUpdateSerializer(instance=self.alumno, data=payload, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        alumno_actualizado = serializer.save()
+
+        self.assertNotEqual(alumno_actualizado.representante_id, self.rep_incorrecto.id)
+        self.assertEqual(alumno_actualizado.representante.cedula, 'V33333333')
+        self.assertEqual(alumno_actualizado.representante.nombre, 'Maria')
+
+        self.rep_incorrecto.refresh_from_db()
+        self.assertEqual(self.rep_incorrecto.nombre, 'Luis')
+
+    def test_editar_sin_cambiar_cedula_actualiza_representante_actual_in_place(self):
+        payload = {
+            'nombre': 'Pedro', 'apellido': 'Ramirez',
+            'representante': {
+                'cedula': self.rep_incorrecto.cedula,
+                'nombre': 'Luis Editado', 'apellido': 'Perez',
+                'telefono': '0414-9999999', 'correo': 'luis@example.com',
+                'direccion': 'Dir 1', 'nacionalidad': '', 'nivel_estudio': '',
+            },
+        }
+        serializer = AlumnoUpdateSerializer(instance=self.alumno, data=payload, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        alumno_actualizado = serializer.save()
+
+        self.assertEqual(alumno_actualizado.representante_id, self.rep_incorrecto.id)
+        self.rep_incorrecto.refresh_from_db()
+        self.assertEqual(self.rep_incorrecto.nombre, 'Luis Editado')
+        self.assertEqual(self.rep_incorrecto.telefono, '0414-9999999')
+
+
+class AlumnoUpdateInfoEndpointReasignarRepresentanteTest(TestCase):
+    """
+    Mismo caso que AlumnoUpdateSerializerReasignarRepresentanteTest pero disparado
+    a través del endpoint HTTP real (PATCH /secretaria/alumnos/<id>/update_info/)
+    que usa el frontend, y del endpoint de autocompletado por cédula
+    (GET /secretaria/representante/<cedula>/) que usa el modal de edición.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        user = User.objects.create_superuser(username='secretaria1', password='clave123456', email='s1@example.com')
+        token = str(RefreshToken.for_user(user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+
+        self.rep_incorrecto = Representante.objects.create(
+            cedula='V11111111', nombre='Luis', apellido='Perez',
+            telefono='0414-0000001', correo='luis@example.com', direccion='Dir 1',
+        )
+        self.rep_correcto = Representante.objects.create(
+            cedula='V22222222', nombre='Jose', apellido='Gomez',
+            telefono='0414-0000002', correo='jose@example.com', direccion='Dir 2',
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Pedro', apellido='Ramirez', representante=self.rep_incorrecto,
+        )
+
+    def test_autocompletado_encuentra_al_representante_correcto_por_cedula(self):
+        resp = self.client.get(f'/api/secretaria/representante/{self.rep_correcto.cedula}/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data['existe'])
+        self.assertEqual(resp.data['nombre'], 'Jose')
+
+    def test_patch_update_info_con_cedula_de_otro_representante_reasigna_via_http(self):
+        payload = {
+            'nombre': 'Pedro', 'apellido': 'Ramirez',
+            'representante': {
+                'id': self.rep_correcto.id,
+                'cedula': self.rep_correcto.cedula,
+                'nombre': 'Jose', 'apellido': 'Gomez',
+                'telefono': '0414-0000002', 'correo': 'jose@example.com',
+                'direccion': 'Dir 2', 'nacionalidad': '', 'nivel_estudio': '',
+            },
+        }
+        resp = self.client.patch(
+            f'/api/secretaria/alumnos/{self.alumno.id}/update_info/', payload, format='json'
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data['representante']['cedula'], self.rep_correcto.cedula)
+
+        self.alumno.refresh_from_db()
+        self.assertEqual(self.alumno.representante_id, self.rep_correcto.id)
+        self.assertFalse(Alumno.objects.filter(representante=self.rep_incorrecto).exists())
