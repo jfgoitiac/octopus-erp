@@ -354,17 +354,19 @@ class AlumnoUpdateSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSer
             if instance.representante and nueva_cedula and nueva_cedula != instance.representante.cedula:
                 # La cédula cambió: es un representante distinto (mal asignado originalmente),
                 # no una corrección de datos del representante actual. Se reasigna el alumno
-                # al representante correcto (existente) o se crea uno nuevo si la cédula no
-                # pertenece a nadie todavía. No se sobrescriben los datos de un representante
-                # existente con lo tipeado en este formulario, porque sería otra persona real.
+                # al representante correcto (existente, actualizando sus datos con lo que venga
+                # en el formulario) o se crea uno nuevo si la cédula no pertenece a nadie todavía.
                 representante_existente = Representante.objects.filter(
                     cedula=nueva_cedula
                 ).exclude(pk=instance.representante.pk).first()
                 if representante_existente:
+                    datos_a_actualizar = {k: v for k, v in representante_data.items() if k != 'cedula'}
+                    for attr, value in datos_a_actualizar.items():
+                        setattr(representante_existente, attr, value)
                     if not representante_existente.activo:
                         representante_existente.activo = True
                         representante_existente.fecha_eliminacion = None
-                        representante_existente.save(update_fields=['activo', 'fecha_eliminacion'])
+                    representante_existente.save()
                     instance.representante = representante_existente
                 else:
                     instance.representante = Representante.objects.create(**representante_data)

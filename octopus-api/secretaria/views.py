@@ -303,7 +303,11 @@ class CargarCuotasInscripcionView(APIView):
         )
 
         return Response({
-            "mensaje": f"{len(cuotas_nuevas)} cuota(s) de inscripción generada(s) para el período {periodo}.",
+            "mensaje": (
+                f"{len(cuotas_nuevas)} cuota(s) de inscripción y "
+                f"{len(proyectos_nuevos)} cuota(s) de Proyecto de Inversión generada(s) "
+                f"para el período {periodo}."
+            ),
             "periodo_escolar": periodo,
             "alumnos_activos": len(alumnos_activos),
             "ya_tenian_cuota": len(existentes),

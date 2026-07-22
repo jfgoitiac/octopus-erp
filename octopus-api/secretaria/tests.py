@@ -230,17 +230,16 @@ class AlumnoUpdateSerializerReasignarRepresentanteTest(TestCase):
             nombre='Pedro', apellido='Ramirez', representante=self.rep_incorrecto,
         )
 
-    def test_cambiar_cedula_a_representante_existente_reasigna_sin_sobrescribir(self):
+    def test_cambiar_cedula_a_representante_existente_reasigna_y_actualiza_sus_datos(self):
         payload = {
             'nombre': 'Pedro', 'apellido': 'Ramirez',
             'representante': {
                 'cedula': self.rep_correcto.cedula,
-                # Datos "de otra persona" que NO deben pisar al rep_correcto real,
-                # tal como llega el formulario del frontend al autocompletar en
-                # solo-lectura (o si alguien los edita a mano por error).
-                'nombre': 'Nombre Erroneo', 'apellido': 'Apellido Erroneo',
-                'telefono': '0000-0000000', 'correo': 'otro@example.com',
-                'direccion': 'Otra dir', 'nacionalidad': '', 'nivel_estudio': '',
+                # El usuario corrige a la vez el correo y la dirección del representante
+                # correcto (caso reportado: no lo dejaba editar esos datos al reasignar).
+                'nombre': 'Jose', 'apellido': 'Gomez',
+                'telefono': '0414-0000002', 'correo': 'jose.nuevo@example.com',
+                'direccion': 'Dir Nueva 456', 'nacionalidad': '', 'nivel_estudio': '',
             },
         }
         serializer = AlumnoUpdateSerializer(instance=self.alumno, data=payload, partial=True)
@@ -250,11 +249,12 @@ class AlumnoUpdateSerializerReasignarRepresentanteTest(TestCase):
         self.assertEqual(alumno_actualizado.representante_id, self.rep_correcto.id)
 
         self.rep_correcto.refresh_from_db()
-        self.assertEqual(self.rep_correcto.nombre, 'Jose')
-        self.assertEqual(self.rep_correcto.correo, 'jose@example.com')
+        self.assertEqual(self.rep_correcto.correo, 'jose.nuevo@example.com')
+        self.assertEqual(self.rep_correcto.direccion, 'Dir Nueva 456')
 
         self.rep_incorrecto.refresh_from_db()
         self.assertEqual(self.rep_incorrecto.nombre, 'Luis')
+        self.assertEqual(self.rep_incorrecto.correo, 'luis@example.com')
         self.assertFalse(Alumno.objects.filter(representante=self.rep_incorrecto).exists())
 
     def test_cambiar_cedula_a_una_no_registrada_crea_representante_nuevo(self):
@@ -337,8 +337,10 @@ class AlumnoUpdateInfoEndpointReasignarRepresentanteTest(TestCase):
                 'id': self.rep_correcto.id,
                 'cedula': self.rep_correcto.cedula,
                 'nombre': 'Jose', 'apellido': 'Gomez',
-                'telefono': '0414-0000002', 'correo': 'jose@example.com',
-                'direccion': 'Dir 2', 'nacionalidad': '', 'nivel_estudio': '',
+                # Corrige también el correo y la dirección del representante correcto
+                # en el mismo guardado.
+                'telefono': '0414-0000002', 'correo': 'jose.corregido@example.com',
+                'direccion': 'Dir Corregida 789', 'nacionalidad': '', 'nivel_estudio': '',
             },
         }
         resp = self.client.patch(
@@ -346,7 +348,13 @@ class AlumnoUpdateInfoEndpointReasignarRepresentanteTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(resp.data['representante']['cedula'], self.rep_correcto.cedula)
+        self.assertEqual(resp.data['representante']['correo'], 'jose.corregido@example.com')
+        self.assertEqual(resp.data['representante']['direccion'], 'Dir Corregida 789')
 
         self.alumno.refresh_from_db()
         self.assertEqual(self.alumno.representante_id, self.rep_correcto.id)
         self.assertFalse(Alumno.objects.filter(representante=self.rep_incorrecto).exists())
+
+        self.rep_correcto.refresh_from_db()
+        self.assertEqual(self.rep_correcto.correo, 'jose.corregido@example.com')
+        self.assertEqual(self.rep_correcto.direccion, 'Dir Corregida 789')

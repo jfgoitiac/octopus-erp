@@ -243,7 +243,7 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditar
                         {!checkingRep && repEncontrado === true && (
                             <p className="text-xs px-3 py-2 rounded-lg" style={{ background: '#fff7e6', color: '#92400e', border: '0.5px solid #fcd34d' }}>
                                 Esta cédula pertenece a otro representante ya registrado. Al guardar, el alumno se
-                                <strong> reasignará</strong> a ese representante (sus datos abajo son de solo lectura).
+                                <strong> reasignará</strong> a ese representante y sus datos se actualizarán con lo que edites abajo.
                             </p>
                         )}
                         {!checkingRep && repEncontrado === false && (
@@ -253,13 +253,11 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditar
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Campo label="Nombres">
-                                <input type="text" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                    className={`${inputClass} ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                <input type="text" className={inputClass} style={inputStyle}
                                     value={form.rep_nombre || ''} onChange={set('rep_nombre')} />
                             </Campo>
                             <Campo label="Apellidos">
-                                <input type="text" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                    className={`${inputClass} ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                <input type="text" className={inputClass} style={inputStyle}
                                     value={form.rep_apellido || ''} onChange={set('rep_apellido')} />
                             </Campo>
                             <Campo label="Cédula *">
@@ -267,33 +265,28 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditar
                                     value={form.rep_cedula || ''} onChange={set('rep_cedula')} />
                             </Campo>
                             <Campo label="Teléfono">
-                                <input type="tel" inputMode="tel" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                    className={`${inputClass} ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                <input type="tel" inputMode="tel" className={inputClass} style={inputStyle}
                                     value={form.rep_telefono || ''} onChange={set('rep_telefono')} />
                             </Campo>
                             <div className="sm:col-span-2">
                                 <Campo label="Correo Electrónico">
-                                    <input type="email" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                        className={`${inputClass} ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                    <input type="email" className={inputClass} style={inputStyle}
                                         value={form.rep_correo || ''} onChange={set('rep_correo')} />
                                 </Campo>
                             </div>
                             <div className="sm:col-span-2">
                                 <Campo label="Dirección de Habitación">
-                                    <textarea rows="2" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                        className={`${inputClass} resize-none ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                    <textarea rows="2" className={`${inputClass} resize-none`} style={inputStyle}
                                         value={form.rep_direccion || ''} onChange={set('rep_direccion')} />
                                 </Campo>
                             </div>
                             <Campo label="Nacionalidad">
-                                <input type="text" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                    className={`${inputClass} ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                <input type="text" className={inputClass} style={inputStyle}
                                     value={form.rep_nacionalidad || ''} onChange={set('rep_nacionalidad')} />
                             </Campo>
                             <div className="sm:col-span-2">
                                 <Campo label="Nivel de Estudio">
-                                    <input type="text" readOnly={repEncontrado === true} disabled={repEncontrado === true}
-                                        className={`${inputClass} ${repEncontrado === true ? 'cursor-not-allowed opacity-70' : ''}`} style={inputStyle}
+                                    <input type="text" className={inputClass} style={inputStyle}
                                         value={form.rep_nivel_estudio || ''} onChange={set('rep_nivel_estudio')} />
                                 </Campo>
                             </div>

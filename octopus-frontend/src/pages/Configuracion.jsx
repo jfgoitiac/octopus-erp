@@ -498,13 +498,13 @@ const Configuracion = () => {
                         </div>
                         <div className="p-5 space-y-3">
                             <p className="text-xs leading-relaxed" style={{ color: 'var(--ash)' }}>
-                                Genera la cuota de inscripción del período activo para los alumnos que aún no la tienen. Es seguro repetir esta acción: a quien ya se le cargó, no se le vuelve a cobrar.
+                                Genera la cuota de inscripción y la cuota de Proyecto de Inversión del período activo para los alumnos/representantes que aún no las tienen (por ejemplo, alumnos que venían de un período anterior). Es seguro repetir esta acción: a quien ya se le cargó, no se le vuelve a cobrar.
                             </p>
                             <button type="button" onClick={handleCargarCuotasInscripcion} disabled={cargandoCuotas}
                                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {cargandoCuotas ? <Loader2 className="animate-spin" size={15} /> : <Wallet size={15} />}
-                                Cargar Monto de Inscripción
+                                Cargar Cuotas de Inscripción y Proyecto de Inversión
                             </button>
                         </div>
                     </div>
