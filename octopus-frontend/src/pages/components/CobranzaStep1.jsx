@@ -452,7 +452,9 @@ const CobranzaStep1 = ({
                                 {cuotasProyectoInversion.map(c => {
                                     const isSel   = selectedProyectos.includes(c.id);
                                     const ov      = montosParcialesProyectos[c.id];
-                                    const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                                    const saldo   = c.saldo !== undefined ? c.saldo : c.monto_usd;
+                                    const abonado = parseFloat(c.monto_pagado) > 0;
+                                    const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                                     return (
                                         <div key={c.id}>
                                             <label
@@ -476,11 +478,17 @@ const CobranzaStep1 = ({
                                                             Proyecto de Inversión {c.periodo_escolar}
                                                         </span>
                                                         {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                        {!isSel && abonado && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>ABONADO</span>}
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
-                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                                    <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${saldo}</span>
+                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(saldo) * tasa)}</p>
+                                                    {abonado && (
+                                                        <p className="text-[10px]" style={{ color: '#b91c1c' }}>
+                                                            Ya abonado ${c.monto_pagado} de ${c.monto_usd}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </label>
                                             {isSel && (
@@ -492,15 +500,15 @@ const CobranzaStep1 = ({
                                                         <DecimalInput
                                                             className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                             style={{ border: '1px solid #dc2626', background: '#fff', color: 'var(--jet)' }}
-                                                            value={ov !== undefined ? ov : c.monto_usd}
+                                                            value={ov !== undefined ? ov : saldo}
                                                             onChange={v => setMontoParcialProyecto(c.id, v)}
-                                                            max={parseFloat(c.monto_usd)}
+                                                            max={parseFloat(saldo)}
                                                             aria-label={`Monto a abonar para proyecto de inversión ${c.periodo_escolar}`}
                                                         />
                                                     </div>
                                                     {parcial && (
                                                         <button type="button"
-                                                            onClick={() => setMontoParcialProyecto(c.id, c.monto_usd)}
+                                                            onClick={() => setMontoParcialProyecto(c.id, saldo)}
                                                             className="text-[10px] px-2 py-1 rounded-md"
                                                             style={{ background: '#dc2626', color: '#fff' }}>
                                                             Completo

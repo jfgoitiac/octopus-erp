@@ -95,8 +95,9 @@ export const construirItemsRecibo = ({
         const c = cuotasProyectoInversion?.find(x => x.id === id);
         if (!c) return;
         const ov = montosParcialesProyectos?.[id];
-        const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
-        const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+        const saldo = c.saldo !== undefined ? c.saldo : c.monto_usd;
+        const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(saldo) || 0;
+        const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
         itemsRecibo.push({
             concepto: 'PROYECTO DE INVERSIÓN',
             descripcion: `Período ${c.periodo_escolar}${parcial ? ' (PARCIAL)' : ''}`,

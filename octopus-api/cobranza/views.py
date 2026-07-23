@@ -288,11 +288,15 @@ class BuscarAlumnoCobranzaView(APIView):
         )
         # Proyecto de Inversión: cuota del REPRESENTANTE (no del alumno), por
         # eso se filtra por alumno.representante en vez de por alumno.
-        cuotas_proyecto_inversion = list(
-            CuotaProyectoInversion.objects.filter(representante=alumno.representante, pagado=False)
-            .values('id', 'periodo_escolar', 'monto_usd')
+        # Se expone `saldo` (monto_usd - monto_pagado) además del monto bruto:
+        # tras un abono parcial la cuota sigue pendiente pero por menos de lo
+        # original, y el frontend debe cobrar/mostrar el saldo, no el monto lleno.
+        cuotas_proyecto_inversion = [
+            {**c, 'saldo': c['monto_usd'] - c['monto_pagado']}
+            for c in CuotaProyectoInversion.objects.filter(representante=alumno.representante, pagado=False)
+            .values('id', 'periodo_escolar', 'monto_usd', 'monto_pagado')
             .order_by('-periodo_escolar')
-        )
+        ]
         # Estatus EN VIVO con el criterio canónico (cobranza/mora.py), no el
         # campo persistido que solo se sincroniza con la corrida nocturna.
         from secretaria.models import Alumno as AlumnoModel

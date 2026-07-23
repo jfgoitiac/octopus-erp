@@ -147,7 +147,8 @@ const Cobranza = () => {
             const c = cuotasProyectoInversion.find(x => x.id === id);
             if (!c) return s;
             const ov = montosParcialesProyectos[id];
-            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0);
+            const saldo = c.saldo !== undefined ? c.saldo : c.monto_usd;
+            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(saldo) || 0);
         }, 0), [cuotasProyectoInversion, selectedProyectos, montosParcialesProyectos]);
 
     const totalSelUSD = useMemo(() =>
