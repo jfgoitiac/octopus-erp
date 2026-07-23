@@ -537,5 +537,29 @@ class CierreCaja(models.Model):
         
         self.monto_sistema_ves = total_arqueo
         self.diferencia = Decimal(str(self.monto_declarado_ves)) - Decimal(str(self.monto_sistema_ves))
-        
-        super().save(*args, **kwargs)        
+
+        super().save(*args, **kwargs)
+
+
+class LoteRevisionCaja(models.Model):
+    """
+    Lote de transacciones que un operador marcó como conciliadas contra los
+    comprobantes físicos, para un rango de fechas dado. El checklist opera a
+    nivel de operación (operacion_uuid), pero se guarda la relación con cada
+    Pago individual para poder auditar/consultar el detalle después.
+    """
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='lotes_revision_caja',
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    observaciones = models.TextField(blank=True, default='')
+    pagos = models.ManyToManyField(Pago, related_name='lotes_revision')
+
+    class Meta:
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f"Lote #{self.pk} ({self.fecha_inicio} — {self.fecha_fin}) por {self.usuario}"

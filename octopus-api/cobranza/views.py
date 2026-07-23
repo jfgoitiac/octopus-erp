@@ -9,9 +9,9 @@ import logging
 import uuid
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
-from django.db.models import Q
-from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
-from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer
+from django.db.models import Min, Q
+from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
+from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
@@ -1212,7 +1212,9 @@ class PagosListView(APIView):
 
         filterset = PagoFilter(
             request.query_params,
-            queryset=Pago.objects.select_related('alumno').order_by('-fecha_pago'),
+            queryset=Pago.objects.select_related(
+                'alumno', 'banco_receptor', 'usuario_receptor',
+            ).order_by('-fecha_pago'),
         )
         if not filterset.is_valid():
             return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1225,15 +1227,214 @@ class PagosListView(APIView):
 
         qs    = filterset.qs
         total = qs.count()
-        pagos = qs[(page - 1) * page_size: page * page_size]
+        pagos = list(qs[(page - 1) * page_size: page * page_size])
+
+        revisado_pago_ids = set(
+            LoteRevisionCaja.pagos.through.objects
+            .filter(pago_id__in=[p.id for p in pagos])
+            .values_list('pago_id', flat=True)
+        )
 
         return Response({
             'total':       total,
             'page':        page,
             'page_size':   page_size,
             'total_pages': max(1, (total + page_size - 1) // page_size),
-            'results':     PagoSerializer(pagos, many=True).data,
+            'results':     PagoSerializer(
+                pagos, many=True,
+                context={'revisado_pago_ids': revisado_pago_ids},
+            ).data,
         })
+
+
+class ResumenConciliacionView(APIView):
+    """
+    Resumen de transacciones agrupado y paginado por ALUMNO (no por pago suelto),
+    pensado para el checklist de conciliación con comprobantes físicos.
+
+    Los alumnos se ordenan por 'orden de llegada' (fecha del primer pago del
+    alumno dentro del rango), y la paginación avanza de a page_size alumnos,
+    trayendo TODOS los pagos de esos alumnos en el rango (sin recortar a un
+    tope fijo de filas como pagos/lista/).
+
+    Parámetros:
+      fecha_desde, fecha_hasta (default: hoy)
+      buscar: nombre, apellido, cédula escolar o referencia — busca sobre TODO
+              el rango (no solo la página cargada) y, si un alumno matchea por
+              cualquiera de sus pagos, se muestran todos sus pagos del rango.
+      metodo_pago, estatus: filtros exactos, aplican a los pagos mostrados.
+      page (default 1), page_size (default 15, máx 50 alumnos por página)
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+
+    def get(self, request):
+        from datetime import date
+
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        if not request.user.is_superuser and rol not in self.ROLES_PERMITIDOS:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        fecha_desde = request.query_params.get('fecha_desde') or date.today().isoformat()
+        fecha_hasta = request.query_params.get('fecha_hasta') or date.today().isoformat()
+        buscar = (request.query_params.get('buscar') or '').strip()
+        metodo_pago = request.query_params.get('metodo_pago')
+        estatus = request.query_params.get('estatus')
+
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(50, max(1, int(request.query_params.get('page_size', 15))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 15
+
+        base_qs = Pago.objects.filter(
+            fecha_pago__date__gte=fecha_desde,
+            fecha_pago__date__lte=fecha_hasta,
+        )
+        if metodo_pago:
+            base_qs = base_qs.filter(metodo_pago=metodo_pago)
+        if estatus:
+            base_qs = base_qs.filter(estatus=estatus)
+
+        qs_busqueda = base_qs
+        if buscar:
+            qs_busqueda = qs_busqueda.filter(
+                Q(alumno__nombre__icontains=buscar) |
+                Q(alumno__apellido__icontains=buscar) |
+                Q(alumno__cedula_escolar__icontains=buscar) |
+                Q(referencia__icontains=buscar)
+            )
+
+        alumnos_ordenados = list(
+            qs_busqueda.values('alumno_id')
+            .annotate(primer_pago=Min('fecha_pago'))
+            .order_by('primer_pago')
+        )
+        total_alumnos = len(alumnos_ordenados)
+        pagina_alumno_ids = [
+            a['alumno_id']
+            for a in alumnos_ordenados[(page - 1) * page_size: page * page_size]
+        ]
+
+        # Trae TODOS los pagos del rango para los alumnos de esta página (no solo
+        # los que matchearon la búsqueda), para no esconder métodos del mismo alumno.
+        pagos_pagina = list(
+            base_qs.filter(alumno_id__in=pagina_alumno_ids)
+            .select_related('alumno', 'banco_receptor', 'usuario_receptor')
+            .order_by('fecha_pago')
+        )
+
+        revisado_pago_ids = set(
+            LoteRevisionCaja.pagos.through.objects
+            .filter(pago_id__in=[p.id for p in pagos_pagina])
+            .values_list('pago_id', flat=True)
+        )
+
+        serializados = PagoSerializer(
+            pagos_pagina, many=True,
+            context={'revisado_pago_ids': revisado_pago_ids},
+        ).data
+
+        por_alumno = {}
+        for p in serializados:
+            por_alumno.setdefault(p['alumno'], []).append(p)
+
+        resultados = [
+            {'alumno_id': aid, 'pagos': por_alumno.get(aid, [])}
+            for aid in pagina_alumno_ids
+        ]
+
+        return Response({
+            'total_alumnos': total_alumnos,
+            'page':          page,
+            'page_size':     page_size,
+            'total_pages':   max(1, (total_alumnos + page_size - 1) // page_size),
+            'results':       resultados,
+        })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LOTES DE REVISIÓN DE CAJA (conciliación con comprobantes físicos)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class LoteRevisionCajaListCreateView(APIView):
+    """
+    GET:  historial de lotes de conciliación finalizados (más recientes primero).
+    POST: finaliza un nuevo lote con las operaciones marcadas por el operador.
+          Body: { fecha_inicio, fecha_fin, pago_ids: [...], observaciones? }
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+
+    def _check_permiso(self, request):
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        return request.user.is_superuser or rol in self.ROLES_PERMITIDOS
+
+    def get(self, request):
+        if not self._check_permiso(request):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        lotes = LoteRevisionCaja.objects.select_related('usuario').all()[:100]
+        return Response(LoteRevisionCajaSerializer(lotes, many=True).data)
+
+    @transaction.atomic
+    def post(self, request):
+        if not self._check_permiso(request):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        pago_ids = request.data.get('pago_ids') or []
+        fecha_inicio = request.data.get('fecha_inicio')
+        fecha_fin = request.data.get('fecha_fin')
+
+        if not pago_ids:
+            return Response(
+                {'error': 'Debe marcar al menos una transacción antes de finalizar.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not fecha_inicio or not fecha_fin:
+            return Response(
+                {'error': 'fecha_inicio y fecha_fin son requeridas.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pagos = Pago.objects.filter(id__in=pago_ids)
+        if not pagos.exists():
+            return Response({'error': 'Las transacciones indicadas no existen.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        lote = LoteRevisionCaja.objects.create(
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            usuario=request.user,
+            observaciones=(request.data.get('observaciones') or ''),
+        )
+        lote.pagos.set(pagos)
+
+        return Response(LoteRevisionCajaSerializer(lote).data, status=status.HTTP_201_CREATED)
+
+
+class LoteRevisionCajaDetailView(APIView):
+    """Detalle de un lote de conciliación ya finalizado, incluyendo sus transacciones."""
+    permission_classes = [permissions.IsAuthenticated]
+    ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+
+    def get(self, request, pk):
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        if not request.user.is_superuser and rol not in self.ROLES_PERMITIDOS:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            lote = LoteRevisionCaja.objects.select_related('usuario').get(pk=pk)
+        except LoteRevisionCaja.DoesNotExist:
+            return Response({'error': 'Lote no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pagos = lote.pagos.select_related('alumno', 'banco_receptor', 'usuario_receptor').order_by('-fecha_pago')
+
+        data = LoteRevisionCajaSerializer(lote).data
+        data['pagos'] = PagoSerializer(
+            pagos, many=True,
+            context={'revisado_pago_ids': set(p.id for p in pagos)},
+        ).data
+        return Response(data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

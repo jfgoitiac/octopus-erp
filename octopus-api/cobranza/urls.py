@@ -19,11 +19,14 @@ from .views import (
     ExportarMorososExcelView,
     HistoricoMensualView,
     ListaMorososView,
+    LoteRevisionCajaDetailView,
+    LoteRevisionCajaListCreateView,
     MensualidadesAlumnoView,
     MensualidadesPuntualidadView,
     PagosListView,
     ReciboView,
     RegistrarPagoView,
+    ResumenConciliacionView,
     SincronizarTasaView,
 )
 
@@ -53,4 +56,7 @@ urlpatterns = [
     path('config-nomina/',                 ConfigNominaView.as_view(),             name='config-nomina'),
     path('solvencia/',                     ConsultaSolvenciaView.as_view(),        name='consulta-solvencia'),
     path('solvencia/manual/',              EmitirSolvenciaManualView.as_view(),    name='emitir-solvencia-manual'),
+    path('conciliacion/resumen/',           ResumenConciliacionView.as_view(),       name='conciliacion-resumen'),
+    path('conciliacion/lotes/',             LoteRevisionCajaListCreateView.as_view(), name='conciliacion-lotes'),
+    path('conciliacion/lotes/<int:pk>/',    LoteRevisionCajaDetailView.as_view(),     name='conciliacion-lote-detalle'),
 ]

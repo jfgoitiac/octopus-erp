@@ -1,6 +1,7 @@
 from decimal import Decimal
+from django.db.models import Sum
 from rest_framework import serializers
-from .models import BancoInstitucional, CierreCaja, Pago, SolvenciaRepresentante, TasaCambio
+from .models import BancoInstitucional, CierreCaja, LoteRevisionCaja, Pago, SolvenciaRepresentante, TasaCambio
 from secretaria.models import Alumno
 
 class BancoInstitucionalSerializer(serializers.ModelSerializer):
@@ -39,18 +40,49 @@ class DashboardStatsSerializer(serializers.Serializer):
 class PagoSerializer(serializers.ModelSerializer):
     nombre_alumno = serializers.ReadOnlyField(source='alumno.nombre')
     apellido_alumno = serializers.ReadOnlyField(source='alumno.apellido')
+    cedula_escolar = serializers.ReadOnlyField(source='alumno.cedula_escolar')
     cajero = serializers.ReadOnlyField(source='usuario_receptor.username')
     banco_nombre = serializers.ReadOnlyField(source='banco_receptor.nombre', allow_null=True)
+    metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
+    concepto_display = serializers.CharField(source='get_concepto_display', read_only=True)
+    revisado = serializers.SerializerMethodField()
 
     class Meta:
         model = Pago
         fields = [
-            'id', 'factura_id', 'alumno', 'nombre_alumno', 'apellido_alumno',
+            'id', 'factura_id', 'alumno', 'nombre_alumno', 'apellido_alumno', 'cedula_escolar',
             'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
-            'metodo_pago', 'concepto', 'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago',
+            'metodo_pago', 'metodo_pago_display', 'concepto', 'concepto_display', 'monto_usd',
+            'tasa_aplicada', 'monto_ves', 'fecha_pago', 'revisado',
             'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'
         ]
         read_only_fields = ['factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada']
+
+    def get_revisado(self, obj):
+        pk_set = self.context.get('revisado_pago_ids')
+        if pk_set is not None:
+            return obj.pk in pk_set
+        return obj.lotes_revision.exists()
+
+
+class LoteRevisionCajaSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.ReadOnlyField(source='usuario.username')
+    total_transacciones = serializers.SerializerMethodField()
+    total_usd = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LoteRevisionCaja
+        fields = [
+            'id', 'fecha_inicio', 'fecha_fin', 'usuario', 'usuario_nombre',
+            'fecha_creacion', 'observaciones', 'total_transacciones', 'total_usd',
+        ]
+        read_only_fields = ['usuario', 'fecha_creacion']
+
+    def get_total_transacciones(self, obj):
+        return obj.pagos.count()
+
+    def get_total_usd(self, obj):
+        return obj.pagos.aggregate(s=Sum('monto_usd'))['s'] or 0
 
 
 class DesglosePagoSerializer(serializers.ModelSerializer):
