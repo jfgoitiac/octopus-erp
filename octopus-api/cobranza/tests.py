@@ -8,6 +8,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from decimal import Decimal
 from datetime import date, timedelta
+from django.core.management import call_command
+from io import StringIO
 from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio
 from .serializers import ComprobanteSerializer
 from secretaria.models import Alumno, Representante
@@ -175,6 +177,50 @@ class ComprobanteSerializerNPlusOneTest(TestCase):
         self.assertEqual(len(serializer.get_desglose_pagos(self.pago_1a)), 5)
 
 
+class RegistrarPagoOperacionUuidTest(TestCase):
+    """Un pago dividido en varios métodos (transferencia + pago móvil, etc.)
+    debe generarse como una sola operación (mismo operacion_uuid), para que
+    ConsultaComprobantesView los agrupe en un único comprobante en vez de
+    mostrarlos como recibos separados."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='cajero_super', password='password123', email='c@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula="V11122233", nombre="Maria", apellido="Perez", correo="maria@example.com"
+        )
+        self.alumno = Alumno.objects.create(
+            nombre="Pedro", apellido="Perez", cedula_escolar="E84000003",
+            fecha_nacimiento=date(2015, 3, 10), representante=self.representante
+        )
+
+    def test_pago_multi_metodo_comparte_operacion_uuid(self):
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id}],
+            "concepto": "otro",
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "10.00", "referencia": "EFEC-001"},
+                {"metodo_pago": "zelle", "monto_usd": "5.00", "referencia": "ZELLE-001"},
+                {"metodo_pago": "pago_movil", "monto_ves": "100.00", "referencia": "PM-001"},
+                {"metodo_pago": "punto_de_venta", "monto_ves": "50.00", "referencia": "1234", "numero_lote": "5678"},
+            ],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pagos = Pago.objects.filter(alumno=self.alumno).order_by('id')
+        self.assertEqual(pagos.count(), 4)
+        uuids = {str(p.operacion_uuid) for p in pagos}
+        self.assertEqual(len(uuids), 1)
+
+        data = ComprobanteSerializer(pagos.first()).data
+        self.assertEqual(len(data['desglose_pagos']), 4)
+
+
 class BancosListViewCacheTest(TestCase):
     """
     BancosListView cachea la lista de bancos activos (catálogo estable).
@@ -210,3 +256,84 @@ class BancosListViewCacheTest(TestCase):
 
         resp = self.client.get('/api/cobranza/bancos/')
         self.assertEqual(len(resp.data), 2)
+
+
+class AgruparPagosHistoricosCommandTest(TestCase):
+    """El management command debe fusionar bajo un mismo operacion_uuid los
+    pagos históricos (previos al fix de RegistrarPagoView) que se dividieron
+    en varios métodos dentro de una misma transacción, sin tocar pagos no
+    relacionados."""
+
+    def setUp(self):
+        self.cajero = User.objects.create_user(username='cajero_hist', password='clave123456')
+        self.otro_cajero = User.objects.create_user(username='cajero_hist2', password='clave123456')
+        self.representante = Representante.objects.create(
+            cedula='V30000001', nombre='Carla', apellido='Ruiz', correo='carla@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Pedro', apellido='Perez', cedula_escolar='E95000001',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+        self.otro_alumno = Alumno.objects.create(
+            nombre='Sofia', apellido='Ruiz', cedula_escolar='E95000002',
+            fecha_nacimiento=date(2017, 5, 20), representante=self.representante,
+        )
+
+        # Operación histórica "rota": 4 métodos de pago del mismo alumno,
+        # mismo cajero, mismo concepto, cada uno con su propio operacion_uuid
+        # (el bug), guardados a segundos de diferencia entre sí.
+        self.rotos = []
+        base = timezone.now()
+        for i, metodo in enumerate(['efectivo', 'zelle', 'pago_movil', 'punto_de_venta']):
+            extra = {}
+            if metodo == 'punto_de_venta':
+                extra = {'referencia': '1234', 'numero_lote': '5678'}
+            p = Pago.objects.create(
+                alumno=self.alumno, usuario_receptor=self.cajero, metodo_pago=metodo,
+                concepto='mensualidad', monto_usd=Decimal('10.00'), tasa_aplicada=Decimal('40.00'),
+                estatus='completado', **extra,
+            )
+            Pago.objects.filter(id=p.id).update(fecha_pago=base + timedelta(seconds=i))
+            p.refresh_from_db()
+            self.rotos.append(p)
+
+        # Pago suelto de otro alumno, ocurre en la misma ventana de tiempo
+        # pero no debe fusionarse con el grupo de arriba.
+        self.suelto = Pago.objects.create(
+            alumno=self.otro_alumno, usuario_receptor=self.otro_cajero, metodo_pago='efectivo',
+            concepto='mensualidad', monto_usd=Decimal('30.00'), tasa_aplicada=Decimal('40.00'),
+            estatus='completado',
+        )
+        Pago.objects.filter(id=self.suelto.id).update(fecha_pago=base)
+        self.suelto.refresh_from_db()
+
+    def test_dry_run_no_escribe_nada(self):
+        out = StringIO()
+        call_command('agrupar_pagos_historicos', stdout=out)
+        for p in self.rotos:
+            p.refresh_from_db()
+        uuids = {p.operacion_uuid for p in self.rotos}
+        self.assertEqual(len(uuids), 4)
+        self.assertIn('DRY-RUN', out.getvalue())
+
+    def test_confirm_fusiona_el_grupo_roto_y_no_toca_pagos_ajenos(self):
+        uuid_esperado = min(self.rotos, key=lambda p: p.id).operacion_uuid
+
+        call_command('agrupar_pagos_historicos', '--confirm', stdout=StringIO())
+
+        for p in self.rotos:
+            p.refresh_from_db()
+        uuids = {p.operacion_uuid for p in self.rotos}
+        self.assertEqual(uuids, {uuid_esperado})
+
+        self.suelto.refresh_from_db()
+        self.assertNotEqual(self.suelto.operacion_uuid, uuid_esperado)
+
+        data = ComprobanteSerializer(self.rotos[0]).data
+        self.assertEqual(len(data['desglose_pagos']), 4)
+
+    def test_es_idempotente(self):
+        call_command('agrupar_pagos_historicos', '--confirm', stdout=StringIO())
+        out = StringIO()
+        call_command('agrupar_pagos_historicos', '--confirm', stdout=out)
+        self.assertIn('No hay nada que fusionar', out.getvalue())

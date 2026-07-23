@@ -6,6 +6,7 @@ from django.db import transaction
 from django.http import FileResponse
 from django.utils import timezone
 import logging
+import uuid
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Q
@@ -421,6 +422,8 @@ class RegistrarPagoView(APIView):
         else:
             concepto = data.get('concepto', 'mensualidad')
 
+        operacion_uuid = data.get('operacion_uuid') or uuid.uuid4()
+
         pagos_creados = []
         for pago_item in data['pagos']:
             metodo    = pago_item['metodo_pago']
@@ -448,6 +451,7 @@ class RegistrarPagoView(APIView):
                 alumno=alumno_titular,
                 usuario_receptor=request.user,
                 banco_receptor=banco,
+                operacion_uuid=operacion_uuid,
                 metodo_pago=metodo,
                 concepto=concepto,
                 monto_usd=monto_usd_final,
