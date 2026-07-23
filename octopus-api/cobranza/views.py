@@ -519,9 +519,15 @@ class RegistrarPagoView(APIView):
         for a in alumnos_resueltos:
             if not a['cuota_solvencia_ids']:
                 continue
-            CuotaSolvencia.objects.filter(
+            # Se guarda instancia por instancia (no bulk .update()) para que
+            # save() derive `pagado`/`fecha_pago` a partir de monto_pagado —
+            # ver CuotaSolvencia.save() en models.py.
+            cuotas = CuotaSolvencia.objects.filter(
                 id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
-            ).update(pagado=True, fecha_pago=timezone.now())
+            )
+            for cuota in cuotas:
+                cuota.monto_pagado = cuota.monto_usd
+                cuota.save()
             todas_cuotas_solvencia_qs |= CuotaSolvencia.objects.filter(
                 id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
             )

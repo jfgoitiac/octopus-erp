@@ -13,6 +13,7 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from cobranza.models import Mensualidad, CuotaInscripcion, CuotaSolvencia
@@ -65,7 +66,13 @@ class Command(BaseCommand):
         with transaction.atomic():
             actualizadas_mensualidad = pendientes_mensualidad.update(pagado=True, fecha_pago=ahora)
             actualizadas_inscripcion = pendientes_inscripcion.update(pagado=True, fecha_pago=ahora)
-            actualizadas_solvencia = pendientes_solvencia.update(pagado=True, fecha_pago=ahora)
+            # CuotaSolvencia deriva `pagado` de monto_pagado vs monto_usd en
+            # save() (ver models.py): un bulk .update(pagado=True) sin tocar
+            # monto_pagado quedaría desincronizado en el próximo save() de
+            # cualquier código. Se iguala monto_pagado al monto total también.
+            actualizadas_solvencia = pendientes_solvencia.update(
+                pagado=True, fecha_pago=ahora, monto_pagado=F('monto_usd')
+            )
 
         self.stdout.write(self.style.SUCCESS(
             f"Listo. Se marcaron como pagadas -> "

@@ -56,8 +56,11 @@ class Command(BaseCommand):
             ))
             return
 
+        # bulk_create no pasa por save(), así que pagado=True se fija a mano
+        # acá para el caso $0 (no exigible) — igual al criterio que save()
+        # aplicaría normalmente (ver CuotaSolvencia.save() en models.py).
         CuotaSolvencia.objects.bulk_create([
-            CuotaSolvencia(alumno=a, periodo_escolar=periodo, monto_usd=Decimal('0.00'))
+            CuotaSolvencia(alumno=a, periodo_escolar=periodo, monto_usd=Decimal('0.00'), pagado=True)
             for a in faltantes
         ])
 

@@ -336,10 +336,18 @@ class CuotaSolvencia(models.Model):
     Cargo anual de solvencia por período escolar. El monto se define por
     alumno (por defecto 0, no exigible) y, si es mayor a 0, debe pagarse
     antes de poder inscribir al alumno en ese período (ver InscripcionSerializer).
+
+    `pagado`/`fecha_pago` NO se asignan a mano en ningún lugar del código:
+    se derivan siempre en `save()` a partir de `monto_pagado` vs `monto_usd`
+    (mismo patrón que `CuotaProyectoInversion`). Esto evita que quedara
+    "pagado=True" desactualizado cuando alguien sube el monto después de
+    cobrado (ej. desde ModalEditarAlumno) — antes eso dejaba deuda real
+    invisible para el criterio de mora (ver cobranza/mora.py).
     """
     alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE, related_name='cuotas_solvencia')
     periodo_escolar = models.CharField(max_length=20)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     concepto = models.CharField(max_length=255, blank=True, default='')
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
@@ -351,6 +359,34 @@ class CuotaSolvencia(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - Solvencia {self.periodo_escolar} - {'Pagada' if self.pagado else 'Pendiente'}"
+
+    def save(self, *args, **kwargs):
+        """
+        Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada
+        guardado, sin importar qué código haya tocado el registro. Un monto
+        de $0 sigue sin ser exigible (igual que el criterio de mora.py).
+
+        Si el caller pasa `update_fields` (ej. `update_or_create()` desde
+        AlumnoUpdateSerializer, que solo lista monto_usd/concepto), hay que
+        agregarle 'pagado' y 'fecha_pago' a mano: si no, Django calcula estos
+        campos en memoria pero el UPDATE en SQL ignora esas columnas y el
+        cambio nunca se persiste.
+        """
+        saldado = self.monto_usd <= 0 or self.monto_pagado >= self.monto_usd
+        if saldado:
+            if not self.pagado:
+                from django.utils import timezone
+                self.fecha_pago = self.fecha_pago or timezone.now()
+            self.pagado = True
+        else:
+            self.pagado = False
+            self.fecha_pago = None
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'pagado', 'fecha_pago'}
+
+        super().save(*args, **kwargs)
 
 
 class CuotaProyectoInversion(models.Model):

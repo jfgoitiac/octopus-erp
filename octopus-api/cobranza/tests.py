@@ -10,9 +10,9 @@ from decimal import Decimal
 from datetime import date, timedelta
 from django.core.management import call_command
 from io import StringIO
-from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio
+from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio, CuotaSolvencia
 from .serializers import ComprobanteSerializer
-from secretaria.models import Alumno, Representante
+from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Representante
 
 User = get_user_model()
 
@@ -337,3 +337,183 @@ class AgruparPagosHistoricosCommandTest(TestCase):
         out = StringIO()
         call_command('agrupar_pagos_historicos', '--confirm', stdout=out)
         self.assertIn('No hay nada que fusionar', out.getvalue())
+
+
+class CuotaSolvenciaDeudaDerivadaTest(TestCase):
+    """
+    `CuotaSolvencia.pagado` ya no se asigna a mano en ningún lugar: se deriva
+    en save() a partir de monto_pagado vs monto_usd. Esto es lo que corrige
+    el bug real: antes, subir monto_usd después de que la cuota ya estaba
+    pagado=True dejaba esa deuda nueva invisible para cobranza/mora.py.
+    """
+
+    def setUp(self):
+        representante = Representante.objects.create(
+            cedula='V20000001', nombre='Luisa', apellido='Gomez', correo='luisa@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Sofia', apellido='Gomez', cedula_escolar='E92000001',
+            fecha_nacimiento=date(2016, 5, 20), representante=representante,
+        )
+
+    def test_monto_cero_queda_pagado_automaticamente(self):
+        cuota = CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('0.00')
+        )
+        self.assertTrue(cuota.pagado)
+
+    def test_monto_pagado_igual_a_monto_usd_marca_pagado(self):
+        cuota = CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+        )
+        self.assertFalse(cuota.pagado)
+
+        cuota.monto_pagado = Decimal('50.00')
+        cuota.save()
+        cuota.refresh_from_db()
+        self.assertTrue(cuota.pagado)
+        self.assertIsNotNone(cuota.fecha_pago)
+
+    def test_subir_monto_tras_pagado_vuelve_a_poner_en_mora(self):
+        """El caso central del bug: alumno ya solventó $50, luego le suben
+        el monto a $80 (nuevo cargo) — debe volver a pagado=False."""
+        cuota = CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('50.00'),
+        )
+        self.assertTrue(cuota.pagado)
+
+        cuota.monto_usd = Decimal('80.00')
+        cuota.save()
+        cuota.refresh_from_db()
+        self.assertFalse(cuota.pagado)
+        self.assertIsNone(cuota.fecha_pago)
+
+    def test_update_or_create_respeta_derivacion_pese_a_update_fields(self):
+        """Reproduce el flujo real de AlumnoUpdateSerializer.update(): usa
+        update_or_create con defaults={monto_usd: ...}, que internamente
+        llama a save(update_fields={'monto_usd'}). Sin el fix en save(), la
+        columna `pagado` no se hubiera escrito en el UPDATE de SQL."""
+        CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('50.00'),
+        )
+        CuotaSolvencia.objects.update_or_create(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            defaults={'monto_usd': Decimal('80.00')},
+        )
+        cuota = CuotaSolvencia.objects.get(alumno=self.alumno, periodo_escolar='2025-2026')
+        self.assertFalse(cuota.pagado)
+
+
+class RegistrarPagoSolvenciaTest(TestCase):
+    """El pago de una CuotaSolvencia debe saldarla vía monto_pagado (no un
+    bulk .update(pagado=True) que se saltaba save())."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='cajero_solv', password='password123', email='cs@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula='V20000002', nombre='Carlos', apellido='Ruiz', correo='carlos@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Ana', apellido='Ruiz', cedula_escolar='E92000002',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+        self.cuota = CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('30.00')
+        )
+
+    def test_pagar_solvencia_la_salda_y_queda_pagado(self):
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+            "concepto": "solvencia",
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "30.00", "referencia": "EFEC-SOLV-1"},
+            ],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        self.cuota.refresh_from_db()
+        self.assertTrue(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('30.00'))
+        self.assertIsNotNone(self.cuota.fecha_pago)
+
+
+class SincronizarSolvenciasCommandTest(TestCase):
+    """El management command debe saldar solvencias de alumnos solventes o
+    inscritos, y NUNCA tocar la deuda de un alumno en mora."""
+
+    def setUp(self):
+        ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2026, 1, 1),
+            fecha_fin_inscripciones=date(2026, 12, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+            periodo_escolar_activo='2025-2026',
+        )
+        self.usuario = User.objects.create_user(username='secretaria_test', password='clave123456')
+        self.representante = Representante.objects.create(
+            cedula='V20000003', nombre='Elena', apellido='Diaz', correo='elena@example.com'
+        )
+
+        # Alumno solvente (sin ninguna deuda), con solvencia pendiente por
+        # datos desactualizados: debe saldarse.
+        self.alumno_solvente = Alumno.objects.create(
+            nombre='Mateo', apellido='Diaz', cedula_escolar='E93000001',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+        self.cuota_solvente = CuotaSolvencia.objects.create(
+            alumno=self.alumno_solvente, periodo_escolar='2025-2026', monto_usd=Decimal('20.00')
+        )
+
+        # Alumno en mora por una cuota de inscripción impaga: su solvencia
+        # NO debe tocarse aunque esté "inscrito".
+        self.alumno_mora = Alumno.objects.create(
+            nombre='Luca', apellido='Diaz', cedula_escolar='E93000002',
+            fecha_nacimiento=date(2017, 3, 15), representante=self.representante,
+        )
+        from .models import CuotaInscripcion
+        CuotaInscripcion.objects.create(
+            alumno=self.alumno_mora, periodo_escolar='2025-2026', monto_usd=Decimal('100.00'), pagado=False
+        )
+        self.cuota_mora = CuotaSolvencia.objects.create(
+            alumno=self.alumno_mora, periodo_escolar='2025-2026', monto_usd=Decimal('20.00')
+        )
+        ConfiguracionGrado.objects.create(grado_seccion='1A', cupos_maximos=30)
+        Inscripcion.objects.create(
+            alumno=self.alumno_mora, periodo_escolar='2025-2026', grado_seccion='1A',
+            tipo_ingreso='regular', usuario_registro=self.usuario,
+        )
+
+    def test_dry_run_no_escribe_nada(self):
+        out = StringIO()
+        call_command('sincronizar_solvencias', stdout=out)
+        self.cuota_solvente.refresh_from_db()
+        self.cuota_mora.refresh_from_db()
+        self.assertFalse(self.cuota_solvente.pagado)
+        self.assertFalse(self.cuota_mora.pagado)
+        self.assertIn('DRY-RUN', out.getvalue())
+
+    def test_confirm_salda_solventes_pero_no_a_los_en_mora(self):
+        out = StringIO()
+        call_command('sincronizar_solvencias', '--confirm', stdout=out)
+
+        self.cuota_solvente.refresh_from_db()
+        self.assertTrue(self.cuota_solvente.pagado)
+        self.assertEqual(self.cuota_solvente.monto_pagado, Decimal('20.00'))
+
+        self.cuota_mora.refresh_from_db()
+        self.assertFalse(self.cuota_mora.pagado)
+        self.assertEqual(self.cuota_mora.monto_pagado, Decimal('0.00'))
+
+    def test_es_idempotente(self):
+        call_command('sincronizar_solvencias', '--confirm', stdout=StringIO())
+        out = StringIO()
+        call_command('sincronizar_solvencias', '--confirm', stdout=out)
+        self.assertIn('No hay nada que saldar', out.getvalue())
