@@ -15,6 +15,12 @@ import { toast } from 'react-toastify';
 
 const today = () => new Date().toISOString().split('T')[0];
 
+const daysAgo = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().split('T')[0];
+};
+
 const currentYearMonth = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -125,6 +131,11 @@ const Reportes = () => {
     const [printingDetalle, setPrintingDetalle] = useState(false);
 
     /* ── Resumen de Transacciones por Alumno (conciliación) ── */
+    /* Rango de fechas propio (independiente del de Cierre de Caja): por defecto
+       trae los últimos 30 días, para que las transacciones viejas sin conciliar
+       aparezcan solas sin que el operador tenga que ir a cambiar fechas. */
+    const [detalleFechaInicio, setDetalleFechaInicio] = useState(() => daysAgo(30));
+    const [detalleFechaFin, setDetalleFechaFin] = useState(today);
     const [detallePagos, setDetallePagos] = useState([]); // pagos de los alumnos de la página actual
     const [loadingDetalle, setLoadingDetalle] = useState(false);
     const [detalleBusqueda, setDetalleBusqueda] = useState('');
@@ -162,7 +173,7 @@ const Reportes = () => {
     }, [detalleBusqueda]);
 
     /* Cambiar el rango de fechas, método o estatus reinicia la página a 1 */
-    useEffect(() => { setDetallePage(1); }, [fechaInicio, fechaFin, detalleMetodo, detalleEstatus]);
+    useEffect(() => { setDetallePage(1); }, [detalleFechaInicio, detalleFechaFin, detalleMetodo, detalleEstatus]);
 
     const fetchDetallePagos = useCallback(async (fi, ff, page, buscar, metodo, estatus) => {
         setLoadingDetalle(true);
@@ -206,8 +217,8 @@ const Reportes = () => {
     /* Carga automática: reacciona a fecha/página/búsqueda/filtros sin requerir
        que el operador haga clic en "Buscar". */
     useEffect(() => {
-        fetchDetallePagos(fechaInicio, fechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus);
-    }, [fetchDetallePagos, fechaInicio, fechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus]);
+        fetchDetallePagos(detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus);
+    }, [fetchDetallePagos, detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus]);
 
     const fetchLoteHistorial = useCallback(async () => {
         setLoadingLoteHistorial(true);
@@ -432,14 +443,14 @@ const Reportes = () => {
         setFinalizandoLote(true);
         try {
             await axiosInstance.post('cobranza/conciliacion/lotes/', {
-                fecha_inicio: fechaInicio,
-                fecha_fin: fechaFin,
+                fecha_inicio: detalleFechaInicio,
+                fecha_fin: detalleFechaFin,
                 pago_ids: pagoIds,
             });
             toast.success('Lote de conciliación guardado correctamente.');
             setDetalleChecked(new Set());
             await Promise.all([
-                fetchDetallePagos(fechaInicio, fechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus),
+                fetchDetallePagos(detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus),
                 fetchLoteHistorial(),
             ]);
         } catch {
@@ -801,7 +812,7 @@ const Reportes = () => {
                             Resumen de Transacciones Detalladas
                         </h2>
                         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-                            Agrupado por alumno, en orden de llegada. Marca cada transacción al cotejarla con el comprobante físico del período {fechaInicio} — {fechaFin}
+                            Agrupado por alumno, en orden de llegada. Marca cada transacción al cotejarla con el comprobante físico del período {detalleFechaInicio} — {detalleFechaFin}
                             {detalleTotalAlumnos > 0 ? ` · ${detalleTotalAlumnos} alumno${detalleTotalAlumnos === 1 ? '' : 's'} en total` : ''}.
                         </p>
                     </div>
@@ -809,7 +820,25 @@ const Reportes = () => {
                 </div>
 
                 {/* Filtros de conciliación */}
-                <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="flex flex-wrap items-end gap-3 mb-4">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
+                        <DatePickerES
+                            value={detalleFechaInicio}
+                            onChange={e => setDetalleFechaInicio(e.target.value)}
+                            className="px-3 py-2 rounded-lg text-sm outline-none"
+                            style={inputStyle}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
+                        <DatePickerES
+                            value={detalleFechaFin}
+                            onChange={e => setDetalleFechaFin(e.target.value)}
+                            className="px-3 py-2 rounded-lg text-sm outline-none"
+                            style={inputStyle}
+                        />
+                    </div>
                     <div className="relative flex-1 min-w-[220px]">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                         <input
