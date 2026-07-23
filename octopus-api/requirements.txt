@@ -1,3 +1,7 @@
+# ── Dependencia de sistema (no instalable con pip) ──────────────
+# El respaldo de BD en producción usa `pg_dump` (endpoint /backup/).
+# Instalar en el VPS: sudo apt-get install -y postgresql-client
+# ─────────────────────────────────────────────────────────────
 amqp==5.3.1
 asgiref==3.11.1
 beautifulsoup4==4.14.3

@@ -550,9 +550,7 @@ class RegistrarPagoView(APIView):
                 saldo = cuota.monto_usd - cuota.monto_pagado
                 abono = montos_proyecto_inversion.get(str(cuota.id), saldo)
                 cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
-                if cuota.monto_pagado >= cuota.monto_usd:
-                    cuota.pagado = True
-                    cuota.fecha_pago = timezone.now()
+                # pagado/fecha_pago se derivan solos en CuotaProyectoInversion.save().
                 cuota.save()
 
             for pago in pagos_creados:

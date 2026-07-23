@@ -10,7 +10,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from django.core.management import call_command
 from io import StringIO
-from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio, CuotaSolvencia
+from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio, CuotaSolvencia, CuotaProyectoInversion
 from .serializers import ComprobanteSerializer
 from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Representante
 
@@ -403,6 +403,72 @@ class CuotaSolvenciaDeudaDerivadaTest(TestCase):
             defaults={'monto_usd': Decimal('80.00')},
         )
         cuota = CuotaSolvencia.objects.get(alumno=self.alumno, periodo_escolar='2025-2026')
+        self.assertFalse(cuota.pagado)
+
+
+class CuotaProyectoInversionDeudaDerivadaTest(TestCase):
+    """
+    Mismo bug y mismo fix que CuotaSolvenciaDeudaDerivadaTest, pero para
+    CuotaProyectoInversion (cuota a nivel de representante, no de alumno):
+    `pagado` ya no se asigna a mano (antes en views.py al registrar el pago),
+    se deriva en save() a partir de monto_pagado vs monto_usd.
+    """
+
+    def setUp(self):
+        self.representante = Representante.objects.create(
+            cedula='V20000003', nombre='Marta', apellido='Diaz', correo='marta@example.com'
+        )
+
+    def test_monto_cero_queda_pagado_automaticamente(self):
+        cuota = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026', monto_usd=Decimal('0.00')
+        )
+        self.assertTrue(cuota.pagado)
+
+    def test_monto_pagado_igual_a_monto_usd_marca_pagado(self):
+        cuota = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+        )
+        self.assertFalse(cuota.pagado)
+
+        cuota.monto_pagado = Decimal('50.00')
+        cuota.save()
+        cuota.refresh_from_db()
+        self.assertTrue(cuota.pagado)
+        self.assertIsNotNone(cuota.fecha_pago)
+
+    def test_subir_monto_tras_pagado_vuelve_a_poner_en_mora(self):
+        """El caso central del bug: representante ya pagó $50 de proyecto de
+        inversión, luego el director le sube el monto a $80 desde el módulo
+        de Representantes — debe volver a pagado=False."""
+        cuota = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('50.00'),
+        )
+        self.assertTrue(cuota.pagado)
+
+        cuota.monto_usd = Decimal('80.00')
+        cuota.save()
+        cuota.refresh_from_db()
+        self.assertFalse(cuota.pagado)
+        self.assertIsNone(cuota.fecha_pago)
+
+    def test_update_or_create_respeta_derivacion_pese_a_update_fields(self):
+        """Reproduce el flujo real de RepresentanteSerializer.update(): usa
+        update_or_create con defaults={monto_usd: ...}, que internamente
+        llama a save(update_fields={'monto_usd'}). Sin el fix en save(), la
+        columna `pagado` no se hubiera escrito en el UPDATE de SQL."""
+        CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('50.00'),
+        )
+        CuotaProyectoInversion.objects.update_or_create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            defaults={'monto_usd': Decimal('80.00')},
+        )
+        cuota = CuotaProyectoInversion.objects.get(
+            representante=self.representante, periodo_escolar='2025-2026'
+        )
         self.assertFalse(cuota.pagado)
 
 

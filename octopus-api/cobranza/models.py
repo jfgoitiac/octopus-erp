@@ -426,6 +426,36 @@ class CuotaProyectoInversion(models.Model):
     def __str__(self):
         return f"{self.representante.nombre} {self.representante.apellido} - Proyecto de Inversión {self.periodo_escolar} - {'Pagado' if self.pagado else 'Pendiente'}"
 
+    def save(self, *args, **kwargs):
+        """
+        Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada
+        guardado, igual que `CuotaSolvencia.save()`. Antes `pagado` se
+        asignaba a mano en views.py al registrar el pago, así que subir
+        `monto_usd` después (ver RepresentanteSerializer.update(), que hace
+        update_or_create con defaults={'monto_usd': ...}) dejaba la cuota en
+        pagado=True con deuda real pendiente, invisible para cobranza/mora.py.
+
+        Igual que en CuotaSolvencia: si el caller pasa `update_fields` hay
+        que agregarle 'pagado' y 'fecha_pago' a mano, si no el UPDATE de SQL
+        de update_or_create() ignora esas columnas aunque Django las calcule
+        en memoria.
+        """
+        saldado = self.monto_usd <= 0 or self.monto_pagado >= self.monto_usd
+        if saldado:
+            if not self.pagado:
+                from django.utils import timezone
+                self.fecha_pago = self.fecha_pago or timezone.now()
+            self.pagado = True
+        else:
+            self.pagado = False
+            self.fecha_pago = None
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'pagado', 'fecha_pago'}
+
+        super().save(*args, **kwargs)
+
 
 class SolvenciaRepresentante(models.Model):
     """
