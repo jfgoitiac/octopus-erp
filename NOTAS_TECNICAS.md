@@ -1314,3 +1314,55 @@ de backend (`academico` + `comunicacion`) en verde.
    confirmó de paso que `academico` no tenía ningún `Materia`/`Lapso` real
    cargado todavía (0 registros antes de esta verificación), a diferencia de
    `secretaria` que ya tiene 452 alumnos reales importados.
+
+---
+
+# FASE 4 — SEGUIMIENTO GRÁFICO (2026-07-28)
+
+Backend: `academico/services.py` (nuevo) con `calcular_rendimiento_alumno`,
+`calcular_rendimiento_seccion` y `generar_alertas_rendimiento`; modelo
+`AlertaRendimiento` (único modelo nuevo); vistas admin
+(`RendimientoAlumnoView`/`RendimientoSeccionView`/`AlertasRendimientoView`,
+`IsAdminOrAbove`) y vista portal (`RendimientoAlumnoPortalView`,
+`PortalJWTAuthentication`, mismo patrón que `comunicacion/urls_portal.py`);
+cron Celery diario (`alertas-rendimiento-diario`, 6am). Frontend: `recharts`
+(aprobado por el usuario sobre `chart.js`); página admin `/rendimiento`
+(mapa de calor + alertas) y `/portal/rendimiento` (gráficas del representante,
+reutilizando `EstudianteSelector`). 32 tests de `academico` pasando (11 nuevos
+de esta fase). Verificado en navegador (admin + portal, datos de prueba
+creados y eliminados en la misma sesión — no había ningún `Lapso`/`Nota` real
+cargado en la BD antes de esta verificación, igual que se documentó en Fase 3).
+
+1. **Umbral aprobatorio fijo en 10 (escala 0-20)**, no configurable — el
+   `Configuracion.promedio_minimo_aprobatorio` que proponía `TRD.md` v1 no
+   existe como campo real (`secretaria.ConfiguracionSistema` no lo tiene) y
+   agregarlo habría sido un modelo/campo nuevo fuera del alcance aprobado
+   (que solo contemplaba `AlertaRendimiento`). Si el colegio pide un umbral
+   configurable por grado/materia, agregar el campo a `ConfiguracionSistema`
+   y reemplazar la constante `UMBRAL_APROBATORIO` en `academico/services.py`
+   por una lectura de configuración.
+
+2. **La asistencia del endpoint `rendimiento/alumno/{id}/` es global, no por
+   lapso** — `Asistencia` no tiene FK a `Lapso`/`Materia` (solo `alumno` +
+   `fecha`), así que el porcentaje mostrado en el portal es acumulado de
+   todo el historial del alumno, no del lapso seleccionado. Coincide con el
+   ejemplo de respuesta de `TRD.md`, pero si más adelante se quiere
+   asistencia por lapso, `calcular_rendimiento_alumno` tendría que filtrar
+   `Asistencia.fecha` contra `Lapso.fecha_inicio/fecha_fin` (el dato ya
+   existe, solo falta acotar la consulta).
+
+3. **`AlertasRiesgoList` (admin) no tiene drill-down al perfil del alumno**
+   — el flujo v1 (`APP_FLOW.md`) sugería "click → perfil del alumno con
+   gráficas detalladas", pero no existe hoy una ruta de "ficha de alumno"
+   navegable por `id` fuera de `ListaAlumnos.jsx` (que abre el drawer desde
+   estado local, no desde una URL). Se dejó fuera del alcance aprobado por
+   simplicidad; si se pide, lo más simple es agregar un parámetro de query a
+   `ListaAlumnos` (`?abrir=<alumno_id>`) que abra `SidebarFichaAlumno`
+   automáticamente al montar.
+
+4. **Bottom nav del portal pasó de 5 a 6 íconos** (`PortalLayout.jsx`) al
+   agregar "Rendimiento". Verificado en 375px sin overflow horizontal, pero
+   es el límite razonable de íconos en una fila con `justify-around` sin
+   rediseñar el patrón de navegación — si se agrega una Fase 6/7 con otra
+   sección de nivel superior en el portal, conviene migrar a un menú "Más"
+   en vez de seguir sumando íconos.

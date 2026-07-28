@@ -100,6 +100,7 @@ function App() {
               <Route path="cambiar-contrasena" element={<PortalCambiarContrasena />} />
               <Route path="comunicaciones" element={<PortalComunicaciones />} />
               <Route path="mensajes" element={<PortalMensajes />} />
+              <Route path="rendimiento" element={<PortalRendimiento />} />
             </Route>
 
             {/* ── Autenticación admin ── */}

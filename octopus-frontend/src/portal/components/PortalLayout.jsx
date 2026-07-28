@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle } from 'lucide-react';
+import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { getConfigColegio } from '../api/portal.service';
 
@@ -112,6 +112,15 @@ const PortalLayout = () => {
           >
             <MessageCircle size={22} />
             <span className="text-[10px] font-medium">Mensajes</span>
+          </NavLink>
+          <NavLink
+            to="/portal/rendimiento"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+            }
+          >
+            <TrendingUp size={22} />
+            <span className="text-[10px] font-medium">Rendimiento</span>
           </NavLink>
           <NavLink
             to="/portal/cambiar-contrasena"
