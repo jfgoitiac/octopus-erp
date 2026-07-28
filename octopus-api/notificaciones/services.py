@@ -375,6 +375,75 @@ def notificar_comprobante_inscripcion(inscripcion):
     )
 
 
+def notificar_circular_nueva(circular):
+    """Envía la notificación de una circular nueva a todos los representantes
+    para los que ya se creó su LecturaCircular (broadcast completo, ver
+    comunicacion/views.py::CircularListCreateView.create -- se crea una
+    LecturaCircular por cada RepresentanteUser activo al publicar)."""
+    ctx = {
+        'titulo': circular.titulo,
+        'cuerpo': circular.cuerpo,
+        'requiere_confirmacion': circular.requiere_confirmacion,
+    }
+    html = _render_email('circular_nueva.html', ctx)
+    asunto = f'Nueva circular -- {circular.titulo}'
+
+    lecturas = circular.lecturas.select_related('usuario__representante')
+    for lectura in lecturas:
+        rep = lectura.usuario.representante
+        if rep.correo:
+            enviar_email(
+                rep.correo,
+                asunto,
+                html,
+                tipo='circular',
+                representante_cedula=rep.cedula,
+                area='control_estudios',
+            )
+
+
+def notificar_mensaje_directo(mensaje):
+    """Notifica al destinatario (docente o representante) de un MensajeDirecto
+    nuevo. El destinatario_docente recibe el link al panel admin; el
+    destinatario_representante, al portal (ver
+    comunicacion/views.py::MensajeDirectoListCreateView.post /
+    MensajeDirectoPortalListCreateView.post -- cada mensaje tiene exactamente
+    un destinatario de los dos)."""
+    cfg = _config_colegio()
+
+    if mensaje.remitente_docente:
+        remitente_nombre = mensaje.remitente_docente.username
+    elif mensaje.remitente_representante:
+        rep = mensaje.remitente_representante.representante
+        remitente_nombre = f'{rep.nombre} {rep.apellido}'
+    else:
+        remitente_nombre = 'Alguien'
+
+    ctx = {
+        'remitente_nombre': remitente_nombre,
+        'alumno_nombre': f'{mensaje.alumno.nombre} {mensaje.alumno.apellido}',
+        'cuerpo': mensaje.cuerpo,
+    }
+    asunto = f'Nuevo mensaje sobre {ctx["alumno_nombre"]}'
+
+    if mensaje.destinatario_representante:
+        rep = mensaje.destinatario_representante.representante
+        if rep.correo:
+            ctx['enlace'] = f'{cfg["portal_url"]}/mensajes'
+            html = _render_email('mensaje_nuevo.html', ctx)
+            enviar_email(rep.correo, asunto, html, tipo='mensaje',
+                         representante_cedula=rep.cedula,
+                         alumno_nombre=ctx['alumno_nombre'],
+                         area='control_estudios')
+    elif mensaje.destinatario_docente and mensaje.destinatario_docente.email:
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        ctx['enlace'] = f'{frontend_url}/mensajes'
+        html = _render_email('mensaje_nuevo.html', ctx)
+        enviar_email(mensaje.destinatario_docente.email, asunto, html, tipo='mensaje',
+                     alumno_nombre=ctx['alumno_nombre'],
+                     area='control_estudios')
+
+
 def notificar_pago_exitoso(mensualidad, pago):
     alumno = mensualidad.alumno
     rep    = alumno.representante

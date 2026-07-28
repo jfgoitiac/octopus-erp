@@ -8,7 +8,7 @@ SaaS para colegios privados en Latinoamérica. Gestión de inscripciones, cobran
 - **Frontend:** React 19 + Vite + Tailwind CSS v4
 - **Base de datos:** SQLite (desarrollo) / PostgreSQL (producción)
 - **Cola de tareas:** Celery + Redis
-- **Pagos:** Stripe Checkout
+- **Pagos:** Comprobante manual (transferencia/pago móvil/etc.) con aprobación admin — sin pasarela en línea
 
 ## Requisitos previos
 
@@ -111,16 +111,6 @@ npm run dev
 # POST http://localhost:8000/api/portal/activar-representante/
 # Body: { "representante_id": 1 }
 ```
-
-## Stripe (pagos en línea)
-
-1. Crear cuenta en https://stripe.com
-2. Copiar `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY` al `.env`
-3. Para el webhook local usar Stripe CLI:
-   ```bash
-   stripe listen --forward-to localhost:8000/api/portal/stripe/webhook/
-   ```
-4. Copiar el `STRIPE_WEBHOOK_SECRET` que genera el CLI al `.env`
 
 ## Variables de entorno importantes
 

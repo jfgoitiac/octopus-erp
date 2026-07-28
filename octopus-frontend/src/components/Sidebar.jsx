@@ -9,7 +9,7 @@ import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
-  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch
+  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, MessageCircle
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
@@ -44,10 +44,20 @@ const navSections = [
   {
     label: 'Académico',
     items: [
+      { name: 'Mis Materias', path: '/mis-materias', icon: BookOpen, roles: ['docente'] },
       { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'sistemas', 'secretaria'] },
       { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director'] },
-      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria'] },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria', 'docente'] },
+      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'sistemas', 'secretaria', 'docente'] },
       { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas'] },
+      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'sistemas', 'administrador'] },
+    ],
+  },
+  {
+    label: 'Comunicación',
+    items: [
+      { name: 'Circulares', path: '/comunicacion', icon: Megaphone, roles: ['director', 'sistemas', 'administrador'] },
+      { name: 'Mensajes',   path: '/mensajes',      icon: MessageCircle, roles: ['docente'] },
     ],
   },
   {

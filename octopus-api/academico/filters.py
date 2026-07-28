@@ -1,5 +1,5 @@
 import django_filters
-from .models import Nota, Asistencia
+from .models import Nota, Asistencia, IncidenteDisciplinario
 
 
 class NotaFilter(django_filters.FilterSet):
@@ -67,3 +67,28 @@ class AsistenciaFilter(django_filters.FilterSet):
     class Meta:
         model = Asistencia
         fields = ['alumno_id', 'presente', 'justificada']
+
+
+class IncidenteFilter(django_filters.FilterSet):
+    """
+    Filtros para IncidenteDisciplinario.
+
+    Query params disponibles:
+      - alumno_id    : ID numérico del alumno
+      - grado_seccion: Grado/sección exacto (insensible a mayúsculas)
+      - severidad    : L / M / G
+      - fecha_desde  : Fecha de inicio del rango (YYYY-MM-DD)
+      - fecha_hasta  : Fecha de fin del rango (YYYY-MM-DD)
+    """
+
+    alumno_id     = django_filters.NumberFilter(field_name='alumno__id')
+    grado_seccion = django_filters.CharFilter(
+        field_name='alumno__grado_seccion', lookup_expr='iexact'
+    )
+    severidad    = django_filters.CharFilter(field_name='severidad')
+    fecha_desde  = django_filters.DateFilter(field_name='fecha', lookup_expr='gte')
+    fecha_hasta  = django_filters.DateFilter(field_name='fecha', lookup_expr='lte')
+
+    class Meta:
+        model = IncidenteDisciplinario
+        fields = ['alumno_id', 'severidad']

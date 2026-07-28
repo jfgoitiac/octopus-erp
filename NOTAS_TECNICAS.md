@@ -167,6 +167,9 @@ anota, no se tocó:
    sin cambios): 2 de comprobantes ahora exigen número de referencia
    (`"Debe ingresar el número de referencia"`) y 3 de Stripe webhook. Los tests
    quedaron desactualizados respecto a validaciones agregadas después.
+   — ✅ Los 3 de Stripe webhook se eliminaron en el housekeeping de Fase 0
+   (2026-07-27, ver sección al final de este archivo); quedan pendientes solo
+   los 2 de comprobantes.
 
 5. **Los tests de portal dejan archivos basura** en `media/comprobantes/` al
    correr (PNGs de prueba). Usar un `MEDIA_ROOT` temporal en los tests.
@@ -1052,3 +1055,262 @@ campo — aunque el pago existiera y estuviera registrado.
   resultado — se validó por lectura de código (`py_compile` limpio). Se
   recomienda que el usuario reimprima el comprobante de un alumno con un
   pago no-transferencia/no-efectivo para confirmar que ahora aparece.
+
+---
+
+# FASE 0 — HOUSEKEEPING (2026-07-27)
+
+Primera fase de `docs/PLAN_EXPANSION_V2.md`. Alcance: eliminar inconsistencias
+de documentación y código muerto de Stripe (pago en línea descontinuado, fuera
+de alcance por decisión del cliente) antes de sumar los módulos nuevos. Sin
+modelos ni migraciones.
+
+**Implementado:**
+- `README.md`: quitado "Stripe Checkout" del listado de stack y toda la
+  sección de setup de Stripe CLI/webhook.
+- `octopus-api/.env.example` y `octopus-frontend/.env.example`: quitadas
+  `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PUBLISHABLE_KEY` y
+  `VITE_STRIPE_PUBLISHABLE_KEY` — ninguna la lee `config/settings.py` (grep
+  sin resultados), eran variables muertas.
+- `authentication/views.py:375`: corregido el docstring de
+  `ActivarPortalMasivoView`, que decía `POST /api/auth/activar-portal-masivo/`
+  cuando la ruta real (`authentication/urls.py:12` + `config/urls.py:11`) es
+  `/api/authentication/activar-portal-masivo/`.
+- `portal/tests.py`: eliminada la clase `StripeWebhookTests` completa (3 tests
+  que fallaban de forma preexistente, ver punto 4 más arriba en este archivo —
+  posteaban a `/api/portal/stripe/webhook/`, ruta que ya no existe en
+  `portal/urls.py`).
+- `octopus-api/requirements.txt`: quitado `stripe==15.2.0` — sin ningún
+  `import stripe` real en código productivo tras eliminar los tests
+  (verificado por grep en todo `octopus-api/**/*.py`).
+
+**Decisión pendiente resuelta — NO se retira el choice `'stripe'` de `cobranza`:**
+`docs/PLAN_EXPANSION_V2.md` dejaba como decisión abierta si retirar
+`('stripe', 'Stripe (Pago Online)')` de `cobranza/models.py:81` (y su eco en
+`cobranza/services.py:230`). Se investigó antes de decidir: 0 registros
+históricos con `metodo_pago='stripe'` en la BD local de desarrollo (no
+concluyente para producción, sin acceso a ella desde este entorno). Pero se
+encontró algo más determinante — `secretaria/utils_preinscripcion.py:181,193`
+(`_combinar_metodos_transferencia`, usado por Pre-Inscripción individual y
+masiva) hace `dict(Pago.METODOS)[c] for c in _CODIGOS_TIPO_TRANSFERENCIA`
+sobre una tupla que incluye `'stripe'` de forma hardcodeada. Si el choice se
+retira de `Pago.METODOS`, esa línea lanza `KeyError: 'stripe'` en **cada**
+generación de planilla de pre-inscripción, sin importar si existen o no pagos
+históricos con ese método — no es un riesgo condicional, es un crash
+garantizado de una función en uso activo. Sumado a que tocar el choice
+requiere migración nueva en `cobranza/migrations/`, se decidió dejarlo
+intacto: toca dos módulos (`cobranza` y `secretaria`) que la propia v2 protege
+explícitamente por tener desarrollo activo. Si se retoma esta limpieza más
+adelante, hay que actualizar `_CODIGOS_TIPO_TRANSFERENCIA` en el mismo cambio.
+
+**Fuera de alcance de esta pasada (anotado, no tocado):**
+- `authentication/views.py.bak` — archivo de respaldo suelto sin versionar
+  valor real, mismo patrón que `nominaPDF.js.bak` (ya anotado en la sección
+  "MÓDULO NOMINA" de este archivo). No se borró por no ser parte del alcance
+  pedido de Fase 0.
+
+---
+
+# FASE 1 — DIARIO DE CLASES: ASISTENCIA EXTENDIDA + INCIDENTES (2026-07-27)
+
+Implementado según `docs/PLAN_EXPANSION_V2.md` (Fase 1): campo `Asistencia.estado`
+(P/A/J/R, aditivo — no se tocaron `presente`/`justificada`) + nuevo modelo
+`IncidenteDisciplinario`. Scoping de docente por sección vía `Materia.docente`
+(nueva clase `IsDocenteAsignadoOrSecretariaOrAbove`, `academico/views.py`).
+Verificado end-to-end en navegador (docente marca "Retardado" y crea un
+incidente con sección propia; ambos casos confirmados también contra la BD) y
+con 15 tests nuevos en `academico/tests.py` (antes el app no tenía ningún test).
+
+**Housekeeping pendiente que se hizo visible al tocar este módulo (no corregido,
+fuera de alcance de Fase 1):**
+
+1. **`react-hooks/set-state-in-effect` falla en todo el proyecto, no solo en
+   código nuevo** — el patrón `useEffect(() => { fetchX(); }, [fetchX])` (fetch
+   inicial llamando un `useCallback` que hace `setState`) está en
+   `useAsistencia.js`, `useBoletin.js`, y ya estaba documentado como pendiente
+   en `useNomina.js` (ver sección "MÓDULO NOMINA" de este archivo). Los hooks
+   nuevos de esta fase (`useIncidentes.js`) replican el mismo patrón a
+   propósito, por consistencia con el resto del código — no se corrigió aquí
+   porque exigiría tocar hooks fuera del alcance de Fase 1 y no bloquea el
+   build (`vite build` no corre `eslint`). Si se decide resolverlo, conviene
+   hacerlo de una vez para todos los hooks afectados en una pasada dedicada,
+   no módulo por módulo.
+
+2. **`Asistencia` no tiene relación con `Materia`/`Horario`** — a diferencia de
+   lo que asumía el diseño original (`docs/TRD.md` v1), el modelo real solo
+   tiene `alumno` + `fecha` (una asistencia por alumno por día, no por bloque
+   de clase/materia). El scoping de docente implementado para Fase 1 infiere la
+   sección autorizada comparando `grado_seccion` contra las `Materia` activas
+   del docente — funciona porque `grado_seccion` es el mismo string en ambos
+   modelos, pero es un acoplamiento por convención de nombre, no por FK. Si en
+   el futuro se necesita asistencia por bloque/materia (tal como sugería el
+   diseño v1), este acoplamiento habría que revisarlo.
+
+3. **`IncidenteDisciplinario.adjunto` no valida dimensiones/aspect ratio**,
+   igual que el `ImageField` de `Alumno.foto` (ya anotado en la sección
+   "NUEVA PLANILLA DE INSCRIPCIÓN" de este archivo) — solo tipo MIME (vía
+   `serializers.ImageField` de DRF) y peso (5MB, `validar_tamano_adjunto` en
+   `academico/models.py`).
+
+4. **Búsqueda de alumnos (`secretaria/alumnos/?buscar=`) es `icontains` por
+   campo separado** (`nombre__icontains` OR `apellido__icontains` OR ...), no
+   por nombre completo concatenado — buscar "Juan Perez" no encuentra un
+   alumno con `nombre='Juan'`/`apellido='Perez'` porque ninguno de los dos
+   campos por separado contiene la cadena completa "Juan Perez". Se descubrió
+   verificando el buscador de alumno del modal de incidentes (reutiliza
+   `buscarAlumnos`, el mismo que ya usa `Boletin.jsx`), así que el mismo
+   comportamiento ya existía antes de esta fase. No se corrigió por ser
+   preexistente y compartido por otro módulo — si se toca, requeriría anotar
+   un campo `nombre_completo` o usar `SearchVector`/concatenación en el
+   backend (`secretaria/views.py::AlumnoListView.get_queryset`).
+
+---
+
+# FASE 2 — CENTRO DE COMUNICACIÓN (CIRCULARES) (2026-07-27)
+
+Nueva app `comunicacion`: modelos `Circular`/`LecturaCircular`, endpoints admin
+(`/api/comunicacion/circulares/...`) y portal (`/api/portal/comunicacion/circulares/...`),
+notificación por email (`notificaciones/services.py::notificar_circular_nueva` +
+tarea Celery `notificaciones/tasks.py::task_notificar_circular_nueva`), frontend
+admin (`pages/Comunicacion.jsx`) y portal (`portal/pages/PortalComunicaciones.jsx`).
+Sigue el diseño de `docs/PLAN_EXPANSION_V2.md` Fase 2: broadcast completo a todos
+los `RepresentanteUser` activos, sin segmentación por grado/sección, sin polling.
+
+1. **Verificado con datos reales del colegio en navegador** (2026-07-27): director
+   publica circular con `requiere_confirmacion=True` → se crean 2 `LecturaCircular`
+   (una por representante con portal activo) → representante ve badge "1 sin leer",
+   confirma con "He leído" → estado se refleja en el panel admin ("¿Quién leyó?").
+   Probado también en viewport 375px (portal y panel admin) sin overflow horizontal.
+
+2. ✅ **RESUELTO — `.delay()` de Celery bloqueaba la request 2-4 minutos cuando
+   Redis no está corriendo** (`Retry limit exceeded while trying to reconnect to
+   the Celery result store backend`). Causa raíz: por defecto, cada `.delay()`
+   intenta además guardar el estado inicial/final de la tarea en el *result
+   backend* (Redis); si no está disponible, kombu reintenta con backoff durante
+   varios minutos antes de lanzar la excepción — el `try/except` de la vista
+   la atrapa igual, pero solo después de ese retraso, bloqueando la respuesta
+   HTTP completa (el servidor de desarrollo es single-threaded). Se confirmó
+   por grep que **ninguna tarea del proyecto lee su `AsyncResult`** (todas son
+   fire-and-forget), así que guardar el resultado no le sirve a nadie.
+   **Fix aplicado**: `CELERY_TASK_IGNORE_RESULT = True` en
+   `config/settings.py` (junto a `CELERY_BROKER_URL`/`CELERY_RESULT_BACKEND`) —
+   con esto la escritura al result backend ni se intenta, y el `.delay()` solo
+   necesita el intento (rápido) de publicar en el *broker*. Verificado con
+   Redis apagado: bajó de 2-4 minutos a **~4 segundos** por llamada (medido con
+   `task_notificar_circular_nueva.delay()` directo en shell, y confirmado de
+   nuevo end-to-end en el navegador: publicar circular pasó de colgarse a
+   responder en ~2s). Aplica a **todas** las tareas Celery del proyecto
+   (comprobantes, mora, bienvenida, etc.), no solo a Comunicación, ya que
+   ninguna de ellas depende de resultados. Suite completa
+   (`portal`, `notificaciones`, `academico`, `comunicacion`) vuelta a correr
+   tras el cambio: 51 tests, mismos 2 fallos preexistentes de siempre (ver
+   punto 4 de la sección "BACKEND — GENERACIÓN AUTOMÁTICA DE MENSUALIDADES"),
+   nada nuevo roto.
+
+3. **Ruteo del portal dividido en dos archivos de urls** (`comunicacion/urls.py`
+   para el panel admin, `comunicacion/urls_portal.py` para el portal), en vez de
+   un solo `comunicacion/urls.py` con un sub-prefijo `portal/` como proponía el
+   plan inicial. Motivo: `portalClient.js` (frontend) tiene `baseURL` fija en
+   `/api/portal/` — todas las llamadas del portal son rutas relativas a ese
+   prefijo, igual que `portal/urls.py` ya existente. Para que
+   `comunicacion.service.js` del portal pudiera reutilizar `portalClient` sin
+   duplicar el interceptor de refresh de token (60+ líneas en `portalClient.js`),
+   los endpoints de circulares para representantes se montan en
+   `config/urls.py` bajo `api/portal/comunicacion/` en vez de
+   `api/comunicacion/portal/`. Los permisos/autenticación (`PortalJWTAuthentication`
+   vs. default admin) no cambian, solo el prefijo de URL.
+
+---
+
+# FASE 3 — PORTAL DOCENTE + MENSAJERÍA BIDIRECCIONAL (2026-07-28)
+
+Implementado según `docs/PLAN_EXPANSION_V2.md` (Fase 3): el docente reutiliza el
+JWT/login del panel admin (sin auth separada), gana una sección "Mis Materias"
+con Notas + Material de Estudio, y se extiende `comunicacion` con
+`MensajeDirecto` para chat docente↔representante. Verificado end-to-end en
+navegador (login docente → notas → material → nueva conversación → login
+portal representante → respuesta → confirmado en ambos lados) y con 32 tests
+de backend (`academico` + `comunicacion`) en verde.
+
+## Decisiones de diseño (no negociables, ya implementadas)
+
+1. **Notas: el docente solo edita su propia materia, no toda la sección.**
+   A diferencia de Asistencia/Incidentes (`IsDocenteAsignadoOrSecretariaOrAbove`,
+   que valida por `grado_seccion`), `NotasGradoView.post` (`academico/views.py`)
+   ahora valida `Materia.docente_id == request.user.id` para el rol docente —
+   más estricto porque una sección tiene varias materias con distintos
+   docentes. No se reutilizó `IsDocenteAsignadoOrSecretariaOrAbove` por esto.
+
+2. **`MensajeDirecto` no tiene FK a `Materia`** — es por `alumno` únicamente
+   (igual que el modelo del TRD). Consecuencia asumida: si dos docentes
+   distintos le escriben al representante sobre el mismo alumno, ambas
+   conversaciones comparten un solo hilo en la bandeja del representante
+   (`comunicacion/views.py::MensajeDirectoPortalListCreateView`). No se separó
+   por docente para no inventar un concepto de "conversación" que el modelo
+   del TRD no contemplaba.
+
+3. **El representante nunca inicia una conversación en frío.** Solo puede
+   responder dentro de un hilo que ya tenga al menos un mensaje de un docente
+   (`MensajeDirectoPortalListCreateView.post` exige un
+   `MensajeDirecto` previo con `destinatario_representante=rep_user` para ese
+   alumno; si no existe, 400). Decisión tomada porque el modelo no tiene forma
+   de saber a cuál de los N docentes de un alumno debería dirigirse un mensaje
+   nuevo del representante — evita esa ambigüedad sin agregar un selector de
+   destinatario en el portal.
+
+4. **El docente requiere que el representante ya tenga `RepresentanteUser`
+   activo** para poder escribirle (`alumno.representante.portal_user`, 400 si
+   no existe o está inactivo). No se crea el acceso al portal automáticamente
+   desde este flujo — sigue siendo responsabilidad del flujo de aprobación de
+   comprobantes/activación manual que ya existía en `portal`.
+
+5. **`GestionMateria.jsx` tiene solo 2 tabs (Notas, Material)**, no 3. El
+   primer boceto de este plan incluía un tab "Mensajes" por materia, pero se
+   descartó al escribir el backend: `MensajeDirecto` es por alumno, no por
+   materia (punto 2), así que no encaja como tab de una materia puntual.
+   Mensajes vive en su propia ruta (`/mensajes`, sidebar → Comunicación).
+
+## Deuda técnica anotada, no corregida
+
+1. **Los 4 hooks nuevos (`useMisMaterias`, `useMateriales`, `useMensajes`,
+   `usePortalMensajes`) disparan el mismo patrón `react-hooks/set-state-in-effect`
+   que ya reporta el lint en código preexistente** (`useCirculares.js:30`,
+   `useLapsos.js`, y el ya documentado en `useNomina.js` — ver sección
+   "MÓDULO NOMINA" de este archivo). Se replicó el patrón existente por
+   consistencia en vez de introducir un estilo nuevo solo para estos hooks;
+   sigue pendiente una pasada de refactor a nivel de todo el proyecto, no de
+   esta fase puntual.
+
+2. **`useMensajes.js` agrupa conversaciones client-side** sobre el resultado
+   completo de `GET /api/comunicacion/mensajes/` (sin filtro), en vez de que
+   el backend devuelva ya agrupado. Aceptable mientras el volumen de mensajes
+   por docente sea bajo (few-hundred range); si un docente acumula miles de
+   mensajes con muchos alumnos distintos, esa vista debería paginarse y la
+   agrupación por conversación debería resolverse en el backend (mismo
+   criterio de "no paginar hasta que el volumen lo justifique" ya aplicado a
+   Notas/Asistencia, documentado en la sección "PAGINACIÓN DE LISTADOS").
+
+3. **`ModalNuevaConversacion.jsx` duplica casi línea por línea el buscador de
+   alumnos de `ModalNuevoIncidente.jsx`** (debounce, dropdown, click-outside).
+   No se extrajo a un hook/componente compartido (`useBuscadorAlumno` o
+   similar) en esta pasada para no tocar `ModalNuevoIncidente.jsx` fuera del
+   alcance de esta fase; si aparece un tercer lugar que necesite el mismo
+   buscador, vale la pena extraerlo.
+
+4. **Sin WebSockets ni polling para mensajes nuevos** — coherente con la
+   decisión ya tomada en Fase 2 para circulares (ver `PLAN_EXPANSION_V2.md`),
+   pero a diferencia de circulares (que se ven al recargar el dashboard),
+   aquí no hay ningún indicador de "mensajes sin leer" en el navbar/sidebar
+   todavía. El representante o el docente solo se enteran de un mensaje nuevo
+   por email (`notificar_mensaje_directo`) o al entrar manualmente a
+   `/mensajes` / `/portal/mensajes`. Si el uso real lo justifica, un badge
+   con polling de 30s (mismo patrón ya descartado para circulares, ver TRD)
+   sería el siguiente paso natural.
+
+5. **Datos de prueba usados para la verificación en navegador de esta fase
+   (usuario `docente_demo`, representante `V99999999`, alumno `DEMO001`,
+   materia "Ciencias Demo", lapso "1er Lapso 2025-2026") se crearon y
+   eliminaron en la misma sesión** — no quedaron en la base de datos. Se
+   confirmó de paso que `academico` no tenía ningún `Materia`/`Lapso` real
+   cargado todavía (0 registros antes de esta verificación), a diferencia de
+   `secretaria` que ya tiene 452 alumnos reales importados.

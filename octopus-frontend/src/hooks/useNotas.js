@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { getMaterias, getNotasGrado, saveNotas } from '../api/academico.service';
+import { getMaterias, getMisMaterias, getNotasGrado, saveNotas } from '../api/academico.service';
 import { calcDefinitiva } from '../utils/notas.utils';
 
-export function useNotas() {
+export function useNotas(esDocente = false) {
   const [grado, setGrado] = useState('');
   const [materias, setMaterias] = useState([]);
   const [materiaId, setMateriaId] = useState('');
@@ -17,14 +17,27 @@ export function useNotas() {
   const abortRef = useRef(null);
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
+  // Docente: no hay selector de Grado -- se listan directo sus propias
+  // materias (GET /academico/docente/mis-materias/).
   useEffect(() => {
+    if (!esDocente) return;
+    setLoadingCombos(true);
+    getMisMaterias()
+      .then(res => setMaterias(res.data || []))
+      .catch(() => toast.error('No se pudieron cargar tus materias.'))
+      .finally(() => setLoadingCombos(false));
+  }, [esDocente]);
+
+  // Secretaria/director: selector de Grado filtra las materias de esa sección.
+  useEffect(() => {
+    if (esDocente) return;
     if (!grado) { setMaterias([]); setMateriaId(''); return; }
     setLoadingCombos(true);
     getMaterias(grado)
       .then(res => { setMaterias(res.data || []); setMateriaId(''); })
       .catch(() => toast.error('No se pudieron cargar las materias.'))
       .finally(() => setLoadingCombos(false));
-  }, [grado]);
+  }, [grado, esDocente]);
 
   useEffect(() => {
     if (!materiaId || !lapsoId) { setNotas([]); return; }

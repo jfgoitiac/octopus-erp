@@ -14,6 +14,7 @@ const CONTEO_ITEMS = [
   { key: 'presentes',   label: 'Presentes',   color: '#16a34a',     bg: '#dcfce7' },
   { key: 'ausentes',    label: 'Ausentes',    color: 'var(--red)',  bg: 'var(--red-light)' },
   { key: 'justificados',label: 'Justificados',color: '#854d0e',     bg: '#fef9c3' },
+  { key: 'retardados',  label: 'Retardados',  color: '#b45309',     bg: '#fef3c7' },
   { key: 'sinMarcar',   label: 'Sin marcar',  color: 'var(--ash)',  bg: 'var(--ash-light)' },
 ];
 
@@ -116,7 +117,7 @@ const Asistencia = () => {
 
       {/* Contadores */}
       {grado && !loading && registros.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
           {CONTEO_ITEMS.map(({ key, label, color, bg }) => (
             <div key={key} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: bg }}>
               <Users size={18} style={{ color }} />

@@ -2,9 +2,15 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { getAsistencia, saveAsistencia } from '../api/academico.service';
-import { ESTADO } from '../constants/asistencia';
+import { ESTADO, ESTADO_A_BACKEND, BACKEND_A_ESTADO } from '../constants/asistencia';
 
 function normalizeRegistro(r) {
+  // El backend ya manda `estado` (P/A/J/R) para registros creados con la UI
+  // nueva. Si viene null (registro legado o sin marcar), se deriva de los
+  // booleanos como antes — así no se pierden datos existentes.
+  if (r.estado && BACKEND_A_ESTADO[r.estado]) {
+    return { ...r, estado: BACKEND_A_ESTADO[r.estado] };
+  }
   return {
     ...r,
     estado: r.presente === true && !r.justificada ? ESTADO.PRESENTE
@@ -58,7 +64,7 @@ export function useAsistencia() {
       return {
         ...r,
         estado,
-        presente:    estado === ESTADO.PRESENTE,
+        presente:    estado === ESTADO.PRESENTE || estado === ESTADO.RETARDADO,
         justificada: estado === ESTADO.JUSTIFICADO,
         // Limpiar observación al marcar presente
         observacion: estado === ESTADO.PRESENTE ? '' : r.observacion,
@@ -78,10 +84,10 @@ export function useAsistencia() {
     setSaving(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
+      // Igual que antes: un alumno sin marcar se guarda como ausente.
       const payload = registros.map(r => ({
         alumno_id:   r.alumno_id,
-        presente:    r.estado === ESTADO.PRESENTE,
-        justificada: r.estado === ESTADO.JUSTIFICADO,
+        estado:      ESTADO_A_BACKEND[r.estado] || 'A',
         observacion: r.observacion || '',
       }));
       await saveAsistencia(grado, fechaStr, payload);
@@ -101,10 +107,11 @@ export function useAsistencia() {
         if      (r.estado === ESTADO.PRESENTE)    acc.presentes++;
         else if (r.estado === ESTADO.AUSENTE)     acc.ausentes++;
         else if (r.estado === ESTADO.JUSTIFICADO) acc.justificados++;
+        else if (r.estado === ESTADO.RETARDADO)   acc.retardados++;
         else                                      acc.sinMarcar++;
         return acc;
       },
-      { presentes: 0, ausentes: 0, justificados: 0, sinMarcar: 0 }
+      { presentes: 0, ausentes: 0, justificados: 0, retardados: 0, sinMarcar: 0 }
     ),
     [registros]
   );

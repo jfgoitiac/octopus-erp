@@ -12,6 +12,14 @@ from .views import (
     HorarioDetailView,
     BoletinView,
     GenerarHorarioView,
+    IncidentesListCreateView,
+    IncidenteDetailView,
+    DocenteMisMateriasView,
+    MaterialEstudioListCreateView,
+    MaterialEstudioDetailView,
+    RendimientoAlumnoView,
+    RendimientoSeccionView,
+    AlertasRendimientoView,
 )
 
 urlpatterns = [
@@ -27,4 +35,12 @@ urlpatterns = [
     path('horarios/generar/',      GenerarHorarioView.as_view()),
     path('boletin/',               BoletinView.as_view()),
     path('notas/<int:nota_id>/historial/', HistorialNotaView.as_view()),
+    path('incidentes/',            IncidentesListCreateView.as_view()),
+    path('incidentes/<int:pk>/',   IncidenteDetailView.as_view()),
+    path('docente/mis-materias/',  DocenteMisMateriasView.as_view()),
+    path('materiales/',            MaterialEstudioListCreateView.as_view()),
+    path('materiales/<int:pk>/',   MaterialEstudioDetailView.as_view()),
+    path('rendimiento/alumno/<int:alumno_id>/',        RendimientoAlumnoView.as_view()),
+    path('rendimiento/seccion/<str:grado_seccion>/',   RendimientoSeccionView.as_view()),
+    path('rendimiento/alertas/',                       AlertasRendimientoView.as_view()),
 ]

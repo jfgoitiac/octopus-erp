@@ -24,6 +24,7 @@ export function useConciliador() {
   const [query, setQuery]                     = useState('');
   const [results, setResults]                 = useState(null); // null = sin buscar, [] = sin resultados, [...] = encontrados
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [page, setPage]                       = useState(1);
   const fileRef                               = useRef();
 
   const bankInfo = useMemo(() => BANKS.find(b => b.id === bank), [bank]);
@@ -55,6 +56,7 @@ export function useConciliador() {
       }
       setTransactions(txs);
       setFileName(file.name);
+      setPage(1);
     } catch {
       toast.error('Error al leer el archivo. Verifica que sea un Excel o CSV válido.');
     } finally {
@@ -76,9 +78,10 @@ export function useConciliador() {
   }, [processFile]);
 
   const handleSearch = useCallback(() => {
-    if (query.length !== 6) return;
+    if (query.length < 4 || query.length > 6) return;
+    const n = query.length;
     const found = transactions.filter(
-      tx => tx.referencia.replace(/\D/g, '').slice(-6) === query
+      tx => tx.referencia.replace(/\D/g, '').slice(-n) === query
     );
     setResults(found);
   }, [query, transactions]);
@@ -98,6 +101,7 @@ export function useConciliador() {
     setFileName('');
     setResults(null);
     setShowClearConfirm(false);
+    setPage(1);
   }, []);
 
   const selectBank = useCallback((id) => {
@@ -105,6 +109,7 @@ export function useConciliador() {
     setTransactions([]);
     setFileName('');
     setResults(null);
+    setPage(1);
   }, []);
 
   return {
@@ -123,6 +128,8 @@ export function useConciliador() {
     setResults,
     showClearConfirm,
     setShowClearConfirm,
+    page,
+    setPage,
     bankInfo,
     fileRef,
     processFile,

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
-from .models import Nota, Asistencia, Materia, Lapso, HorarioClase
+from .models import Nota, Asistencia, Materia, Lapso, HorarioClase, IncidenteDisciplinario, MaterialEstudio
 
 
 @admin.register(Nota)
@@ -12,9 +12,16 @@ class NotaAdmin(SimpleHistoryAdmin):
 
 @admin.register(Asistencia)
 class AsistenciaAdmin(SimpleHistoryAdmin):
-    list_display = ('alumno', 'fecha', 'presente', 'justificada', 'registrado_por')
-    list_filter = ('fecha', 'presente', 'justificada')
+    list_display = ('alumno', 'fecha', 'estado', 'presente', 'justificada', 'registrado_por')
+    list_filter = ('fecha', 'estado', 'presente', 'justificada')
     search_fields = ('alumno__nombre', 'alumno__apellido')
+
+
+@admin.register(IncidenteDisciplinario)
+class IncidenteDisciplinarioAdmin(admin.ModelAdmin):
+    list_display = ('alumno', 'fecha', 'severidad', 'registrado_por')
+    list_filter = ('severidad', 'fecha')
+    search_fields = ('alumno__nombre', 'alumno__apellido', 'descripcion')
 
 
 @admin.register(Materia)
@@ -34,3 +41,10 @@ class LapsoAdmin(admin.ModelAdmin):
 class HorarioClaseAdmin(admin.ModelAdmin):
     list_display = ('materia', 'dia_semana', 'hora_inicio', 'hora_fin', 'aula')
     list_filter = ('dia_semana', 'materia__grado_seccion')
+
+
+@admin.register(MaterialEstudio)
+class MaterialEstudioAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'materia', 'publicado_por', 'fecha')
+    list_filter = ('materia__grado_seccion',)
+    search_fields = ('titulo', 'materia__nombre')

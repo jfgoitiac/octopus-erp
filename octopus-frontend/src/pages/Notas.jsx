@@ -17,13 +17,14 @@ const INPUT_STYLE = {
 const Notas = () => {
   const { user } = useContext(AuthContext);
   const esAdmin = useMemo(() => ['director', 'sistemas'].includes(user?.rol), [user?.rol]);
+  const esDocente = useMemo(() => user?.rol === 'docente', [user?.rol]);
 
   const {
     grado, materias, materiaId, lapsoId, notas,
     loading, loadingCombos, saving, dirty,
     cambiarGrado, cambiarMateria, cambiarLapso, resetLapso,
     handleNotaChange, guardar,
-  } = useNotas();
+  } = useNotas(esDocente);
 
   const {
     lapsos, modalLapso,
@@ -70,21 +71,23 @@ const Notas = () => {
       </div>
 
       {/* Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className={`grid grid-cols-1 ${esDocente ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 mb-6`}>
 
-        {/* Grado */}
-        <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-            Grado / Año
-          </label>
-          <GradoSelect
-            value={grado}
-            onChange={e => cambiarGrado(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={INPUT_STYLE}
-            incluirVacio
-          />
-        </div>
+        {/* Grado — solo secretaria/director; el docente ve directo sus propias materias */}
+        {!esDocente && (
+          <div>
+            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+              Grado / Año
+            </label>
+            <GradoSelect
+              value={grado}
+              onChange={e => cambiarGrado(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={INPUT_STYLE}
+              incluirVacio
+            />
+          </div>
+        )}
 
         {/* Materia */}
         <div>
@@ -96,11 +99,11 @@ const Notas = () => {
             style={INPUT_STYLE}
             value={materiaId}
             onChange={e => cambiarMateria(e.target.value)}
-            disabled={!grado || loadingCombos}
+            disabled={(!esDocente && !grado) || loadingCombos}
           >
             <option value="">{loadingCombos ? 'Cargando...' : 'Seleccionar materia...'}</option>
             {materias.map(m => (
-              <option key={m.id} value={m.id}>{m.nombre}</option>
+              <option key={m.id} value={m.id}>{esDocente ? `${m.nombre} — ${m.grado_seccion}` : m.nombre}</option>
             ))}
           </select>
         </div>

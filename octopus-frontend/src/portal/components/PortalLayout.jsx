@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt } from 'lucide-react';
+import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { getConfigColegio } from '../api/portal.service';
 
@@ -80,7 +80,7 @@ const PortalLayout = () => {
             to="/portal"
             end
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-6 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
             }
           >
             <Home size={22} />
@@ -89,16 +89,34 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/historial"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-6 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
             }
           >
             <Receipt size={22} />
             <span className="text-[10px] font-medium">Historial</span>
           </NavLink>
           <NavLink
+            to="/portal/comunicaciones"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+            }
+          >
+            <Megaphone size={22} />
+            <span className="text-[10px] font-medium">Avisos</span>
+          </NavLink>
+          <NavLink
+            to="/portal/mensajes"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+            }
+          >
+            <MessageCircle size={22} />
+            <span className="text-[10px] font-medium">Mensajes</span>
+          </NavLink>
+          <NavLink
             to="/portal/cambiar-contrasena"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-6 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
             }
           >
             <Lock size={22} />

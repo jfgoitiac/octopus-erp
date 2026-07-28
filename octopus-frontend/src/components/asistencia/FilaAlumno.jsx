@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
 import { ESTADO } from '../../constants/asistencia';
 
 const CONFIGS_ESTADO = {
@@ -18,12 +18,17 @@ const CONFIGS_ESTADO = {
     icon:        <AlertCircle size={14} />,
     activeStyle: { background: '#fef9c3', color: '#854d0e', border: '1.5px solid #ca8a04' },
   },
+  [ESTADO.RETARDADO]: {
+    label:       'Retardado',
+    icon:        <Clock size={14} />,
+    activeStyle: { background: '#fef3c7', color: '#b45309', border: '1.5px solid #f59e0b' },
+  },
 };
 
 const IDLE_STYLE       = { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: 'var(--porcelain)' };
 const FILA_STYLE       = { border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' };
 const OBSERV_STYLE     = { border: '0.5px solid var(--border-md)', background: 'var(--ash-light)', color: 'var(--jet)' };
-const ESTADOS_BOTONES  = [ESTADO.PRESENTE, ESTADO.AUSENTE, ESTADO.JUSTIFICADO];
+const ESTADOS_BOTONES  = [ESTADO.PRESENTE, ESTADO.AUSENTE, ESTADO.JUSTIFICADO, ESTADO.RETARDADO];
 
 const FilaAlumno = memo(({ registro, onMarcar, onObservacion }) => {
   const { alumno_id, alumno_nombre, estado, observacion } = registro;

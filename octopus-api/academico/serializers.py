@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Materia, Lapso, Nota, Asistencia, HorarioClase
+from secretaria.models import Alumno
+from .models import Materia, Lapso, Nota, Asistencia, HorarioClase, IncidenteDisciplinario, MaterialEstudio
 
 
 # ─────────────────────────────────────────────
@@ -104,12 +105,21 @@ class NotaBulkSerializer(serializers.Serializer):
 # ─────────────────────────────────────────────
 # ASISTENCIA
 # ─────────────────────────────────────────────
+def estado_a_booleanos(estado):
+    """'R' cuenta como presente (llegó tarde, pero asistió)."""
+    if estado in ('P', 'R'):
+        return True, False
+    if estado == 'J':
+        return False, True
+    return False, False  # 'A'
+
+
 class AsistenciaSerializer(serializers.ModelSerializer):
     alumno_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model  = Asistencia
-        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'observacion']
+        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion']
 
     def get_alumno_nombre(self, obj):
         return f"{obj.alumno.nombre} {obj.alumno.apellido}"
@@ -120,9 +130,21 @@ class AsistenciaSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 class AsistenciaRegistroSerializer(serializers.Serializer):
     alumno_id   = serializers.IntegerField()
-    presente    = serializers.BooleanField()
+    # 'estado' es la fuente de verdad para escrituras nuevas (incluye 'R').
+    # presente/justificada quedan como fallback opcional para no romper
+    # integraciones que aún no migraron al campo nuevo.
+    estado      = serializers.ChoiceField(choices=Asistencia.ESTADOS, required=False, allow_null=True)
+    presente    = serializers.BooleanField(required=False)
     justificada = serializers.BooleanField(required=False, default=False)
     observacion = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, data):
+        if 'estado' not in data or data.get('estado') is None:
+            if 'presente' not in data:
+                raise serializers.ValidationError('Se requiere "estado" o "presente".')
+            return data
+        data['presente'], data['justificada'] = estado_a_booleanos(data['estado'])
+        return data
 
 
 # ─────────────────────────────────────────────
@@ -164,3 +186,63 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
 
     def get_dia_semana_label(self, obj):
         return obj.get_dia_semana_display()
+
+
+# ─────────────────────────────────────────────
+# INCIDENTE DISCIPLINARIO
+# ─────────────────────────────────────────────
+class IncidenteDisciplinarioSerializer(serializers.ModelSerializer):
+    alumno_id        = serializers.PrimaryKeyRelatedField(source='alumno', queryset=Alumno.objects.all())
+    alumno_nombre    = serializers.SerializerMethodField()
+    severidad_label  = serializers.SerializerMethodField()
+    registrado_por_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = IncidenteDisciplinario
+        fields = [
+            'id', 'alumno_id', 'alumno_nombre', 'fecha', 'descripcion',
+            'severidad', 'severidad_label', 'adjunto',
+            'registrado_por_username', 'created_at',
+        ]
+        read_only_fields = ['fecha', 'created_at']
+
+    def get_alumno_nombre(self, obj):
+        return f"{obj.alumno.nombre} {obj.alumno.apellido}"
+
+    def get_severidad_label(self, obj):
+        return obj.get_severidad_display()
+
+    def get_registrado_por_username(self, obj):
+        return obj.registrado_por.username if obj.registrado_por else None
+
+
+# ─────────────────────────────────────────────
+# MATERIA — MINI (para "mis materias" del docente)
+# ─────────────────────────────────────────────
+class MateriaDocenteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Materia
+        fields = ['id', 'nombre', 'codigo', 'grado_seccion']
+
+
+# ─────────────────────────────────────────────
+# MATERIAL DE ESTUDIO
+# ─────────────────────────────────────────────
+class MaterialEstudioSerializer(serializers.ModelSerializer):
+    materia_id       = serializers.PrimaryKeyRelatedField(source='materia', queryset=Materia.objects.all())
+    materia_nombre   = serializers.SerializerMethodField()
+    publicado_por_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = MaterialEstudio
+        fields = [
+            'id', 'materia_id', 'materia_nombre', 'titulo', 'descripcion',
+            'archivo', 'enlace', 'publicado_por_username', 'fecha',
+        ]
+        read_only_fields = ['fecha']
+
+    def get_materia_nombre(self, obj):
+        return obj.materia.nombre
+
+    def get_publicado_por_username(self, obj):
+        return obj.publicado_por.username if obj.publicado_por else None

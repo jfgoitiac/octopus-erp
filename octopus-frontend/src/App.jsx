@@ -14,6 +14,9 @@ const PortalLogin              = lazy(() => import('./portal/pages/PortalLogin')
 const PortalDashboard          = lazy(() => import('./portal/pages/PortalDashboard'));
 const PortalHistorialPagos     = lazy(() => import('./portal/pages/PortalHistorialPagos'));
 const PortalCambiarContrasena  = lazy(() => import('./portal/pages/PortalCambiarContrasena'));
+const PortalComunicaciones     = lazy(() => import('./portal/pages/PortalComunicaciones'));
+const PortalMensajes           = lazy(() => import('./portal/pages/PortalMensajes'));
+const PortalRendimiento        = lazy(() => import('./portal/pages/PortalRendimiento'));
 
 // ── Panel administrativo ──────────────────────────────────────────────────────
 const Login                    = lazy(() => import('./pages/Login'));
@@ -44,6 +47,16 @@ const Notas                    = lazy(() => import('./pages/Notas'));
 const Boletin                  = lazy(() => import('./pages/Boletin'));
 const Asistencia               = lazy(() => import('./pages/Asistencia'));
 const Horarios                 = lazy(() => import('./pages/Horarios'));
+const Incidentes               = lazy(() => import('./pages/Incidentes'));
+const Rendimiento              = lazy(() => import('./pages/Rendimiento'));
+
+// ── Módulo Comunicación ────────────────────────────────────────────────────────
+const Comunicacion             = lazy(() => import('./pages/Comunicacion'));
+const Mensajes                 = lazy(() => import('./pages/Mensajes'));
+
+// ── Portal Docente (Fase 3) ─────────────────────────────────────────────────────
+const MisMaterias              = lazy(() => import('./pages/MisMaterias'));
+const GestionMateria           = lazy(() => import('./pages/GestionMateria'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -85,6 +98,8 @@ function App() {
               <Route index element={<PortalDashboard />} />
               <Route path="historial" element={<PortalHistorialPagos />} />
               <Route path="cambiar-contrasena" element={<PortalCambiarContrasena />} />
+              <Route path="comunicaciones" element={<PortalComunicaciones />} />
+              <Route path="mensajes" element={<PortalMensajes />} />
             </Route>
 
             {/* ── Autenticación admin ── */}
@@ -215,8 +230,18 @@ function App() {
 
               {/* Módulo Académico */}
               <Route path="notas" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA, ROLES.DOCENTE]}>
                   <Notas />
+                </ProtectedRoute>
+              } />
+              <Route path="mis-materias" element={
+                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
+                  <MisMaterias />
+                </ProtectedRoute>
+              } />
+              <Route path="mis-materias/:materiaId" element={
+                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
+                  <GestionMateria />
                 </ProtectedRoute>
               } />
               <Route path="boletin" element={
@@ -225,13 +250,35 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="asistencia" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA, ROLES.DOCENTE]}>
                   <Asistencia />
                 </ProtectedRoute>
               } />
               <Route path="horarios" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Horarios />
+                </ProtectedRoute>
+              } />
+              <Route path="incidentes" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA, ROLES.DOCENTE]}>
+                  <Incidentes />
+                </ProtectedRoute>
+              } />
+              <Route path="rendimiento" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <Rendimiento />
+                </ProtectedRoute>
+              } />
+
+              {/* Módulo Comunicación */}
+              <Route path="comunicacion" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
+                  <Comunicacion />
+                </ProtectedRoute>
+              } />
+              <Route path="mensajes" element={
+                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
+                  <Mensajes />
                 </ProtectedRoute>
               } />
 

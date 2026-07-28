@@ -43,13 +43,21 @@ function findHeaderRow(rows) {
 
 function parseAmount(val) {
   if (!val && val !== 0) return 0;
+  // Las celdas numéricas de Excel ya traen el valor correcto; convertirlas a
+  // texto y volver a parsear (como abajo) borra el punto decimal real y
+  // multiplica el monto por ~100 (ej. 14320.5 -> "143205").
+  if (typeof val === 'number') return Math.abs(val);
   const str = val.toString().trim();
   if (!str) return 0;
-  let clean = str.replace(/[Bs.$\s%]/g, '');
+  let clean = str.replace(/[Bs$%]/g, '').replace(/\s/g, '');
   const lastComma = clean.lastIndexOf(',');
   const lastDot   = clean.lastIndexOf('.');
   if (lastComma > lastDot) {
+    // La coma es el separador decimal (formato es-VE): 14.320,00 -> 14320.00
     clean = clean.replace(/\./g, '').replace(',', '.');
+  } else if (lastDot > -1) {
+    // Sin coma: el punto actúa como separador de miles (formato es-VE): 14.320 -> 14320
+    clean = clean.replace(/\./g, '');
   } else {
     clean = clean.replace(/,/g, '');
   }

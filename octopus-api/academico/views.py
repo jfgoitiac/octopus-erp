@@ -7,14 +7,27 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from secretaria.models import Alumno, ConfiguracionSistema
-from .filters import AsistenciaFilter, NotaFilter
-from .models import Asistencia, HorarioClase, Lapso, Materia, Nota
+from .filters import AsistenciaFilter, IncidenteFilter, NotaFilter
+from .models import (
+    AlertaRendimiento,
+    Asistencia,
+    HorarioClase,
+    IncidenteDisciplinario,
+    Lapso,
+    Materia,
+    MaterialEstudio,
+    Nota,
+)
+from .services import calcular_rendimiento_alumno, calcular_rendimiento_seccion
 from .serializers import (
     AsistenciaBulkSerializer,
     AsistenciaSerializer,
     HorarioClaseSerializer,
+    IncidenteDisciplinarioSerializer,
     LapsoSerializer,
+    MateriaDocenteSerializer,
     MateriaSerializer,
+    MaterialEstudioSerializer,
     NotaBulkSerializer,
     NotaSerializer,
 )
@@ -67,6 +80,35 @@ def _get_rol(request):
         return request.user.perfil.rol
     except Exception:
         return None
+
+
+def _docente_tiene_seccion(user, grado_seccion):
+    """True si el usuario tiene una Materia activa asignada en esa sección."""
+    if not grado_seccion:
+        return False
+    return Materia.objects.filter(
+        docente=user, grado_seccion__iexact=grado_seccion, activa=True
+    ).exists()
+
+
+class IsDocenteAsignadoOrSecretariaOrAbove(permissions.BasePermission):
+    """
+    Permite acceso a secretaria+ sin restricciones, o a un docente únicamente
+    para la sección donde tiene una Materia activa asignada.
+
+    Requiere que la vista implemente `_grado_seccion_objetivo(request)` que
+    devuelva el grado_seccion sobre el que se está operando.
+    """
+
+    def has_permission(self, request, view):
+        if IsSecretariaOrAbove().has_permission(request, view):
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if _get_rol(request) != 'docente':
+            return False
+        grado_seccion = view._grado_seccion_objetivo(request)
+        return _docente_tiene_seccion(request.user, grado_seccion)
 
 
 # ─────────────────────────────────────────────
@@ -266,14 +308,9 @@ class NotasGradoView(APIView):
         """
         Guarda/actualiza notas de un grado completo.
         Body: {materia_id, lapso_id, notas: [{alumno_id, evaluacion_1..4, observaciones}]}
-        Roles permitidos: director, sistemas, administrador, secretaria
+        Roles permitidos: director, sistemas, administrador, secretaria,
+        o docente únicamente para su propia materia (Materia.docente = request.user).
         """
-        if not IsSecretariaOrAbove().has_permission(request, self):
-            return Response(
-                {'error': 'No tienes permisos para registrar notas.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         serializer = NotaBulkSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -287,6 +324,13 @@ class NotasGradoView(APIView):
             materia = Materia.objects.get(pk=materia_id)
         except Materia.DoesNotExist:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            if _get_rol(request) != 'docente' or materia.docente_id != request.user.id:
+                return Response(
+                    {'error': 'No tienes permisos para registrar notas en esta materia.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         try:
             lapso = Lapso.objects.get(pk=lapso_id)
@@ -378,20 +422,25 @@ class AsistenciaView(APIView):
                     'fecha': fecha,
                     'presente': None,
                     'justificada': False,
+                    'estado': None,
                     'observacion': '',
                 })
 
         return Response(resultado)
 
+    def _grado_seccion_objetivo(self, request):
+        return request.data.get('grado_seccion')
+
     def post(self, request):
         """
         Guarda/actualiza la asistencia masiva de un grado en un día.
-        Body: {fecha, grado_seccion, registros: [{alumno_id, presente, justificada, observacion}]}
-        Roles permitidos: director, sistemas, administrador, secretaria
+        Body: {fecha, grado_seccion, registros: [{alumno_id, estado, observacion}]}
+        Roles permitidos: director, sistemas, administrador, secretaria,
+        o docente si tiene una materia activa asignada en esa sección.
         """
-        if not IsSecretariaOrAbove().has_permission(request, self):
+        if not IsDocenteAsignadoOrSecretariaOrAbove().has_permission(request, self):
             return Response(
-                {'error': 'No tienes permisos para registrar asistencia.'},
+                {'error': 'No tienes permisos para registrar asistencia en esta sección.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -424,6 +473,7 @@ class AsistenciaView(APIView):
                 defaults={
                     'presente':       item['presente'],
                     'justificada':    item.get('justificada', False),
+                    'estado':         item.get('estado'),
                     'observacion':    item.get('observacion', ''),
                     'registrado_por': request.user,
                 }
@@ -999,3 +1049,220 @@ class LapsoDetailView(APIView):
         lapso.activo = False
         lapso.save()
         return Response({'mensaje': f'Lapso "{lapso.nombre}" cerrado correctamente.'})
+
+
+# ─────────────────────────────────────────────
+# INCIDENTES DISCIPLINARIOS
+# ─────────────────────────────────────────────
+class IncidentesListCreateView(APIView):
+    """
+    GET: lista incidentes. Secretaria+ ve todos (con filtros); docente ve solo
+    los de las secciones donde tiene una materia activa asignada.
+    POST: crea un incidente (multipart si incluye adjunto).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _grado_seccion_objetivo(self, request):
+        return request.data.get('grado_seccion') or request.query_params.get('grado_seccion')
+
+    def get(self, request):
+        rol = _get_rol(request)
+        qs = IncidenteDisciplinario.objects.select_related('alumno', 'registrado_por').all()
+
+        if not (request.user.is_superuser or IsSecretariaOrAbove().has_permission(request, self)):
+            if rol != 'docente':
+                return Response({'error': 'No tienes permisos para ver incidentes.'}, status=status.HTTP_403_FORBIDDEN)
+            secciones = Materia.objects.filter(
+                docente=request.user, activa=True
+            ).values_list('grado_seccion', flat=True)
+            qs = qs.filter(alumno__grado_seccion__in=list(secciones))
+
+        filterset = IncidenteFilter(request.query_params, queryset=qs)
+        if filterset.is_valid():
+            qs = filterset.qs
+
+        return Response(IncidenteDisciplinarioSerializer(qs, many=True).data)
+
+    def post(self, request):
+        """Roles permitidos: docente (solo alumnos de su sección), secretaria+."""
+        alumno_id = request.data.get('alumno_id')
+        try:
+            alumno = Alumno.objects.get(pk=alumno_id)
+        except (Alumno.DoesNotExist, TypeError, ValueError):
+            return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            if _get_rol(request) != 'docente' or not _docente_tiene_seccion(request.user, alumno.grado_seccion):
+                return Response(
+                    {'error': 'No tienes permisos para registrar incidentes de este alumno.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        serializer = IncidenteDisciplinarioSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(registrado_por=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class IncidenteDetailView(APIView):
+    """GET de un incidente puntual. Mismo scoping que la lista."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            incidente = IncidenteDisciplinario.objects.select_related('alumno', 'registrado_por').get(pk=pk)
+        except IncidenteDisciplinario.DoesNotExist:
+            return Response({'error': 'Incidente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            if _get_rol(request) != 'docente' or not _docente_tiene_seccion(request.user, incidente.alumno.grado_seccion):
+                return Response({'error': 'No tienes permisos para ver este incidente.'}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response(IncidenteDisciplinarioSerializer(incidente).data)
+
+
+# ─────────────────────────────────────────────
+# PORTAL DOCENTE — MIS MATERIAS
+# ─────────────────────────────────────────────
+class DocenteMisMateriasView(APIView):
+    """
+    GET /api/academico/docente/mis-materias/
+    Retorna las materias activas asignadas al docente autenticado.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if _get_rol(request) != 'docente':
+            return Response({'error': 'Solo docentes pueden consultar sus materias.'}, status=status.HTTP_403_FORBIDDEN)
+        materias = Materia.objects.filter(docente=request.user, activa=True)
+        return Response(MateriaDocenteSerializer(materias, many=True).data)
+
+
+# ─────────────────────────────────────────────
+# MATERIAL DE ESTUDIO
+# ─────────────────────────────────────────────
+class MaterialEstudioListCreateView(APIView):
+    """
+    GET: lista material de estudio, filtrable por ?materia_id=. Cualquier autenticado.
+    POST (multipart): crea material nuevo. Roles permitidos: docente dueño de la
+    materia (Materia.docente = request.user), o secretaria+.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = MaterialEstudio.objects.select_related('materia', 'publicado_por').all()
+        materia_id = request.query_params.get('materia_id')
+        if materia_id:
+            qs = qs.filter(materia_id=materia_id)
+        return Response(MaterialEstudioSerializer(qs, many=True).data)
+
+    def post(self, request):
+        materia_id = request.data.get('materia_id')
+        try:
+            materia = Materia.objects.get(pk=materia_id)
+        except (Materia.DoesNotExist, TypeError, ValueError):
+            return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            if _get_rol(request) != 'docente' or materia.docente_id != request.user.id:
+                return Response(
+                    {'error': 'No tienes permisos para publicar material en esta materia.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        serializer = MaterialEstudioSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(publicado_por=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MaterialEstudioDetailView(APIView):
+    """GET de un material puntual. DELETE: docente dueño de la materia o secretaria+."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_material(self, pk):
+        try:
+            return MaterialEstudio.objects.select_related('materia', 'publicado_por').get(pk=pk)
+        except MaterialEstudio.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        material = self._get_material(pk)
+        if not material:
+            return Response({'error': 'Material no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(MaterialEstudioSerializer(material).data)
+
+    def delete(self, request, pk):
+        material = self._get_material(pk)
+        if not material:
+            return Response({'error': 'Material no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            if _get_rol(request) != 'docente' or material.materia.docente_id != request.user.id:
+                return Response(
+                    {'error': 'No tienes permisos para eliminar este material.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        material.delete()
+        return Response({'mensaje': 'Material eliminado correctamente.'}, status=status.HTTP_200_OK)
+
+
+# ─────────────────────────────────────────────
+# RENDIMIENTO (Fase 4 — Seguimiento Gráfico, panel admin)
+# ─────────────────────────────────────────────
+class RendimientoAlumnoView(APIView):
+    """GET — promedios por lapso/materia + asistencia de un alumno.
+    Roles: director, sistemas, administrador."""
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrAbove]
+
+    def get(self, request, alumno_id):
+        try:
+            alumno = Alumno.objects.get(pk=alumno_id)
+        except Alumno.DoesNotExist:
+            return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(calcular_rendimiento_alumno(alumno))
+
+
+class RendimientoSeccionView(APIView):
+    """GET — % de aprobados por materia de una sección (mapa de calor).
+    Roles: director, sistemas, administrador."""
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrAbove]
+
+    def get(self, request, grado_seccion):
+        lapso_id = request.query_params.get('lapso_id')
+        lapso = None
+        if lapso_id:
+            try:
+                lapso = Lapso.objects.get(pk=lapso_id)
+            except Lapso.DoesNotExist:
+                return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(calcular_rendimiento_seccion(grado_seccion, lapso=lapso))
+
+
+class AlertasRendimientoView(APIView):
+    """GET — alumnos en riesgo académico (alertas activas).
+    Roles: director, sistemas, administrador."""
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrAbove]
+
+    def get(self, request):
+        alertas = AlertaRendimiento.objects.filter(activa=True).select_related(
+            'alumno', 'materia', 'lapso'
+        ).order_by('alumno__grado_seccion', 'alumno__apellido')
+
+        data = [{
+            'id': a.id,
+            'alumno_id': a.alumno_id,
+            'alumno': f"{a.alumno.nombre} {a.alumno.apellido}",
+            'grado_seccion': a.alumno.grado_seccion,
+            'materia_id': a.materia_id,
+            'materia': a.materia.nombre if a.materia else None,
+            'lapso': a.lapso.nombre,
+            'promedio_actual': float(a.promedio_actual),
+            'umbral_minimo': float(a.umbral_minimo),
+            'created_at': a.created_at,
+        } for a in alertas]
+
+        return Response(data)

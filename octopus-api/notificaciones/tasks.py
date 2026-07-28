@@ -56,3 +56,28 @@ def task_notificar_comprobante_inscripcion(inscripcion_id):
         notificar_comprobante_inscripcion(inscripcion)
     except Exception as e:
         logger.error(f'task_notificar_comprobante_inscripcion({inscripcion_id}): {e}')
+
+
+@shared_task
+def task_notificar_circular_nueva(circular_id):
+    try:
+        from comunicacion.models import Circular
+        circular = Circular.objects.get(id=circular_id)
+        from notificaciones.services import notificar_circular_nueva
+        notificar_circular_nueva(circular)
+    except Exception as e:
+        logger.error(f'task_notificar_circular_nueva({circular_id}): {e}')
+
+
+@shared_task
+def task_notificar_mensaje_nuevo(mensaje_id):
+    try:
+        from comunicacion.models import MensajeDirecto
+        mensaje = MensajeDirecto.objects.select_related(
+            'alumno', 'remitente_docente', 'remitente_representante__representante',
+            'destinatario_docente', 'destinatario_representante__representante',
+        ).get(id=mensaje_id)
+        from notificaciones.services import notificar_mensaje_directo
+        notificar_mensaje_directo(mensaje)
+    except Exception as e:
+        logger.error(f'task_notificar_mensaje_nuevo({mensaje_id}): {e}')

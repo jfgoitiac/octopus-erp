@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import {
   Upload, Search, X, FileSpreadsheet,
   CheckCircle, AlertCircle, Building2, Trash2,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { BANKS } from '../utils/bankParsers';
 import { useConciliador } from '../hooks/useConciliador';
@@ -111,9 +112,13 @@ function DropZone({ dragging, loading, fileName, transactions, bankInfo, fileRef
 }
 
 // ─── Sub-componente: tabla de transacciones ───────────────────────────────────
-function TransactionsTable({ transactions }) {
-  const VISIBLE_LIMIT = 150;
-  const visible = transactions.slice(0, VISIBLE_LIMIT);
+const PAGE_SIZE = 20;
+
+function TransactionsTable({ transactions, page, setPage }) {
+  const totalPages = Math.max(1, Math.ceil(transactions.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const visible = transactions.slice(start, start + PAGE_SIZE);
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
@@ -165,16 +170,41 @@ function TransactionsTable({ transactions }) {
             ))}
           </tbody>
         </table>
-
-        {transactions.length > VISIBLE_LIMIT && (
-          <div
-            className="px-4 py-3 text-center text-xs"
-            style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderTop: '0.5px solid var(--border-md)' }}
-          >
-            Mostrando {VISIBLE_LIMIT} de {transactions.length} transacciones. Usa la búsqueda para localizar una específica.
-          </div>
-        )}
       </div>
+
+      {totalPages > 1 && (
+        <div
+          className="flex items-center justify-between px-4 py-3 text-xs"
+          style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderTop: '0.5px solid var(--border-md)' }}
+        >
+          <span>
+            Página <span className="font-semibold" style={{ color: 'var(--jet)' }}>{currentPage}</span> de {totalPages}
+            {' · '}{transactions.length} transacciones en total
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg disabled:opacity-40"
+              style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-lg disabled:opacity-40"
+              style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
+              aria-label="Página siguiente"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -185,6 +215,8 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
     setQuery(e.target.value.replace(/\D/g, '').slice(0, 6));
     setResults(null);
   }, [setQuery, setResults]);
+
+  const isValidLength = query.length >= 4 && query.length <= 6;
 
   return (
     <div
@@ -232,7 +264,7 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
           {/* Input */}
           <div>
             <label htmlFor="ref-search" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>
-              Últimos 6 dígitos de la referencia
+              Últimos 4 a 6 dígitos de la referencia
             </label>
             <div className="flex gap-2">
               <input
@@ -241,8 +273,8 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
                 inputMode="numeric"
                 value={query}
                 onChange={handleQueryChange}
-                onKeyDown={e => e.key === 'Enter' && onSearch()}
-                placeholder="ej. 123456"
+                onKeyDown={e => e.key === 'Enter' && isValidLength && onSearch()}
+                placeholder="ej. 1234 a 123456"
                 maxLength={6}
                 autoFocus
                 className="flex-1 px-3 py-2.5 rounded-lg text-sm font-mono tracking-[0.3em] outline-none"
@@ -256,7 +288,7 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
               <button
                 type="button"
                 onClick={onSearch}
-                disabled={query.length < 6}
+                disabled={!isValidLength}
                 className="px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-opacity"
                 style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}
               >
@@ -357,6 +389,7 @@ export default function Conciliador() {
     query, setQuery,
     results, setResults,
     showClearConfirm, setShowClearConfirm,
+    page, setPage,
     bankInfo, fileRef,
     processFile, handleDrop, handleFileInput,
     handleSearch, openSearch, clearFile,
@@ -368,7 +401,7 @@ export default function Conciliador() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold" style={{ color: 'var(--jet)' }}>Conciliador Bancario</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-          Carga tu estado de cuenta para verificar transacciones por los últimos 6 dígitos de referencia.
+          Carga tu estado de cuenta para verificar transacciones por los últimos 4 a 6 dígitos de referencia.
         </p>
       </div>
 
@@ -424,7 +457,7 @@ export default function Conciliador() {
 
       {/* Tabla de transacciones */}
       {transactions.length > 0 && (
-        <TransactionsTable transactions={transactions} />
+        <TransactionsTable transactions={transactions} page={page} setPage={setPage} />
       )}
 
       {/* Modal de búsqueda */}

@@ -372,7 +372,7 @@ class ActivarPortalMasivoView(APIView):
     """
     Activa el portal para todos los representantes que aún no tienen acceso.
     Solo roles: director, sistemas.
-    POST /api/auth/activar-portal-masivo/
+    POST /api/authentication/activar-portal-masivo/
     """
     permission_classes = [permissions.IsAuthenticated]
 

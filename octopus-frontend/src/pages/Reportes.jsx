@@ -6,6 +6,7 @@ import {
     Clock, CheckCircle2, AlertTriangle, ChevronsRight, Printer,
     ListChecks, X, CheckSquare, Square,
     ChevronDown, ChevronUp, History, Lock, Save, ChevronLeft, ChevronRight,
+    Copy,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -407,6 +408,12 @@ const Reportes = () => {
             else next.add(op.operacion_uuid);
             return next;
         });
+    };
+
+    const copiarReferencia = (referencia) => {
+        navigator.clipboard.writeText(referencia)
+            .then(() => toast.success('Referencia copiada.'))
+            .catch(() => toast.error('No se pudo copiar la referencia.'));
     };
 
     const toggleAlumnoExpandido = (alumnoKey) => {
@@ -990,10 +997,22 @@ const Reportes = () => {
                                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                                                                 <span className="whitespace-nowrap" style={{ color: 'var(--ash)' }}>{fecha}</span>
                                                                 {op.pagos.map(p => (
-                                                                    <span key={p.id} className="px-2 py-0.5 rounded-full whitespace-nowrap"
+                                                                    <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full whitespace-nowrap"
                                                                         style={{ background: 'var(--porcelain)', color: 'var(--jet)' }}>
                                                                         {p.metodo_pago_display || METODO_LABELS[p.metodo_pago] || p.metodo_pago}: ${fmt(p.monto_usd)}
-                                                                        {p.referencia ? ` · Ref. ${p.referencia}` : ''}
+                                                                        {p.referencia ? (
+                                                                            <>
+                                                                                {` · Ref. ${p.referencia}`}
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => copiarReferencia(p.referencia)}
+                                                                                    title="Copiar referencia"
+                                                                                    className="flex items-center"
+                                                                                    style={{ color: 'var(--pb)' }}>
+                                                                                    <Copy size={11} />
+                                                                                </button>
+                                                                            </>
+                                                                        ) : ''}
                                                                     </span>
                                                                 ))}
                                                             </div>
@@ -1090,9 +1109,21 @@ const Reportes = () => {
                                                 <div className="space-y-1.5 pt-2">
                                                     {(loteDetalle?.pagos || []).map(p => (
                                                         <div key={p.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg" style={{ background: '#fff' }}>
-                                                            <span style={{ color: 'var(--jet)' }}>
+                                                            <span className="inline-flex items-center gap-1" style={{ color: 'var(--jet)' }}>
                                                                 {`${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim()} · {p.metodo_pago_display || p.metodo_pago}
-                                                                {p.referencia ? ` · Ref. ${p.referencia}` : ''}
+                                                                {p.referencia ? (
+                                                                    <>
+                                                                        {` · Ref. ${p.referencia}`}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => copiarReferencia(p.referencia)}
+                                                                            title="Copiar referencia"
+                                                                            className="flex items-center"
+                                                                            style={{ color: 'var(--pb)' }}>
+                                                                            <Copy size={11} />
+                                                                        </button>
+                                                                    </>
+                                                                ) : ''}
                                                             </span>
                                                             <span className="font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</span>
                                                         </div>

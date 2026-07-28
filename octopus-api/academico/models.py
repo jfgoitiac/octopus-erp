@@ -159,6 +159,8 @@ class Nota(models.Model):
 # ASISTENCIA
 # ─────────────────────────────────────────────
 class Asistencia(models.Model):
+    ESTADOS = [('P', 'Presente'), ('A', 'Ausente'), ('J', 'Justificado'), ('R', 'Retardado')]
+
     alumno    = models.ForeignKey(
         'secretaria.Alumno',
         on_delete=models.CASCADE,
@@ -168,6 +170,9 @@ class Asistencia(models.Model):
     presente  = models.BooleanField(default=True)
     # justificada solo tiene sentido cuando presente=False
     justificada  = models.BooleanField(default=False)
+    # Fuente de verdad para escrituras nuevas; presente/justificada se derivan
+    # de este campo para no romper reportes existentes que ya los leen.
+    estado    = models.CharField(max_length=1, choices=ESTADOS, null=True, blank=True)
     observacion  = models.CharField(max_length=200, blank=True)
     # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores
     history = HistoricalRecords()
@@ -233,3 +238,114 @@ class HorarioClase(models.Model):
             f"{self.materia.nombre} — {self.get_dia_semana_display()} "
             f"{self.hora_inicio:%H:%M}-{self.hora_fin:%H:%M}"
         )
+
+
+# ─────────────────────────────────────────────
+# INCIDENTE DISCIPLINARIO
+# ─────────────────────────────────────────────
+def validar_tamano_adjunto(archivo):
+    limite_mb = 5
+    if archivo.size > limite_mb * 1024 * 1024:
+        raise ValidationError(f'El adjunto no puede superar {limite_mb}MB.')
+
+
+class IncidenteDisciplinario(models.Model):
+    SEVERIDADES = [('L', 'Leve'), ('M', 'Moderado'), ('G', 'Grave')]
+
+    alumno      = models.ForeignKey(
+        'secretaria.Alumno',
+        on_delete=models.CASCADE,
+        related_name='incidentes'
+    )
+    fecha       = models.DateField(auto_now_add=True)
+    descripcion = models.TextField()
+    severidad   = models.CharField(max_length=1, choices=SEVERIDADES)
+    # Pillow valida que el contenido sea una imagen real (no solo la extensión)
+    adjunto     = models.ImageField(
+        upload_to='incidentes/', blank=True, null=True,
+        validators=[validar_tamano_adjunto],
+    )
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='incidentes_registrados'
+    )
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha', '-created_at']
+        verbose_name = 'Incidente Disciplinario'
+        verbose_name_plural = 'Incidentes Disciplinarios'
+
+    def __str__(self):
+        return f"{self.alumno.nombre} {self.alumno.apellido} — {self.fecha} ({self.get_severidad_display()})"
+
+
+# ─────────────────────────────────────────────
+# ALERTA DE RENDIMIENTO
+# ─────────────────────────────────────────────
+class AlertaRendimiento(models.Model):
+    alumno = models.ForeignKey(
+        'secretaria.Alumno',
+        on_delete=models.CASCADE,
+        related_name='alertas_rendimiento'
+    )
+    materia = models.ForeignKey(
+        Materia,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='alertas_rendimiento'
+    )
+    lapso = models.ForeignKey(
+        Lapso,
+        on_delete=models.CASCADE,
+        related_name='alertas_rendimiento'
+    )
+    promedio_actual = models.DecimalField(max_digits=5, decimal_places=2)
+    umbral_minimo = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    activa = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resuelta_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Alerta de Rendimiento'
+        verbose_name_plural = 'Alertas de Rendimiento'
+
+    def __str__(self):
+        estado = 'activa' if self.activa else 'resuelta'
+        return f"{self.alumno.nombre} {self.alumno.apellido} — {self.materia} ({self.lapso.nombre}, {estado})"
+
+
+# ─────────────────────────────────────────────
+# MATERIAL DE ESTUDIO
+# ─────────────────────────────────────────────
+class MaterialEstudio(models.Model):
+    materia     = models.ForeignKey(
+        Materia,
+        on_delete=models.CASCADE,
+        related_name='materiales'
+    )
+    titulo      = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True)
+    archivo     = models.FileField(
+        upload_to='materiales/', blank=True, null=True,
+        validators=[validar_tamano_adjunto],
+    )
+    enlace      = models.URLField(blank=True)
+    publicado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='materiales_publicados'
+    )
+    fecha       = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name = 'Material de Estudio'
+        verbose_name_plural = 'Materiales de Estudio'
+
+    def __str__(self):
+        return f"{self.materia.nombre} — {self.titulo}"

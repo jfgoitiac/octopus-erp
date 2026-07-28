@@ -5,7 +5,6 @@ Cubren los flujos críticos:
   - Login del portal (token JWT separado del panel admin)
   - Aislamiento de datos entre representantes (IDOR)
   - Subida y validación de comprobantes de pago
-  - Webhook de Stripe (firma + registro del pago)
   - Recordatorios de cobranza (días 0/5/10/15)
 """
 from datetime import date, timedelta
@@ -386,65 +385,6 @@ class AdminComprobantesTests(PortalTestBase):
         self.assertFalse(self.mensualidad.pagado)
         self.comprobante.refresh_from_db()
         self.assertEqual(self.comprobante.estatus, 'rechazado')
-
-
-@override_settings(STRIPE_SECRET_KEY='sk_test_falsa', STRIPE_WEBHOOK_SECRET='whsec_test')
-class StripeWebhookTests(PortalTestBase):
-    def setUp(self):
-        super().setUp()
-        # El webhook asigna el pago al primer superusuario como receptor
-        self.superuser = User.objects.create_superuser(
-            username='root', password='clave-root-789', email='root@example.com'
-        )
-        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
-
-    def _evento(self, mensualidad_id):
-        return {
-            'type': 'checkout.session.completed',
-            'data': {'object': {
-                'id': 'cs_test_123',
-                'payment_intent': 'pi_test_123',
-                'metadata': {'mensualidad_id': str(mensualidad_id)},
-            }},
-        }
-
-    def test_firma_invalida_devuelve_400(self):
-        resp = self.client.post(
-            '/api/portal/stripe/webhook/', data='{}',
-            content_type='application/json',
-            HTTP_STRIPE_SIGNATURE='firma-falsa',
-        )
-        self.assertEqual(resp.status_code, 400)
-
-    def test_checkout_completado_registra_pago(self):
-        with mock.patch('stripe.Webhook.construct_event', return_value=self._evento(self.mensualidad.id)):
-            resp = self.client.post(
-                '/api/portal/stripe/webhook/', data='{}',
-                content_type='application/json',
-                HTTP_STRIPE_SIGNATURE='t=1,v1=x',
-            )
-        self.assertEqual(resp.status_code, 200)
-
-        self.mensualidad.refresh_from_db()
-        self.assertTrue(self.mensualidad.pagado)
-
-        pago = Pago.objects.get(referencia='pi_test_123')
-        self.assertEqual(pago.metodo_pago, 'stripe')
-        self.assertEqual(pago.estatus, 'completado')
-        self.assertEqual(pago.monto_usd, Decimal('35.00'))
-        self.assertEqual(pago.alumno_id, self.alumno.id)
-
-    def test_webhook_idempotente(self):
-        """Si Stripe reintenta el evento, no se duplica el pago."""
-        evento = self._evento(self.mensualidad.id)
-        with mock.patch('stripe.Webhook.construct_event', return_value=evento):
-            for _ in range(2):
-                self.client.post(
-                    '/api/portal/stripe/webhook/', data='{}',
-                    content_type='application/json',
-                    HTTP_STRIPE_SIGNATURE='t=1,v1=x',
-                )
-        self.assertEqual(Pago.objects.filter(referencia='pi_test_123').count(), 1)
 
 
 @override_settings(PORTAL_EMAIL_DIRECTOR='director@example.com')

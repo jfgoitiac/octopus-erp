@@ -15,7 +15,10 @@ urlpatterns = [
     path('api/nomina/', include('nomina.urls')),
     path('api/rrhh/', include('rrhh.urls')),
     path('api/portal/', include('portal.urls')),
+    path('api/portal/comunicacion/', include('comunicacion.urls_portal')),
     path('api/academico/', include('academico.urls')),
+    path('api/portal/academico/', include('academico.urls_portal')),
+    path('api/comunicacion/', include('comunicacion.urls')),
     path('api/multisede/', include('multisede.urls')),
     path('api/notificaciones/', include('notificaciones.urls')),
 ]

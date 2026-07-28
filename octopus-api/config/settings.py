@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'rrhh.apps.RrhhConfig', 
     'portal',
     'academico',
+    'comunicacion.apps.ComunicacionConfig',
     'multisede.apps.MultisedeConfig',
     'notificaciones.apps.NotificacionesConfig',
 
@@ -256,6 +257,16 @@ CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_TIMEZONE = 'America/Caracas'
+
+# Ninguna tarea del proyecto lee su AsyncResult (todas son fire-and-forget vía
+# .delay(), verificado por grep: no hay un solo .get()/AsyncResult en el código).
+# Sin esto, cada .delay() intenta además guardar el estado en el result backend
+# (Redis) y, si no está disponible, kombu reintenta con backoff durante varios
+# minutos antes de fallar -- bloqueando la request completa aunque el .delay()
+# esté envuelto en try/except (el error solo se lanza al agotar los reintentos).
+# Con ignore_result=True esa escritura ni se intenta, y el try/except de cada
+# vista atrapa el error de conexión al *broker* casi de inmediato.
+CELERY_TASK_IGNORE_RESULT = True
 CELERY_BEAT_SCHEDULE = {
     # Revisar mensualidades vencidas cada día a las 8am y programar notificaciones pendientes
     'revisar-mensualidades-vencidas': {
@@ -277,6 +288,11 @@ CELERY_BEAT_SCHEDULE = {
     'generar-mensualidades-mes': {
         'task': 'cobranza.tasks.generar_mensualidades_mes_actual',
         'schedule': crontab(hour=0, minute=5, day_of_month='1'),
+    },
+    # Alertas académicas: diario a las 6am (Fase 4 — Seguimiento Gráfico)
+    'alertas-rendimiento-diario': {
+        'task': 'academico.tasks.generar_alertas_rendimiento',
+        'schedule': crontab(hour=6, minute=0),
     },
 }
 # ── Fin Celery Beat ────────────────────────────────────────────────────────────
