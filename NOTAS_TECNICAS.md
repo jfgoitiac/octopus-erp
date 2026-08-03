@@ -1366,3 +1366,77 @@ cargado en la BD antes de esta verificación, igual que se documentó en Fase 3)
    rediseñar el patrón de navegación — si se agrega una Fase 6/7 con otra
    sección de nivel superior en el portal, conviene migrar a un menú "Más"
    en vez de seguir sumando íconos.
+
+---
+
+# FASE 6 — PWA + PUSH (2026-07-28)
+
+Se agregó instalabilidad (`vite-plugin-pwa`, manifest, Service Worker con
+Workbox) y notificaciones Web Push (`pywebpush`/`py-vapid`, VAPID) para el
+Portal de Representantes. Respeta el límite de íconos del punto 4 anterior:
+en vez de una 7ma sección en el bottom nav, la activación vive en un prompt
+no bloqueante (`NotificacionesModal.jsx`, 10s post-login) y la gestión de
+tipos activos se agregó dentro de la página "Ajustes" ya existente
+(`PortalCambiarContrasena.jsx`).
+
+1. **`cffi` estaba roto en el venv de desarrollo antes de esta fase**
+   (`ModuleNotFoundError: No módulo _cffi_backend` al importar
+   `cryptography.hazmat`) — la instalación existente de `cffi==2.0.0` no
+   tenía el binario compilado para Python 3.14 en Windows. No lo causó esta
+   fase (nadie importaba `cryptography.hazmat` directamente hasta que
+   `py-vapid` lo necesitó), pero bloqueaba generar las claves VAPID.
+   **Corregido**: `pip install --force-reinstall cffi` resolvió a `2.1.0`,
+   que sí trae el binario; `requirements.txt` actualizado a esa versión. Si
+   el mismo error reaparece en otro entorno (otro Python/SO), es el mismo
+   fix.
+
+2. **`SuscripcionPushView.get()` es un endpoint agregado sobre la marcha**,
+   no estaba en el plan original (que solo contemplaba POST/DELETE/PATCH) —
+   se necesitó para que la UI de toggles en Ajustes pudiera inicializar su
+   estado (saber si ya hay una suscripción activa y qué tipos tiene). Devuelve
+   el estado agregado de la cuenta (primera suscripción activa encontrada),
+   no por dispositivo — coherente con que `PATCH .../tipos/` también aplica
+   a todas las suscripciones activas del representante, no a una sola.
+
+3. **Íconos del manifest (`public/icons/icon-192.png`, `icon-512.png`) son
+   un placeholder generado automáticamente** (recorte/centrado de
+   `public/favicon.png`, que no es un ícono cuadrado ni pensado para esto).
+   Funcional para que el manifest sea instalable, pero conviene reemplazarlos
+   por un ícono cuadrado diseñado a propósito cuando el colegio/diseño lo
+   defina.
+
+4. **`favicon.png` (fuente, 7MB) y cualquier logo de colegio subido por API
+   quedaron fuera del precache** (`globIgnores: ['**/*.png']` en
+   `vite.config.js`) porque excedían el límite de 2MB de Workbox y rompían
+   el build (`generateSW`). Se sirven igual vía la regla de runtime caching
+   `CacheFirst` para imágenes — solo cambia que no quedan disponibles la
+   primera vez sin conexión (edge case aceptable para un logo, no para el
+   shell de la app). Si se agregan íconos PWA adicionales más pesados,
+   revisar si siguen cayendo bajo este `globIgnores` accidentalmente.
+
+5. **Envío real de push no se pudo probar end-to-end en este entorno**
+   (requiere HTTPS válido; `localhost` alcanza para registrar el SW y crear
+   la suscripción, pero varios navegadores exigen un origen seguro real para
+   que el push efectivamente llegue). Verificado hasta donde el entorno lo
+   permite: suscripción se registra correctamente en `SuscripcionPush`
+   (backend), `enviar_push()` maneja 410/404 marcando `activa=False` (test
+   unitario), y el flujo de negocio (circular/mensaje/pago/mora día 5-10)
+   llama a `_push_representante()` sin romper el envío por email/WhatsApp
+   existente aunque no haya suscripción o VAPID no esté configurado
+   (`_vapid_configurado()` corta antes de intentar). Falta prueba real en
+   el colegio piloto con HTTPS.
+
+6. **Push "nota cargada" no está conectado a ningún evento real todavía** —
+   `tipos_activos` default incluye `'nota'` (siguiendo el diseño de
+   `docs/PLAN_EXPANSION_V2.md`/UI brief), pero no existe hoy ningún punto en
+   el código que dispare una notificación al cargar/actualizar una
+   calificación (ni por email, ni por push) — es tema de Fase 3 (Portal
+   Docente), que todavía no tiene ese hook. Cuando se conecte, seguir el
+   mismo patrón de `_push_representante(usuario_portal, 'nota', ...)` usado
+   para los otros 3 tipos.
+
+7. **`PortalLayout.jsx` importa `user` de `usePortalAuth()` sin usarlo**
+   (`no-unused-vars` de eslint) — preexistente a esta fase (no lo tocamos,
+   confirmado con `git diff` antes de anotar), se dejó igual por estar fuera
+   del alcance pedido. Si se toca ese archivo de nuevo, aprovechar para
+   quitar la variable o usarla.

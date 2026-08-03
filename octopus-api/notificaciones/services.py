@@ -230,6 +230,76 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre):
         return False
 
 
+# ── WEB PUSH ──────────────────────────────────────────────────────────────────
+
+def enviar_push(suscripcion, titulo, cuerpo, url='/portal', tipo='otro',
+                 representante_cedula='', alumno_nombre=''):
+    """Envia una notificacion Web Push a una SuscripcionPush especifica.
+    Si el endpoint ya no es valido (404/410), marca la suscripcion como
+    inactiva -- mismo criterio de "limpieza" que usa el resto del proyecto
+    para canales que fallan de forma permanente."""
+    import json
+    from django.conf import settings
+    if not suscripcion.activa:
+        return False
+    try:
+        from pywebpush import webpush, WebPushException
+    except ImportError:
+        logger.error('pywebpush no esta instalado')
+        return False
+    destino = suscripcion.endpoint[:200]
+    try:
+        webpush(
+            subscription_info={
+                'endpoint': suscripcion.endpoint,
+                'keys': {'p256dh': suscripcion.p256dh, 'auth': suscripcion.auth},
+            },
+            data=json.dumps({'title': titulo, 'body': cuerpo, 'url': url}),
+            vapid_private_key=settings.VAPID_PRIVATE_KEY,
+            vapid_claims={'sub': f'mailto:{settings.VAPID_EMAIL}'},
+        )
+        _log('push', tipo, destino, titulo, cuerpo, 'enviado',
+             representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='webpush')
+        return True
+    except WebPushException as e:
+        status_code = getattr(getattr(e, 'response', None), 'status_code', None)
+        if status_code in (404, 410):
+            suscripcion.activa = False
+            suscripcion.save(update_fields=['activa'])
+        _log('push', tipo, destino, titulo, cuerpo, 'fallido', error=str(e),
+             representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='webpush')
+        logger.error(f'Error push -> {destino}: {e}')
+        return False
+
+
+def _push_representante(usuario_portal, tipo_push, titulo, cuerpo, url='/portal',
+                        tipo_log='otro', representante_cedula='', alumno_nombre=''):
+    """Envia push a todas las suscripciones activas del representante que
+    tengan `tipo_push` habilitado en `tipos_activos`."""
+    from .models import SuscripcionPush
+    if not _vapid_configurado():
+        return
+    suscripciones = SuscripcionPush.objects.filter(usuario_portal=usuario_portal, activa=True)
+    for s in suscripciones:
+        if tipo_push in (s.tipos_activos or []):
+            enviar_push(s, titulo, cuerpo, url=url, tipo=tipo_log,
+                       representante_cedula=representante_cedula, alumno_nombre=alumno_nombre)
+
+
+def _vapid_configurado():
+    from django.conf import settings
+    return bool(settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY)
+
+
+def _usuario_portal_de(representante):
+    """Devuelve el RepresentanteUser (usuario del portal) de un Representante,
+    o None si nunca activo su acceso al portal."""
+    try:
+        return representante.portal_user
+    except Exception:
+        return None
+
+
 # ── NOTIFICACIONES DE NEGOCIO ─────────────────────────────────────────────────
 
 def notificar_mora(mensualidad, dias_mora, tipo):
@@ -306,6 +376,18 @@ def notificar_mora(mensualidad, dias_mora, tipo):
         enviar_whatsapp(tel, mensajes_wa[tipo], tipo=tipo,
                         representante_cedula=rep.cedula,
                         alumno_nombre=ctx['nombre_alumno'])
+
+    # Push: solo dia 5/10 (dia 0 satura, dia 15 va al director que no es
+    # usuario del portal).
+    if tipo in ('mora_dia_5', 'mora_dia_10'):
+        usuario_portal = _usuario_portal_de(rep)
+        if usuario_portal:
+            _push_representante(
+                usuario_portal, 'factura', asuntos.get(tipo, 'Aviso de pago'),
+                f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- ${ctx["monto_usd"]} USD',
+                url='/portal', tipo_log=tipo,
+                representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
+            )
 
 
 def notificar_bienvenida_portal(representante, contrasena_inicial):
@@ -400,6 +482,11 @@ def notificar_circular_nueva(circular):
                 representante_cedula=rep.cedula,
                 area='control_estudios',
             )
+        _push_representante(
+            lectura.usuario, 'circular', circular.titulo, circular.cuerpo[:120],
+            url='/portal/comunicaciones', tipo_log='circular',
+            representante_cedula=rep.cedula,
+        )
 
 
 def notificar_mensaje_directo(mensaje):
@@ -435,6 +522,11 @@ def notificar_mensaje_directo(mensaje):
                          representante_cedula=rep.cedula,
                          alumno_nombre=ctx['alumno_nombre'],
                          area='control_estudios')
+        _push_representante(
+            mensaje.destinatario_representante, 'mensaje', asunto, mensaje.cuerpo[:120],
+            url='/portal/mensajes', tipo_log='mensaje',
+            representante_cedula=rep.cedula, alumno_nombre=ctx['alumno_nombre'],
+        )
     elif mensaje.destinatario_docente and mensaje.destinatario_docente.email:
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         ctx['enlace'] = f'{frontend_url}/mensajes'
@@ -457,6 +549,15 @@ def notificar_pago_exitoso(mensualidad, pago):
         'referencia': pago.referencia or str(pago.id),
     }
     html = _render_email('pago_exitoso.html', ctx)
+
+    adjuntos = None
+    try:
+        from cobranza.utils_pdf import generar_recibo_pdf
+        pdf_bytes = bytes(generar_recibo_pdf(pago))
+        adjuntos = [(f'recibo_pago_{pago.id}.pdf', pdf_bytes, 'application/pdf')]
+    except Exception as e:
+        logger.error(f'No se pudo generar el PDF del recibo para el pago #{pago.id}: {e}')
+
     enviar_email(
         rep.correo,
         f'Pago confirmado -- {mensualidad.get_mes_display()} {mensualidad.anio}',
@@ -464,6 +565,7 @@ def notificar_pago_exitoso(mensualidad, pago):
         tipo='pago_exitoso',
         representante_cedula=rep.cedula,
         alumno_nombre=ctx['nombre_alumno'],
+        adjuntos=adjuntos,
     )
     if rep.telefono:
         msg = (
@@ -474,3 +576,12 @@ def notificar_pago_exitoso(mensualidad, pago):
         )
         enviar_whatsapp(rep.telefono, msg, tipo='pago_exitoso',
                         representante_cedula=rep.cedula)
+
+    usuario_portal = _usuario_portal_de(rep)
+    if usuario_portal:
+        _push_representante(
+            usuario_portal, 'factura', 'Pago confirmado',
+            f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- ${ctx["monto_usd"]} USD',
+            url='/portal/historial', tipo_log='pago_exitoso',
+            representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
+        )

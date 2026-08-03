@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import NotificacionLog, ConfiguracionNotificaciones, PerfilEmailRemitente
+from .models import NotificacionLog, ConfiguracionNotificaciones, PerfilEmailRemitente, SuscripcionPush
 
 
 @admin.register(NotificacionLog)
@@ -22,6 +22,14 @@ class ConfiguracionNotificacionesAdmin(admin.ModelAdmin):
                        'meta_whatsapp_token', 'meta_whatsapp_phone_id'),
         }),
     )
+
+
+@admin.register(SuscripcionPush)
+class SuscripcionPushAdmin(admin.ModelAdmin):
+    list_display   = ['usuario_portal', 'activa', 'tipos_activos', 'fecha_registro']
+    list_filter    = ['activa']
+    search_fields  = ['usuario_portal__representante__cedula', 'usuario_portal__representante__nombre']
+    readonly_fields = ['endpoint', 'p256dh', 'auth', 'fecha_registro']
 
 
 @admin.register(PerfilEmailRemitente)

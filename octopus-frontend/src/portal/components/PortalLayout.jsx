@@ -3,6 +3,7 @@ import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { getConfigColegio } from '../api/portal.service';
+import NotificacionesModal from './NotificacionesModal';
 
 const PortalLayout = () => {
   const { user, logout } = usePortalAuth();
@@ -133,6 +134,8 @@ const PortalLayout = () => {
           </NavLink>
         </div>
       </nav>
+
+      <NotificacionesModal />
     </div>
   );
 };

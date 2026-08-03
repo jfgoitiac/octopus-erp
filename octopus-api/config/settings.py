@@ -219,6 +219,11 @@ META_WHATSAPP_TOKEN     = os.environ.get('META_WHATSAPP_TOKEN', '')
 META_WHATSAPP_PHONE_ID  = os.environ.get('META_WHATSAPP_PHONE_ID', '')
 DIRECTOR_WHATSAPP       = os.environ.get('DIRECTOR_WHATSAPP', '')
 
+# ── Web Push (VAPID) ──────────────────────────────────────────────────────────
+VAPID_PUBLIC_KEY  = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_EMAIL       = os.environ.get('VAPID_EMAIL', 'admin@octopus.app')
+
 # ── Email ─────────────────────────────────────────────────────────────────────
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',

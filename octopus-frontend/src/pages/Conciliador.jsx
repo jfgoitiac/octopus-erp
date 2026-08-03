@@ -72,7 +72,7 @@ function DropZone({ dragging, loading, fileName, transactions, bankInfo, fileRef
       <input
         ref={fileRef}
         type="file"
-        accept=".xlsx,.xls,.csv"
+        accept=".xlsx,.xls,.csv,.pdf"
         className="hidden"
         onChange={onFileInput}
       />
@@ -103,7 +103,7 @@ function DropZone({ dragging, loading, fileName, transactions, bankInfo, fileRef
             {dragging ? 'Suelta el archivo aquí' : 'Arrastra tu estado de cuenta'}
           </span>
           <span className="text-xs" style={{ color: 'var(--ash)' }}>
-            o presiona Enter para seleccionar · Excel (.xlsx, .xls) o CSV
+            o presiona Enter para seleccionar · Excel (.xlsx, .xls), CSV o PDF
           </span>
         </div>
       )}

@@ -70,6 +70,19 @@ def task_notificar_circular_nueva(circular_id):
 
 
 @shared_task
+def task_enviar_push(suscripcion_id, titulo, cuerpo, url='/portal'):
+    """Envia un push puntual a una suscripcion (ej. notificacion de prueba
+    al activar, o reintentos disparados fuera de los eventos de negocio)."""
+    try:
+        from notificaciones.models import SuscripcionPush
+        suscripcion = SuscripcionPush.objects.get(id=suscripcion_id)
+        from notificaciones.services import enviar_push
+        enviar_push(suscripcion, titulo, cuerpo, url=url, tipo='prueba')
+    except Exception as e:
+        logger.error(f'task_enviar_push({suscripcion_id}): {e}')
+
+
+@shared_task
 def task_notificar_mensaje_nuevo(mensaje_id):
     try:
         from comunicacion.models import MensajeDirecto

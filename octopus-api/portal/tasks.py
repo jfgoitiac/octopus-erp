@@ -466,7 +466,7 @@ def notificar_comprobante_subido(comprobante_id):
             message=mensaje,
             from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@octopus.edu.ve'),
             recipient_list=emails_destino,
-            fail_silently=True,
+            fail_silently=False,
         )
 
         logger.info(f'Notificación de comprobante {comprobante_id} enviada a {emails_destino}')

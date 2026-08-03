@@ -795,6 +795,9 @@ class AdminComprobantesView(APIView):
                     # de un mes no implica solvencia si debe meses anteriores.
                     from cobranza.mora import sincronizar_estatus_alumno
                     sincronizar_estatus_alumno(alumno)
+
+                    from notificaciones.tasks import task_notificar_pago_exitoso
+                    task_notificar_pago_exitoso.delay(mensualidad.id, pago_creado.id)
                 except Exception as exc:
                     logger.error(
                         'No se pudo crear Pago al aprobar comprobante #%s: %s',
@@ -890,33 +893,36 @@ class ConfiguracionColegioPublicaView(APIView):
     authentication_classes = []
 
     def get(self, request):
+        from django.conf import settings
         from django.core.cache import cache
         from secretaria.signals import CACHE_KEY_CONFIG_COLEGIO_PUBLICA
 
         data = cache.get(CACHE_KEY_CONFIG_COLEGIO_PUBLICA)
-        if data is not None:
-            return Response(data)
+        if data is None:
+            from secretaria.models import ConfiguracionSistema
+            config = ConfiguracionSistema.objects.first()
+            if not config:
+                data = {
+                    'nombre_colegio': 'Mi Colegio',
+                    'color_primario': '#0fa3b1',
+                    'color_secundario': '#1f3864',
+                    'logo_url': '',
+                }
+            else:
+                data = {
+                    'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
+                    'color_primario': config.color_primario or '#0fa3b1',
+                    'color_secundario': config.color_secundario or '#1f3864',
+                    'logo_url': config.logo_url or '',
+                }
+            # TTL de 5 min como red de seguridad además de la invalidación por
+            # señal (secretaria/signals.py), por si corre con varios workers.
+            cache.set(CACHE_KEY_CONFIG_COLEGIO_PUBLICA, data, timeout=300)
 
-        from secretaria.models import ConfiguracionSistema
-        config = ConfiguracionSistema.objects.first()
-        if not config:
-            data = {
-                'nombre_colegio': 'Mi Colegio',
-                'color_primario': '#0fa3b1',
-                'color_secundario': '#1f3864',
-                'logo_url': '',
-            }
-        else:
-            data = {
-                'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
-                'color_primario': config.color_primario or '#0fa3b1',
-                'color_secundario': config.color_secundario or '#1f3864',
-                'logo_url': config.logo_url or '',
-            }
-        # TTL de 5 min como red de seguridad además de la invalidación por
-        # señal (secretaria/signals.py), por si corre con varios workers.
-        cache.set(CACHE_KEY_CONFIG_COLEGIO_PUBLICA, data, timeout=300)
-        return Response(data)
+        # No se cachea junto al resto: es una constante de settings (no de BD),
+        # así que se agrega en cada respuesta sin depender de la invalidación
+        # del cache de configuración visual.
+        return Response({**data, 'vapid_public_key': settings.VAPID_PUBLIC_KEY})
 
 
 # ──────────────────────────────────────────────────────────────────────────────

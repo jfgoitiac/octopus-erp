@@ -1,7 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import permissions
+from rest_framework import permissions, status
 import logging
+
+from portal.authentication import PortalJWTAuthentication
 
 logger = logging.getLogger(__name__)
 
@@ -181,3 +183,94 @@ class LogNotificacionesView(APIView):
                 for l in logs
             ],
         })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# WEB PUSH — PORTAL DE REPRESENTANTES
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SuscripcionPushView(APIView):
+    """POST: crea o reactiva la suscripcion push del representante autenticado
+    para el `endpoint` recibido (el mismo `endpoint` puede volver a suscribirse
+    tras desactivarse, o quedar reasignado si el navegador se reutiliza con
+    otra cuenta -- `endpoint` es unico en el modelo).
+    DELETE: desactiva (soft) la suscripcion de ese endpoint.
+    GET: estado agregado de la cuenta -- si tiene alguna suscripcion activa y
+    los tipos activos (es una preferencia de cuenta, igual que en PATCH tipos/)."""
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .models import SuscripcionPush
+        rep_user = request.user.representante_portal
+        suscripcion = SuscripcionPush.objects.filter(
+            usuario_portal=rep_user, activa=True,
+        ).order_by('-fecha_registro').first()
+        if not suscripcion:
+            return Response({'activa': False, 'tipos_activos': []})
+        return Response({'activa': True, 'tipos_activos': suscripcion.tipos_activos})
+
+    def post(self, request):
+        from .models import SuscripcionPush, _tipos_push_default
+        rep_user = request.user.representante_portal
+        endpoint = (request.data.get('endpoint') or '').strip()
+        keys = request.data.get('keys') or {}
+        p256dh = keys.get('p256dh') or request.data.get('p256dh')
+        auth = keys.get('auth') or request.data.get('auth')
+        if not endpoint or not p256dh or not auth:
+            return Response(
+                {'error': 'Suscripción inválida: faltan endpoint o keys.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        tipos = request.data.get('tipos') or _tipos_push_default()
+
+        suscripcion, _creada = SuscripcionPush.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                'usuario_portal': rep_user,
+                'p256dh': p256dh,
+                'auth': auth,
+                'activa': True,
+                'tipos_activos': tipos,
+            },
+        )
+        return Response({
+            'id': suscripcion.id,
+            'activa': suscripcion.activa,
+            'tipos_activos': suscripcion.tipos_activos,
+        }, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        from .models import SuscripcionPush
+        rep_user = request.user.representante_portal
+        endpoint = (request.data.get('endpoint') or '').strip()
+        if not endpoint:
+            return Response({'error': 'Falta endpoint.'}, status=status.HTTP_400_BAD_REQUEST)
+        actualizadas = SuscripcionPush.objects.filter(
+            endpoint=endpoint, usuario_portal=rep_user,
+        ).update(activa=False)
+        if not actualizadas:
+            return Response({'error': 'Suscripción no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TiposPushView(APIView):
+    """PATCH: actualiza los tipos de notificacion push activos (circular, nota,
+    factura, mensaje) en todas las suscripciones activas del representante
+    autenticado -- es una preferencia de cuenta, no por dispositivo."""
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    TIPOS_VALIDOS = {'circular', 'nota', 'factura', 'mensaje'}
+
+    def patch(self, request):
+        from .models import SuscripcionPush
+        rep_user = request.user.representante_portal
+        tipos = request.data.get('tipos')
+        if not isinstance(tipos, list) or not set(tipos).issubset(self.TIPOS_VALIDOS):
+            return Response(
+                {'error': f'`tipos` debe ser una lista dentro de {sorted(self.TIPOS_VALIDOS)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        SuscripcionPush.objects.filter(usuario_portal=rep_user, activa=True).update(tipos_activos=tipos)
+        return Response({'tipos_activos': tipos})

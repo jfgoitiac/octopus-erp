@@ -2,7 +2,6 @@ from django.core.cache import cache
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from .models import BancoInstitucional, Pago
-from secretaria.services import NotificadorService
 from usuarios.models import LogAuditoria
 
 CACHE_KEY_BANCOS_ACTIVOS = 'cobranza_bancos_activos'
@@ -19,16 +18,17 @@ def invalidar_cache_bancos(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Pago)
 def procesar_notificacion_pago(sender, instance, created, **kwargs):
+    # El correo de "pago confirmado" (con recibo PDF adjunto) se dispara
+    # explícitamente desde RegistrarPagoView y PortalComprobantePagoDetailView
+    # vía task_notificar_pago_exitoso, una vez que el Pago ya quedó vinculado
+    # a su(s) Mensualidad(es) -- en el momento del post_save ese vínculo M2M
+    # todavía no existe.
     if created:
-        # 1. Enviar correo automáticamente
-        NotificadorService.enviar_recibo_pago(instance)
-
-        # 2. Registrar en auditoría para el Director
         LogAuditoria.objects.create(
             usuario=instance.usuario_receptor,
-            accion="ENVIO_RECIBO_DIGITAL", # This action should be more specific, e.g., "RECIBO_ENVIADO"
+            accion="REGISTRO_PAGO_CREADO",
             modulo="COBRANZA",
-            detalles=f"Recibo #{instance.id} enviado a {instance.alumno.representante.correo}"
+            detalles=f"Pago #{instance.id} registrado para {instance.alumno.representante.correo}"
         )
 
 

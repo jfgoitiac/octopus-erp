@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/comunicacion/', include('comunicacion.urls')),
     path('api/multisede/', include('multisede.urls')),
     path('api/notificaciones/', include('notificaciones.urls')),
+    path('api/portal/notificaciones/', include('notificaciones.urls_portal')),
 ]
 
 if settings.DEBUG:

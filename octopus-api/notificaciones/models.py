@@ -68,8 +68,34 @@ class PerfilEmailRemitente(models.Model):
         return f'Perfil email — {self.get_area_display()}'
 
 
+def _tipos_push_default():
+    return ['circular', 'nota', 'factura', 'mensaje']
+
+
+class SuscripcionPush(models.Model):
+    """Suscripción Web Push de un representante del portal. Un mismo
+    representante puede tener varias (uno por dispositivo/navegador)."""
+
+    usuario_portal = models.ForeignKey(
+        'portal.RepresentanteUser', on_delete=models.CASCADE, related_name='suscripciones_push',
+    )
+    endpoint      = models.URLField(max_length=500, unique=True)
+    p256dh        = models.TextField()
+    auth          = models.TextField()
+    activa        = models.BooleanField(default=True)
+    tipos_activos = models.JSONField(default=_tipos_push_default)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Suscripción Push'
+        verbose_name_plural = 'Suscripciones Push'
+
+    def __str__(self):
+        return f'Push {self.usuario_portal} ({"activa" if self.activa else "inactiva"})'
+
+
 class NotificacionLog(models.Model):
-    CANALES = (('email', 'Email'), ('whatsapp', 'WhatsApp'))
+    CANALES = (('email', 'Email'), ('whatsapp', 'WhatsApp'), ('push', 'Push'))
     ESTADOS = (('enviado', 'Enviado'), ('fallido', 'Fallido'), ('pendiente', 'Pendiente'))
     TIPOS = (
         ('mora_dia_0',   'Aviso factura (Dia 0)'),

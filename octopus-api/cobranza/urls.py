@@ -17,6 +17,7 @@ from .views import (
     EmitirSolvenciaManualView,
     ExportarAuditoriaExcelView,
     ExportarMorososExcelView,
+    ExtraerPdfConciliacionView,
     HistoricoMensualView,
     ListaMorososView,
     LoteRevisionCajaDetailView,
@@ -59,4 +60,5 @@ urlpatterns = [
     path('conciliacion/resumen/',           ResumenConciliacionView.as_view(),       name='conciliacion-resumen'),
     path('conciliacion/lotes/',             LoteRevisionCajaListCreateView.as_view(), name='conciliacion-lotes'),
     path('conciliacion/lotes/<int:pk>/',    LoteRevisionCajaDetailView.as_view(),     name='conciliacion-lote-detalle'),
+    path('conciliacion/extraer-pdf/',       ExtraerPdfConciliacionView.as_view(),     name='conciliacion-extraer-pdf'),
 ]

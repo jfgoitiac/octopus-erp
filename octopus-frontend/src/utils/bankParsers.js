@@ -21,6 +21,14 @@ const n = (s = '') => decodeEntities(s.toString())
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().trim();
 
+// Mapa de abreviatura de mes (3 letras, sin tildes) -> índice 0-11. Algunos
+// bancos usan "sep" y otros "set" para septiembre, por eso no es un array
+// simple indexado por posición.
+const MESES_ES = {
+  ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+  jul: 6, ago: 7, sep: 8, set: 8, oct: 9, nov: 10, dic: 11,
+};
+
 function findCol(headers, candidates) {
   for (const c of candidates) {
     const idx = headers.findIndex(h => n(h).includes(c));
@@ -39,6 +47,22 @@ function findHeaderRow(rows) {
     if (hasFecha && hasRef) return i;
   }
   return 0;
+}
+
+// Cuando una celda de PDF (ej. descripción larga) no cabe en una sola línea,
+// pdfplumber la devuelve con un salto de línea interno (ej. "ND EMISION DE\nCUENTA").
+// Lo normalizamos a un solo espacio para que se vea bien en la tabla.
+function cleanCell(val) {
+  return (val ?? '').toString().replace(/\s*\n\s*/g, ' ').trim();
+}
+
+// La referencia es un código numérico/alfanumérico sin espacios reales, así
+// que si una referencia larga se parte en dos líneas dentro de su celda
+// (ej. "1142001139734\n86432"), quitamos todo el espacio en blanco en vez de
+// colapsarlo a un espacio — de lo contrario quedaría un espacio falso en
+// medio del número.
+function cleanReferencia(val) {
+  return (val ?? '').toString().replace(/\s+/g, '').trim();
 }
 
 function parseAmount(val) {
@@ -73,7 +97,7 @@ function formatDate(val) {
     return format(d, 'dd/MM/yyyy', { locale: es });
   }
 
-  const str = val.toString().trim();
+  const str = cleanCell(val);
 
   // Already formatted dd/MM/yyyy
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
@@ -90,6 +114,18 @@ function formatDate(val) {
     const [d, m, y] = str.split('-');
     const date = new Date(Number(y), Number(m) - 1, Number(d));
     return format(date, 'dd/MM/yyyy', { locale: es });
+  }
+
+  // dd-MMM-yyyy con mes abreviado en español (ej. Bancaribe: "01-JUL-2026")
+  const mesAbreviado = str.match(/^(\d{2})-([A-Za-zñÑ]{3,4})\.?-(\d{4})$/);
+  if (mesAbreviado) {
+    const [, d, mesStr, y] = mesAbreviado;
+    const mes = n(mesStr).slice(0, 3);
+    const idx = MESES_ES[mes];
+    if (idx !== undefined) {
+      const date = new Date(Number(y), idx, Number(d));
+      return format(date, 'dd/MM/yyyy', { locale: es });
+    }
   }
 
   return str;
@@ -112,8 +148,11 @@ function genericParse(rows, bankId) {
     const row = rows[i];
     if (!row || row.every(c => c === '' || c === null || c === undefined)) continue;
 
+    // No usar cleanCell() aquí: formatDate() necesita distinguir un number
+    // crudo (fecha serial de Excel) de un string, y cleanCell() ya convierte
+    // todo a string con .toString().
     const fecha      = row[fechaIdx];
-    const referencia = refIdx !== -1 ? row[refIdx]?.toString().trim() : null;
+    const referencia = refIdx !== -1 ? cleanReferencia(row[refIdx]) : null;
 
     if (!fecha || !referencia || referencia.length < 3) continue;
 
@@ -136,7 +175,7 @@ function genericParse(rows, bankId) {
       referencia,
       monto,
       tipo,
-      descripcion: descIdx !== -1 ? (row[descIdx]?.toString().trim() || '') : '',
+      descripcion: descIdx !== -1 ? cleanCell(row[descIdx]) : '',
       banco:       bankId,
     });
   }

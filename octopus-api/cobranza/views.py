@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from rest_framework.parsers import MultiPartParser
 from rest_framework import viewsets
 from django.db import transaction
 from django.http import FileResponse
@@ -13,6 +14,7 @@ from django.db.models import Min, Q
 from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
 from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
+from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
 from usuarios.models import LogAuditoria
@@ -499,6 +501,14 @@ class RegistrarPagoView(APIView):
             for a in alumnos_resueltos:
                 if a['mensualidad_ids'] or a['mensualidad_adelanto_ids']:
                     sincronizar_estatus_alumno(a['alumno'])
+
+            # Correo de "pago confirmado" al representante, uno por cada pago
+            # que quedó vinculado a una mensualidad (con recibo PDF adjunto).
+            from notificaciones.tasks import task_notificar_pago_exitoso
+            for pago in pagos_creados:
+                mensualidad_ref = pago.mensualidades_pagadas.first()
+                if mensualidad_ref:
+                    task_notificar_pago_exitoso.delay(mensualidad_ref.id, pago.id)
 
         todas_cuotas_inscripcion_qs = CuotaInscripcion.objects.none()
         for a in alumnos_resueltos:
@@ -1435,6 +1445,47 @@ class LoteRevisionCajaDetailView(APIView):
             context={'revisado_pago_ids': set(p.id for p in pagos)},
         ).data
         return Response(data)
+
+
+class ExtraerPdfConciliacionView(APIView):
+    """
+    Extrae la tabla de un estado de cuenta bancario en PDF (cualquier banco)
+    y la devuelve como filas crudas para que el frontend (bankParsers.js)
+    haga la misma detección de columnas que ya usa para Excel/CSV.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser]
+    ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+    TAMANO_MAXIMO_MB = 10
+
+    def post(self, request):
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        if not request.user.is_superuser and rol not in self.ROLES_PERMITIDOS:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            return Response({'error': 'Debe adjuntar un archivo PDF.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not archivo.name.lower().endswith('.pdf'):
+            return Response({'error': 'El archivo debe ser un PDF.'}, status=status.HTTP_400_BAD_REQUEST)
+        if archivo.size > self.TAMANO_MAXIMO_MB * 1024 * 1024:
+            return Response(
+                {'error': f'El archivo excede el tamaño máximo de {self.TAMANO_MAXIMO_MB}MB.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            filas = extraer_tabla_pdf(archivo)
+        except PdfSinTablaError as e:
+            return Response({'error': str(e)}, status=422)
+        except Exception:
+            logger.exception('Error al procesar PDF de conciliación')
+            return Response(
+                {'error': 'No se pudo procesar el PDF. Verifica que no esté dañado o protegido con contraseña.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({'rows': filas})
 
 
 # ──────────────────────────────────────────────────────────────────────────────
