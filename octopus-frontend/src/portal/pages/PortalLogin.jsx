@@ -71,7 +71,7 @@ const PortalLogin = () => {
                   onChange={(e) => setCedulaOEmail(e.target.value)}
                   placeholder="Ej: V-12345678 o correo@ejemplo.com"
                   autoComplete="username"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30 focus:border-[#0fa3b1] transition-colors"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                   disabled={submitting}
                 />
               </div>
@@ -91,7 +91,7 @@ const PortalLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   autoComplete="current-password"
-                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30 focus:border-[#0fa3b1] transition-colors"
+                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                   disabled={submitting}
                 />
                 <button
@@ -109,7 +109,7 @@ const PortalLogin = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#0fa3b1] hover:bg-[#0d93a0] text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-[var(--portal-primary,#0fa3b1)] hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
             >
               {submitting ? (
                 <>

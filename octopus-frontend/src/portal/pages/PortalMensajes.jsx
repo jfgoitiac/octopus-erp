@@ -43,7 +43,7 @@ const PortalMensajes = () => {
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <MessageCircle size={20} className="text-[#0fa3b1]" />
+          <MessageCircle size={20} className="text-[var(--portal-primary,#0fa3b1)]" />
           Mensajes
         </h1>
         <p className="text-xs text-gray-400 mt-0.5">Conversaciones con los docentes</p>

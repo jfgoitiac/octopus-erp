@@ -22,8 +22,8 @@ const EstudianteSelector = ({ alumnos = [], alumnoActivo, onSelect }) => {
               onClick={() => onSelect(alumno)}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
                 isActive
-                  ? 'bg-[#0fa3b1] text-white border-[#0fa3b1]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#0fa3b1] hover:text-[#0fa3b1]'
+                  ? 'bg-[var(--portal-primary,#0fa3b1)] text-white border-[var(--portal-primary,#0fa3b1)]'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--portal-primary,#0fa3b1)] hover:text-[var(--portal-primary,#0fa3b1)]'
               }`}
             >
               <span className="block leading-tight">{alumno.nombre} {alumno.apellido}</span>

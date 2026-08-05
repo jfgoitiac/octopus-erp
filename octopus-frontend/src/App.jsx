@@ -19,6 +19,7 @@ const PortalCambiarContrasena  = lazy(() => import('./portal/pages/PortalCambiar
 const PortalComunicaciones     = lazy(() => import('./portal/pages/PortalComunicaciones'));
 const PortalMensajes           = lazy(() => import('./portal/pages/PortalMensajes'));
 const PortalRendimiento        = lazy(() => import('./portal/pages/PortalRendimiento'));
+const PortalPerfil             = lazy(() => import('./portal/pages/PortalPerfil'));
 
 // ── Panel administrativo ──────────────────────────────────────────────────────
 const Login                    = lazy(() => import('./pages/Login'));
@@ -108,6 +109,7 @@ function App() {
               <Route path="comunicaciones" element={<PortalComunicaciones />} />
               <Route path="mensajes" element={<PortalMensajes />} />
               <Route path="rendimiento" element={<PortalRendimiento />} />
+              <Route path="perfil" element={<PortalPerfil />} />
             </Route>
 
             {/* ── Portal Docente (módulo separado, login/JWT propios) ── */}

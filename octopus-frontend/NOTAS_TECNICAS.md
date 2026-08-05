@@ -370,3 +370,48 @@
   evaluación (`solo_lectura`), ya que esa sí es una distinción de categoría
   legítima (evaluación vs. evento personal), consistente con otras alertas
   ámbar del sistema.
+
+## Upgrade Portal de Representantes — 2026-08-05
+
+- [DEUDA MEDIA] Hook compartido `usePortalAlumnos()` para deduplicar el fetch
+  de `getDashboard()`, que hoy se repite de forma independiente en
+  `PortalDashboard.jsx`, `PortalMensajes.jsx`, `PortalHistorialPagos.jsx` y
+  `useRendimientoPortal.js` — cada uno mantiene su propio `alumnoActivo`
+  local y dispara su propia petición al montar. Con esto el representante
+  hace 4 requests idénticos a `GET /api/portal/dashboard/` al navegar por el
+  portal en una sola sesión. Un hook compartido (con contexto o un store
+  simple) evitaría la duplicación y unificaría el estado de `alumnoActivo`
+  entre páginas. No se toca en este upgrade porque es una refactorización
+  transversal fuera del alcance aprobado (ver
+  `PLAN_UPGRADE_PORTAL_REPRESENTANTES.md`, Fase 2, punto 3).
+
+## Reporte Contable por Concepto y Mes — 2026-08-05
+
+- [DEUDA MEDIA] `PagosListView` (backend, `cobranza/views.py:1234`) clampa
+  `page_size` a un máximo de 100 sin importar lo que pida el cliente
+  (`min(100, max(1, ...))`). Varias partes del frontend ya pedían `page_size`
+  de 1000/2000/5000 asumiendo que se respetaba (`fetchBI`,
+  `handlePrintDetalle` en `Reportes.jsx`) — en realidad esas llamadas solo
+  traían 100 registros como máximo, silenciosamente. `ReporteContable.jsx`
+  sí implementa paginación real (múltiples requests hasta agotar
+  `total_pages`), pero el resto de los reportes que confían en un
+  `page_size` grande en un solo request deberían revisarse y corregirse
+  con el mismo patrón, o el backend debería exponer una ruta de exportación
+  sin límite de página para reportes.
+
+- [DEUDA BAJA] `ReporteContable.jsx` agrupa el reporte anual haciendo
+  `Promise.all` con una petición por página (hasta `total_pages`). Un
+  colegio con miles de pagos en un año dispararía muchas peticiones
+  concurrentes al backend. Si esto se vuelve un problema de rendimiento,
+  conviene pedirle al backend un endpoint de agregación
+  (`GET cobranza/reportes/por-concepto/?anio=...`) que devuelva los
+  totales ya agrupados por mes/concepto en el servidor, en vez de traer
+  todos los pagos crudos al cliente.
+
+- [DEUDA BAJA] El bucket "Solvencia (meses atrasados)" del reporte usa
+  únicamente `concepto == 'solvencia'`. Si en el futuro el colegio necesita
+  distinguir además las mensualidades pagadas fuera de fecha (más allá de
+  las marcadas explícitamente como concepto "solvencia"), habría que cruzar
+  cada pago con su fecha de vencimiento usando la misma lógica que ya existe
+  en `cobranza/mensualidades/puntualidad/` — no implementado, solo se filtra
+  por concepto (decisión confirmada con el usuario).

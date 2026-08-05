@@ -88,7 +88,8 @@ const PortalComunicaciones = () => {
           {circulares.map(c => (
             <div
               key={c.id}
-              className={`bg-white rounded-2xl p-4 shadow-sm border ${c.leido ? 'border-gray-100' : 'border-[#0fa3b1]/30'}`}
+              className={`bg-white rounded-2xl p-4 shadow-sm border ${c.leido ? 'border-gray-100' : ''}`}
+              style={c.leido ? undefined : { borderColor: 'color-mix(in srgb, var(--portal-primary, #0fa3b1) 30%, white)' }}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">

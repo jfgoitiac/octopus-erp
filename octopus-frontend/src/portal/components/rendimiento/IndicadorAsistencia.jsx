@@ -12,7 +12,7 @@ const IndicadorAsistencia = ({ asistencia }) => {
   }
 
   const bajoUmbral = porcentaje < 85;
-  const color = bajoUmbral ? '#ef4444' : '#0fa3b1';
+  const color = bajoUmbral ? '#ef4444' : 'var(--portal-primary, #0fa3b1)';
   const data = [{ name: 'asistencia', value: porcentaje, fill: color }];
 
   return (

@@ -11,6 +11,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import DatePickerES from '../components/DatePickerES';
+import ReporteContable from '../components/reportes/ReporteContable';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
@@ -1138,6 +1139,9 @@ const Reportes = () => {
                     )}
                 </div>
             </section>
+
+            {/* ── SECCIÓN 1.6: Reporte Contable por Concepto y Mes ── */}
+            <ReporteContable />
 
             {/* ── SECCIÓN 2: Histórico Mensual ── */}
             <section>

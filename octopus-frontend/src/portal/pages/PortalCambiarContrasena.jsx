@@ -21,7 +21,7 @@ const Switch = ({ checked, onChange, disabled, label }) => (
     aria-label={label}
     disabled={disabled}
     onClick={() => onChange(!checked)}
-    className={`w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${checked ? 'bg-[#0fa3b1]' : 'bg-gray-200'}`}
+    className={`w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${checked ? 'bg-[var(--portal-primary,#0fa3b1)]' : 'bg-gray-200'}`}
   >
     <span
       className={`block w-5 h-5 bg-white rounded-full shadow transform transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`}
@@ -124,7 +124,7 @@ const PortalCambiarContrasena = () => {
       {pushSupported && (
         <div className="mb-6 border border-gray-100 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Bell size={18} className="text-[#0fa3b1]" />
+            <Bell size={18} className="text-[var(--portal-primary,#0fa3b1)]" />
             <h2 className="text-sm font-semibold text-gray-800">Notificaciones</h2>
           </div>
           <div className="space-y-3">
@@ -150,7 +150,7 @@ const PortalCambiarContrasena = () => {
       )}
 
       <div className="flex items-center gap-2 mb-6">
-        <Lock size={20} className="text-[#0fa3b1]" />
+        <Lock size={20} className="text-[var(--portal-primary,#0fa3b1)]" />
         <h1 className="text-lg font-bold text-gray-800">Cambiar contraseña</h1>
       </div>
 
@@ -172,7 +172,7 @@ const PortalCambiarContrasena = () => {
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   required
                   autoComplete={key === 'contrasena_actual' ? 'current-password' : 'new-password'}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[#0fa3b1]/30"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30"
                 />
                 <ToggleBtn field={sk} />
               </div>
@@ -183,7 +183,7 @@ const PortalCambiarContrasena = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#0fa3b1] text-white font-medium py-3 rounded-xl text-sm hover:bg-[#0d93a0] transition-colors disabled:opacity-60 mt-2"
+          className="w-full bg-[var(--portal-primary,#0fa3b1)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] transition-colors disabled:opacity-60 mt-2"
         >
           {loading ? 'Guardando...' : 'Actualizar contraseña'}
         </button>

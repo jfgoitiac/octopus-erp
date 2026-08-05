@@ -29,7 +29,7 @@ const GraficaPorMateria = ({ porMateria = [] }) => {
             <Bar dataKey="promedio" radius={[0, 6, 6, 0]} barSize={20}>
               <LabelList dataKey="promedio" position="right" style={{ fontSize: 11, fill: '#374151' }} />
               {data.map((m, i) => (
-                <Cell key={i} fill={m.promedio < UMBRAL ? '#ef4444' : '#0fa3b1'} />
+                <Cell key={i} fill={m.promedio < UMBRAL ? '#ef4444' : 'var(--portal-primary, #0fa3b1)'} />
               ))}
             </Bar>
           </BarChart>

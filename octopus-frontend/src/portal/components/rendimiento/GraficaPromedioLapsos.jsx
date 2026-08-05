@@ -26,9 +26,9 @@ const GraficaPromedioLapsos = ({ porLapso = [] }) => {
           <Line
             type="monotone"
             dataKey="promedio"
-            stroke="#0fa3b1"
+            stroke="var(--portal-primary, #0fa3b1)"
             strokeWidth={2.5}
-            dot={{ r: 4, fill: '#0fa3b1' }}
+            dot={{ r: 4, fill: 'var(--portal-primary, #0fa3b1)' }}
             connectNulls
           />
         </LineChart>

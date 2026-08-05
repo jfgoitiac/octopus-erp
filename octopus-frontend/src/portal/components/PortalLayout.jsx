@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp } from 'lucide-react';
+import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { getConfigColegio } from '../api/portal.service';
 import NotificacionesModal from './NotificacionesModal';
+import RepresentanteRail from './RepresentanteRail';
 
 const PortalLayout = () => {
   const { user, logout } = usePortalAuth();
@@ -30,9 +31,11 @@ const PortalLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <RepresentanteRail />
+
       {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-[480px] mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-[480px] md:max-w-7xl mx-auto px-4 h-14 flex items-center justify-between md:pl-20">
           <div className="flex items-center gap-2">
             {configColegio.logo_url ? (
               <img
@@ -51,7 +54,7 @@ const PortalLayout = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/portal/cambiar-contrasena')}
-              className="hidden sm:flex items-center gap-1 text-gray-400 hover:text-[#0fa3b1] transition-colors text-sm"
+              className="hidden sm:flex items-center gap-1 text-gray-400 hover:text-[var(--portal-primary,#0fa3b1)] transition-colors text-sm"
               aria-label="Cambiar contraseña"
               title="Cambiar contraseña"
             >
@@ -70,8 +73,8 @@ const PortalLayout = () => {
       </header>
 
       {/* Contenido principal — pb-32 para que el botón flotante y la bottom nav no tapen contenido */}
-      <main className="max-w-[480px] mx-auto px-4 py-5 pb-32 sm:pb-10">
-        <Outlet />
+      <main className="max-w-[480px] md:max-w-7xl mx-auto px-4 py-5 pb-32 sm:pb-10 md:pl-20">
+        <Outlet context={{ logoColegio: configColegio.logo_url }} />
       </main>
 
       {/* Bottom navigation — solo móvil */}
@@ -81,7 +84,7 @@ const PortalLayout = () => {
             to="/portal"
             end
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
             }
           >
             <Home size={22} />
@@ -90,7 +93,7 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/historial"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
             }
           >
             <Receipt size={22} />
@@ -99,7 +102,7 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/comunicaciones"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
             }
           >
             <Megaphone size={22} />
@@ -108,7 +111,7 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/mensajes"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
             }
           >
             <MessageCircle size={22} />
@@ -117,16 +120,25 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/rendimiento"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
             }
           >
             <TrendingUp size={22} />
             <span className="text-[10px] font-medium">Rendimiento</span>
           </NavLink>
           <NavLink
+            to="/portal/perfil"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
+            }
+          >
+            <UserCircle size={22} />
+            <span className="text-[10px] font-medium">Perfil</span>
+          </NavLink>
+          <NavLink
             to="/portal/cambiar-contrasena"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[#0fa3b1]' : 'text-gray-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400'}`
             }
           >
             <Lock size={22} />

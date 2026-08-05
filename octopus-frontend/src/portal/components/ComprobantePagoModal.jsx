@@ -146,8 +146,8 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
         {/* Área de carga */}
         {!archivo ? (
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#0fa3b1] active:bg-gray-50 transition-colors min-h-[90px]">
-              <Camera size={26} className="text-[#0fa3b1]" aria-hidden="true" />
+            <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-gray-50 transition-colors min-h-[90px]">
+              <Camera size={26} className="text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />
               <span className="text-sm font-medium text-gray-600">Cámara</span>
               <input
                 type="file"
@@ -157,7 +157,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
                 onChange={handleFileChange}
               />
             </label>
-            <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#0fa3b1] active:bg-gray-50 transition-colors min-h-[90px]">
+            <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-gray-50 transition-colors min-h-[90px]">
               <Upload size={26} className="text-gray-400" aria-hidden="true" />
               <span className="text-sm font-medium text-gray-600">Archivo</span>
               <input
@@ -172,7 +172,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
         ) : (
           <div className="relative">
             {esPDF ? (
-              <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-gray-50 text-[#0fa3b1]">
+              <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-gray-50 text-[var(--portal-primary,#0fa3b1)]">
                 <FileText size={40} aria-hidden="true" />
                 <span className="text-sm text-gray-600 text-center break-all">{archivo?.name}</span>
               </div>
@@ -213,7 +213,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
           <select
             value={metodoPago}
             onChange={(e) => setMetodoPago(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0fa3b1] bg-white"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-white"
           >
             <option value="transferencia">Transferencia Bancaria</option>
             <option value="pago_movil">Pago Móvil</option>
@@ -240,7 +240,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
                 ? 'Ej: ZL-2024-XXXXXXXX'
                 : 'Ej: 12345678'
             }
-            className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0fa3b1] uppercase placeholder:normal-case"
+            className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] uppercase placeholder:normal-case"
             maxLength={100}
             autoComplete="off"
           />
@@ -269,7 +269,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
         <button
           onClick={handleSubmit}
           disabled={!archivo || estado === 'uploading' || estado === 'success'}
-          className="w-full bg-[#0fa3b1] text-white font-medium py-3 rounded-xl transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full bg-[var(--portal-primary,#0fa3b1)] text-white font-medium py-3 rounded-xl transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {estado === 'uploading' ? (
             <>
