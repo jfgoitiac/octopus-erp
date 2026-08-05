@@ -107,6 +107,7 @@ class ComprobanteSerializer(serializers.ModelSerializer):
     concepto_display = serializers.CharField(source='get_concepto_display', read_only=True)
     estatus_display = serializers.CharField(source='get_estatus_display', read_only=True)
     desglose_pagos = serializers.SerializerMethodField()
+    desglose_conceptos = serializers.SerializerMethodField()
     total_ves = serializers.SerializerMethodField()
     total_usd = serializers.SerializerMethodField()
     representante_nombre = serializers.SerializerMethodField()
@@ -150,9 +151,130 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             )
         return cache[key]
 
+    def _get_principal_con_conceptos(self, obj):
+        """El primer pago de la operación, con las relaciones M2M de
+        conceptos (mensualidades/cuotas cubiertas) prefetched. Se cachea por
+        separado de `_get_hermanos` para no penalizar a
+        get_desglose_pagos/get_total_ves/get_total_usd (que no las usan) con
+        prefetches que no necesitan."""
+        cache = self.context.setdefault('_principal_conceptos_cache', {})
+        key = obj.operacion_uuid
+        if key not in cache:
+            cache[key] = (
+                Pago.objects.filter(operacion_uuid=key)
+                .prefetch_related(
+                    'mensualidades_pagadas__alumno',
+                    'cuotas_inscripcion_pagadas__alumno',
+                    'cuotas_solvencia_pagadas__alumno',
+                    'proyectos_inversion_pagados__representante',
+                )
+                .order_by('id')
+                .first()
+            )
+        return cache[key]
+
     def get_desglose_pagos(self, obj):
         hermanos = self._get_hermanos(obj)
         return DesglosePagoSerializer(hermanos, many=True).data
+
+    def get_desglose_conceptos(self, obj):
+        """Desglosa la operación línea por línea (una por mensualidad/cuota
+        realmente cubierta), en vez del texto crudo 'Pago Mixto'.
+
+        RegistrarPagoView enlaza el M2M de cada cuota/mensualidad a TODOS los
+        pagos de la operación (ver views.py), así que cualquier hermano expone
+        el conjunto completo sin duplicados — no hace falta sumar entre
+        hermanos. El monto de cada línea sale del propio ítem (monto_usd de
+        la mensualidad/cuota), no de Pago.monto_usd: cuando el pago es mixto,
+        Pago.monto_usd es el total transferido por un método y no indica
+        cuánto de eso correspondía a cada concepto.
+        """
+        principal = self._get_principal_con_conceptos(obj)
+        if not principal:
+            return []
+        tasa = principal.tasa_aplicada or Decimal('0')
+        fecha_pago = principal.fecha_pago
+
+        MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+        CLASIFICACION_DISPLAY = {
+            'atrasado':   'Atrasado',
+            'al_dia':     'Al día',
+            'anticipado': 'Anticipado',
+        }
+
+        def _linea(concepto, concepto_display, descripcion, alumno_nombre, monto_usd, extra=None):
+            monto_usd = monto_usd or Decimal('0')
+            linea = {
+                'concepto': concepto,
+                'concepto_display': concepto_display,
+                'descripcion': descripcion,
+                'alumno': alumno_nombre,
+                'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
+                'monto_ves': str((monto_usd * tasa).quantize(Decimal('0.01'))),
+            }
+            if extra:
+                linea.update(extra)
+            return linea
+
+        lineas = []
+
+        for m in principal.mensualidades_pagadas.all():
+            extra = None
+            if fecha_pago:
+                periodo_mensualidad = (m.anio, m.mes)
+                periodo_pago = (fecha_pago.year, fecha_pago.month)
+                if periodo_mensualidad < periodo_pago:
+                    clasificacion = 'atrasado'
+                elif periodo_mensualidad > periodo_pago:
+                    clasificacion = 'anticipado'
+                else:
+                    clasificacion = 'al_dia'
+                dias_diferencia = (periodo_pago[0] - periodo_mensualidad[0]) * 12 + \
+                    (periodo_pago[1] - periodo_mensualidad[1])
+                extra = {
+                    'clasificacion_temporal': clasificacion,
+                    'clasificacion_temporal_display': CLASIFICACION_DISPLAY[clasificacion],
+                    'dias_diferencia': dias_diferencia,
+                }
+            lineas.append(_linea(
+                'mensualidad', 'MENSUALIDAD',
+                f"{MESES_ES[m.mes - 1]} {m.anio}",
+                f"{m.alumno.nombre} {m.alumno.apellido}",
+                m.monto_usd, extra,
+            ))
+
+        for c in principal.cuotas_inscripcion_pagadas.all():
+            lineas.append(_linea(
+                'inscripcion', 'INSCRIPCIÓN',
+                f"Período {c.periodo_escolar}",
+                f"{c.alumno.nombre} {c.alumno.apellido}",
+                c.monto_usd,
+            ))
+
+        for c in principal.cuotas_solvencia_pagadas.all():
+            lineas.append(_linea(
+                'solvencia', 'SOLVENCIA',
+                c.concepto or f"Período {c.periodo_escolar}",
+                f"{c.alumno.nombre} {c.alumno.apellido}",
+                c.monto_usd,
+            ))
+
+        for c in principal.proyectos_inversion_pagados.all():
+            lineas.append(_linea(
+                'proyecto_inversion', 'PROYECTO DE INVERSIÓN',
+                f"Período {c.periodo_escolar}",
+                f"{c.representante.nombre} {c.representante.apellido}",
+                c.monto_usd,
+            ))
+
+        if not lineas:
+            lineas.append(_linea(
+                obj.concepto, obj.get_concepto_display(), '', None, obj.monto_usd,
+            ))
+
+        return lineas
 
     def get_total_ves(self, obj):
         total = sum((h.monto_ves for h in self._get_hermanos(obj)), Decimal('0'))
@@ -170,7 +292,7 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             'concepto_display', 'monto_usd', 'tasa_aplicada', 'monto_ves', 'fecha_pago',
             'referencia', 'estatus', 'estatus_display', 'observaciones',
             'representante_documento', 'representante_nombre',
-            'desglose_pagos', 'total_ves', 'total_usd', 'numero_solvencia',
+            'desglose_pagos', 'desglose_conceptos', 'total_ves', 'total_usd', 'numero_solvencia',
         ]
 
 class SolvenciaRepresentanteSerializer(serializers.ModelSerializer):

@@ -10,6 +10,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from django.core.management import call_command
 from io import StringIO
+from unittest.mock import patch
 from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio, CuotaSolvencia, CuotaProyectoInversion
 from .serializers import ComprobanteSerializer
 from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Representante
@@ -583,3 +584,150 @@ class SincronizarSolvenciasCommandTest(TestCase):
         out = StringIO()
         call_command('sincronizar_solvencias', '--confirm', stdout=out)
         self.assertIn('No hay nada que saldar', out.getvalue())
+
+
+class DesgloseConceptosTest(TestCase):
+    """Un pago 'mixto' (mensualidad atrasada + inscripción de dos hermanos en
+    una sola transacción) debe poder desglosarse línea por línea en vez de
+    mostrar el texto crudo 'Pago Mixto', y la mensualidad atrasada debe
+    clasificarse como tal comparando su mes/año contra la fecha del pago."""
+
+    def setUp(self):
+        from .models import Mensualidad, CuotaInscripcion
+
+        self.user = User.objects.create_superuser(
+            username='cajero_mixto', password='password123', email='mixto@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula="V55566677", nombre="Rosa", apellido="Blanco", correo="rosa@example.com"
+        )
+        self.alumno_1 = Alumno.objects.create(
+            nombre="Carla", apellido="Blanco", cedula_escolar="E84000005",
+            fecha_nacimiento=date(2015, 3, 10), representante=self.representante
+        )
+        self.alumno_2 = Alumno.objects.create(
+            nombre="Diego", apellido="Blanco", cedula_escolar="E84000006",
+            fecha_nacimiento=date(2016, 6, 20), representante=self.representante
+        )
+
+        hoy = timezone.now()
+        mes_pasado = hoy.month - 1 or 12
+        anio_pasado = hoy.year if hoy.month > 1 else hoy.year - 1
+        self.mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno_1, mes=mes_pasado, anio=anio_pasado, monto_usd=Decimal('100.00')
+        )
+        self.cuota_1 = CuotaInscripcion.objects.create(
+            alumno=self.alumno_1, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+        )
+        self.cuota_2 = CuotaInscripcion.objects.create(
+            alumno=self.alumno_2, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+        )
+
+    def test_desglose_conceptos_reemplaza_pago_mixto(self):
+        payload = {
+            "alumnos": [
+                {
+                    "alumno_id": self.alumno_1.id,
+                    "mensualidad_ids": [self.mensualidad.id],
+                    "cuota_inscripcion_ids": [self.cuota_1.id],
+                },
+                {
+                    "alumno_id": self.alumno_2.id,
+                    "cuota_inscripcion_ids": [self.cuota_2.id],
+                },
+            ],
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "200.00"}],
+        }
+        # Pagar una mensualidad dispara una notificación async (Celery/Redis),
+        # no relevante para este test y no disponible en el entorno de test.
+        # RegistrarPagoView la importa dentro de la función (no a nivel de
+        # módulo), así que se parchea en su origen: notificaciones.tasks.
+        with patch('notificaciones.tasks.task_notificar_pago_exitoso.delay'):
+            response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.filter(alumno=self.alumno_1).order_by('id').first()
+        self.assertEqual(pago.concepto, 'mixto')
+
+        lineas = ComprobanteSerializer(pago).data['desglose_conceptos']
+        self.assertEqual(len(lineas), 3)
+
+        mensualidad_linea = next(l for l in lineas if l['concepto'] == 'mensualidad')
+        self.assertEqual(mensualidad_linea['monto_usd'], '100.00')
+        self.assertEqual(mensualidad_linea['clasificacion_temporal'], 'atrasado')
+
+        inscripcion_lineas = [l for l in lineas if l['concepto'] == 'inscripcion']
+        self.assertEqual(len(inscripcion_lineas), 2)
+        self.assertEqual({l['monto_usd'] for l in inscripcion_lineas}, {'50.00'})
+        self.assertEqual(
+            {l['alumno'] for l in inscripcion_lineas},
+            {'Carla Blanco', 'Diego Blanco'},
+        )
+
+    def test_pago_simple_tambien_trae_desglose_de_una_linea(self):
+        """Una mensualidad al día, pagada sola (sin mezclar conceptos), debe
+        seguir devolviendo desglose_conceptos con 1 línea y clasificación
+        'al_dia', no solo el concepto crudo."""
+        hoy = timezone.now()
+        from .models import Mensualidad
+        mensualidad_al_dia = Mensualidad.objects.create(
+            alumno=self.alumno_2, mes=hoy.month, anio=hoy.year, monto_usd=Decimal('80.00')
+        )
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno_2.id, "mensualidad_ids": [mensualidad_al_dia.id]}],
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "80.00"}],
+        }
+        with patch('notificaciones.tasks.task_notificar_pago_exitoso.delay'):
+            response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.filter(alumno=self.alumno_2).order_by('id').first()
+        self.assertEqual(pago.concepto, 'mensualidad')
+
+        lineas = ComprobanteSerializer(pago).data['desglose_conceptos']
+        self.assertEqual(len(lineas), 1)
+        self.assertEqual(lineas[0]['clasificacion_temporal'], 'al_dia')
+
+
+class CalcularDatosAdministrativosInscripcionTest(TestCase):
+    """calcular_datos_administrativos_inscripcion no debe inflar el monto de
+    inscripción cuando el Pago que la cubre es 'mixto' (cubre inscripción y
+    otro concepto en una misma transacción por el mismo método)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='cajero_test3', password='password123')
+        self.representante = Representante.objects.create(
+            cedula="V99988877", nombre="Carlos", apellido="Diaz", correo="carlos@example.com"
+        )
+        self.alumno = Alumno.objects.create(
+            nombre="Sofia", apellido="Diaz", cedula_escolar="E84000007",
+            fecha_nacimiento=date(2015, 3, 10), representante=self.representante
+        )
+
+    def test_monto_no_se_infla_con_pago_mixto(self):
+        from types import SimpleNamespace
+        from .models import CuotaInscripcion
+        from .services import calcular_datos_administrativos_inscripcion
+
+        cuota = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+        )
+        # Pago mixto: $150 por Zelle cubre $50 de inscripción + $100 de otro concepto.
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.user, metodo_pago='zelle',
+            concepto='mixto', monto_usd=Decimal('150.00'), tasa_aplicada=Decimal('40.00'),
+            estatus='completado',
+        )
+        cuota.pagos.add(pago)
+
+        inscripcion = SimpleNamespace(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            fecha_inscripcion=timezone.now(), nro_solvencia=None,
+        )
+        datos = calcular_datos_administrativos_inscripcion(inscripcion)
+
+        total = sum((g['monto'] for g in datos['metodos_pago']), Decimal('0.00'))
+        self.assertEqual(total, Decimal('50.00'))

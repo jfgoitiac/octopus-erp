@@ -223,6 +223,15 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
     Agrupa los pagos por método de pago realmente utilizado, de modo que el
     comprobante solo muestre los campos correspondientes a ese método (p. ej.
     banco/referencia para transferencia o pago móvil, pero no para efectivo).
+
+    El monto total mostrado es siempre `cuota.monto_usd` (el precio real y ya
+    conocido de la inscripción), no la suma de `pago.monto_usd` de los pagos
+    ligados a la cuota: cuando el pago es 'mixto' (cubre inscripción + otro
+    concepto en una misma transacción), `pago.monto_usd` es el total
+    transferido por ese método y no indica cuánto correspondía solo a la
+    inscripción — sumar esos totales inflaba el monto mostrado. Por método
+    se distribuye proporcionalmente solo para fines de desglose informativo,
+    sin afectar el total.
     """
     from .models import CuotaInscripcion
 
@@ -242,10 +251,16 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
     if not cuota:
         return datos
 
+    pagos = list(cuota.pagos.all())
+    if not pagos:
+        return datos
+
+    total_transferido = sum((p.monto_usd for p in pagos), Decimal('0.00'))
+
     agrupados = {}
     ultima_fecha_pago = None
 
-    for pago in cuota.pagos.all():
+    for pago in pagos:
         grupo = agrupados.setdefault(pago.metodo_pago, {
             'metodo_display': pago.get_metodo_pago_display(),
             'monto': Decimal('0.00'),
@@ -253,7 +268,11 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
             'banco_destino': '',
             'banco_procedencia': '',
         })
-        grupo['monto'] += pago.monto_usd
+        # Proporción de este pago dentro del total transferido para la
+        # inscripción, aplicada sobre el monto real de la cuota (no sobre la
+        # suma cruda de montos, que puede incluir otros conceptos).
+        proporcion = (pago.monto_usd / total_transferido) if total_transferido > 0 else Decimal('0')
+        grupo['monto'] += (cuota.monto_usd * proporcion).quantize(Decimal('0.01'))
         if pago.metodo_pago in METODOS_CON_REFERENCIA and pago.referencia:
             grupo['referencias'].append(pago.referencia)
         if pago.metodo_pago in METODOS_CON_BANCO:

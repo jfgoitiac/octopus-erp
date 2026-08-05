@@ -1631,6 +1631,70 @@ class MensualidadesPuntualidadView(APIView):
         })
 
 
+class RepresentantesResumenFinancieroView(APIView):
+    """
+    Deuda pendiente actual, meses adeudados y teléfono de un grupo de
+    representantes, identificados por su id. Usado por el reporte impreso
+    de "Transacciones Detalladas" para mostrar, junto a los pagos de cada
+    representante, su situación financiera al momento de imprimir.
+
+    Reutiliza `annotate_mora_detalle` (misma fuente de verdad que Morosos)
+    pero sin filtrar por en_mora=True, ya que aquí interesan también los
+    representantes solventes (deuda en 0).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+
+    def get(self, request):
+        from datetime import date
+        from secretaria.models import Alumno, Representante
+        from .mora import annotate_mora_detalle
+
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        if not request.user.is_superuser and rol not in self.ROLES_PERMITIDOS:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        ids_param = request.query_params.get('representante_ids', '')
+        try:
+            representante_ids = [int(x) for x in ids_param.split(',') if x.strip()]
+        except ValueError:
+            return Response({'error': 'representante_ids inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not representante_ids:
+            return Response({})
+
+        alumnos_activos = Alumno.objects.filter(representante_id__in=representante_ids, activo=True)
+        qs = annotate_mora_detalle(alumnos_activos, date.today())
+
+        por_representante = {}
+        for a in qs:
+            acc = por_representante.setdefault(
+                a.representante_id, {'monto_adeudado': Decimal('0.00'), 'meses_adeudados': 0},
+            )
+            acc['monto_adeudado'] += a.monto_adeudado
+            acc['meses_adeudados'] += a.meses_adeudados
+
+        alumnos_por_representante = {}
+        for a in alumnos_activos.order_by('nombre', 'apellido'):
+            alumnos_por_representante.setdefault(a.representante_id, []).append(
+                f"{a.nombre} {a.apellido}".strip()
+            )
+
+        resultado = {}
+        for r in Representante.objects.filter(id__in=representante_ids):
+            acc = por_representante.get(r.id, {'monto_adeudado': Decimal('0.00'), 'meses_adeudados': 0})
+            resultado[str(r.id)] = {
+                'representante_id': r.id,
+                'nombre': f"{r.nombre} {r.apellido}".strip(),
+                'cedula': r.cedula,
+                'telefono': r.telefono,
+                'monto_adeudado': str(acc['monto_adeudado']),
+                'meses_adeudados': acc['meses_adeudados'],
+                'alumnos': alumnos_por_representante.get(r.id, []),
+            }
+        return Response(resultado)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # MOROSOS DINÁMICO — calculado desde mensualidades, sin depender de Celery
 # ──────────────────────────────────────────────────────────────────────────────

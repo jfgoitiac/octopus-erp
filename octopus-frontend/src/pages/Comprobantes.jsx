@@ -80,6 +80,59 @@ const MetodoPill = ({ metodo, label, banco }) => {
   );
 };
 
+const CLASIFICACION_COLORS = {
+  atrasado:   { bg: '#fee2e2', color: '#dc2626' },
+  al_dia:     { bg: '#dcfce7', color: '#16a34a' },
+  anticipado: { bg: '#eff6ff', color: '#2563eb' },
+};
+
+const ClasificacionPill = ({ clasificacion, label }) => {
+  const c = CLASIFICACION_COLORS[clasificacion] || { bg: '#f1f5f9', color: '#64748b' };
+  return (
+    <span
+      className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+      style={{ background: c.bg, color: c.color }}
+    >
+      {label}
+    </span>
+  );
+};
+
+// Reemplaza el texto crudo "Pago Mixto" por el desglose real de conceptos
+// que trae `desglose_conceptos` (una línea por mensualidad/cuota cubierta).
+const ConceptoDesglose = ({ conceptoDisplay, desglose }) => {
+  if (!desglose || desglose.length <= 1) {
+    const linea = desglose?.[0];
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--jet)' }}>
+          {conceptoDisplay}
+        </span>
+        {linea?.clasificacion_temporal && (
+          <ClasificacionPill clasificacion={linea.clasificacion_temporal} label={linea.clasificacion_temporal_display} />
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {desglose.map((linea, i) => (
+        <div key={i} className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--jet)' }}>
+            {linea.concepto_display}
+          </span>
+          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>
+            {linea.descripcion}{linea.alumno ? ` · ${linea.alumno}` : ''}
+          </span>
+          {linea.clasificacion_temporal && (
+            <ClasificacionPill clasificacion={linea.clasificacion_temporal} label={linea.clasificacion_temporal_display} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const inputCls = `
   w-full text-xs rounded-lg px-3 py-2 outline-none border transition-all duration-150
   focus:border-[color:var(--pb)]
@@ -582,7 +635,7 @@ export default function Comprobantes() {
                       </div>
                       <div>
                         <p style={{ color: 'var(--ash)' }}>Concepto</p>
-                        <p className="font-medium" style={{ color: 'var(--jet)' }}>{c.concepto_display}</p>
+                        <ConceptoDesglose conceptoDisplay={c.concepto_display} desglose={c.desglose_conceptos} />
                       </div>
                       <div>
                         <p style={{ color: 'var(--ash)' }}>Total</p>
@@ -681,9 +734,7 @@ export default function Comprobantes() {
 
                         {/* Concepto */}
                         <td className="px-4 py-3.5">
-                          <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--jet)' }}>
-                            {c.concepto_display}
-                          </span>
+                          <ConceptoDesglose conceptoDisplay={c.concepto_display} desglose={c.desglose_conceptos} />
                         </td>
 
                         {/* Método de pago */}

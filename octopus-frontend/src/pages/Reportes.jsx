@@ -510,10 +510,43 @@ const Reportes = () => {
                 return;
             }
 
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
             const labelMetodo = (p) =>
                 p.metodo_pago_display || METODO_LABELS[p.metodo_pago] || p.metodo_pago || '—';
+
+            // Agrupa por representante (mismo criterio que la conciliación en
+            // pantalla) para mostrar, junto a sus pagos, su situación financiera.
+            const representantesMap = new Map();
+            pagos.forEach(p => {
+                const key = p.representante_id ?? p.representante_documento ?? p.representante_nombre;
+                if (!representantesMap.has(key)) {
+                    representantesMap.set(key, {
+                        representante_id: p.representante_id,
+                        nombre: p.representante_nombre || '—',
+                        cedula: p.representante_documento || '—',
+                        pagos: [],
+                    });
+                }
+                representantesMap.get(key).pagos.push(p);
+            });
+            const representantes = Array.from(representantesMap.values());
+
+            // Deuda pendiente, meses adeudados y teléfono actuales de cada
+            // representante, consultados en vivo al backend.
+            const idsUnicos = [...new Set(representantes.map(r => r.representante_id).filter(Boolean))];
+            let resumenFinanciero = {};
+            if (idsUnicos.length) {
+                try {
+                    const resFin = await axiosInstance.get('cobranza/representantes/resumen-financiero/', {
+                        params: { representante_ids: idsUnicos.join(',') },
+                    });
+                    resumenFinanciero = resFin.data || {};
+                } catch {
+                    toast.warning('No se pudo cargar la deuda pendiente de los representantes.');
+                }
+            }
+
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageHeight = doc.internal.pageSize.getHeight();
 
             // Encabezado
             doc.setFontSize(15);
@@ -529,50 +562,111 @@ const Reportes = () => {
             );
             doc.setTextColor(0);
 
-            // Tabla de transacciones
-            autoTable(doc, {
-                head: [['#', 'Fecha', 'Método de Pago', 'Monto (Bs.)', 'N° Comprobante']],
-                body: pagos.map((p, i) => {
-                    const fecha = p.fecha
-                        ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-VE', {
-                              day: '2-digit', month: '2-digit', year: 'numeric',
-                          })
-                        : '—';
-                    const montoBs = parseFloat(p.monto_ves || p.monto_bs || 0).toFixed(2);
-                    const ref = p.referencia || '—';
-                    return [i + 1, fecha, labelMetodo(p), `Bs. ${montoBs}`, ref];
-                }),
-                startY: 36,
-                styles: { fontSize: 7.5, cellPadding: 2 },
-                headStyles: { fillColor: [30, 64, 175], fontStyle: 'bold', fontSize: 8 },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
-                columnStyles: {
-                    0: { halign: 'center', cellWidth: 9 },
-                    1: { cellWidth: 22 },
-                    2: { cellWidth: 48 },
-                    3: { halign: 'right', cellWidth: 30 },
-                    4: { cellWidth: 'auto' },
-                },
+            let cursorY = 38;
+            representantes.forEach((rep) => {
+                if (cursorY > pageHeight - 30) {
+                    doc.addPage();
+                    cursorY = 18;
+                }
+
+                const fin = resumenFinanciero[String(rep.representante_id)];
+                const deuda = fin ? parseFloat(fin.monto_adeudado || 0) : null;
+                const meses = fin ? fin.meses_adeudados || 0 : null;
+                const telefono = fin?.telefono || '—';
+                const alumnos = fin?.alumnos?.length ? fin.alumnos.join(', ') : '—';
+
+                doc.setFontSize(10.5);
+                doc.setFont('helvetica', 'bold');
+                doc.text(rep.nombre, 14, cursorY);
+                doc.setFontSize(8.5);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(90);
+                doc.text(
+                    `Cédula: ${rep.cedula}   ·   Teléfono: ${telefono}`,
+                    14, cursorY + 4.5,
+                );
+                const deudaTexto = deuda === null
+                    ? 'Deuda pendiente: no disponible'
+                    : `Deuda pendiente: $${deuda.toFixed(2)}${meses ? ` (${meses} mensualidad${meses === 1 ? '' : 'es'})` : ''}`;
+                if (deuda === null) doc.setTextColor(140);
+                else if (deuda > 0) doc.setTextColor(185, 28, 28);
+                else doc.setTextColor(22, 132, 65);
+                doc.setFont('helvetica', 'bold');
+                doc.text(deudaTexto, 14, cursorY + 9);
+                doc.setTextColor(90);
+                doc.setFont('helvetica', 'normal');
+                const alumnosLineas = doc.splitTextToSize(`Representados: ${alumnos}`, 260);
+                doc.text(alumnosLineas, 14, cursorY + 13.5);
+                doc.setTextColor(0);
+                cursorY += 13.5 + alumnosLineas.length * 4;
+
+                autoTable(doc, {
+                    head: [['#', 'Fecha', 'Alumno', 'Concepto', 'Método', 'Banco', 'Monto USD', 'Tasa', 'Monto Bs.', 'Cajero', 'N° Comprobante', 'Estatus']],
+                    body: rep.pagos.map((p, i) => {
+                        const fecha = p.fecha_pago
+                            ? new Date(p.fecha_pago).toLocaleDateString('es-VE', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric',
+                              })
+                            : '—';
+                        const alumno = `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || '—';
+                        const concepto = p.concepto_display || p.concepto || '—';
+                        const banco = p.banco_nombre || '—';
+                        const montoUsd = parseFloat(p.monto_usd || 0).toFixed(2);
+                        const tasa = p.tasa_aplicada ? parseFloat(p.tasa_aplicada).toFixed(2) : '—';
+                        const montoBs = parseFloat(p.monto_ves || 0).toFixed(2);
+                        const cajero = p.cajero || '—';
+                        const ref = p.referencia || '—';
+                        const estatus = ESTATUS_STYLE[p.estatus]?.label || p.estatus || '—';
+                        return [i + 1, fecha, alumno, concepto, labelMetodo(p), banco, `$${montoUsd}`, tasa, `Bs. ${montoBs}`, cajero, ref, estatus];
+                    }),
+                    startY: cursorY,
+                    styles: { fontSize: 6.5, cellPadding: 1.5, overflow: 'linebreak' },
+                    headStyles: { fillColor: [30, 64, 175], fontStyle: 'bold', fontSize: 7 },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 7 },
+                        1: { cellWidth: 17 },
+                        2: { cellWidth: 32 },
+                        3: { cellWidth: 24 },
+                        4: { cellWidth: 22 },
+                        5: { cellWidth: 20 },
+                        6: { halign: 'right', cellWidth: 17 },
+                        7: { halign: 'right', cellWidth: 13 },
+                        8: { halign: 'right', cellWidth: 20 },
+                        9: { cellWidth: 20 },
+                        10: { cellWidth: 'auto' },
+                        11: { cellWidth: 18 },
+                    },
+                });
+
+                cursorY = doc.lastAutoTable.finalY + 8;
             });
 
-            // Distribución por método
+            // Distribución por método de pago + banco (p.ej. "Punto de Venta —
+            // Bancaribe" y "Punto de Venta — Tesoro" se muestran por separado,
+            // en vez de sumarse en un solo renglón de "Punto de Venta").
             const byMethod = {};
             pagos.forEach(p => {
-                const key = labelMetodo(p);
+                const metodo = labelMetodo(p);
+                const key = p.banco_nombre ? `${metodo} — ${p.banco_nombre}` : metodo;
                 if (!byMethod[key]) byMethod[key] = { count: 0, total: 0 };
                 byMethod[key].count += 1;
-                byMethod[key].total += parseFloat(p.monto_ves || p.monto_bs || 0);
+                byMethod[key].total += parseFloat(p.monto_ves || 0);
             });
 
             const grandTotal = Object.values(byMethod).reduce((s, v) => s + v.total, 0);
-            const distY = doc.lastAutoTable.finalY + 12;
+            if (cursorY > pageHeight - 40) {
+                doc.addPage();
+                cursorY = 18;
+            }
+            const distY = cursorY + 4;
 
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text('Distribución por Método de Pago', 14, distY);
+            doc.text('Distribución por Método de Pago y Banco', 14, distY);
 
             autoTable(doc, {
-                head: [['Método de Pago', 'Cantidad', 'Total (Bs.)', '% del Total']],
+                head: [['Método de Pago / Banco', 'Cantidad', 'Total (Bs.)', '% del Total']],
                 body: [
                     ...Object.entries(byMethod)
                         .sort((a, b) => b[1].total - a[1].total)
