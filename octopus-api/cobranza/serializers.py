@@ -46,10 +46,6 @@ class PagoSerializer(serializers.ModelSerializer):
     metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
     concepto_display = serializers.CharField(source='get_concepto_display', read_only=True)
     revisado = serializers.SerializerMethodField()
-    monto_mensualidad = serializers.SerializerMethodField()
-    monto_inscripcion = serializers.SerializerMethodField()
-    monto_solvencia = serializers.SerializerMethodField()
-    monto_proyecto_inversion = serializers.SerializerMethodField()
 
     class Meta:
         model = Pago
@@ -58,8 +54,7 @@ class PagoSerializer(serializers.ModelSerializer):
             'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
             'metodo_pago', 'metodo_pago_display', 'concepto', 'concepto_display', 'monto_usd',
             'tasa_aplicada', 'monto_ves', 'fecha_pago', 'revisado',
-            'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre',
-            'monto_mensualidad', 'monto_inscripcion', 'monto_solvencia', 'monto_proyecto_inversion',
+            'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'
         ]
         read_only_fields = ['factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada']
 
@@ -68,28 +63,6 @@ class PagoSerializer(serializers.ModelSerializer):
         if pk_set is not None:
             return obj.pk in pk_set
         return obj.lotes_revision.exists()
-
-    # Desglose real de un pago "mixto" (o de cualquier concepto) en las
-    # cuotas estructuradas que efectivamente saldó, con su monto exacto —
-    # nunca una estimación. Un pago con concepto='mixto' puede saldar, por
-    # ejemplo, 3 cuotas de inscripción de $20 cada una: estos 4 campos
-    # devuelven $60 en monto_inscripcion, no un valor adivinado. Lo que no
-    # está vinculado a ninguna cuota estructurada (materiales, multas, pagos
-    # libres) queda fuera de estos 4 montos — el frontend lo atribuye a
-    # "Otros" restando la suma de estos campos de `monto_usd`.
-    # Requiere que la vista haga prefetch_related de las 4 relaciones M2M
-    # para no generar 4 queries extra por cada fila.
-    def get_monto_mensualidad(self, obj):
-        return sum((m.monto_usd for m in obj.mensualidades_pagadas.all()), Decimal('0.00'))
-
-    def get_monto_inscripcion(self, obj):
-        return sum((c.monto_usd for c in obj.cuotas_inscripcion_pagadas.all()), Decimal('0.00'))
-
-    def get_monto_solvencia(self, obj):
-        return sum((c.monto_usd for c in obj.cuotas_solvencia_pagadas.all()), Decimal('0.00'))
-
-    def get_monto_proyecto_inversion(self, obj):
-        return sum((c.monto_usd for c in obj.proyectos_inversion_pagados.all()), Decimal('0.00'))
 
 
 class LoteRevisionCajaSerializer(serializers.ModelSerializer):
