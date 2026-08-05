@@ -12,26 +12,34 @@ import { es } from 'date-fns/locale';
 import axiosInstance from '../../api/apiClient';
 import { toast } from 'react-toastify';
 
-/* Los 4 conceptos que el contador necesita ver desglosados individualmente.
-   Todo lo demás (materiales, multas, pagos mixtos, otro) se agrupa en "otros"
-   para no diluir las columnas principales del reporte. */
+/* Los 4 conceptos estructurados que el backend puede atribuir con monto
+   exacto (vía las relaciones M2M Pago↔Mensualidad/CuotaInscripcion/
+   CuotaSolvencia/CuotaProyectoInversion). Todo lo que un pago cubra fuera
+   de estas 4 cuotas (materiales, multas, pagos libres) cae en "otros". */
 const CONCEPTOS_PRINCIPALES = ['inscripcion', 'mensualidad', 'proyecto_inversion', 'solvencia'];
 
 const CONCEPTO_META = {
-    inscripcion:         { label: 'Inscripción',              color: '#2563eb', bg: '#dbeafe', icon: GraduationCap },
-    mensualidad:         { label: 'Mensualidad',               color: '#16a34a', bg: '#dcfce7', icon: BookOpen },
-    proyecto_inversion:  { label: 'Proyecto de Inversión',     color: '#7c3aed', bg: '#ede9fe', icon: Building2 },
-    solvencia:           { label: 'Solvencia (meses atrasados)', color: '#ca8a04', bg: '#fef9c3', icon: AlertCircle },
-    otros:               { label: 'Otros',                     color: '#64748b', bg: '#f1f5f9', icon: MoreHorizontal },
+    inscripcion:         { label: 'Inscripción',                  color: '#2563eb', bg: '#dbeafe', icon: GraduationCap },
+    mensualidad:         { label: 'Mensualidad',                  color: '#16a34a', bg: '#dcfce7', icon: BookOpen },
+    proyecto_inversion:  { label: 'Proyecto de Inversión',        color: '#7c3aed', bg: '#ede9fe', icon: Building2 },
+    solvencia:           { label: 'Solvencia (meses atrasados)',  color: '#ca8a04', bg: '#fef9c3', icon: AlertCircle },
+    otros:               { label: 'Otros',                        color: '#64748b', bg: '#f1f5f9', icon: MoreHorizontal },
 };
-
-const bucketDe = (concepto) => CONCEPTOS_PRINCIPALES.includes(concepto) ? concepto : 'otros';
 
 const fmt = (val) => parseFloat(val || 0).toFixed(2);
 
 const mesLabel = (mesKey) => {
     const label = format(parseISO(`${mesKey}-01`), 'MMMM yyyy', { locale: es });
     return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+const fechaLabel = (fechaISO) => {
+    if (!fechaISO) return '—';
+    try {
+        return format(parseISO(fechaISO), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
+    } catch {
+        return fechaISO;
+    }
 };
 
 const PAGE_SIZE_API = 100; // tope real del backend (PagosListView clampa page_size a 100)
@@ -88,35 +96,128 @@ const ReporteContable = () => {
         );
     }, [pagos, busqueda]);
 
+    /* Agrupa las filas crudas (una por método de pago) en operaciones
+       (operacion_uuid = un solo cobro, aunque combine varios métodos) y
+       calcula, para cada operación, cuánto fue realmente a cada concepto
+       estructurado usando los montos que el backend ya suma desde las
+       cuotas reales vinculadas (monto_mensualidad, monto_inscripcion,
+       monto_solvencia, monto_proyecto_inversion). Esos 4 campos vienen
+       IGUALES en todas las filas de una misma operación (el M2M se setea
+       una vez por operación, no por fila/método) — por eso se toman de una
+       sola fila representativa y NUNCA se suman entre filas de la misma
+       operación, o se duplicaría el monto en pagos con 2+ métodos. */
+    const operaciones = useMemo(() => {
+        const map = new Map();
+        pagosFiltrados.forEach(p => {
+            if (!map.has(p.operacion_uuid)) {
+                map.set(p.operacion_uuid, {
+                    operacion_uuid: p.operacion_uuid,
+                    filas: [],
+                    totalUsd: 0,
+                    fecha: p.fecha_pago,
+                    nombre: `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || '—',
+                    cedula: p.cedula_escolar || '—',
+                    representante: p.representante_nombre || '—',
+                    metodos: [],
+                });
+            }
+            const op = map.get(p.operacion_uuid);
+            op.filas.push(p);
+            op.totalUsd += parseFloat(p.monto_usd || 0);
+            if (p.fecha_pago && (!op.fecha || p.fecha_pago < op.fecha)) op.fecha = p.fecha_pago;
+            const partes = [p.metodo_pago_display || p.metodo_pago];
+            if (p.banco_nombre) partes.push(p.banco_nombre);
+            if (p.referencia) partes.push(`Ref. ${p.referencia}`);
+            op.metodos.push(partes.filter(Boolean).join(' · '));
+        });
+
+        return Array.from(map.values()).map(op => {
+            const rep = op.filas[0];
+            const estructurado = {
+                mensualidad:        parseFloat(rep.monto_mensualidad || 0),
+                inscripcion:        parseFloat(rep.monto_inscripcion || 0),
+                solvencia:          parseFloat(rep.monto_solvencia || 0),
+                proyecto_inversion: parseFloat(rep.monto_proyecto_inversion || 0),
+            };
+            const sumaEstructurada = Object.values(estructurado).reduce((s, v) => s + v, 0);
+            // Lo no vinculado a ninguna cuota estructurada (materiales, multas,
+            // pagos libres) es la diferencia real, nunca una estimación.
+            const otros = Math.max(0, op.totalUsd - sumaEstructurada);
+            return {
+                ...op,
+                estructurado,
+                otros,
+                metodoDesc: op.metodos.join(' + '),
+            };
+        });
+    }, [pagosFiltrados]);
+
     const totalesPorConcepto = useMemo(() => {
         const acc = { inscripcion: 0, mensualidad: 0, proyecto_inversion: 0, solvencia: 0, otros: 0 };
-        pagosFiltrados.forEach(p => { acc[bucketDe(p.concepto)] += parseFloat(p.monto_usd || 0); });
+        operaciones.forEach(op => {
+            CONCEPTOS_PRINCIPALES.forEach(k => { acc[k] += op.estructurado[k]; });
+            acc.otros += op.otros;
+        });
         return acc;
-    }, [pagosFiltrados]);
+    }, [operaciones]);
 
     const totalGeneral = useMemo(
         () => Object.values(totalesPorConcepto).reduce((s, v) => s + v, 0),
         [totalesPorConcepto],
     );
 
+    /* Mes → Concepto → aportes. Una misma operación puede aparecer varias
+       veces (una vez por cada concepto al que efectivamente contribuyó),
+       cada vez con su monto real — así una operación de $90 (mensualidad
+       $50 + inscripción $40) aparece con $50 bajo Mensualidad y $40 bajo
+       Inscripción, nunca $90 duplicados en ambos. */
     const dataPorMes = useMemo(() => {
         const meses = new Map();
-        pagosFiltrados.forEach(p => {
-            const mesKey = (p.fecha_pago || '').slice(0, 7);
+        operaciones.forEach(op => {
+            const mesKey = (op.fecha || '').slice(0, 7);
             if (!mesKey) return;
             if (!meses.has(mesKey)) meses.set(mesKey, { mesKey, conceptos: new Map(), totalUsd: 0 });
             const mes = meses.get(mesKey);
-            const key = bucketDe(p.concepto);
-            if (!mes.conceptos.has(key)) mes.conceptos.set(key, { key, pagos: [], totalUsd: 0 });
-            const c = mes.conceptos.get(key);
-            c.pagos.push(p);
-            c.totalUsd += parseFloat(p.monto_usd || 0);
-            mes.totalUsd += parseFloat(p.monto_usd || 0);
+            mes.totalUsd += op.totalUsd;
+
+            const aportes = [
+                ...CONCEPTOS_PRINCIPALES.map(k => ({ key: k, monto: op.estructurado[k] })),
+                { key: 'otros', monto: op.otros },
+            ];
+            aportes.forEach(({ key, monto }) => {
+                if (monto <= 0.004) return;
+                if (!mes.conceptos.has(key)) mes.conceptos.set(key, { key, aportes: [], totalUsd: 0 });
+                const c = mes.conceptos.get(key);
+                c.aportes.push({
+                    operacion_uuid: op.operacion_uuid,
+                    monto,
+                    fecha: op.fecha,
+                    nombre: op.nombre,
+                    cedula: op.cedula,
+                    representante: op.representante,
+                    metodoDesc: op.metodoDesc,
+                });
+                c.totalUsd += monto;
+            });
         });
         return Array.from(meses.values())
             .map(m => ({ ...m, conceptos: Array.from(m.conceptos.values()).sort((a, b) => a.key.localeCompare(b.key)) }))
             .sort((a, b) => b.mesKey.localeCompare(a.mesKey)); // mes más reciente primero
-    }, [pagosFiltrados]);
+    }, [operaciones]);
+
+    /* Lista plana de aportes (mes/concepto/operación), usada para las
+       exportaciones — un renglón por cada monto real atribuido a un
+       concepto, no un renglón por fila cruda de Pago (que mezclaría
+       "mixto" con el desglose real). */
+    const aportesPlano = useMemo(() => {
+        const rows = [];
+        dataPorMes.forEach(m => {
+            m.conceptos.forEach(c => {
+                c.aportes.forEach(a => rows.push({ ...a, key: c.key, mesKey: m.mesKey }));
+            });
+        });
+        return rows.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    }, [dataPorMes]);
 
     const toggleMes = (mesKey) => {
         setMesesExpandidos(prev => {
@@ -135,26 +236,10 @@ const ReporteContable = () => {
         });
     };
 
-    const nombreCompleto = (p) => `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || '—';
-    const metodoDesc = (p) => {
-        const partes = [p.metodo_pago_display || p.metodo_pago];
-        if (p.banco_nombre) partes.push(p.banco_nombre);
-        if (p.referencia) partes.push(`Ref. ${p.referencia}`);
-        return partes.filter(Boolean).join(' · ');
-    };
-    const fechaPagoLabel = (p) => {
-        if (!p.fecha_pago) return '—';
-        try {
-            return format(parseISO(p.fecha_pago), "dd 'de' MMMM yyyy, HH:mm", { locale: es });
-        } catch {
-            return p.fecha_pago;
-        }
-    };
-
     const handleExportExcel = () => {
         setExportando(true);
         try {
-            if (pagosFiltrados.length === 0) {
+            if (aportesPlano.length === 0) {
                 toast.info('No hay pagos para exportar en este período.');
                 return;
             }
@@ -180,29 +265,23 @@ const ReporteContable = () => {
             ];
             const wsResumen = XLSX.utils.aoa_to_sheet([resumenHeader, ...resumenFilas, totalRow]);
 
-            // Hoja 2: detalle de pagos, uno por fila
+            // Hoja 2: detalle de aportes — un renglón por cada monto real
+            // atribuido a un concepto (una operación mixta genera varios
+            // renglones, uno por concepto al que contribuyó).
             const detalleHeader = [
                 'Mes', 'Fecha de Pago', 'Concepto', 'Alumno', 'Cédula Escolar',
-                'Representante', 'Documento Representante', 'Método de Pago',
-                'Banco', 'Referencia', 'Monto USD', 'Monto VES',
+                'Representante', 'Método de Pago', 'Monto USD',
             ];
-            const detalleFilas = pagosFiltrados
-                .slice()
-                .sort((a, b) => new Date(a.fecha_pago) - new Date(b.fecha_pago))
-                .map(p => [
-                    (p.fecha_pago || '').slice(0, 7),
-                    fechaPagoLabel(p),
-                    p.concepto_display || p.concepto,
-                    nombreCompleto(p),
-                    p.cedula_escolar || '—',
-                    p.representante_nombre || '—',
-                    p.representante_documento || '—',
-                    p.metodo_pago_display || p.metodo_pago,
-                    p.banco_nombre || '—',
-                    p.referencia || '—',
-                    Number(fmt(p.monto_usd)),
-                    Number(fmt(p.monto_ves)),
-                ]);
+            const detalleFilas = aportesPlano.map(a => [
+                a.mesKey,
+                fechaLabel(a.fecha),
+                CONCEPTO_META[a.key].label,
+                a.nombre,
+                a.cedula,
+                a.representante,
+                a.metodoDesc,
+                Number(fmt(a.monto)),
+            ]);
             const wsDetalle = XLSX.utils.aoa_to_sheet([detalleHeader, ...detalleFilas]);
 
             const wb = XLSX.utils.book_new();
@@ -220,7 +299,7 @@ const ReporteContable = () => {
     const handleExportPDF = () => {
         setImprimiendo(true);
         try {
-            if (pagosFiltrados.length === 0) {
+            if (aportesPlano.length === 0) {
                 toast.info('No hay pagos para exportar en este período.');
                 return;
             }
@@ -270,17 +349,14 @@ const ReporteContable = () => {
 
             autoTable(doc, {
                 head: [['Fecha', 'Concepto', 'Alumno', 'Representante', 'Método de Pago', 'Monto (USD)']],
-                body: pagosFiltrados
-                    .slice()
-                    .sort((a, b) => new Date(a.fecha_pago) - new Date(b.fecha_pago))
-                    .map(p => [
-                        p.fecha_pago ? format(parseISO(p.fecha_pago), 'dd/MM/yyyy') : '—',
-                        p.concepto_display || p.concepto,
-                        nombreCompleto(p),
-                        p.representante_nombre || '—',
-                        metodoDesc(p),
-                        `$${fmt(p.monto_usd)}`,
-                    ]),
+                body: aportesPlano.map(a => [
+                    a.fecha ? format(parseISO(a.fecha), 'dd/MM/yyyy') : '—',
+                    CONCEPTO_META[a.key].label,
+                    a.nombre,
+                    a.representante,
+                    a.metodoDesc,
+                    `$${fmt(a.monto)}`,
+                ]),
                 startY: detalleY + 5,
                 styles: { fontSize: 7, cellPadding: 1.8 },
                 headStyles: { fillColor: [30, 64, 175], fontStyle: 'bold', fontSize: 7.5 },
@@ -310,6 +386,7 @@ const ReporteContable = () => {
                     </h2>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
                         Pagos completados desglosados por mes y concepto, con datos del alumno y del método de pago.
+                        Los cobros que combinan varias cuotas en un solo pago se dividen usando el monto real de cada cuota.
                     </p>
                 </div>
                 {loading && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--pb)' }} />}
@@ -437,7 +514,7 @@ const ReporteContable = () => {
                                                                 {meta.label}
                                                             </span>
                                                             <span className="text-[11px]" style={{ color: 'var(--ash)' }}>
-                                                                {c.pagos.length} pago{c.pagos.length === 1 ? '' : 's'}
+                                                                {c.aportes.length} aporte{c.aportes.length === 1 ? '' : 's'}
                                                             </span>
                                                         </div>
                                                         <span className="text-xs font-mono font-semibold shrink-0" style={{ color: 'var(--jet)' }}>
@@ -447,22 +524,22 @@ const ReporteContable = () => {
 
                                                     {cExpandido && (
                                                         <div className="divide-y" style={{ background: 'var(--porcelain)' }}>
-                                                            {c.pagos
+                                                            {c.aportes
                                                                 .slice()
-                                                                .sort((a, b) => new Date(a.fecha_pago) - new Date(b.fecha_pago))
-                                                                .map(p => (
-                                                                    <div key={p.id} className="px-4 py-2.5 pl-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                                                                .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                                                                .map((a, idx) => (
+                                                                    <div key={`${a.operacion_uuid}_${c.key}_${idx}`} className="px-4 py-2.5 pl-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
                                                                         <div className="min-w-0">
                                                                             <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
-                                                                                {nombreCompleto(p)}
-                                                                                {p.cedula_escolar ? <span className="font-mono" style={{ color: 'var(--ash)' }}> · {p.cedula_escolar}</span> : ''}
+                                                                                {a.nombre}
+                                                                                {a.cedula ? <span className="font-mono" style={{ color: 'var(--ash)' }}> · {a.cedula}</span> : ''}
                                                                             </p>
                                                                             <p className="text-[11px]" style={{ color: 'var(--ash)' }}>
-                                                                                {fechaPagoLabel(p)} · {metodoDesc(p)}
+                                                                                {fechaLabel(a.fecha)} · {a.metodoDesc}
                                                                             </p>
                                                                         </div>
                                                                         <span className="text-xs font-mono font-semibold shrink-0" style={{ color: '#16a34a' }}>
-                                                                            ${fmt(p.monto_usd)}
+                                                                            ${fmt(a.monto)}
                                                                         </span>
                                                                     </div>
                                                                 ))}

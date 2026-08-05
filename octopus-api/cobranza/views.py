@@ -1224,6 +1224,9 @@ class PagosListView(APIView):
             request.query_params,
             queryset=Pago.objects.select_related(
                 'alumno', 'banco_receptor', 'usuario_receptor',
+            ).prefetch_related(
+                'mensualidades_pagadas', 'cuotas_inscripcion_pagadas',
+                'cuotas_solvencia_pagadas', 'proyectos_inversion_pagados',
             ).order_by('-fecha_pago'),
         )
         if not filterset.is_valid():

@@ -408,10 +408,41 @@
   totales ya agrupados por mes/concepto en el servidor, en vez de traer
   todos los pagos crudos al cliente.
 
-- [DEUDA BAJA] El bucket "Solvencia (meses atrasados)" del reporte usa
-  únicamente `concepto == 'solvencia'`. Si en el futuro el colegio necesita
-  distinguir además las mensualidades pagadas fuera de fecha (más allá de
-  las marcadas explícitamente como concepto "solvencia"), habría que cruzar
-  cada pago con su fecha de vencimiento usando la misma lógica que ya existe
-  en `cobranza/mensualidades/puntualidad/` — no implementado, solo se filtra
-  por concepto (decisión confirmada con el usuario).
+- [ACTUALIZACIÓN 2026-08-05] Se corrigió el desglose de pagos "mixtos"
+  (varias cuotas en un solo cobro — la mayoría de los pagos reales, ya que
+  cubren varios hermanos o varios tipos de cuota a la vez). Antes el reporte
+  clasificaba por `concepto` crudo del `Pago`, que solo reconoce
+  inscripcion/mensualidad/proyecto_inversion/solvencia — cualquier pago con
+  `concepto == 'mixto'` caía entero en "Otros" (era la mayoría del monto
+  reportado). Ahora `PagoSerializer` (backend, `cobranza/serializers.py`)
+  expone 4 campos calculados —`monto_mensualidad`, `monto_inscripcion`,
+  `monto_solvencia`, `monto_proyecto_inversion`— que suman el `monto_usd`
+  real de las cuotas (`Mensualidad`, `CuotaInscripcion`, `CuotaSolvencia`,
+  `CuotaProyectoInversion`) efectivamente vinculadas a ese pago vía las
+  relaciones M2M que `RegistrarPagoView` ya crea al cobrar. El frontend
+  agrupa por `operacion_uuid` y atribuye a cada concepto su monto exacto;
+  lo que sobra sin cuota vinculada (materiales, multas, pagos libres) se
+  calcula como la diferencia real (`total de la operación − suma
+  estructurada`), nunca una proporción adivinada. Se agregó
+  `prefetch_related` de las 4 relaciones en `PagosListView` para que esto
+  no genere N+1 queries.
+
+- [DEUDA BAJA] `monto_solvencia` (y en general los 4 campos nuevos) suman
+  `CuotaX.monto_usd` completo de cada cuota vinculada, no la porción que
+  esa cuota recibió de este pago específico. Si una `CuotaSolvencia` de
+  $100 se paga en dos operaciones distintas de $50 cada una, ambas
+  operaciones quedarían vinculadas a la misma cuota (dependiendo de cómo
+  `RegistrarPagoView` maneje pagos parciales) y podrían reportar $100 cada
+  una en vez de $50. Verificar si `RegistrarPagoView` permite pagos
+  parciales de una misma cuota en operaciones separadas; si es así, el
+  campo correcto a sumar sería la porción de `monto_pagado` atribuible a
+  esa operación, que hoy no se registra a ese nivel de detalle.
+
+- [DEUDA BAJA] El bucket "Solvencia (meses atrasados)" del reporte solo
+  captura cuotas de tipo `CuotaSolvencia`. Si en el futuro el colegio
+  necesita distinguir además las mensualidades pagadas fuera de fecha (una
+  mensualidad normal pagada tarde, no una `CuotaSolvencia`), habría que
+  cruzar cada pago con su fecha de vencimiento usando la misma lógica que
+  ya existe en `cobranza/mensualidades/puntualidad/` — no implementado,
+  decisión confirmada con el usuario de dejar el bucket de solvencia
+  basado solo en cuotas de solvencia estructuradas.
