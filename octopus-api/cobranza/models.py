@@ -563,3 +563,48 @@ class LoteRevisionCaja(models.Model):
 
     def __str__(self):
         return f"Lote #{self.pk} ({self.fecha_inicio} — {self.fecha_fin}) por {self.usuario}"
+
+
+class ClasificacionPagoManual(models.Model):
+    """
+    Desglose manual de un pago que el desglose automático (M2M de
+    mensualidades/cuotas) no pudo reconstruir — típicamente pagos
+    concepto='mixto' registrados antes de enlazar cuotas específicas.
+    El contador reparte el monto del pago en una o más líneas de este tipo.
+    """
+    TIPOS = (
+        ('inscripcion', 'Inscripción'),
+        ('proyecto_inversion', 'Proyecto de Inversión'),
+        ('mes_atrasado', 'Mes Atrasado'),
+        ('proyecto_inversion_atrasado', 'Proyecto de Inversión Atrasado'),
+    )
+
+    pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='clasificaciones_manuales')
+    tipo = models.CharField(max_length=30, choices=TIPOS)
+    # Solo aplican cuando tipo='mes_atrasado'.
+    mes = models.PositiveSmallIntegerField(null=True, blank=True)
+    anio = models.PositiveSmallIntegerField(null=True, blank=True)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    nota = models.TextField(blank=True, null=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='clasificaciones_pago_manual',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"Clasificación #{self.pk} - Pago {self.pago_id} - {self.tipo} ({self.monto_usd} USD)"
+
+    def clean(self):
+        if self.tipo == 'mes_atrasado':
+            if not self.mes or not self.anio:
+                raise ValidationError({
+                    'mes': "Debe indicar mes y año cuando el tipo es 'Mes Atrasado'."
+                })
+        else:
+            self.mes = None
+            self.anio = None

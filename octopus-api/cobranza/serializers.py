@@ -1,8 +1,106 @@
 from decimal import Decimal
 from django.db.models import Sum
 from rest_framework import serializers
-from .models import BancoInstitucional, CierreCaja, LoteRevisionCaja, Pago, SolvenciaRepresentante, TasaCambio
+from .models import BancoInstitucional, CierreCaja, ClasificacionPagoManual, LoteRevisionCaja, Pago, SolvenciaRepresentante, TasaCambio
 from secretaria.models import Alumno
+
+MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+CLASIFICACION_TEMPORAL_DISPLAY = {
+    'atrasado':   'Atrasado',
+    'al_dia':     'Al día',
+    'anticipado': 'Anticipado',
+}
+
+
+def calcular_desglose_automatico(principal_pago):
+    """
+    Reconstruye las líneas reales (mensualidad/inscripción/solvencia/proyecto
+    de inversión) cubiertas por una operación, a partir de las relaciones M2M
+    del pago "principal" (mensualidades_pagadas, cuotas_inscripcion_pagadas,
+    cuotas_solvencia_pagadas, proyectos_inversion_pagados).
+
+    Extraído de ComprobanteSerializer.get_desglose_conceptos para poder
+    reusarlo desde vistas que no pasan por ese serializer (ej. desglose
+    contable). Devuelve [] si no hay nada enlazado — a diferencia del método
+    original, NO agrega el fallback de una línea cruda: eso queda a criterio
+    del caller.
+    """
+    if not principal_pago:
+        return []
+
+    tasa = principal_pago.tasa_aplicada or Decimal('0')
+    fecha_pago = principal_pago.fecha_pago
+
+    def _linea(concepto, concepto_display, descripcion, alumno_nombre, monto_usd, extra=None):
+        monto_usd = monto_usd or Decimal('0')
+        linea = {
+            'concepto': concepto,
+            'concepto_display': concepto_display,
+            'descripcion': descripcion,
+            'alumno': alumno_nombre,
+            'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
+            'monto_ves': str((monto_usd * tasa).quantize(Decimal('0.01'))),
+        }
+        if extra:
+            linea.update(extra)
+        return linea
+
+    lineas = []
+
+    for m in principal_pago.mensualidades_pagadas.all():
+        extra = None
+        if fecha_pago:
+            periodo_mensualidad = (m.anio, m.mes)
+            periodo_pago = (fecha_pago.year, fecha_pago.month)
+            if periodo_mensualidad < periodo_pago:
+                clasificacion = 'atrasado'
+            elif periodo_mensualidad > periodo_pago:
+                clasificacion = 'anticipado'
+            else:
+                clasificacion = 'al_dia'
+            dias_diferencia = (periodo_pago[0] - periodo_mensualidad[0]) * 12 + \
+                (periodo_pago[1] - periodo_mensualidad[1])
+            extra = {
+                'mes': m.mes,
+                'anio': m.anio,
+                'clasificacion_temporal': clasificacion,
+                'clasificacion_temporal_display': CLASIFICACION_TEMPORAL_DISPLAY[clasificacion],
+                'dias_diferencia': dias_diferencia,
+            }
+        lineas.append(_linea(
+            'mensualidad', 'MENSUALIDAD',
+            f"{MESES_ES[m.mes - 1]} {m.anio}",
+            f"{m.alumno.nombre} {m.alumno.apellido}",
+            m.monto_usd, extra,
+        ))
+
+    for c in principal_pago.cuotas_inscripcion_pagadas.all():
+        lineas.append(_linea(
+            'inscripcion', 'INSCRIPCIÓN',
+            f"Período {c.periodo_escolar}",
+            f"{c.alumno.nombre} {c.alumno.apellido}",
+            c.monto_usd,
+        ))
+
+    for c in principal_pago.cuotas_solvencia_pagadas.all():
+        lineas.append(_linea(
+            'solvencia', 'SOLVENCIA',
+            c.concepto or f"Período {c.periodo_escolar}",
+            f"{c.alumno.nombre} {c.alumno.apellido}",
+            c.monto_usd,
+        ))
+
+    for c in principal_pago.proyectos_inversion_pagados.all():
+        lineas.append(_linea(
+            'proyecto_inversion', 'PROYECTO DE INVERSIÓN',
+            f"Período {c.periodo_escolar}",
+            f"{c.representante.nombre} {c.representante.apellido}",
+            c.monto_usd,
+        ))
+
+    return lineas
 
 class BancoInstitucionalSerializer(serializers.ModelSerializer):
     tipos = serializers.ListField(
@@ -64,6 +162,23 @@ class PagoSerializer(serializers.ModelSerializer):
         if pk_set is not None:
             return obj.pk in pk_set
         return obj.lotes_revision.exists()
+
+
+class ClasificacionPagoManualSerializer(serializers.ModelSerializer):
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    mes_display = serializers.SerializerMethodField()
+    creado_por = serializers.ReadOnlyField(source='creado_por.username')
+
+    class Meta:
+        model = ClasificacionPagoManual
+        fields = [
+            'id', 'tipo', 'tipo_display', 'mes', 'mes_display', 'anio',
+            'monto_usd', 'nota', 'creado_por', 'creado_en',
+        ]
+        read_only_fields = ['id', 'creado_por', 'creado_en']
+
+    def get_mes_display(self, obj):
+        return MESES_ES[obj.mes - 1] if obj.mes else None
 
 
 class LoteRevisionCajaSerializer(serializers.ModelSerializer):
@@ -192,87 +307,20 @@ class ComprobanteSerializer(serializers.ModelSerializer):
         principal = self._get_principal_con_conceptos(obj)
         if not principal:
             return []
-        tasa = principal.tasa_aplicada or Decimal('0')
-        fecha_pago = principal.fecha_pago
 
-        MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-        CLASIFICACION_DISPLAY = {
-            'atrasado':   'Atrasado',
-            'al_dia':     'Al día',
-            'anticipado': 'Anticipado',
-        }
-
-        def _linea(concepto, concepto_display, descripcion, alumno_nombre, monto_usd, extra=None):
-            monto_usd = monto_usd or Decimal('0')
-            linea = {
-                'concepto': concepto,
-                'concepto_display': concepto_display,
-                'descripcion': descripcion,
-                'alumno': alumno_nombre,
-                'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
-                'monto_ves': str((monto_usd * tasa).quantize(Decimal('0.01'))),
-            }
-            if extra:
-                linea.update(extra)
-            return linea
-
-        lineas = []
-
-        for m in principal.mensualidades_pagadas.all():
-            extra = None
-            if fecha_pago:
-                periodo_mensualidad = (m.anio, m.mes)
-                periodo_pago = (fecha_pago.year, fecha_pago.month)
-                if periodo_mensualidad < periodo_pago:
-                    clasificacion = 'atrasado'
-                elif periodo_mensualidad > periodo_pago:
-                    clasificacion = 'anticipado'
-                else:
-                    clasificacion = 'al_dia'
-                dias_diferencia = (periodo_pago[0] - periodo_mensualidad[0]) * 12 + \
-                    (periodo_pago[1] - periodo_mensualidad[1])
-                extra = {
-                    'clasificacion_temporal': clasificacion,
-                    'clasificacion_temporal_display': CLASIFICACION_DISPLAY[clasificacion],
-                    'dias_diferencia': dias_diferencia,
-                }
-            lineas.append(_linea(
-                'mensualidad', 'MENSUALIDAD',
-                f"{MESES_ES[m.mes - 1]} {m.anio}",
-                f"{m.alumno.nombre} {m.alumno.apellido}",
-                m.monto_usd, extra,
-            ))
-
-        for c in principal.cuotas_inscripcion_pagadas.all():
-            lineas.append(_linea(
-                'inscripcion', 'INSCRIPCIÓN',
-                f"Período {c.periodo_escolar}",
-                f"{c.alumno.nombre} {c.alumno.apellido}",
-                c.monto_usd,
-            ))
-
-        for c in principal.cuotas_solvencia_pagadas.all():
-            lineas.append(_linea(
-                'solvencia', 'SOLVENCIA',
-                c.concepto or f"Período {c.periodo_escolar}",
-                f"{c.alumno.nombre} {c.alumno.apellido}",
-                c.monto_usd,
-            ))
-
-        for c in principal.proyectos_inversion_pagados.all():
-            lineas.append(_linea(
-                'proyecto_inversion', 'PROYECTO DE INVERSIÓN',
-                f"Período {c.periodo_escolar}",
-                f"{c.representante.nombre} {c.representante.apellido}",
-                c.monto_usd,
-            ))
+        lineas = calcular_desglose_automatico(principal)
 
         if not lineas:
-            lineas.append(_linea(
-                obj.concepto, obj.get_concepto_display(), '', None, obj.monto_usd,
-            ))
+            tasa = principal.tasa_aplicada or Decimal('0')
+            monto_usd = obj.monto_usd or Decimal('0')
+            lineas.append({
+                'concepto': obj.concepto,
+                'concepto_display': obj.get_concepto_display(),
+                'descripcion': '',
+                'alumno': None,
+                'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
+                'monto_ves': str((monto_usd * tasa).quantize(Decimal('0.01'))),
+            })
 
         return lineas
 

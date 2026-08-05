@@ -10,9 +10,9 @@ import logging
 import uuid
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
-from django.db.models import Min, Q
-from .models import BancoInstitucional, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
-from .serializers import BancoInstitucionalSerializer, ComprobanteSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer
+from django.db.models import Min, Q, Sum
+from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
+from .serializers import BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, calcular_desglose_automatico
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
 from .utils import generar_pdf_recibo
@@ -1255,6 +1255,370 @@ class PagosListView(APIView):
                 context={'revisado_pago_ids': revisado_pago_ids},
             ).data,
         })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CLASIFICACIÓN MANUAL DE PAGOS (desglose contable de pagos 'mixto' sin M2M)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _resumen_clasificacion_pago(pago):
+    """Resumen de cuánto de un pago ya fue clasificado manualmente, reusado
+    por las 3 vistas de escritura para que el frontend no tenga que refetch
+    la lista completa después de cada mutación."""
+    monto_clasificado = pago.clasificaciones_manuales.aggregate(
+        s=Sum('monto_usd')
+    )['s'] or Decimal('0')
+    monto_usd = pago.monto_usd or Decimal('0')
+
+    if monto_clasificado <= 0:
+        estado = 'sin_clasificar'
+    elif monto_clasificado < monto_usd:
+        estado = 'parcial'
+    else:
+        estado = 'completo'
+
+    return {
+        'pago_id': pago.id,
+        'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
+        'monto_clasificado_usd': str(monto_clasificado.quantize(Decimal('0.01'))),
+        'monto_pendiente_usd': str((monto_usd - monto_clasificado).quantize(Decimal('0.01'))),
+        'estado_clasificacion': estado,
+    }
+
+
+def _validar_datos_clasificacion(data, parcial=False):
+    """Valida el body de creación/edición de una línea de clasificación
+    manual. `parcial=True` para PATCH: solo valida las claves presentes,
+    pero si el tipo resultante es 'mes_atrasado' igual exige mes/año."""
+    errores = {}
+    tipo = data.get('tipo')
+    if not parcial and not tipo:
+        errores['tipo'] = 'Este campo es requerido.'
+    if tipo and tipo not in dict(ClasificacionPagoManual.TIPOS):
+        errores['tipo'] = 'Tipo inválido.'
+
+    if not parcial:
+        monto_usd = data.get('monto_usd')
+        if monto_usd in (None, ''):
+            errores['monto_usd'] = 'Este campo es requerido.'
+
+    if tipo == 'mes_atrasado':
+        if not data.get('mes'):
+            errores['mes'] = "Requerido cuando tipo es 'mes_atrasado'."
+        if not data.get('anio'):
+            errores['anio'] = "Requerido cuando tipo es 'mes_atrasado'."
+
+    return errores
+
+
+class EstadoClasificacionPagosView(APIView):
+    """
+    Lista de pagos con su estado de clasificación manual (sin_clasificar /
+    parcial / completo), para que el contador priorice cuáles pagos 'mixto'
+    (u otros) todavía necesitan desglose.
+
+    Query params: fecha_desde, fecha_hasta, representante_documento,
+    estado (sin_clasificar|parcial|completo|todos, default todos),
+    page (default 1), page_size (default 25, máx 100).
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request):
+        filterset = PagoFilter(
+            request.query_params,
+            queryset=Pago.objects.select_related('alumno', 'alumno__representante')
+            .prefetch_related('clasificaciones_manuales')
+            .order_by('-fecha_pago'),
+        )
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = filterset.qs
+        # Excluye anulados salvo que se pida explícitamente por 'estatus'.
+        if not request.query_params.get('estatus'):
+            qs = qs.exclude(estatus='anulado')
+
+        estado_filtro = request.query_params.get('estado', 'todos')
+
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 25))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 25
+
+        filas = []
+        for pago in qs:
+            resumen = _resumen_clasificacion_pago(pago)
+            if estado_filtro != 'todos' and resumen['estado_clasificacion'] != estado_filtro:
+                continue
+            filas.append((pago, resumen))
+
+        total = len(filas)
+        pagina = filas[(page - 1) * page_size: page * page_size]
+
+        results = []
+        for pago, resumen in pagina:
+            results.append({
+                'id': pago.id,
+                'factura_id': pago.factura_id,
+                'fecha_pago': pago.fecha_pago,
+                'alumno': f"{pago.alumno.nombre} {pago.alumno.apellido}".strip() if pago.alumno else None,
+                'representante_nombre': pago.representante_nombre,
+                'representante_documento': pago.representante_documento,
+                'concepto': pago.concepto,
+                'concepto_display': pago.get_concepto_display(),
+                'monto_usd': resumen['monto_usd'],
+                'referencia': pago.referencia,
+                'metodo_pago_display': pago.get_metodo_pago_display(),
+                'monto_clasificado_usd': resumen['monto_clasificado_usd'],
+                'monto_pendiente_usd': resumen['monto_pendiente_usd'],
+                'estado_clasificacion': resumen['estado_clasificacion'],
+                'clasificaciones': ClasificacionPagoManualSerializer(
+                    pago.clasificaciones_manuales.all(), many=True
+                ).data,
+            })
+
+        return Response({
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': max(1, (total + page_size - 1) // page_size),
+            'results': results,
+        })
+
+
+class ClasificacionPagoCreateView(APIView):
+    """Crea una línea de clasificación manual sobre un pago puntual."""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request, pago_id):
+        try:
+            pago = Pago.objects.get(pk=pago_id)
+        except Pago.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        errores = _validar_datos_clasificacion(request.data, parcial=False)
+        if errores:
+            return Response(errores, status=status.HTTP_400_BAD_REQUEST)
+
+        linea = ClasificacionPagoManual.objects.create(
+            pago=pago,
+            tipo=request.data.get('tipo'),
+            mes=request.data.get('mes') or None,
+            anio=request.data.get('anio') or None,
+            monto_usd=request.data.get('monto_usd'),
+            nota=request.data.get('nota') or None,
+            creado_por=request.user,
+        )
+
+        return Response({
+            'clasificacion': ClasificacionPagoManualSerializer(linea).data,
+            'resumen': _resumen_clasificacion_pago(pago),
+        }, status=status.HTTP_201_CREATED)
+
+
+class ClasificacionPagoDetailView(APIView):
+    """PATCH: edita campos parciales de una línea. DELETE: la elimina.
+    Ambos devuelven el resumen actualizado del pago dueño de la línea."""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def patch(self, request, linea_id):
+        try:
+            linea = ClasificacionPagoManual.objects.select_related('pago').get(pk=linea_id)
+        except ClasificacionPagoManual.DoesNotExist:
+            return Response({'error': 'Clasificación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        tipo_resultante = data.get('tipo', linea.tipo)
+        errores = _validar_datos_clasificacion({**data, 'tipo': tipo_resultante}, parcial=True)
+        if errores:
+            return Response(errores, status=status.HTTP_400_BAD_REQUEST)
+
+        if 'tipo' in data:
+            linea.tipo = data.get('tipo')
+        if 'monto_usd' in data:
+            linea.monto_usd = data.get('monto_usd')
+        if 'nota' in data:
+            linea.nota = data.get('nota') or None
+
+        if linea.tipo == 'mes_atrasado':
+            if 'mes' in data:
+                linea.mes = data.get('mes')
+            if 'anio' in data:
+                linea.anio = data.get('anio')
+        else:
+            linea.mes = None
+            linea.anio = None
+
+        linea.save()
+
+        return Response({
+            'clasificacion': ClasificacionPagoManualSerializer(linea).data,
+            'resumen': _resumen_clasificacion_pago(linea.pago),
+        })
+
+    def delete(self, request, linea_id):
+        try:
+            linea = ClasificacionPagoManual.objects.select_related('pago').get(pk=linea_id)
+        except ClasificacionPagoManual.DoesNotExist:
+            return Response({'error': 'Clasificación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pago = linea.pago
+        linea.delete()
+
+        return Response({'resumen': _resumen_clasificacion_pago(pago)})
+
+
+class DesgloseContableView(APIView):
+    """
+    Reporte plano (sin paginar) para armar Excel/PDF: una fila por concepto
+    real cubierto por cada pago del rango, priorizando el desglose automático
+    (M2M) y cayendo a la clasificación manual o, en último caso, a una fila
+    'sin_clasificar' con el monto crudo del pago.
+
+    Query params: fecha_desde, fecha_hasta (obligatorios),
+    representante_documento (opcional).
+
+    NOTA: no pagina — para rangos muy grandes (varios meses) esto puede ser
+    pesado; se limita a un máximo de 92 días (~3 meses) por request para
+    evitar cargas descontroladas. Si el contador necesita rangos mayores,
+    debe pedirlos en varias llamadas.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+    MAX_DIAS_RANGO = 92
+
+    def get(self, request):
+        from datetime import datetime as _datetime
+
+        fecha_desde = request.query_params.get('fecha_desde')
+        fecha_hasta = request.query_params.get('fecha_hasta')
+        if not fecha_desde or not fecha_hasta:
+            return Response(
+                {'error': 'fecha_desde y fecha_hasta son requeridas.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            dt_desde = _datetime.strptime(fecha_desde[:10], '%Y-%m-%d').date()
+            dt_hasta = _datetime.strptime(fecha_hasta[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Formato de fecha inválido (use YYYY-MM-DD).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if (dt_hasta - dt_desde).days > self.MAX_DIAS_RANGO:
+            return Response(
+                {'error': f'El rango máximo permitido es de {self.MAX_DIAS_RANGO} días.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        representante_documento = request.query_params.get('representante_documento')
+
+        qs = (
+            Pago.objects.filter(
+                fecha_pago__date__gte=dt_desde,
+                fecha_pago__date__lte=dt_hasta,
+            )
+            .exclude(estatus='anulado')
+            .select_related('alumno', 'alumno__representante')
+            .order_by('fecha_pago')
+        )
+        if representante_documento:
+            representante_documento = representante_documento.strip()
+            if representante_documento:
+                qs = qs.filter(representante_documento__icontains=representante_documento)
+
+        # Cache del "pago principal" (con M2M prefetched) por operacion_uuid,
+        # igual criterio que ComprobanteSerializer._get_principal_con_conceptos,
+        # para no perder el desglose cuando el pago mixto es un hermano de la
+        # operación (no el primero) y no cargar el prefetch más de una vez
+        # por operación.
+        principales_cache = {}
+
+        def _principal_de(pago):
+            key = pago.operacion_uuid
+            if key not in principales_cache:
+                principales_cache[key] = (
+                    Pago.objects.filter(operacion_uuid=key)
+                    .prefetch_related(
+                        'mensualidades_pagadas__alumno',
+                        'cuotas_inscripcion_pagadas__alumno',
+                        'cuotas_solvencia_pagadas__alumno',
+                        'proyectos_inversion_pagados__representante',
+                    )
+                    .order_by('id')
+                    .first()
+                )
+            return principales_cache[key]
+
+        filas = []
+        for pago in qs:
+            alumno_nombre = f"{pago.alumno.nombre} {pago.alumno.apellido}".strip() if pago.alumno else None
+            base = {
+                'pago_id': pago.id,
+                'fecha_pago': pago.fecha_pago.isoformat() if pago.fecha_pago else None,
+                'factura_id': pago.factura_id,
+                'referencia': pago.referencia,
+                'alumno_nombre': alumno_nombre,
+                'representante_nombre': pago.representante_nombre,
+            }
+
+            principal = _principal_de(pago)
+            lineas_auto = calcular_desglose_automatico(principal) if principal else []
+
+            if lineas_auto:
+                for linea in lineas_auto:
+                    mes = linea.get('mes') if linea.get('clasificacion_temporal') == 'atrasado' else None
+                    anio = linea.get('anio') if linea.get('clasificacion_temporal') == 'atrasado' else None
+                    filas.append({
+                        **base,
+                        'concepto': linea['concepto'],
+                        'concepto_display': linea['concepto_display'],
+                        'tipo': None,
+                        'tipo_display': None,
+                        'mes': mes,
+                        'anio': anio,
+                        'mes_display': MESES_ES[mes - 1] if mes else None,
+                        'origen': 'automatico',
+                        'monto_usd': linea['monto_usd'],
+                        'monto_ves': linea['monto_ves'],
+                    })
+                continue
+
+            manuales = list(pago.clasificaciones_manuales.all())
+            if manuales:
+                for m in manuales:
+                    monto_usd = m.monto_usd or Decimal('0')
+                    tasa = pago.tasa_aplicada or Decimal('0')
+                    filas.append({
+                        **base,
+                        'concepto': None,
+                        'concepto_display': None,
+                        'tipo': m.tipo,
+                        'tipo_display': m.get_tipo_display(),
+                        'mes': m.mes,
+                        'anio': m.anio,
+                        'mes_display': MESES_ES[m.mes - 1] if m.mes else None,
+                        'origen': 'manual',
+                        'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
+                        'monto_ves': str((monto_usd * tasa).quantize(Decimal('0.01'))),
+                    })
+                continue
+
+            monto_usd = pago.monto_usd or Decimal('0')
+            filas.append({
+                **base,
+                'concepto': pago.concepto,
+                'concepto_display': pago.get_concepto_display(),
+                'tipo': None,
+                'tipo_display': None,
+                'mes': None,
+                'anio': None,
+                'mes_display': None,
+                'origen': 'sin_clasificar',
+                'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
+                'monto_ves': str(pago.monto_ves.quantize(Decimal('0.01'))) if pago.monto_ves else str((monto_usd * (pago.tasa_aplicada or Decimal('0'))).quantize(Decimal('0.01'))),
+            })
+
+        return Response({'total_filas': len(filas), 'results': filas})
 
 
 class ResumenConciliacionView(APIView):
