@@ -101,3 +101,23 @@ Sigue siendo best-effort para PDFs **sin** bordes de tabla (solo texto alineado 
 pudo validar contra un ejemplo real y la extracción vía `vertical_strategy='text'` puede fallar si las
 descripciones son largas (ver estrategias en cascada en `extraer_tabla_pdf`). Si aparece un banco con ese layout,
 conviene conseguir un PDF de ejemplo y repetir esta validación.
+
+## `ClasificacionPagoManual` es un parche temporal — el camino real es que el desglose automático nunca falle
+
+Se agregó `ClasificacionPagoManual` (cobranza/models.py) y los endpoints de `estado-clasificacion`/`clasificacion`/
+`desglose-contable` (cobranza/views.py) para que el contador pueda etiquetar a mano (Inscripción / Proyecto de
+Inversión / Mes Atrasado / Proyecto de Inversión Atrasado) los pagos donde `calcular_desglose_automatico()`
+(extraída de `ComprobanteSerializer.get_desglose_conceptos`, ver cobranza/serializers.py) no encuentra líneas —
+típicamente pagos `concepto='mixto'` cuyas relaciones M2M con `Mensualidad`/`CuotaInscripcion`/`CuotaSolvencia`/
+`CuotaProyectoInversion` quedaron vacías (datos migrados, casos donde `RegistrarPagoView` no pudo enlazar el
+concepto real, etc).
+
+Esto es explícitamente un parche manual, no la solución de fondo. La solución de fondo es que **todo** pago quede
+siempre con sus M2M correctamente enlazados al registrarse (o se corrija el flujo de `RegistrarPagoView` para los
+casos donde hoy no se enlaza), de modo que `calcular_desglose_automatico()` cubra el 100% de los pagos y
+`ClasificacionPagoManual` deje de ser necesaria salvo como mecanismo de excepción/corrección puntual. No se
+investigó a fondo por qué el desglose automático queda vacío en los casos que hoy requieren clasificación manual
+(no se identificó un patrón único: podría ser un solo origen o varios) — antes de invertir en automatizar esto,
+conviene primero auditar `desglose-contable` en producción durante un tiempo para ver qué proporción de pagos cae
+en `origen='sin_clasificar'`/`'manual'` vs `'automatico'`, y si hay un patrón común (mismo rango de fechas, mismo
+método de pago, mismo flujo de registro) que apunte a la causa raíz real.
