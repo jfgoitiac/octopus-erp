@@ -24,3 +24,20 @@ export const getBancos = (signal) =>
 
 export const sincronizarTasa = (signal) =>
     apiClient.post('cobranza/sincronizar-tasa/', {}, signal ? { signal } : undefined);
+
+/* ── Clasificación manual de pagos (desglose contable) ── */
+
+export const getEstadoClasificacionPagos = (params, signal) =>
+    apiClient.get('cobranza/pagos/estado-clasificacion/', { params, signal });
+
+export const crearClasificacionPago = (pagoId, payload, signal) =>
+    apiClient.post(`cobranza/pagos/${pagoId}/clasificacion/`, payload, { signal });
+
+export const actualizarClasificacionLinea = (lineaId, payload, signal) =>
+    apiClient.patch(`cobranza/pagos/clasificacion/${lineaId}/`, payload, { signal });
+
+export const eliminarClasificacionLinea = (lineaId, signal) =>
+    apiClient.delete(`cobranza/pagos/clasificacion/${lineaId}/`, { signal });
+
+export const getDesgloseContable = (params, signal) =>
+    apiClient.get('cobranza/pagos/desglose-contable/', { params, signal });

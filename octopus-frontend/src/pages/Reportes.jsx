@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     Download, DollarSign, Wallet, Hash, Loader2,
     Search, FileSpreadsheet, CalendarDays, TrendingUp,
@@ -6,13 +6,24 @@ import {
     Clock, CheckCircle2, AlertTriangle, ChevronsRight, Printer,
     ListChecks, X, CheckSquare, Square,
     ChevronDown, ChevronUp, History, Lock, Save, ChevronLeft, ChevronRight,
-    Copy,
+    Copy, Layers, Pencil, Trash2, PlusCircle, FilePlus2,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import DatePickerES from '../components/DatePickerES';
+import Pagination from '../components/shared/Pagination';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import {
+    getEstadoClasificacionPagos,
+    crearClasificacionPago,
+    actualizarClasificacionLinea,
+    eliminarClasificacionLinea,
+    getDesgloseContable,
+} from '../api/cobranza.service';
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -62,6 +73,391 @@ const TrendBadge = ({ val }) => {
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
+
+/* ── Clasificación manual de pagos (desglose contable) ── */
+
+const TIPO_CLASIFICACION_LABELS = {
+    inscripcion: 'Inscripción',
+    proyecto_inversion: 'Proyecto de Inversión',
+    mes_atrasado: 'Mes Atrasado',
+    proyecto_inversion_atrasado: 'Proyecto de Inversión Atrasado',
+};
+
+const ESTADO_CLASIF_STYLE = {
+    sin_clasificar: { label: 'Sin clasificar', color: 'var(--ash)', bg: 'var(--ash-light)' },
+    parcial:        { label: 'Parcial',         color: '#ca8a04',   bg: '#fef9c3' },
+    completo:       { label: 'Completo',        color: '#16a34a',   bg: '#dcfce7' },
+};
+
+const CLASIF_PAGE_SIZE = 20;
+
+/**
+ * Modal/drawer para desglosar un pago (especialmente los marcados como "mixto")
+ * en líneas de clasificación concretas: Inscripción, Proyecto de Inversión,
+ * Mes Atrasado (con mes+año) o Proyecto de Inversión Atrasado.
+ */
+const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [onClose]);
+
+    const [lineas, setLineas] = useState(pago.clasificaciones || []);
+    const [montoClasificado, setMontoClasificado] = useState(pago.monto_clasificado_usd || 0);
+    const [montoPendiente, setMontoPendiente] = useState(pago.monto_pendiente_usd ?? pago.monto_usd);
+    const [estadoClasificacion, setEstadoClasificacion] = useState(pago.estado_clasificacion);
+
+    const [tipo, setTipo] = useState('inscripcion');
+    const [mes, setMes] = useState(new Date().getMonth() + 1);
+    const [anio, setAnio] = useState(CURRENT_YEAR);
+    const [monto, setMonto] = useState('');
+    const [nota, setNota] = useState('');
+    const [guardando, setGuardando] = useState(false);
+
+    const [lineaEditando, setLineaEditando] = useState(null); // id de la línea en edición inline
+    const [editForm, setEditForm] = useState(null);
+    const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+    const [lineaAEliminar, setLineaAEliminar] = useState(null);
+    const [eliminando, setEliminando] = useState(false);
+
+    const aplicarResumen = (resumen) => {
+        if (!resumen) return;
+        setMontoClasificado(resumen.monto_clasificado_usd);
+        setMontoPendiente(resumen.monto_pendiente_usd);
+        setEstadoClasificacion(resumen.estado_clasificacion);
+        onPagoActualizado(pago.id, resumen);
+    };
+
+    const totalLineasPropuesto = useMemo(
+        () => lineas.reduce((s, l) => s + parseFloat(l.monto_usd || 0), 0),
+        [lineas],
+    );
+    const excedeMonto = totalLineasPropuesto > parseFloat(pago.monto_usd || 0) + 0.005;
+    const pct = pago.monto_usd > 0 ? Math.min(100, (montoClasificado / pago.monto_usd) * 100) : 0;
+
+    const resetForm = () => {
+        setTipo('inscripcion');
+        setMes(new Date().getMonth() + 1);
+        setAnio(CURRENT_YEAR);
+        setMonto('');
+        setNota('');
+    };
+
+    const handleAgregarLinea = async () => {
+        const montoNum = parseFloat(monto);
+        if (!montoNum || montoNum <= 0) {
+            toast.warning('Ingresa un monto válido para la línea.');
+            return;
+        }
+        setGuardando(true);
+        try {
+            const payload = { tipo, monto_usd: montoNum, nota: nota || undefined };
+            if (tipo === 'mes_atrasado') {
+                payload.mes = mes;
+                payload.anio = anio;
+            }
+            const res = await crearClasificacionPago(pago.id, payload);
+            // El backend responde { clasificacion, resumen }, no la línea aplanada.
+            setLineas(prev => [...prev, res.data.clasificacion]);
+            aplicarResumen(res.data.resumen);
+            resetForm();
+            toast.success('Línea de clasificación agregada.');
+        } catch {
+            toast.error('No se pudo guardar la línea de clasificación.');
+        } finally {
+            setGuardando(false);
+        }
+    };
+
+    const iniciarEdicion = (linea) => {
+        setLineaEditando(linea.id);
+        setEditForm({
+            tipo: linea.tipo,
+            mes: linea.mes || new Date().getMonth() + 1,
+            anio: linea.anio || CURRENT_YEAR,
+            monto_usd: linea.monto_usd,
+            nota: linea.nota || '',
+        });
+    };
+
+    const cancelarEdicion = () => {
+        setLineaEditando(null);
+        setEditForm(null);
+    };
+
+    const guardarEdicion = async (lineaId) => {
+        const montoNum = parseFloat(editForm.monto_usd);
+        if (!montoNum || montoNum <= 0) {
+            toast.warning('Ingresa un monto válido para la línea.');
+            return;
+        }
+        setGuardandoEdicion(true);
+        try {
+            const payload = { tipo: editForm.tipo, monto_usd: montoNum, nota: editForm.nota || undefined };
+            if (editForm.tipo === 'mes_atrasado') {
+                payload.mes = editForm.mes;
+                payload.anio = editForm.anio;
+            }
+            const res = await actualizarClasificacionLinea(lineaId, payload);
+            // El backend responde { clasificacion, resumen }.
+            setLineas(prev => prev.map(l => (l.id === lineaId ? res.data.clasificacion : l)));
+            aplicarResumen(res.data.resumen);
+            cancelarEdicion();
+            toast.success('Línea de clasificación actualizada.');
+        } catch {
+            toast.error('No se pudo actualizar la línea de clasificación.');
+        } finally {
+            setGuardandoEdicion(false);
+        }
+    };
+
+    const confirmarEliminarLinea = async () => {
+        if (!lineaAEliminar) return;
+        setEliminando(true);
+        try {
+            const res = await eliminarClasificacionLinea(lineaAEliminar.id);
+            // El DELETE solo responde { resumen } (no hay clasificación que devolver).
+            setLineas(prev => prev.filter(l => l.id !== lineaAEliminar.id));
+            aplicarResumen(res.data.resumen);
+            toast.success('Línea de clasificación eliminada.');
+        } catch {
+            toast.error('No se pudo eliminar la línea de clasificación.');
+        } finally {
+            setEliminando(false);
+            setLineaAEliminar(null);
+        }
+    };
+
+    const estStyle = ESTADO_CLASIF_STYLE[estadoClasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
+            style={{ background: 'rgba(43,48,58,0.55)' }}>
+            <div
+                ref={containerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="clasificacion-modal-title"
+                className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl animate-fadeInUp"
+                style={{ background: '#fff' }}>
+                {/* Encabezado */}
+                <div className="px-6 py-4 flex items-start justify-between gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <div>
+                        <h3 id="clasificacion-modal-title" className="text-base font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+                            <Layers size={18} style={{ color: 'var(--pb)' }} />
+                            Clasificar Pago
+                        </h3>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
+                            {pago.alumno || '—'} · {pago.representante_nombre} · Ref. {pago.referencia || '—'}
+                        </p>
+                    </div>
+                    <button onClick={onClose} aria-label="Cerrar" style={{ color: 'var(--ash)' }}>
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    {/* Progreso */}
+                    <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                            <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                Clasificado: ${fmt(montoClasificado)} de ${fmt(pago.monto_usd)}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase" style={{ background: estStyle.bg, color: estStyle.color }}>
+                                {estStyle.label}
+                            </span>
+                        </div>
+                        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--ash-light)' }}>
+                            <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%`, background: estadoClasificacion === 'completo' ? '#16a34a' : 'var(--pb)' }} />
+                        </div>
+                        <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
+                            Pendiente por clasificar: <strong>${fmt(montoPendiente)}</strong>
+                        </p>
+                        {excedeMonto && (
+                            <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
+                                <AlertTriangle size={13} />
+                                La suma de las líneas excede el monto total del pago. Revisa antes de continuar.
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Líneas existentes */}
+                    <div>
+                        <p className="text-[11px] uppercase tracking-widest font-medium mb-2" style={{ color: 'var(--pb)' }}>
+                            Líneas de clasificación
+                        </p>
+                        {lineas.length === 0 ? (
+                            <p className="text-sm py-4 text-center rounded-lg" style={{ background: 'var(--porcelain)', color: 'var(--ash)' }}>
+                                Este pago aún no tiene líneas de clasificación.
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                {lineas.map(l => (
+                                    <div key={l.id} className="p-3 rounded-lg" style={{ border: '0.5px solid var(--border-md)' }}>
+                                        {lineaEditando === l.id ? (
+                                            <div className="space-y-2">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <select
+                                                        value={editForm.tipo}
+                                                        onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))}
+                                                        className="px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                                        style={{ border: '0.5px solid var(--border-md)' }}>
+                                                        {Object.entries(TIPO_CLASIFICACION_LABELS).map(([val, label]) => (
+                                                            <option key={val} value={val}>{label}</option>
+                                                        ))}
+                                                    </select>
+                                                    {editForm.tipo === 'mes_atrasado' && (
+                                                        <>
+                                                            <select
+                                                                value={editForm.mes}
+                                                                onChange={e => setEditForm(f => ({ ...f, mes: parseInt(e.target.value) }))}
+                                                                className="px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                                                style={{ border: '0.5px solid var(--border-md)' }}>
+                                                                {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                                                            </select>
+                                                            <input
+                                                                type="number"
+                                                                value={editForm.anio}
+                                                                onChange={e => setEditForm(f => ({ ...f, anio: parseInt(e.target.value) }))}
+                                                                className="w-20 px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                                                style={{ border: '0.5px solid var(--border-md)' }} />
+                                                        </>
+                                                    )}
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editForm.monto_usd}
+                                                        onChange={e => setEditForm(f => ({ ...f, monto_usd: e.target.value }))}
+                                                        placeholder="Monto USD"
+                                                        className="w-28 px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                                        style={{ border: '0.5px solid var(--border-md)' }} />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.nota}
+                                                    onChange={e => setEditForm(f => ({ ...f, nota: e.target.value }))}
+                                                    placeholder="Nota (opcional)"
+                                                    className="w-full px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                                                    style={{ border: '0.5px solid var(--border-md)' }} />
+                                                <div className="flex gap-2 justify-end">
+                                                    <button onClick={cancelarEdicion} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => guardarEdicion(l.id)}
+                                                        disabled={guardandoEdicion}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                                                        style={{ background: 'var(--pb)' }}>
+                                                        {guardandoEdicion ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                                                        Guardar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                                        {l.tipo_display || TIPO_CLASIFICACION_LABELS[l.tipo] || l.tipo}
+                                                        {l.tipo === 'mes_atrasado' && (
+                                                            <span style={{ color: 'var(--ash)' }}> — {l.mes_display || MONTH_NAMES[(l.mes || 1) - 1]} {l.anio}</span>
+                                                        )}
+                                                    </p>
+                                                    {l.nota && <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>{l.nota}</p>}
+                                                </div>
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    <span className="text-sm font-bold font-mono" style={{ color: '#16a34a' }}>${fmt(l.monto_usd)}</span>
+                                                    <button onClick={() => iniciarEdicion(l)} title="Editar línea" style={{ color: 'var(--pb)' }}>
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button onClick={() => setLineaAEliminar(l)} title="Eliminar línea" style={{ color: 'var(--red)' }}>
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Formulario nueva línea */}
+                    <div className="p-4 rounded-xl" style={{ background: 'var(--porcelain)' }}>
+                        <p className="text-[11px] uppercase tracking-widest font-medium mb-3" style={{ color: 'var(--pb)' }}>
+                            Agregar línea
+                        </p>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                            <select
+                                value={tipo}
+                                onChange={e => setTipo(e.target.value)}
+                                className="px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
+                                {Object.entries(TIPO_CLASIFICACION_LABELS).map(([val, label]) => (
+                                    <option key={val} value={val}>{label}</option>
+                                ))}
+                            </select>
+                            {tipo === 'mes_atrasado' && (
+                                <>
+                                    <select
+                                        value={mes}
+                                        onChange={e => setMes(parseInt(e.target.value))}
+                                        className="px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
+                                        {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                                    </select>
+                                    <input
+                                        type="number"
+                                        value={anio}
+                                        onChange={e => setAnio(parseInt(e.target.value))}
+                                        className="w-24 px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ border: '0.5px solid var(--border-md)', background: '#fff' }} />
+                                </>
+                            )}
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={monto}
+                                onChange={e => setMonto(e.target.value)}
+                                placeholder="Monto USD"
+                                className="w-32 px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff' }} />
+                        </div>
+                        <input
+                            type="text"
+                            value={nota}
+                            onChange={e => setNota(e.target.value)}
+                            placeholder="Nota (opcional)"
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3"
+                            style={{ border: '0.5px solid var(--border-md)', background: '#fff' }} />
+                        <button
+                            onClick={handleAgregarLinea}
+                            disabled={guardando}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                            style={{ background: 'var(--pb)' }}>
+                            {guardando ? <Loader2 size={15} className="animate-spin" /> : <PlusCircle size={15} />}
+                            Agregar línea
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {lineaAEliminar && (
+                <ConfirmDeleteModal
+                    titulo="Eliminar línea de clasificación"
+                    nombre={`${lineaAEliminar.tipo_display || TIPO_CLASIFICACION_LABELS[lineaAEliminar.tipo]} · $${fmt(lineaAEliminar.monto_usd)}`}
+                    onConfirm={confirmarEliminarLinea}
+                    onCancel={() => !eliminando && setLineaAEliminar(null)}
+                />
+            )}
+        </div>
+    );
+};
 
 const Reportes = () => {
     /* ── Cierre del día ── */
@@ -788,6 +1184,170 @@ const Reportes = () => {
     useEffect(() => {
         fetchPuntualidad(puntGranularidad, puntAnio, puntMes, puntFecha);
     }, [fetchPuntualidad, puntGranularidad, puntAnio, puntMes, puntFecha]);
+
+    /* ── Clasificación manual de pagos (desglose contable) ── */
+    const [clasifFechaInicio, setClasifFechaInicio] = useState(() => daysAgo(30));
+    const [clasifFechaFin, setClasifFechaFin] = useState(today);
+    const [clasifRepDocumento, setClasifRepDocumento] = useState('');
+    const [clasifRepDocumentoDebounced, setClasifRepDocumentoDebounced] = useState('');
+    const [clasifEstado, setClasifEstado] = useState('todos');
+    const [clasifPagos, setClasifPagos] = useState([]);
+    const [clasifTotal, setClasifTotal] = useState(0);
+    const [clasifTotalPages, setClasifTotalPages] = useState(1);
+    const [clasifPage, setClasifPage] = useState(1);
+    const [loadingClasif, setLoadingClasif] = useState(false);
+    const [pagoSeleccionado, setPagoSeleccionado] = useState(null);
+    const [exportandoClasifExcel, setExportandoClasifExcel] = useState(false);
+    const [exportandoClasifPdf, setExportandoClasifPdf] = useState(false);
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setClasifRepDocumentoDebounced(clasifRepDocumento.trim());
+            setClasifPage(1);
+        }, 400);
+        return () => clearTimeout(t);
+    }, [clasifRepDocumento]);
+
+    useEffect(() => { setClasifPage(1); }, [clasifFechaInicio, clasifFechaFin, clasifEstado]);
+
+    const fetchClasificacion = useCallback(async (fi, ff, repDoc, estado, page) => {
+        setLoadingClasif(true);
+        try {
+            const res = await getEstadoClasificacionPagos({
+                fecha_desde: fi,
+                fecha_hasta: ff,
+                representante_documento: repDoc || undefined,
+                estado,
+                page,
+                page_size: CLASIF_PAGE_SIZE,
+            });
+            // Paginación propia de este endpoint: {total, page, page_size, total_pages, results}
+            // (no el {count, next, previous} genérico de DRF que usan otros endpoints).
+            setClasifPagos(res.data?.results || []);
+            setClasifTotal(res.data?.total || 0);
+            setClasifTotalPages(res.data?.total_pages || 1);
+        } catch {
+            toast.error('No se pudo cargar el estado de clasificación de pagos.');
+        } finally {
+            setLoadingClasif(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchClasificacion(clasifFechaInicio, clasifFechaFin, clasifRepDocumentoDebounced, clasifEstado, clasifPage);
+    }, [fetchClasificacion, clasifFechaInicio, clasifFechaFin, clasifRepDocumentoDebounced, clasifEstado, clasifPage]);
+
+    /* Actualiza el resumen (monto clasificado/pendiente/estado) de un pago en la
+       tabla sin recargar toda la página, tras crear/editar/borrar una línea en el modal. */
+    const handlePagoActualizado = useCallback((pagoId, resumen) => {
+        setClasifPagos(prev => prev.map(p => (p.id === pagoId ? {
+            ...p,
+            monto_clasificado_usd: resumen.monto_clasificado_usd,
+            monto_pendiente_usd: resumen.monto_pendiente_usd,
+            estado_clasificacion: resumen.estado_clasificacion,
+        } : p)));
+        setPagoSeleccionado(prev => (prev && prev.id === pagoId ? { ...prev, ...resumen } : prev));
+    }, []);
+
+    const mesLabelDesglose = (fila) => {
+        if (fila.mes && fila.anio) {
+            return `${fila.mes_display || MONTH_NAMES[fila.mes - 1]} ${fila.anio}`;
+        }
+        return '';
+    };
+
+    const conceptoLabelDesglose = (fila) => {
+        if (fila.origen === 'sin_clasificar') return fila.concepto_display || fila.concepto || 'Sin clasificar';
+        return fila.tipo_display || TIPO_CLASIFICACION_LABELS[fila.tipo] || fila.concepto_display || fila.concepto || '—';
+    };
+
+    const handleExportClasifExcel = async () => {
+        setExportandoClasifExcel(true);
+        try {
+            const res = await getDesgloseContable({
+                fecha_desde: clasifFechaInicio,
+                fecha_hasta: clasifFechaFin,
+                representante_documento: clasifRepDocumentoDebounced || undefined,
+            });
+            const filas = res.data?.results || [];
+            if (!filas.length) {
+                toast.info('No hay movimientos en el período seleccionado.');
+                return;
+            }
+            const rows = filas.map(f => ({
+                Fecha: f.fecha_pago ? new Date(f.fecha_pago).toLocaleDateString('es-VE') : '—',
+                Mes: mesLabelDesglose(f),
+                Monto: parseFloat(f.monto_usd || 0),
+                Referencia: f.referencia || '—',
+                Concepto: conceptoLabelDesglose(f),
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Desglose Contable');
+            XLSX.writeFile(wb, `desglose_contable_${clasifFechaInicio}_${clasifFechaFin}.xlsx`);
+            toast.success('Archivo Excel descargado.');
+        } catch (err) {
+            // El backend limita el rango a 92 días (~3 meses) para no sobrecargar la consulta.
+            toast.error(err?.response?.data?.error || 'No se pudo generar el Excel del desglose contable.');
+        } finally {
+            setExportandoClasifExcel(false);
+        }
+    };
+
+    const handleExportClasifPdf = async () => {
+        setExportandoClasifPdf(true);
+        try {
+            const res = await getDesgloseContable({
+                fecha_desde: clasifFechaInicio,
+                fecha_hasta: clasifFechaFin,
+                representante_documento: clasifRepDocumentoDebounced || undefined,
+            });
+            const filas = res.data?.results || [];
+            if (!filas.length) {
+                toast.info('No hay movimientos en el período seleccionado.');
+                return;
+            }
+
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(15);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Desglose Contable de Pagos', 14, 18);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100);
+            doc.text(`Período: ${clasifFechaInicio}  —  ${clasifFechaFin}`, 14, 25);
+            doc.setTextColor(0);
+
+            autoTable(doc, {
+                head: [['Fecha', 'Mes', 'Monto', 'Referencia', 'Concepto']],
+                body: filas.map(f => [
+                    f.fecha_pago ? new Date(f.fecha_pago).toLocaleDateString('es-VE') : '—',
+                    mesLabelDesglose(f) || '—',
+                    `$${parseFloat(f.monto_usd || 0).toFixed(2)}`,
+                    f.referencia || '—',
+                    conceptoLabelDesglose(f),
+                ]),
+                startY: 32,
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [30, 64, 175], fontStyle: 'bold' },
+                columnStyles: {
+                    2: { halign: 'right' },
+                },
+                didParseCell: (data) => {
+                    if (data.section === 'body' && filas[data.row.index]?.origen === 'sin_clasificar') {
+                        data.cell.styles.fillColor = [254, 226, 226];
+                    }
+                },
+            });
+
+            doc.save(`desglose_contable_${clasifFechaInicio}_${clasifFechaFin}.pdf`);
+            toast.success('Reporte PDF generado correctamente.');
+        } catch (err) {
+            toast.error(err?.response?.data?.error || 'No se pudo generar el PDF del desglose contable.');
+        } finally {
+            setExportandoClasifPdf(false);
+        }
+    };
 
     const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
     const cardStyle  = { border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' };
@@ -1892,6 +2452,191 @@ const Reportes = () => {
                     );
                 })()}
             </section>
+
+            {/* ── SECCIÓN 5: Clasificación de Pagos ── */}
+            <section>
+                <div className="mb-5 flex items-start justify-between flex-wrap gap-4">
+                    <div>
+                        <h2 className="text-lg font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+                            <Layers size={20} style={{ color: 'var(--pb)' }} />
+                            Clasificación de Pagos
+                        </h2>
+                        <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
+                            Desglosa los pagos mixtos en conceptos concretos (inscripción, proyecto de inversión, meses atrasados) para el reporte contable.
+                        </p>
+                    </div>
+                    {loadingClasif && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--pb)' }} />}
+                </div>
+
+                {/* Filtros */}
+                <div className="flex flex-wrap items-end gap-3 mb-4">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
+                        <DatePickerES
+                            value={clasifFechaInicio}
+                            onChange={e => setClasifFechaInicio(e.target.value)}
+                            className="px-3 py-2 rounded-lg text-sm outline-none"
+                            style={inputStyle}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
+                        <DatePickerES
+                            value={clasifFechaFin}
+                            onChange={e => setClasifFechaFin(e.target.value)}
+                            className="px-3 py-2 rounded-lg text-sm outline-none"
+                            style={inputStyle}
+                        />
+                    </div>
+                    <div className="relative flex-1 min-w-[220px]">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
+                        <input
+                            type="text"
+                            value={clasifRepDocumento}
+                            onChange={e => setClasifRepDocumento(e.target.value)}
+                            placeholder="Cédula del representante (opcional)…"
+                            className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
+                            style={inputStyle}
+                        />
+                        {clasifRepDocumento && (
+                            <button
+                                onClick={() => setClasifRepDocumento('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2"
+                                style={{ color: 'var(--ash)' }}>
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+                    <select
+                        value={clasifEstado}
+                        onChange={e => setClasifEstado(e.target.value)}
+                        className="px-3 py-2 rounded-lg text-sm outline-none"
+                        style={inputStyle}>
+                        <option value="todos">Todos los estados</option>
+                        {Object.entries(ESTADO_CLASIF_STYLE).map(([val, s]) => (
+                            <option key={val} value={val}>{s.label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Exportación */}
+                <div className="flex flex-wrap gap-3 mb-4">
+                    <button
+                        onClick={handleExportClasifExcel}
+                        disabled={exportandoClasifExcel}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
+                        style={{ background: 'var(--jet)' }}>
+                        {exportandoClasifExcel ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+                        Exportar Excel (desglose contable)
+                    </button>
+                    <button
+                        onClick={handleExportClasifPdf}
+                        disabled={exportandoClasifPdf}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[44px]"
+                        style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+                        {exportandoClasifPdf ? <Loader2 size={16} className="animate-spin" /> : <FilePlus2 size={16} />}
+                        Exportar PDF (desglose contable)
+                    </button>
+                </div>
+
+                {/* Tabla */}
+                <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
+                    <table className="w-full text-sm min-w-[900px]">
+                        <thead>
+                            <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
+                                <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Fecha</th>
+                                <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Alumno</th>
+                                <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Representante</th>
+                                <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Referencia</th>
+                                <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto</th>
+                                <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Concepto</th>
+                                <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Estado</th>
+                                <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Clasif. / Pend.</th>
+                                <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loadingClasif ? (
+                                <tr>
+                                    <td colSpan={9} className="text-center py-10">
+                                        <Loader2 size={20} className="animate-spin inline-block" style={{ color: 'var(--pb)' }} />
+                                    </td>
+                                </tr>
+                            ) : clasifPagos.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className="text-center py-10 text-sm" style={{ color: 'var(--ash)' }}>
+                                        No hay pagos que coincidan con el filtro.
+                                    </td>
+                                </tr>
+                            ) : (
+                                clasifPagos.map((p, idx) => {
+                                    const estStyle = ESTADO_CLASIF_STYLE[p.estado_clasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
+                                    const esMixto = p.concepto === 'mixto';
+                                    const fecha = p.fecha_pago
+                                        ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                        : '—';
+                                    return (
+                                        <tr
+                                            key={p.id}
+                                            onClick={() => setPagoSeleccionado(p)}
+                                            className="cursor-pointer"
+                                            style={{
+                                                background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
+                                                borderBottom: '0.5px solid var(--border-md)',
+                                            }}>
+                                            <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
+                                            <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{p.alumno || '—'}</td>
+                                            <td className="px-4 py-3">
+                                                <p style={{ color: 'var(--jet)' }}>{p.representante_nombre || '—'}</p>
+                                                <p className="text-[11px] font-mono" style={{ color: 'var(--ash)' }}>{p.representante_documento || '—'}</p>
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.referencia || '—'}</td>
+                                            <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</td>
+                                            <td className="px-4 py-3">
+                                                <span className="font-medium" style={{ color: esMixto ? 'var(--red)' : 'var(--jet)' }}>
+                                                    {p.concepto_display || p.concepto || '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
+                                                    style={{ background: estStyle.bg, color: estStyle.color }}>
+                                                    {estStyle.label}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: 'var(--ash)' }}>
+                                                ${fmt(p.monto_clasificado_usd)} / ${fmt(p.monto_pendiente_usd)}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setPagoSeleccionado(p); }}
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-white whitespace-nowrap"
+                                                    style={{ background: 'var(--pb)' }}>
+                                                    Clasificar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                    <Pagination
+                        page={clasifPage}
+                        totalPages={clasifTotalPages}
+                        onPageChange={setClasifPage}
+                        total={clasifTotal}
+                        pageSize={CLASIF_PAGE_SIZE}
+                    />
+                </div>
+            </section>
+
+            {pagoSeleccionado && (
+                <ClasificacionPagoModal
+                    pago={pagoSeleccionado}
+                    onClose={() => setPagoSeleccionado(null)}
+                    onPagoActualizado={handlePagoActualizado}
+                />
+            )}
 
         </div>
     );
