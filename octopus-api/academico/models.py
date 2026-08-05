@@ -34,6 +34,25 @@ class Materia(models.Model):
         verbose_name='Sede',
     )
 
+    # ── Plan de Evaluación (sistema nuevo, opcional por materia+lapso) ──────
+    TIPO_EVALUACION_CHOICES = (
+        ('numerica', 'Numérica'),
+        ('literal',  'Literal (A/B/C)'),
+    )
+    # Define si la materia se califica con escala 0-20 (numerica) o con
+    # letras A/B/C (literal). Lo define el admin/control de estudios al
+    # cargar la materia — no lo edita el docente.
+    tipo_evaluacion = models.CharField(
+        max_length=10, choices=TIPO_EVALUACION_CHOICES, default='numerica'
+    )
+    # "Puntos EREC": si está activo, los bloques de esta materia se suman
+    # automáticamente al total de TODAS las demás materias del mismo
+    # grado_seccion+lapso (ver services de cálculo del plan de evaluación).
+    aporta_a_todas_las_materias = models.BooleanField(default=False)
+    # Si es False, la materia queda fuera de los cálculos de promedio general
+    # (ej. rendimiento por sección) aunque siga teniendo notas cargadas.
+    cuenta_para_promedio = models.BooleanField(default=True)
+
     class Meta:
         unique_together = ('nombre', 'grado_seccion')
         ordering = ['grado_seccion', 'nombre']
@@ -156,6 +175,123 @@ class Nota(models.Model):
 
 
 # ─────────────────────────────────────────────
+# PLAN DE EVALUACIÓN (sistema nuevo, opcional por materia+lapso)
+# ─────────────────────────────────────────────
+# Coexiste con Nota/evaluacion_1..4: Nota sigue siendo el fallback para
+# materias sin PlanEvaluacion configurado. Una materia+lapso usa uno u
+# otro sistema, nunca ambos a la vez (a criterio de quien arma el plan).
+class PlanEvaluacion(models.Model):
+    materia = models.ForeignKey(
+        Materia,
+        on_delete=models.CASCADE,
+        related_name='planes_evaluacion'
+    )
+    lapso = models.ForeignKey(
+        Lapso,
+        on_delete=models.CASCADE,
+        related_name='planes_evaluacion'
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('materia', 'lapso')
+        verbose_name = 'Plan de Evaluación'
+        verbose_name_plural = 'Planes de Evaluación'
+
+    def __str__(self):
+        return f"Plan — {self.materia.nombre} ({self.lapso.nombre})"
+
+
+class BloqueEvaluacion(models.Model):
+    MODO_CHOICES = (
+        ('puntos',   'Suma de puntos'),
+        ('promedio', 'Promedio'),
+    )
+
+    plan = models.ForeignKey(
+        PlanEvaluacion,
+        on_delete=models.CASCADE,
+        related_name='bloques'
+    )
+    nombre = models.CharField(max_length=100)  # ej. "Contenido", "Rasgos", "EREC"
+    # Solo tiene sentido si Materia.tipo_evaluacion == 'numerica'.
+    total_puntos = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    # Ignorado si la materia es literal: en ese caso el bloque siempre se
+    # resuelve por moda de letras (ver ItemEvaluacion.services de cálculo).
+    modo = models.CharField(max_length=10, choices=MODO_CHOICES, default='puntos')
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden', 'id']
+        verbose_name = 'Bloque de Evaluación'
+        verbose_name_plural = 'Bloques de Evaluación'
+
+    def __str__(self):
+        return f"{self.plan.materia.nombre} — {self.nombre}"
+
+
+class ItemEvaluacion(models.Model):
+    bloque = models.ForeignKey(
+        BloqueEvaluacion,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    nombre = models.CharField(max_length=150)
+    fecha = models.DateField(null=True, blank=True)
+    # Solo relevante cuando bloque.modo == 'puntos' y la materia es numérica.
+    valor_maximo = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden', 'id']
+        verbose_name = 'Ítem de Evaluación'
+        verbose_name_plural = 'Ítems de Evaluación'
+
+    def __str__(self):
+        return f"{self.bloque.nombre} — {self.nombre}"
+
+
+class NotaItemEvaluacion(models.Model):
+    LETRA_CHOICES = (('A', 'A'), ('B', 'B'), ('C', 'C'))
+
+    item = models.ForeignKey(
+        ItemEvaluacion,
+        on_delete=models.CASCADE,
+        related_name='notas'
+    )
+    alumno = models.ForeignKey(
+        'secretaria.Alumno',
+        on_delete=models.CASCADE,
+        related_name='notas_item_evaluacion'
+    )
+    # Se usa uno u otro según Materia.tipo_evaluacion.
+    valor_numerico = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    valor_letra = models.CharField(
+        max_length=1, choices=LETRA_CHOICES, null=True, blank=True
+    )
+    # Auditoría de cambios — mismo criterio que Nota (evaluacion_1..4), ya que
+    # este modelo es su equivalente en el sistema nuevo de plan de evaluación
+    # y puede ser igual de sensible ante disputas de calificación.
+    history = HistoricalRecords()
+
+    class Meta:
+        unique_together = ('item', 'alumno')
+        verbose_name = 'Nota de Ítem de Evaluación'
+        verbose_name_plural = 'Notas de Ítems de Evaluación'
+
+    def __str__(self):
+        valor = self.valor_numerico if self.valor_numerico is not None else self.valor_letra
+        return f"{self.alumno.nombre} {self.alumno.apellido} — {self.item.nombre}: {valor}"
+
+
+# ─────────────────────────────────────────────
 # ASISTENCIA
 # ─────────────────────────────────────────────
 class Asistencia(models.Model):
@@ -238,6 +374,39 @@ class HorarioClase(models.Model):
             f"{self.materia.nombre} — {self.get_dia_semana_display()} "
             f"{self.hora_inicio:%H:%M}-{self.hora_fin:%H:%M}"
         )
+
+
+# ─────────────────────────────────────────────
+# EVENTO DE CALENDARIO (personal del docente)
+# ─────────────────────────────────────────────
+class EventoCalendario(models.Model):
+    TIPOS = (
+        ('recordatorio', 'Recordatorio'),
+        ('evaluacion',    'Evaluación'),
+        ('reunion',       'Reunión'),
+        ('entrega',       'Entrega'),
+        ('otro',          'Otro'),
+    )
+
+    propietario  = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='eventos_calendario'
+    )
+    titulo       = models.CharField(max_length=120)
+    fecha        = models.DateField()
+    hora         = models.TimeField(null=True, blank=True)
+    descripcion  = models.TextField(blank=True)
+    tipo         = models.CharField(max_length=15, choices=TIPOS, default='recordatorio')
+    creado_en    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['fecha', 'hora']
+        verbose_name = 'Evento de Calendario'
+        verbose_name_plural = 'Eventos de Calendario'
+
+    def __str__(self):
+        return f"{self.titulo} — {self.fecha}"
 
 
 # ─────────────────────────────────────────────

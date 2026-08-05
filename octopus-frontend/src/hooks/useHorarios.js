@@ -154,7 +154,13 @@ export function useHorarios() {
   const actualizarMateria = useCallback(async (form) => {
     setSavingMateria(true);
     try {
-      await updateMateria(form.id, { nombre: form.nombre, horas_academicas: form.horas_academicas });
+      await updateMateria(form.id, {
+        nombre: form.nombre,
+        horas_academicas: form.horas_academicas,
+        tipo_evaluacion: form.tipo_evaluacion,
+        cuenta_para_promedio: form.cuenta_para_promedio,
+        aporta_a_todas_las_materias: form.aporta_a_todas_las_materias,
+      });
       toast.success('Materia actualizada.');
       recargar();
       return true;

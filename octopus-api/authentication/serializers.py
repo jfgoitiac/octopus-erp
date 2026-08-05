@@ -57,6 +57,17 @@ class UserSerializer(serializers.ModelSerializer):
         rol = validated_data.pop('rol', 'cajero')
         password = validated_data.pop('password')
 
+        # BUG: DRF completa 'is_active' con False cuando el campo no viene en
+        # el request (comportamiento de BooleanField con required=False, no
+        # hereda el default=True del modelo). El formulario de creación de
+        # usuarios (Sistemas.jsx) nunca envía este campo, así que todo
+        # usuario nuevo quedaba inactivo y no podía iniciar sesión hasta que
+        # alguien lo activara manualmente. Si el campo no vino explícito en
+        # el request, se fuerza a True (default real del modelo); si vino
+        # explícito, se respeta el valor ya validado/coercido por DRF.
+        if 'is_active' not in self.initial_data:
+            validated_data['is_active'] = True
+
         user = User.objects.create_user(password=password, **validated_data)
 
         perfil, _ = PerfilUsuario.objects.get_or_create(user=user)
@@ -86,6 +97,36 @@ class UserSerializer(serializers.ModelSerializer):
             perfil.save()
 
         return instance
+
+
+class PerfilDocenteSerializer(serializers.ModelSerializer):
+    """Perfil del docente autenticado para el portal docente (mi-perfil)."""
+    rol = serializers.SerializerMethodField()
+    foto = serializers.SerializerMethodField()
+    username = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['id', 'first_name', 'last_name', 'email', 'username', 'rol', 'foto']
+
+    def get_rol(self, obj):
+        try:
+            return obj.perfil.rol
+        except Exception:
+            return None
+
+    def get_foto(self, obj):
+        try:
+            return obj.perfil.foto.url if obj.perfil.foto else None
+        except Exception:
+            return None
+
+
+class PerfilFotoSerializer(serializers.ModelSerializer):
+    """Validación del archivo de foto de perfil (tamaño/tipo) antes de guardarlo."""
+    class Meta:
+        model = PerfilUsuario
+        fields = ['foto']
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):

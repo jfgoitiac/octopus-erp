@@ -19,9 +19,15 @@ from rest_framework.test import APIClient
 from authentication.models import PerfilUsuario
 from secretaria.models import Alumno, Representante
 
-from .models import AlertaRendimiento, Asistencia, IncidenteDisciplinario, Lapso, Materia, MaterialEstudio, Nota
+from .models import (
+    AlertaRendimiento, Asistencia, BloqueEvaluacion, IncidenteDisciplinario, ItemEvaluacion,
+    Lapso, Materia, MaterialEstudio, Nota, NotaItemEvaluacion, PlanEvaluacion,
+)
 from .serializers import estado_a_booleanos
-from .services import calcular_rendimiento_alumno, calcular_rendimiento_seccion, generar_alertas_rendimiento
+from .services import (
+    calcular_plan_notas, calcular_rendimiento_alumno, calcular_rendimiento_seccion,
+    generar_alertas_rendimiento,
+)
 
 User = get_user_model()
 
@@ -490,3 +496,434 @@ class GenerarAlertasRendimientoTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
         self.assertEqual(resp.data[0]['alumno_id'], self.alumno.id)
+
+
+# ─────────────────────────────────────────────
+# LOGIN DEL PORTAL DOCENTE
+# ─────────────────────────────────────────────
+class DocenteLoginTests(TestCase):
+    """
+    Cubre POST /api/portal-docente/login/:
+      - login exitoso con rol 'docente'
+      - rechazo (403) con rol distinto de 'docente'
+      - rechazo (401) con credenciales inválidas
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # evita que el throttle de login acumule entre tests
+        self.client = APIClient()
+
+    def test_login_docente_exitoso(self):
+        crear_usuario('docente1', 'docente', 'clave-docente-123')
+
+        resp = self.client.post('/api/portal-docente/login/', {
+            'username': 'docente1',
+            'password': 'clave-docente-123',
+        })
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertIn('access', resp.data)
+        self.assertIn('refresh', resp.data)
+        self.assertEqual(resp.data['rol'], 'docente')
+        self.assertEqual(resp.data['username'], 'docente1')
+        self.assertIn('nombre', resp.data)
+
+    def test_login_rechaza_rol_no_docente(self):
+        crear_usuario('cajero1', 'cajero', 'clave-cajero-123')
+
+        resp = self.client.post('/api/portal-docente/login/', {
+            'username': 'cajero1',
+            'password': 'clave-cajero-123',
+        })
+
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_login_rechaza_credenciales_invalidas(self):
+        crear_usuario('docente2', 'docente', 'clave-docente-456')
+
+        resp = self.client.post('/api/portal-docente/login/', {
+            'username': 'docente2',
+            'password': 'clave-incorrecta',
+        })
+
+        self.assertEqual(resp.status_code, 401, resp.content)
+
+
+class DocenteCambiarContrasenaTests(TestCase):
+    """Cubre POST /api/portal-docente/cambiar-contrasena/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = crear_usuario('docente3', 'docente', 'clave-vieja-123')
+        self.client.force_authenticate(user=self.user)
+
+    def test_cambia_contrasena_exitosamente(self):
+        resp = self.client.post('/api/portal-docente/cambiar-contrasena/', {
+            'contrasena_actual': 'clave-vieja-123',
+            'contrasena_nueva': 'clave-nueva-456',
+            'confirmar': 'clave-nueva-456',
+        })
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('clave-nueva-456'))
+
+    def test_rechaza_contrasena_actual_incorrecta(self):
+        resp = self.client.post('/api/portal-docente/cambiar-contrasena/', {
+            'contrasena_actual': 'clave-incorrecta',
+            'contrasena_nueva': 'clave-nueva-456',
+            'confirmar': 'clave-nueva-456',
+        })
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_rechaza_usuario_no_docente(self):
+        cajero = crear_usuario('cajero2', 'cajero', 'clave-cajero-123')
+        self.client.force_authenticate(user=cajero)
+        resp = self.client.post('/api/portal-docente/cambiar-contrasena/', {
+            'contrasena_actual': 'clave-cajero-123',
+            'contrasena_nueva': 'clave-nueva-456',
+            'confirmar': 'clave-nueva-456',
+        })
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+
+class DocenteRegistroYAccesoPortalTests(TestCase):
+    """
+    Un usuario creado con rol 'docente' vía el endpoint de gestión de
+    usuarios (UserManagementViewSet, usado por Sistemas.jsx) debe poder
+    entrar de inmediato al portal docente con las mismas credenciales —
+    sin ningún paso de activación adicional (a diferencia del representante,
+    que requiere un RepresentanteUser vinculado explícitamente).
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.client = APIClient()
+        director = crear_usuario('director_sis', 'director', 'clave-director-123')
+        self.client.force_authenticate(user=director)
+
+    def test_docente_recien_creado_puede_entrar_al_portal(self):
+        resp_crear = self.client.post('/api/authentication/users/', {
+            'username': 'docente_nuevo',
+            'email': 'docente_nuevo@example.com',
+            'password': 'ClaveSegura!2026',
+            'rol': 'docente',
+        })
+        self.assertEqual(resp_crear.status_code, 201, resp_crear.content)
+
+        resp_login = APIClient().post('/api/portal-docente/login/', {
+            'username': 'docente_nuevo',
+            'password': 'ClaveSegura!2026',
+        })
+        self.assertEqual(resp_login.status_code, 200, resp_login.content)
+        self.assertEqual(resp_login.data['rol'], 'docente')
+
+
+class DocenteBloqueadoEnLoginAdminTests(TestCase):
+    """
+    El docente debe entrar solo por /api/portal-docente/login/, no por el
+    login del panel admin (/api/authentication/login/) — cierra el hueco de
+    que la separación de portales fuera solo cosmética en el frontend.
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.client = APIClient()
+
+    def test_docente_no_puede_usar_login_admin(self):
+        crear_usuario('docente_bloqueado', 'docente', 'clave-docente-789')
+
+        resp = self.client.post('/api/authentication/login/', {
+            'username': 'docente_bloqueado',
+            'password': 'clave-docente-789',
+        })
+
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_no_docente_si_puede_usar_login_admin(self):
+        crear_usuario('secretaria1', 'secretaria', 'clave-secretaria-123')
+
+        resp = self.client.post('/api/authentication/login/', {
+            'username': 'secretaria1',
+            'password': 'clave-secretaria-123',
+        })
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+
+# ─────────────────────────────────────────────
+# PLAN DE EVALUACIÓN (sistema nuevo, opcional por materia+lapso)
+# ─────────────────────────────────────────────
+class PlanEvaluacionCalculoTests(TestCase):
+    """Cubre las reglas de cálculo de services.calcular_plan_notas:
+    bloque modo puntos, modo promedio, aporte EREC y moda de letras."""
+
+    def setUp(self):
+        self.lapso = Lapso.objects.create(
+            nombre='1er Lapso', periodo_escolar='2025-2026',
+            fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=True,
+        )
+        self.alumno = crear_alumno('E84000020', grado_seccion='7mo Grado A')
+
+    def test_bloque_modo_puntos_suma_valores(self):
+        materia = Materia.objects.create(
+            nombre='Matemáticas', grado_seccion='7mo Grado A',
+            tipo_evaluacion='numerica', activa=True,
+        )
+        plan = PlanEvaluacion.objects.create(materia=materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item1 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Quiz 1', valor_maximo=5)
+        item2 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Quiz 2', valor_maximo=5)
+        NotaItemEvaluacion.objects.create(item=item1, alumno=self.alumno, valor_numerico=Decimal('4.00'))
+        NotaItemEvaluacion.objects.create(item=item2, alumno=self.alumno, valor_numerico=Decimal('3.00'))
+
+        _, alumnos_data = calcular_plan_notas(materia, self.lapso)
+        fila = alumnos_data[0]
+        self.assertEqual(fila['bloques'][0]['valor'], 7.0)
+        self.assertEqual(fila['total'], 7.0)
+
+    def test_bloque_modo_promedio_ignora_items_sin_nota(self):
+        materia = Materia.objects.create(
+            nombre='Física', grado_seccion='7mo Grado A',
+            tipo_evaluacion='numerica', activa=True,
+        )
+        plan = PlanEvaluacion.objects.create(materia=materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Rasgos', modo='promedio')
+        item1 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Rasgo 1')
+        item2 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Rasgo 2')
+        # item2 se deja sin nota a propósito -- no debe contar como 0
+        NotaItemEvaluacion.objects.create(item=item1, alumno=self.alumno, valor_numerico=Decimal('16.00'))
+
+        _, alumnos_data = calcular_plan_notas(materia, self.lapso)
+        fila = alumnos_data[0]
+        self.assertEqual(fila['bloques'][0]['valor'], 16.0)
+        self.assertEqual(fila['total'], 16.0)
+
+    def test_materia_erec_aporta_a_otra_materia_del_mismo_grado(self):
+        materia_erec = Materia.objects.create(
+            nombre='EREC', grado_seccion='7mo Grado A',
+            tipo_evaluacion='numerica', aporta_a_todas_las_materias=True, activa=True,
+        )
+        plan_erec = PlanEvaluacion.objects.create(materia=materia_erec, lapso=self.lapso)
+        bloque_erec = BloqueEvaluacion.objects.create(plan=plan_erec, nombre='EREC', modo='puntos')
+        item_erec = ItemEvaluacion.objects.create(bloque=bloque_erec, nombre='Participación', valor_maximo=2)
+        NotaItemEvaluacion.objects.create(item=item_erec, alumno=self.alumno, valor_numerico=Decimal('2.00'))
+
+        materia_destino = Materia.objects.create(
+            nombre='Lengua', grado_seccion='7mo Grado A',
+            tipo_evaluacion='numerica', activa=True,
+        )
+        plan_destino = PlanEvaluacion.objects.create(materia=materia_destino, lapso=self.lapso)
+        bloque_destino = BloqueEvaluacion.objects.create(plan=plan_destino, nombre='Contenido', modo='puntos')
+        item_destino = ItemEvaluacion.objects.create(bloque=bloque_destino, nombre='Examen', valor_maximo=15)
+        NotaItemEvaluacion.objects.create(item=item_destino, alumno=self.alumno, valor_numerico=Decimal('12.00'))
+
+        _, alumnos_data = calcular_plan_notas(materia_destino, self.lapso)
+        fila = alumnos_data[0]
+        # 12 (propio) + 2 (aporte EREC) = 14
+        self.assertEqual(fila['total'], 14.0)
+        self.assertEqual(len(fila['aporte_otras_materias']), 1)
+        self.assertEqual(fila['aporte_otras_materias'][0]['materia_id'], materia_erec.id)
+        self.assertEqual(fila['aporte_otras_materias'][0]['valor'], 2.0)
+
+    def test_moda_de_letras_en_materia_literal(self):
+        materia = Materia.objects.create(
+            nombre='Formación Ciudadana', grado_seccion='7mo Grado A',
+            tipo_evaluacion='literal', activa=True,
+        )
+        plan = PlanEvaluacion.objects.create(materia=materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Actitud', modo='puntos')
+        item1 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Corte 1', orden=1)
+        item2 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Corte 2', orden=2)
+        item3 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Corte 3', orden=3)
+        NotaItemEvaluacion.objects.create(item=item1, alumno=self.alumno, valor_letra='B')
+        NotaItemEvaluacion.objects.create(item=item2, alumno=self.alumno, valor_letra='A')
+        NotaItemEvaluacion.objects.create(item=item3, alumno=self.alumno, valor_letra='A')
+
+        _, alumnos_data = calcular_plan_notas(materia, self.lapso)
+        fila = alumnos_data[0]
+        self.assertEqual(fila['bloques'][0]['valor_letra'], 'A')
+        self.assertEqual(fila['total_letra'], 'A')
+        self.assertIsNone(fila['total'])
+
+    def test_moda_con_empate_devuelve_primera_en_orden_de_aparicion(self):
+        materia = Materia.objects.create(
+            nombre='Educación Física', grado_seccion='7mo Grado A',
+            tipo_evaluacion='literal', activa=True,
+        )
+        plan = PlanEvaluacion.objects.create(materia=materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Desempeño', modo='puntos')
+        item1 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Corte 1', orden=1)
+        item2 = ItemEvaluacion.objects.create(bloque=bloque, nombre='Corte 2', orden=2)
+        NotaItemEvaluacion.objects.create(item=item1, alumno=self.alumno, valor_letra='B')
+        NotaItemEvaluacion.objects.create(item=item2, alumno=self.alumno, valor_letra='A')
+
+        _, alumnos_data = calcular_plan_notas(materia, self.lapso)
+        # Empate 1-1: gana 'B' por aparecer primero (orden de los items)
+        self.assertEqual(alumnos_data[0]['bloques'][0]['valor_letra'], 'B')
+
+    def test_sin_plan_configurado_devuelve_none(self):
+        materia = Materia.objects.create(
+            nombre='Sin Plan', grado_seccion='7mo Grado A',
+            tipo_evaluacion='numerica', activa=True,
+        )
+        plan, alumnos_data = calcular_plan_notas(materia, self.lapso)
+        self.assertIsNone(plan)
+        self.assertEqual(alumnos_data, [])
+
+
+class PlanEvaluacionEndpointTests(TestCase):
+    """Cubre el contrato HTTP de PlanEvaluacionView y PlanEvaluacionNotasView."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.docente = crear_usuario('docente_plan', 'docente')
+        self.otro_docente = crear_usuario('docente_plan_otro', 'docente')
+        self.materia = Materia.objects.create(
+            nombre='Química', grado_seccion='8vo Grado A',
+            tipo_evaluacion='numerica', docente=self.docente, activa=True,
+        )
+        self.lapso = Lapso.objects.create(
+            nombre='1er Lapso', periodo_escolar='2025-2026',
+            fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=True,
+        )
+        self.alumno = crear_alumno('E84000021', grado_seccion='8vo Grado A')
+
+    def test_get_sin_plan_devuelve_null(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.get(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}'
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.data)
+
+    def test_docente_crea_plan_con_bloques_anidados(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {
+                'bloques': [
+                    {
+                        'nombre': 'Contenido', 'modo': 'puntos', 'total_puntos': '15.00', 'orden': 1,
+                        'items': [
+                            {'nombre': 'Examen', 'valor_maximo': '15.00', 'orden': 1},
+                        ],
+                    },
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(PlanEvaluacion.objects.count(), 1)
+        self.assertEqual(BloqueEvaluacion.objects.count(), 1)
+        self.assertEqual(ItemEvaluacion.objects.count(), 1)
+        self.assertEqual(resp.data['bloques'][0]['nombre'], 'Contenido')
+        self.assertEqual(resp.data['bloques'][0]['items'][0]['nombre'], 'Examen')
+
+    def test_docente_no_puede_crear_plan_de_materia_ajena(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        resp = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'bloques': [{'nombre': 'Contenido', 'items': []}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(PlanEvaluacion.objects.count(), 0)
+
+    def test_post_duplicado_devuelve_409(self):
+        PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'bloques': []},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 409)
+
+    def test_patch_conserva_notas_de_items_que_mantienen_su_id(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+        NotaItemEvaluacion.objects.create(item=item, alumno=self.alumno, valor_numerico=Decimal('10.00'))
+
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.patch(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {
+                'bloques': [
+                    {
+                        'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos', 'orden': 1,
+                        'items': [
+                            {'id': item.id, 'nombre': 'Examen (editado)', 'valor_maximo': '15.00', 'orden': 1},
+                            {'nombre': 'Nuevo item', 'valor_maximo': '5.00', 'orden': 2},
+                        ],
+                    },
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(ItemEvaluacion.objects.count(), 2)
+        item.refresh_from_db()
+        self.assertEqual(item.nombre, 'Examen (editado)')
+        # La nota ligada al item original sigue existiendo (mismo PK conservado)
+        self.assertTrue(NotaItemEvaluacion.objects.filter(item=item, alumno=self.alumno).exists())
+
+    def test_patch_sin_plan_previo_devuelve_404(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.patch(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'bloques': []},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_notas_get_sin_plan_devuelve_404(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.get(
+            f'/api/academico/docente/plan-evaluacion/notas/?materia_id={self.materia.id}&lapso_id={self.lapso.id}'
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_notas_post_guarda_y_get_refleja_total(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+
+        self.client.force_authenticate(user=self.docente)
+        resp_post = self.client.post('/api/academico/docente/plan-evaluacion/notas/', {
+            'materia_id': self.materia.id,
+            'lapso_id': self.lapso.id,
+            'notas': [{'item_id': item.id, 'alumno_id': self.alumno.id, 'valor_numerico': '13.00'}],
+        }, format='json')
+        self.assertEqual(resp_post.status_code, 200, resp_post.content)
+        self.assertEqual(len(resp_post.data['guardadas']), 1)
+        self.assertEqual(len(resp_post.data['errores']), 0)
+
+        resp_get = self.client.get(
+            f'/api/academico/docente/plan-evaluacion/notas/?materia_id={self.materia.id}&lapso_id={self.lapso.id}'
+        )
+        self.assertEqual(resp_get.status_code, 200)
+        self.assertEqual(resp_get.data['alumnos'][0]['total'], 13.0)
+
+    def test_notas_post_item_de_otra_materia_reporta_error(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+
+        otra_materia = Materia.objects.create(
+            nombre='Biología II', grado_seccion='8vo Grado A',
+            tipo_evaluacion='numerica', docente=self.docente, activa=True,
+        )
+
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post('/api/academico/docente/plan-evaluacion/notas/', {
+            'materia_id': otra_materia.id,
+            'lapso_id': self.lapso.id,
+            'notas': [{'item_id': item.id, 'alumno_id': self.alumno.id, 'valor_numerico': '13.00'}],
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(len(resp.data['guardadas']), 0)
+        self.assertEqual(len(resp.data['errores']), 1)

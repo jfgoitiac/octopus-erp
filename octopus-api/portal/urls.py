@@ -23,6 +23,8 @@ from .views import (
     VerificarReferenciaView,
     ConfiguracionColegioPublicaView,
     CambiarContrasenaPortalView,
+    PortalMiPerfilView,
+    PortalFotoPerfilView,
 )
 
 urlpatterns = [
@@ -69,4 +71,8 @@ urlpatterns = [
 
     # Cambio de contraseña del representante: POST /api/portal/cambiar-contrasena/
     path('cambiar-contrasena/', CambiarContrasenaPortalView.as_view(), name='portal_cambiar_contrasena'),
+
+    # Perfil del representante: GET/PATCH /api/portal/mi-perfil/ — POST /api/portal/mi-perfil/foto/
+    path('mi-perfil/', PortalMiPerfilView.as_view(), name='portal_mi_perfil'),
+    path('mi-perfil/foto/', PortalFotoPerfilView.as_view(), name='portal_mi_perfil_foto'),
 ]

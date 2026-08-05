@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from secretaria.models import Alumno
-from .models import Materia, Lapso, Nota, Asistencia, HorarioClase, IncidenteDisciplinario, MaterialEstudio
+from .models import (
+    Materia, Lapso, Nota, Asistencia, HorarioClase, IncidenteDisciplinario,
+    MaterialEstudio, EventoCalendario,
+    PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion,
+)
+from .services import calcular_rendimiento_seccion
 
 
 # ─────────────────────────────────────────────
@@ -15,7 +20,12 @@ class MateriaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Materia
-        fields = ['id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username', 'activa', 'horas_academicas']
+        fields = [
+            'id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username',
+            'activa', 'horas_academicas',
+            # Plan de Evaluación (sistema nuevo) — editables solo por admin/control de estudios
+            'tipo_evaluacion', 'aporta_a_todas_las_materias', 'cuenta_para_promedio',
+        ]
 
     def get_docente_username(self, obj):
         if obj.docente:
@@ -220,9 +230,30 @@ class IncidenteDisciplinarioSerializer(serializers.ModelSerializer):
 # MATERIA — MINI (para "mis materias" del docente)
 # ─────────────────────────────────────────────
 class MateriaDocenteSerializer(serializers.ModelSerializer):
+    cantidad_alumnos = serializers.SerializerMethodField()
+    porcentaje_aprobados = serializers.SerializerMethodField()
+
     class Meta:
         model  = Materia
-        fields = ['id', 'nombre', 'codigo', 'grado_seccion']
+        fields = ['id', 'nombre', 'codigo', 'grado_seccion', 'cantidad_alumnos', 'porcentaje_aprobados']
+
+    def get_cantidad_alumnos(self, obj):
+        if not obj.grado_seccion:
+            return 0
+        return Alumno.objects.filter(grado_seccion__iexact=obj.grado_seccion).count()
+
+    def get_porcentaje_aprobados(self, obj):
+        # Cache por grado_seccion dentro del propio serializer: un docente
+        # puede tener varias materias en la misma sección (evita recalcular
+        # el rendimiento de esa sección más de una vez en la misma lista).
+        cache = self.context.setdefault('_rendimiento_cache', {})
+        if obj.grado_seccion not in cache:
+            cache[obj.grado_seccion] = calcular_rendimiento_seccion(obj.grado_seccion)
+        rendimiento = cache[obj.grado_seccion]
+        for entrada in rendimiento['por_materia']:
+            if entrada['materia_id'] == obj.id:
+                return entrada['porcentaje_aprobados']
+        return None
 
 
 # ─────────────────────────────────────────────
@@ -246,3 +277,97 @@ class MaterialEstudioSerializer(serializers.ModelSerializer):
 
     def get_publicado_por_username(self, obj):
         return obj.publicado_por.username if obj.publicado_por else None
+
+
+# ─────────────────────────────────────────────
+# EVENTO DE CALENDARIO
+# ─────────────────────────────────────────────
+class EventoCalendarioSerializer(serializers.ModelSerializer):
+    tipo_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = EventoCalendario
+        fields = ['id', 'titulo', 'fecha', 'hora', 'descripcion', 'tipo', 'tipo_label']
+
+    def get_tipo_label(self, obj):
+        return obj.get_tipo_display()
+
+
+# ─────────────────────────────────────────────
+# PLAN DE EVALUACIÓN — lectura (GET, respuesta anidada)
+# ─────────────────────────────────────────────
+class ItemEvaluacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ItemEvaluacion
+        fields = ['id', 'nombre', 'fecha', 'valor_maximo', 'orden']
+
+
+class BloqueEvaluacionSerializer(serializers.ModelSerializer):
+    items = ItemEvaluacionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model  = BloqueEvaluacion
+        fields = ['id', 'nombre', 'total_puntos', 'modo', 'orden', 'items']
+
+
+class PlanEvaluacionSerializer(serializers.ModelSerializer):
+    # Django crea automáticamente el atributo <fk>_id para cada ForeignKey,
+    # por eso alcanza con IntegerField(read_only=True) sin declarar source.
+    materia_id = serializers.IntegerField(read_only=True)
+    lapso_id   = serializers.IntegerField(read_only=True)
+    bloques    = BloqueEvaluacionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model  = PlanEvaluacion
+        fields = ['id', 'materia_id', 'lapso_id', 'bloques']
+
+
+# ─────────────────────────────────────────────
+# PLAN DE EVALUACIÓN — escritura (POST/PATCH, payload anidado)
+# ─────────────────────────────────────────────
+class ItemEvaluacionInputSerializer(serializers.Serializer):
+    # 'id' es opcional: si viene y coincide con un ítem existente del bloque,
+    # se actualiza en lugar de recrearse (preserva las notas ya cargadas,
+    # que están ligadas al item_id vía NotaItemEvaluacion).
+    id           = serializers.IntegerField(required=False)
+    nombre       = serializers.CharField(max_length=150)
+    fecha        = serializers.DateField(required=False, allow_null=True)
+    valor_maximo = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    orden        = serializers.IntegerField(required=False, default=0)
+
+
+class BloqueEvaluacionInputSerializer(serializers.Serializer):
+    id           = serializers.IntegerField(required=False)
+    nombre       = serializers.CharField(max_length=100)
+    total_puntos = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    modo         = serializers.ChoiceField(choices=BloqueEvaluacion.MODO_CHOICES, required=False, default='puntos')
+    orden        = serializers.IntegerField(required=False, default=0)
+    items        = ItemEvaluacionInputSerializer(many=True)
+
+
+class PlanEvaluacionInputSerializer(serializers.Serializer):
+    """Payload compartido por POST y PATCH de PlanEvaluacionView.
+    materia_id/lapso_id NO van aquí: se toman de los query params
+    (?materia_id=&lapso_id=), igual en los 3 métodos del endpoint."""
+    bloques = BloqueEvaluacionInputSerializer(many=True)
+
+
+# ─────────────────────────────────────────────
+# NOTAS DEL PLAN DE EVALUACIÓN — bulk (POST)
+# ─────────────────────────────────────────────
+class NotaItemInputSerializer(serializers.Serializer):
+    item_id        = serializers.IntegerField()
+    alumno_id      = serializers.IntegerField()
+    valor_numerico = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    valor_letra    = serializers.ChoiceField(choices=NotaItemEvaluacion.LETRA_CHOICES, required=False, allow_null=True)
+
+
+class NotaItemBulkSerializer(serializers.Serializer):
+    """
+    Recibe {materia_id, lapso_id, notas: [{item_id, alumno_id, valor_numerico|valor_letra}]}
+    y guarda/actualiza las notas por ítem del plan de evaluación en una sola llamada.
+    Mismo estilo que NotaBulkSerializer (sistema de Nota clásico).
+    """
+    materia_id = serializers.IntegerField()
+    lapso_id   = serializers.IntegerField()
+    notas      = NotaItemInputSerializer(many=True)

@@ -7,7 +7,10 @@ import { mostrarCedula } from './cedulaEscolar';
 const BRAND = '#003366';
 
 function calcularPromedio(materias) {
-  const vals = materias.map(m => parseFloat(m.definitiva)).filter(v => !isNaN(v));
+  const vals = materias
+    .filter(m => m.cuenta_para_promedio !== false)
+    .map(m => parseFloat(m.definitiva))
+    .filter(v => !isNaN(v));
   return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
 }
 
@@ -73,7 +76,7 @@ export function generarBoletinPDF(boletin) {
     m.evaluacion_2 ?? '—',
     m.evaluacion_3 ?? '—',
     m.evaluacion_4 ?? '—',
-    m.definitiva ?? '—',
+    m.definitiva_letra ?? m.definitiva ?? '—',
     m.aprobado === true ? 'Aprobado' : m.aprobado === false ? 'Reprobado' : '—',
   ]);
 

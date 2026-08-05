@@ -7,6 +7,8 @@ import AppProviders from './components/AppProviders';
 import ProtectedRoute from './components/ProtectedRoute';
 import PortalProtectedRoute from './portal/components/PortalProtectedRoute';
 import PortalLayout from './portal/components/PortalLayout';
+import DocenteProtectedRoute from './portal-docente/components/DocenteProtectedRoute';
+import DocenteLayout from './portal-docente/components/DocenteLayout';
 import MainLayout from './components/MainLayout';
 
 // ── Portal de Representantes ──────────────────────────────────────────────────
@@ -52,11 +54,16 @@ const Rendimiento              = lazy(() => import('./pages/Rendimiento'));
 
 // ── Módulo Comunicación ────────────────────────────────────────────────────────
 const Comunicacion             = lazy(() => import('./pages/Comunicacion'));
-const Mensajes                 = lazy(() => import('./pages/Mensajes'));
 
-// ── Portal Docente (Fase 3) ─────────────────────────────────────────────────────
-const MisMaterias              = lazy(() => import('./pages/MisMaterias'));
-const GestionMateria           = lazy(() => import('./pages/GestionMateria'));
+// ── Portal Docente (módulo separado, login/JWT propios — ver src/portal-docente/) ─
+const DocenteLogin             = lazy(() => import('./portal-docente/pages/DocenteLogin'));
+const DocenteDashboard         = lazy(() => import('./portal-docente/pages/DocenteDashboard'));
+const DocenteMaterias          = lazy(() => import('./portal-docente/pages/DocenteMaterias'));
+const DocenteMateriaDetalle    = lazy(() => import('./portal-docente/pages/DocenteMateriaDetalle'));
+const DocenteMensajes          = lazy(() => import('./portal-docente/pages/DocenteMensajes'));
+const DocenteIncidentes        = lazy(() => import('./portal-docente/pages/DocenteIncidentes'));
+const DocenteCambiarContrasena = lazy(() => import('./portal-docente/pages/DocenteCambiarContrasena'));
+const DocentePerfil            = lazy(() => import('./portal-docente/pages/DocentePerfil'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -103,6 +110,25 @@ function App() {
               <Route path="rendimiento" element={<PortalRendimiento />} />
             </Route>
 
+            {/* ── Portal Docente (módulo separado, login/JWT propios) ── */}
+            <Route path="/portal-docente/login" element={<DocenteLogin />} />
+            <Route
+              path="/portal-docente"
+              element={
+                <DocenteProtectedRoute>
+                  <DocenteLayout />
+                </DocenteProtectedRoute>
+              }
+            >
+              <Route index element={<DocenteDashboard />} />
+              <Route path="materias" element={<DocenteMaterias />} />
+              <Route path="materias/:materiaId" element={<DocenteMateriaDetalle />} />
+              <Route path="mensajes" element={<DocenteMensajes />} />
+              <Route path="incidentes" element={<DocenteIncidentes />} />
+              <Route path="cambiar-contrasena" element={<DocenteCambiarContrasena />} />
+              <Route path="perfil" element={<DocentePerfil />} />
+            </Route>
+
             {/* ── Autenticación admin ── */}
             <Route path="/login" element={<Login />} />
 
@@ -123,12 +149,12 @@ function App() {
 
               {/* Gestión de alumnos */}
               <Route path="inscripciones" element={
-                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.SECRETARIA_ADMIN, ROLES.DOCENTE]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
                   <Inscripciones />
                 </ProtectedRoute>
               } />
               <Route path="alumnos" element={
-                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.STAFF_SEDE, ROLES.DOCENTE]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.STAFF_SEDE}>
                   <ListaAlumnos />
                 </ProtectedRoute>
               } />
@@ -148,7 +174,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="representantes" element={
-                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.ATENCION_FAMILIAS, ROLES.DOCENTE]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ATENCION_FAMILIAS}>
                   <Representantes />
                 </ProtectedRoute>
               } />
@@ -231,18 +257,8 @@ function App() {
 
               {/* Módulo Académico */}
               <Route path="notas" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA, ROLES.DOCENTE]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
                   <Notas />
-                </ProtectedRoute>
-              } />
-              <Route path="mis-materias" element={
-                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
-                  <MisMaterias />
-                </ProtectedRoute>
-              } />
-              <Route path="mis-materias/:materiaId" element={
-                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
-                  <GestionMateria />
                 </ProtectedRoute>
               } />
               <Route path="boletin" element={
@@ -251,7 +267,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="asistencia" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA, ROLES.DOCENTE]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
                   <Asistencia />
                 </ProtectedRoute>
               } />
@@ -261,7 +277,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="incidentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA, ROLES.DOCENTE]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
                   <Incidentes />
                 </ProtectedRoute>
               } />
@@ -277,12 +293,6 @@ function App() {
                   <Comunicacion />
                 </ProtectedRoute>
               } />
-              <Route path="mensajes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
-                  <Mensajes />
-                </ProtectedRoute>
-              } />
-
               {/* Módulo Multi-Sede */}
               <Route path="multisede" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTIVO_RED, ROLES.DIRECTOR]}>

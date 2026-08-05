@@ -86,7 +86,18 @@ class LoginView(TokenObtainPairView):
         
         # Optimización: SimpleJWT ya guardó al usuario validado en el serializador
         user = serializer.user
-        
+
+        # SEGURIDAD: el docente tiene su propio login separado en
+        # /api/portal-docente/login/ (ver academico/views.py::DocenteTokenView).
+        # Igual que el rol 'representante' no puede usar este login, el rol
+        # 'docente' tampoco — evita que la separación de portales sea solo
+        # cosmética a nivel de frontend.
+        if getattr(user, 'perfil', None) and user.perfil.rol == 'docente' and not user.is_superuser:
+            return Response(
+                {'error': 'Los docentes deben ingresar desde el Portal Docente.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         LogAuditoria.objects.create(
             usuario=user,
             accion="INICIO_SESION",

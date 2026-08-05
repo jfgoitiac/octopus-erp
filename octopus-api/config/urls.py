@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/portal/comunicacion/', include('comunicacion.urls_portal')),
     path('api/academico/', include('academico.urls')),
     path('api/portal/academico/', include('academico.urls_portal')),
+    path('api/portal-docente/', include('academico.urls_portal_docente')),
     path('api/comunicacion/', include('comunicacion.urls')),
     path('api/multisede/', include('multisede.urls')),
     path('api/notificaciones/', include('notificaciones.urls')),

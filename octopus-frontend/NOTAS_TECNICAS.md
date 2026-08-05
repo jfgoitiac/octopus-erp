@@ -335,3 +335,38 @@
   Con colegios grandes (500+ alumnos) esto puede ser pesado. Requiere que el
   backend exponga paginación (cursor o page-number) antes de adaptar el
   frontend — coordinar con backend primero.
+
+## Portal Docente — Seguridad (corregido)
+
+- [RESUELTO 2026-08-04] Auditoría del portal docente encontró que cuatro
+  endpoints GET en `academico/views.py` no filtraban por ownership del
+  docente (solo sus `POST`/`DELETE` sí lo hacían), permitiendo que un docente
+  autenticado leyera notas, asistencia o material de estudio de una
+  materia/sección que no era suya con solo cambiar `materia_id` o
+  `grado_seccion` en la query string:
+  - `NotasGradoView.get`: se agregó el mismo chequeo de ownership que ya
+    tenía su `.post` (secretaria+ sin restricciones, o docente dueño de
+    `Materia`) antes de armar la respuesta.
+  - `AsistenciaView.get`: se agregó el chequeo vía
+    `IsDocenteAsignadoOrSecretariaOrAbove`. Fue necesario ajustar
+    `_grado_seccion_objetivo` (compartido con `.post`) para que también lea
+    `grado_seccion` desde `request.query_params`, ya que antes solo miraba
+    `request.data` (vacío en un GET sin body).
+  - `MaterialEstudioListCreateView.get`: con `materia_id` en query params se
+    valida ownership igual que `.post`. Sin `materia_id` (listado general) se
+    decidió no exigir el parámetro como 400 sino restringir el queryset a
+    `materia__docente=request.user` cuando el rol es docente, para no romper
+    el listado general existente del frontend; secretaria+ sigue viendo todo.
+  - `MaterialEstudioDetailView.get`: se agregó el mismo chequeo de ownership
+    que ya tenía `.delete` de la misma vista.
+  Verificado con `python -c "import ast; ast.parse(...)"` y
+  `python manage.py check` (ambos sin errores).
+
+- [RESUELTO 2026-08-04] `WidgetCalendario.jsx` usaba `violet-*` (botón
+  agregar evento, día seleccionado, día actual, eventos personales) en vez
+  de `var(--docente-primary)`, el único lugar del portal docente que se
+  apartaba del color de marca. Se unificó a `var(--docente-primary)` /
+  `var(--docente-primary-dark)`; se conservó `amber-*` solo para eventos de
+  evaluación (`solo_lectura`), ya que esa sí es una distinción de categoría
+  legítima (evaluación vs. evento personal), consistente con otras alertas
+  ámbar del sistema.

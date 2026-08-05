@@ -1,6 +1,9 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
-from .models import Nota, Asistencia, Materia, Lapso, HorarioClase, IncidenteDisciplinario, MaterialEstudio
+from .models import (
+    Nota, Asistencia, Materia, Lapso, HorarioClase, IncidenteDisciplinario, MaterialEstudio, EventoCalendario,
+    PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion,
+)
 
 
 @admin.register(Nota)
@@ -48,3 +51,45 @@ class MaterialEstudioAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'materia', 'publicado_por', 'fecha')
     list_filter = ('materia__grado_seccion',)
     search_fields = ('titulo', 'materia__nombre')
+
+
+@admin.register(EventoCalendario)
+class EventoCalendarioAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'propietario', 'fecha', 'hora', 'tipo')
+    list_filter = ('tipo', 'fecha')
+    search_fields = ('titulo', 'propietario__username')
+
+
+class BloqueEvaluacionInline(admin.TabularInline):
+    model = BloqueEvaluacion
+    extra = 0
+
+
+@admin.register(PlanEvaluacion)
+class PlanEvaluacionAdmin(admin.ModelAdmin):
+    list_display = ('materia', 'lapso', 'creado_en')
+    list_filter = ('lapso', 'materia__grado_seccion')
+    inlines = [BloqueEvaluacionInline]
+
+
+class ItemEvaluacionInline(admin.TabularInline):
+    model = ItemEvaluacion
+    extra = 0
+
+
+@admin.register(BloqueEvaluacion)
+class BloqueEvaluacionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'plan', 'modo', 'total_puntos', 'orden')
+    list_filter = ('modo',)
+    inlines = [ItemEvaluacionInline]
+
+
+@admin.register(ItemEvaluacion)
+class ItemEvaluacionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'bloque', 'fecha', 'valor_maximo', 'orden')
+
+
+@admin.register(NotaItemEvaluacion)
+class NotaItemEvaluacionAdmin(admin.ModelAdmin):
+    list_display = ('alumno', 'item', 'valor_numerico', 'valor_letra')
+    search_fields = ('alumno__nombre', 'alumno__apellido')

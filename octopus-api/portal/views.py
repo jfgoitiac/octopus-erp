@@ -13,6 +13,8 @@ from rest_framework.throttling import AnonRateThrottle
 from secretaria.models import Alumno
 from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, Mensualidad, Pago
 
+from authentication.serializers import PerfilFotoSerializer
+
 from .authentication import PortalJWTAuthentication
 from .models import ComprobantePago, RepresentanteUser
 from .serializers import (
@@ -20,6 +22,7 @@ from .serializers import (
     ComprobantePagoSerializer,
     MensualidadSerializer,
     PagoHistorialSerializer,
+    PortalPerfilSerializer,
     PortalTokenSerializer,
 )
 
@@ -909,11 +912,18 @@ class ConfiguracionColegioPublicaView(APIView):
                     'logo_url': '',
                 }
             else:
+                # logo_url (URL externa) tiene prioridad si está configurada;
+                # si no, cae a logo_colegio (imagen subida — hoy usada para
+                # recibos de pago, pero es el logo real del colegio en la
+                # práctica: la mayoría de los colegios lo cargan ahí y dejan
+                # logo_url vacío, así que sin este fallback esta vista nunca
+                # devolvía el logo real de esos colegios).
+                logo = config.logo_url or (config.logo_colegio.url if config.logo_colegio else '')
                 data = {
                     'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
                     'color_primario': config.color_primario or '#0fa3b1',
                     'color_secundario': config.color_secundario or '#1f3864',
-                    'logo_url': config.logo_url or '',
+                    'logo_url': logo,
                 }
             # TTL de 5 min como red de seguridad además de la invalidación por
             # señal (secretaria/signals.py), por si corre con varios workers.
@@ -974,3 +984,55 @@ class CambiarContrasenaPortalView(APIView):
         logger.info(f'Representante {representante.cedula} cambió su contraseña del portal.')
 
         return Response({'mensaje': 'Contraseña actualizada exitosamente.'})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# MI PERFIL (representante autenticado)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalMiPerfilView(APIView):
+    """
+    GET   /api/portal/mi-perfil/ — perfil del representante autenticado.
+    PATCH /api/portal/mi-perfil/ — edita first_name/last_name/email (User) y
+    telefono (Representante). username, cedula y foto no se editan aquí
+    (la foto tiene endpoint propio: PortalFotoPerfilView).
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    CAMPOS_USER = ('first_name', 'last_name', 'email')
+
+    def get(self, request):
+        return Response(PortalPerfilSerializer(request.user).data)
+
+    def patch(self, request):
+        for campo in self.CAMPOS_USER:
+            if campo in request.data:
+                setattr(request.user, campo, request.data[campo])
+        request.user.save(update_fields=list(self.CAMPOS_USER))
+
+        if 'telefono' in request.data:
+            representante = _get_representante(request)
+            representante.telefono = request.data['telefono']
+            representante.save(update_fields=['telefono'])
+
+        return Response(PortalPerfilSerializer(request.user).data)
+
+
+class PortalFotoPerfilView(APIView):
+    """
+    POST /api/portal/mi-perfil/foto/ (multipart, campo 'foto')
+    Reemplaza la foto de perfil del representante autenticado.
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not request.data.get('foto'):
+            return Response({'error': "Debes adjuntar un archivo en el campo 'foto'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        perfil = request.user.perfil
+        serializer = PerfilFotoSerializer(perfil, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(PortalPerfilSerializer(request.user).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

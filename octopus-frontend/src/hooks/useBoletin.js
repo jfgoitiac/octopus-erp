@@ -91,10 +91,16 @@ export function useBoletin() {
     }
   }, [alumnoSeleccionado, lapsoId]);
 
-  // Calculado una sola vez; usado tanto en la UI como pasado a generarBoletinPDF
+  // Calculado una sola vez; usado tanto en la UI como pasado a generarBoletinPDF.
+  // Excluye materias con cuenta_para_promedio === false (ej. materias que el
+  // colegio no quiere que afecten el promedio general del boletín) y las
+  // literales (definitiva_letra, sin equivalente numérico).
   const promedioGeneral = useMemo(() => {
     if (!boletin?.materias?.length) return null;
-    const vals = boletin.materias.map(m => parseFloat(m.definitiva)).filter(v => !isNaN(v));
+    const vals = boletin.materias
+      .filter(m => m.cuenta_para_promedio !== false)
+      .map(m => parseFloat(m.definitiva))
+      .filter(v => !isNaN(v));
     return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
   }, [boletin]);
 

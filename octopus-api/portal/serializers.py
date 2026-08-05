@@ -127,6 +127,35 @@ class PagoHistorialSerializer(serializers.ModelSerializer):
         return obj.get_concepto_display()
 
 
+class PortalPerfilSerializer(serializers.Serializer):
+    """
+    Perfil del representante autenticado para el portal (mi-perfil).
+    Combina datos editables del User (first_name/last_name/email) y de
+    PerfilUsuario.foto (mismo modelo que usa el portal docente, ya existe
+    para cualquier usuario vía la señal create_perfil_usuario) con datos
+    propios de Representante (telefono editable, cedula solo lectura).
+    """
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    email = serializers.EmailField()
+    username = serializers.CharField(read_only=True)
+    foto = serializers.SerializerMethodField()
+    cedula = serializers.SerializerMethodField()
+    telefono = serializers.SerializerMethodField()
+
+    def get_foto(self, user):
+        try:
+            return user.perfil.foto.url if user.perfil.foto else None
+        except Exception:
+            return None
+
+    def get_cedula(self, user):
+        return user.representante_portal.representante.cedula
+
+    def get_telefono(self, user):
+        return user.representante_portal.representante.telefono
+
+
 class ComprobantePagoSerializer(serializers.ModelSerializer):
     """Serializer completo de ComprobantePago para creación y consulta."""
     estatus_display = serializers.SerializerMethodField()

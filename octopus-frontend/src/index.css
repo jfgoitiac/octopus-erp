@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  --docente-primary:      #0fa3b1;
+  --docente-primary-dark: #0c828d;
+  --docente-bg:           #e8f8fa;
+  --docente-accent:       #fbbf24;
   --pb:        #0fa3b1;
   --pb-light:  #e8f8fa;
   --pb-mid:    #0c828d;

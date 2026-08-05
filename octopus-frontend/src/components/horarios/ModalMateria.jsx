@@ -6,9 +6,12 @@ import { useEscape } from '../../hooks/useEscape';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const buildForm = (materia) => ({
-  id:               materia?.id    ?? null,
-  nombre:           materia?.nombre ?? '',
-  horas_academicas: materia?.horas_academicas ?? 4,
+  id:                        materia?.id    ?? null,
+  nombre:                    materia?.nombre ?? '',
+  horas_academicas:          materia?.horas_academicas ?? 4,
+  tipo_evaluacion:           materia?.tipo_evaluacion ?? 'numerica',
+  cuenta_para_promedio:      materia?.cuenta_para_promedio ?? true,
+  aporta_a_todas_las_materias: materia?.aporta_a_todas_las_materias ?? false,
 });
 
 export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => {
@@ -31,6 +34,8 @@ export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => 
     }
     onSave({ ...form, horas_academicas: horas });
   };
+
+  const setCheckbox = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.checked }));
 
   return (
     <div
@@ -97,6 +102,55 @@ export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => 
                 {parseInt(form.horas_academicas, 10) || 0} bloque{parseInt(form.horas_academicas, 10) !== 1 ? 's' : ''}
               </span>{' '}
               por semana para esta materia.
+            </p>
+          </div>
+
+          {/* Tipo de evaluación */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+              Tipo de evaluación
+            </label>
+            <select
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={INPUT_STYLE}
+              value={form.tipo_evaluacion}
+              onChange={set('tipo_evaluacion')}
+            >
+              <option value="numerica">Numérica (puntos)</option>
+              <option value="literal">Literal (A/B/C)</option>
+            </select>
+          </div>
+
+          {/* Cuenta para el promedio */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="materia-cuenta-promedio"
+              checked={form.cuenta_para_promedio}
+              onChange={setCheckbox('cuenta_para_promedio')}
+              className="w-4 h-4 rounded"
+            />
+            <label htmlFor="materia-cuenta-promedio" className="text-sm" style={{ color: 'var(--jet)' }}>
+              Cuenta para el promedio del estudiante
+            </label>
+          </div>
+
+          {/* Aporta a todas las materias */}
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="materia-aporta-todas"
+                checked={form.aporta_a_todas_las_materias}
+                onChange={setCheckbox('aporta_a_todas_las_materias')}
+                className="w-4 h-4 rounded"
+              />
+              <label htmlFor="materia-aporta-todas" className="text-sm" style={{ color: 'var(--jet)' }}>
+                Aporta puntos a todas las materias del grado (ej. EREC/Religión)
+              </label>
+            </div>
+            <p className="text-[11px] mt-1.5 pl-6" style={{ color: 'var(--ash)' }}>
+              Suma automáticamente los puntos de esta materia al total de las demás materias del mismo grado y lapso.
             </p>
           </div>
 

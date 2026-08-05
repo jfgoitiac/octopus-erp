@@ -1440,3 +1440,474 @@ tipos activos se agregó dentro de la página "Ajustes" ya existente
    confirmado con `git diff` antes de anotar), se dejó igual por estar fuera
    del alcance pedido. Si se toca ese archivo de nuevo, aprovechar para
    quitar la variable o usarla.
+
+---
+
+# PORTAL DOCENTE — MÓDULO SEPARADO (2026-08-03)
+
+A pedido explícito del usuario, se extrajo el "Portal Docente" (que hasta ahora
+vivía dentro del panel administrativo, reutilizando `/login` y el JWT admin,
+según `docs/PLAN_EXPANSION_V2.md` Fase 3) a un módulo completamente separado,
+espejando la arquitectura del portal de representantes: login propio
+(`/portal-docente/login`), JWT propio en localStorage (`docente_token`/
+`docente_refresh_token`), rutas protegidas independientes.
+
+**Esto reintroduce a propósito lo que el plan v2 había evitado**: un segundo
+flujo de login/refresh a mantener en frontend. La decisión fue explícitamente
+solicitada por el usuario tras una pregunta de confirmación, no un default.
+
+## Qué se hizo
+
+- **Backend** (`academico/views.py` + `academico/urls_portal_docente.py`,
+  montado en `config/urls.py` bajo `api/portal-docente/`): `DocenteTokenView`
+  (login, reutiliza `MyTokenObtainPairSerializer` sin duplicar emisión de JWT),
+  `DocenteTokenRefreshView`, `DocenteCambiarContrasenaView`. Las vistas de
+  negocio existentes (`DocenteMisMateriasView`, notas, asistencia, materiales,
+  incidentes) **no se tocaron** — ya autorizan leyendo `request.user.perfil.rol`
+  en vivo de la BD, por lo que aceptan cualquier JWT válido del usuario sin
+  importar qué endpoint lo emitió.
+- **Frontend**: módulo nuevo `src/portal-docente/` (client axios, contexto de
+  auth, ruta protegida, layout mobile-first, login, mis materias, detalle de
+  materia con tabs Notas/Asistencia/Material, mensajes, incidentes, cambiar
+  contraseña). Rutas montadas en `App.jsx`, `DocenteAuthProvider` agregado a
+  `AppProviders.jsx`.
+- Se **eliminaron** `src/pages/MisMaterias.jsx`, `GestionMateria.jsx`,
+  `Mensajes.jsx` (admin), `hooks/useMisMaterias.js`, `hooks/useMensajes.js`,
+  `components/mensajes/ListaConversaciones.jsx` y `ModalNuevaConversacion.jsx`
+  del panel admin — quedaron 100% reemplazados por sus equivalentes en
+  `portal-docente/` y ya no tenían ningún caller tras retirar `ROLES.DOCENTE`
+  de las rutas del panel admin. `ChatMensajes.jsx` se conservó (se reutiliza
+  desde ambos portales).
+- Se retiró `ROLES.DOCENTE` de `allowedRoles` en las rutas admin de
+  `inscripciones`, `alumnos`, `representantes`, `notas`, `asistencia`,
+  `incidentes` (`App.jsx`) y de los ítems correspondientes de `Sidebar.jsx`.
+
+## Deuda técnica / riesgo conocido, no resuelto en esta fase
+
+1. **El docente podía seguir autenticándose por `/login` (admin)** — ✅ RESUELTO
+   en la misma pasada. `LoginView.post()` (`authentication/views.py`) ahora
+   rechaza con 403 cualquier login cuyo `perfil.rol == 'docente'` (mismo
+   criterio que `AdminJWTAuthentication` ya aplicaba para `representante`,
+   pero a nivel de emisión de token, no solo de validación posterior). El
+   docente solo puede obtener un JWT desde `/api/portal-docente/login/`.
+   Tests: `academico.tests.DocenteBloqueadoEnLoginAdminTests` (2/2 OK) —
+   confirma 403 para docente y 200 sin cambios para otros roles.
+
+2. **No existe endpoint "alumnos de mi sección" dedicado para el docente**
+   — `useAlumnosSeccion.js` (portal-docente) reutiliza el roster que ya
+   devuelve `AsistenciaView` del día actual (siempre incluye a todos los
+   alumnos del grado, tengan o no asistencia marcada) para poblar los
+   selectores de alumno en "Nuevo incidente" y "Nueva conversación". Funciona,
+   pero acopla dos features (selector de alumnos, asistencia) a un endpoint
+   pensado para otra cosa. Si se agrega un endpoint real de roster, migrar
+   este hook.
+
+3. **`comunicacion/mensajes/` sin `alumno_id` devuelve una bandeja plana de
+   mensajes individuales, no conversaciones agrupadas** — `DocenteMensajes.jsx`
+   agrupa del lado del cliente (`useDocenteConversaciones.js`) por
+   `alumno_id`, calculando último mensaje y no-leídos en JS. Con volumen alto
+   de mensajes esto puede volverse costoso; considerar un endpoint de
+   conversaciones agregadas en el backend si el volumen lo justifica.
+
+4. **`IncidenteDisciplinario.adjunto` es `ImageField` (no acepta PDF)** —
+   documentado en la UI (`accept="image/*"`), pero si en algún momento se
+   quiere adjuntar un documento (ej. informe médico), el modelo no lo permite
+   hoy.
+
+5. **Sin branding dinámico del colegio en `DocenteLayout.jsx`** — a
+   diferencia de `PortalLayout.jsx` (portal representantes), que lee colores
+   del colegio vía `getConfigColegio()`, el portal docente usa un color fijo
+   (`#0fa3b1`) vía variable CSS `--docente-primary`. No se conectó a
+   propósito (no fue pedido); fácil de enchufar al mismo endpoint cuando se
+   necesite.
+
+Verificación: `python manage.py test academico comunicacion authentication`
+→ 50/50 OK. `npm run build` limpio (Vite + PWA). `eslint` sobre los archivos
+nuevos solo reporta `react-hooks/set-state-in-effect`/preserve-memoization,
+el mismo patrón preexistente ya presente en `src/portal/` (representantes) —
+no es una regresión de esta fase, es deuda técnica sistémica del proyecto.
+
+**2026-08-03 — `pywebpush`/`redis` instalados en el venv**: estaban listados
+en `requirements.txt` (`pywebpush==2.3.0`, `redis==8.0.0`) pero no instalados
+en este entorno, causando 5 errores en la suite completa
+(`notificaciones.tests.EnviarPushTests`, `portal.tests.RecordatoriosCobranzaTests`)
+no relacionados con el portal docente. Instalados con la versión exacta que
+pide `requirements.txt`; los 5 tests ahora pasan (6/6 incluyendo uno
+adicional del mismo módulo). Quedan sin resolver, preexistentes y fuera de
+alcance: los 2 fallos de `portal.tests` (comprobantes) y el de
+`secretaria.tests` (N+1 queries) documentados arriba en este archivo.
+
+**2026-08-03 — Bug crítico encontrado y corregido: usuarios nuevos quedaban
+inactivos al crearlos desde Sistemas** (`authentication/serializers.py`,
+`UserSerializer.create()`). Detectado al verificar el pedido del usuario de
+que "si se registra un usuario como docente, debería tener acceso al portal
+docente de inmediato": un test end-to-end (crear usuario vía
+`POST /api/authentication/users/` → login inmediato) falló con 401
+"Credenciales incorrectas". Causa raíz: DRF completa el campo `is_active`
+con `False` cuando no viene en el body del request (comportamiento de
+`BooleanField` con `required=False`, que **no** hereda el `default=True` del
+modelo Django) — y `Sistemas.jsx` nunca envía ese campo al crear un usuario.
+Esto afectaba a **cualquier rol**, no solo docente: todo usuario creado desde
+el panel de Sistemas quedaba inactivo silenciosamente y no podía iniciar
+sesión (ni en el panel admin ni, para docentes, en el portal) hasta que
+alguien lo activara manualmente — sin ningún error visible en el momento de
+la creación (el `POST` responde 201 igual). Corregido: `create()` ahora
+fuerza `is_active=True` explícitamente cuando el campo no vino en el request
+crudo (`self.initial_data`), respetando el valor si alguna vez se envía a
+propósito. Test de regresión:
+`academico.tests.DocenteRegistroYAccesoPortalTests` (crea un docente vía el
+endpoint real de Sistemas y hace login inmediato contra
+`/api/portal-docente/login/`). Verificado con
+`python manage.py test authentication academico usuarios secretaria` →
+51/52 OK (el único fallo es el de N+1 en `secretaria`, preexistente y no
+relacionado).
+
+## PORTAL DOCENTE — REDISEÑO DASHBOARD (widgets) 2026-08-03
+
+Rediseño de `/portal-docente` (dashboard) a layout de widgets: rail lateral
+en desktop (`DesktopRail.jsx`, solo `md+`, mismos íconos del bottom nav
+móvil), grid de 2 columnas en `DocenteDashboard.jsx`, widgets extraídos a
+`src/portal-docente/components/widgets/`. Mobile-first sin cambios de
+comportamiento (stack vertical + bottom nav fija, sin rail).
+
+- **Endpoint nuevo**: `GET /api/academico/docente/mi-horario/?limite=N`
+  (`DocenteMiHorarioView` en `academico/views.py`) — devuelve las próximas
+  clases del docente autenticado usando el modelo `HorarioClase` ya
+  existente (antes solo se consultaba por `grado_seccion`, no había vista
+  scoped por docente). Requiere rol `docente`.
+- `MateriaDocenteSerializer` ahora incluye `cantidad_alumnos`
+  (`Alumno.objects.filter(grado_seccion=...).count()`) para alimentar el
+  widget de perfil docente. Es un count por sección, no por inscripción
+  real a la materia — si en el futuro una materia no cubre a toda la
+  sección, este número quedará impreciso.
+- `useDocenteConversaciones` ahora también expone `mensajes` (la lista
+  plana sin agrupar, ya se descartaba tras agrupar por conversación) —
+  usado por `WidgetActividadSemana` para contar mensajes por día. El
+  conteo de "incidentes" en ese widget es por `fecha` de registro, no por
+  fecha del incidente en sí si difieren.
+- 🟡 `--docente-primary` nunca estaba definida en `:root` (siempre caía al
+  fallback hardcodeado `#0fa3b1`). Se agregó `--docente-primary: #0fa3b1;`
+  en `index.css`. Sigue habiendo hex literal `#0fa3b1` repetido en varios
+  componentes (Tailwind arbitrary values `text-[#0fa3b1]` no puede
+  referenciar la variable CSS directamente) — no se migró todo a la
+  variable en este cambio, fuera de alcance.
+- 🟡 `WidgetMateriasTabla` introduce el primer patrón de "tabla" real del
+  módulo docente (encabezado de columnas visible desde `md`); el resto de
+  las páginas (`DocenteMaterias`, `DocenteMensajes`, `DocenteIncidentes`)
+  siguen usando listas de cards. Si se agregan más tablas, conviene
+  extraer un componente `<DataTable>` compartido en vez de repetir el
+  patrón grid a mano.
+- 🟢 Pendiente, no implementado: paginar `proximasClases` más allá del
+  límite fijo pasado al hook (`useDocenteHorarioSemana(4)` en el
+  dashboard) — suficiente para un widget resumen, pero si se reutiliza en
+  una página de horario completo habría que quitar el límite o agregar
+  paginación real.
+
+## PORTAL DOCENTE — DASHBOARD v2: paleta, grid 12 columnas, módulo de eventos 2026-08-03
+
+Segunda iteración sobre el rediseño anterior, a pedido del usuario tras ver
+capturas del primer resultado: layout tipo grid de 12 columnas (inspirado en
+un dashboard de referencia con sidebar + hero + widgets), nueva paleta de
+color, acciones rápidas y un módulo nuevo de eventos de calendario.
+
+- **Paleta**: se reemplazó el teal `#0fa3b1` por un índigo/violeta
+  (`--docente-primary: #5b5fef`, `--docente-primary-dark: #4a4dd6`,
+  `--docente-bg: #f6f6fb`) en `index.css`. **Alcance deliberadamente
+  limitado**: se migró el chrome compartido (`DocenteLayout`, `DesktopRail`),
+  todos los widgets del dashboard, y las dos páginas a las que apuntan las
+  nuevas "Acciones rápidas" (`DocenteIncidentes.jsx`, `DocenteMensajes.jsx`,
+  porque ya se estaban tocando para el auto-open de modal). **No** se tocó
+  `DocenteLogin.jsx`, `DocenteMaterias.jsx`, `DocenteMateriaDetalle.jsx`,
+  `DocenteCambiarContrasena.jsx` ni `components/mensajes/ChatMensajes.jsx`
+  (compartido con el portal de representantes) — siguen en teal literal
+  `#0fa3b1`. Esto deja una inconsistencia visual real entre el dashboard/nav
+  y esas páginas hasta que se decida repintar el resto del portal.
+- **Módulo de eventos de calendario** (nuevo, alcance acotado a "recordatorios
+  personales del docente", no un calendario académico institucional):
+  - Modelo `EventoCalendario` (`academico/models.py`, migración
+    `0010_eventocalendario`): `propietario` (FK a `AUTH_USER_MODEL`),
+    `titulo`, `fecha`, `hora` (opcional), `descripcion`, `tipo`.
+  - Endpoints: `GET/POST academico/eventos-calendario/?mes=&anio=`,
+    `DELETE academico/eventos-calendario/<pk>/`. **No están gateados por rol
+    "docente"** — cualquier usuario autenticado puede crear/listar sus
+    propios eventos (filtrado por `propietario=request.user`), a diferencia
+    del resto de endpoints del portal docente que sí verifican
+    `_get_rol(request) == 'docente'`. Decisión deliberada para que el modelo
+    sea reutilizable si en el futuro se quiere el mismo widget en el panel
+    admin — revisar si esto es aceptable o si se prefiere restringirlo.
+  - `WidgetCalendario.jsx` ahora tiene navegación de mes (antes solo
+    mostraba el mes actual, sin poder navegar), indicador de eventos por
+    día, panel de eventos del día seleccionado con borrado, y botón "+"
+    que abre `ModalNuevoEvento.jsx`.
+- **Acciones rápidas** (`WidgetAccionesRapidas.jsx`): en vez de solo
+  enlazar a las páginas de Incidentes/Mensajes, usa `<Link state={{nuevo:
+  true}}>` y ambas páginas destino ahora leen `location.state?.nuevo` en un
+  `useEffect` para auto-abrir su modal existente al llegar navegando desde
+  el dashboard (y limpian el state con `navigate(..., {replace:true})` para
+  que un refresh de página no reabra el modal). Patrón nuevo en el módulo
+  docente — si se agregan más accesos directos similares, conviene
+  extraerlo a un hook pequeño en vez de repetir el `useEffect` en cada
+  página destino.
+- **Hero** ahora también muestra la próxima clase (reutiliza
+  `useDocenteHorarioSemana`, primer elemento de la lista) en vez de solo el
+  ícono decorativo que tenía antes.
+- 🟡 Pendiente: si se decide adoptar la paleta índigo en todo el portal
+  docente (y potencialmente en el portal de representantes, que comparte
+  `ChatMensajes.jsx`), conviene hacer un barrido completo reemplazando los
+  literales `#0fa3b1`/`#0d93a0` restantes por las variables CSS, en vez de
+  ir migrando archivo por archivo cada vez que se tocan por otro motivo.
+  — ✅ **SUPERADO 2026-08-03**: se confirmó que el índigo era un bug, no una
+  decisión de diseño (ver sección siguiente). Ya no aplica.
+
+---
+
+# REDISEÑO PREMIUM + MÓDULO DE PERFIL — PORTAL DOCENTE (2026-08-03)
+
+Implementado con dos agentes en paralelo (backend/frontend) a partir de un plan
+previamente validado y aprobado por el usuario. Resumen consolidado de deuda
+técnica detectada; no se resolvió nada de lo listado acá, solo se anota.
+
+## Bug de color corregido (no es deuda, es el fix)
+
+`--docente-primary`/`--docente-primary-dark`/`--docente-bg` en `index.css`
+estaban en índigo/violeta (`#5b5fef`/`#4a4dd6`/`#f6f6fb`) por error de
+copiado/generación, en vez del teal de marca `#0fa3b1` usado en el resto de
+la plataforma. Corregido a `#0fa3b1`/`#0c828d`/`#e8f8fa`. Se reemplazaron
+también los hardcodes `#0fa3b1`/`#0d93a0` en `DocenteLogin.jsx`,
+`DocenteMaterias.jsx`, `DocenteMateriaDetalle.jsx` y
+`DocenteCambiarContrasena.jsx` por las variables CSS correspondientes, para
+que todo el módulo lea de una sola fuente de verdad.
+
+## Backend — módulo de perfil (`authentication/`, `academico/`)
+
+1. **`validar_tamano_adjunto` ahora está triplicada** (antes duplicada en
+   `academico/models.py` y `comunicacion/models.py`, ahora también en
+   `authentication/models.py` para el campo `PerfilUsuario.foto`). Decisión
+   consciente de no centralizarla en esta pasada, siguiendo el patrón ya
+   aceptado en el proyecto — pero cada nuevo campo de adjunto que se agregue
+   hace más urgente extraerla a un `core/validators.py` compartido.
+2. **`DocenteMiPerfilView.patch` escribe por `setattr`/`save(update_fields=...)`
+   en vez de pasar por un serializer de escritura dedicado** — es correcto
+   funcionalmente (solo 3 campos planos, sin relaciones), pero es el único
+   endpoint del portal docente que no sigue el patrón "serializer valida y
+   guarda" que usa el resto de vistas de escritura del proyecto. Si el campo
+   editable crece (ej. teléfono, más validaciones), conviene migrarlo a un
+   `UserUpdateSerializer` explícito.
+3. **`PerfilUsuario.foto` se sirve como URL relativa** (`/media/perfiles/...`),
+   no absoluta — mismo comportamiento que `IncidenteDisciplinario.adjunto` y
+   `MaterialEstudio.archivo` (ningún serializer del proyecto recibe `request`
+   en su `context`, así que DRF nunca arma `build_absolute_uri`). Funciona
+   hoy porque en el entorno real frontend/backend/media quedan detrás del
+   mismo origen; en un `vite dev` local sin proxy configurado hacia el
+   backend, estas URLs relativas no resuelven. Es un comportamiento
+   preexistente (ya afectaba a los adjuntos de incidentes/materiales antes
+   de esta tarea), no una regresión nueva — pero si algún día se quiere que
+   funcione en dev sin proxy, hay que pasar `context={'request': request}`
+   en las vistas y usar URLs absolutas de forma consistente en todo el
+   proyecto, no solo acá.
+
+## Frontend — rediseño + perfil (`portal-docente/`)
+
+1. **`WidgetPerfilDocente.jsx` ahora llama a `useDocentePerfil()` internamente**
+   solo para leer `foto`, en vez de recibirla como prop desde
+   `DocenteDashboard.jsx` — evita tocar el resto del dashboard, pero significa
+   que el widget dispara su propio `GET mi-perfil/` independiente del resto
+   de la carga del dashboard (una request adicional en cada visita al
+   dashboard). Si se nota impacto de performance, considerar levantar el
+   estado del perfil a un contexto compartido (similar a `DocenteAuthContext`)
+   en vez de que cada consumidor pida su propia copia.
+2. **`WidgetMateriasTabla.jsx` no muestra pill de estado "Activa"** — se
+   consideró parte de las reglas de diseño premium (pills semánticas), pero
+   el shape de datos actual (`MateriaDocenteSerializer`) no expone ningún
+   campo de estado más allá de que la vista ya filtra `activa=True` — no se
+   inventó el dato. Si se quiere el pill, habría que agregar el campo al
+   serializer del backend primero.
+3. **Lint preexistente sin resolver**: `useDocentePerfil.js` (nuevo) replica
+   el patrón `react-hooks/set-state-in-effect` que ya generan todos los
+   demás hooks del portal docente (~107 warnings preexistentes en el
+   proyecto, no introducidos por esta tarea) — mismo criterio que ya se
+   documentó como pendiente en el módulo Nómina (ver arriba).
+
+---
+
+# PLAN DE EVALUACIÓN — MATERIAS NUMÉRICAS/LITERALES Y APORTE EREC (2026-08-03)
+
+Sistema nuevo y opcional por materia+lapso (coexiste con `Nota`/`evaluacion_1..4`,
+que sigue siendo el fallback para materias sin plan configurado). Implementado
+con 3 agentes en paralelo (backend + 2 frontend) a partir de un plan validado
+con el usuario. Resumen de deuda técnica y limitaciones conocidas; no se
+resolvió nada de lo listado, solo se anota.
+
+## Backend (`academico/`)
+
+1. **Modelos nuevos**: `PlanEvaluacion` → `BloqueEvaluacion` (suma/promedio,
+   o letra si la materia es literal) → `ItemEvaluacion` → `NotaItemEvaluacion`.
+   `Materia` ganó `tipo_evaluacion` ('numerica'|'literal'),
+   `aporta_a_todas_las_materias` (bool — el "Puntos EREC") y
+   `cuenta_para_promedio` (bool). Migración `0011_bloqueevaluacion_...`.
+2. ✅ **RESUELTO (2026-08-03)** — `cuenta_para_promedio` ya está conectado:
+   `BoletinView` ahora incluye también las materias con `PlanEvaluacion`
+   (antes desaparecían del boletín por completo, porque solo se leía el
+   modelo `Nota` viejo — bug real detectado al conectar esto, no solo el
+   flag pendiente) y expone `cuenta_para_promedio`/`definitiva_letra` por
+   materia. `useBoletin.js::promedioGeneral` y
+   `boletinPdf.js::calcularPromedio` excluyen las materias marcadas
+   `cuenta_para_promedio=false`, y `Boletin.jsx`/`boletinPdf.js` muestran la
+   letra en la columna "Definitiva" cuando la materia es literal.
+3. **Materias literales con `aporta_a_todas_las_materias=True`** (caso raro,
+   no debería ocurrir en la práctica): el modelo lo permite pero
+   `calcular_plan_notas` las excluye del mecanismo de aporte a otras
+   materias (solo aportan materias `tipo_evaluacion='numerica'`) — no se
+   resolvió por ser un caso límite fuera de lo pedido.
+4. **Desempate de moda en letras** (`_moda_letras`, `academico/services.py`):
+   ante empate, gana la primera letra en orden de aparición de los ítems del
+   bloque (por `orden`, luego `id`) — criterio arbitrario documentado en el
+   código, no hay regla de negocio definida para este caso.
+5. **`DocenteMiPerfilView`-style de validación**: el endpoint de notas
+   (`POST plan-evaluacion/notas/`) valida por fila (no 403 global) que el
+   `item_id` pertenezca al plan de la `materia_id`/`lapso_id` declarados —
+   consistente, pero es el único endpoint bulk del portal docente con ese
+   nivel de validación por fila; si se agregan más endpoints bulk similares,
+   conviene extraer el patrón a un helper reutilizable en vez de
+   reimplementarlo cada vez.
+6. **Decimales serializados como string** (`"7.00"` en vez de `7.0`) en las
+   respuestas de notas — comportamiento estándar de DRF con `DecimalField`,
+   consistente con el resto del proyecto (`Nota.definitiva` ya se comporta
+   igual), no es un bug nuevo, pero el frontend debe seguir parseando con
+   `Number()`/`parseFloat()` en vez de asumir tipo numérico nativo del JSON.
+
+## Frontend
+
+1. **Admin de Materias** (`ModalMateria.jsx`): se agregaron los 3 campos
+   nuevos al formulario; el checkbox "aporta a todas las materias" no tiene
+   ninguna validación cruzada en el frontend (ej. no avisa si ya hay otra
+   materia del mismo grado con el flag activo, lo cual podría ser confuso
+   si dos materias EREC-like coexisten sin querer) — deuda menor, no
+   bloqueante.
+2. **`PlanEvaluacionPanel.jsx`**: la edición de un plan existente reutiliza
+   el mismo builder que la creación (precargado), en vez de una UI de
+   edición inline distinta — decisión consciente para no duplicar
+   formularios, pero significa que cualquier cambio chico (ej. renombrar un
+   bloque) abre el flujo completo de edición.
+3. **Decisión explícita (2026-08-04): el roster de la tabla de notas NO
+   reutiliza `useAlumnosSeccion`**, a pesar de que se pidió evaluarlo. Viene
+   directo de `GET plan-evaluacion/notas/` (`alumnos[]`), calculado en el
+   backend por `calcular_plan_notas` a partir de
+   `Alumno.objects.filter(grado_seccion=materia.grado_seccion)` — es una
+   fuente más confiable que `useAlumnosSeccion` (que deriva el roster
+   reutilizando el endpoint de asistencia *del día actual*, así que un
+   alumno sin asistencia registrada hoy podría faltar del roster). Se
+   mantienen dos fuentes de roster distintas en el módulo docente a
+   propósito: si algún día divergen de forma visible (ej. un alumno
+   aparece en notas pero no en asistencia), la fuente canónica para
+   "alumnos de la sección" debería ser la de `calcular_plan_notas`
+   (filtra directo por `grado_seccion`, sin depender de si se pasó lista
+   ese día), y valdría la pena migrar `useAlumnosSeccion` a ese mismo
+   criterio en vez de asistencia.
+4. **Recalculo de totales en cliente** (`calcTotalBloque` en
+   `PlanEvaluacionPanel.jsx`) es solo feedback inmediato mientras se tipea;
+   el total real que ve el docente tras guardar viene de un refetch a
+   `GET plan-evaluacion/notas/`, que ahora sí trae el desglose por ítem
+   (`notas_items`, agregado en una segunda pasada tras detectar que faltaba
+   — ver commit/cambio en `academico/services.py`). Si alguna vez el cálculo
+   cliente y el del backend divergen (ej. redondeo), el backend es la
+   fuente de verdad.
+5. ✅ **RESUELTO (2026-08-03)** — Hero-slider, slide "Evaluaciones próximas":
+   se agregó `GET /api/academico/docente/proximas-evaluaciones/?limite=`
+   (nuevo, `academico/views.py::DocenteProximasEvaluacionesView`) que lista
+   `ItemEvaluacion` con `fecha >= hoy` de cualquier materia del docente,
+   ordenados por fecha. Conectado vía `useDocenteProximasEvaluaciones.js` →
+   `DocenteDashboard.jsx` → `WidgetHero.jsx`. Nota: no valida que el ítem
+   pertenezca a un lapso activo (muestra evaluaciones futuras de cualquier
+   lapso con fecha cargada) — límite conocido, no se consideró relevante
+   para un slide informativo del dashboard.
+
+---
+
+# AUDITORÍA — MÓDULO PLANES DE EVALUACIÓN Y CARGA DE NOTAS (2026-08-04)
+
+El módulo ya existía (backend + la pestaña "Plan de Evaluación" en
+`DocenteMateriaDetalle.jsx`, construidos en la pasada anterior) — esta fue
+una auditoría contra un checklist de seguridad/negocio, no una reconstrucción.
+Se encontraron 2 gaps reales de seguridad y 2 gaps de negocio, corregidos en
+esta pasada; el resto del checklist ya se cumplía.
+
+## Gaps de seguridad corregidos (🔴 — exposición real de datos, no solo UX)
+
+1. **`PlanEvaluacionView.get()` no validaba ownership.** Cualquier docente
+   autenticado podía leer la estructura completa (bloques, ítems, valores
+   máximos) del plan de evaluación de una materia ajena con solo cambiar
+   `materia_id` en la URL — la restricción "solo el docente dueño" solo
+   se aplicaba en POST/PATCH, no en GET. Corregido: `get()` ahora llama a
+   `_verificar_permiso` igual que los métodos de escritura.
+2. **`PlanEvaluacionNotasView.get()` no validaba ownership en absoluto.**
+   Peor que el anterior: exponía las notas reales de los alumnos (no solo
+   estructura) de cualquier materia a cualquier docente autenticado, sin
+   ningún chequeo de rol ni de `Materia.docente_id`. Corregido: mismo
+   criterio que el resto del módulo (secretaria+ sin restricción, o docente
+   dueño de la materia).
+
+Ambos eran el tipo exacto de problema que el pedido advertía evitar
+("filtrar por esto a nivel de queryset, no solo ocultar en el frontend") —
+el frontend nunca mostraba el botón/ruta para ver una materia ajena, pero
+el endpoint sí la servía si se llamaba directo.
+
+## Gaps de negocio corregidos
+
+3. **Lapso cerrado (`activo=False`) no se validaba en el backend.**
+   El frontend deshabilitaba el botón "Guardar notas" cuando `!lapsoActivo`,
+   pero (a) el botón "Guardar plan de evaluación" del builder no tenía esa
+   misma restricción, y (b) nada lo impedía a nivel de API — un request
+   directo (o un bug de UI) podía crear/editar planes o notas en un lapso
+   cerrado. Decisión tomada (documentada, no implícita): **se bloquea a
+   nivel de API con 409**, tanto en `PlanEvaluacionView` (POST/PATCH) como
+   en `PlanEvaluacionNotasView` (POST) — mismo código de estado que ya usa
+   el 409 de "plan ya existe". El frontend ahora también deshabilita el
+   botón de guardar plan (antes solo el de notas) y muestra un aviso
+   ámbar explicando por qué. **Nota de alcance**: el endpoint legado
+   equivalente (`NotasGradoView.post`, sistema `Nota`/`evaluacion_1..4`)
+   tiene el mismo gap y NO se tocó — está fuera de lo pedido en esta
+   pasada, pero es la misma clase de problema y debería recibir el mismo
+   fix si se vuelve a auditar ese endpoint.
+4. **`NotaItemEvaluacion` no tenía auditoría de cambios.** `Nota` (el
+   modelo legado equivalente) sí tiene `HistoricalRecords`. Decisión
+   tomada: agregarla, por el mismo criterio de sensibilidad ante disputas
+   de calificación — migración `0012_historicalnotaitemevaluacion`
+   aplicada.
+5. **Guardado de notas sin manejo de error granular.** El backend siempre
+   respondía `200` con `{guardadas, errores}` incluso si TODAS las filas
+   fallaban (ej. `item_id` de otra materia), pero el frontend
+   (`useDocentePlanEvaluacion.js::guardarNotas`) solo miraba si la
+   promesa HTTP resolvía o rechazaba — nunca inspeccionaba el body, así
+   que mostraba "Notas guardadas correctamente" aunque el guardado real
+   hubiera fallado por completo. Corregido: el hook ahora distingue éxito
+   total / parcial / total-fallido con toasts distintos, y
+   `PlanEvaluacionPanel.jsx` resalta en rojo (con `title` explicando el
+   motivo) las celdas puntuales que fallaron, usando `alumno_id`+`item_id`
+   de la respuesta.
+
+## Puntos del checklist ya cumplidos sin cambios (verificado, no asumido)
+
+- **Filtrado por `Materia.docente == request.user`**: correcto en todos los
+  métodos de escritura desde la implementación original; el gap era solo
+  en los dos GET (ver arriba).
+- **Reutiliza `calcular_plan_notas`**, no hay cálculo duplicado en frontend
+  ni en otro endpoint.
+- **UI respeta `tipo_evaluacion` sin mezclar formatos**: `PlanEvaluacionPanel`
+  bifurca completamente entre modo numérico (inputs + `valor_maximo`) y
+  literal (`select` A/B/C), nunca ambos a la vez.
+- **El docente no puede cambiar el sistema de evaluación**: `tipo_evaluacion`
+  solo es editable desde `ModalMateria.jsx` (admin de Materias/Horarios,
+  fuera del portal docente); el portal docente detecta el sistema vigente
+  leyendo el campo, no lo expone como opción.
+- **No se duplicaron serializers/vistas**: `PlanEvaluacionSerializer`,
+  `PlanEvaluacionInputSerializer`, `NotaItemBulkSerializer`, etc. son los
+  únicos existentes, reutilizados tal cual desde la implementación
+  original.
+- **Mobile de la grilla de notas**: decisión explícita (no "ya se verá"):
+  tabla con `overflow-x-auto` + primera columna (nombre del alumno)
+  `sticky left-0`, en vez de una vista alternativa de tarjeta-por-alumno.
+  Se mantiene así porque el número de ítems por bloque suele ser chico
+  (2-5) y el scroll horizontal con columna fija es un patrón ya usado en
+  otras tablas del proyecto (`WidgetMateriasTabla.jsx`); si algún colegio
+  termina con bloques de muchos ítems, reevaluar una vista de tarjetas.

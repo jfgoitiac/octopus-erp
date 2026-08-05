@@ -9,7 +9,7 @@ import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
-  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, MessageCircle
+  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
@@ -19,10 +19,10 @@ const navSections = [
     label: 'Principal',
     items: [
       { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['director','cobranza','administrador'] },
-      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','sistemas','administrador','cobranza','docente'] },
+      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','sistemas','administrador','cobranza'] },
       { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','sistemas','cobranza'] },
-      { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza','docente'] },
-      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria','docente'] },
+      { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza'] },
+      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria'] },
       { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria'] },
       { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_LOS_ROLES },
       { name: 'Pre-Inscripción', path: '/preinscripcion', icon: FileText, roles: ['director','sistemas','administrador','secretaria'] },
@@ -44,11 +44,10 @@ const navSections = [
   {
     label: 'Académico',
     items: [
-      { name: 'Mis Materias', path: '/mis-materias', icon: BookOpen, roles: ['docente'] },
       { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'sistemas', 'secretaria'] },
       { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director'] },
-      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria', 'docente'] },
-      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'sistemas', 'secretaria', 'docente'] },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria'] },
+      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'sistemas', 'secretaria'] },
       { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas'] },
       { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'sistemas', 'administrador'] },
     ],
@@ -57,7 +56,6 @@ const navSections = [
     label: 'Comunicación',
     items: [
       { name: 'Circulares', path: '/comunicacion', icon: Megaphone, roles: ['director', 'sistemas', 'administrador'] },
-      { name: 'Mensajes',   path: '/mensajes',      icon: MessageCircle, roles: ['docente'] },
     ],
   },
   {

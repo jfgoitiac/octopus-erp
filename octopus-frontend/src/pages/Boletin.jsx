@@ -222,12 +222,14 @@ const Boletin = () => {
                       <span
                         className="text-sm font-bold"
                         style={{
-                          color: m.definitiva != null
+                          color: m.definitiva_letra
+                            ? 'var(--jet)'
+                            : m.definitiva != null
                             ? (parseFloat(m.definitiva) >= NOTA_MINIMA ? '#16a34a' : 'var(--red)')
                             : 'var(--ash)',
                         }}
                       >
-                        {m.definitiva ?? '—'}
+                        {m.definitiva_letra ?? m.definitiva ?? '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">

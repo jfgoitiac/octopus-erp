@@ -285,13 +285,20 @@ const Configuracion = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="sm:col-span-2">
+                                        <div className="sm:col-span-2 flex flex-wrap gap-3">
                                             <button type="button"
                                                 onClick={() => window.open('/portal', '_blank')}
                                                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                                                 style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
                                                 <ExternalLink size={14} />
                                                 Vista previa del portal
+                                            </button>
+                                            <button type="button"
+                                                onClick={() => window.open('/portal-docente/login', '_blank')}
+                                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                                style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                                <GraduationCap size={14} />
+                                                Ir al Portal Docente
                                             </button>
                                         </div>
                                     </div>
