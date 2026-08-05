@@ -144,11 +144,15 @@ const Reportes = () => {
     const [detalleMetodo, setDetalleMetodo] = useState('todos');
     const [detalleEstatus, setDetalleEstatus] = useState('todos');
     const [detallePage, setDetallePage] = useState(1);
-    const [detalleTotalAlumnos, setDetalleTotalAlumnos] = useState(0);
+    const [detalleTotalRepresentantes, setDetalleTotalRepresentantes] = useState(0);
     const [detalleTotalPages, setDetalleTotalPages] = useState(1);
     const [detalleChecked, setDetalleChecked] = useState(() => new Set());
     const [finalizandoLote, setFinalizandoLote] = useState(false);
-    const [alumnosExpandidos, setAlumnosExpandidos] = useState(() => new Set());
+    const [representantesExpandidos, setRepresentantesExpandidos] = useState(() => new Set());
+    /* Todos los representados (hijos) de cada representante de la página actual,
+       tal como los trae el backend — no solo los que tienen pagos en el rango
+       filtrado, para que el desglose muestre siempre a todos los hijos. */
+    const [representadosPorRepresentante, setRepresentadosPorRepresentante] = useState({});
     const DETALLE_PAGE_SIZE = 15;
 
     /* Acumula { operacion_uuid -> { pagoIds, revisado } } a través de todas las
@@ -190,10 +194,19 @@ const Reportes = () => {
                     estatus: estatus !== 'todos' ? estatus : undefined,
                 },
             });
-            const pagos = (res.data?.results || []).flatMap(r => r.pagos);
+            const resultados = res.data?.results || [];
+            const pagos = resultados.flatMap(r => r.pagos);
             setDetallePagos(pagos);
-            setDetalleTotalAlumnos(res.data?.total_alumnos || 0);
+            setDetalleTotalRepresentantes(res.data?.total_representantes || 0);
             setDetalleTotalPages(res.data?.total_pages || 1);
+
+            const representados = {};
+            resultados.forEach(r => {
+                representados[r.representante_id] = (r.alumnos || [])
+                    .map(a => `${a.nombre || ''} ${a.apellido || ''}`.trim())
+                    .filter(Boolean);
+            });
+            setRepresentadosPorRepresentante(representados);
 
             setOperacionesInfo(prev => {
                 const next = new Map(prev);
@@ -335,24 +348,33 @@ const Reportes = () => {
         { usd: 0, ves: 0 },
     ), [detallePagos]);
 
-    /* Agrupa por alumno → operación (mismo operacion_uuid = un solo comprobante físico,
-       aunque combine varios métodos de pago). El checklist opera a nivel de operación.
-       Solo cubre la página actual; el backend ya entrega los alumnos paginados. */
-    const gruposPorAlumno = useMemo(() => {
-        const alumnos = new Map();
+    /* Agrupa por representante → operación (mismo operacion_uuid = un solo comprobante
+       físico, aunque combine varios métodos de pago o cubra a varios hermanos del mismo
+       representante — ver validación en PagoCreateSerializer). El checklist opera a nivel
+       de operación. Solo cubre la página actual; el backend ya entrega los representantes
+       paginados. */
+    const gruposPorRepresentante = useMemo(() => {
+        const representantes = new Map();
         detallePagos.forEach(p => {
-            const alumnoKey = p.alumno ?? `${p.nombre_alumno}_${p.apellido_alumno}`;
-            if (!alumnos.has(alumnoKey)) {
-                alumnos.set(alumnoKey, {
-                    alumnoKey,
-                    nombre: `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || '—',
-                    cedula: p.cedula_escolar || '—',
+            const representanteKey = p.representante_id ?? `${p.representante_nombre}`;
+            if (!representantes.has(representanteKey)) {
+                representantes.set(representanteKey, {
+                    representanteKey,
+                    nombre: p.representante_nombre || '—',
+                    cedula: p.representante_documento || '—',
+                    representados: new Map(),
                     operaciones: new Map(),
                 });
             }
-            const alumno = alumnos.get(alumnoKey);
-            if (!alumno.operaciones.has(p.operacion_uuid)) {
-                alumno.operaciones.set(p.operacion_uuid, {
+            const representante = representantes.get(representanteKey);
+
+            const alumnoKey = p.alumno ?? `${p.nombre_alumno}_${p.apellido_alumno}`;
+            if (!representante.representados.has(alumnoKey)) {
+                representante.representados.set(alumnoKey, `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || '—');
+            }
+
+            if (!representante.operaciones.has(p.operacion_uuid)) {
+                representante.operaciones.set(p.operacion_uuid, {
                     operacion_uuid: p.operacion_uuid,
                     fecha: p.fecha_pago,
                     pagos: [],
@@ -360,33 +382,41 @@ const Reportes = () => {
                     totalUsd: 0,
                     totalVes: 0,
                     revisado: false,
+                    multiAlumno: false,
                 });
             }
-            const op = alumno.operaciones.get(p.operacion_uuid);
+            const op = representante.operaciones.get(p.operacion_uuid);
             op.pagos.push(p);
             op.pagoIds.push(p.id);
             op.totalUsd += parseFloat(p.monto_usd || 0);
             op.totalVes += parseFloat(p.monto_ves || 0);
             if (p.revisado) op.revisado = true;
+            if (op.pagos.some(prev => prev.alumno !== p.alumno)) op.multiAlumno = true;
         });
-        return Array.from(alumnos.values())
-            .map(a => ({
-                ...a,
-                operaciones: Array.from(a.operaciones.values())
+        return Array.from(representantes.values())
+            .map(r => ({
+                ...r,
+                // Preferimos el listado completo de representados que trae el backend
+                // (todos los hijos del representante, no solo los que pagaron en el
+                // rango filtrado); si no está disponible, caemos al derivado localmente.
+                representados: representadosPorRepresentante[r.representanteKey]?.length
+                    ? representadosPorRepresentante[r.representanteKey]
+                    : Array.from(r.representados.values()),
+                operaciones: Array.from(r.operaciones.values())
                     .sort((x, y) => new Date(x.fecha) - new Date(y.fecha)), // orden de llegada
             }));
-    }, [detallePagos]);
+    }, [detallePagos, representadosPorRepresentante]);
 
     const totalOperacionesPagina = useMemo(
-        () => gruposPorAlumno.reduce((s, a) => s + a.operaciones.length, 0),
-        [gruposPorAlumno],
+        () => gruposPorRepresentante.reduce((s, r) => s + r.operaciones.length, 0),
+        [gruposPorRepresentante],
     );
     const totalOperacionesRevisadasPagina = useMemo(
-        () => gruposPorAlumno.reduce(
-            (s, a) => s + a.operaciones.filter(op => op.revisado || detalleChecked.has(op.operacion_uuid)).length,
+        () => gruposPorRepresentante.reduce(
+            (s, r) => s + r.operaciones.filter(op => op.revisado || detalleChecked.has(op.operacion_uuid)).length,
             0,
         ),
-        [gruposPorAlumno, detalleChecked],
+        [gruposPorRepresentante, detalleChecked],
     );
 
     /* Cuántas operaciones marcadas (en cualquier página visitada, no solo la actual)
@@ -416,11 +446,11 @@ const Reportes = () => {
             .catch(() => toast.error('No se pudo copiar la referencia.'));
     };
 
-    const toggleAlumnoExpandido = (alumnoKey) => {
-        setAlumnosExpandidos(prev => {
+    const toggleRepresentanteExpandido = (representanteKey) => {
+        setRepresentantesExpandidos(prev => {
             const next = new Set(prev);
-            if (next.has(alumnoKey)) next.delete(alumnoKey);
-            else next.add(alumnoKey);
+            if (next.has(representanteKey)) next.delete(representanteKey);
+            else next.add(representanteKey);
             return next;
         });
     };
@@ -428,7 +458,7 @@ const Reportes = () => {
     const marcarPaginaCompleta = () => {
         setDetalleChecked(prev => {
             const next = new Set(prev);
-            gruposPorAlumno.forEach(a => a.operaciones.forEach(op => {
+            gruposPorRepresentante.forEach(r => r.operaciones.forEach(op => {
                 if (!op.revisado) next.add(op.operacion_uuid);
             }));
             return next;
@@ -819,8 +849,8 @@ const Reportes = () => {
                             Resumen de Transacciones Detalladas
                         </h2>
                         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-                            Agrupado por alumno, en orden de llegada. Marca cada transacción al cotejarla con el comprobante físico del período {detalleFechaInicio} — {detalleFechaFin}
-                            {detalleTotalAlumnos > 0 ? ` · ${detalleTotalAlumnos} alumno${detalleTotalAlumnos === 1 ? '' : 's'} en total` : ''}.
+                            Agrupado por representante, en orden de llegada. Marca cada transacción al cotejarla con el comprobante físico del período {detalleFechaInicio} — {detalleFechaFin}
+                            {detalleTotalRepresentantes > 0 ? ` · ${detalleTotalRepresentantes} representante${detalleTotalRepresentantes === 1 ? '' : 's'} en total` : ''}.
                         </p>
                     </div>
                     {loadingDetalle && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--pb)' }} />}
@@ -852,7 +882,7 @@ const Reportes = () => {
                             type="text"
                             value={detalleBusqueda}
                             onChange={e => setDetalleBusqueda(e.target.value)}
-                            placeholder="Buscar por referencia, alumno o cédula escolar…"
+                            placeholder="Buscar por referencia, alumno, representante o cédula…"
                             className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
                             style={inputStyle}
                         />
@@ -927,12 +957,12 @@ const Reportes = () => {
                     </div>
                 </div>
 
-                {/* Resumen agrupado por alumno */}
+                {/* Resumen agrupado por representante */}
                 {loadingDetalle ? (
                     <div className="flex justify-center py-10">
                         <Loader2 size={20} className="animate-spin" style={{ color: 'var(--pb)' }} />
                     </div>
-                ) : gruposPorAlumno.length === 0 ? (
+                ) : gruposPorRepresentante.length === 0 ? (
                     <div className="flex flex-col items-center py-10 rounded-xl" style={cardStyle}>
                         <ListChecks size={30} className="mb-2 opacity-20" style={{ color: 'var(--pb)' }} />
                         <p className="text-sm" style={{ color: 'var(--ash)' }}>
@@ -941,38 +971,41 @@ const Reportes = () => {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {gruposPorAlumno.map(alumno => {
-                            const expandido = alumnosExpandidos.has(alumno.alumnoKey);
-                            const revisadasAlumno = alumno.operaciones.filter(op => op.revisado || detalleChecked.has(op.operacion_uuid)).length;
-                            const totalAlumnoUsd = alumno.operaciones.reduce((s, op) => s + op.totalUsd, 0);
-                            const totalAlumnoVes = alumno.operaciones.reduce((s, op) => s + op.totalVes, 0);
-                            const completo = revisadasAlumno === alumno.operaciones.length;
+                        {gruposPorRepresentante.map(representante => {
+                            const expandido = representantesExpandidos.has(representante.representanteKey);
+                            const revisadasRepresentante = representante.operaciones.filter(op => op.revisado || detalleChecked.has(op.operacion_uuid)).length;
+                            const totalRepresentanteUsd = representante.operaciones.reduce((s, op) => s + op.totalUsd, 0);
+                            const totalRepresentanteVes = representante.operaciones.reduce((s, op) => s + op.totalVes, 0);
+                            const completo = revisadasRepresentante === representante.operaciones.length;
                             return (
-                                <div key={alumno.alumnoKey} className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
+                                <div key={representante.representanteKey} className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
                                     <button
-                                        onClick={() => toggleAlumnoExpandido(alumno.alumnoKey)}
+                                        onClick={() => toggleRepresentanteExpandido(representante.representanteKey)}
                                         className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
                                         style={{ background: 'var(--porcelain)' }}>
                                         <div className="flex items-center gap-3 min-w-0">
                                             {expandido ? <ChevronUp size={16} style={{ color: 'var(--ash)' }} /> : <ChevronDown size={16} style={{ color: 'var(--ash)' }} />}
                                             <div className="min-w-0">
-                                                <p className="text-sm font-medium truncate" style={{ color: 'var(--jet)' }}>{alumno.nombre}</p>
-                                                <p className="text-[11px] font-mono" style={{ color: 'var(--ash)' }}>Cédula: {alumno.cedula}</p>
+                                                <p className="text-sm font-medium truncate" style={{ color: 'var(--jet)' }}>{representante.nombre}</p>
+                                                <p className="text-[11px] font-mono" style={{ color: 'var(--ash)' }}>Cédula: {representante.cedula}</p>
+                                                <p className="text-[11px] truncate" style={{ color: 'var(--ash)' }}>
+                                                    Representados: {representante.representados.join(', ')}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
-                                            <span className="text-xs font-mono font-semibold" style={{ color: '#16a34a' }}>${totalAlumnoUsd.toFixed(2)}</span>
-                                            <span className="text-xs font-mono hidden sm:inline" style={{ color: 'var(--ash)' }}>Bs. {totalAlumnoVes.toFixed(2)}</span>
+                                            <span className="text-xs font-mono font-semibold" style={{ color: '#16a34a' }}>${totalRepresentanteUsd.toFixed(2)}</span>
+                                            <span className="text-xs font-mono hidden sm:inline" style={{ color: 'var(--ash)' }}>Bs. {totalRepresentanteVes.toFixed(2)}</span>
                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
                                                 style={{ background: completo ? '#dcfce7' : 'var(--pb-light)', color: completo ? '#16a34a' : 'var(--pb)' }}>
-                                                {revisadasAlumno}/{alumno.operaciones.length}
+                                                {revisadasRepresentante}/{representante.operaciones.length}
                                             </span>
                                         </div>
                                     </button>
 
                                     {expandido && (
                                         <div className="divide-y" style={{ borderTop: '0.5px solid var(--border-md)' }}>
-                                            {alumno.operaciones.map(op => {
+                                            {representante.operaciones.map(op => {
                                                 const checked = op.revisado || detalleChecked.has(op.operacion_uuid);
                                                 const fecha = op.fecha
                                                     ? new Date(op.fecha).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -999,6 +1032,7 @@ const Reportes = () => {
                                                                 {op.pagos.map(p => (
                                                                     <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full whitespace-nowrap"
                                                                         style={{ background: 'var(--porcelain)', color: 'var(--jet)' }}>
+                                                                        {op.multiAlumno ? `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() + ' · ' : ''}
                                                                         {p.metodo_pago_display || METODO_LABELS[p.metodo_pago] || p.metodo_pago}: ${fmt(p.monto_usd)}
                                                                         {p.referencia ? (
                                                                             <>
@@ -1035,18 +1069,18 @@ const Reportes = () => {
                     </div>
                 )}
 
-                {gruposPorAlumno.length > 0 && (
+                {gruposPorRepresentante.length > 0 && (
                     <div className="mt-3 flex justify-end gap-6 text-xs" style={{ color: 'var(--ash)' }}>
                         <span>Total de esta página: <strong style={{ color: '#16a34a' }}>${detalleTotales.usd.toFixed(2)}</strong></span>
                         <span>Bs. <strong style={{ color: 'var(--jet)' }}>{detalleTotales.ves.toFixed(2)}</strong></span>
                     </div>
                 )}
 
-                {/* Paginación por alumno */}
+                {/* Paginación por representante */}
                 {detalleTotalPages > 1 && (
                     <div className="flex items-center justify-between mt-4">
                         <span className="text-xs" style={{ color: 'var(--ash)' }}>
-                            Página {detallePage} de {detalleTotalPages} · {detalleTotalAlumnos} alumnos en total
+                            Página {detallePage} de {detalleTotalPages} · {detalleTotalRepresentantes} representantes en total
                         </span>
                         <div className="flex gap-2">
                             <button

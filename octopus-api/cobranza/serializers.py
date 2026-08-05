@@ -41,6 +41,7 @@ class PagoSerializer(serializers.ModelSerializer):
     nombre_alumno = serializers.ReadOnlyField(source='alumno.nombre')
     apellido_alumno = serializers.ReadOnlyField(source='alumno.apellido')
     cedula_escolar = serializers.ReadOnlyField(source='alumno.cedula_escolar')
+    representante_id = serializers.ReadOnlyField(source='alumno.representante_id')
     cajero = serializers.ReadOnlyField(source='usuario_receptor.username')
     banco_nombre = serializers.ReadOnlyField(source='banco_receptor.nombre', allow_null=True)
     metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
@@ -51,7 +52,7 @@ class PagoSerializer(serializers.ModelSerializer):
         model = Pago
         fields = [
             'id', 'factura_id', 'alumno', 'nombre_alumno', 'apellido_alumno', 'cedula_escolar',
-            'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
+            'representante_id', 'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
             'metodo_pago', 'metodo_pago_display', 'concepto', 'concepto_display', 'monto_usd',
             'tasa_aplicada', 'monto_ves', 'fecha_pago', 'revisado',
             'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'

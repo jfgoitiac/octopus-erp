@@ -1259,21 +1259,29 @@ class PagosListView(APIView):
 
 class ResumenConciliacionView(APIView):
     """
-    Resumen de transacciones agrupado y paginado por ALUMNO (no por pago suelto),
-    pensado para el checklist de conciliación con comprobantes físicos.
+    Resumen de transacciones agrupado y paginado por REPRESENTANTE (no por pago
+    suelto ni por alumno), pensado para el checklist de conciliación con
+    comprobantes físicos.
 
-    Los alumnos se ordenan por 'orden de llegada' (fecha del primer pago del
-    alumno dentro del rango), y la paginación avanza de a page_size alumnos,
-    trayendo TODOS los pagos de esos alumnos en el rango (sin recortar a un
-    tope fijo de filas como pagos/lista/).
+    Se agrupa por representante — y no por alumno — porque una misma operación
+    (un solo comprobante físico) puede cubrir a varios hermanos del mismo
+    representante (ver validación en PagoCreateSerializer: todos los alumnos
+    de una transacción deben pertenecer al mismo representante). Agrupar por
+    alumno partiría esa operación entre varias secciones.
+
+    Los representantes se ordenan por 'orden de llegada' (fecha del primer
+    pago del representante dentro del rango), y la paginación avanza de a
+    page_size representantes, trayendo TODOS los pagos de sus alumnos en el
+    rango (sin recortar a un tope fijo de filas como pagos/lista/).
 
     Parámetros:
       fecha_desde, fecha_hasta (default: hoy)
-      buscar: nombre, apellido, cédula escolar o referencia — busca sobre TODO
-              el rango (no solo la página cargada) y, si un alumno matchea por
-              cualquiera de sus pagos, se muestran todos sus pagos del rango.
+      buscar: nombre/apellido/cédula del alumno o del representante, o
+              referencia — busca sobre TODO el rango (no solo la página
+              cargada) y, si un representante matchea por cualquiera de sus
+              pagos, se muestran todos sus pagos del rango.
       metodo_pago, estatus: filtros exactos, aplican a los pagos mostrados.
-      page (default 1), page_size (default 15, máx 50 alumnos por página)
+      page (default 1), page_size (default 15, máx 50 representantes por página)
     """
     permission_classes = [permissions.IsAuthenticated]
     ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
@@ -1312,25 +1320,29 @@ class ResumenConciliacionView(APIView):
                 Q(alumno__nombre__icontains=buscar) |
                 Q(alumno__apellido__icontains=buscar) |
                 Q(alumno__cedula_escolar__icontains=buscar) |
+                Q(alumno__representante__nombre__icontains=buscar) |
+                Q(alumno__representante__apellido__icontains=buscar) |
+                Q(alumno__representante__cedula__icontains=buscar) |
                 Q(referencia__icontains=buscar)
             )
 
-        alumnos_ordenados = list(
-            qs_busqueda.values('alumno_id')
+        representantes_ordenados = list(
+            qs_busqueda.values('alumno__representante_id')
             .annotate(primer_pago=Min('fecha_pago'))
             .order_by('primer_pago')
         )
-        total_alumnos = len(alumnos_ordenados)
-        pagina_alumno_ids = [
-            a['alumno_id']
-            for a in alumnos_ordenados[(page - 1) * page_size: page * page_size]
+        total_representantes = len(representantes_ordenados)
+        pagina_representante_ids = [
+            r['alumno__representante_id']
+            for r in representantes_ordenados[(page - 1) * page_size: page * page_size]
         ]
 
-        # Trae TODOS los pagos del rango para los alumnos de esta página (no solo
-        # los que matchearon la búsqueda), para no esconder métodos del mismo alumno.
+        # Trae TODOS los pagos del rango para los representantes de esta página
+        # (no solo los que matchearon la búsqueda), para no esconder métodos ni
+        # alumnos del mismo representante.
         pagos_pagina = list(
-            base_qs.filter(alumno_id__in=pagina_alumno_ids)
-            .select_related('alumno', 'banco_receptor', 'usuario_receptor')
+            base_qs.filter(alumno__representante_id__in=pagina_representante_ids)
+            .select_related('alumno__representante', 'banco_receptor', 'usuario_receptor')
             .order_by('fecha_pago')
         )
 
@@ -1345,20 +1357,51 @@ class ResumenConciliacionView(APIView):
             context={'revisado_pago_ids': revisado_pago_ids},
         ).data
 
-        por_alumno = {}
-        for p in serializados:
-            por_alumno.setdefault(p['alumno'], []).append(p)
+        por_representante = {}
+        representante_info = {}
+        for pago_obj, p in zip(pagos_pagina, serializados):
+            rid = p['representante_id']
+            por_representante.setdefault(rid, []).append(p)
+
+            rep = pago_obj.alumno.representante
+            if rid not in representante_info:
+                representante_info[rid] = {
+                    'representante_id': rid,
+                    'representante_nombre': f"{rep.nombre} {rep.apellido}".strip(),
+                    'representante_cedula': rep.cedula,
+                }
+
+        # Los representados se traen TODOS los alumnos activos del representante
+        # (no solo los que tienen pagos en el rango filtrado), para que el
+        # desglose por representante muestre siempre a todos sus hijos.
+        from secretaria.models import Alumno
+
+        alumnos_por_representante = {}
+        for a in (
+            Alumno.objects.filter(representante_id__in=pagina_representante_ids)
+            .order_by('nombre', 'apellido')
+        ):
+            alumnos_por_representante.setdefault(a.representante_id, []).append({
+                'alumno_id': a.id,
+                'nombre': a.nombre,
+                'apellido': a.apellido,
+                'cedula_escolar': a.cedula_escolar,
+            })
 
         resultados = [
-            {'alumno_id': aid, 'pagos': por_alumno.get(aid, [])}
-            for aid in pagina_alumno_ids
+            {
+                **representante_info.get(rid, {'representante_id': rid, 'representante_nombre': '', 'representante_cedula': ''}),
+                'alumnos': alumnos_por_representante.get(rid, []),
+                'pagos': por_representante.get(rid, []),
+            }
+            for rid in pagina_representante_ids
         ]
 
         return Response({
-            'total_alumnos': total_alumnos,
+            'total_representantes': total_representantes,
             'page':          page,
             'page_size':     page_size,
-            'total_pages':   max(1, (total_alumnos + page_size - 1) // page_size),
+            'total_pages':   max(1, (total_representantes + page_size - 1) // page_size),
             'results':       resultados,
         })
 
