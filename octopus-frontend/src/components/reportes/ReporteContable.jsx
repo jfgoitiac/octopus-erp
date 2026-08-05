@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     FileBarChart, Loader2, Search, ChevronDown, ChevronUp,
     FileSpreadsheet, Printer, GraduationCap, BookOpen, Building2,
-    AlertCircle, MoreHorizontal, X,
+    AlertCircle, MoreHorizontal, X, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -43,6 +43,7 @@ const fechaLabel = (fechaISO) => {
 };
 
 const PAGE_SIZE_API = 100; // tope real del backend (PagosListView clampa page_size a 100)
+const APORTES_PAGE_SIZE = 20; // renglones de detalle por página dentro de cada concepto expandido
 
 const ReporteContable = () => {
     const [anio, setAnio] = useState(() => new Date().getFullYear());
@@ -51,6 +52,7 @@ const ReporteContable = () => {
     const [busqueda, setBusqueda] = useState('');
     const [mesesExpandidos, setMesesExpandidos] = useState(() => new Set());
     const [conceptosExpandidos, setConceptosExpandidos] = useState(() => new Set());
+    const [aportesPagina, setAportesPagina] = useState(() => new Map());
     const [exportando, setExportando] = useState(false);
     const [imprimiendo, setImprimiendo] = useState(false);
 
@@ -75,7 +77,16 @@ const ReporteContable = () => {
                 );
                 resto.forEach(r => { resultados = resultados.concat(r.data?.results || []); });
             }
-            setPagos(resultados);
+            // Deduplicar por id: paginar con OFFSET/LIMIT en varias peticiones
+            // separadas no garantiza filas únicas por página si se registra un
+            // pago nuevo entre una petición y la siguiente (desplaza el resto).
+            const vistos = new Set();
+            const unicos = resultados.filter(p => {
+                if (vistos.has(p.id)) return false;
+                vistos.add(p.id);
+                return true;
+            });
+            setPagos(unicos);
         } catch {
             toast.error('No se pudo cargar el reporte contable.');
         } finally {
@@ -234,6 +245,12 @@ const ReporteContable = () => {
             next.has(id) ? next.delete(id) : next.add(id);
             return next;
         });
+    };
+
+    const getPaginaAportes = (id) => aportesPagina.get(id) || 1;
+
+    const setPaginaAportes = (id, pagina) => {
+        setAportesPagina(prev => new Map(prev).set(id, pagina));
     };
 
     const handleExportExcel = () => {
@@ -522,29 +539,60 @@ const ReporteContable = () => {
                                                         </span>
                                                     </button>
 
-                                                    {cExpandido && (
-                                                        <div className="divide-y" style={{ background: 'var(--porcelain)' }}>
-                                                            {c.aportes
-                                                                .slice()
-                                                                .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-                                                                .map((a, idx) => (
-                                                                    <div key={`${a.operacion_uuid}_${c.key}_${idx}`} className="px-4 py-2.5 pl-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
-                                                                        <div className="min-w-0">
-                                                                            <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
-                                                                                {a.nombre}
-                                                                                {a.cedula ? <span className="font-mono" style={{ color: 'var(--ash)' }}> · {a.cedula}</span> : ''}
-                                                                            </p>
-                                                                            <p className="text-[11px]" style={{ color: 'var(--ash)' }}>
-                                                                                {fechaLabel(a.fecha)} · {a.metodoDesc}
-                                                                            </p>
+                                                    {cExpandido && (() => {
+                                                        const aportesOrdenados = c.aportes
+                                                            .slice()
+                                                            .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                                                        const totalPaginas = Math.max(1, Math.ceil(aportesOrdenados.length / APORTES_PAGE_SIZE));
+                                                        const paginaActual = Math.min(getPaginaAportes(id), totalPaginas);
+                                                        const inicio = (paginaActual - 1) * APORTES_PAGE_SIZE;
+                                                        const aportesVisibles = aportesOrdenados.slice(inicio, inicio + APORTES_PAGE_SIZE);
+                                                        return (
+                                                            <div style={{ background: 'var(--porcelain)' }}>
+                                                                <div className="divide-y">
+                                                                    {aportesVisibles.map((a, idx) => (
+                                                                        <div key={`${a.operacion_uuid}_${c.key}_${inicio + idx}`} className="px-4 py-2.5 pl-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                                                                            <div className="min-w-0">
+                                                                                <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
+                                                                                    {a.nombre}
+                                                                                    {a.cedula ? <span className="font-mono" style={{ color: 'var(--ash)' }}> · {a.cedula}</span> : ''}
+                                                                                </p>
+                                                                                <p className="text-[11px]" style={{ color: 'var(--ash)' }}>
+                                                                                    {fechaLabel(a.fecha)} · {a.metodoDesc}
+                                                                                </p>
+                                                                            </div>
+                                                                            <span className="text-xs font-mono font-semibold shrink-0" style={{ color: '#16a34a' }}>
+                                                                                ${fmt(a.monto)}
+                                                                            </span>
                                                                         </div>
-                                                                        <span className="text-xs font-mono font-semibold shrink-0" style={{ color: '#16a34a' }}>
-                                                                            ${fmt(a.monto)}
+                                                                    ))}
+                                                                </div>
+                                                                {totalPaginas > 1 && (
+                                                                    <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: '0.5px solid var(--border-md)' }}>
+                                                                        <span className="text-[11px]" style={{ color: 'var(--ash)' }}>
+                                                                            Página {paginaActual} de {totalPaginas}
                                                                         </span>
+                                                                        <div className="flex gap-1.5">
+                                                                            <button
+                                                                                onClick={() => setPaginaAportes(id, Math.max(1, paginaActual - 1))}
+                                                                                disabled={paginaActual === 1}
+                                                                                className="p-1.5 rounded-lg disabled:opacity-40"
+                                                                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)', background: '#fff' }}>
+                                                                                <ChevronLeft size={14} />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => setPaginaAportes(id, Math.min(totalPaginas, paginaActual + 1))}
+                                                                                disabled={paginaActual === totalPaginas}
+                                                                                className="p-1.5 rounded-lg disabled:opacity-40"
+                                                                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)', background: '#fff' }}>
+                                                                                <ChevronRight size={14} />
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
-                                                                ))}
-                                                        </div>
-                                                    )}
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             );
                                         })}

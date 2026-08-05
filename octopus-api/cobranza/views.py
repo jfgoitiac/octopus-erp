@@ -1227,7 +1227,7 @@ class PagosListView(APIView):
             ).prefetch_related(
                 'mensualidades_pagadas', 'cuotas_inscripcion_pagadas',
                 'cuotas_solvencia_pagadas', 'proyectos_inversion_pagados',
-            ).order_by('-fecha_pago'),
+            ).order_by('-fecha_pago', '-id'),
         )
         if not filterset.is_valid():
             return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)

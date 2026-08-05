@@ -446,3 +446,25 @@
   ya existe en `cobranza/mensualidades/puntualidad/` — no implementado,
   decisión confirmada con el usuario de dejar el bucket de solvencia
   basado solo en cuotas de solvencia estructuradas.
+
+- [RESUELTO 2026-08-05] Bug real detectado por el usuario en producción:
+  el reporte contable duplicaba montos de pagos que combinan varios
+  métodos en una sola operación (ej. 3 transferencias + 1 efectivo para un
+  mismo cobro), mostrando la misma persona varias veces bajo "Otros" con
+  montos que en total superaban lo realmente cobrado. Causa raíz:
+  `PagosListView.get()` (`cobranza/views.py:1230`) ordenaba solo por
+  `-fecha_pago`, y las filas de una misma operación se guardan dentro de
+  la misma request — muy frecuentemente comparten el mismo `fecha_pago`
+  exacto (empate). Al paginar con OFFSET/LIMIT en peticiones HTTP
+  separadas (`ReporteContable.jsx` pide todas las páginas del año), un
+  orden con empates no es estable entre queries distintas: la misma fila
+  podía aparecer en dos páginas consecutivas. Se corrigió agregando un
+  desempate determinístico: `.order_by('-fecha_pago', '-id')`. Además se
+  agregó una deduplicación defensiva por `id` en el frontend al concatenar
+  los resultados de todas las páginas, por si un pago nuevo se registra
+  mientras el reporte todavía está paginando (desplazaría el resto de
+  filas entre una petición y la siguiente). Este mismo patrón de
+  paginación (`order_by` sin desempate + múltiples requests por página)
+  puede estar presente en otros reportes que paginan manualmente contra
+  endpoints del backend — vale la pena auditar si usan un `order_by` con
+  columna no única.
