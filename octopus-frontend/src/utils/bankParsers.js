@@ -61,8 +61,18 @@ function cleanCell(val) {
 // (ej. "1142001139734\n86432"), quitamos todo el espacio en blanco en vez de
 // colapsarlo a un espacio — de lo contrario quedaría un espacio falso en
 // medio del número.
+//
+// Bancaribe: cuando la columna Referencia y la de Descripción quedan muy
+// cerca en el PDF, la reconstrucción por posición de palabras
+// (`_extraer_tabla_por_palabras` en conciliacion.py) a veces arrastra el
+// inicio de la descripción ("ND EMISION DE...", "NC ...") pegado al final
+// del número de referencia (ej. "428951916672ND"). "ND"/"NC" son las
+// abreviaturas de Nota Débito/Nota Crédito de Bancaribe, nunca parte real
+// del número, así que se recortan cuando aparecen pegadas al final de una
+// referencia puramente numérica.
 function cleanReferencia(val) {
-  return (val ?? '').toString().replace(/\s+/g, '').trim();
+  const ref = (val ?? '').toString().replace(/\s+/g, '').trim();
+  return ref.replace(/^(\d+)(?:ND|NC)$/i, '$1');
 }
 
 function parseAmount(val) {
