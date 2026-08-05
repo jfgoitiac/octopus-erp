@@ -842,6 +842,36 @@ const Reportes = () => {
             .catch(() => toast.error('No se pudo copiar la referencia.'));
     };
 
+    const [clasificandoPagoId, setClasificandoPagoId] = useState(null);
+
+    // Disponible también para operaciones ya conciliadas (revisado=true): la
+    // clasificación manual es independiente del checklist de conciliación,
+    // un pago puede quedar marcado como revisado sin haberse desglosado nunca.
+    const handleClasificarPago = async (p) => {
+        setClasificandoPagoId(p.id);
+        try {
+            const res = await getEstadoClasificacionPagos({ id: p.id, page_size: 1 });
+            const encontrado = res.data?.results?.[0];
+            setPagoSeleccionado(encontrado || {
+                id: p.id,
+                monto_usd: p.monto_usd,
+                concepto: p.concepto,
+                concepto_display: p.concepto_display,
+                alumno: `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || null,
+                referencia: p.referencia,
+                fecha_pago: p.fecha_pago,
+                monto_clasificado_usd: '0.00',
+                monto_pendiente_usd: p.monto_usd,
+                estado_clasificacion: 'sin_clasificar',
+                clasificaciones: [],
+            });
+        } catch {
+            toast.error('No se pudo cargar la clasificación de este pago.');
+        } finally {
+            setClasificandoPagoId(null);
+        }
+    };
+
     const toggleRepresentanteExpandido = (representanteKey) => {
         setRepresentantesExpandidos(prev => {
             const next = new Set(prev);
@@ -1685,7 +1715,7 @@ const Reportes = () => {
                                                                 <span className="whitespace-nowrap" style={{ color: 'var(--ash)' }}>{fecha}</span>
                                                                 {op.pagos.map(p => (
                                                                     <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full whitespace-nowrap"
-                                                                        style={{ background: 'var(--porcelain)', color: 'var(--jet)' }}>
+                                                                        style={{ background: p.concepto === 'mixto' ? '#fef2f2' : 'var(--porcelain)', color: 'var(--jet)' }}>
                                                                         {op.multiAlumno ? `${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() + ' · ' : ''}
                                                                         {p.metodo_pago_display || METODO_LABELS[p.metodo_pago] || p.metodo_pago}: ${fmt(p.monto_usd)}
                                                                         {p.referencia ? (
@@ -1701,6 +1731,18 @@ const Reportes = () => {
                                                                                 </button>
                                                                             </>
                                                                         ) : ''}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleClasificarPago(p)}
+                                                                            disabled={clasificandoPagoId === p.id}
+                                                                            title="Clasificar este pago en conceptos concretos (funciona incluso si ya está conciliado)"
+                                                                            className="flex items-center gap-0.5 pl-1 ml-0.5 disabled:opacity-50"
+                                                                            style={{ color: 'var(--pb)', borderLeft: '0.5px solid var(--border-md)' }}>
+                                                                            {clasificandoPagoId === p.id
+                                                                                ? <Loader2 size={11} className="animate-spin" />
+                                                                                : <Layers size={11} />}
+                                                                            Clasificar
+                                                                        </button>
                                                                     </span>
                                                                 ))}
                                                             </div>

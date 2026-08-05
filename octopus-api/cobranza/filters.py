@@ -7,6 +7,7 @@ class PagoFilter(django_filters.FilterSet):
     Filtros avanzados para el modelo Pago.
 
     Query params disponibles:
+      - id                      : ID exacto del pago (para pedir uno puntual)
       - alumno_id               : ID numérico del alumno
       - grado_seccion           : Grado/sección exacto (insensible a mayúsculas)
       - fecha_desde             : Fecha/hora inicio (YYYY-MM-DD o YYYY-MM-DDTHH:MM)
@@ -19,6 +20,7 @@ class PagoFilter(django_filters.FilterSet):
       - representante_documento : Búsqueda parcial (icontains) en cédula/doc. del representante
     """
 
+    id                      = django_filters.NumberFilter(field_name='id')
     alumno_id               = django_filters.NumberFilter(field_name='alumno__id')
     grado_seccion           = django_filters.CharFilter(
         field_name='alumno__grado_seccion', lookup_expr='iexact'
