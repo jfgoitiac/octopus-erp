@@ -1500,11 +1500,18 @@ class EstadoClasificacionPagosView(APIView):
     una ClasificacionPagoManual (ver NOTAS_TECNICAS.md).
 
     Query params: fecha_desde, fecha_hasta, representante_documento,
-    estado (sin_clasificar|parcial|completo_automatico|completo_manual|todos,
+    buscar (cédula o nombre del representante, o nombre/apellido del alumno —
+    ver PagoFilter.filter_buscar), estado (sin_clasificar|parcial|completo_automatico|completo_manual|todos,
     default todos), concepto (mensualidad|inscripcion|solvencia|
     proyecto_inversion|otro|todos, default todos — igual criterio que
     DesgloseContableView), banco (id de BancoInstitucional|sin_banco|todos,
     default todos), page (default 1), page_size (default 25, máx 100).
+
+    La respuesta incluye 'total_pendientes': cantidad de pagos sin_clasificar
+    o parcial en TODO el período/concepto/banco filtrado (no solo la página
+    actual, y sin importar el filtro de 'estado' elegido) — para que el
+    frontend pueda mostrar un contador global de "por revisar" sin que el
+    operador tenga que expandir cada grupo de representante.
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
@@ -1608,6 +1615,12 @@ class EstadoClasificacionPagosView(APIView):
                 conceptos_pago_por_operacion.setdefault(row['operacion_uuid'], set()).add(row['concepto'])
 
         filas = []
+        # Cuenta pagos "por revisar" (sin_clasificar/parcial) en todo el período
+        # filtrado (fecha/concepto/banco), a propósito SIN aplicar el filtro de
+        # estado: el badge de pendientes existe justamente para que el operador
+        # sepa cuánto trabajo queda sin tener que cambiar su filtro de estado
+        # actual para verlo.
+        total_pendientes = 0
         for pago in pagos_list:
             principal = principales.get(pago.operacion_uuid)
             lineas_auto = _desglose_automatico_para_clasificacion(pago, principal)
@@ -1625,8 +1638,6 @@ class EstadoClasificacionPagosView(APIView):
                 'monto_pendiente_usd': str(monto_pendiente.quantize(Decimal('0.01'))),
                 'estado_clasificacion': estado,
             }
-            if not _estado_coincide(estado_filtro, estado):
-                continue
 
             if concepto_filtro and concepto_filtro != 'todos':
                 if lineas_auto:
@@ -1642,6 +1653,12 @@ class EstadoClasificacionPagosView(APIView):
                         }
                 if concepto_filtro not in categorias:
                     continue
+
+            if estado in ('sin_clasificar', 'parcial'):
+                total_pendientes += 1
+
+            if not _estado_coincide(estado_filtro, estado):
+                continue
 
             filas.append((pago, resumen))
 
@@ -1675,6 +1692,7 @@ class EstadoClasificacionPagosView(APIView):
 
         return Response({
             'total': total,
+            'total_pendientes': total_pendientes,
             'page': page,
             'page_size': page_size,
             'total_pages': max(1, (total + page_size - 1) // page_size),
@@ -1729,6 +1747,91 @@ class ClasificacionPagoCreateView(APIView):
             'clasificacion': ClasificacionPagoManualSerializer(linea).data,
             'resumen': _resumen_clasificacion_pago(pago),
         }, status=status.HTTP_201_CREATED)
+
+
+class ClasificacionPagoBatchCreateView(APIView):
+    """
+    Clasifica de un solo golpe varios pagos que comparten el mismo patrón
+    (ej. 5 pagos 'mes_atrasado' de representantes distintos que el operador
+    ya identificó visualmente en la tabla) — evita abrir el modal uno por
+    uno para el caso más repetitivo del flujo de cobranza.
+
+    A cada pago de `pago_ids` se le crea UNA línea de clasificación manual
+    por el monto PENDIENTE completo de ese pago (mismo tipo/mes/año/nota
+    para todos). No sirve para pagos que necesitan desglosarse en varias
+    líneas con montos distintos — para eso sigue existiendo el modal
+    individual (ClasificacionPagoCreateView).
+
+    Body: { pago_ids: [int, ...], tipo, mes, anio, nota }
+    (mes/anio solo si tipo='mes_atrasado', igual que en el modal).
+
+    Cada pago se procesa de forma independiente (no es atómico entre sí):
+    si uno falla (ya está clasificado, no existe, etc.) los demás igual se
+    aplican, y la respuesta detalla cuáles fallaron y por qué para que el
+    operador sepa qué revisar a mano.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request):
+        pago_ids = request.data.get('pago_ids')
+        if not isinstance(pago_ids, list) or not pago_ids:
+            return Response({'error': 'pago_ids debe ser una lista con al menos un id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Valida tipo/mes/anio una sola vez (son iguales para todos los pagos
+        # del lote) — el monto se valida por pago más abajo, porque depende
+        # de lo pendiente de CADA operación.
+        errores_patron = _validar_datos_clasificacion(
+            {'tipo': request.data.get('tipo'), 'monto_usd': '0.01',
+             'mes': request.data.get('mes'), 'anio': request.data.get('anio')},
+            parcial=False,
+        )
+        if errores_patron:
+            return Response(errores_patron, status=status.HTTP_400_BAD_REQUEST)
+
+        tipo = request.data.get('tipo')
+        mes = request.data.get('mes') or None
+        anio = request.data.get('anio') or None
+        nota = request.data.get('nota') or None
+
+        resultados = []
+        creadas = 0
+        for pago_id in pago_ids:
+            try:
+                pago = Pago.objects.get(pk=pago_id)
+            except (Pago.DoesNotExist, ValueError, TypeError):
+                resultados.append({'pago_id': pago_id, 'ok': False, 'error': 'Pago no encontrado.'})
+                continue
+
+            resumen_previo = _resumen_clasificacion_pago(pago)
+            pendiente = Decimal(resumen_previo['monto_pendiente_usd'])
+            if pendiente <= Decimal('0.005'):
+                resultados.append({
+                    'pago_id': pago_id, 'ok': False,
+                    'error': 'Este pago ya está completamente clasificado.',
+                })
+                continue
+
+            linea = ClasificacionPagoManual.objects.create(
+                pago=pago,
+                tipo=tipo,
+                mes=mes if tipo == 'mes_atrasado' else None,
+                anio=anio if tipo == 'mes_atrasado' else None,
+                monto_usd=pendiente,
+                nota=nota,
+                creado_por=request.user,
+            )
+            creadas += 1
+            resultados.append({
+                'pago_id': pago_id, 'ok': True,
+                'clasificacion': ClasificacionPagoManualSerializer(linea).data,
+                'resumen': _resumen_clasificacion_pago(pago),
+            })
+
+        return Response({
+            'creadas': creadas,
+            'fallidas': len(pago_ids) - creadas,
+            'resultados': resultados,
+        }, status=status.HTTP_200_OK)
 
 
 class ClasificacionPagoDetailView(APIView):
@@ -1808,7 +1911,10 @@ class DesgloseContableView(APIView):
     'sin_clasificar' con el monto crudo del pago.
 
     Query params: fecha_desde, fecha_hasta (obligatorios),
-    representante_documento (opcional),
+    representante_documento (opcional), buscar (opcional: cédula/nombre del
+    representante o nombre/apellido del alumno — mismo criterio que
+    PagoFilter.filter_buscar, para que el Excel/PDF respete la misma búsqueda
+    que se usó en pantalla),
     concepto (opcional: mensualidad|inscripcion|solvencia|proyecto_inversion|otro|todos,
     default todos — filtra por la categoría canónica de la fila, sin importar si
     salió del desglose automático, de una clasificación manual o del fallback
@@ -1862,6 +1968,17 @@ class DesgloseContableView(APIView):
             representante_documento = representante_documento.strip()
             if representante_documento:
                 qs = qs.filter(representante_documento__icontains=representante_documento)
+
+        buscar = request.query_params.get('buscar')
+        if buscar:
+            buscar = buscar.strip()
+            if buscar:
+                qs = qs.filter(
+                    Q(representante_documento__icontains=buscar)
+                    | Q(representante_nombre__icontains=buscar)
+                    | Q(alumno__nombre__icontains=buscar)
+                    | Q(alumno__apellido__icontains=buscar)
+                )
 
         # Cache del "pago principal" (con M2M prefetched) por operacion_uuid,
         # igual criterio que ComprobanteSerializer._get_principal_con_conceptos,

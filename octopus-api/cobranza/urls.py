@@ -7,6 +7,7 @@ from .views import (
     BancosAdminView,
     BancosListView,
     BuscarAlumnoCobranzaView,
+    ClasificacionPagoBatchCreateView,
     ClasificacionPagoCreateView,
     ClasificacionPagoDetailView,
     ComprobanteDetalleView,
@@ -69,6 +70,7 @@ urlpatterns = [
     path('representantes/resumen-financiero/', RepresentantesResumenFinancieroView.as_view(), name='representantes-resumen-financiero'),
     path('pagos/estado-clasificacion/',    EstadoClasificacionPagosView.as_view(), name='estado-clasificacion-pagos'),
     path('pagos/<int:pago_id>/clasificacion/', ClasificacionPagoCreateView.as_view(), name='clasificacion-pago-crear'),
+    path('pagos/clasificacion/batch/',     ClasificacionPagoBatchCreateView.as_view(), name='clasificacion-pago-batch'),
     path('pagos/clasificacion/<int:linea_id>/', ClasificacionPagoDetailView.as_view(), name='clasificacion-pago-detalle'),
     path('pagos/desglose-contable/',       DesgloseContableView.as_view(),         name='desglose-contable'),
 ]

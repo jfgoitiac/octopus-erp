@@ -1,7 +1,8 @@
 import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Loader2, Search, FileSpreadsheet, X, Layers, FilePlus2, CheckCircle2, Eye,
-    ChevronDown, ChevronRight, Users,
+    ChevronDown, ChevronRight, Users, ChevronsDownUp, ChevronsUpDown, CheckSquare,
+    CalendarRange,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -14,6 +15,7 @@ import {
     getDesgloseContable,
 } from '../../api/cobranza.service';
 import { TableRowSkeleton } from '../shared/Skeleton';
+import ClasificacionBatchModal from './ClasificacionBatchModal';
 import {
     today, daysAgo, fmt, getErrorMessage, MONTH_NAMES,
     TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, ESTADO_CLASIF_FILTROS, inputStyle, cardStyle,
@@ -37,6 +39,78 @@ const CONCEPTO_EXPORT_LABELS = {
     otro: 'Otro',
 };
 
+// Orden de aparición de las filas por TIPO en el desglose mensual (después de
+// los meses, antes de "Sin clasificar"). 'inscripcion'/'solvencia'/
+// 'proyecto_inversion' cubren las categorías esperadas; 'otro' es un colchón
+// para que ninguna línea se pierda del cuadre si el backend llega a devolver
+// una categoría no prevista.
+const ORDEN_CATEGORIA_TIPO_DESGLOSE = ['inscripcion', 'solvencia', 'proyecto_inversion', 'otro'];
+
+/* Agrupa las filas planas de getDesgloseContable (una fila por concepto real
+   cubierto de cada pago) en el "Desglose de dinero acreditado por mes": el
+   dinero se agrupa por el mes/tipo que el operador clasificó, no por la
+   fecha en que entró el pago (esa ya filtró qué pagos califican, en
+   fetchClasificacion / getDesgloseContable). Reusado por el bloque en
+   pantalla y por los exports Excel/PDF para no triplicar esta lógica. */
+const buildDesgloseMensual = (filas, mesLabelDesglose, conceptoLabelDesglose) => {
+    const gruposMes = new Map(); // clave: `${anio}-${mes}` -> { orden, label, usd, ves }
+    const gruposTipo = new Map(); // clave: categoria_concepto -> { label, usd, ves }
+    let sinClasificarUsd = 0;
+    let sinClasificarVes = 0;
+
+    filas.forEach(f => {
+        const usd = parseFloat(f.monto_usd || 0);
+        const ves = parseFloat(f.monto_ves || 0);
+        if (f.origen === 'sin_clasificar') {
+            sinClasificarUsd += usd;
+            sinClasificarVes += ves;
+            return;
+        }
+        if (f.categoria_concepto === 'mensualidad' && f.mes && f.anio) {
+            const clave = `${f.anio}-${String(f.mes).padStart(2, '0')}`;
+            if (!gruposMes.has(clave)) {
+                gruposMes.set(clave, { orden: f.anio * 100 + f.mes, label: mesLabelDesglose(f), usd: 0, ves: 0 });
+            }
+            const g = gruposMes.get(clave);
+            g.usd += usd;
+            g.ves += ves;
+            return;
+        }
+        // Inscripción, Solvencia, Proyecto de Inversión (y 'otro' como colchón):
+        // se agrupan por la etiqueta que ya asignó el operador/desglose
+        // automático (tipo_display / TIPO_CLASIFICACION_LABELS), sin inferir
+        // un mes que no tienen.
+        const clave = f.categoria_concepto || 'otro';
+        if (!gruposTipo.has(clave)) {
+            gruposTipo.set(clave, { label: conceptoLabelDesglose(f), usd: 0, ves: 0 });
+        }
+        const g = gruposTipo.get(clave);
+        g.usd += usd;
+        g.ves += ves;
+    });
+
+    const filasMes = [...gruposMes.values()]
+        .sort((a, b) => a.orden - b.orden)
+        .map(g => ({ label: g.label, monto_usd: g.usd, monto_ves: g.ves }));
+
+    const filasTipo = ORDEN_CATEGORIA_TIPO_DESGLOSE
+        .filter(cat => gruposTipo.has(cat))
+        .map(cat => {
+            const g = gruposTipo.get(cat);
+            return { label: g.label, monto_usd: g.usd, monto_ves: g.ves };
+        });
+
+    const filasSinClasificar = (sinClasificarUsd !== 0 || sinClasificarVes !== 0)
+        ? [{ label: 'Sin clasificar', monto_usd: sinClasificarUsd, monto_ves: sinClasificarVes }]
+        : [];
+
+    const filasDesglose = [...filasMes, ...filasTipo, ...filasSinClasificar];
+    const totalUsd = filasDesglose.reduce((s, f) => s + f.monto_usd, 0);
+    const totalVes = filasDesglose.reduce((s, f) => s + f.monto_ves, 0);
+
+    return { filas: filasDesglose, totalUsd, totalVes };
+};
+
 /**
  * @param bancosDisponibles lista de bancos para el filtro (compartida con Conciliación)
  * @param onSeleccionarPago  abre el modal de clasificación; el estado del modal vive en
@@ -44,12 +118,16 @@ const CONCEPTO_EXPORT_LABELS = {
  * @param registerUpdateHandler  al montar, registra la función que debe correr cuando el
  *        modal notifica un cambio (crear/editar/borrar línea), para refrescar esta tabla
  *        sin depender de qué pestaña disparó la clasificación.
+ * @param registerPagosListHandler  al montar, registra la lista de pagos de la página
+ *        actual (con su estado_clasificacion), para que el modal pueda ofrecer
+ *        "Siguiente pendiente" sin que el operador tenga que volver a la tabla a
+ *        ubicar la próxima fila manualmente.
  */
-const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerUpdateHandler }) => {
+const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerUpdateHandler, registerPagosListHandler }) => {
     const [clasifFechaInicio, setClasifFechaInicio] = useState(() => daysAgo(30));
     const [clasifFechaFin, setClasifFechaFin] = useState(today);
-    const [clasifRepDocumento, setClasifRepDocumento] = useState('');
-    const [clasifRepDocumentoDebounced, setClasifRepDocumentoDebounced] = useState('');
+    const [clasifBusqueda, setClasifBusqueda] = useState('');
+    const [clasifBusquedaDebounced, setClasifBusquedaDebounced] = useState('');
     const [clasifEstado, setClasifEstado] = useState('todos');
     // Filtros de concepto/banco: se aplican tanto a la tabla en pantalla
     // (EstadoClasificacionPagosView) como al Excel/PDF (DesgloseContableView),
@@ -59,31 +137,46 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
 
     const [clasifPagos, setClasifPagos] = useState([]);
     const [clasifTotal, setClasifTotal] = useState(0);
+    const [clasifTotalPendientes, setClasifTotalPendientes] = useState(0);
     const [clasifTotalPages, setClasifTotalPages] = useState(1);
     const [clasifPage, setClasifPage] = useState(1);
     const [loadingClasif, setLoadingClasif] = useState(true);
     const [exportandoClasifExcel, setExportandoClasifExcel] = useState(false);
     const [exportandoClasifPdf, setExportandoClasifPdf] = useState(false);
 
+    // Filas planas de getDesgloseContable (sin paginar, una por concepto real
+    // cubierto de cada pago) — se cargan una sola vez por cambio de filtros y
+    // alimentan tanto el bloque "Desglose por mes" en pantalla como los
+    // exports Excel/PDF, para no repetir esta llamada 3 veces (tabla +
+    // export Excel + export PDF) como antes.
+    const [desgloseFilas, setDesgloseFilas] = useState([]);
+    const [loadingDesglose, setLoadingDesglose] = useState(true);
+    const [errorDesglose, setErrorDesglose] = useState(null);
+
+    // Selección múltiple para clasificar en lote (ver ClasificacionBatchModal):
+    // solo guarda ids de pagos pendientes (no completo_manual) de la página actual.
+    const [seleccionados, setSeleccionados] = useState(() => new Set());
+    const [mostrarBatchModal, setMostrarBatchModal] = useState(false);
+
     useEffect(() => {
         const t = setTimeout(() => {
-            setClasifRepDocumentoDebounced(clasifRepDocumento.trim());
+            setClasifBusquedaDebounced(clasifBusqueda.trim());
             setClasifPage(1);
         }, 400);
         return () => clearTimeout(t);
-    }, [clasifRepDocumento]);
+    }, [clasifBusqueda]);
 
     useEffect(() => {
         setClasifPage(1);
     }, [clasifFechaInicio, clasifFechaFin, clasifEstado, clasifConceptoExport, clasifBancoExport]);
 
-    const fetchClasificacion = useCallback(async (fi, ff, repDoc, estado, concepto, banco, page) => {
+    const fetchClasificacion = useCallback(async (fi, ff, busqueda, estado, concepto, banco, page) => {
         setLoadingClasif(true);
         try {
             const res = await getEstadoClasificacionPagos({
                 fecha_desde: fi,
                 fecha_hasta: ff,
-                representante_documento: repDoc || undefined,
+                buscar: busqueda || undefined,
                 estado,
                 concepto: concepto !== 'todos' ? concepto : undefined,
                 banco: banco !== 'todos' ? banco : undefined,
@@ -94,6 +187,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
             // (no el {count, next, previous} genérico de DRF que usan otros endpoints).
             setClasifPagos(res.data?.results || []);
             setClasifTotal(res.data?.total || 0);
+            setClasifTotalPendientes(res.data?.total_pendientes || 0);
             setClasifTotalPages(res.data?.total_pages || 1);
         } catch (err) {
             toast.error(getErrorMessage(err, 'No se pudo cargar el estado de clasificación de pagos.'));
@@ -104,12 +198,47 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
 
     useEffect(() => {
         fetchClasificacion(
-            clasifFechaInicio, clasifFechaFin, clasifRepDocumentoDebounced, clasifEstado,
+            clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced, clasifEstado,
             clasifConceptoExport, clasifBancoExport, clasifPage,
         );
     }, [
-        fetchClasificacion, clasifFechaInicio, clasifFechaFin, clasifRepDocumentoDebounced,
+        fetchClasificacion, clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
         clasifEstado, clasifConceptoExport, clasifBancoExport, clasifPage,
+    ]);
+
+    const fetchDesglose = useCallback(async (fi, ff, busqueda, estado, concepto, banco) => {
+        setLoadingDesglose(true);
+        setErrorDesglose(null);
+        try {
+            const res = await getDesgloseContable({
+                fecha_desde: fi,
+                fecha_hasta: ff,
+                buscar: busqueda || undefined,
+                concepto: concepto !== 'todos' ? concepto : undefined,
+                banco: banco !== 'todos' ? banco : undefined,
+                estado: estado !== 'todos' ? estado : undefined,
+            });
+            setDesgloseFilas(res.data?.results || []);
+        } catch (err) {
+            // El backend limita el rango a 92 días (~3 meses) — mismo mensaje que
+            // ya usaban los exports para este caso.
+            setErrorDesglose(getErrorMessage(err, 'No se pudo cargar el desglose por mes.'));
+            setDesgloseFilas([]);
+        } finally {
+            setLoadingDesglose(false);
+        }
+    }, []);
+
+    // No depende de clasifPage: getDesgloseContable no pagina, trae TODO el
+    // rango filtrado de una vez (a diferencia de fetchClasificacion).
+    useEffect(() => {
+        fetchDesglose(
+            clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
+            clasifEstado, clasifConceptoExport, clasifBancoExport,
+        );
+    }, [
+        fetchDesglose, clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
+        clasifEstado, clasifConceptoExport, clasifBancoExport,
     ]);
 
     /* Actualiza el resumen (monto clasificado/pendiente/estado) de un pago en la
@@ -128,7 +257,18 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
             monto_pendiente_usd: resumen.monto_pendiente_usd,
             estado_clasificacion: resumen.estado_clasificacion,
         } : p));
-    }, []);
+        // El desglose por mes depende de las líneas de clasificación (mes/tipo
+        // real asignado), no del resumen por pago que ya actualizamos arriba —
+        // hay que recargarlo para que el bloque en pantalla y los exports
+        // reflejen la línea recién creada/editada/borrada.
+        fetchDesglose(
+            clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
+            clasifEstado, clasifConceptoExport, clasifBancoExport,
+        );
+    }, [
+        fetchDesglose, clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
+        clasifEstado, clasifConceptoExport, clasifBancoExport,
+    ]);
 
     // Se registra en el shell mientras esta pestaña está montada, para que el
     // modal (renderizado a nivel de Reportes.jsx) pueda refrescar esta tabla
@@ -137,6 +277,57 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         registerUpdateHandler?.(handlePagoActualizado);
         return () => registerUpdateHandler?.(null);
     }, [registerUpdateHandler, handlePagoActualizado]);
+
+    // Se re-registra en cada cambio de clasifPagos (nueva página, filtro, o
+    // clasificación aplicada) para que "Siguiente pendiente" en el modal
+    // siempre vea el estado más reciente de la página actual.
+    useEffect(() => {
+        registerPagosListHandler?.(clasifPagos);
+        return () => registerPagosListHandler?.(null);
+    }, [registerPagosListHandler, clasifPagos]);
+
+    // La selección de acción masiva se limpia cada vez que cambia el set de
+    // pagos en pantalla (nueva página, filtro, o refresco tras clasificar) —
+    // evita quedarse con ids seleccionados que ya no corresponden a lo visible.
+    useEffect(() => {
+        setSeleccionados(new Set());
+    }, [clasifPagos]);
+
+    const toggleSeleccion = (id) => setSeleccionados(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
+
+    const pendientesIdsVisibles = useMemo(
+        () => clasifPagos.filter(p => p.estado_clasificacion !== 'completo_manual').map(p => p.id),
+        [clasifPagos],
+    );
+    const todosSeleccionados = pendientesIdsVisibles.length > 0
+        && pendientesIdsVisibles.every(id => seleccionados.has(id));
+    const toggleSeleccionarTodos = () => setSeleccionados(
+        todosSeleccionados ? new Set() : new Set(pendientesIdsVisibles),
+    );
+
+    const pagosSeleccionados = useMemo(
+        () => clasifPagos.filter(p => seleccionados.has(p.id)),
+        [clasifPagos, seleccionados],
+    );
+
+    const handleBatchAplicado = () => {
+        setMostrarBatchModal(false);
+        setSeleccionados(new Set());
+        // Refresca la página actual con los mismos filtros para reflejar los
+        // nuevos estados (y el contador global de pendientes actualizado).
+        fetchClasificacion(
+            clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced, clasifEstado,
+            clasifConceptoExport, clasifBancoExport, clasifPage,
+        );
+        fetchDesglose(
+            clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
+            clasifEstado, clasifConceptoExport, clasifBancoExport,
+        );
+    };
 
     /* Agrupa la página actual de pagos por representante (no por alumno/pago
        suelto) — un representante puede tener varios hijos, y ver cada pago
@@ -185,6 +376,13 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         return next;
     });
 
+    // Todos colapsados == todos los grupos de la página actual están en el set.
+    const todosColapsados = gruposPorRepresentante.length > 0
+        && gruposPorRepresentante.every(g => repsColapsados.has(g.clave));
+    const toggleTodos = () => setRepsColapsados(
+        todosColapsados ? new Set() : new Set(gruposPorRepresentante.map(g => g.clave)),
+    );
+
     const mesLabelDesglose = (fila) => {
         if (fila.mes && fila.anio) {
             return `${fila.mes_display || MONTH_NAMES[fila.mes - 1]} ${fila.anio}`;
@@ -202,6 +400,11 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         return fila.tipo_display || TIPO_CLASIFICACION_LABELS[fila.tipo] || fila.concepto_display || fila.concepto || '—';
     };
 
+    const desgloseMensual = useMemo(
+        () => buildDesgloseMensual(desgloseFilas, mesLabelDesglose, conceptoLabelDesglose),
+        [desgloseFilas],
+    );
+
     const bancoExportLabel = (val) => {
         if (val === 'todos') return 'Todos los bancos';
         if (val === 'sin_banco') return 'Sin banco (Efectivo)';
@@ -209,7 +412,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
     };
 
     const limpiarFiltros = () => {
-        setClasifRepDocumento('');
+        setClasifBusqueda('');
         setClasifEstado('todos');
         setClasifConceptoExport('todos');
         setClasifBancoExport('todos');
@@ -218,17 +421,15 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
     };
 
     const handleExportClasifExcel = async () => {
+        if (loadingDesglose) {
+            toast.info('El desglose todavía está cargando, espera un momento e intenta de nuevo.');
+            return;
+        }
         setExportandoClasifExcel(true);
         try {
-            const res = await getDesgloseContable({
-                fecha_desde: clasifFechaInicio,
-                fecha_hasta: clasifFechaFin,
-                representante_documento: clasifRepDocumentoDebounced || undefined,
-                concepto: clasifConceptoExport !== 'todos' ? clasifConceptoExport : undefined,
-                banco: clasifBancoExport !== 'todos' ? clasifBancoExport : undefined,
-                estado: clasifEstado !== 'todos' ? clasifEstado : undefined,
-            });
-            const filas = res.data?.results || [];
+            // Reusa las filas ya cargadas por fetchDesglose (mismos filtros que
+            // la pantalla) en vez de volver a pedirlas al backend en cada export.
+            const filas = desgloseFilas;
             if (!filas.length) {
                 toast.info('No hay movimientos que coincidan con los filtros seleccionados.');
                 return;
@@ -260,6 +461,17 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Desglose Contable');
+
+            const { filas: filasMensual, totalUsd: totalMensualUsd, totalVes: totalMensualVes } = buildDesgloseMensual(filas, mesLabelDesglose, conceptoLabelDesglose);
+            const rowsMensual = filasMensual.map(f => ({
+                Concepto: f.label,
+                'Monto USD': f.monto_usd,
+                'Monto Bs': f.monto_ves,
+            }));
+            rowsMensual.push({ Concepto: 'TOTAL', 'Monto USD': totalMensualUsd, 'Monto Bs': totalMensualVes });
+            const wsMensual = XLSX.utils.json_to_sheet(rowsMensual);
+            XLSX.utils.book_append_sheet(wb, wsMensual, 'Desglose por Mes');
+
             const sufijoConcepto = clasifConceptoExport !== 'todos' ? `_${clasifConceptoExport}` : '';
             const sufijoBanco = clasifBancoExport !== 'todos' ? `_${bancoExportLabel(clasifBancoExport).replace(/\s+/g, '-')}` : '';
             const sufijoEstado = clasifEstado !== 'todos' ? `_${clasifEstado}` : '';
@@ -274,17 +486,15 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
     };
 
     const handleExportClasifPdf = async () => {
+        if (loadingDesglose) {
+            toast.info('El desglose todavía está cargando, espera un momento e intenta de nuevo.');
+            return;
+        }
         setExportandoClasifPdf(true);
         try {
-            const res = await getDesgloseContable({
-                fecha_desde: clasifFechaInicio,
-                fecha_hasta: clasifFechaFin,
-                representante_documento: clasifRepDocumentoDebounced || undefined,
-                concepto: clasifConceptoExport !== 'todos' ? clasifConceptoExport : undefined,
-                banco: clasifBancoExport !== 'todos' ? clasifBancoExport : undefined,
-                estado: clasifEstado !== 'todos' ? clasifEstado : undefined,
-            });
-            const filas = res.data?.results || [];
+            // Reusa las filas ya cargadas por fetchDesglose (mismos filtros que
+            // la pantalla) en vez de volver a pedirlas al backend en cada export.
+            const filas = desgloseFilas;
             if (!filas.length) {
                 toast.info('No hay movimientos que coincidan con los filtros seleccionados.');
                 return;
@@ -348,6 +558,30 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 },
             });
 
+            const { filas: filasMensual, totalUsd: totalMensualUsd, totalVes: totalMensualVes } = buildDesgloseMensual(filas, mesLabelDesglose, conceptoLabelDesglose);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0);
+            doc.text('Desglose de dinero acreditado por mes', 14, doc.lastAutoTable.finalY + 10);
+            autoTable(doc, {
+                head: [['Concepto', 'Monto USD', 'Monto Bs']],
+                body: [
+                    ...filasMensual.map(f => [f.label, `$${f.monto_usd.toFixed(2)}`, `Bs ${f.monto_ves.toFixed(2)}`]),
+                    [
+                        { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
+                        { content: `$${totalMensualUsd.toFixed(2)}`, styles: { fontStyle: 'bold' } },
+                        { content: `Bs ${totalMensualVes.toFixed(2)}`, styles: { fontStyle: 'bold' } },
+                    ],
+                ],
+                startY: doc.lastAutoTable.finalY + 14,
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [30, 64, 175], fontStyle: 'bold' },
+                columnStyles: {
+                    1: { halign: 'right' },
+                    2: { halign: 'right' },
+                },
+            });
+
             const sufijoConceptoPdf = clasifConceptoExport !== 'todos' ? `_${clasifConceptoExport}` : '';
             const sufijoBancoPdf = clasifBancoExport !== 'todos' ? `_${bancoExportLabel(clasifBancoExport).replace(/\s+/g, '-')}` : '';
             const sufijoEstadoPdf = clasifEstado !== 'todos' ? `_${clasifEstado}` : '';
@@ -372,7 +606,20 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                         Desglosa los pagos mixtos en conceptos concretos (inscripción, proyecto de inversión, meses atrasados) para el reporte contable · período {clasifFechaInicio} — {clasifFechaFin}.
                     </p>
                 </div>
-                {loadingClasif && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--pb)' }} />}
+                <div className="flex items-center gap-3">
+                    {!loadingClasif && (
+                        clasifTotalPendientes > 0 ? (
+                            <span className="px-3 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap" style={{ background: '#fef9c3', color: '#ca8a04' }}>
+                                {clasifTotalPendientes} pago{clasifTotalPendientes !== 1 ? 's' : ''} por revisar en el período
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase whitespace-nowrap" style={{ background: '#dcfce7', color: '#16a34a' }}>
+                                <CheckCircle2 size={13} /> Todo auditado en el período
+                            </span>
+                        )
+                    )}
+                    {loadingClasif && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--pb)' }} />}
+                </div>
             </div>
 
             {/* Filtros */}
@@ -399,15 +646,15 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                     <input
                         type="text"
-                        value={clasifRepDocumento}
-                        onChange={e => setClasifRepDocumento(e.target.value)}
-                        placeholder="Cédula del representante (opcional)…"
+                        value={clasifBusqueda}
+                        onChange={e => setClasifBusqueda(e.target.value)}
+                        placeholder="Cédula o nombre del representante, o del alumno (opcional)…"
                         className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
                         style={inputStyle}
                     />
-                    {clasifRepDocumento && (
+                    {clasifBusqueda && (
                         <button
-                            onClick={() => setClasifRepDocumento('')}
+                            onClick={() => setClasifBusqueda('')}
                             className="absolute right-2.5 top-1/2 -translate-y-1/2"
                             style={{ color: 'var(--ash)' }}>
                             <X size={14} />
@@ -426,11 +673,14 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 </select>
             </div>
 
-            {/* Exportación — agrupada aparte de los filtros de búsqueda para no
-                mezclar "qué estoy viendo" con "qué voy a imprimir". */}
+            {/* Concepto/Banco: filtran tanto la tabla como el Excel/PDF (mismos
+                parámetros van a fetchClasificacion y a getDesgloseContable), para
+                que lo que el operador ve sea siempre lo que se va a exportar. Por
+                eso NO se llaman "a imprimir" — cambiarlos también cambia lo que
+                aparece en pantalla ahora mismo. */}
             <div className="rounded-xl p-4 mb-4 flex flex-wrap items-end gap-3" style={cardStyle}>
                 <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Concepto a imprimir</label>
+                    <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Concepto (filtra tabla y exportación)</label>
                     <select
                         value={clasifConceptoExport}
                         onChange={e => setClasifConceptoExport(e.target.value)}
@@ -442,7 +692,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Banco a imprimir</label>
+                    <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Banco (filtra tabla y exportación)</label>
                     <BancoSelect
                         value={clasifBancoExport}
                         onChange={e => setClasifBancoExport(e.target.value)}
@@ -469,12 +719,61 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 </button>
             </div>
 
+            {!loadingClasif && gruposPorRepresentante.length > 0 && (
+                <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
+                    {seleccionados.size > 0 ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
+                                {seleccionados.size} pago{seleccionados.size !== 1 ? 's' : ''} seleccionado{seleccionados.size !== 1 ? 's' : ''}
+                            </span>
+                            <button
+                                onClick={() => setMostrarBatchModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                                style={{ background: 'var(--pb)' }}>
+                                <CheckSquare size={13} /> Clasificar seleccionados
+                            </button>
+                            <button
+                                onClick={() => setSeleccionados(new Set())}
+                                className="text-xs font-medium px-2 py-1.5"
+                                style={{ color: 'var(--ash)' }}>
+                                Cancelar selección
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={toggleSeleccionarTodos}
+                            disabled={pendientesIdsVisibles.length === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
+                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                            <CheckSquare size={13} /> Seleccionar pendientes de esta página
+                        </button>
+                    )}
+                    <button
+                        onClick={toggleTodos}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                        {todosColapsados ? <ChevronsUpDown size={13} /> : <ChevronsDownUp size={13} />}
+                        {todosColapsados ? 'Expandir todos' : 'Colapsar todos'}
+                    </button>
+                </div>
+            )}
+
             {/* Tabla — agrupada por representante (no por alumno/pago suelto), para no
                 tener que "buscar" mentalmente cuáles filas pertenecen al mismo pagador. */}
             <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
                 <table className="w-full text-sm min-w-[900px]">
                     <thead>
                         <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
+                            <th className="px-4 py-3 w-8">
+                                <input
+                                    type="checkbox"
+                                    checked={todosSeleccionados}
+                                    onChange={toggleSeleccionarTodos}
+                                    disabled={pendientesIdsVisibles.length === 0}
+                                    aria-label="Seleccionar todos los pagos pendientes de esta página"
+                                    className="cursor-pointer"
+                                />
+                            </th>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Fecha</th>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Alumno</th>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Referencia</th>
@@ -487,10 +786,10 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     </thead>
                     <tbody>
                         {loadingClasif ? (
-                            <TableRowSkeleton cols={8} rows={6} />
+                            <TableRowSkeleton cols={9} rows={6} />
                         ) : clasifPagos.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="text-center py-10">
+                                <td colSpan={9} className="text-center py-10">
                                     <p className="text-sm mb-2" style={{ color: 'var(--ash)' }}>
                                         No hay pagos que coincidan con el filtro.
                                     </p>
@@ -505,14 +804,33 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                         ) : (
                             gruposPorRepresentante.map((grupo) => {
                                 const colapsado = repsColapsados.has(grupo.clave);
-                                const pendientes = grupo.pagos.filter(p => p.estado_clasificacion !== 'completo_manual').length;
+                                const pendientesGrupo = grupo.pagos.filter(p => p.estado_clasificacion !== 'completo_manual');
+                                const pendientes = pendientesGrupo.length;
                                 const totalGrupoUsd = grupo.pagos.reduce((s, p) => s + parseFloat(p.monto_usd || 0), 0);
+                                const grupoTodoSeleccionado = pendientes > 0 && pendientesGrupo.every(p => seleccionados.has(p.id));
                                 return (
                                     <Fragment key={grupo.clave}>
                                         <tr
                                             onClick={() => toggleRep(grupo.clave)}
                                             className="cursor-pointer"
                                             style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
+                                            <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                                                {pendientes > 0 && (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={grupoTodoSeleccionado}
+                                                        onChange={() => setSeleccionados(prev => {
+                                                            const next = new Set(prev);
+                                                            const idsGrupo = pendientesGrupo.map(p => p.id);
+                                                            if (grupoTodoSeleccionado) idsGrupo.forEach(id => next.delete(id));
+                                                            else idsGrupo.forEach(id => next.add(id));
+                                                            return next;
+                                                        })}
+                                                        aria-label={`Seleccionar pagos pendientes de ${grupo.representante_nombre || 'este representante'}`}
+                                                        className="cursor-pointer"
+                                                    />
+                                                )}
+                                            </td>
                                             <td colSpan={8} className="px-4 py-2.5">
                                                 <div className="flex items-center gap-3 flex-wrap">
                                                     {colapsado ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
@@ -561,6 +879,17 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                                                         borderLeft: yaClasificado ? '3px solid #16a34a' : '3px solid transparent',
                                                         opacity: yaClasificado ? 0.55 : 1,
                                                     }}>
+                                                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                                        {!yaClasificado && (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={seleccionados.has(p.id)}
+                                                                onChange={() => toggleSeleccion(p.id)}
+                                                                aria-label={`Seleccionar pago de ${p.alumno || 'alumno'}`}
+                                                                className="cursor-pointer"
+                                                            />
+                                                        )}
+                                                    </td>
                                                     <td className="pl-8 pr-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
                                                     <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{p.alumno || '—'}</td>
                                                     <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>
@@ -615,6 +944,61 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     pageSize={CLASIF_PAGE_SIZE}
                 />
             </div>
+
+            {/* Desglose de dinero acreditado por mes: agrupa por el mes/tipo
+                REAL de clasificación (no por la fecha en que entró el pago) —
+                un pago de agosto clasificado como "febrero" suma en Febrero.
+                Usa las mismas filas cargadas para los exports Excel/PDF. */}
+            <div className="rounded-xl p-4 mt-4" style={cardStyle}>
+                <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+                    <CalendarRange size={16} style={{ color: 'var(--pb)' }} />
+                    Desglose de dinero acreditado por mes
+                </h3>
+                {loadingDesglose ? (
+                    <div className="flex items-center gap-2 py-4">
+                        <Loader2 size={16} className="animate-spin" style={{ color: 'var(--pb)' }} />
+                        <span className="text-sm" style={{ color: 'var(--ash)' }}>Cargando desglose…</span>
+                    </div>
+                ) : errorDesglose ? (
+                    <p className="text-sm py-2" style={{ color: 'var(--red)' }}>{errorDesglose}</p>
+                ) : desgloseMensual.filas.length === 0 ? (
+                    <p className="text-sm py-2" style={{ color: 'var(--ash)' }}>No hay movimientos que coincidan con los filtros seleccionados.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[420px]">
+                            <thead>
+                                <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                    <th className="text-left px-3 py-2 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Concepto</th>
+                                    <th className="text-right px-3 py-2 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto USD</th>
+                                    <th className="text-right px-3 py-2 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto Bs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {desgloseMensual.filas.map((f) => (
+                                    <tr key={f.label} style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+                                        <td className="px-3 py-2" style={{ color: f.label === 'Sin clasificar' ? 'var(--red)' : 'var(--jet)' }}>{f.label}</td>
+                                        <td className="px-3 py-2 text-right font-mono" style={{ color: '#16a34a' }}>${fmt(f.monto_usd)}</td>
+                                        <td className="px-3 py-2 text-right font-mono" style={{ color: 'var(--ash)' }}>Bs {fmt(f.monto_ves)}</td>
+                                    </tr>
+                                ))}
+                                <tr>
+                                    <td className="px-3 py-2 font-semibold" style={{ color: 'var(--jet)' }}>TOTAL</td>
+                                    <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(desgloseMensual.totalUsd)}</td>
+                                    <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: 'var(--jet)' }}>Bs {fmt(desgloseMensual.totalVes)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {mostrarBatchModal && pagosSeleccionados.length > 0 && (
+                <ClasificacionBatchModal
+                    pagos={pagosSeleccionados}
+                    onClose={() => setMostrarBatchModal(false)}
+                    onAplicado={handleBatchAplicado}
+                />
+            )}
         </section>
     );
 };

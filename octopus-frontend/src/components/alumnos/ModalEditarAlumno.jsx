@@ -26,6 +26,8 @@ const inputStyle = {
 
 const inputClass = "w-full px-3 py-2 rounded-lg text-sm outline-none";
 
+const ESTATUS_FINANCIERO_LABELS = { solvente: 'Solvente', mora: 'Moroso', becado: 'Becado' };
+
 const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditarSolvencia = true, checkingRep = false, repEncontrado = null }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
@@ -133,11 +135,14 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditar
                                 </select>
                             </Campo>
                             <Campo label="Estatus Financiero">
-                                <select className={inputClass} style={inputStyle}
-                                    value={form.estatus_financiero} onChange={set('estatus_financiero')}>
-                                    <option value="solvente">Solvente</option>
-                                    <option value="mora">Moroso</option>
-                                </select>
+                                <input type="text" readOnly disabled
+                                    className={`${inputClass} cursor-not-allowed opacity-70`}
+                                    style={inputStyle}
+                                    value={ESTATUS_FINANCIERO_LABELS[form.estatus_financiero] || form.estatus_financiero}
+                                    aria-label="Estatus financiero calculado en vivo según la deuda real (solo lectura)" />
+                                <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    Se calcula automáticamente según mensualidades, inscripción y solvencia vencidas.
+                                </p>
                             </Campo>
                             <Campo label="Porcentaje Beca (%)">
                                 <input type="number" min="0" max="100" className={inputClass} style={inputStyle}

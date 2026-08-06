@@ -82,6 +82,41 @@ const Reportes = () => {
         setPagoSeleccionado(prev => (prev && prev.id === pagoId ? { ...prev, ...resumen } : prev));
     }, []);
 
+    // Lista de pagos de la página actual de Clasificación de Pagos (solo
+    // disponible mientras esa pestaña está montada), para poder calcular
+    // "Siguiente pendiente" desde el modal sin volver a la tabla. Se guarda en
+    // un ref (la usa un handler async, no el render) más un booleano en
+    // estado aparte — leer `ref.current` directamente durante el render no
+    // dispara re-render cuando cambia, así que el botón podría quedar
+    // desactualizado.
+    const clasifPagosListRef = useRef(null);
+    const [puedeAvanzarPendiente, setPuedeAvanzarPendiente] = useState(false);
+    const registerClasifPagosList = useCallback((lista) => {
+        clasifPagosListRef.current = lista;
+        setPuedeAvanzarPendiente(!!lista?.length);
+    }, []);
+
+    // Nota: la lista es solo la página actual (paginación de 20 en 20 en el
+    // backend) — al agotar los pendientes de la página, avisa que no hay más
+    // en vez de saltar automáticamente a la siguiente página.
+    const handleSiguientePendiente = useCallback((pagoActualId) => {
+        const lista = clasifPagosListRef.current || [];
+        const pendientes = lista.filter(p => p.estado_clasificacion !== 'completo_manual');
+        if (pendientes.length === 0) {
+            toast.info('No quedan más pagos por revisar en esta página.');
+            setPagoSeleccionado(null);
+            return;
+        }
+        const idx = pendientes.findIndex(p => p.id === pagoActualId);
+        const siguiente = idx === -1 ? pendientes[0] : pendientes[(idx + 1) % pendientes.length];
+        if (siguiente.id === pagoActualId) {
+            toast.info('No quedan más pagos por revisar en esta página.');
+            setPagoSeleccionado(null);
+            return;
+        }
+        setPagoSeleccionado(siguiente);
+    }, []);
+
     return (
         <div className="animate-fadeIn p-4 md:p-0">
             {/* Cabecera */}
@@ -135,6 +170,7 @@ const Reportes = () => {
                     bancosDisponibles={bancosDisponibles}
                     onSeleccionarPago={setPagoSeleccionado}
                     registerUpdateHandler={registerClasifUpdateHandler}
+                    registerPagosListHandler={registerClasifPagosList}
                 />
             )}
             {activeTab === 'historico'     && <HistoricoMensualTab />}
@@ -147,6 +183,7 @@ const Reportes = () => {
                     pago={pagoSeleccionado}
                     onClose={() => setPagoSeleccionado(null)}
                     onPagoActualizado={handlePagoActualizado}
+                    onSiguientePendiente={puedeAvanzarPendiente ? handleSiguientePendiente : null}
                 />
             )}
         </div>

@@ -33,6 +33,9 @@ export const getEstadoClasificacionPagos = (params, signal) =>
 export const crearClasificacionPago = (pagoId, payload, signal) =>
     apiClient.post(`cobranza/pagos/${pagoId}/clasificacion/`, payload, { signal });
 
+export const clasificarPagosBatch = (payload, signal) =>
+    apiClient.post('cobranza/pagos/clasificacion/batch/', payload, { signal });
+
 export const actualizarClasificacionLinea = (lineaId, payload, signal) =>
     apiClient.patch(`cobranza/pagos/clasificacion/${lineaId}/`, payload, { signal });
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-    Loader2, Save, Layers, Pencil, Trash2, PlusCircle, X, AlertTriangle,
+    Loader2, Save, Layers, Pencil, Trash2, PlusCircle, X, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -17,7 +17,7 @@ import { fmt, MONTH_NAMES, CURRENT_YEAR, TIPO_CLASIFICACION_LABELS, ESTADO_CLASI
  * en líneas de clasificación concretas: Inscripción, Proyecto de Inversión,
  * Mes Atrasado (con mes+año) o Proyecto de Inversión Atrasado.
  */
-const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
+const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado, onSiguientePendiente }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
 
@@ -191,9 +191,19 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
                             {pago.alumno || '—'} · {pago.representante_nombre} · Ref. {pago.referencia || '—'}
                         </p>
                     </div>
-                    <button onClick={onClose} aria-label="Cerrar" style={{ color: 'var(--ash)' }}>
-                        <X size={18} />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                        {onSiguientePendiente && (
+                            <button
+                                onClick={() => onSiguientePendiente(pago.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
+                                style={{ background: 'var(--pb)', color: '#fff' }}>
+                                Siguiente pendiente <ArrowRight size={13} />
+                            </button>
+                        )}
+                        <button onClick={onClose} aria-label="Cerrar" style={{ color: 'var(--ash)' }}>
+                            <X size={18} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-6 space-y-6">
