@@ -51,11 +51,26 @@ export const TIPO_CLASIFICACION_LABELS = {
     proyecto_inversion_atrasado: 'Proyecto de Inversión Atrasado',
 };
 
+/* Estilo del badge por fila — usa siempre el estado GRANULAR que devuelve el
+   backend (nunca 'completo', ver ESTADO_CLASIF_FILTROS más abajo). */
 export const ESTADO_CLASIF_STYLE = {
     sin_clasificar:      { label: 'Sin clasificar',    color: 'var(--ash)', bg: 'var(--ash-light)' },
     parcial:             { label: 'Parcial',            color: '#ca8a04',   bg: '#fef9c3' },
     completo_automatico: { label: '✓ Automático',       color: '#16a34a',   bg: '#dcfce7' },
     completo_manual:     { label: '✓ Clasificado',      color: '#16a34a',   bg: '#dcfce7' },
+};
+
+/* Opciones del filtro/select "estado" en Clasificación de Pagos. 'completo' es
+   un alias que el backend agrupa como completo_automatico + completo_manual
+   (ver _estado_coincide en cobranza/views.py) — antes solo existían las dos
+   opciones separadas, así que elegir una escondía la mitad de lo que en la
+   práctica ya estaba completo (el usuario reportó "no muestra realmente los
+   completados"). Se usa tanto para el filtro en pantalla como para el
+   Excel/PDF del desglose contable, que ahora también respeta este parámetro. */
+export const ESTADO_CLASIF_FILTROS = {
+    sin_clasificar: 'Sin clasificar',
+    parcial:        'Parcial',
+    completo:       '✓ Completado (automático o manual)',
 };
 
 export const METODO_LABELS = {

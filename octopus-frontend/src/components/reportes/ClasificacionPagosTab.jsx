@@ -15,7 +15,7 @@ import {
 import { TableRowSkeleton } from '../shared/Skeleton';
 import {
     today, daysAgo, fmt, getErrorMessage, MONTH_NAMES,
-    TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, inputStyle, cardStyle,
+    TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, ESTADO_CLASIF_FILTROS, inputStyle, cardStyle,
 } from '../../constants/reportes';
 import BancoSelect from './BancoSelect';
 
@@ -173,10 +173,11 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 representante_documento: clasifRepDocumentoDebounced || undefined,
                 concepto: clasifConceptoExport !== 'todos' ? clasifConceptoExport : undefined,
                 banco: clasifBancoExport !== 'todos' ? clasifBancoExport : undefined,
+                estado: clasifEstado !== 'todos' ? clasifEstado : undefined,
             });
             const filas = res.data?.results || [];
             if (!filas.length) {
-                toast.info('No hay movimientos en el período seleccionado.');
+                toast.info('No hay movimientos que coincidan con los filtros seleccionados.');
                 return;
             }
             const rows = filas.map(f => ({
@@ -208,7 +209,8 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
             XLSX.utils.book_append_sheet(wb, ws, 'Desglose Contable');
             const sufijoConcepto = clasifConceptoExport !== 'todos' ? `_${clasifConceptoExport}` : '';
             const sufijoBanco = clasifBancoExport !== 'todos' ? `_${bancoExportLabel(clasifBancoExport).replace(/\s+/g, '-')}` : '';
-            XLSX.writeFile(wb, `desglose_contable${sufijoConcepto}${sufijoBanco}_${clasifFechaInicio}_${clasifFechaFin}.xlsx`);
+            const sufijoEstado = clasifEstado !== 'todos' ? `_${clasifEstado}` : '';
+            XLSX.writeFile(wb, `desglose_contable${sufijoConcepto}${sufijoBanco}${sufijoEstado}_${clasifFechaInicio}_${clasifFechaFin}.xlsx`);
             toast.success('Archivo Excel descargado.');
         } catch (err) {
             // El backend limita el rango a 92 días (~3 meses) para no sobrecargar la consulta.
@@ -227,10 +229,11 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 representante_documento: clasifRepDocumentoDebounced || undefined,
                 concepto: clasifConceptoExport !== 'todos' ? clasifConceptoExport : undefined,
                 banco: clasifBancoExport !== 'todos' ? clasifBancoExport : undefined,
+                estado: clasifEstado !== 'todos' ? clasifEstado : undefined,
             });
             const filas = res.data?.results || [];
             if (!filas.length) {
-                toast.info('No hay movimientos en el período seleccionado.');
+                toast.info('No hay movimientos que coincidan con los filtros seleccionados.');
                 return;
             }
 
@@ -244,7 +247,8 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
             doc.text(
                 `Período: ${clasifFechaInicio}  —  ${clasifFechaFin}`
                 + (clasifConceptoExport !== 'todos' ? `   ·   Concepto: ${CONCEPTO_EXPORT_LABELS[clasifConceptoExport]}` : '')
-                + (clasifBancoExport !== 'todos' ? `   ·   Banco: ${bancoExportLabel(clasifBancoExport)}` : ''),
+                + (clasifBancoExport !== 'todos' ? `   ·   Banco: ${bancoExportLabel(clasifBancoExport)}` : '')
+                + (clasifEstado !== 'todos' ? `   ·   Estado: ${ESTADO_CLASIF_FILTROS[clasifEstado]}` : ''),
                 14, 25,
             );
             doc.setTextColor(0);
@@ -293,7 +297,8 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
 
             const sufijoConceptoPdf = clasifConceptoExport !== 'todos' ? `_${clasifConceptoExport}` : '';
             const sufijoBancoPdf = clasifBancoExport !== 'todos' ? `_${bancoExportLabel(clasifBancoExport).replace(/\s+/g, '-')}` : '';
-            doc.save(`desglose_contable${sufijoConceptoPdf}${sufijoBancoPdf}_${clasifFechaInicio}_${clasifFechaFin}.pdf`);
+            const sufijoEstadoPdf = clasifEstado !== 'todos' ? `_${clasifEstado}` : '';
+            doc.save(`desglose_contable${sufijoConceptoPdf}${sufijoBancoPdf}${sufijoEstadoPdf}_${clasifFechaInicio}_${clasifFechaFin}.pdf`);
             toast.success('Reporte PDF generado correctamente.');
         } catch (err) {
             toast.error(getErrorMessage(err, 'No se pudo generar el PDF del desglose contable.'));
@@ -362,8 +367,8 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     className="px-3 py-2 rounded-lg text-sm outline-none"
                     style={inputStyle}>
                     <option value="todos">Todos los estados</option>
-                    {Object.entries(ESTADO_CLASIF_STYLE).map(([val, s]) => (
-                        <option key={val} value={val}>{s.label}</option>
+                    {Object.entries(ESTADO_CLASIF_FILTROS).map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
                     ))}
                 </select>
             </div>

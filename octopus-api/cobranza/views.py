@@ -1324,6 +1324,23 @@ def _calcular_estado_clasificacion(monto_operacion, monto_auto, monto_manual):
     return estado, monto_cubierto, monto_pendiente
 
 
+_ESTADOS_COMPLETO = ('completo_automatico', 'completo_manual')
+
+
+def _estado_coincide(estado_filtro, estado):
+    """Compara el estado de una operación contra el filtro pedido. 'completo'
+    es un alias que agrupa completo_automatico + completo_manual: desde la UI
+    el contador normalmente quiere ver "todo lo ya resuelto" sin importar si
+    vino del desglose automático o de una clasificación manual — antes solo
+    existían las dos opciones separadas, así que filtrar por una escondía la
+    mitad de lo que en la práctica ya estaba completo."""
+    if estado_filtro in ('todos', ''):
+        return True
+    if estado_filtro == 'completo':
+        return estado in _ESTADOS_COMPLETO
+    return estado == estado_filtro
+
+
 def _resumen_clasificacion_pago(pago):
     """Resumen de cuánto de la OPERACIÓN de un pago ya está explicado (por
     desglose automático y/o clasificación manual), reusado por las 3 vistas
@@ -1361,6 +1378,52 @@ def _resumen_clasificacion_pago(pago):
         'monto_pendiente_usd': str(monto_pendiente.quantize(Decimal('0.01'))),
         'estado_clasificacion': estado,
     }
+
+
+def _estados_por_operacion(operacion_uuids):
+    """Estado de clasificación (sin_clasificar/parcial/completo_automatico/
+    completo_manual) por operación, para un conjunto de `operacion_uuid`.
+    Batch equivalente al cálculo que hace EstadoClasificacionPagosView.get,
+    reusado por DesgloseContableView para poder filtrar el Excel/PDF por el
+    mismo 'estado' que se ve en pantalla (antes ese endpoint no aceptaba
+    `estado` y siempre imprimía TODO, sin importar el filtro elegido)."""
+    uuids = list(operacion_uuids)
+    if not uuids:
+        return {}
+
+    totales_operacion = {
+        row['operacion_uuid']: row['s']
+        for row in Pago.objects.filter(operacion_uuid__in=uuids).exclude(estatus='anulado')
+        .values('operacion_uuid').annotate(s=Sum('monto_usd'))
+    }
+    totales_manual = {
+        row['pago__operacion_uuid']: row['s']
+        for row in ClasificacionPagoManual.objects.filter(pago__operacion_uuid__in=uuids)
+        .values('pago__operacion_uuid').annotate(s=Sum('monto_usd'))
+    }
+    principales = {}
+    for p in (
+        Pago.objects.filter(operacion_uuid__in=uuids)
+        .prefetch_related(
+            'mensualidades_pagadas__alumno',
+            'cuotas_inscripcion_pagadas__alumno',
+            'cuotas_solvencia_pagadas__alumno',
+            'proyectos_inversion_pagados__representante',
+        )
+        .order_by('operacion_uuid', 'id')
+    ):
+        principales.setdefault(p.operacion_uuid, p)
+
+    estados = {}
+    for uuid_op in uuids:
+        principal = principales.get(uuid_op)
+        lineas_auto = calcular_desglose_automatico(principal) if principal else []
+        monto_auto = sum((Decimal(l['monto_usd']) for l in lineas_auto), Decimal('0'))
+        monto_operacion = totales_operacion.get(uuid_op) or Decimal('0')
+        monto_manual = totales_manual.get(uuid_op) or Decimal('0')
+        estado, _, _ = _calcular_estado_clasificacion(monto_operacion, monto_auto, monto_manual)
+        estados[uuid_op] = estado
+    return estados
 
 
 def _validar_datos_clasificacion(data, parcial=False):
@@ -1526,7 +1589,7 @@ class EstadoClasificacionPagosView(APIView):
                 'monto_pendiente_usd': str(monto_pendiente.quantize(Decimal('0.01'))),
                 'estado_clasificacion': estado,
             }
-            if estado_filtro != 'todos' and estado != estado_filtro:
+            if not _estado_coincide(estado_filtro, estado):
                 continue
 
             if concepto_filtro and concepto_filtro != 'todos':
@@ -1764,6 +1827,7 @@ class DesgloseContableView(APIView):
             alumno_nombre = f"{pago.alumno.nombre} {pago.alumno.apellido}".strip() if pago.alumno else None
             base = {
                 'pago_id': pago.id,
+                'operacion_uuid': str(pago.operacion_uuid),
                 'fecha_pago': pago.fecha_pago.isoformat() if pago.fecha_pago else None,
                 'factura_id': pago.factura_id,
                 'referencia': pago.referencia,
@@ -1878,6 +1942,26 @@ class DesgloseContableView(APIView):
                 if not BancoInstitucional.objects.filter(id=banco_id).exists():
                     return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
                 filas = [f for f in filas if f['banco_receptor_id'] == banco_id]
+
+        # 'estado' filtra por el estado de clasificación de la OPERACIÓN dueña
+        # de cada fila (mismo criterio que la tabla en pantalla, incluyendo el
+        # alias 'completo' = completo_automatico + completo_manual) — antes
+        # este endpoint no aceptaba este parámetro y el Excel/PDF siempre
+        # imprimía todas las filas del rango, sin importar qué estado hubiera
+        # elegido el contador en la pantalla de Clasificación de Pagos.
+        estado_filtro = request.query_params.get('estado', 'todos')
+        estados_validos = ('todos', '', 'sin_clasificar', 'parcial', 'completo_automatico', 'completo_manual', 'completo')
+        if estado_filtro not in estados_validos:
+            return Response(
+                {'error': f"estado inválido. Use uno de: {', '.join(v for v in estados_validos if v)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if estado_filtro not in ('todos', ''):
+            estados_por_operacion = _estados_por_operacion({f['operacion_uuid'] for f in filas})
+            filas = [
+                f for f in filas
+                if _estado_coincide(estado_filtro, estados_por_operacion.get(f['operacion_uuid'], 'sin_clasificar'))
+            ]
 
         return Response({'total_filas': len(filas), 'results': filas})
 
