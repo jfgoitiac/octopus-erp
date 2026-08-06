@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Loader2, Search, FileSpreadsheet, X, Layers, FilePlus2, CheckCircle2, Eye,
+    ChevronDown, ChevronRight, Users,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -136,6 +137,53 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         registerUpdateHandler?.(handlePagoActualizado);
         return () => registerUpdateHandler?.(null);
     }, [registerUpdateHandler, handlePagoActualizado]);
+
+    /* Agrupa la página actual de pagos por representante (no por alumno/pago
+       suelto) — un representante puede tener varios hijos, y ver cada pago
+       como fila individual obligaba a "buscar" mentalmente cuáles eran del
+       mismo representante. La clave usa el documento y cae al nombre solo si
+       falta (no debería pasar en datos reales, pero evita perder filas). */
+    const clavePorRepresentante = (p) => p.representante_documento || `sin-documento:${p.representante_nombre || 'desconocido'}`;
+
+    const gruposPorRepresentante = useMemo(() => {
+        const mapa = new Map();
+        const orden = [];
+        clasifPagos.forEach(p => {
+            const clave = clavePorRepresentante(p);
+            if (!mapa.has(clave)) {
+                mapa.set(clave, {
+                    clave,
+                    representante_nombre: p.representante_nombre,
+                    representante_documento: p.representante_documento,
+                    pagos: [],
+                });
+                orden.push(clave);
+            }
+            mapa.get(clave).pagos.push(p);
+        });
+        return orden.map(clave => mapa.get(clave));
+    }, [clasifPagos]);
+
+    const [repsColapsados, setRepsColapsados] = useState(() => new Set());
+
+    // Por defecto colapsa los representantes cuyos pagos YA están completamente
+    // clasificados a mano (completo_manual, el único estado ya auditado — ver
+    // ESTADO_CLASIF_STYLE): así el trabajo pendiente queda expandido y a la
+    // vista, sin tener que abrir grupo por grupo para encontrarlo. El usuario
+    // igual puede expandir/colapsar cualquier grupo manualmente después.
+    useEffect(() => {
+        setRepsColapsados(new Set(
+            gruposPorRepresentante
+                .filter(g => g.pagos.every(p => p.estado_clasificacion === 'completo_manual'))
+                .map(g => g.clave),
+        ));
+    }, [gruposPorRepresentante]);
+
+    const toggleRep = (clave) => setRepsColapsados(prev => {
+        const next = new Set(prev);
+        if (next.has(clave)) next.delete(clave); else next.add(clave);
+        return next;
+    });
 
     const mesLabelDesglose = (fila) => {
         if (fila.mes && fila.anio) {
@@ -416,14 +464,14 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 </button>
             </div>
 
-            {/* Tabla */}
+            {/* Tabla — agrupada por representante (no por alumno/pago suelto), para no
+                tener que "buscar" mentalmente cuáles filas pertenecen al mismo pagador. */}
             <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
                 <table className="w-full text-sm min-w-[900px]">
                     <thead>
                         <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Fecha</th>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Alumno</th>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Representante</th>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Referencia</th>
                             <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto</th>
                             <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Concepto</th>
@@ -434,10 +482,10 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     </thead>
                     <tbody>
                         {loadingClasif ? (
-                            <TableRowSkeleton cols={9} rows={6} />
+                            <TableRowSkeleton cols={8} rows={6} />
                         ) : clasifPagos.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="text-center py-10">
+                                <td colSpan={8} className="text-center py-10">
                                     <p className="text-sm mb-2" style={{ color: 'var(--ash)' }}>
                                         No hay pagos que coincidan con el filtro.
                                     </p>
@@ -450,63 +498,97 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                                 </td>
                             </tr>
                         ) : (
-                            clasifPagos.map((p, idx) => {
-                                const estStyle = ESTADO_CLASIF_STYLE[p.estado_clasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
-                                const esMixto = p.concepto === 'mixto';
-                                // Solo 'completo_manual' cuenta como ya auditado: alguien lo revisó y
-                                // clasificó a mano. 'completo_automatico' NO se trata como resuelto —
-                                // el desglose automático explica el dinero, pero cada transacción igual
-                                // debe pasar por revisión humana, así que esas filas siguen activas
-                                // (azules) en vez de atenuarse como si no requirieran acción.
-                                const yaClasificado = p.estado_clasificacion === 'completo_manual';
-                                const fecha = p.fecha_pago
-                                    ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                    : '—';
+                            gruposPorRepresentante.map((grupo) => {
+                                const colapsado = repsColapsados.has(grupo.clave);
+                                const pendientes = grupo.pagos.filter(p => p.estado_clasificacion !== 'completo_manual').length;
+                                const totalGrupoUsd = grupo.pagos.reduce((s, p) => s + parseFloat(p.monto_usd || 0), 0);
                                 return (
-                                    <tr
-                                        key={p.id}
-                                        onClick={() => onSeleccionarPago(p)}
-                                        className="cursor-pointer"
-                                        style={{
-                                            background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
-                                            borderBottom: '0.5px solid var(--border-md)',
-                                            borderLeft: yaClasificado ? '3px solid #16a34a' : '3px solid transparent',
-                                            opacity: yaClasificado ? 0.55 : 1,
-                                        }}>
-                                        <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
-                                        <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{p.alumno || '—'}</td>
-                                        <td className="px-4 py-3">
-                                            <p style={{ color: 'var(--jet)' }}>{p.representante_nombre || '—'}</p>
-                                            <p className="text-[11px] font-mono" style={{ color: 'var(--ash)' }}>{p.representante_documento || '—'}</p>
-                                        </td>
-                                        <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.referencia || '—'}</td>
-                                        <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</td>
-                                        <td className="px-4 py-3">
-                                            <span className="font-medium" style={{ color: esMixto && !yaClasificado ? 'var(--red)' : 'var(--jet)' }}>
-                                                {p.concepto_display || p.concepto || '—'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
-                                                style={{ background: estStyle.bg, color: estStyle.color }}>
-                                                {yaClasificado && <CheckCircle2 size={11} />}
-                                                {estStyle.label}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: 'var(--ash)' }}>
-                                            ${fmt(p.monto_clasificado_usd)} / ${fmt(p.monto_pendiente_usd)}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onSeleccionarPago(p); }}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
-                                                style={yaClasificado
-                                                    ? { background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
-                                                    : { background: 'var(--pb)', color: '#fff' }}>
-                                                {yaClasificado ? <><Eye size={13} /> Ver</> : 'Clasificar'}
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <Fragment key={grupo.clave}>
+                                        <tr
+                                            onClick={() => toggleRep(grupo.clave)}
+                                            className="cursor-pointer"
+                                            style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
+                                            <td colSpan={8} className="px-4 py-2.5">
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    {colapsado ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+                                                    <Users size={14} style={{ color: 'var(--pb)' }} />
+                                                    <span className="font-semibold" style={{ color: 'var(--jet)' }}>
+                                                        {grupo.representante_nombre || 'Representante sin nombre'}
+                                                    </span>
+                                                    <span className="text-xs font-mono" style={{ color: 'var(--ash)' }}>
+                                                        {grupo.representante_documento || 'sin documento'}
+                                                    </span>
+                                                    <span className="text-xs" style={{ color: 'var(--ash)' }}>
+                                                        {grupo.pagos.length} pago{grupo.pagos.length !== 1 ? 's' : ''} · ${fmt(totalGrupoUsd)}
+                                                    </span>
+                                                    {pendientes > 0 ? (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase" style={{ background: '#fef9c3', color: '#ca8a04' }}>
+                                                            {pendientes} por revisar
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase" style={{ background: '#dcfce7', color: '#16a34a' }}>
+                                                            <CheckCircle2 size={11} /> Auditado
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {!colapsado && grupo.pagos.map((p, idx) => {
+                                            const estStyle = ESTADO_CLASIF_STYLE[p.estado_clasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
+                                            const esMixto = p.concepto === 'mixto';
+                                            // Solo 'completo_manual' cuenta como ya auditado: alguien lo revisó y
+                                            // clasificó a mano. 'completo_automatico' NO se trata como resuelto —
+                                            // el desglose automático explica el dinero, pero cada transacción igual
+                                            // debe pasar por revisión humana, así que esas filas siguen activas
+                                            // (azules) en vez de atenuarse como si no requirieran acción.
+                                            const yaClasificado = p.estado_clasificacion === 'completo_manual';
+                                            const fecha = p.fecha_pago
+                                                ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                : '—';
+                                            return (
+                                                <tr
+                                                    key={p.id}
+                                                    onClick={() => onSeleccionarPago(p)}
+                                                    className="cursor-pointer"
+                                                    style={{
+                                                        background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
+                                                        borderBottom: '0.5px solid var(--border-md)',
+                                                        borderLeft: yaClasificado ? '3px solid #16a34a' : '3px solid transparent',
+                                                        opacity: yaClasificado ? 0.55 : 1,
+                                                    }}>
+                                                    <td className="pl-8 pr-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
+                                                    <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{p.alumno || '—'}</td>
+                                                    <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.referencia || '—'}</td>
+                                                    <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="font-medium" style={{ color: esMixto && !yaClasificado ? 'var(--red)' : 'var(--jet)' }}>
+                                                            {p.concepto_display || p.concepto || '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
+                                                            style={{ background: estStyle.bg, color: estStyle.color }}>
+                                                            {yaClasificado && <CheckCircle2 size={11} />}
+                                                            {estStyle.label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: 'var(--ash)' }}>
+                                                        ${fmt(p.monto_clasificado_usd)} / ${fmt(p.monto_pendiente_usd)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onSeleccionarPago(p); }}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
+                                                            style={yaClasificado
+                                                                ? { background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
+                                                                : { background: 'var(--pb)', color: '#fff' }}>
+                                                            {yaClasificado ? <><Eye size={13} /> Ver</> : 'Clasificar'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </Fragment>
                                 );
                             })
                         )}
