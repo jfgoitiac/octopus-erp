@@ -453,11 +453,12 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                             clasifPagos.map((p, idx) => {
                                 const estStyle = ESTADO_CLASIF_STYLE[p.estado_clasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
                                 const esMixto = p.concepto === 'mixto';
-                                // Ya cubierto por completo (automático o manual): no requiere acción del
-                                // contador. Se atenúa la fila y se cambia el botón a "Ver" para que la
-                                // vista se recorra rápido buscando solo lo pendiente (sin_clasificar/parcial).
-                                const yaClasificado = p.estado_clasificacion === 'completo_automatico'
-                                    || p.estado_clasificacion === 'completo_manual';
+                                // Solo 'completo_manual' cuenta como ya auditado: alguien lo revisó y
+                                // clasificó a mano. 'completo_automatico' NO se trata como resuelto —
+                                // el desglose automático explica el dinero, pero cada transacción igual
+                                // debe pasar por revisión humana, así que esas filas siguen activas
+                                // (azules) en vez de atenuarse como si no requirieran acción.
+                                const yaClasificado = p.estado_clasificacion === 'completo_manual';
                                 const fecha = p.fecha_pago
                                     ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
                                     : '—';

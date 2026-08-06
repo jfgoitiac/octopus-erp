@@ -51,26 +51,29 @@ export const TIPO_CLASIFICACION_LABELS = {
     proyecto_inversion_atrasado: 'Proyecto de Inversión Atrasado',
 };
 
-/* Estilo del badge por fila — usa siempre el estado GRANULAR que devuelve el
-   backend (nunca 'completo', ver ESTADO_CLASIF_FILTROS más abajo). */
+/* Estilo del badge por fila. IMPORTANTE: 'completo_automatico' NO es sinónimo
+   de "ya auditado" — el desglose automático explica de dónde salió el dinero,
+   pero cada transacción igual debe pasar por revisión humana. Por eso se
+   pinta AZUL (pendiente de auditar), no verde. Solo 'completo_manual'
+   (clasificado a mano por un operador) se pinta VERDE — es el único estado
+   que representa trabajo ya auditado y que no hace falta revisar de nuevo. */
 export const ESTADO_CLASIF_STYLE = {
-    sin_clasificar:      { label: 'Sin clasificar',    color: 'var(--ash)', bg: 'var(--ash-light)' },
-    parcial:             { label: 'Parcial',            color: '#ca8a04',   bg: '#fef9c3' },
-    completo_automatico: { label: '✓ Automático',       color: '#16a34a',   bg: '#dcfce7' },
-    completo_manual:     { label: '✓ Clasificado',      color: '#16a34a',   bg: '#dcfce7' },
+    sin_clasificar:      { label: 'Sin clasificar',        color: 'var(--ash)', bg: 'var(--ash-light)' },
+    parcial:             { label: 'Parcial',                color: '#ca8a04',   bg: '#fef9c3' },
+    completo_automatico: { label: 'Automático · auditar',   color: '#2563eb',   bg: '#dbeafe' },
+    completo_manual:     { label: '✓ Clasificado (operador)', color: '#16a34a', bg: '#dcfce7' },
 };
 
-/* Opciones del filtro/select "estado" en Clasificación de Pagos. 'completo' es
-   un alias que el backend agrupa como completo_automatico + completo_manual
-   (ver _estado_coincide en cobranza/views.py) — antes solo existían las dos
-   opciones separadas, así que elegir una escondía la mitad de lo que en la
-   práctica ya estaba completo (el usuario reportó "no muestra realmente los
-   completados"). Se usa tanto para el filtro en pantalla como para el
-   Excel/PDF del desglose contable, que ahora también respeta este parámetro. */
+/* Opciones del filtro/select "estado" en Clasificación de Pagos — un valor por
+   cada estado granular que devuelve el backend, sin agrupar automático con
+   manual (ver nota en ESTADO_CLASIF_STYLE de por qué no son equivalentes).
+   Se usa tanto para el filtro en pantalla como para el Excel/PDF del desglose
+   contable, que respeta este mismo parámetro. */
 export const ESTADO_CLASIF_FILTROS = {
-    sin_clasificar: 'Sin clasificar',
-    parcial:        'Parcial',
-    completo:       '✓ Completado (automático o manual)',
+    sin_clasificar:      'Sin clasificar',
+    parcial:             'Parcial',
+    completo_automatico: 'Automático (pendiente de auditar)',
+    completo_manual:     '✓ Clasificado por operador',
 };
 
 export const METODO_LABELS = {

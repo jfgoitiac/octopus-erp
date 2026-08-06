@@ -1324,20 +1324,18 @@ def _calcular_estado_clasificacion(monto_operacion, monto_auto, monto_manual):
     return estado, monto_cubierto, monto_pendiente
 
 
-_ESTADOS_COMPLETO = ('completo_automatico', 'completo_manual')
-
-
 def _estado_coincide(estado_filtro, estado):
-    """Compara el estado de una operación contra el filtro pedido. 'completo'
-    es un alias que agrupa completo_automatico + completo_manual: desde la UI
-    el contador normalmente quiere ver "todo lo ya resuelto" sin importar si
-    vino del desglose automático o de una clasificación manual — antes solo
-    existían las dos opciones separadas, así que filtrar por una escondía la
-    mitad de lo que en la práctica ya estaba completo."""
+    """Compara el estado de una operación contra el filtro pedido.
+
+    'completo_automatico' NO se trata como sinónimo de 'ya auditado': el
+    desglose automático explica de dónde salió el dinero, pero cada
+    transacción igual debe pasar por revisión humana antes de darse por
+    buena — solo 'completo_manual' (clasificado a mano por el contador)
+    representa trabajo ya auditado. Por eso, a diferencia de una versión
+    anterior de este helper, NO existe un alias que agrupe ambos estados
+    como "completo": cada uno se filtra por separado."""
     if estado_filtro in ('todos', ''):
         return True
-    if estado_filtro == 'completo':
-        return estado in _ESTADOS_COMPLETO
     return estado == estado_filtro
 
 
@@ -1944,13 +1942,12 @@ class DesgloseContableView(APIView):
                 filas = [f for f in filas if f['banco_receptor_id'] == banco_id]
 
         # 'estado' filtra por el estado de clasificación de la OPERACIÓN dueña
-        # de cada fila (mismo criterio que la tabla en pantalla, incluyendo el
-        # alias 'completo' = completo_automatico + completo_manual) — antes
-        # este endpoint no aceptaba este parámetro y el Excel/PDF siempre
-        # imprimía todas las filas del rango, sin importar qué estado hubiera
-        # elegido el contador en la pantalla de Clasificación de Pagos.
+        # de cada fila (mismo criterio que la tabla en pantalla) — antes este
+        # endpoint no aceptaba este parámetro y el Excel/PDF siempre imprimía
+        # todas las filas del rango, sin importar qué estado hubiera elegido
+        # el contador en la pantalla de Clasificación de Pagos.
         estado_filtro = request.query_params.get('estado', 'todos')
-        estados_validos = ('todos', '', 'sin_clasificar', 'parcial', 'completo_automatico', 'completo_manual', 'completo')
+        estados_validos = ('todos', '', 'sin_clasificar', 'parcial', 'completo_automatico', 'completo_manual')
         if estado_filtro not in estados_validos:
             return Response(
                 {'error': f"estado inválido. Use uno de: {', '.join(v for v in estados_validos if v)}."},
