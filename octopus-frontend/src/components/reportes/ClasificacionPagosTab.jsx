@@ -189,7 +189,12 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         if (fila.mes && fila.anio) {
             return `${fila.mes_display || MONTH_NAMES[fila.mes - 1]} ${fila.anio}`;
         }
-        return '';
+        // Para inscripción/solvencia/proyecto de inversión no hay mes/año, pero
+        // el backend manda el período (ej. "Período 2026-2027") en mes_display
+        // para poder distinguir en el reporte 2 cuotas del mismo alumno y
+        // concepto (ej. inscripción de 2 años escolares en un solo pago) que
+        // antes se veían como filas idénticas ("duplicadas").
+        return fila.mes_display || '';
     };
 
     const conceptoLabelDesglose = (fila) => {

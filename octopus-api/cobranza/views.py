@@ -1412,18 +1412,28 @@ def _estados_por_operacion(operacion_uuids):
     Batch equivalente al cálculo que hace EstadoClasificacionPagosView.get,
     reusado por DesgloseContableView para poder filtrar el Excel/PDF por el
     mismo 'estado' que se ve en pantalla (antes ese endpoint no aceptaba
-    `estado` y siempre imprimía TODO, sin importar el filtro elegido)."""
-    uuids = list(operacion_uuids)
+    `estado` y siempre imprimía TODO, sin importar el filtro elegido).
+
+    IMPORTANTE: todas las claves se normalizan a `str` porque el único
+    caller (DesgloseContableView) trabaja con `operacion_uuid` como string
+    (`str(pago.operacion_uuid)` en `filas`), mientras que Django devuelve
+    objetos `UUID` reales en `.values('operacion_uuid')`. Antes esta función
+    indexaba los diccionarios por UUID mientras el loop y el caller
+    comparaban con strings — el `.get()` nunca encontraba coincidencia y
+    CADA operación caía en 'sin_clasificar' sin importar sus clasificaciones
+    reales, rompiendo cualquier filtro de estado distinto de 'todos' en el
+    Excel/PDF (siempre 0 resultados)."""
+    uuids = [str(u) for u in operacion_uuids]
     if not uuids:
         return {}
 
     totales_operacion = {
-        row['operacion_uuid']: row['s']
+        str(row['operacion_uuid']): row['s']
         for row in Pago.objects.filter(operacion_uuid__in=uuids).exclude(estatus='anulado')
         .values('operacion_uuid').annotate(s=Sum('monto_usd'))
     }
     totales_manual = {
-        row['pago__operacion_uuid']: row['s']
+        str(row['pago__operacion_uuid']): row['s']
         for row in ClasificacionPagoManual.objects.filter(pago__operacion_uuid__in=uuids)
         .values('pago__operacion_uuid').annotate(s=Sum('monto_usd'))
     }
@@ -1438,7 +1448,7 @@ def _estados_por_operacion(operacion_uuids):
         )
         .order_by('operacion_uuid', 'id')
     ):
-        principales.setdefault(p.operacion_uuid, p)
+        principales.setdefault(str(p.operacion_uuid), p)
 
     estados = {}
     for uuid_op in uuids:
@@ -1903,7 +1913,19 @@ class DesgloseContableView(APIView):
             }
 
             principal = _principal_de(pago)
-            lineas_auto = calcular_desglose_automatico(principal) if principal else []
+            # _desglose_automatico_para_clasificacion() (no calcular_desglose_automatico()
+            # directo) para que este export use el mismo criterio que la pantalla
+            # (EstadoClasificacionPagosView) y que el filtro `estado` de más abajo
+            # (_estados_por_operacion): para operaciones anteriores a
+            # FECHA_CORTE_DESGLOSE_AUTOMATICO se ignora el M2M automático (posible
+            # "dinero fantasma") y se prioriza la clasificación manual del operador.
+            # Antes esto llamaba directo a calcular_desglose_automatico(), así que el
+            # Excel/PDF SIEMPRE mostraba el desglose automático viejo/residual y nunca
+            # llegaba a imprimir lo que el contador clasificó a mano — y como el filtro
+            # de estado sí usaba el criterio correcto pero se aplicaba sobre estas filas
+            # "equivocadas", cualquier combinación de estado+concepto que solo existiera
+            # en lo manual devolvía 0 resultados.
+            lineas_auto = _desglose_automatico_para_clasificacion(pago, principal) if principal else []
 
             if lineas_auto:
                 if pago.operacion_uuid in operaciones_con_desglose_auto:
@@ -1928,8 +1950,18 @@ class DesgloseContableView(APIView):
                 for linea in lineas_auto:
                     mes = linea.get('mes') if linea.get('clasificacion_temporal') == 'atrasado' else None
                     anio = linea.get('anio') if linea.get('clasificacion_temporal') == 'atrasado' else None
+                    # `linea['alumno']`/`linea['descripcion']` vienen del cuota real
+                    # (mensualidad/cuota_inscripcion/cuota_solvencia/proyecto_inversion)
+                    # detrás de esta línea, no del pago principal — una operación
+                    # puede cubrir a varios alumnos "hermanos" o varios períodos
+                    # (ej. inscripción de 2 hijos, o 2 años escolares) en una sola
+                    # transacción. Antes esta fila siempre heredaba el alumno del
+                    # pago principal y descartaba el período, así que 2 conceptos
+                    # reales y distintos (alumno u período distinto) se imprimían
+                    # como filas idénticas — parecían duplicados sin serlo.
                     filas.append({
                         **base_principal,
+                        'alumno_nombre': linea.get('alumno') or base_principal['alumno_nombre'],
                         'concepto': linea['concepto'],
                         'concepto_display': linea['concepto_display'],
                         'tipo': None,
@@ -1937,7 +1969,7 @@ class DesgloseContableView(APIView):
                         'categoria_concepto': _categoria_concepto_desglose(concepto=linea['concepto']),
                         'mes': mes,
                         'anio': anio,
-                        'mes_display': MESES_ES[mes - 1] if mes else None,
+                        'mes_display': (MESES_ES[mes - 1] if mes else None) or linea.get('descripcion'),
                         'origen': 'automatico',
                         'monto_usd': linea['monto_usd'],
                         'monto_ves': linea['monto_ves'],

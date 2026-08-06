@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from decimal import Decimal
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from django.core.management import call_command
 from io import StringIO
 from unittest.mock import patch
@@ -690,6 +690,88 @@ class DesgloseConceptosTest(TestCase):
         lineas = ComprobanteSerializer(pago).data['desglose_conceptos']
         self.assertEqual(len(lineas), 1)
         self.assertEqual(lineas[0]['clasificacion_temporal'], 'al_dia')
+
+
+class DesgloseContableManualPriorityTest(TestCase):
+    """Para una operación ANTERIOR a FECHA_CORTE_DESGLOSE_AUTOMATICO que tiene
+    tanto M2M automático (viejo/residual) como una ClasificacionPagoManual
+    posterior, DesgloseContableView (el Excel/PDF) debe imprimir la línea
+    MANUAL, no la automática — mismo criterio que ya usa la pantalla
+    (EstadoClasificacionPagosView) vía _desglose_automatico_para_clasificacion.
+    Antes este endpoint llamaba a calcular_desglose_automatico() directo, así
+    que siempre mostraba el automático viejo e ignoraba lo que el contador
+    reclasificó a mano, y los filtros de estado/concepto (que sí usan el
+    criterio correcto) no encontraban coincidencia con esas filas → 0
+    resultados aunque en pantalla sí hubiera datos."""
+
+    def setUp(self):
+        from .models import CuotaInscripcion, ClasificacionPagoManual
+
+        self.user = User.objects.create_superuser(
+            username='cajero_desglose_manual', password='password123', email='dm@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula="V55566688", nombre="Nora", apellido="Salas", correo="nora@example.com"
+        )
+        self.alumno = Alumno.objects.create(
+            nombre="Elio", apellido="Salas", cedula_escolar="E84000007",
+            fecha_nacimiento=date(2015, 3, 10), representante=self.representante
+        )
+        cuota = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+        )
+
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_inscripcion_ids": [cuota.id]}],
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "50.00"}],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+        self.pago = Pago.objects.filter(alumno=self.alumno).order_by('id').first()
+
+        # Simula una operación vieja: fuerza fecha_pago a antes del corte
+        # (auto_now_add no deja setearla al crear).
+        Pago.objects.filter(id=self.pago.id).update(fecha_pago=timezone.make_aware(datetime(2025, 1, 1)))
+        self.pago.refresh_from_db()
+
+        # El contador reclasifica a mano el mismo pago con un concepto
+        # DISTINTO al que ya tenía enlazado por M2M (inscripcion), para poder
+        # distinguir sin ambigüedad cuál de las dos fuentes ganó.
+        ClasificacionPagoManual.objects.create(
+            pago=self.pago, tipo='proyecto_inversion', monto_usd=Decimal('50.00'),
+            creado_por=self.user,
+        )
+
+    def _get_desglose(self, **params):
+        base = {
+            'fecha_desde': '2025-01-01', 'fecha_hasta': '2025-01-01',
+        }
+        base.update(params)
+        return self.client.get('/api/cobranza/pagos/desglose-contable/', base)
+
+    def test_export_prioriza_manual_sobre_automatico_viejo(self):
+        response = self._get_desglose()
+        self.assertEqual(response.status_code, 200, response.content)
+        filas = response.data['results']
+        self.assertEqual(len(filas), 1)
+        self.assertEqual(filas[0]['origen'], 'manual')
+        self.assertEqual(filas[0]['categoria_concepto'], 'proyecto_inversion')
+        self.assertEqual(filas[0]['monto_usd'], '50.00')
+
+    def test_filtro_estado_y_concepto_manual_no_devuelve_vacio(self):
+        response = self._get_desglose(estado='completo_manual', concepto='proyecto_inversion')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(len(response.data['results']), 1)
+
+    def test_filtro_concepto_automatico_viejo_ya_no_aparece(self):
+        # 'inscripcion' era el concepto del M2M automático (ignorado por ser
+        # una operación pre-corte) — ya no debe encontrarse ninguna fila.
+        response = self._get_desglose(concepto='inscripcion')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(len(response.data['results']), 0)
 
 
 class CalcularDatosAdministrativosInscripcionTest(TestCase):
