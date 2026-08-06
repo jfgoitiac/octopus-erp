@@ -558,7 +558,15 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                                                     }}>
                                                     <td className="pl-8 pr-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
                                                     <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{p.alumno || '—'}</td>
-                                                    <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.referencia || '—'}</td>
+                                                    <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>
+                                        {p.referencia || '—'}
+                                        {(p.metodo_pago_display || p.banco_receptor) && (
+                                            <span className="block font-sans not-italic" style={{ color: 'var(--pb)', fontSize: '10px' }}>
+                                                {p.metodo_pago_display}
+                                                {p.banco_receptor ? ` · ${p.banco_receptor}` : ''}
+                                            </span>
+                                        )}
+                                    </td>
                                                     <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</td>
                                                     <td className="px-4 py-3">
                                                         <span className="font-medium" style={{ color: esMixto && !yaClasificado ? 'var(--red)' : 'var(--jet)' }}>

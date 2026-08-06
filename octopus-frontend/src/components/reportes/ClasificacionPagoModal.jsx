@@ -10,7 +10,7 @@ import {
     actualizarClasificacionLinea,
     eliminarClasificacionLinea,
 } from '../../api/cobranza.service';
-import { fmt, MONTH_NAMES, CURRENT_YEAR, TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE } from '../../constants/reportes';
+import { fmt, MONTH_NAMES, CURRENT_YEAR, TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, getErrorMessage } from '../../constants/reportes';
 
 /**
  * Modal/drawer para desglosar un pago (especialmente los marcados como "mixto")
@@ -102,8 +102,8 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
             aplicarResumen(res.data.resumen);
             resetForm();
             toast.success('Línea de clasificación agregada.');
-        } catch {
-            toast.error('No se pudo guardar la línea de clasificación.');
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'No se pudo guardar la línea de clasificación.'));
         } finally {
             setGuardando(false);
         }
@@ -144,8 +144,8 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
             aplicarResumen(res.data.resumen);
             cancelarEdicion();
             toast.success('Línea de clasificación actualizada.');
-        } catch {
-            toast.error('No se pudo actualizar la línea de clasificación.');
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'No se pudo actualizar la línea de clasificación.'));
         } finally {
             setGuardandoEdicion(false);
         }

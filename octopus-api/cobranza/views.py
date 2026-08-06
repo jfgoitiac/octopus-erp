@@ -1288,6 +1288,34 @@ def _categoria_concepto_desglose(concepto=None, tipo=None, concepto_pago=None):
     return 'otro'
 
 
+# El desglose automático (M2M) sumado sin chequear solape contra las líneas
+# manuales fue la causa del bug de "dinero fantasma" en Clasificación de
+# Pagos (ej. un pago ya cubierto por su cuota de proyecto de inversión
+# enlazada, más una línea manual redundante, sumaba $140 de $70 — ver
+# _calcular_estado_clasificacion). El create/patch de líneas manuales ya
+# valida contra el pendiente real, pero los pagos registrados ANTES de este
+# corte pueden tener clasificaciones manuales viejas creadas cuando esa
+# validación no existía, así que para ellos se ignora el desglose automático
+# en el cálculo de estado/pendiente (queda solo lo manual) — así el operador
+# ve y corrige el dato real en vez de que el automático lo tape sumándose
+# encima. Los pagos nuevos (fecha_pago >= corte) sí usan automático+manual
+# normalmente.
+FECHA_CORTE_DESGLOSE_AUTOMATICO = timezone.make_aware(timezone.datetime(2026, 8, 6))
+
+
+def _desglose_automatico_para_clasificacion(pago_referencia, principal):
+    """calcular_desglose_automatico(), pero devuelve [] para operaciones
+    registradas antes de FECHA_CORTE_DESGLOSE_AUTOMATICO (ver nota arriba).
+    `pago_referencia` es cualquier Pago de la operación (para leer fecha_pago);
+    `principal` es el pago principal ya resuelto que se le pasa a
+    calcular_desglose_automatico()."""
+    if not principal:
+        return []
+    if pago_referencia.fecha_pago < FECHA_CORTE_DESGLOSE_AUTOMATICO:
+        return []
+    return calcular_desglose_automatico(principal)
+
+
 def _principal_de_pago(pago):
     """Pago 'principal' (primero por id) de la operación de `pago` — mismo
     criterio que DesgloseContableView, con el M2M prefetched para poder
@@ -1352,7 +1380,7 @@ def _resumen_clasificacion_pago(pago):
     el contador. Ahora se prioriza automático > manual, igual que
     DesgloseContableView."""
     principal = _principal_de_pago(pago)
-    lineas_auto = calcular_desglose_automatico(principal) if principal else []
+    lineas_auto = _desglose_automatico_para_clasificacion(pago, principal)
     monto_auto = sum((Decimal(l['monto_usd']) for l in lineas_auto), Decimal('0'))
 
     monto_operacion = Pago.objects.filter(
@@ -1415,7 +1443,7 @@ def _estados_por_operacion(operacion_uuids):
     estados = {}
     for uuid_op in uuids:
         principal = principales.get(uuid_op)
-        lineas_auto = calcular_desglose_automatico(principal) if principal else []
+        lineas_auto = _desglose_automatico_para_clasificacion(principal, principal)
         monto_auto = sum((Decimal(l['monto_usd']) for l in lineas_auto), Decimal('0'))
         monto_operacion = totales_operacion.get(uuid_op) or Decimal('0')
         monto_manual = totales_manual.get(uuid_op) or Decimal('0')
@@ -1485,7 +1513,7 @@ class EstadoClasificacionPagosView(APIView):
 
         filterset = PagoFilter(
             params_sin_concepto,
-            queryset=Pago.objects.select_related('alumno', 'alumno__representante')
+            queryset=Pago.objects.select_related('alumno', 'alumno__representante', 'banco_receptor')
             .prefetch_related('clasificaciones_manuales')
             .order_by('-fecha_pago'),
         )
@@ -1572,7 +1600,7 @@ class EstadoClasificacionPagosView(APIView):
         filas = []
         for pago in pagos_list:
             principal = principales.get(pago.operacion_uuid)
-            lineas_auto = calcular_desglose_automatico(principal) if principal else []
+            lineas_auto = _desglose_automatico_para_clasificacion(pago, principal)
             monto_auto = sum((Decimal(l['monto_usd']) for l in lineas_auto), Decimal('0'))
             monto_operacion = totales_operacion.get(pago.operacion_uuid) or Decimal('0')
             monto_manual = totales_manual.get(pago.operacion_uuid) or Decimal('0')
@@ -1625,6 +1653,7 @@ class EstadoClasificacionPagosView(APIView):
                 'monto_usd': resumen['monto_usd'],
                 'referencia': pago.referencia,
                 'metodo_pago_display': pago.get_metodo_pago_display(),
+                'banco_receptor': pago.banco_receptor.nombre if pago.banco_receptor else None,
                 'monto_operacion_usd': resumen['monto_operacion_usd'],
                 'monto_clasificado_usd': resumen['monto_clasificado_usd'],
                 'monto_pendiente_usd': resumen['monto_pendiente_usd'],
@@ -1656,6 +1685,25 @@ class ClasificacionPagoCreateView(APIView):
         errores = _validar_datos_clasificacion(request.data, parcial=False)
         if errores:
             return Response(errores, status=status.HTTP_400_BAD_REQUEST)
+
+        # Raíz del bug de "dinero fantasma": el desglose automático (M2M) y las
+        # líneas manuales se suman sin chequear solape (ver
+        # _calcular_estado_clasificacion). Si el pago ya está cubierto del
+        # todo por el automático (ej. proyecto_inversion ya enlazado a su
+        # cuota), agregar una línea manual duplicaba el monto sin que nada lo
+        # impidiera. Se valida aquí, antes de crear, contra lo que YA falta
+        # por clasificar en la operación.
+        resumen_previo = _resumen_clasificacion_pago(pago)
+        pendiente_previo = Decimal(resumen_previo['monto_pendiente_usd'])
+        monto_nuevo = Decimal(str(request.data.get('monto_usd')))
+        if monto_nuevo > pendiente_previo + Decimal('0.005'):
+            return Response({
+                'error': (
+                    f"El monto (${monto_nuevo}) excede lo pendiente por clasificar en la "
+                    f"operación (${pendiente_previo}). Es posible que ya esté cubierto por "
+                    "el desglose automático o por otra línea manual — revisa antes de agregar."
+                )
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         linea = ClasificacionPagoManual.objects.create(
             pago=pago,
@@ -1689,6 +1737,23 @@ class ClasificacionPagoDetailView(APIView):
         errores = _validar_datos_clasificacion({**data, 'tipo': tipo_resultante}, parcial=True)
         if errores:
             return Response(errores, status=status.HTTP_400_BAD_REQUEST)
+
+        if 'monto_usd' in data:
+            # Mismo chequeo que en la creación (ver nota ahí): al editar hay
+            # que devolverle a "lo pendiente" el monto actual de ESTA línea
+            # antes de comparar, porque ese monto ya está incluido en
+            # monto_pendiente_usd (se resta a sí mismo).
+            resumen_previo = _resumen_clasificacion_pago(linea.pago)
+            pendiente_disponible = Decimal(resumen_previo['monto_pendiente_usd']) + linea.monto_usd
+            monto_nuevo = Decimal(str(data.get('monto_usd')))
+            if monto_nuevo > pendiente_disponible + Decimal('0.005'):
+                return Response({
+                    'error': (
+                        f"El monto (${monto_nuevo}) excede lo pendiente por clasificar en la "
+                        f"operación (${pendiente_disponible}). Es posible que ya esté cubierto "
+                        "por el desglose automático o por otra línea manual — revisa antes de guardar."
+                    )
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         if 'tipo' in data:
             linea.tipo = data.get('tipo')
