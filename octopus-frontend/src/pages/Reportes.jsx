@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wallet, ListChecks, Layers, TrendingUp, BarChart2, Clock } from 'lucide-react';
+import { Wallet, ListChecks, Layers, TrendingUp, BarChart2, Clock, FileEdit } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getEstadoClasificacionPagos, getBancos } from '../api/cobranza.service';
 import ClasificacionPagoModal from '../components/reportes/ClasificacionPagoModal';
 import CierreCajaTab from '../components/reportes/CierreCajaTab';
 import ConciliacionTab from '../components/reportes/ConciliacionTab';
 import ClasificacionPagosTab from '../components/reportes/ClasificacionPagosTab';
+import CorreccionPagosTab from '../components/reportes/CorreccionPagosTab';
 import HistoricoMensualTab from '../components/reportes/HistoricoMensualTab';
 import BusinessIntelligenceTab from '../components/reportes/BusinessIntelligenceTab';
 import PuntualidadTab from '../components/reportes/PuntualidadTab';
@@ -14,6 +15,7 @@ const TABS = [
     { id: 'caja',          label: 'Cierre de Caja',        icon: Wallet,      group: 'diaria' },
     { id: 'conciliacion',  label: 'Conciliación',          icon: ListChecks,  group: 'diaria' },
     { id: 'clasificacion', label: 'Clasificación de Pagos', icon: Layers,      group: 'diaria' },
+    { id: 'correccion',    label: 'Corrección de Pagos',    icon: FileEdit,    group: 'diaria' },
     { id: 'historico',     label: 'Histórico Mensual',      icon: TrendingUp, group: 'analisis' },
     { id: 'bi',            label: 'Business Intelligence',  icon: BarChart2,  group: 'analisis' },
     { id: 'puntualidad',   label: 'Puntualidad',            icon: Clock,      group: 'analisis' },
@@ -172,6 +174,9 @@ const Reportes = () => {
                     registerUpdateHandler={registerClasifUpdateHandler}
                     registerPagosListHandler={registerClasifPagosList}
                 />
+            )}
+            {activeTab === 'correccion'    && (
+                <CorreccionPagosTab bancosDisponibles={bancosDisponibles} />
             )}
             {activeTab === 'historico'     && <HistoricoMensualTab />}
             {activeTab === 'bi'            && <BusinessIntelligenceTab />}

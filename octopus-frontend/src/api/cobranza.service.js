@@ -44,3 +44,14 @@ export const eliminarClasificacionLinea = (lineaId, signal) =>
 
 export const getDesgloseContable = (params, signal) =>
     apiClient.get('cobranza/pagos/desglose-contable/', { params, signal });
+
+/* ── Corrección de Pagos ── */
+
+export const listarPagos = (params, signal) =>
+    apiClient.get('cobranza/pagos/lista/', { params, signal });
+
+export const corregirPago = (pagoId, payload, signal) =>
+    apiClient.patch(`cobranza/pagos/${pagoId}/corregir/`, payload, { signal });
+
+export const cargarPagoRetroactivo = (payload, signal) =>
+    apiClient.post('cobranza/pagos/retroactivo/', payload, { signal });

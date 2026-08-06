@@ -602,4 +602,66 @@ class PagoCreateSerializer(serializers.Serializer):
         return data
 
 
+class CorreccionPagoSerializer(serializers.Serializer):
+    """
+    Función A del módulo de Corrección de Pagos: campos que se pueden
+    corregir in-place sobre un Pago ya existente. Todos opcionales salvo
+    `motivo` — el caller (CorregirPagoView) solo aplica los que vengan
+    presentes en el payload.
+    """
+    METODOS = [m[0] for m in Pago.METODOS]
+    metodo_pago = serializers.ChoiceField(choices=METODOS, required=False)
+    referencia = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    numero_lote = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+    banco_receptor = serializers.PrimaryKeyRelatedField(
+        queryset=BancoInstitucional.objects.all(), required=False, allow_null=True
+    )
+    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    motivo = serializers.CharField(min_length=10, required=True)
+
+
+class PagoRetroactivoSerializer(serializers.Serializer):
+    """
+    Función B del módulo de Corrección de Pagos: registra un pago simple
+    (un alumno, un concepto) cuyo dinero se recibió en una fecha pasada.
+    No soporta pagos mixtos/multi-alumno — para eso sigue existiendo
+    RegistrarPagoView.
+    """
+    METODOS = [m[0] for m in Pago.METODOS]
+    CONCEPTOS = [c[0] for c in Pago.CONCEPTOS]
+
+    alumno = serializers.PrimaryKeyRelatedField(queryset=Alumno.objects.all())
+    concepto = serializers.ChoiceField(choices=CONCEPTOS, default='mensualidad', required=False)
+    metodo_pago = serializers.ChoiceField(choices=METODOS)
+    monto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+    banco_receptor = serializers.PrimaryKeyRelatedField(
+        queryset=BancoInstitucional.objects.all(), required=False, allow_null=True
+    )
+    referencia = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    numero_lote = serializers.CharField(max_length=10, required=False, allow_blank=True, default='')
+    observaciones = serializers.CharField(required=False, allow_blank=True, default='')
+    representante_documento = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
+    representante_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True, default='')
+    fecha_pago = serializers.DateTimeField(required=True)
+    motivo = serializers.CharField(min_length=10, required=True)
+
+    def validate(self, data):
+        # Punto de Venta exige referencia/lote de 4 dígitos — igual que en
+        # Pago.clean(), se valida aquí también para dar un mensaje temprano
+        # y consistente con el resto del formulario (el modelo lo revalida
+        # de todas formas en full_clean()).
+        if data['metodo_pago'] == 'punto_de_venta':
+            ref_pos = (data.get('referencia') or '').strip()
+            lote_pos = (data.get('numero_lote') or '').strip()
+            if not ref_pos.isdigit() or len(ref_pos) != 4:
+                raise serializers.ValidationError(
+                    {'referencia': "Punto de Venta requiere un número de referencia de 4 dígitos."}
+                )
+            if not lote_pos.isdigit() or len(lote_pos) != 4:
+                raise serializers.ValidationError(
+                    {'numero_lote': "Punto de Venta requiere un número de lote de 4 dígitos."}
+                )
+        return data
+
+
         

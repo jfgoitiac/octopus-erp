@@ -7,6 +7,7 @@ from .views import (
     BancosAdminView,
     BancosListView,
     BuscarAlumnoCobranzaView,
+    CargarPagoRetroactivoView,
     ClasificacionPagoBatchCreateView,
     ClasificacionPagoCreateView,
     ClasificacionPagoDetailView,
@@ -15,6 +16,7 @@ from .views import (
     ConfigNominaView,
     ConsultaComprobantesView,
     ConsultaSolvenciaView,
+    CorregirPagoView,
     CuotaInscripcionAlumnoView,
     DashboardStatsView,
     DesgloseContableView,
@@ -73,4 +75,6 @@ urlpatterns = [
     path('pagos/clasificacion/batch/',     ClasificacionPagoBatchCreateView.as_view(), name='clasificacion-pago-batch'),
     path('pagos/clasificacion/<int:linea_id>/', ClasificacionPagoDetailView.as_view(), name='clasificacion-pago-detalle'),
     path('pagos/desglose-contable/',       DesgloseContableView.as_view(),         name='desglose-contable'),
+    path('pagos/<int:pago_id>/corregir/',  CorregirPagoView.as_view(),             name='corregir-pago'),
+    path('pagos/retroactivo/',             CargarPagoRetroactivoView.as_view(),    name='cargar-pago-retroactivo'),
 ]

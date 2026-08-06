@@ -4,6 +4,7 @@ from django.db.models import Sum
 from secretaria.models import Alumno
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from decimal import Decimal
 import uuid
 
@@ -117,7 +118,7 @@ class Pago(models.Model):
         editable=False,
         help_text="Equivalente contable en Bolívares"
     )
-    fecha_pago = models.DateTimeField(auto_now_add=True, db_index=True)
+    fecha_pago = models.DateTimeField(default=timezone.now, db_index=True)
     referencia = models.CharField(max_length=100, blank=True, null=True)
     numero_lote = models.CharField(
         max_length=10, blank=True, null=True,

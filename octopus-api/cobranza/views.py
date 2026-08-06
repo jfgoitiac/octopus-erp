@@ -4,6 +4,7 @@ from rest_framework import status, permissions
 from rest_framework.parsers import MultiPartParser
 from rest_framework import viewsets
 from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import FileResponse
 from django.utils import timezone
 import logging
@@ -12,8 +13,9 @@ from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Min, Q, Sum
 from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
-from .serializers import BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, calcular_desglose_automatico
+from .serializers import BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, calcular_desglose_automatico
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
+from . import correcciones
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
 from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
@@ -1747,6 +1749,64 @@ class ClasificacionPagoCreateView(APIView):
             'clasificacion': ClasificacionPagoManualSerializer(linea).data,
             'resumen': _resumen_clasificacion_pago(pago),
         }, status=status.HTTP_201_CREATED)
+
+
+class CorregirPagoView(APIView):
+    """
+    Función A del módulo de Corrección de Pagos: edita in-place datos mal
+    registrados de un pago existente (ej. método de pago equivocado). No
+    anula ni recrea el Pago — HistoricalRecords deja constancia del cambio.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def patch(self, request, pago_id):
+        try:
+            pago = Pago.objects.get(pk=pago_id)
+        except Pago.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if pago.estatus == 'anulado':
+            return Response(
+                {'error': 'No se puede corregir un pago anulado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = CorreccionPagoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cambios = dict(serializer.validated_data)
+        motivo = cambios.pop('motivo')
+
+        try:
+            pago_actualizado = correcciones.corregir_pago(pago, cambios, request.user, motivo)
+        except DjangoValidationError as e:
+            detail = e.message_dict if hasattr(e, 'message_dict') else {'error': e.messages}
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PagoSerializer(pago_actualizado).data, status=status.HTTP_200_OK)
+
+
+class CargarPagoRetroactivoView(APIView):
+    """
+    Función B del módulo de Corrección de Pagos: registra un pago simple
+    (un alumno, un concepto) cuyo dinero se recibió en el pasado, con
+    `fecha_pago` igual a la fecha real de recepción.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = PagoRetroactivoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = dict(serializer.validated_data)
+        motivo = datos.pop('motivo')
+
+        try:
+            pago = correcciones.cargar_pago_retroactivo(datos, request.user, motivo)
+        except DjangoValidationError as e:
+            detail = e.message_dict if hasattr(e, 'message_dict') else {'error': e.messages}
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PagoSerializer(pago).data, status=status.HTTP_201_CREATED)
 
 
 class ClasificacionPagoBatchCreateView(APIView):

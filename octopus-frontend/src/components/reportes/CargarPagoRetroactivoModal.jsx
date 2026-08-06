@@ -1,0 +1,390 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, PlusCircle, Loader2, Save, Search, User, AlertCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import DatePickerES from '../DatePickerES';
+import DecimalInput from '../DecimalInput';
+import { getDeudaAlumno, cargarPagoRetroactivo } from '../../api/cobranza.service';
+import { METODO_LABELS, today, getErrorMessage } from '../../constants/reportes';
+
+const MOTIVO_MIN_LEN = 10;
+
+// Mismas etiquetas que Cobranza.jsx / CobranzaStep2 (registro normal de pago),
+// sin 'mixto' (es un estado derivado del backend, no una opción manual).
+const CONCEPTOS = [
+    { value: 'mensualidad', label: 'Mensualidad' },
+    { value: 'inscripcion', label: 'Inscripción' },
+    { value: 'solvencia', label: 'Solvencia' },
+    { value: 'materiales', label: 'Materiales' },
+    { value: 'proyecto_inversion', label: 'Proyecto de Inversión' },
+    { value: 'multa', label: 'Multa' },
+    { value: 'otro', label: 'Otro' },
+];
+
+const requiereBanco = (m) => m && !['efectivo', 'efectivo_ves'].includes(m);
+
+/**
+ * Registra un pago cuyo dinero se recibió en el pasado (fecha_pago retroactiva),
+ * fuera del flujo normal de Cobranza.jsx. Busca al alumno por cédula del
+ * representante (mismo endpoint `cobranza/buscar/<cedula>/` que usa
+ * CobranzaStep1), igual que el registro normal, pero en un formulario reducido
+ * pensado para uso puntual/correctivo — no repite el flujo multi-alumno
+ * completo de Cobranza.jsx.
+ */
+const CargarPagoRetroactivoModal = ({ bancosDisponibles, onClose, onGuardado }) => {
+    const containerRef = useRef(null);
+    useFocusTrap(containerRef);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [onClose]);
+
+    // ── Búsqueda de alumno/representante por cédula ──
+    const [cedula, setCedula] = useState('');
+    const [buscando, setBuscando] = useState(false);
+    const [representante, setRepresentante] = useState(null);
+    const [alumnos, setAlumnos] = useState([]);
+    const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null);
+    const searchRef = useRef(null);
+    const abortRef = useRef(null);
+
+    const buscarAlumno = useCallback((val) => {
+        setCedula(val);
+        clearTimeout(searchRef.current);
+        abortRef.current?.abort();
+        setRepresentante(null);
+        setAlumnos([]);
+        setAlumnoSeleccionado(null);
+        if (val.trim().length > 6) {
+            setBuscando(true);
+            searchRef.current = setTimeout(async () => {
+                abortRef.current = new AbortController();
+                try {
+                    const res = await getDeudaAlumno(val.trim(), abortRef.current.signal);
+                    const alus = res.data?.alumnos || [];
+                    const rep = res.data?.representante || {};
+                    setRepresentante({
+                        cedula: rep.cedula || val.trim(),
+                        nombre: rep.nombre_completo || `${rep.nombre || ''} ${rep.apellido || ''}`.trim() || '—',
+                    });
+                    setAlumnos(alus);
+                    if (alus.length === 1) setAlumnoSeleccionado(alus[0]);
+                } catch (err) {
+                    if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+                    if (err.response?.status === 404) toast.info('Representante no encontrado.');
+                    else toast.error('Error al buscar. Verifica tu conexión.');
+                } finally {
+                    setBuscando(false);
+                }
+            }, 400);
+        } else {
+            setBuscando(false);
+        }
+    }, []);
+
+    // ── Datos del pago ──
+    const [concepto, setConcepto] = useState('mensualidad');
+    const [metodoPago, setMetodoPago] = useState('transferencia');
+    const [montoUsd, setMontoUsd] = useState('');
+    const [bancoReceptor, setBancoReceptor] = useState('');
+    const [referencia, setReferencia] = useState('');
+    const [numeroLote, setNumeroLote] = useState('');
+    const [fechaPago, setFechaPago] = useState(today);
+    const [motivo, setMotivo] = useState('');
+    const [touched, setTouched] = useState(false);
+    const [guardando, setGuardando] = useState(false);
+
+    const esPuntoDeVenta = metodoPago === 'punto_de_venta';
+    const bancoRequerido = requiereBanco(metodoPago);
+
+    const errores = {
+        alumno: !alumnoSeleccionado,
+        monto: !(parseFloat(montoUsd) > 0),
+        banco: bancoRequerido && !bancoReceptor,
+        lote: esPuntoDeVenta && (numeroLote || '').length !== 4,
+        referenciaPdv: esPuntoDeVenta && (referencia || '').length !== 4,
+        fecha: !fechaPago || fechaPago > today(),
+        motivo: motivo.trim().length < MOTIVO_MIN_LEN,
+    };
+    const hayErrores = Object.values(errores).some(Boolean);
+
+    const handleGuardar = async () => {
+        setTouched(true);
+        if (errores.alumno) { toast.warning('Busca y selecciona el alumno/representante.'); return; }
+        if (errores.monto) { toast.warning('Ingresa un monto USD válido.'); return; }
+        if (errores.banco) { toast.warning('Selecciona el banco receptor.'); return; }
+        if (errores.lote || errores.referenciaPdv) { toast.warning('Referencia y lote de Punto de Venta deben tener 4 dígitos.'); return; }
+        if (errores.fecha) { toast.warning('La fecha de pago no puede ser futura.'); return; }
+        if (errores.motivo) { toast.warning(`Explica el motivo (mínimo ${MOTIVO_MIN_LEN} caracteres).`); return; }
+
+        setGuardando(true);
+        try {
+            await cargarPagoRetroactivo({
+                alumno: alumnoSeleccionado.id,
+                concepto,
+                metodo_pago: metodoPago,
+                monto_usd: parseFloat(montoUsd),
+                banco_receptor: bancoRequerido ? (bancoReceptor || null) : null,
+                referencia,
+                numero_lote: esPuntoDeVenta ? numeroLote : '',
+                representante_documento: representante?.cedula,
+                representante_nombre: representante?.nombre,
+                fecha_pago: fechaPago,
+                motivo: motivo.trim(),
+            });
+            onGuardado();
+        } catch (err) {
+            // Ej.: período escolar cerrado, o el rango cae en un cierre de caja ya
+            // validado — se muestra el mensaje real del backend, sin reformular.
+            toast.error(getErrorMessage(err, 'No se pudo registrar el pago retroactivo.'));
+        } finally {
+            setGuardando(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
+            style={{ background: 'rgba(43,48,58,0.6)' }}
+            role="dialog" aria-modal="true" aria-labelledby="retroactivo-title">
+            <div
+                ref={containerRef}
+                className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl animate-fadeInUp"
+                style={{ background: '#fff' }}>
+                {/* Encabezado */}
+                <div className="px-6 py-4 flex items-start justify-between gap-3"
+                    style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <div>
+                        <h3 id="retroactivo-title" className="text-base font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+                            <PlusCircle size={18} style={{ color: 'var(--pb)' }} />
+                            Cargar Pago Retroactivo
+                        </h3>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
+                            Registra un pago cuyo dinero ya se recibió, con fecha en el pasado.
+                        </p>
+                    </div>
+                    <button onClick={onClose} aria-label="Cerrar" style={{ color: 'var(--ash)' }}
+                        className="flex items-center justify-center p-2 rounded-lg min-h-[44px] min-w-[44px]">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    {/* Búsqueda de alumno */}
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Cédula del representante
+                        </label>
+                        <div className="relative">
+                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
+                            <input
+                                type="text"
+                                value={cedula}
+                                onChange={e => buscarAlumno(e.target.value)}
+                                placeholder="Ej: V-12345678"
+                                className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: `0.5px solid ${touched && errores.alumno ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                            />
+                            {buscando && <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--pb)' }} />}
+                        </div>
+                        {touched && errores.alumno && (
+                            <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: 'var(--red)' }}>
+                                <AlertCircle size={11} /> Busca y selecciona el alumno.
+                            </p>
+                        )}
+                    </div>
+
+                    {representante && (
+                        <div className="rounded-lg p-3" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                            <p className="text-xs font-semibold" style={{ color: 'var(--jet)' }}>{representante.nombre}</p>
+                            <p className="text-[10px] font-mono" style={{ color: 'var(--ash)' }}>{representante.cedula}</p>
+                        </div>
+                    )}
+
+                    {/* Selección de alumno (si hay más de uno) */}
+                    {alumnos.length > 0 && (
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                Alumno
+                            </label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {alumnos.map(a => (
+                                    <button
+                                        key={a.id}
+                                        type="button"
+                                        onClick={() => setAlumnoSeleccionado(a)}
+                                        className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium"
+                                        style={{
+                                            border: alumnoSeleccionado?.id === a.id ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
+                                            background: alumnoSeleccionado?.id === a.id ? 'var(--pb-light)' : '#fff',
+                                            color: alumnoSeleccionado?.id === a.id ? 'var(--pb)' : 'var(--ash)',
+                                        }}>
+                                        <User size={12} />
+                                        {a.nombre_completo || a.nombre}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Concepto */}
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Concepto
+                        </label>
+                        <select
+                            value={concepto}
+                            onChange={e => setConcepto(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+                            {CONCEPTOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Método + Monto */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                Método de pago
+                            </label>
+                            <select
+                                value={metodoPago}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setMetodoPago(val);
+                                    if (!requiereBanco(val)) setBancoReceptor('');
+                                    if (val !== 'punto_de_venta') setNumeroLote('');
+                                }}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+                                {Object.entries(METODO_LABELS).map(([val, label]) => (
+                                    <option key={val} value={val}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                Monto USD
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                                <DecimalInput
+                                    value={montoUsd}
+                                    onChange={setMontoUsd}
+                                    className="w-full pl-7 pr-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: `0.5px solid ${touched && errores.monto ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Banco */}
+                    {bancoRequerido && (
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                Banco receptor
+                            </label>
+                            <select
+                                value={bancoReceptor}
+                                onChange={e => setBancoReceptor(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: `0.5px solid ${touched && errores.banco ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}>
+                                <option value="">Seleccionar banco…</option>
+                                {bancosDisponibles.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Referencia + lote */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className={esPuntoDeVenta ? '' : 'col-span-2'}>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                Nº de referencia{esPuntoDeVenta ? ' (4 dígitos)' : ''}
+                            </label>
+                            <input
+                                type="text"
+                                value={referencia}
+                                onChange={e => setReferencia(esPuntoDeVenta ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value)}
+                                maxLength={esPuntoDeVenta ? 4 : undefined}
+                                placeholder={esPuntoDeVenta ? 'Ej: 1234' : 'Opcional'}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: `0.5px solid ${touched && errores.referenciaPdv ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                            />
+                        </div>
+                        {esPuntoDeVenta && (
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                    Nº de lote (4 dígitos)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={numeroLote}
+                                    onChange={e => setNumeroLote(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                    maxLength={4}
+                                    placeholder="Ej: 0042"
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: `0.5px solid ${touched && errores.lote ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Fecha de pago (retroactiva, no futura) */}
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Fecha en que se recibió el pago
+                        </label>
+                        <DatePickerES
+                            value={fechaPago}
+                            onChange={e => setFechaPago(e.target.value)}
+                            maxDate={today()}
+                            className="px-3 py-2 rounded-lg text-sm outline-none w-full"
+                            style={{ border: `0.5px solid ${touched && errores.fecha ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                        />
+                    </div>
+
+                    {/* Motivo (obligatorio) */}
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                            Motivo de la carga retroactiva <span style={{ color: 'var(--red)' }}>*</span>
+                        </label>
+                        <textarea
+                            value={motivo}
+                            onChange={e => setMotivo(e.target.value)}
+                            rows={3}
+                            placeholder="Explica por qué se registra este pago fuera del flujo normal (mínimo 10 caracteres)…"
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                            style={{ border: `0.5px solid ${touched && errores.motivo ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                        />
+                        {touched && errores.motivo && (
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
+                                Escribe al menos {MOTIVO_MIN_LEN} caracteres explicando el motivo.
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 flex justify-end gap-2"
+                    style={{ borderTop: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                    <button onClick={onClose}
+                        className="px-4 py-2 rounded-lg text-sm font-medium"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleGuardar}
+                        disabled={guardando || (touched && hayErrores)}
+                        className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--pb)' }}>
+                        {guardando ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                        Registrar pago
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default CargarPagoRetroactivoModal;

@@ -19,7 +19,7 @@ function toISOString(date) {
     return `${y}-${m}-${d}`;
 }
 
-export default function DatePickerES({ value, onChange, className, style, name, required, placeholder }) {
+export default function DatePickerES({ value, onChange, className, style, name, required, placeholder, maxDate, minDate }) {
     const selected = parseLocalDate(value);
 
     function handleChange(date) {
@@ -47,6 +47,11 @@ export default function DatePickerES({ value, onChange, className, style, name, 
                 />
             }
             required={required}
+            // maxDate/minDate son strings YYYY-MM-DD (mismo formato que `value`),
+            // opcionales — los callers existentes no los pasan, así que no cambia
+            // su comportamiento.
+            maxDate={maxDate ? parseLocalDate(maxDate) : undefined}
+            minDate={minDate ? parseLocalDate(minDate) : undefined}
             showMonthDropdown
             showYearDropdown
             dropdownMode="scroll"
