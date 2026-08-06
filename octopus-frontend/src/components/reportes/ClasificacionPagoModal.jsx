@@ -66,7 +66,14 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
     // siendo el monto propio de este pago: cada línea manual queda enlazada a
     // ESTE pago (FK), no a la operación completa.
     const excedeMonto = totalLineasPropuesto > parseFloat(pago.monto_usd || 0) + 0.005;
-    const pct = montoOperacion > 0 ? Math.min(100, (montoClasificado / montoOperacion) * 100) : 0;
+    // Pendiente negativo = se clasificó de más a nivel de OPERACIÓN (puede pasar
+    // aunque las líneas de ESTE pago no excedan su propio monto, por los
+    // "hermanos" — ver nota de montoOperacion arriba). Es un estado de error,
+    // no un simple "completo": la barra y el texto deben dejarlo claro en vez
+    // de mostrar un número negativo sin contexto.
+    const sobreClasificado = montoPendiente < -0.005;
+    const pctReal = montoOperacion > 0 ? (montoClasificado / montoOperacion) * 100 : 0;
+    const pct = Math.min(100, pctReal);
 
     const resetForm = () => {
         setTipo('inscripcion');
@@ -202,11 +209,18 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado }) => {
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--ash-light)' }}>
                             <div className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${pct}%`, background: estadoClasificacion?.startsWith('completo') ? '#16a34a' : 'var(--pb)' }} />
+                                style={{ width: `${pct}%`, background: sobreClasificado ? 'var(--red)' : (estadoClasificacion?.startsWith('completo') ? '#16a34a' : 'var(--pb)') }} />
                         </div>
-                        <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
-                            Pendiente por clasificar: <strong>${fmt(montoPendiente)}</strong>
-                        </p>
+                        {sobreClasificado ? (
+                            <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
+                                <AlertTriangle size={13} />
+                                Excede el monto por <strong>${fmt(Math.abs(montoPendiente))}</strong> — revisa las líneas antes de continuar.
+                            </p>
+                        ) : (
+                            <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
+                                Pendiente por clasificar: <strong>${fmt(montoPendiente)}</strong>
+                            </p>
+                        )}
                         {excedeMonto && (
                             <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
                                 <AlertTriangle size={13} />
