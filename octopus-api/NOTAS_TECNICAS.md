@@ -121,3 +121,121 @@ investigó a fondo por qué el desglose automático queda vacío en los casos qu
 conviene primero auditar `desglose-contable` en producción durante un tiempo para ver qué proporción de pagos cae
 en `origen='sin_clasificar'`/`'manual'` vs `'automatico'`, y si hay un patrón común (mismo rango de fechas, mismo
 método de pago, mismo flujo de registro) que apunte a la causa raíz real.
+
+**Actualización — se hizo esa auditoría y reveló un bug aparte:** al correr el conteo (`calcular_desglose_automatico`
+vs `ClasificacionPagoManual` sobre los 736 pagos activos), 721 (98%) ya estaban completamente explicados por el
+desglose automático y solo 1 no tenía nada. Pero la pestaña "Clasificación de Pagos" (`EstadoClasificacionPagosView`
+/ `_resumen_clasificacion_pago`) los mostraba TODOS como "Sin clasificar", porque nunca miraba el desglose
+automático — solo `ClasificacionPagoManual`. El filtro era, en la práctica, inútil para el contador (98% falsos
+positivos). Se corrigió: `_resumen_clasificacion_pago` ahora prioriza automático > manual, igual que
+`DesgloseContableView`, y el estado se calcula por OPERACIÓN completa (suma de todos sus pagos "hermanos", ver nota
+de arriba sobre `agrupar_pagos_historicos`), no por Pago suelto — porque el desglose automático (M2M) también vive
+a nivel de operación, no de un pago individual. Nuevos valores de `estado_clasificacion`:
+`sin_clasificar` / `parcial` / `completo_automatico` / `completo_manual` (antes solo existía `completo` genérico).
+`EstadoClasificacionPagosView.get` precalcula todo en bloque (3 queries agregadas + 1 prefetch de M2M) en vez de
+1-por-pago, porque recorre TODO el `qs` filtrado (no solo la página) para poder filtrar por estado — con la
+versión ingenua esto hubiera sido un N+1 severo. Resultado tras el fix sobre el dataset actual: 722
+`completo_automatico`, 7 `parcial`, 7 `sin_clasificar` (los que de verdad necesitan atención del contador).
+
+En el frontend, `ClasificacionPagoModal` (`Reportes.jsx`) ahora usa `pago.monto_operacion_usd` (con fallback a
+`monto_usd`) como denominador de la barra de progreso — para la mayoría de los pagos (sin hermanos) es el mismo
+valor, pero para operaciones multi-método/multi-alumno refleja el total real de la operación en vez del monto
+parcial de un solo hermano.
+
+## `desglose-contable` podía duplicar montos de operaciones con varios Pago "hermanos"
+
+`RegistrarPagoView.post` enlaza el mismo conjunto completo de M2M (`mensualidades_pagadas`,
+`cuotas_inscripcion_pagadas`, `cuotas_solvencia_pagadas`, `proyectos_inversion_pagados`) a **todos** los `Pago`
+creados en una operación (`for pago in pagos_creados: pago.<relacion>.set(...)`, cobranza/views.py ~L494-568) —
+no solo al "principal". Como `DesgloseContableView` iteraba sobre cada `Pago` del rango y por cada uno
+reconstruía el desglose automático completo de su operación (`calcular_desglose_automatico(principal)`), una
+operación con 2+ hermanos (ej. un pago repartido en dos alumnos, o entre dos métodos de pago) hacía que el
+reporte emitiera la lista completa de conceptos una vez por hermano, duplicando (o triplicando) el monto real
+en el Excel/PDF que se le entrega al contador.
+
+Se corrigió llevando un `set()` de `operacion_uuid` ya emitidas: el desglose automático de una operación ahora
+se agrega una sola vez, usando los datos del pago "principal" (primero por `id` dentro de la operación) en vez
+de repetirlo por cada hermano. Los otros dos orígenes de fila (`clasificaciones_manuales` y el fallback
+`sin_clasificar`) no tenían este problema porque están atados a un `Pago` específico, no al M2M compartido.
+
+Caso borde no cubierto: si el pago "principal" de una operación cae fuera del rango de fechas filtrado, o no
+matchea el filtro `representante_documento` mientras un hermano sí, el desglose de esa operación no se emite
+(en vez de duplicarse). Es preferible a duplicar montos, pero si en producción aparece este caso conviene
+extender la búsqueda del principal a ignorar esos filtros (solo por `operacion_uuid`, sin las condiciones de
+`qs`).
+
+**Actualización — la causa de fondo real era otra, y ya estaba resuelta en el código:** al investigar por qué
+seguía apareciendo duplicado después del fix de arriba, se encontró que el propio dataset de prueba (pagos del
+2026-07-21) tenía docenas de operaciones con pagos "hermanos" que **no** compartían `operacion_uuid` — cada uno
+tenía uno aleatorio distinto, aunque enlazaban las mismas cuotas. Esto es exactamente el bug que el commit
+`2349fda` ("Agrupa pagos con varios métodos bajo una sola operación", 2026-07-22) ya corrigió en
+`RegistrarPagoView` (antes generaba un `operacion_uuid` nuevo en vez de reusar uno por request) — pero el fix de
+código no reparó retroactivamente los pagos ya guardados con el bug, que quedaron así en la base de datos usada
+para esta auditoría. Ese mismo commit ya incluía `cobranza/management/commands/agrupar_pagos_historicos.py`
+para fusionar esos pagos históricos por heurística (mismo alumno/cajero/concepto, ventana de segundos). Se corrió
+`python manage.py agrupar_pagos_historicos --confirm` (2026-08-05): 361 pagos reasignados, 273 operaciones
+fusionadas — eso, junto con el dedup por `operacion_uuid` de `DesgloseContableView` de arriba, es lo que elimina
+la duplicación real observada en el reporte. Si vuelve a aparecer duplicación de este tipo en producción, correr
+este comando de nuevo (es idempotente, dry-run por defecto) antes de sospechar de un bug nuevo.
+
+Como defensa adicional contra que esto vuelva a pasar (doble clic en "Registrar pago", o reintentar un envío
+sobre una selección de UI que quedó desactualizada), se agregó una validación en
+`PagoCreateSerializer.validate()` (cobranza/serializers.py) que rechaza la operación si alguna
+mensualidad/cuota de inscripción/cuota de solvencia/proyecto de inversión seleccionada YA está pagada — con
+`select_for_update()` para cerrar la ventana de carrera entre dos envíos casi simultáneos dentro de la misma
+transacción atómica de `RegistrarPagoView`. En el frontend (`Cobranza.jsx`) se agregó además un `ref` síncrono
+(`enviandoPagoRef`) para que un doble clic muy rápido no llegue a disparar una segunda petición antes de que el
+botón se deshabilite por estado de React.
+
+## El checklist de "Resumen de Transacciones Detalladas" (conciliación) agrupaba por operación, no por banco
+
+Después de correr `agrupar_pagos_historicos --confirm` (ver nota de arriba), operaciones legítimamente multi-método
+(ej. Jorge Tremont: Punto de Venta + Transferencia + Efectivo Bs. en un solo registro) empezaron a mostrarse como
+UNA sola fila con UN solo checkbox de "revisado" en `Reportes.jsx` (sección Conciliación), porque el agrupamiento
+en `gruposPorRepresentante` usaba solo `operacion_uuid` como clave. El problema: cada método de pago corresponde a
+un extracto bancario distinto (Punto de Venta → Tesoro, Transferencia → Banesco, etc.), así que compararlos contra
+el estado de cuenta real requiere poder marcarlos como conciliados de forma independiente — agruparlos bajo un
+único checkbox obliga a marcar como "revisado" un banco cuyo extracto todavía no se comparó, solo porque comparte
+operación con otro que sí.
+
+Se corrigió agregando método de pago + banco a la clave de agrupación (`claveConciliacion(p)` en `Reportes.jsx`,
+usada en `operacionesInfo`, `gruposPorRepresentante`, `detalleChecked` y `handleFinalizarLote`): una operación
+multi-método ahora se muestra como varias filas (una por combinación método+banco), cada una con su propio
+checkbox, pero `handleFinalizarLote` sigue enviando `pago_ids` individuales al backend igual que antes, así que
+no cambió el contrato con `LoteRevisionCajaListCreateView`. El "Desglose Contable" (`DesgloseContableView`,
+nota de arriba) es un reporte distinto y no se tocó: ahí sí se quiere un solo total por operación, sin importar
+cuántos métodos la compongan.
+
+## Filtro por concepto/banco en Clasificación de Pagos: `PagoFilter` ya tenía un campo `concepto` con otro significado
+
+Se agregaron filtros `concepto` y `banco` a `EstadoClasificacionPagosView` (tabla en pantalla) además de
+`DesgloseContableView` (Excel/PDF, ver nota de arriba), para que lo que el contador ve en pantalla sea lo mismo
+que va a imprimir. El significado de `concepto` aquí es la categoría canónica del desglose (mensualidad/
+inscripcion/solvencia/proyecto_inversion/otro — ver `_categoria_concepto_desglose`), que SÍ detecta pagos
+`concepto='mixto'` cuyo desglose automático toca esa categoría.
+
+Al implementarlo apareció un bug: `EstadoClasificacionPagosView` arma su queryset con `PagoFilter`
+(cobranza/filters.py), que **ya tiene su propio campo `concepto`** — un filtro exacto contra `Pago.concepto`
+crudo (`mensualidad|inscripcion|materiales|proyecto_inversion|multa|otro`, sin `mixto` como opción value). Como
+`PagoFilter` procesaba `request.query_params` completo, el `concepto=inscripcion` que se pensaba para mi lógica
+de categoría canónica lo interceptaba primero `PagoFilter`, filtrando el queryset a pagos con
+`Pago.concepto == 'inscripcion'` exacto — **excluyendo todos los pagos 'mixto'**, que son justamente los que más
+necesitan este filtro (un pago mixto que cubre inscripción + proyecto de inversión desaparecía del filtro
+concepto=inscripcion). El conteo bajó de 655 pagos esperados a 38.
+
+Se corrigió excluyendo `concepto` de los query params antes de pasarlos a `PagoFilter` (`params_sin_concepto = 
+request.query_params.copy(); params_sin_concepto.pop('concepto', None)`), y aplicando el filtro de categoría
+canónica por separado, en bloque, después. Nótese que a diferencia de `DesgloseContableView` (donde cada FILA es
+un concepto y la suma de todos los filtros da el total exacto), aquí cada fila es un PAGO completo — un pago
+mixto con 2 conceptos aparece en los resultados de AMBOS filtros, así que la suma de todas las categorías puede
+superar el total sin filtrar. Es el comportamiento correcto para esta tabla (mostrar qué pagos tocan cada
+concepto), pero es una diferencia de semántica a tener en cuenta si se comparan los conteos de ambos endpoints.
+
+## Excel del desglose contable no puede resaltar en color las filas `sin_clasificar`
+
+El PDF (`Reportes.jsx::handleExportClasifPdf`) pinta de rojo claro las filas con `origen='sin_clasificar'` vía
+`jspdf-autotable`'s `didParseCell`. El Excel (`handleExportClasifExcel`) no puede replicar esto: el proyecto usa
+`xlsx` (SheetJS community build), que no soporta estilos de celda (relleno/color) — eso requiere la edición Pro.
+Como paliativo se agregó una columna `Estado` con el texto literal `SIN CLASIFICAR`/`Manual`/`Automático` para que
+el contador pueda filtrar/ordenar por esa columna en Excel. Si en el futuro se necesita el resaltado visual real,
+evaluar `exceljs` (sí soporta estilos, pero es una librería nueva a introducir — consultar antes de agregarla).

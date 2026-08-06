@@ -1,7 +1,11 @@
 from decimal import Decimal
-from django.db.models import Sum
+from django.db.models import F, Sum
 from rest_framework import serializers
-from .models import BancoInstitucional, CierreCaja, ClasificacionPagoManual, LoteRevisionCaja, Pago, SolvenciaRepresentante, TasaCambio
+from .models import (
+    BancoInstitucional, CierreCaja, ClasificacionPagoManual, CuotaInscripcion,
+    CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, Pago,
+    SolvenciaRepresentante, TasaCambio,
+)
 from secretaria.models import Alumno
 
 MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -437,6 +441,71 @@ class PagoCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"alumnos": "Todos los alumnos de una misma transacción deben pertenecer al mismo representante."}
             )
+
+        # --- Guarda contra doble cobro: rechaza cuotas ya saldadas ---
+        # Sin esto, dos envíos del mismo formulario (doble clic, o reintentar
+        # "el pago que falta" sobre una selección de UI que no se refrescó)
+        # generan dos operaciones (`operacion_uuid`) distintas que enlazan la
+        # MISMA cuota por M2M a ambas — calcular_desglose_automatico() reporta
+        # el monto_usd completo de la cuota por cada operación enlazada, así
+        # que el desglose contable termina contando el mismo cargo dos veces
+        # aunque el dinero solo se cobró una vez.
+        todos_mensualidad_ids = set()
+        todos_cuota_inscripcion_ids = set()
+        todos_cuota_solvencia_ids = set()
+        for a in alumnos_resueltos:
+            todos_mensualidad_ids |= set(a['mensualidad_ids']) | set(a['mensualidad_adelanto_ids'])
+            todos_cuota_inscripcion_ids |= set(a['cuota_inscripcion_ids'])
+            todos_cuota_solvencia_ids |= set(a['cuota_solvencia_ids'])
+
+        # select_for_update() bloquea estas filas hasta que termine la
+        # transacción atómica de la vista (ver RegistrarPagoView.post) — así,
+        # si dos envíos llegan casi al mismo tiempo (doble clic), el segundo
+        # espera a que el primero confirme y entonces sí ve `pagado=True` y
+        # es rechazado, en vez de una condición de carrera donde ambos leen
+        # `pagado=False` y ambos terminan cobrando la misma cuota.
+        if todos_mensualidad_ids:
+            ya_pagada = Mensualidad.objects.select_related('alumno').select_for_update().filter(
+                id__in=todos_mensualidad_ids, pagado=True
+            ).first()
+            if ya_pagada:
+                raise serializers.ValidationError(
+                    f"La mensualidad de {ya_pagada.get_mes_display()} {ya_pagada.anio} de "
+                    f"{ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} ya está pagada. "
+                    "Actualice la página antes de continuar (posible doble envío)."
+                )
+
+        if todos_cuota_inscripcion_ids:
+            ya_pagada = CuotaInscripcion.objects.select_related('alumno').select_for_update().filter(
+                id__in=todos_cuota_inscripcion_ids, pagado=True
+            ).first()
+            if ya_pagada:
+                raise serializers.ValidationError(
+                    f"La cuota de inscripción de {ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} "
+                    "ya está pagada. Actualice la página antes de continuar (posible doble envío)."
+                )
+
+        if todos_cuota_solvencia_ids:
+            ya_pagada = CuotaSolvencia.objects.select_related('alumno').select_for_update().filter(
+                id__in=todos_cuota_solvencia_ids, pagado=True
+            ).first()
+            if ya_pagada:
+                raise serializers.ValidationError(
+                    f"La cuota de solvencia de {ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} "
+                    "ya está pagada. Actualice la página antes de continuar (posible doble envío)."
+                )
+
+        proyecto_inversion_ids = data.get('proyecto_inversion_ids') or []
+        if proyecto_inversion_ids:
+            ya_saldado = CuotaProyectoInversion.objects.select_related('representante').select_for_update().filter(
+                id__in=proyecto_inversion_ids, monto_pagado__gte=F('monto_usd')
+            ).first()
+            if ya_saldado:
+                raise serializers.ValidationError(
+                    f"La cuota de Proyecto de Inversión de {ya_saldado.representante.nombre} "
+                    f"{ya_saldado.representante.apellido} ya está saldada por completo. "
+                    "Actualice la página antes de continuar (posible doble envío)."
+                )
 
         data['alumnos_resueltos'] = alumnos_resueltos
         # Alumno "titular" de la operación: se usa para el campo Pago.alumno

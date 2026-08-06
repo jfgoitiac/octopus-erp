@@ -1261,27 +1261,103 @@ class PagosListView(APIView):
 # CLASIFICACIÓN MANUAL DE PAGOS (desglose contable de pagos 'mixto' sin M2M)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _resumen_clasificacion_pago(pago):
-    """Resumen de cuánto de un pago ya fue clasificado manualmente, reusado
-    por las 3 vistas de escritura para que el frontend no tenga que refetch
-    la lista completa después de cada mutación."""
-    monto_clasificado = pago.clasificaciones_manuales.aggregate(
-        s=Sum('monto_usd')
-    )['s'] or Decimal('0')
-    monto_usd = pago.monto_usd or Decimal('0')
+CATEGORIAS_CONCEPTO_DESGLOSE = ('mensualidad', 'inscripcion', 'solvencia', 'proyecto_inversion', 'otro')
 
-    if monto_clasificado <= 0:
-        estado = 'sin_clasificar'
-    elif monto_clasificado < monto_usd:
+# Traduce el tipo de ClasificacionPagoManual (que incluye variantes "atrasado")
+# a la misma categoría canónica que usa el desglose automático, para poder
+# filtrar el reporte por concepto sin importar de qué origen salió la fila.
+_CATEGORIA_POR_TIPO_MANUAL = {
+    'inscripcion': 'inscripcion',
+    'proyecto_inversion': 'proyecto_inversion',
+    'mes_atrasado': 'mensualidad',
+    'proyecto_inversion_atrasado': 'proyecto_inversion',
+}
+
+
+def _categoria_concepto_desglose(concepto=None, tipo=None, concepto_pago=None):
+    """Categoría canónica (mensualidad/inscripcion/solvencia/proyecto_inversion/
+    otro) de una fila de DesgloseContableView, sin importar si salió del
+    desglose automático (`concepto`), de una ClasificacionPagoManual (`tipo`)
+    o del fallback sin_clasificar (`concepto_pago`, el Pago.concepto crudo)."""
+    if concepto:
+        return concepto if concepto in CATEGORIAS_CONCEPTO_DESGLOSE else 'otro'
+    if tipo:
+        return _CATEGORIA_POR_TIPO_MANUAL.get(tipo, 'otro')
+    if concepto_pago in ('mensualidad', 'inscripcion', 'solvencia', 'proyecto_inversion'):
+        return concepto_pago
+    return 'otro'
+
+
+def _principal_de_pago(pago):
+    """Pago 'principal' (primero por id) de la operación de `pago` — mismo
+    criterio que DesgloseContableView, con el M2M prefetched para poder
+    llamar calcular_desglose_automatico() sobre él."""
+    return (
+        Pago.objects.filter(operacion_uuid=pago.operacion_uuid)
+        .prefetch_related(
+            'mensualidades_pagadas__alumno',
+            'cuotas_inscripcion_pagadas__alumno',
+            'cuotas_solvencia_pagadas__alumno',
+            'proyectos_inversion_pagados__representante',
+        )
+        .order_by('id')
+        .first()
+    )
+
+
+def _calcular_estado_clasificacion(monto_operacion, monto_auto, monto_manual):
+    """Estado de clasificación de una OPERACIÓN completa (no de un Pago
+    suelto): combina lo que el desglose automático (M2M) ya explica más lo
+    que el contador clasificó a mano, contra el monto total de la operación
+    (suma de todos sus pagos 'hermanos', si los tiene — ver
+    RegistrarPagoView, que enlaza el mismo M2M a todos los hermanos)."""
+    monto_cubierto = monto_auto + monto_manual
+    monto_pendiente = monto_operacion - monto_cubierto
+
+    if monto_operacion > 0 and monto_cubierto >= monto_operacion:
+        estado = 'completo_automatico' if monto_auto >= monto_operacion else 'completo_manual'
+    elif monto_cubierto > 0:
         estado = 'parcial'
     else:
-        estado = 'completo'
+        estado = 'sin_clasificar'
+
+    return estado, monto_cubierto, monto_pendiente
+
+
+def _resumen_clasificacion_pago(pago):
+    """Resumen de cuánto de la OPERACIÓN de un pago ya está explicado (por
+    desglose automático y/o clasificación manual), reusado por las 3 vistas
+    de escritura para que el frontend no tenga que refetch la lista completa
+    después de cada mutación.
+
+    Antes esto solo miraba `ClasificacionPagoManual`, así que un pago cuyo
+    desglose automático (M2M) YA lo explicaba por completo igual aparecía
+    como 'sin_clasificar' — en la práctica esto era ~98% de los pagos
+    (ver auditoría en NOTAS_TECNICAS.md), volviendo inútil el filtro para
+    el contador. Ahora se prioriza automático > manual, igual que
+    DesgloseContableView."""
+    principal = _principal_de_pago(pago)
+    lineas_auto = calcular_desglose_automatico(principal) if principal else []
+    monto_auto = sum((Decimal(l['monto_usd']) for l in lineas_auto), Decimal('0'))
+
+    monto_operacion = Pago.objects.filter(
+        operacion_uuid=pago.operacion_uuid
+    ).exclude(estatus='anulado').aggregate(s=Sum('monto_usd'))['s'] or Decimal('0')
+
+    monto_manual = ClasificacionPagoManual.objects.filter(
+        pago__operacion_uuid=pago.operacion_uuid
+    ).aggregate(s=Sum('monto_usd'))['s'] or Decimal('0')
+
+    estado, monto_cubierto, monto_pendiente = _calcular_estado_clasificacion(
+        monto_operacion, monto_auto, monto_manual
+    )
 
     return {
         'pago_id': pago.id,
-        'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
-        'monto_clasificado_usd': str(monto_clasificado.quantize(Decimal('0.01'))),
-        'monto_pendiente_usd': str((monto_usd - monto_clasificado).quantize(Decimal('0.01'))),
+        'monto_usd': str((pago.monto_usd or Decimal('0')).quantize(Decimal('0.01'))),
+        'monto_operacion_usd': str(monto_operacion.quantize(Decimal('0.01'))),
+        'monto_clasificado_usd': str(monto_cubierto.quantize(Decimal('0.01'))),
+        'monto_pendiente_usd': str(monto_pendiente.quantize(Decimal('0.01'))),
         'estado_clasificacion': estado,
     }
 
@@ -1313,19 +1389,40 @@ def _validar_datos_clasificacion(data, parcial=False):
 
 class EstadoClasificacionPagosView(APIView):
     """
-    Lista de pagos con su estado de clasificación manual (sin_clasificar /
-    parcial / completo), para que el contador priorice cuáles pagos 'mixto'
-    (u otros) todavía necesitan desglose.
+    Lista de pagos con su estado de clasificación (sin_clasificar / parcial /
+    completo_automatico / completo_manual), para que el contador priorice
+    cuáles pagos 'mixto' (u otros) todavía necesitan desglose manual.
+
+    El estado se calcula por OPERACIÓN (no por Pago suelto): prioriza el
+    desglose automático (M2M) sobre la clasificación manual, igual que
+    DesgloseContableView — un pago ya explicado por completo por su M2M
+    nunca debería aparecer como 'sin_clasificar' solo porque nadie le agregó
+    una ClasificacionPagoManual (ver NOTAS_TECNICAS.md).
 
     Query params: fecha_desde, fecha_hasta, representante_documento,
-    estado (sin_clasificar|parcial|completo|todos, default todos),
-    page (default 1), page_size (default 25, máx 100).
+    estado (sin_clasificar|parcial|completo_automatico|completo_manual|todos,
+    default todos), concepto (mensualidad|inscripcion|solvencia|
+    proyecto_inversion|otro|todos, default todos — igual criterio que
+    DesgloseContableView), banco (id de BancoInstitucional|sin_banco|todos,
+    default todos), page (default 1), page_size (default 25, máx 100).
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     def get(self, request):
+        # PagoFilter también define su propio filtro 'concepto' (exact match
+        # contra Pago.concepto crudo) — lo excluimos antes de pasarle los query
+        # params, porque aquí 'concepto' tiene un significado distinto: la
+        # categoría canónica del desglose (ver `_categoria_concepto_desglose`),
+        # que sí incluye pagos 'mixto' cuyo desglose automático toca esa
+        # categoría. Si dejáramos que PagoFilter lo aplicara primero, un pago
+        # 'mixto' con inscripción + proyecto de inversión desaparecería del
+        # filtro concepto=inscripcion solo por no tener concepto='inscripcion'
+        # en el campo crudo.
+        params_sin_concepto = request.query_params.copy()
+        params_sin_concepto.pop('concepto', None)
+
         filterset = PagoFilter(
-            request.query_params,
+            params_sin_concepto,
             queryset=Pago.objects.select_related('alumno', 'alumno__representante')
             .prefetch_related('clasificaciones_manuales')
             .order_by('-fecha_pago'),
@@ -1338,6 +1435,26 @@ class EstadoClasificacionPagosView(APIView):
         if not request.query_params.get('estatus'):
             qs = qs.exclude(estatus='anulado')
 
+        banco_filtro = request.query_params.get('banco')
+        if banco_filtro and banco_filtro != 'todos':
+            if banco_filtro == 'sin_banco':
+                qs = qs.filter(banco_receptor__isnull=True)
+            else:
+                try:
+                    banco_id = int(banco_filtro)
+                except (TypeError, ValueError):
+                    return Response({'error': "banco inválido. Use el id de un banco, 'sin_banco' o 'todos'."}, status=status.HTTP_400_BAD_REQUEST)
+                if not BancoInstitucional.objects.filter(id=banco_id).exists():
+                    return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
+                qs = qs.filter(banco_receptor_id=banco_id)
+
+        concepto_filtro = request.query_params.get('concepto')
+        if concepto_filtro and concepto_filtro != 'todos' and concepto_filtro not in CATEGORIAS_CONCEPTO_DESGLOSE:
+            return Response(
+                {'error': f"concepto inválido. Use uno de: {', '.join(CATEGORIAS_CONCEPTO_DESGLOSE)}, todos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         estado_filtro = request.query_params.get('estado', 'todos')
 
         try:
@@ -1346,11 +1463,86 @@ class EstadoClasificacionPagosView(APIView):
         except (ValueError, TypeError):
             page, page_size = 1, 25
 
+        pagos_list = list(qs)
+
+        # Precalcula por operación en bloque (en vez de 1-por-1 dentro del for)
+        # para no convertir esto en N+1 al recorrer TODO el qs filtrado (no
+        # solo la página) para poder filtrar por estado.
+        uuids = list({p.operacion_uuid for p in pagos_list})
+
+        totales_operacion = {
+            row['operacion_uuid']: row['s']
+            for row in Pago.objects.filter(operacion_uuid__in=uuids).exclude(estatus='anulado')
+            .values('operacion_uuid').annotate(s=Sum('monto_usd'))
+        }
+        totales_manual = {
+            row['pago__operacion_uuid']: row['s']
+            for row in ClasificacionPagoManual.objects.filter(pago__operacion_uuid__in=uuids)
+            .values('pago__operacion_uuid').annotate(s=Sum('monto_usd'))
+        }
+        principales = {}
+        for p in (
+            Pago.objects.filter(operacion_uuid__in=uuids)
+            .prefetch_related(
+                'mensualidades_pagadas__alumno',
+                'cuotas_inscripcion_pagadas__alumno',
+                'cuotas_solvencia_pagadas__alumno',
+                'proyectos_inversion_pagados__representante',
+            )
+            .order_by('operacion_uuid', 'id')
+        ):
+            principales.setdefault(p.operacion_uuid, p)
+
+        # Solo se necesitan si hay filtro de concepto: tipos manuales y
+        # concepto crudo de cada pago hermano, agrupados por operación en
+        # bloque (no 1-por-operación), para poder saber qué categorías de
+        # concepto toca cada operación cuando el automático no alcanza.
+        manuales_tipos_por_operacion = {}
+        conceptos_pago_por_operacion = {}
+        if concepto_filtro and concepto_filtro != 'todos':
+            for row in ClasificacionPagoManual.objects.filter(
+                pago__operacion_uuid__in=uuids
+            ).values('pago__operacion_uuid', 'tipo'):
+                manuales_tipos_por_operacion.setdefault(row['pago__operacion_uuid'], set()).add(row['tipo'])
+            for row in Pago.objects.filter(operacion_uuid__in=uuids).values('operacion_uuid', 'concepto'):
+                conceptos_pago_por_operacion.setdefault(row['operacion_uuid'], set()).add(row['concepto'])
+
         filas = []
-        for pago in qs:
-            resumen = _resumen_clasificacion_pago(pago)
-            if estado_filtro != 'todos' and resumen['estado_clasificacion'] != estado_filtro:
+        for pago in pagos_list:
+            principal = principales.get(pago.operacion_uuid)
+            lineas_auto = calcular_desglose_automatico(principal) if principal else []
+            monto_auto = sum((Decimal(l['monto_usd']) for l in lineas_auto), Decimal('0'))
+            monto_operacion = totales_operacion.get(pago.operacion_uuid) or Decimal('0')
+            monto_manual = totales_manual.get(pago.operacion_uuid) or Decimal('0')
+
+            estado, monto_cubierto, monto_pendiente = _calcular_estado_clasificacion(
+                monto_operacion, monto_auto, monto_manual
+            )
+            resumen = {
+                'monto_usd': str((pago.monto_usd or Decimal('0')).quantize(Decimal('0.01'))),
+                'monto_operacion_usd': str(monto_operacion.quantize(Decimal('0.01'))),
+                'monto_clasificado_usd': str(monto_cubierto.quantize(Decimal('0.01'))),
+                'monto_pendiente_usd': str(monto_pendiente.quantize(Decimal('0.01'))),
+                'estado_clasificacion': estado,
+            }
+            if estado_filtro != 'todos' and estado != estado_filtro:
                 continue
+
+            if concepto_filtro and concepto_filtro != 'todos':
+                if lineas_auto:
+                    categorias = {_categoria_concepto_desglose(concepto=l['concepto']) for l in lineas_auto}
+                else:
+                    tipos_manuales = manuales_tipos_por_operacion.get(pago.operacion_uuid)
+                    if tipos_manuales:
+                        categorias = {_categoria_concepto_desglose(tipo=t) for t in tipos_manuales}
+                    else:
+                        categorias = {
+                            _categoria_concepto_desglose(concepto_pago=c)
+                            for c in conceptos_pago_por_operacion.get(pago.operacion_uuid, ())
+                        }
+                if concepto_filtro not in categorias:
+                    continue
+
             filas.append((pago, resumen))
 
         total = len(filas)
@@ -1370,6 +1562,7 @@ class EstadoClasificacionPagosView(APIView):
                 'monto_usd': resumen['monto_usd'],
                 'referencia': pago.referencia,
                 'metodo_pago_display': pago.get_metodo_pago_display(),
+                'monto_operacion_usd': resumen['monto_operacion_usd'],
                 'monto_clasificado_usd': resumen['monto_clasificado_usd'],
                 'monto_pendiente_usd': resumen['monto_pendiente_usd'],
                 'estado_clasificacion': resumen['estado_clasificacion'],
@@ -1477,7 +1670,13 @@ class DesgloseContableView(APIView):
     'sin_clasificar' con el monto crudo del pago.
 
     Query params: fecha_desde, fecha_hasta (obligatorios),
-    representante_documento (opcional).
+    representante_documento (opcional),
+    concepto (opcional: mensualidad|inscripcion|solvencia|proyecto_inversion|otro|todos,
+    default todos — filtra por la categoría canónica de la fila, sin importar si
+    salió del desglose automático, de una clasificación manual o del fallback
+    sin_clasificar; ver `_categoria_concepto_desglose`),
+    banco (opcional: id de BancoInstitucional, 'sin_banco' para Efectivo
+    USD/Bs. (no tienen banco_receptor), o 'todos', default todos).
 
     NOTA: no pagina — para rangos muy grandes (varios meses) esto puede ser
     pesado; se limita a un máximo de 92 días (~3 meses) por request para
@@ -1518,7 +1717,7 @@ class DesgloseContableView(APIView):
                 fecha_pago__date__lte=dt_hasta,
             )
             .exclude(estatus='anulado')
-            .select_related('alumno', 'alumno__representante')
+            .select_related('alumno', 'alumno__representante', 'banco_receptor')
             .order_by('fecha_pago')
         )
         if representante_documento:
@@ -1538,6 +1737,7 @@ class DesgloseContableView(APIView):
             if key not in principales_cache:
                 principales_cache[key] = (
                     Pago.objects.filter(operacion_uuid=key)
+                    .select_related('alumno', 'banco_receptor')
                     .prefetch_related(
                         'mensualidades_pagadas__alumno',
                         'cuotas_inscripcion_pagadas__alumno',
@@ -1550,6 +1750,14 @@ class DesgloseContableView(APIView):
             return principales_cache[key]
 
         filas = []
+        # Una operación (mismo operacion_uuid) puede tener varios Pago "hermanos"
+        # (ej. uno por alumno, o repartido entre métodos de pago) y a TODOS se
+        # les enlaza el mismo conjunto completo de M2M (ver RegistrarPagoView:
+        # `for pago in pagos_creados: pago.<relacion>.set(...)`). Por eso el
+        # desglose automático de una operación se emite una sola vez (con los
+        # datos del pago "principal"), no una vez por hermano — si no, el
+        # monto de la operación se duplicaba (o triplicaba) en el reporte.
+        operaciones_con_desglose_auto = set()
         for pago in qs:
             alumno_nombre = f"{pago.alumno.nombre} {pago.alumno.apellido}".strip() if pago.alumno else None
             base = {
@@ -1559,21 +1767,45 @@ class DesgloseContableView(APIView):
                 'referencia': pago.referencia,
                 'alumno_nombre': alumno_nombre,
                 'representante_nombre': pago.representante_nombre,
+                'representante_documento': pago.representante_documento,
+                'metodo_pago_display': pago.get_metodo_pago_display(),
+                'banco_receptor_id': pago.banco_receptor_id,
+                'banco_receptor': pago.banco_receptor.nombre if pago.banco_receptor else None,
             }
 
             principal = _principal_de(pago)
             lineas_auto = calcular_desglose_automatico(principal) if principal else []
 
             if lineas_auto:
+                if pago.operacion_uuid in operaciones_con_desglose_auto:
+                    # Ya se emitió el desglose de esta operación con un pago
+                    # hermano anterior — no volver a agregarlo.
+                    continue
+                operaciones_con_desglose_auto.add(pago.operacion_uuid)
+
+                base_principal = {
+                    **base,
+                    'pago_id': principal.id,
+                    'fecha_pago': principal.fecha_pago.isoformat() if principal.fecha_pago else None,
+                    'factura_id': principal.factura_id,
+                    'referencia': principal.referencia,
+                    'alumno_nombre': f"{principal.alumno.nombre} {principal.alumno.apellido}".strip() if principal.alumno else None,
+                    'representante_nombre': principal.representante_nombre,
+                    'representante_documento': principal.representante_documento,
+                    'metodo_pago_display': principal.get_metodo_pago_display(),
+                    'banco_receptor_id': principal.banco_receptor_id,
+                    'banco_receptor': principal.banco_receptor.nombre if principal.banco_receptor else None,
+                }
                 for linea in lineas_auto:
                     mes = linea.get('mes') if linea.get('clasificacion_temporal') == 'atrasado' else None
                     anio = linea.get('anio') if linea.get('clasificacion_temporal') == 'atrasado' else None
                     filas.append({
-                        **base,
+                        **base_principal,
                         'concepto': linea['concepto'],
                         'concepto_display': linea['concepto_display'],
                         'tipo': None,
                         'tipo_display': None,
+                        'categoria_concepto': _categoria_concepto_desglose(concepto=linea['concepto']),
                         'mes': mes,
                         'anio': anio,
                         'mes_display': MESES_ES[mes - 1] if mes else None,
@@ -1594,6 +1826,7 @@ class DesgloseContableView(APIView):
                         'concepto_display': None,
                         'tipo': m.tipo,
                         'tipo_display': m.get_tipo_display(),
+                        'categoria_concepto': _categoria_concepto_desglose(tipo=m.tipo),
                         'mes': m.mes,
                         'anio': m.anio,
                         'mes_display': MESES_ES[m.mes - 1] if m.mes else None,
@@ -1610,6 +1843,7 @@ class DesgloseContableView(APIView):
                 'concepto_display': pago.get_concepto_display(),
                 'tipo': None,
                 'tipo_display': None,
+                'categoria_concepto': _categoria_concepto_desglose(concepto_pago=pago.concepto),
                 'mes': None,
                 'anio': None,
                 'mes_display': None,
@@ -1617,6 +1851,31 @@ class DesgloseContableView(APIView):
                 'monto_usd': str(monto_usd.quantize(Decimal('0.01'))),
                 'monto_ves': str(pago.monto_ves.quantize(Decimal('0.01'))) if pago.monto_ves else str((monto_usd * (pago.tasa_aplicada or Decimal('0'))).quantize(Decimal('0.01'))),
             })
+
+        concepto_filtro = request.query_params.get('concepto')
+        if concepto_filtro and concepto_filtro != 'todos':
+            if concepto_filtro not in CATEGORIAS_CONCEPTO_DESGLOSE:
+                return Response(
+                    {'error': f"concepto inválido. Use uno de: {', '.join(CATEGORIAS_CONCEPTO_DESGLOSE)}, todos."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            filas = [f for f in filas if f['categoria_concepto'] == concepto_filtro]
+
+        # 'sin_banco' filtra pagos sin banco_receptor (Efectivo USD/Bs., que no
+        # pasan por ninguna cuenta bancaria). Cualquier otro valor debe ser el
+        # id de un BancoInstitucional existente.
+        banco_filtro = request.query_params.get('banco')
+        if banco_filtro and banco_filtro != 'todos':
+            if banco_filtro == 'sin_banco':
+                filas = [f for f in filas if f['banco_receptor_id'] is None]
+            else:
+                try:
+                    banco_id = int(banco_filtro)
+                except (TypeError, ValueError):
+                    return Response({'error': "banco inválido. Use el id de un banco, 'sin_banco' o 'todos'."}, status=status.HTTP_400_BAD_REQUEST)
+                if not BancoInstitucional.objects.filter(id=banco_id).exists():
+                    return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
+                filas = [f for f in filas if f['banco_receptor_id'] == banco_id]
 
         return Response({'total_filas': len(filas), 'results': filas})
 
@@ -1645,6 +1904,8 @@ class ResumenConciliacionView(APIView):
               cargada) y, si un representante matchea por cualquiera de sus
               pagos, se muestran todos sus pagos del rango.
       metodo_pago, estatus: filtros exactos, aplican a los pagos mostrados.
+      banco: id de BancoInstitucional, o 'sin_banco' para Efectivo USD/Bs.
+             (no tienen banco_receptor) — aplica a los pagos mostrados.
       page (default 1), page_size (default 15, máx 50 representantes por página)
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -1662,6 +1923,7 @@ class ResumenConciliacionView(APIView):
         buscar = (request.query_params.get('buscar') or '').strip()
         metodo_pago = request.query_params.get('metodo_pago')
         estatus = request.query_params.get('estatus')
+        banco_filtro = request.query_params.get('banco')
 
         try:
             page = max(1, int(request.query_params.get('page', 1)))
@@ -1677,6 +1939,17 @@ class ResumenConciliacionView(APIView):
             base_qs = base_qs.filter(metodo_pago=metodo_pago)
         if estatus:
             base_qs = base_qs.filter(estatus=estatus)
+        if banco_filtro and banco_filtro != 'todos':
+            if banco_filtro == 'sin_banco':
+                base_qs = base_qs.filter(banco_receptor__isnull=True)
+            else:
+                try:
+                    banco_id = int(banco_filtro)
+                except (TypeError, ValueError):
+                    return Response({'error': "banco inválido. Use el id de un banco, 'sin_banco' o 'todos'."}, status=status.HTTP_400_BAD_REQUEST)
+                if not BancoInstitucional.objects.filter(id=banco_id).exists():
+                    return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
+                base_qs = base_qs.filter(banco_receptor_id=banco_id)
 
         qs_busqueda = base_qs
         if buscar:

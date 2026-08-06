@@ -1,6 +1,34 @@
 import { User, Loader2, CheckCircle2, DollarSign, ArrowRight } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
 import { fmt } from '../../utils/formato';
+import { Bone } from '../../components/shared/Skeleton.jsx';
+
+/** Alterna la selección de todos los ids de una lista contra un array `selected*`,
+ * invocando el toggle existente solo para los ids que falten (o sobren). */
+const toggleTodos = (ids, selected, toggle, alumnoId) => {
+    const todosSeleccionados = ids.length > 0 && ids.every(id => selected.includes(id));
+    if (todosSeleccionados) {
+        ids.forEach(id => { if (selected.includes(id)) toggle(alumnoId, id); });
+    } else {
+        ids.forEach(id => { if (!selected.includes(id)) toggle(alumnoId, id); });
+    }
+};
+
+/** Botón "Seleccionar todas" / "Deseleccionar todas" para la cabecera de un bloque. */
+const BotonSeleccionarTodas = ({ ids, selected, onClick, color }) => {
+    if (ids.length <= 1) return null;
+    const todosSeleccionados = ids.every(id => selected.includes(id));
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+            style={{ color }}
+        >
+            {todosSeleccionados ? 'Deseleccionar todas' : 'Seleccionar todas'}
+        </button>
+    );
+};
 
 const BloqueDeudaAlumno = ({
     alu,
@@ -32,9 +60,17 @@ const BloqueDeudaAlumno = ({
             {/* Cuotas de inscripción pendientes */}
             {cuotasInscripcion.length > 0 && (
                 <div className="rounded-xl p-3" style={{ border: '1.5px solid #f59e0b44', background: '#fffbeb' }}>
-                    <p className="text-[11px] uppercase tracking-widest mb-2 font-bold" style={{ color: '#b45309' }}>
-                        Cuota de Inscripción pendiente
-                    </p>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-[11px] uppercase tracking-widest font-bold" style={{ color: '#b45309' }}>
+                            Cuota de Inscripción pendiente
+                        </p>
+                        <BotonSeleccionarTodas
+                            ids={cuotasInscripcion.map(c => c.id)}
+                            selected={selectedCuotas}
+                            onClick={() => toggleTodos(cuotasInscripcion.map(c => c.id), selectedCuotas, toggleCuota, alu.id)}
+                            color="#b45309"
+                        />
+                    </div>
                     <div className="space-y-2">
                         {cuotasInscripcion.map(c => {
                             const isSel   = selectedCuotas.includes(c.id);
@@ -105,9 +141,17 @@ const BloqueDeudaAlumno = ({
             {/* Solvencia pendiente */}
             {cuotasSolvencia.length > 0 && (
                 <div className="rounded-xl p-3" style={{ border: '1.5px solid #dc262644', background: '#fef2f2' }}>
-                    <p className="text-[11px] uppercase tracking-widest mb-2 font-bold" style={{ color: '#b91c1c' }}>
-                        Solvencia pendiente
-                    </p>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-[11px] uppercase tracking-widest font-bold" style={{ color: '#b91c1c' }}>
+                            Solvencia pendiente
+                        </p>
+                        <BotonSeleccionarTodas
+                            ids={cuotasSolvencia.map(c => c.id)}
+                            selected={selectedSolvencias}
+                            onClick={() => toggleTodos(cuotasSolvencia.map(c => c.id), selectedSolvencias, toggleSolvencia, alu.id)}
+                            color="#b91c1c"
+                        />
+                    </div>
                     <div className="space-y-2">
                         {cuotasSolvencia.map(c => {
                             const isSel   = selectedSolvencias.includes(c.id);
@@ -182,9 +226,17 @@ const BloqueDeudaAlumno = ({
 
             {/* Mensualidades */}
             <div className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
-                <p className="text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
-                    Mensualidades pendientes
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+                        Mensualidades pendientes
+                    </p>
+                    <BotonSeleccionarTodas
+                        ids={mensualidades.map(m => m.id)}
+                        selected={selectedMens}
+                        onClick={() => toggleTodos(mensualidades.map(m => m.id), selectedMens, toggleMens, alu.id)}
+                        color="var(--pb)"
+                    />
+                </div>
                 {mensualidades.length === 0 ? (
                     <div className="flex items-center gap-2 text-sm py-2" style={{ color: 'var(--ash)' }}>
                         <CheckCircle2 size={15} style={{ color: '#16a34a' }} />
@@ -393,6 +445,16 @@ const CobranzaStep1 = ({
                         <Loader2 className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" size={14} style={{ color: 'var(--ash)' }} />
                     )}
                 </div>
+
+                {loadingBusqueda && !representanteNombre && (
+                    <div className="mt-4 space-y-3 anim-fade-up">
+                        <Bone className="h-3 w-40" />
+                        <div className="rounded-xl p-3 space-y-2" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
+                            <Bone className="h-3 w-1/2" />
+                            <Bone className="h-2.5 w-1/3" />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {representanteNombre && (

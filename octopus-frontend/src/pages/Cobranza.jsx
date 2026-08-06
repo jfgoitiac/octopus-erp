@@ -16,6 +16,9 @@ import { fmt } from '../utils/formato';
 import CobranzaStep1 from './components/CobranzaStep1';
 import CobranzaStep2 from './components/CobranzaStep2';
 import ResumenPago from './components/ResumenPago';
+import Stepper from '../components/shared/Stepper';
+
+const COBRANZA_STEPS = ['Buscar y seleccionar deuda', 'Registrar pago'];
 
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
@@ -100,6 +103,12 @@ const Cobranza = () => {
 
     const searchRef = useRef(null);
     const abortRef  = useRef(null);
+    // Guarda síncrona contra doble envío: `loading` (estado de React) no se
+    // refleja en el DOM (botón disabled) hasta el siguiente render, así que
+    // un doble clic muy rápido puede disparar handleSubmit dos veces antes
+    // de que el botón se deshabilite. Este ref se lee/escribe de forma
+    // síncrona en el mismo evento, sin esperar al re-render.
+    const enviandoPagoRef = useRef(false);
     const [loadingBusqueda, setLoadingBusqueda] = useState(false);
     const [confirming, setConfirming]           = useState(false);
 
@@ -336,6 +345,8 @@ const Cobranza = () => {
         const posInvalido = lineas.some(l => l.metodo_pago === 'punto_de_venta' &&
             (!/^\d{4}$/.test(l.referencia || '') || !/^\d{4}$/.test(l.numero_lote || '')));
         if (posInvalido) { toast.error('Punto de Venta requiere referencia y número de lote de 4 dígitos.'); return; }
+        if (enviandoPagoRef.current) return;
+        enviandoPagoRef.current = true;
         setLoading(true);
         try {
             const alumnosPayload = alumnosSeleccionados.map(id => {
@@ -456,6 +467,7 @@ const Cobranza = () => {
                 || (!err.response ? 'Sin conexión con el servidor. Verifica tu internet e intenta de nuevo.' : 'Error al registrar el pago.');
             toast.error(msg);
         } finally {
+            enviandoPagoRef.current = false;
             setLoading(false);
         }
     };
@@ -481,6 +493,8 @@ const Cobranza = () => {
 
     /* ── STEP 1: Búsqueda ── */
     if (step === 1) return (
+        <>
+        <Stepper steps={COBRANZA_STEPS} current={step} />
         <CobranzaStep1
             cedula={cedula}
             buscarAlumno={buscarAlumno}
@@ -507,10 +521,13 @@ const Cobranza = () => {
             setStep={setStep}
             haySeleccion={haySeleccion}
         />
+        </>
     );
 
     /* ── STEP 2: Pago ── */
     return (
+        <>
+        <Stepper steps={COBRANZA_STEPS} current={step} />
         <CobranzaStep2
             nombreAlumno={nombresSeleccionados}
             cedula={cedula}
@@ -562,6 +579,7 @@ const Cobranza = () => {
                 handleSubmit={handleSubmit}
             />
         </CobranzaStep2>
+        </>
     );
 };
 

@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
 import { fmt } from '../../utils/formato';
+import { useConfiguracion } from '../../hooks/useConfiguracion';
 
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
@@ -55,6 +57,12 @@ const CobranzaStep2 = ({
     metodoPagoIcons,
     children,
 }) => {
+    const { config: configColegio, loading: loadingConfig } = useConfiguracion();
+    const [touched, setTouched] = useState({});
+
+    const marcarTocado = (i, campo) => setTouched(p => ({ ...p, [`${i}_${campo}`]: true }));
+    const esTocado = (i, campo) => !!touched[`${i}_${campo}`];
+
     const conceptosDetectados = [
         hayMens && 'Mensualidad',
         hayInscripcion && 'Inscripción',
@@ -88,6 +96,14 @@ const CobranzaStep2 = ({
                     <h2 className="text-base font-semibold" style={{ color: 'var(--jet)' }}>Registrar Pago</h2>
                     <p className="text-xs" style={{ color: 'var(--ash)' }}>{nombreAlumno} · Cédula: {cedula}</p>
                 </div>
+                {!loadingConfig && configColegio?.periodo_escolar_activo && (
+                    <span
+                        className="text-[10px] font-medium px-2 py-1 rounded-md whitespace-nowrap"
+                        style={{ background: 'var(--porcelain)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}
+                    >
+                        Período {configColegio.periodo_escolar_activo}
+                    </span>
+                )}
                 <button
                     type="button"
                     onClick={refetchTasa}
@@ -322,14 +338,21 @@ const CobranzaStep2 = ({
                                             </label>
                                             <select
                                                 className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                                style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                                style={{
+                                                    border: esTocado(i, 'banco') && !l.banco_receptor_id ? '1px solid #ef4444' : '1px solid var(--border-md)',
+                                                    background: '#fff', color: 'var(--jet)',
+                                                }}
                                                 value={l.banco_receptor_id}
                                                 onChange={e => actualizarLinea(i, 'banco_receptor_id', e.target.value)}
+                                                onBlur={() => marcarTocado(i, 'banco')}
                                                 aria-label="Banco receptor"
                                             >
                                                 <option value="">Seleccionar banco…</option>
                                                 {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
                                             </select>
+                                            {esTocado(i, 'banco') && !l.banco_receptor_id && (
+                                                <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
+                                            )}
                                         </div>
                                     )}
                                     <div className={requiereBanco(l.metodo_pago) && l.metodo_pago !== 'punto_de_venta' ? '' : 'col-span-2'}>
@@ -339,13 +362,21 @@ const CobranzaStep2 = ({
                                         <input
                                             type="text"
                                             className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                            style={{
+                                                border: esTocado(i, 'referencia') && l.metodo_pago === 'punto_de_venta' && (l.referencia || '').length !== 4
+                                                    ? '1px solid #ef4444' : '1px solid var(--border-md)',
+                                                background: '#fff', color: 'var(--jet)',
+                                            }}
                                             placeholder={l.metodo_pago === 'punto_de_venta' ? 'Ej: 1234' : requiereBanco(l.metodo_pago) ? 'Ej: 000123456' : 'Opcional'}
                                             value={l.referencia}
                                             onChange={e => actualizarLinea(i, 'referencia', l.metodo_pago === 'punto_de_venta' ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value)}
+                                            onBlur={() => marcarTocado(i, 'referencia')}
                                             maxLength={l.metodo_pago === 'punto_de_venta' ? 4 : undefined}
                                             aria-label="Número de referencia"
                                         />
+                                        {esTocado(i, 'referencia') && l.metodo_pago === 'punto_de_venta' && (l.referencia || '').length !== 4 && (
+                                            <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>Ingresa los 4 dígitos de referencia</p>
+                                        )}
                                     </div>
                                     {l.metodo_pago === 'punto_de_venta' && (
                                         <div>
