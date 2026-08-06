@@ -143,6 +143,7 @@ const Reportes = () => {
 
             {pagoSeleccionado && (
                 <ClasificacionPagoModal
+                    key={pagoSeleccionado.id}
                     pago={pagoSeleccionado}
                     onClose={() => setPagoSeleccionado(null)}
                     onPagoActualizado={handlePagoActualizado}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Loader2, Search, FileSpreadsheet, X, Layers, FilePlus2,
+    Loader2, Search, FileSpreadsheet, X, Layers, FilePlus2, CheckCircle2, Eye,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -112,14 +112,21 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
     ]);
 
     /* Actualiza el resumen (monto clasificado/pendiente/estado) de un pago en la
-       tabla sin recargar toda la página, tras crear/editar/borrar una línea en el modal. */
+       tabla sin recargar toda la página, tras crear/editar/borrar una línea en el modal.
+       El resumen es a nivel de OPERACIÓN: si el pago editado tiene "hermanos" (mismo
+       operacion_uuid, ej. un pago repartido en dos alumnos o métodos), cada uno aparece
+       como su propia fila pero todos comparten los mismos totales — hay que refrescarlos
+       todos, no solo la fila donde se abrió el modal, o se queda una fila con el monto
+       viejo mientras las demás ya muestran el nuevo. */
     const handlePagoActualizado = useCallback((pagoId, resumen) => {
-        setClasifPagos(prev => prev.map(p => (p.id === pagoId ? {
+        setClasifPagos(prev => prev.map(p => (
+            p.id === pagoId || (resumen.operacion_uuid && p.operacion_uuid === resumen.operacion_uuid)
+        ) ? {
             ...p,
             monto_clasificado_usd: resumen.monto_clasificado_usd,
             monto_pendiente_usd: resumen.monto_pendiente_usd,
             estado_clasificacion: resumen.estado_clasificacion,
-        } : p)));
+        } : p));
     }, []);
 
     // Se registra en el shell mientras esta pestaña está montada, para que el
@@ -441,6 +448,11 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                             clasifPagos.map((p, idx) => {
                                 const estStyle = ESTADO_CLASIF_STYLE[p.estado_clasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
                                 const esMixto = p.concepto === 'mixto';
+                                // Ya cubierto por completo (automático o manual): no requiere acción del
+                                // contador. Se atenúa la fila y se cambia el botón a "Ver" para que la
+                                // vista se recorra rápido buscando solo lo pendiente (sin_clasificar/parcial).
+                                const yaClasificado = p.estado_clasificacion === 'completo_automatico'
+                                    || p.estado_clasificacion === 'completo_manual';
                                 const fecha = p.fecha_pago
                                     ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
                                     : '—';
@@ -452,6 +464,8 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                                         style={{
                                             background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
                                             borderBottom: '0.5px solid var(--border-md)',
+                                            borderLeft: yaClasificado ? '3px solid #16a34a' : '3px solid transparent',
+                                            opacity: yaClasificado ? 0.55 : 1,
                                         }}>
                                         <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
                                         <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{p.alumno || '—'}</td>
@@ -462,13 +476,14 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                                         <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.referencia || '—'}</td>
                                         <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</td>
                                         <td className="px-4 py-3">
-                                            <span className="font-medium" style={{ color: esMixto ? 'var(--red)' : 'var(--jet)' }}>
+                                            <span className="font-medium" style={{ color: esMixto && !yaClasificado ? 'var(--red)' : 'var(--jet)' }}>
                                                 {p.concepto_display || p.concepto || '—'}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
                                                 style={{ background: estStyle.bg, color: estStyle.color }}>
+                                                {yaClasificado && <CheckCircle2 size={11} />}
                                                 {estStyle.label}
                                             </span>
                                         </td>
@@ -478,9 +493,11 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                                         <td className="px-4 py-3 text-center">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onSeleccionarPago(p); }}
-                                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white whitespace-nowrap"
-                                                style={{ background: 'var(--pb)' }}>
-                                                Clasificar
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
+                                                style={yaClasificado
+                                                    ? { background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
+                                                    : { background: 'var(--pb)', color: '#fff' }}>
+                                                {yaClasificado ? <><Eye size={13} /> Ver</> : 'Clasificar'}
                                             </button>
                                         </td>
                                     </tr>

@@ -1354,6 +1354,7 @@ def _resumen_clasificacion_pago(pago):
 
     return {
         'pago_id': pago.id,
+        'operacion_uuid': str(pago.operacion_uuid),
         'monto_usd': str((pago.monto_usd or Decimal('0')).quantize(Decimal('0.01'))),
         'monto_operacion_usd': str(monto_operacion.quantize(Decimal('0.01'))),
         'monto_clasificado_usd': str(monto_cubierto.quantize(Decimal('0.01'))),
@@ -1552,6 +1553,7 @@ class EstadoClasificacionPagosView(APIView):
         for pago, resumen in pagina:
             results.append({
                 'id': pago.id,
+                'operacion_uuid': str(pago.operacion_uuid),
                 'factura_id': pago.factura_id,
                 'fecha_pago': pago.fecha_pago,
                 'alumno': f"{pago.alumno.nombre} {pago.alumno.apellido}".strip() if pago.alumno else None,
