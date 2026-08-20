@@ -1,0 +1,190 @@
+/* ============================================================
+   Sistema de diseño base - Sitio institucional Octopus
+   Autor: agente Diseño/Plantillas (Fase 1)
+
+   PRINCIPIO RECTOR
+   El color de marca NO se conoce en tiempo de diseño: viene de
+   ConfiguracionSitio.color_primario / _secundario / _acento y cambia
+   por colegio. Por eso la identidad la carga la ESTRUCTURA (tipografía,
+   ritmo vertical, filetes, proporción) y el color entra como invitado:
+   filetes, un relleno de CTA, marcas de eyebrow. Nunca como wash de
+   gradiente a pantalla completa, porque un hex arbitrario en superficie
+   grande produce resultados impredecibles entre colegios.
+
+   Se importa desde el CSS de entrada del sitio:
+     @import './styles/tokens.css';
+   ============================================================ */
+
+:root {
+  /* ---- 1. Marca ----
+     Puente con el scaffold del sitio público: ConfiguracionContext ya inyecta
+     --color-primario / --color-secundario / --color-acento en :root desde
+     ConfiguracionSitio. Los tokens de marca de las plantillas se derivan de
+     esos, así hay una sola fuente de verdad y las plantillas cambian de color
+     sin código extra. Los hex de aquí son solo el arranque antes del fetch. */
+  --marca-primario: var(--color-primario, #1f4d3d);
+  --marca-secundario: var(--color-secundario, #8a6a3b);
+  --marca-acento: var(--color-acento, #b3432f);
+
+  /* Texto legible SOBRE un relleno de marca. Lo recalcula el runtime
+     por luminancia; el valor de aquí es solo el arranque seguro. */
+  --marca-primario-texto: #ffffff;
+  --marca-acento-texto: #ffffff;
+
+  /* Rampa tonal derivada. color-mix garantiza que cualquier hex que
+     cargue el colegio produzca tintes y sombras utilizables sin que
+     nadie tenga que definir 9 pasos a mano en el admin. */
+  --marca-tinte-04: color-mix(in oklab, var(--marca-primario) 4%, var(--papel));
+  --marca-tinte-08: color-mix(in oklab, var(--marca-primario) 8%, var(--papel));
+  --marca-tinte-16: color-mix(in oklab, var(--marca-primario) 16%, var(--papel));
+  --marca-tinte-32: color-mix(in oklab, var(--marca-primario) 32%, var(--papel));
+  --marca-sombra: color-mix(in oklab, var(--marca-primario) 70%, transparent);
+  --marca-profundo: color-mix(in oklab, var(--marca-primario) 82%, #0b0a09);
+
+  /* ---- 2. Neutros "papel / tinta" (independientes de la marca) ---- */
+  --papel: #fbfaf8;
+  --papel-2: #f4f2ed;
+  --papel-3: #eae6df;
+  --tinta: #191817;
+  --tinta-700: #3d3a36;
+  --tinta-500: #6d6660;
+  --tinta-400: #918a83;
+  --linea: #e2ded7;
+  --linea-fuerte: #cdc7bd;
+
+  /* ---- 3. Tipografía ---- */
+  --fuente-display: 'Geist', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fuente-texto: 'Geist', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Typeset editorial: solo para cuerpo de artículo largo (ver DESIGN_SYSTEM.md) */
+  --fuente-editorial: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  --fuente-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  --paso--2: 0.75rem;   /* 12px  micro etiquetas */
+  --paso--1: 0.875rem;  /* 14px  metadatos */
+  --paso-0: 1rem;       /* 16px  cuerpo mobile */
+  --paso-1: 1.125rem;   /* 18px  cuerpo desktop / lead mobile */
+  --paso-2: 1.375rem;   /* 22px  lead desktop */
+  --paso-3: 1.75rem;    /* 28px  h3 */
+  --paso-4: 2.25rem;    /* 36px  h2 mobile */
+  --paso-5: 3rem;       /* 48px  h2 desktop / h1 mobile */
+  --paso-6: 3.75rem;    /* 60px  h1 desktop */
+  --paso-7: 4.5rem;     /* 72px  h1 display (solo titulares de 3 a 5 palabras) */
+
+  /* ---- 4. Ritmo vertical (mapea config_estilo.espaciado_top/bottom) ---- */
+  --ritmo-sm: 3rem;
+  --ritmo-md: 5rem;
+  --ritmo-lg: 7.5rem;
+
+  /* ---- 5. Medidas de línea y contenedores ---- */
+  --ancho-contenido: 1200px;   /* config_estilo.ancho = 'contenido' */
+  --ancho-lectura: 68ch;       /* cuerpo de artículo */
+  --canal: 1.25rem;            /* padding lateral mobile */
+
+  /* ---- 6. Radios. UNA sola regla en todo el sitio ----
+     interactivo = píldora, superficie/media = 14px, campo de formulario = 10px */
+  --radio-interactivo: 999px;
+  --radio-superficie: 14px;
+  --radio-campo: 10px;
+
+  /* ---- 7. Sombras (tintadas al papel, nunca negro puro) ---- */
+  --sombra-1: 0 1px 2px rgb(25 24 23 / 0.04), 0 2px 8px rgb(25 24 23 / 0.04);
+  --sombra-2: 0 2px 4px rgb(25 24 23 / 0.05), 0 12px 32px rgb(25 24 23 / 0.07);
+  --sombra-marca: 0 10px 30px color-mix(in oklab, var(--marca-primario) 22%, transparent);
+
+  /* ---- 8. Curvas y duraciones (ver catálogo en DESIGN_SYSTEM.md) ---- */
+  --curva-salida: cubic-bezier(0.16, 1, 0.3, 1);
+  --curva-estandar: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-rapida: 180ms;
+  --dur-media: 320ms;
+  --dur-lenta: 600ms;
+
+  --z-nav: 40;
+  --z-overlay: 60;
+}
+
+/* Modo oscuro: el papel se vuelve tinta y la marca se aclara lo justo
+   para conservar contraste AA sobre fondo profundo. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    --papel: #15140f;
+    --papel-2: #1d1c17;
+    --papel-3: #26241e;
+    --tinta: #f6f4f0;
+    --tinta-700: #d5d0c8;
+    --tinta-500: #a09a91;
+    --tinta-400: #7d766e;
+    --linea: #2e2b25;
+    --linea-fuerte: #423e36;
+    --sombra-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.25);
+    --sombra-2: 0 2px 4px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.4);
+  }
+}
+
+:root[data-tema='oscuro'] {
+  --papel: #15140f;
+  --papel-2: #1d1c17;
+  --papel-3: #26241e;
+  --tinta: #f6f4f0;
+  --tinta-700: #d5d0c8;
+  --tinta-500: #a09a91;
+  --tinta-400: #7d766e;
+  --linea: #2e2b25;
+  --linea-fuerte: #423e36;
+}
+
+/* ---- Base ---- */
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fuente-texto);
+  font-size: var(--paso-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Foco visible y consistente en todo el sitio público. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--marca-primario);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utilidad de scroll horizontal con snap para el bloque carrusel/galería.
+   El renderer real de Fase 2 monta Embla encima de esta misma marca. */
+.pista-snap {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.pista-snap::-webkit-scrollbar {
+  display: none;
+}
+.pista-snap > * {
+  scroll-snap-align: start;
+}
