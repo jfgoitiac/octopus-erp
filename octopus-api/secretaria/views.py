@@ -1683,11 +1683,20 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
     pagination_class    = StandardResultsPagination
 
     def get_queryset(self):
-        from cobranza.models import CuotaProyectoInversion
+        from cobranza.models import CuotaInscripcion, CuotaProyectoInversion
         from .models import ConfiguracionSistema
 
+        # Exists() anotado para tiene_inscripcion_impaga: antes el serializer
+        # disparaba un CuotaInscripcion.objects.filter(...).exists() por cada
+        # representante del listado (N+1 real, detectado por
+        # RepresentanteViewSetNPlusOneTest) — mismo criterio de anotación que
+        # cantidad_alumnos, sin queries extra por fila.
+        inscripcion_impaga_qs = CuotaInscripcion.objects.filter(
+            alumno__representante=models.OuterRef('pk'), alumno__activo=True, pagado=False,
+        )
         qs = Representante.objects.filter(activo=True).select_related('portal_user').annotate(
-            cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True))
+            cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True)),
+            _tiene_inscripcion_impaga=models.Exists(inscripcion_impaga_qs),
         )
         # Prefetch de la cuota de Proyecto de Inversión del período activo (a lo
         # sumo una por representante, por unique_together) para que el serializer

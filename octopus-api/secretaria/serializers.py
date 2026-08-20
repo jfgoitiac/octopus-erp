@@ -103,6 +103,14 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
         return hasattr(obj, 'portal_user')
 
     def get_tiene_inscripcion_impaga(self, obj):
+        # Resuelto vía Exists() anotado en RepresentanteViewSet.get_queryset
+        # (to_attr '_tiene_inscripcion_impaga') para no disparar una query
+        # por fila en el listado — mismo criterio que cantidad_alumnos y
+        # monto_proyecto_inversion en este mismo serializer. Fallback por si
+        # se instancia el serializer sobre un queryset que no pasó por ahí.
+        valor = getattr(obj, '_tiene_inscripcion_impaga', None)
+        if valor is not None:
+            return valor
         from cobranza.models import CuotaInscripcion
         return CuotaInscripcion.objects.filter(
             alumno__representante=obj, alumno__activo=True, pagado=False
