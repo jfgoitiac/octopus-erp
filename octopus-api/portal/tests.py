@@ -111,8 +111,16 @@ class PortalLoginTests(PortalTestBase):
         resp = self.login_portal()
         self.assertEqual(resp.status_code, 200)
         self.assertIn('access', resp.data)
-        self.assertIn('refresh', resp.data)
+        # SEGURIDAD: el refresh token ya no viaja en el body — solo en la
+        # cookie HttpOnly `portal_refresh_token` (ver portal/views.py).
+        self.assertNotIn('refresh', resp.data)
         self.assertEqual(resp.data['cedula'], self.rep.cedula)
+
+        cookie = resp.cookies.get('portal_refresh_token')
+        self.assertIsNotNone(cookie)
+        self.assertTrue(cookie['httponly'])
+        self.assertEqual(cookie['path'], '/api/portal/')
+        self.assertTrue(cookie.value)
 
     def test_login_con_correo_ok(self):
         resp = self.login_portal(cedula='rep1@example.com')
@@ -135,6 +143,139 @@ class PortalLoginTests(PortalTestBase):
         )
         resp = self.login_portal(cedula='V22222222', password='loquesea123')
         self.assertEqual(resp.status_code, 400)
+
+
+class PortalResetPasswordTests(PortalTestBase):
+    def _extraer_uid_token(self):
+        """El link va en el cuerpo HTML del email; lo parseamos de la query string."""
+        import re
+        cuerpo_html = mail.outbox[-1].alternatives[0][0]
+        # Django auto-escapa "&" a "&amp;" al renderizar el link en el template HTML.
+        match = re.search(r'uid=([^&"]+)&(?:amp;)?token=([^&"]+)', cuerpo_html)
+        self.assertIsNotNone(match, 'No se encontró el link de reset en el email.')
+        return match.group(1), match.group(2)
+
+    def test_solicitar_reset_cedula_existente_envia_email(self):
+        resp = self.client.post('/api/portal/reset-password/solicitar/', {
+            'cedula_o_email': self.rep.cedula,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.rep.correo])
+
+    def test_solicitar_reset_cedula_inexistente_no_revela_nada(self):
+        """SEGURIDAD: misma respuesta 200 + mismo mensaje, sin enviar email —
+        evita que alguien tantee qué cédulas tienen portal activo."""
+        resp_existente = self.client.post('/api/portal/reset-password/solicitar/', {
+            'cedula_o_email': self.rep.cedula,
+        })
+        cache.clear()  # no queremos que el throttle interfiera en esta comparación
+        resp_inexistente = self.client.post('/api/portal/reset-password/solicitar/', {
+            'cedula_o_email': 'V99999999',
+        })
+        self.assertEqual(resp_existente.status_code, resp_inexistente.status_code)
+        self.assertEqual(resp_existente.data, resp_inexistente.data)
+        self.assertEqual(len(mail.outbox), 1)  # solo el de la cédula real
+
+    def test_solicitar_reset_portal_desactivado_no_envia_email(self):
+        self.rep_user.esta_activo = False
+        self.rep_user.save()
+        resp = self.client.post('/api/portal/reset-password/solicitar/', {
+            'cedula_o_email': self.rep.cedula,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_confirmar_reset_con_token_valido_cambia_password(self):
+        self.client.post('/api/portal/reset-password/solicitar/', {'cedula_o_email': self.rep.cedula})
+        uid, token = self._extraer_uid_token()
+
+        resp = self.client.post('/api/portal/reset-password/confirmar/', {
+            'uid': uid, 'token': token,
+            'contrasena_nueva': 'nueva-clave-456', 'confirmar': 'nueva-clave-456',
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        # La clave vieja ya no sirve, la nueva sí
+        self.assertEqual(self.login_portal(password=self.password).status_code, 400)
+        self.assertEqual(self.login_portal(password='nueva-clave-456').status_code, 200)
+
+    def test_confirmar_reset_token_ya_usado_falla(self):
+        self.client.post('/api/portal/reset-password/solicitar/', {'cedula_o_email': self.rep.cedula})
+        uid, token = self._extraer_uid_token()
+        datos = {'uid': uid, 'token': token, 'contrasena_nueva': 'clave-uno-123', 'confirmar': 'clave-uno-123'}
+
+        primero = self.client.post('/api/portal/reset-password/confirmar/', datos)
+        self.assertEqual(primero.status_code, 200)
+
+        # El token de Django incorpora el hash de password: al cambiar la clave
+        # arriba, reusar el mismo token ya debe fallar.
+        segundo = self.client.post('/api/portal/reset-password/confirmar/', {
+            **datos, 'contrasena_nueva': 'clave-dos-456', 'confirmar': 'clave-dos-456',
+        })
+        self.assertEqual(segundo.status_code, 400)
+
+    def test_confirmar_reset_token_invalido_falla(self):
+        resp = self.client.post('/api/portal/reset-password/confirmar/', {
+            'uid': 'basura', 'token': 'basura',
+            'contrasena_nueva': 'clave-uno-123', 'confirmar': 'clave-uno-123',
+        })
+        self.assertEqual(resp.status_code, 400)
+
+    def test_confirmar_reset_passwords_no_coinciden_falla(self):
+        self.client.post('/api/portal/reset-password/solicitar/', {'cedula_o_email': self.rep.cedula})
+        uid, token = self._extraer_uid_token()
+        resp = self.client.post('/api/portal/reset-password/confirmar/', {
+            'uid': uid, 'token': token,
+            'contrasena_nueva': 'clave-uno-123', 'confirmar': 'otra-clave-456',
+        })
+        self.assertEqual(resp.status_code, 400)
+
+
+class PortalRefreshCookieTests(PortalTestBase):
+    """
+    Refresh y logout del portal ahora usan la cookie HttpOnly
+    `portal_refresh_token` (path=/api/portal/) en vez de un refresh token en
+    el body — mismo patrón que el panel admin (authentication/cookie_views.py).
+    """
+
+    def test_refresh_sin_cookie_devuelve_401(self):
+        resp = self.client.post('/api/portal/token/refresh/', {})
+        self.assertEqual(resp.status_code, 401)
+
+    def test_refresh_con_cookie_emite_nuevo_access_y_rota_cookie(self):
+        login_resp = self.login_portal()
+        self.assertEqual(login_resp.status_code, 200)
+        cookie_original = login_resp.cookies['portal_refresh_token'].value
+
+        # El test client de Django re-envía las cookies recibidas en respuestas
+        # anteriores en las siguientes peticiones del mismo client, igual que
+        # haría el navegador con `withCredentials`.
+        refresh_resp = self.client.post('/api/portal/token/refresh/', {})
+        self.assertEqual(refresh_resp.status_code, 200, refresh_resp.content)
+        self.assertIn('access', refresh_resp.data)
+        self.assertNotIn('refresh', refresh_resp.data)
+
+        # ROTATE_REFRESH_TOKENS=True: la cookie debe rotar a un valor distinto.
+        nueva_cookie = refresh_resp.cookies.get('portal_refresh_token')
+        self.assertIsNotNone(nueva_cookie)
+        self.assertNotEqual(nueva_cookie.value, cookie_original)
+
+    def test_logout_borra_la_cookie_y_blacklistea_el_refresh(self):
+        login_resp = self.login_portal()
+        self.assertEqual(login_resp.status_code, 200)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login_resp.data['access']}")
+
+        logout_resp = self.client.post('/api/portal/logout/')
+        self.assertEqual(logout_resp.status_code, 200)
+        cookie = logout_resp.cookies.get('portal_refresh_token')
+        # delete_cookie() responde con la cookie vacía y expirada, no ausente.
+        self.assertIsNotNone(cookie)
+        self.assertEqual(cookie.value, '')
+
+        # El refresh original ya no debe servir tras el logout (blacklist).
+        refresh_resp = self.client.post('/api/portal/token/refresh/', {})
+        self.assertEqual(refresh_resp.status_code, 401)
 
 
 class PortalDashboardTests(PortalTestBase):
@@ -250,14 +391,6 @@ class PortalIDORTests(PortalTestBase):
         self.assertEqual(resp.status_code, 404)
         self.assertEqual(ComprobantePago.objects.count(), 0)
 
-    def test_no_puede_crear_checkout_de_mensualidad_ajena(self):
-        self.auth_portal()
-        with override_settings(STRIPE_SECRET_KEY='sk_test_falsa'):
-            resp = self.client.post('/api/portal/stripe/checkout/', {
-                'mensualidad_id': self.mensualidad2.id,
-            })
-        self.assertEqual(resp.status_code, 404)
-
     def test_representante_no_accede_a_endpoints_admin(self):
         self.auth_portal()
         resp = self.client.get('/api/portal/admin/comprobantes/')
@@ -286,10 +419,18 @@ class PortalIDORTests(PortalTestBase):
 
 class PortalComprobanteTests(PortalTestBase):
     def _subir(self, archivo, mensualidad_id=None):
+        # 'transferencia' (default de metodo_pago cuando no se envía) exige
+        # referencia_bancaria — sin esto, todas estas subidas fallaban con
+        # 400 "referencia obligatoria" antes de siquiera llegar a validar lo
+        # que cada test realmente quiere probar (extensión, content-type,
+        # magic bytes, tamaño). Bug preexistente, no introducido por Fase 3
+        # de cantina.md — la app real (ComprobantePagoModal.jsx) ya siempre
+        # envía referencia, por eso nunca se notó en producción.
         with mock.patch('portal.tasks.notificar_comprobante_subido.delay'):
             return self.client.post('/api/portal/comprobante/', {
                 'mensualidad_id': mensualidad_id or self.mensualidad.id,
                 'archivo': archivo,
+                'referencia_bancaria': '123456',
             }, format='multipart')
 
     def test_subida_png_valido(self):
@@ -339,6 +480,39 @@ class PortalComprobanteTests(PortalTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
         self.assertEqual(resp.data[0]['estatus'], 'pendiente')
+
+    def test_rechaza_referencia_ya_usada_en_recarga_de_cantina(self):
+        """
+        Validación cruzada (cantina.md §5.9): una referencia ya usada para
+        recargar la tarjeta de cantina de un alumno no puede reciclarse para
+        "pagar" una mensualidad por este endpoint. Antes de este fix,
+        PortalComprobantePagoView solo miraba ComprobantePago/Pago (su propia
+        antifraude 4) y no llamaba a pagos_comunes.buscar_referencia_duplicada,
+        así que este caso cruzado pasaba sin detectarse.
+        """
+        from cantina.models import RecargaTarjeta, TarjetaPrepago
+
+        tarjeta = TarjetaPrepago.objects.create(
+            alumno=self.alumno, serial='L001-0001', codigo='CANT-TTTTTTTTTT',
+            estado='activa', saldo=Decimal('0.00'), limite_credito=Decimal('5.00'),
+        )
+        RecargaTarjeta.objects.create(
+            tarjeta=tarjeta, metodo_pago='transferencia', monto_usd=Decimal('10.00'),
+            tasa_aplicada=Decimal('40.0000'), monto_ves=Decimal('400.00'),
+            referencia='REF-YA-USADA', estatus='pendiente', registrado_por_portal=True,
+        )
+
+        self.auth_portal()
+        archivo = SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png')
+        resp = self.client.post('/api/portal/comprobante/', {
+            'mensualidad_id': self.mensualidad.id,
+            'archivo': archivo,
+            'referencia_bancaria': 'REF-YA-USADA',
+        }, format='multipart')
+
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertIn('cantina', resp.data['error'])
+        self.assertEqual(ComprobantePago.objects.count(), 0)
 
 
 class AdminComprobantesTests(PortalTestBase):

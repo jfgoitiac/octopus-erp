@@ -417,6 +417,24 @@ def notificar_bienvenida_portal(representante, contrasena_inicial):
                         representante_cedula=representante.cedula)
 
 
+def notificar_reset_password_portal(representante, uid, token):
+    """Envia el link de un solo uso para restablecer la contrasena del portal.
+    `uid`/`token` ya vienen generados por la vista (PortalSolicitarResetView)."""
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+    ctx = {
+        'nombre_representante': f'{representante.nombre} {representante.apellido}',
+        'reset_url': f'{frontend_url}/portal/restablecer-password?uid={uid}&token={token}',
+    }
+    html = _render_email('reset_password.html', ctx)
+    enviar_email(
+        representante.correo,
+        'Recuperar contraseña — Portal de Representantes',
+        html,
+        tipo='reset_password',
+        representante_cedula=representante.cedula,
+    )
+
+
 def notificar_comprobante_inscripcion(inscripcion):
     """Envia el comprobante de inscripcion (.docx adjunto) al representante,
     desde el perfil de email de Control de Estudios."""

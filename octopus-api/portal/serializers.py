@@ -1,10 +1,14 @@
 from datetime import date
 from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from secretaria.models import Representante
 from cobranza.models import Mensualidad, Pago
+from cantina.models import MovimientoTarjeta, RecargaTarjeta as RecargaTarjetaCantina
 from .models import ComprobantePago, RepresentanteUser
 
 
@@ -70,6 +74,72 @@ class PortalTokenSerializer(serializers.Serializer):
             'access': str(refresh.access_token),
         }
         attrs['representante'] = representante
+        attrs['debe_cambiar_password'] = rep_user.debe_cambiar_password
+        return attrs
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# RECUPERACIÓN DE CONTRASEÑA (self-service, sin intervención de un admin)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalSolicitarResetSerializer(serializers.Serializer):
+    """
+    Paso 1: recibe cédula o correo, y si corresponde a un representante con
+    portal activo genera un uid+token (Django PasswordResetTokenGenerator,
+    stateless — no requiere tabla propia) para incluir en el link del email.
+
+    SEGURIDAD: nunca revela si la cédula/correo existe o no — validate()
+    siempre resuelve sin error; la vista decide si envía el email o no,
+    pero la respuesta HTTP es idéntica en ambos casos (ver PortalSolicitarResetView).
+    """
+    cedula_o_email = serializers.CharField(write_only=True, max_length=254)
+
+    def validate(self, attrs):
+        cedula_o_email = attrs.get('cedula_o_email', '').strip()
+        representante = (
+            Representante.objects.filter(cedula=cedula_o_email).first()
+            or Representante.objects.filter(correo__iexact=cedula_o_email).first()
+        )
+        rep_user = None
+        if representante:
+            try:
+                rep_user = representante.portal_user
+            except RepresentanteUser.DoesNotExist:
+                rep_user = None
+        attrs['representante'] = representante if (rep_user and rep_user.esta_activo) else None
+        return attrs
+
+
+class PortalConfirmarResetSerializer(serializers.Serializer):
+    """
+    Paso 2: valida uid+token del link y la nueva contraseña, y la aplica.
+    El token de Django incorpora el hash de la contraseña actual, así que
+    dejar de ser válido apenas se usa una vez (o si el usuario ya cambió su
+    clave por otra vía) es automático, sin necesidad de marcarlo "usado".
+    """
+    uid = serializers.CharField(write_only=True)
+    token = serializers.CharField(write_only=True)
+    contrasena_nueva = serializers.CharField(write_only=True, max_length=128)
+    confirmar = serializers.CharField(write_only=True, max_length=128)
+
+    _ERROR_TOKEN = 'El enlace de recuperación es inválido o ya expiró. Solicita uno nuevo.'
+
+    def validate(self, attrs):
+        if attrs['contrasena_nueva'] != attrs['confirmar']:
+            raise serializers.ValidationError('La nueva contraseña y la confirmación no coinciden.')
+        if len(attrs['contrasena_nueva']) < 8:
+            raise serializers.ValidationError('La contraseña debe tener al menos 8 caracteres.')
+
+        try:
+            rep_user_id = force_str(urlsafe_base64_decode(attrs['uid']))
+            rep_user = RepresentanteUser.objects.select_related('user', 'representante').get(pk=rep_user_id)
+        except (TypeError, ValueError, OverflowError, RepresentanteUser.DoesNotExist):
+            raise serializers.ValidationError(self._ERROR_TOKEN)
+
+        if not rep_user.esta_activo or not default_token_generator.check_token(rep_user.user, attrs['token']):
+            raise serializers.ValidationError(self._ERROR_TOKEN)
+
+        attrs['rep_user'] = rep_user
         return attrs
 
 
@@ -154,6 +224,72 @@ class PortalPerfilSerializer(serializers.Serializer):
 
     def get_telefono(self, user):
         return user.representante_portal.representante.telefono
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CANTINA — SALDO Y RECARGA DE TARJETA PREPAGO (Fase 3 del portal, cantina.md §5.6)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TarjetaCantinaPortalSerializer(serializers.Serializer):
+    """
+    Estado de la tarjeta de cantina de un alumno del representante autenticado.
+    Serializa dicts (no instancias de modelo) armados en PortalSaldoTarjetaView,
+    porque un alumno puede no tener tarjeta asignada todavía (tiene_tarjeta=False)
+    y en ese caso no existe ninguna instancia de TarjetaPrepago que serializar.
+    """
+    alumno_id = serializers.IntegerField()
+    alumno_nombre = serializers.CharField()
+    grado_seccion = serializers.CharField(allow_null=True)
+    tiene_tarjeta = serializers.BooleanField()
+    tarjeta_id = serializers.IntegerField(allow_null=True)
+    saldo = serializers.CharField(allow_null=True)
+    estado = serializers.CharField(allow_null=True)
+    estado_display = serializers.CharField(allow_null=True)
+    limite_credito = serializers.CharField(allow_null=True)
+    en_negativo = serializers.BooleanField()
+    saldo_negativo_desde = serializers.DateField(allow_null=True)
+    dias_en_negativo = serializers.IntegerField()
+
+
+class MovimientoTarjetaPortalSerializer(serializers.ModelSerializer):
+    """Consumo/recarga/ajuste de una tarjeta de cantina, para el historial del portal."""
+    tipo_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovimientoTarjeta
+        fields = ['id', 'tipo', 'tipo_display', 'monto', 'saldo_antes', 'saldo_despues', 'creado_en']
+
+    def get_tipo_display(self, obj):
+        return obj.get_tipo_display()
+
+
+class RecargaTarjetaPortalSerializer(serializers.ModelSerializer):
+    """
+    Recarga de tarjeta de cantina solicitada desde el portal. De solo lectura:
+    PortalRecargarTarjetaView arma y valida los campos a mano (monto derivado
+    con la tasa vigente, referencia normalizada, antifraude cruzado) antes de
+    llamar a RecargaTarjeta.objects.create(...) — este serializer solo formatea
+    la respuesta 201, no se usa para validar la creación.
+    """
+    metodo_pago_display = serializers.SerializerMethodField()
+    estatus_display = serializers.SerializerMethodField()
+    alumno_id = serializers.IntegerField(source='tarjeta.alumno_id', read_only=True)
+
+    class Meta:
+        model = RecargaTarjetaCantina
+        fields = [
+            'id', 'tarjeta', 'alumno_id', 'metodo_pago', 'metodo_pago_display',
+            'monto_usd', 'tasa_aplicada', 'monto_ves', 'banco_receptor',
+            'banco_procedencia', 'referencia', 'comprobante', 'estatus',
+            'estatus_display', 'registrado_por_portal', 'creado_en', 'revisado_en',
+        ]
+        read_only_fields = fields
+
+    def get_metodo_pago_display(self, obj):
+        return dict(Pago.METODOS).get(obj.metodo_pago, obj.metodo_pago)
+
+    def get_estatus_display(self, obj):
+        return obj.get_estatus_display()
 
 
 class ComprobantePagoSerializer(serializers.ModelSerializer):

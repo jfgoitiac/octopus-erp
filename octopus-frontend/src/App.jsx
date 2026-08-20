@@ -7,12 +7,14 @@ import AppProviders from './components/AppProviders';
 import ProtectedRoute from './components/ProtectedRoute';
 import PortalProtectedRoute from './portal/components/PortalProtectedRoute';
 import PortalLayout from './portal/components/PortalLayout';
-import DocenteProtectedRoute from './portal-docente/components/DocenteProtectedRoute';
 import DocenteLayout from './portal-docente/components/DocenteLayout';
+import CantinaLayout from './cantina/components/CantinaLayout';
 import MainLayout from './components/MainLayout';
 
 // ── Portal de Representantes ──────────────────────────────────────────────────
 const PortalLogin              = lazy(() => import('./portal/pages/PortalLogin'));
+const PortalOlvideContrasena   = lazy(() => import('./portal/pages/PortalOlvideContrasena'));
+const PortalRestablecerContrasena = lazy(() => import('./portal/pages/PortalRestablecerContrasena'));
 const PortalDashboard          = lazy(() => import('./portal/pages/PortalDashboard'));
 const PortalHistorialPagos     = lazy(() => import('./portal/pages/PortalHistorialPagos'));
 const PortalCambiarContrasena  = lazy(() => import('./portal/pages/PortalCambiarContrasena'));
@@ -20,6 +22,7 @@ const PortalComunicaciones     = lazy(() => import('./portal/pages/PortalComunic
 const PortalMensajes           = lazy(() => import('./portal/pages/PortalMensajes'));
 const PortalRendimiento        = lazy(() => import('./portal/pages/PortalRendimiento'));
 const PortalPerfil             = lazy(() => import('./portal/pages/PortalPerfil'));
+const PortalCantina            = lazy(() => import('./portal/pages/PortalCantina'));
 
 // ── Panel administrativo ──────────────────────────────────────────────────────
 const Login                    = lazy(() => import('./pages/Login'));
@@ -56,8 +59,10 @@ const Rendimiento              = lazy(() => import('./pages/Rendimiento'));
 // ── Módulo Comunicación ────────────────────────────────────────────────────────
 const Comunicacion             = lazy(() => import('./pages/Comunicacion'));
 
-// ── Portal Docente (módulo separado, login/JWT propios — ver src/portal-docente/) ─
-const DocenteLogin             = lazy(() => import('./portal-docente/pages/DocenteLogin'));
+// ── Módulo Sitio Institucional (CMS) ───────────────────────────────────────────
+const GestionSitio             = lazy(() => import('./pages/GestionSitio'));
+
+// ── Portal Docente (login unificado con el resto del staff — ver /login) ──────
 const DocenteDashboard         = lazy(() => import('./portal-docente/pages/DocenteDashboard'));
 const DocenteMaterias          = lazy(() => import('./portal-docente/pages/DocenteMaterias'));
 const DocenteMateriaDetalle    = lazy(() => import('./portal-docente/pages/DocenteMateriaDetalle'));
@@ -65,6 +70,14 @@ const DocenteMensajes          = lazy(() => import('./portal-docente/pages/Docen
 const DocenteIncidentes        = lazy(() => import('./portal-docente/pages/DocenteIncidentes'));
 const DocenteCambiarContrasena = lazy(() => import('./portal-docente/pages/DocenteCambiarContrasena'));
 const DocentePerfil            = lazy(() => import('./portal-docente/pages/DocentePerfil'));
+
+// ── Módulo Cantina (login unificado con el resto del staff — ver /login) ──────
+const CantinaPOS               = lazy(() => import('./cantina/pages/CantinaPOS'));
+const CantinaInventario        = lazy(() => import('./cantina/pages/CantinaInventario'));
+const CantinaTarjetas          = lazy(() => import('./cantina/pages/CantinaTarjetas'));
+const CantinaCierreCaja        = lazy(() => import('./cantina/pages/CantinaCierreCaja'));
+const CantinaReportes          = lazy(() => import('./cantina/pages/CantinaReportes'));
+const CantinaMorosos           = lazy(() => import('./cantina/pages/CantinaMorosos'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -95,6 +108,8 @@ function App() {
 
             {/* ── Portal de Representantes ── */}
             <Route path="/portal/login" element={<PortalLogin />} />
+            <Route path="/portal/olvide-contrasena" element={<PortalOlvideContrasena />} />
+            <Route path="/portal/restablecer-password" element={<PortalRestablecerContrasena />} />
             <Route
               path="/portal"
               element={
@@ -110,16 +125,16 @@ function App() {
               <Route path="mensajes" element={<PortalMensajes />} />
               <Route path="rendimiento" element={<PortalRendimiento />} />
               <Route path="perfil" element={<PortalPerfil />} />
+              <Route path="cantina" element={<PortalCantina />} />
             </Route>
 
-            {/* ── Portal Docente (módulo separado, login/JWT propios) ── */}
-            <Route path="/portal-docente/login" element={<DocenteLogin />} />
+            {/* ── Portal Docente (login unificado — ver /login) ── */}
             <Route
               path="/portal-docente"
               element={
-                <DocenteProtectedRoute>
+                <ProtectedRoute allowedRoles={[ROLES.DOCENTE]}>
                   <DocenteLayout />
-                </DocenteProtectedRoute>
+                </ProtectedRoute>
               }
             >
               <Route index element={<DocenteDashboard />} />
@@ -129,6 +144,29 @@ function App() {
               <Route path="incidentes" element={<DocenteIncidentes />} />
               <Route path="cambiar-contrasena" element={<DocenteCambiarContrasena />} />
               <Route path="perfil" element={<DocentePerfil />} />
+            </Route>
+
+            {/* ── Cantina (login unificado — ver /login) ── */}
+            <Route
+              path="/cantina"
+              element={
+                <ProtectedRoute allowedRoles={['cajero', 'administrador', 'director']}>
+                  <CantinaLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="inventario" replace />} />
+              {/* Decisión explícita del cliente: el Cajero opera la cantina de
+                  punta a punta (inventario, tarjetas, reportes incluidos), no
+                  solo POS/Cierre como asumía el borrador original de
+                  cantina.md §2/§6.1 — todas las rutas usan el mismo set de
+                  roles. */}
+              <Route path="inventario" element={<CantinaInventario />} />
+              <Route path="pos" element={<CantinaPOS />} />
+              <Route path="tarjetas" element={<CantinaTarjetas />} />
+              <Route path="cierre" element={<CantinaCierreCaja />} />
+              <Route path="reportes" element={<CantinaReportes />} />
+              <Route path="morosos" element={<CantinaMorosos />} />
             </Route>
 
             {/* ── Autenticación admin ── */}
@@ -218,6 +256,7 @@ function App() {
                 </ProtectedRoute>
               } />
 
+
               {/* Reportes y nómina */}
               <Route path="reportes" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.FINANZAS}>
@@ -295,6 +334,13 @@ function App() {
                   <Comunicacion />
                 </ProtectedRoute>
               } />
+              {/* Módulo Sitio Institucional (CMS) */}
+              <Route path="gestion-sitio" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
+                  <GestionSitio />
+                </ProtectedRoute>
+              } />
+
               {/* Módulo Multi-Sede */}
               <Route path="multisede" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTIVO_RED, ROLES.DIRECTOR]}>

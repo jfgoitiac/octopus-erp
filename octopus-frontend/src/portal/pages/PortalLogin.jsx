@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import logoColegio from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
@@ -28,8 +28,8 @@ const PortalLogin = () => {
 
     setSubmitting(true);
     try {
-      await login(cedulaOEmail.trim(), password);
-      navigate('/portal', { replace: true });
+      const { debeCambiarPassword } = await login(cedulaOEmail.trim(), password);
+      navigate(debeCambiarPassword ? '/portal/cambiar-contrasena' : '/portal', { replace: true });
     } catch (err) {
       const status = err?.response?.status;
       if (status === 401 || status === 400) {
@@ -120,6 +120,13 @@ const PortalLogin = () => {
                 'Ingresar'
               )}
             </button>
+
+            <Link
+              to="/portal/olvide-contrasena"
+              className="block text-center text-sm text-[var(--portal-primary,#0fa3b1)] hover:underline mt-1"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
           </form>
         </div>
 

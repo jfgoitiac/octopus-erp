@@ -1,19 +1,31 @@
 import hashlib
 import logging
+import os
+import secrets
 from collections import defaultdict
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.db import transaction
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from secretaria.models import Alumno
 from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, Mensualidad, Pago
 
 from authentication.serializers import PerfilFotoSerializer
+
+from pagos_comunes.comprobantes import validar_comprobante
+
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.tokens import default_token_generator
 
 from .authentication import PortalJWTAuthentication
 from .models import ComprobantePago, RepresentanteUser
@@ -21,13 +33,18 @@ from .serializers import (
     AlumnoDashboardSerializer,
     ComprobantePagoSerializer,
     MensualidadSerializer,
+    MovimientoTarjetaPortalSerializer,
     PagoHistorialSerializer,
+    PortalConfirmarResetSerializer,
     PortalPerfilSerializer,
+    PortalSolicitarResetSerializer,
     PortalTokenSerializer,
+    RecargaTarjetaPortalSerializer,
+    TarjetaCantinaPortalSerializer,
 )
 
 # Métodos de pago del portal que REQUIEREN número de referencia bancaria.
-# Stripe y efectivo generan su propio identificador automáticamente.
+# El efectivo genera su propio identificador automáticamente.
 _METODOS_CON_REFERENCIA_OBLIGATORIA = {
     'transferencia', 'pago_movil', 'punto_de_venta', 'zelle',
 }
@@ -40,21 +57,39 @@ class PortalLoginThrottle(AnonRateThrottle):
     rate = '5/min'
     scope = 'portal_login'
 
-# Tamaño máximo de comprobante: 10 MB
-_COMPROBANTE_MAX_BYTES = 10 * 1024 * 1024
 
-# MIME types permitidos para comprobantes, mapeados a extensiones válidas
-_MIME_PERMITIDOS = {
-    'jpeg': ['.jpg', '.jpeg'],
-    'png':  ['.png'],
-    'webp': ['.webp'],
-    # PDF no tiene firma detectada por imghdr; se valida por extensión + content_type
-}
-_CONTENT_TYPES_PERMITIDOS = {
-    'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
-}
+class PortalPasswordResetThrottle(AnonRateThrottle):
+    # Mismo límite que el login: evita usar el endpoint para floodear de
+    # emails a una cédula/correo ajena, o para tantear por fuerza bruta
+    # qué cédulas tienen portal activo (aunque la respuesta ya sea genérica).
+    rate = '5/min'
+    scope = 'portal_password_reset'
 
 logger = logging.getLogger(__name__)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COOKIE DEL REFRESH TOKEN DEL PORTAL
+# Mismo patrón que authentication/cookie_views.py (REFRESH_COOKIE='refresh_token'
+# del panel admin) pero con nombre y path propios para que la cookie del portal
+# NUNCA viaje hacia rutas del panel administrativo (ni viceversa).
+# ──────────────────────────────────────────────────────────────────────────────
+
+PORTAL_REFRESH_COOKIE = 'portal_refresh_token'
+PORTAL_REFRESH_COOKIE_PATH = '/api/portal/'
+
+
+def _portal_cookie_settings():
+    # AUTH_COOKIE_SECURE permite forzar False en producción sobre HTTP puro,
+    # igual que en authentication/cookie_views.py::_cookie_settings().
+    secure = getattr(settings, 'AUTH_COOKIE_SECURE', not settings.DEBUG)
+    return {
+        'httponly': True,
+        'secure': secure,
+        'samesite': 'Lax',
+        'max_age': int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()),
+        'path': PORTAL_REFRESH_COOKIE_PATH,
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -92,14 +127,115 @@ class PortalTokenView(APIView):
         tokens = serializer.validated_data['tokens']
         representante = serializer.validated_data['representante']
 
-        return Response({
+        # El refresh token viaja SOLO via cookie HttpOnly — nunca en el body
+        # JSON — mismo patrón que CookieTokenObtainPairView del panel admin
+        # (authentication/cookie_views.py). El access token se sigue
+        # devolviendo en el body (vida corta, guardado en localStorage por
+        # ahora — fuera de alcance de esta migración).
+        response = Response({
             'access': tokens['access'],
-            'refresh': tokens['refresh'],
             'representante_id': representante.id,
             'nombre': representante.nombre,
             'apellido': representante.apellido,
             'cedula': representante.cedula,
+            'debe_cambiar_password': serializer.validated_data['debe_cambiar_password'],
         }, status=status.HTTP_200_OK)
+        response.set_cookie(PORTAL_REFRESH_COOKIE, tokens['refresh'], **_portal_cookie_settings())
+        return response
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LOGOUT DEL PORTAL
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalLogoutView(APIView):
+    """
+    Invalida (blacklist) el refresh token del portal y borra la cookie
+    HttpOnly. Mismo patrón que authentication/views.py::LogoutView (panel
+    admin), pero exclusivo del portal de representantes: usa la cookie
+    PORTAL_REFRESH_COOKIE (nombre y path propios) en vez de la del admin.
+    POST /api/portal/logout/
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        refresh = request.COOKIES.get(PORTAL_REFRESH_COOKIE)
+        if refresh:
+            try:
+                RefreshToken(refresh).blacklist()
+            except (TokenError, AttributeError):
+                # Token ya inválido/expirado/malformado o ya en blacklist:
+                # no es un error para el usuario, igual se cierra la sesión.
+                pass
+
+        response = Response({'mensaje': 'Sesión cerrada correctamente.'}, status=status.HTTP_200_OK)
+        response.delete_cookie(PORTAL_REFRESH_COOKIE, path=PORTAL_REFRESH_COOKIE_PATH)
+        return response
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# RECUPERACIÓN DE CONTRASEÑA (self-service — el representante no depende de
+# que un admin le resetee la clave a mano desde el panel)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Mensaje único para ambos casos (cédula/correo existe o no) — evita username
+# enumeration, mismo criterio que PortalTokenSerializer._ERROR_GENERICO.
+_MENSAJE_RESET_SOLICITADO = (
+    'Si la cédula o correo corresponde a una cuenta del portal, se envió un '
+    'enlace de recuperación al correo registrado.'
+)
+
+
+class PortalSolicitarResetView(APIView):
+    """
+    POST /api/portal/reset-password/solicitar/ — { cedula_o_email }
+    Envía (si corresponde) un email con un link de un solo uso para
+    restablecer la contraseña. La respuesta HTTP es idéntica exista o no
+    la cuenta, para no filtrar qué cédulas tienen portal activo.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [PortalPasswordResetThrottle]
+
+    def post(self, request):
+        serializer = PortalSolicitarResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        representante = serializer.validated_data['representante']
+
+        if representante and representante.correo:
+            rep_user = representante.portal_user
+            uid = urlsafe_base64_encode(force_bytes(rep_user.pk))
+            token = default_token_generator.make_token(rep_user.user)
+            from notificaciones.services import notificar_reset_password_portal
+            notificar_reset_password_portal(representante, uid, token)
+            logger.info(f'Solicitud de reset de password enviada para representante {representante.cedula}.')
+
+        return Response({'mensaje': _MENSAJE_RESET_SOLICITADO}, status=status.HTTP_200_OK)
+
+
+class PortalConfirmarResetView(APIView):
+    """
+    POST /api/portal/reset-password/confirmar/ — { uid, token, contrasena_nueva, confirmar }
+    Aplica la nueva contraseña si el uid/token del link son válidos y no expiraron.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [PortalPasswordResetThrottle]
+
+    def post(self, request):
+        serializer = PortalConfirmarResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rep_user = serializer.validated_data['rep_user']
+
+        rep_user.user.set_password(serializer.validated_data['contrasena_nueva'])
+        rep_user.user.save()
+        if rep_user.debe_cambiar_password:
+            rep_user.debe_cambiar_password = False
+            rep_user.save(update_fields=['debe_cambiar_password'])
+
+        logger.info(f'Representante {rep_user.representante.cedula} restableció su contraseña vía link de recuperación.')
+        return Response({'mensaje': 'Contraseña actualizada. Ya puedes iniciar sesión.'}, status=status.HTTP_200_OK)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -336,17 +472,16 @@ class PortalComprobantePagoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --- ANTIFRAUDE 1: referencia obligatoria para métodos bancarios ---
-        if metodo_pago in _METODOS_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
-            return Response(
-                {'error': 'Debe ingresar el número de referencia o confirmación de la transacción.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Normalizar referencia (mayúsculas, sin espacios dobles)
-        referencia = ' '.join(referencia_raw.upper().split()) if referencia_raw else None
-
-        # Verificar que la mensualidad corresponde a un alumno del representante
+        # Verificar que la mensualidad corresponde a un alumno del representante.
+        # Se hace ANTES de cualquier validación de campos (ej. referencia
+        # obligatoria) para que un intento sobre una mensualidad ajena
+        # devuelva 404 (IDOR) sin importar qué otros campos falten en el
+        # payload — mismo criterio que el resto del portal (ver
+        # PortalHistorialPagosView). Antes vivía después del chequeo de
+        # referencia y un intento sobre una mensualidad ajena sin referencia
+        # devolvía 400 en vez de 404, filtrando por accidente el requisito
+        # de validación de un objeto al que el representante no debería ni
+        # poder consultar.
         try:
             mensualidad = Mensualidad.objects.select_related('alumno__representante').get(
                 id=mensualidad_id,
@@ -359,6 +494,16 @@ class PortalComprobantePagoView(APIView):
                 {'error': 'Mensualidad no encontrada, ya pagada, o no pertenece a sus alumnos.'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        # --- ANTIFRAUDE 1: referencia obligatoria para métodos bancarios ---
+        if metodo_pago in _METODOS_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
+            return Response(
+                {'error': 'Debe ingresar el número de referencia o confirmación de la transacción.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Normalizar referencia (mayúsculas, sin espacios dobles)
+        referencia = ' '.join(referencia_raw.upper().split()) if referencia_raw else None
 
         # --- ANTIFRAUDE 2: bloquear múltiples comprobantes pendientes por mensualidad ---
         comprobante_pendiente = ComprobantePago.objects.filter(
@@ -378,43 +523,10 @@ class PortalComprobantePagoView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
 
-        # Validar tamaño del archivo (máx. 10 MB)
-        if archivo.size > _COMPROBANTE_MAX_BYTES:
-            return Response(
-                {'error': 'El archivo supera el tamaño máximo permitido (10 MB).'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Validar extensión del archivo
-        nombre_archivo = archivo.name.lower()
-        extensiones_validas = ['.jpg', '.jpeg', '.png', '.pdf', '.webp']
-        if not any(nombre_archivo.endswith(ext) for ext in extensiones_validas):
-            return Response(
-                {'error': 'Formato no permitido. Use JPG, PNG, PDF o WEBP.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Validar tipo MIME real del contenido (evita extension spoofing)
-        content_type = getattr(archivo, 'content_type', '')
-        if content_type not in _CONTENT_TYPES_PERMITIDOS:
-            return Response(
-                {'error': 'El tipo de contenido del archivo no es valido.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        # Verificación adicional por magic bytes para imágenes
-        if content_type.startswith('image/'):
-            archivo.seek(0)
-            header = archivo.read(12)
-            archivo.seek(0)
-            es_jpeg = header[:3] == b'\xff\xd8\xff'
-            es_png  = header[:8] == b'\x89PNG\r\n\x1a\n'
-            es_gif  = header[:6] in (b'GIF87a', b'GIF89a')
-            es_webp = header[:4] == b'RIFF' and header[8:12] == b'WEBP'
-            if not (es_jpeg or es_png or es_gif or es_webp):
-                return Response(
-                    {'error': 'El contenido del archivo no corresponde a una imagen valida.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        # Validar tamaño, extensión, content-type y magic bytes (pagos_comunes.comprobantes)
+        error_comprobante = validar_comprobante(archivo)
+        if error_comprobante:
+            return Response({'error': error_comprobante}, status=status.HTTP_400_BAD_REQUEST)
 
         # --- ANTIFRAUDE 3: hash SHA-256 del archivo para detectar duplicados exactos ---
         archivo.seek(0)
@@ -468,6 +580,26 @@ class PortalComprobantePagoView(APIView):
                             f"La referencia '{referencia}' ya fue registrada como pago "
                             f"confirmado (factura {dup_pago.factura_id or dup_pago.pk}). "
                             "Si cree que hay un error, contacte a la administración."
+                        )
+                    },
+                    status=status.HTTP_409_CONFLICT
+                )
+
+            # --- ANTIFRAUDE 4b: referencia ya usada en una recarga de cantina ---
+            # Cierra el hueco cruzado descrito en cantina.md §5.9: sin este
+            # chequeo, una referencia ya usada para recargar la tarjeta de
+            # cantina de un alumno podía reciclarse aquí para "pagar" una
+            # mensualidad, porque este endpoint solo miraba sus propias
+            # tablas (ComprobantePago/Pago) y no sabía que `cantina` existe.
+            from pagos_comunes.referencias import buscar_referencia_duplicada
+            duplicado_cantina = buscar_referencia_duplicada(referencia)
+            if duplicado_cantina and duplicado_cantina['origen'] == 'cantina.RecargaTarjeta':
+                return Response(
+                    {
+                        'error': (
+                            f"La referencia '{referencia}' ya está en uso en una recarga "
+                            f"de cantina (#{duplicado_cantina['id']}, {duplicado_cantina['detalle']}). "
+                            "Si cree que es un error, contacte a la administración."
                         )
                     },
                     status=status.HTTP_409_CONFLICT
@@ -527,6 +659,368 @@ class PortalComprobantePagoView(APIView):
         )
 
 # ──────────────────────────────────────────────────────────────────────────────
+# CANTINA — SALDO, HISTORIAL DE CONSUMO Y RECARGA DE TARJETA PREPAGO
+# (Fase 3 del portal — cantina.md §5.6/§7.5. El portal solo lee cantina.models
+#  y crea RecargaTarjeta en 'pendiente' — nunca acredita saldo directamente,
+#  eso solo ocurre cuando cantina aprueba la recarga, fuera de este módulo.)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Métodos de pago que el portal ofrece para recargar la tarjeta de cantina.
+# "efectivo" (USD) y "tarjeta_prepago" quedan excluidos deliberadamente: el
+# representante que quiere pagar en efectivo lo hace presencialmente en la
+# cantina (RecargarTarjetaCajeroView, fuera de este módulo), no por la app.
+_METODOS_RECARGA_CANTINA_PORTAL = {'transferencia', 'pago_movil', 'zelle', 'efectivo_ves'}
+# Solo transferencia/pago_movil piden a qué cuenta del colegio se transfirió.
+_METODOS_RECARGA_CON_BANCO_RECEPTOR = {'transferencia', 'pago_movil'}
+# efectivo_ves no tiene rastro bancario que referenciar (se entrega físicamente).
+_METODOS_RECARGA_CON_REFERENCIA_OBLIGATORIA = {'transferencia', 'pago_movil', 'zelle'}
+_METODOS_RECARGA_CON_COMPROBANTE_OBLIGATORIO = {'transferencia', 'pago_movil', 'zelle'}
+
+
+class PortalSaldoTarjetaView(APIView):
+    """
+    GET /api/portal/cantina/saldo/
+    Devuelve, para cada alumno activo del representante autenticado, el
+    estado de su tarjeta de cantina. Un alumno sin tarjeta asignada aparece
+    con tiene_tarjeta=False (nunca se omite ni se responde con error).
+    Soporta ?alumno_id= para pedir solo uno (debe pertenecer al representante).
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        representante = _get_representante(request)
+        alumnos_qs = Alumno.objects.filter(
+            representante=representante, activo=True
+        ).select_related('tarjeta_cantina')
+
+        alumno_id = request.query_params.get('alumno_id')
+        if alumno_id:
+            try:
+                alumnos_qs = alumnos_qs.filter(id=alumno_id)
+                encontrado = alumnos_qs.exists()
+            except (ValueError, TypeError):
+                encontrado = False
+            if not encontrado:
+                return Response(
+                    {'error': 'Alumno no encontrado o no pertenece a este representante.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        hoy = date.today()
+        resultados = []
+        for alumno in alumnos_qs:
+            # getattr con default funciona porque el descriptor reverso de un
+            # OneToOneField levanta una excepción que también es AttributeError
+            # cuando no existe la fila relacionada (TarjetaPrepago.alumno).
+            tarjeta = getattr(alumno, 'tarjeta_cantina', None)
+            alumno_nombre = f'{alumno.nombre} {alumno.apellido}'
+
+            if tarjeta is None:
+                resultados.append({
+                    'alumno_id': alumno.id,
+                    'alumno_nombre': alumno_nombre,
+                    'grado_seccion': alumno.grado_seccion,
+                    'tiene_tarjeta': False,
+                    'tarjeta_id': None,
+                    'saldo': None,
+                    'estado': None,
+                    'estado_display': None,
+                    'limite_credito': None,
+                    'en_negativo': False,
+                    'saldo_negativo_desde': None,
+                    'dias_en_negativo': 0,
+                })
+                continue
+
+            dias_negativo = (hoy - tarjeta.saldo_negativo_desde).days if tarjeta.saldo_negativo_desde else 0
+            resultados.append({
+                'alumno_id': alumno.id,
+                'alumno_nombre': alumno_nombre,
+                'grado_seccion': alumno.grado_seccion,
+                'tiene_tarjeta': True,
+                'tarjeta_id': tarjeta.id,
+                'saldo': str(tarjeta.saldo),
+                'estado': tarjeta.estado,
+                'estado_display': tarjeta.get_estado_display(),
+                'limite_credito': str(tarjeta.limite_credito),
+                'en_negativo': tarjeta.saldo < 0,
+                'saldo_negativo_desde': tarjeta.saldo_negativo_desde,
+                'dias_en_negativo': dias_negativo,
+            })
+
+        return Response(TarjetaCantinaPortalSerializer(resultados, many=True).data)
+
+
+class PortalHistorialConsumoCantinaView(APIView):
+    """
+    GET /api/portal/cantina/historial/?alumno_id=X&page=&page_size=
+    Historial paginado de consumos (MovimientoTarjeta tipo 'consumo') de la
+    tarjeta de cantina de un alumno del representante autenticado.
+    Se separa de PortalSaldoTarjetaView (en vez de anidar el historial ahí)
+    porque es paginado igual que PortalHistorialPagosView — mezclarlo con el
+    saldo de todos los hijos en una sola respuesta hubiera forzado paginar
+    varias listas independientes en el mismo payload.
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from cantina.models import MovimientoTarjeta
+
+        representante = _get_representante(request)
+
+        alumno_id = request.query_params.get('alumno_id')
+        if not alumno_id:
+            return Response(
+                {'error': 'El parámetro alumno_id es requerido.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            alumno = Alumno.objects.select_related('tarjeta_cantina').get(
+                id=alumno_id, representante=representante, activo=True
+            )
+        except (Alumno.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {'error': 'Alumno no encontrado o no pertenece a este representante.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        tarjeta = getattr(alumno, 'tarjeta_cantina', None)
+        if tarjeta is None:
+            return Response({
+                'alumno': f'{alumno.nombre} {alumno.apellido}',
+                'tiene_tarjeta': False,
+                'total': 0,
+                'page': 1,
+                'page_size': 10,
+                'total_pages': 1,
+                'results': [],
+            })
+
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(50, max(1, int(request.query_params.get('page_size', 10))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 10
+
+        movimientos_qs = MovimientoTarjeta.objects.filter(
+            tarjeta=tarjeta, tipo='consumo'
+        ).order_by('-creado_en')
+        total = movimientos_qs.count()
+        offset = (page - 1) * page_size
+        pagina = movimientos_qs[offset:offset + page_size]
+
+        return Response({
+            'alumno': f'{alumno.nombre} {alumno.apellido}',
+            'tiene_tarjeta': True,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': max(1, (total + page_size - 1) // page_size),
+            'results': MovimientoTarjetaPortalSerializer(pagina, many=True).data,
+        })
+
+
+class PortalRecargarTarjetaView(APIView):
+    """
+    POST /api/portal/cantina/recargar/ (multipart)
+    Crea una RecargaTarjeta en estatus='pendiente' con registrado_por_portal=True
+    para la tarjeta de cantina de un alumno del representante autenticado.
+    NUNCA acredita saldo: eso solo pasa cuando cantina aprueba la recarga
+    (AprobarRecargaView, en la app cantina, fuera del alcance de esta vista).
+
+    Payload (multipart/form-data):
+      - alumno_id (obligatorio): la tarjeta se resuelve desde el alumno,
+        siempre validando que pertenezca al representante autenticado.
+      - metodo_pago (obligatorio): 'transferencia' | 'pago_movil' | 'zelle' | 'efectivo_ves'.
+      - monto_usd o monto_ves (al menos uno): el campo no enviado se deriva
+        con la tasa vigente (TasaCambio.objects.latest('fecha')) y NUNCA se
+        vuelve a recalcular después.
+      - banco_receptor_id (obligatorio solo si metodo_pago es transferencia/pago_movil).
+      - banco_procedencia (opcional).
+      - referencia (obligatorio solo si metodo_pago es transferencia/pago_movil/zelle).
+      - archivo (obligatorio solo si metodo_pago es transferencia/pago_movil/zelle).
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from cantina.models import RecargaTarjeta
+        from cobranza.models import BancoInstitucional, TasaCambio
+        from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
+
+        representante = _get_representante(request)
+
+        alumno_id          = request.data.get('alumno_id')
+        metodo_pago        = (request.data.get('metodo_pago') or '').strip().lower()
+        archivo             = request.FILES.get('archivo')
+        banco_receptor_id  = request.data.get('banco_receptor_id')
+        banco_procedencia  = (request.data.get('banco_procedencia') or '').strip() or None
+        referencia_raw     = (request.data.get('referencia') or '').strip()
+
+        if not alumno_id:
+            return Response(
+                {'error': 'El campo alumno_id es requerido.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if metodo_pago not in _METODOS_RECARGA_CANTINA_PORTAL:
+            return Response(
+                {
+                    'error': (
+                        "Método de pago no permitido desde el portal. Use "
+                        "transferencia, pago_movil, zelle o efectivo_ves. Efectivo en "
+                        "divisas y pago con tarjeta prepago solo se procesan "
+                        "presencialmente en la cantina."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verificar que el alumno pertenece al representante autenticado
+        # (nunca se confía en un alumno_id sin verificar contra el dueño del token).
+        try:
+            alumno = Alumno.objects.select_related('tarjeta_cantina').get(
+                id=alumno_id, representante=representante, activo=True
+            )
+        except (Alumno.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {'error': 'Alumno no encontrado o no pertenece a este representante.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        tarjeta = getattr(alumno, 'tarjeta_cantina', None)
+        if tarjeta is None:
+            return Response(
+                {'error': 'Este alumno no tiene una tarjeta de cantina asignada todavía.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if tarjeta.estado != 'activa':
+            return Response(
+                {
+                    'error': (
+                        f'La tarjeta de este alumno está en estado '
+                        f'"{tarjeta.get_estado_display()}" y no puede recibir recargas.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # --- Monto: se requiere USD o VES; el que no llega se deriva con la tasa vigente ---
+        monto_usd_raw = request.data.get('monto_usd')
+        monto_ves_raw = request.data.get('monto_ves')
+        if not monto_usd_raw and not monto_ves_raw:
+            return Response(
+                {'error': 'Se requiere monto en USD o VES.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            monto_usd_in = Decimal(str(monto_usd_raw)) if monto_usd_raw else None
+            monto_ves_in = Decimal(str(monto_ves_raw)) if monto_ves_raw else None
+        except InvalidOperation:
+            return Response({'error': 'Monto inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if (monto_usd_in is not None and monto_usd_in <= 0) or (monto_ves_in is not None and monto_ves_in <= 0):
+            return Response({'error': 'El monto debe ser mayor a cero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tasa = TasaCambio.objects.latest('fecha')
+        except TasaCambio.DoesNotExist:
+            return Response(
+                {'error': 'No se ha registrado ninguna tasa de cambio.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if monto_usd_in is not None:
+            monto_usd = monto_usd_in
+            monto_ves = (monto_usd * tasa.valor_bs).quantize(Decimal('0.01'))
+        else:
+            monto_ves = monto_ves_in
+            monto_usd = (monto_ves / tasa.valor_bs).quantize(Decimal('0.01'))
+
+        # --- Banco receptor (solo transferencia/pago_movil) ---
+        banco_receptor = None
+        if metodo_pago in _METODOS_RECARGA_CON_BANCO_RECEPTOR:
+            if not banco_receptor_id:
+                return Response(
+                    {'error': 'Debe indicar el banco receptor.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                banco_receptor = BancoInstitucional.objects.get(id=banco_receptor_id, activo=True)
+            except (BancoInstitucional.DoesNotExist, ValueError, TypeError):
+                return Response(
+                    {'error': 'Banco receptor no encontrado.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # --- Referencia obligatoria según método ---
+        if metodo_pago in _METODOS_RECARGA_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
+            return Response(
+                {'error': 'Debe ingresar el número de referencia o confirmación de la transacción.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        referencia = normalizar_referencia(referencia_raw) if referencia_raw else None
+
+        # --- Comprobante (misma validación que PortalComprobantePagoView:
+        #     tamaño máx. 10MB, extensión, content-type, magic bytes) ---
+        if metodo_pago in _METODOS_RECARGA_CON_COMPROBANTE_OBLIGATORIO and not archivo:
+            return Response(
+                {'error': 'Debe adjuntar un archivo de comprobante.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if archivo:
+            error_comprobante = validar_comprobante(archivo)
+            if error_comprobante:
+                return Response({'error': error_comprobante}, status=status.HTTP_400_BAD_REQUEST)
+
+        # --- Antifraude: referencia duplicada CRUZADA entre cobranza/portal/cantina ---
+        if referencia:
+            duplicado = buscar_referencia_duplicada(referencia)
+            if duplicado:
+                return Response(
+                    {
+                        'error': (
+                            f"La referencia '{referencia}' ya está en uso en "
+                            f"{duplicado['origen']} (#{duplicado['id']}, {duplicado['detalle']}). "
+                            "Si cree que es un error, contacte a la administración."
+                        )
+                    },
+                    status=status.HTTP_409_CONFLICT
+                )
+
+        recarga = RecargaTarjeta.objects.create(
+            tarjeta=tarjeta,
+            metodo_pago=metodo_pago,
+            monto_usd=monto_usd,
+            tasa_aplicada=tasa.valor_bs,
+            monto_ves=monto_ves,
+            banco_receptor=banco_receptor,
+            banco_procedencia=banco_procedencia,
+            referencia=referencia,
+            comprobante=archivo,
+            estatus='pendiente',
+            registrado_por_portal=True,
+        )
+
+        logger.info(
+            "Recarga de cantina #%s creada desde portal por representante %s "
+            "para alumno %s (metodo=%s, usd=%s, ves=%s).",
+            recarga.id, representante.cedula, alumno.id, metodo_pago, monto_usd, monto_ves,
+        )
+
+        return Response(
+            RecargaTarjetaPortalSerializer(recarga).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # PROBLEMA 3 — ACTIVAR/DESACTIVAR PORTAL DE UN REPRESENTANTE
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -563,6 +1057,8 @@ class ActivarPortalRepresentanteView(APIView):
             if password:
                 ru.user.set_password(password)
                 ru.user.save(update_fields=['password'])
+                ru.debe_cambiar_password = True
+                ru.save(update_fields=['debe_cambiar_password'])
                 return Response({'mensaje': 'Contraseña restablecida y acceso reactivado.', 'cedula': rep.cedula})
             return Response({'mensaje': 'Acceso al portal reactivado.', 'cedula': rep.cedula})
 
@@ -570,9 +1066,12 @@ class ActivarPortalRepresentanteView(APIView):
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
-        # Username = cédula, password = cédula si no se especifica
+        # Username = cédula. SEGURIDAD: la cédula es información cuasi-pública
+        # (aparece en facturas/recibos), así que NO se usa como contraseña por
+        # defecto — se genera una contraseña aleatoria de un solo uso si no se
+        # especifica una explícita.
         username = rep.cedula
-        pwd = password or rep.cedula
+        pwd = password or secrets.token_urlsafe(9)
 
         if User.objects.filter(username=username).exists():
             user = User.objects.get(username=username)
@@ -585,7 +1084,9 @@ class ActivarPortalRepresentanteView(APIView):
                 last_name=rep.apellido,
             )
 
-        RepresentanteUser.objects.create(representante=rep, user=user)
+        RepresentanteUser.objects.create(
+            representante=rep, user=user, debe_cambiar_password=True
+        )
 
         # SEGURIDAD: el signal create_perfil_usuario asigna rol 'cajero' por
         # defecto; el usuario del portal no debe tener acceso al panel admin.
@@ -676,7 +1177,14 @@ class AdminComprobantesView(APIView):
                 'fecha_subida': c.fecha_subida,
                 'estatus': c.estatus,
                 'observaciones': c.observaciones,
-                'archivo_url': request.build_absolute_uri(c.archivo.url) if c.archivo else None,
+                # Ruta protegida (pagos_comunes.media_views.ComprobanteProtegidoView)
+                # en vez de la URL directa de /media/ — esa última no tiene control
+                # de acceso real si nginx la sirve estático en producción.
+                'archivo_url': (
+                    request.build_absolute_uri(
+                        f'/media-protegido/comprobantes/{os.path.basename(c.archivo.name)}/'
+                    ) if c.archivo else None
+                ),
                 'alumno': f'{alumno.nombre} {alumno.apellido}',
                 'grado': alumno.grado_seccion,
                 'representante': f'{rep.nombre} {rep.apellido}',
@@ -705,76 +1213,92 @@ class AdminComprobantesView(APIView):
         if nuevo_estatus not in ('aprobado', 'rechazado'):
             return Response({'error': "estatus debe ser 'aprobado' o 'rechazado'."}, status=400)
 
-        try:
-            comprobante = ComprobantePago.objects.select_related(
-                'mensualidad__alumno'
-            ).get(id=comprobante_id)
-        except ComprobantePago.DoesNotExist:
-            return Response({'error': 'Comprobante no encontrado.'}, status=404)
-
         advertencias = []
+        mensualidad = None
+        pago_creado = None
 
-        with transaction.atomic():
-            comprobante.estatus = nuevo_estatus
-            comprobante.observaciones = observaciones
-            comprobante.save()
-
-            if nuevo_estatus == 'aprobado':
-                mensualidad = comprobante.mensualidad
-                alumno = mensualidad.alumno
-
-                # --- ANTIFRAUDE: verificar referencia antes de aprobar ---
-                referencia = comprobante.referencia_bancaria
-                if referencia:
-                    dup_pago = Pago.objects.filter(
-                        referencia=referencia,
-                        estatus__in=['completado', 'en_revision'],
-                    ).exclude(
-                        # Excluir el pago que se crea en esta misma aprobación (no existe aún)
-                        pk__isnull=True
-                    ).first()
-                    if dup_pago:
-                        advertencias.append(
-                            f"ALERTA DE FRAUDE: La referencia '{referencia}' ya existe "
-                            f"en el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
-                            f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
-                            "Verifique la autenticidad antes de completar la aprobación."
-                        )
-
-                    dup_comp = ComprobantePago.objects.filter(
-                        referencia_bancaria=referencia,
-                        estatus='aprobado',
-                    ).exclude(pk=comprobante.pk).first()
-                    if dup_comp:
-                        advertencias.append(
-                            f"ALERTA: La referencia '{referencia}' ya fue aprobada en el "
-                            f"comprobante #{dup_comp.pk} "
-                            f"({dup_comp.mensualidad.get_mes_display()} {dup_comp.mensualidad.anio}). "
-                            "Posible intento de doble cobro."
-                        )
-
-                # Hash duplicado (mismo archivo aprobado antes)
-                if comprobante.hash_archivo:
-                    dup_hash = ComprobantePago.objects.filter(
-                        hash_archivo=comprobante.hash_archivo,
-                        estatus='aprobado',
-                    ).exclude(pk=comprobante.pk).first()
-                    if dup_hash:
-                        advertencias.append(
-                            f"ALERTA: El archivo de este comprobante es idéntico al del "
-                            f"comprobante #{dup_hash.pk} que ya fue aprobado "
-                            f"({dup_hash.mensualidad.get_mes_display()} {dup_hash.mensualidad.anio}). "
-                            "Podría ser el mismo documento presentado dos veces."
-                        )
-
-                if not mensualidad.pagado:
-                    from django.utils import timezone
-                    mensualidad.pagado = True
-                    mensualidad.fecha_pago = timezone.now()
-                    mensualidad.save()
-
-                # Crear registro Pago para mantener coherencia de auditoría
+        # Todo lo que toca dinero (mensualidad.pagado, Pago, sincronizar_estatus_alumno)
+        # vive dentro de este atomic() SIN try/except que lo trague: si algo falla
+        # a mitad de camino, la transacción completa hace rollback (el comprobante
+        # vuelve a 'pendiente' tal como estaba) en vez de quedar aprobado a medias
+        # sin registro contable de respaldo.
+        try:
+            with transaction.atomic():
+                # select_for_update() bloquea la fila hasta el commit; combinado con
+                # el re-chequeo de estatus de abajo, evita que dos aprobaciones
+                # concurrentes del mismo comprobante (doble clic, dos admins) generen
+                # doble acreditación.
                 try:
+                    comprobante = ComprobantePago.objects.select_for_update().select_related(
+                        'mensualidad__alumno'
+                    ).get(id=comprobante_id)
+                except ComprobantePago.DoesNotExist:
+                    return Response({'error': 'Comprobante no encontrado.'}, status=404)
+
+                if comprobante.estatus != 'pendiente':
+                    return Response(
+                        {'error': f'Este comprobante ya fue procesado (estatus actual: {comprobante.estatus}).'},
+                        status=409
+                    )
+
+                comprobante.estatus = nuevo_estatus
+                comprobante.observaciones = observaciones
+                comprobante.save()
+
+                if nuevo_estatus == 'aprobado':
+                    mensualidad = comprobante.mensualidad
+                    alumno = mensualidad.alumno
+
+                    # --- ANTIFRAUDE: verificar referencia antes de aprobar ---
+                    referencia = comprobante.referencia_bancaria
+                    if referencia:
+                        dup_pago = Pago.objects.filter(
+                            referencia=referencia,
+                            estatus__in=['completado', 'en_revision'],
+                        ).first()
+                        if dup_pago:
+                            advertencias.append(
+                                f"ALERTA DE FRAUDE: La referencia '{referencia}' ya existe "
+                                f"en el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
+                                f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
+                                "Verifique la autenticidad antes de completar la aprobación."
+                            )
+
+                        dup_comp = ComprobantePago.objects.filter(
+                            referencia_bancaria=referencia,
+                            estatus='aprobado',
+                        ).exclude(pk=comprobante.pk).first()
+                        if dup_comp:
+                            advertencias.append(
+                                f"ALERTA: La referencia '{referencia}' ya fue aprobada en el "
+                                f"comprobante #{dup_comp.pk} "
+                                f"({dup_comp.mensualidad.get_mes_display()} {dup_comp.mensualidad.anio}). "
+                                "Posible intento de doble cobro."
+                            )
+
+                    # Hash duplicado (mismo archivo aprobado antes)
+                    if comprobante.hash_archivo:
+                        dup_hash = ComprobantePago.objects.filter(
+                            hash_archivo=comprobante.hash_archivo,
+                            estatus='aprobado',
+                        ).exclude(pk=comprobante.pk).first()
+                        if dup_hash:
+                            advertencias.append(
+                                f"ALERTA: El archivo de este comprobante es idéntico al del "
+                                f"comprobante #{dup_hash.pk} que ya fue aprobado "
+                                f"({dup_hash.mensualidad.get_mes_display()} {dup_hash.mensualidad.anio}). "
+                                "Podría ser el mismo documento presentado dos veces."
+                            )
+
+                    if not mensualidad.pagado:
+                        from django.utils import timezone
+                        mensualidad.pagado = True
+                        mensualidad.fecha_pago = timezone.now()
+                        mensualidad.save()
+
+                    # Crear registro Pago para mantener coherencia de auditoría.
+                    # Si algo de esto falla, la excepción sale del atomic() y
+                    # revierte TODO (comprobante, mensualidad.pagado incluidos).
                     from cobranza.models import TasaCambio
                     tasa = TasaCambio.objects.order_by('-fecha').first()
                     tasa_valor = tasa.valor_bs if tasa else 1
@@ -798,14 +1322,30 @@ class AdminComprobantesView(APIView):
                     # de un mes no implica solvencia si debe meses anteriores.
                     from cobranza.mora import sincronizar_estatus_alumno
                     sincronizar_estatus_alumno(alumno)
+        except Exception as exc:
+            logger.error(
+                'Error al %s comprobante #%s — se revirtió la operación completa: %s',
+                nuevo_estatus, comprobante_id, exc
+            )
+            return Response(
+                {'error': 'No se pudo procesar el comprobante. Intente nuevamente o contacte a sistemas.'},
+                status=500
+            )
 
-                    from notificaciones.tasks import task_notificar_pago_exitoso
-                    task_notificar_pago_exitoso.delay(mensualidad.id, pago_creado.id)
-                except Exception as exc:
-                    logger.error(
-                        'No se pudo crear Pago al aprobar comprobante #%s: %s',
-                        comprobante.id, exc
-                    )
+        # Notificación al representante: best-effort, DELIBERADAMENTE fuera de la
+        # transacción de dinero. Si Celery/Redis está caído, el pago ya quedó
+        # confirmado en BD y no debe revertirse solo porque no se pudo encolar
+        # el aviso — se registra el fallo para revisión manual.
+        if nuevo_estatus == 'aprobado' and pago_creado:
+            try:
+                from notificaciones.tasks import task_notificar_pago_exitoso
+                task_notificar_pago_exitoso.delay(mensualidad.id, pago_creado.id)
+            except Exception as exc:
+                logger.error(
+                    'Comprobante #%s aprobado (Pago #%s creado) pero falló el encolado de '
+                    'la notificación al representante: %s',
+                    comprobante_id, pago_creado.id, exc
+                )
 
         logger.info(
             'Comprobante %s marcado como %s por %s. Advertencias: %s',
@@ -979,6 +1519,11 @@ class CambiarContrasenaPortalView(APIView):
 
         user.set_password(contrasena_nueva)
         user.save()
+
+        rep_user = request.user.representante_portal
+        if rep_user.debe_cambiar_password:
+            rep_user.debe_cambiar_password = False
+            rep_user.save(update_fields=['debe_cambiar_password'])
 
         representante = _get_representante(request)
         logger.info(f'Representante {representante.cedula} cambió su contraseña del portal.')

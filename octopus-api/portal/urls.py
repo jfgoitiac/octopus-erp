@@ -1,5 +1,10 @@
 from django.urls import path
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
+
+from .views import PORTAL_REFRESH_COOKIE, _portal_cookie_settings
 
 
 class PortalTokenRefreshView(TokenRefreshView):
@@ -8,12 +13,41 @@ class PortalTokenRefreshView(TokenRefreshView):
     access token (expirado o de rol 'representante') en el header, la clase
     por defecto AdminJWTAuthentication lo rechazaría con 401 antes de poder
     procesar el refresh token del body.
+
+    SEGURIDAD: el refresh token ya NO se lee del body — viaja SOLO en la
+    cookie HttpOnly `portal_refresh_token` (path=/api/portal/), mismo patrón
+    que CookieTokenRefreshView del panel admin (authentication/cookie_views.py).
+    Si simplejwt rota el refresh (ROTATE_REFRESH_TOKENS), la cookie se
+    re-setea con el nuevo valor en la respuesta.
     """
     authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        refresh = request.COOKIES.get(PORTAL_REFRESH_COOKIE)
+        if not refresh:
+            return Response(
+                {'detail': 'Sesion expirada. Inicia sesion nuevamente.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        serializer = self.get_serializer(data={'refresh': refresh})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        if response.status_code == 200 and 'refresh' in response.data:
+            new_refresh = response.data.pop('refresh')
+            response.set_cookie(PORTAL_REFRESH_COOKIE, new_refresh, **_portal_cookie_settings())
+        return super().finalize_response(request, response, *args, **kwargs)
 
 
 from .views import (
     PortalTokenView,
+    PortalLogoutView,
+    PortalSolicitarResetView,
+    PortalConfirmarResetView,
     PortalDashboardView,
     PortalHistorialPagosView,
     PortalComprobantePagoView,
@@ -25,6 +59,9 @@ from .views import (
     CambiarContrasenaPortalView,
     PortalMiPerfilView,
     PortalFotoPerfilView,
+    PortalSaldoTarjetaView,
+    PortalHistorialConsumoCantinaView,
+    PortalRecargarTarjetaView,
 )
 
 urlpatterns = [
@@ -38,6 +75,15 @@ urlpatterns = [
     # el control de que solo representantes usen el portal se aplica en PortalJWTAuthentication
     # al validar el access token resultante en cada endpoint protegido.
     path('token/refresh/', PortalTokenRefreshView.as_view(), name='portal_token_refresh'),
+
+    # Logout: POST /api/portal/logout/ — invalida el refresh (blacklist) y borra la cookie.
+    path('logout/', PortalLogoutView.as_view(), name='portal_logout'),
+
+    # Recuperación de contraseña self-service (sin sesión activa):
+    # POST /api/portal/reset-password/solicitar/  — { cedula_o_email }
+    # POST /api/portal/reset-password/confirmar/  — { uid, token, contrasena_nueva, confirmar }
+    path('reset-password/solicitar/', PortalSolicitarResetView.as_view(), name='portal_reset_solicitar'),
+    path('reset-password/confirmar/', PortalConfirmarResetView.as_view(), name='portal_reset_confirmar'),
 
     # Dashboard financiero: GET /api/portal/dashboard/
     path('dashboard/', PortalDashboardView.as_view(), name='portal_dashboard'),
@@ -75,4 +121,9 @@ urlpatterns = [
     # Perfil del representante: GET/PATCH /api/portal/mi-perfil/ — POST /api/portal/mi-perfil/foto/
     path('mi-perfil/', PortalMiPerfilView.as_view(), name='portal_mi_perfil'),
     path('mi-perfil/foto/', PortalFotoPerfilView.as_view(), name='portal_mi_perfil_foto'),
+
+    # Cantina — saldo/historial/recarga de la tarjeta prepago de los hijos (cantina.md §5.6/§7.5)
+    path('cantina/saldo/', PortalSaldoTarjetaView.as_view(), name='portal_cantina_saldo'),
+    path('cantina/historial/', PortalHistorialConsumoCantinaView.as_view(), name='portal_cantina_historial'),
+    path('cantina/recargar/', PortalRecargarTarjetaView.as_view(), name='portal_cantina_recargar'),
 ]
