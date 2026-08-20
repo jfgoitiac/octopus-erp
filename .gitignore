@@ -32,3 +32,13 @@ Thumbs.db
 
 # Archivos de configuración local
 *.local
+
+# Uploads de usuarios/tests (MEDIA_ROOT) — no son código, no van a git
+octopus-api/media/comprobantes/
+octopus-api/media/incidentes/
+octopus-api/media/cantina/
+octopus-api/media/sitio/
+
+# Caches de herramientas de desarrollo
+.playwright-cli/
+octopus-api/.impeccable/
