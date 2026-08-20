@@ -1,0 +1,29 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+
+<div class="alert alert-green">
+  <strong>Recarga de cantina aprobada.</strong> El saldo ya esta disponible para consumo.
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Hemos acreditado su recarga correctamente. A continuacion el resumen de la transaccion:
+</p>
+
+<div class="monto">${{ monto }} USD</div>
+<p class="monto-label">Recarga acreditada -- {{ nombre_alumno }}</p>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Monto acreditado</th><td><strong>${{ monto }} USD</strong></td></tr>
+  <tr><th>Saldo actual de la tarjeta</th><td><strong>${{ saldo_actual }} USD</strong></td></tr>
+</table>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Puede consultar el historial de consumo y recargas de cantina en el portal de representantes.
+</p>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ver Cantina en el Portal</a>
+</div>
+{% endblock %}
