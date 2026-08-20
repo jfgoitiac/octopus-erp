@@ -3,6 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from authentication.cookie_views import CookieTokenObtainPairView, CookieTokenRefreshView
+from pagos_comunes.media_views import ComprobanteProtegidoView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -23,6 +24,12 @@ urlpatterns = [
     path('api/multisede/', include('multisede.urls')),
     path('api/notificaciones/', include('notificaciones.urls')),
     path('api/portal/notificaciones/', include('notificaciones.urls_portal')),
+    path('api/cantina/', include('cantina.urls')),
+    # Sitio institucional (CMS) — admin (protegido, IsDirectorOrSistemas) y
+    # público (AllowAny, solo contenido publicado). Ver SITIO_CONTRATO_API.md.
+    path('api/sitio/admin/', include('sitio.urls_admin')),
+    path('api/sitio/', include('sitio.urls_public')),
+    path('media-protegido/comprobantes/<str:filename>/', ComprobanteProtegidoView.as_view()),
 ]
 
 if settings.DEBUG:
