@@ -26,6 +26,7 @@ const PAGE_TITLES = {
   '/auditoria':          'Auditoría',
   '/representantes':     'Representantes',
   '/morosos':            'Alumnos en mora',
+  '/gestion-sitio':      'Sitio Institucional',
 };
 
 const FULL_HEIGHT_PAGES = ['/recibos'];

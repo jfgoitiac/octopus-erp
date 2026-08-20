@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-const ConfirmDeleteModal = ({ titulo, nombre, onConfirm, onCancel }) => {
+const ConfirmDeleteModal = ({ titulo, nombre, mensaje, labelBoton = 'Eliminar', onConfirm, onCancel }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
 
@@ -27,7 +27,7 @@ const ConfirmDeleteModal = ({ titulo, nombre, onConfirm, onCancel }) => {
                     <AlertTriangle size={28} className="mb-3" aria-hidden="true" />
                     <h3 id="confirm-delete-title" className="text-base font-bold">{titulo}</h3>
                     <p className="text-sm mt-1 opacity-80">
-                        ¿Eliminar <b>{nombre}</b>? Esta acción no se puede deshacer.
+                        {mensaje ?? <>¿Eliminar <b>{nombre}</b>? Esta acción no se puede deshacer.</>}
                     </p>
                 </div>
                 <div className="flex gap-3 p-6">
@@ -39,7 +39,7 @@ const ConfirmDeleteModal = ({ titulo, nombre, onConfirm, onCancel }) => {
                     <button type="button" onClick={onConfirm}
                         className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
                         style={{ background: 'var(--red)' }}>
-                        <Trash2 size={16} /> Eliminar
+                        <Trash2 size={16} /> {labelBoton}
                     </button>
                 </div>
             </div>

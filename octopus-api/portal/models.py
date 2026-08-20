@@ -22,6 +22,13 @@ class RepresentanteUser(models.Model):
         verbose_name='Usuario Django'
     )
     esta_activo = models.BooleanField(default=True, verbose_name='Está activo')
+    debe_cambiar_password = models.BooleanField(
+        default=False,
+        verbose_name='Debe cambiar contraseña',
+        help_text='True cuando la contraseña actual fue asignada por un '
+                   'administrador (activación o restablecimiento) y aún no '
+                   'ha sido cambiada por el propio representante.'
+    )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

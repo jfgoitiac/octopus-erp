@@ -1,6 +1,7 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { getLandingRoute } from '../constants/roles';
 import { Lock, User, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import logoColegio from '../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
@@ -18,18 +19,18 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { login, isAuthenticated, loading } = useContext(AuthContext);
+    const { login, user, isAuthenticated, loading } = useContext(AuthContext);
     const navigate = useNavigate();
 
     if (loading) return null;
-    if (isAuthenticated) return <Navigate to="/" replace />;
+    if (isAuthenticated) return <Navigate to={getLandingRoute(user?.rol)} replace />;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await login(username, password);
-            navigate('/');
+            const userData = await login(username, password);
+            navigate(getLandingRoute(userData.rol));
         } catch (err) {
             toast.error(classifyAuthError(err));
         } finally {

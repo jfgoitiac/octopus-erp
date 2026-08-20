@@ -1,13 +1,13 @@
 from collections import defaultdict
 from datetime import date, datetime
 
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.throttling import AnonRateThrottle
 
-from authentication.serializers import MyTokenObtainPairSerializer, PerfilDocenteSerializer, PerfilFotoSerializer
+from authentication.serializers import PerfilDocenteSerializer, PerfilFotoSerializer
 from secretaria.models import Alumno, ConfiguracionSistema
 from .filters import AsistenciaFilter, IncidenteFilter, NotaFilter
 from .models import (
@@ -55,67 +55,9 @@ from .serializers import (
 # ─────────────────────────────────────────────
 # AUTENTICACIÓN DEL PORTAL DOCENTE
 # ─────────────────────────────────────────────
-class DocenteLoginThrottle(AnonRateThrottle):
-    """Limita los intentos de login del portal docente a 5 por minuto por IP."""
-    rate = '5/min'
-    scope = 'docente_login'
-
-
-class DocenteTokenView(APIView):
-    """
-    Endpoint de autenticación exclusivo para docentes.
-    Reutiliza MyTokenObtainPairSerializer (mismo mecanismo del panel
-    administrativo) para no duplicar la emisión de tokens JWT — el claim
-    'rol' ya queda incluido en el access token. Solo agrega el rechazo
-    explícito de cualquier usuario cuyo perfil no tenga rol 'docente'.
-
-    Las vistas de negocio de academico (DocenteMisMateriasView, notas,
-    asistencia, materiales, incidentes) no necesitan cambios: aceptan
-    cualquier JWT válido de un usuario docente sin importar qué endpoint
-    lo emitió.
-
-    SEGURIDAD: protegido con throttle de 5 intentos/minuto por IP.
-    """
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # login: no debe evaluar tokens previos del header
-    throttle_classes = [DocenteLoginThrottle]
-
-    def post(self, request):
-        serializer = MyTokenObtainPairSerializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception:
-            return Response(
-                {'error': 'Credenciales incorrectas o acceso no habilitado.'},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        user = serializer.user
-        rol = getattr(getattr(user, 'perfil', None), 'rol', None)
-        if rol != 'docente':
-            return Response(
-                {'error': 'Este acceso es exclusivo para docentes.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        nombre = f"{user.first_name} {user.last_name}".strip() or user.username
-
-        # 'nombre' se embebe como claim (no solo en el body) para que el
-        # frontend lo recupere al decodificar el access token tras un
-        # silent refresh, sin necesitar una llamada adicional al backend
-        # (mismo patrón que representante_id/nombre en portal/serializers.py).
-        refresh = MyTokenObtainPairSerializer.get_token(user)
-        refresh['nombre'] = nombre
-
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'rol': 'docente',
-            'nombre': nombre,
-            'username': user.username,
-        }, status=status.HTTP_200_OK)
-
-
+# NOTA: el login del docente se unificó con el del resto del staff — ver
+# POST /api/token/ (authentication/cookie_views.py::CookieTokenObtainPairView).
+# Ya no existe un login propio en academico (antes DocenteTokenView).
 class DocenteCambiarContrasenaView(APIView):
     """
     Permite al docente autenticado cambiar su propia contraseña.
@@ -487,32 +429,36 @@ class NotasGradoView(APIView):
         guardadas = []
         errores   = []
 
-        for item in notas_data:
-            alumno_id = item['alumno_id']
-            alumno = alumnos_map.get(alumno_id)
-            if alumno is None:
-                errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
-                continue
+        # Todo el guardado masivo corre en una única transacción: si una fila
+        # revienta a mitad de camino (constraint, timeout, etc.) se hace
+        # rollback completo en vez de dejar un guardado parcial del grado.
+        with transaction.atomic():
+            for item in notas_data:
+                alumno_id = item['alumno_id']
+                alumno = alumnos_map.get(alumno_id)
+                if alumno is None:
+                    errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
+                    continue
 
-            nota, _ = Nota.objects.get_or_create(
-                alumno=alumno,
-                materia=materia,
-                lapso=lapso,
-            )
-            # Reasigna los objetos ya en memoria: get_or_create no cachea las
-            # relaciones FK cuando toma la rama "get" (registro ya existente),
-            # así que sin esto NotaSerializer(nota).data dispararía 3 queries
-            # más (alumno, materia, lapso) por cada nota ya existente.
-            nota.alumno  = alumno
-            nota.materia = materia
-            nota.lapso   = lapso
-            nota.evaluacion_1  = item.get('evaluacion_1')
-            nota.evaluacion_2  = item.get('evaluacion_2')
-            nota.evaluacion_3  = item.get('evaluacion_3')
-            nota.evaluacion_4  = item.get('evaluacion_4')
-            nota.observaciones = item.get('observaciones', '')
-            nota.save()
-            guardadas.append(NotaSerializer(nota).data)
+                nota, _ = Nota.objects.get_or_create(
+                    alumno=alumno,
+                    materia=materia,
+                    lapso=lapso,
+                )
+                # Reasigna los objetos ya en memoria: get_or_create no cachea las
+                # relaciones FK cuando toma la rama "get" (registro ya existente),
+                # así que sin esto NotaSerializer(nota).data dispararía 3 queries
+                # más (alumno, materia, lapso) por cada nota ya existente.
+                nota.alumno  = alumno
+                nota.materia = materia
+                nota.lapso   = lapso
+                nota.evaluacion_1  = item.get('evaluacion_1')
+                nota.evaluacion_2  = item.get('evaluacion_2')
+                nota.evaluacion_3  = item.get('evaluacion_3')
+                nota.evaluacion_4  = item.get('evaluacion_4')
+                nota.observaciones = item.get('observaciones', '')
+                nota.save()
+                guardadas.append(NotaSerializer(nota).data)
 
         return Response({
             'guardadas': guardadas,
@@ -2082,43 +2028,47 @@ class PlanEvaluacionNotasView(APIView):
         guardadas = []
         errores   = []
 
-        for item_data in notas_data:
-            item_id   = item_data['item_id']
-            alumno_id = item_data['alumno_id']
+        # Igual que NotasGradoView: todo el bloque de guardado corre en una
+        # única transacción para evitar guardados parciales del plan si una
+        # fila falla a mitad de camino.
+        with transaction.atomic():
+            for item_data in notas_data:
+                item_id   = item_data['item_id']
+                alumno_id = item_data['alumno_id']
 
-            item = items_map.get(item_id)
-            if item is None:
-                errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Ítem no encontrado.'})
-                continue
+                item = items_map.get(item_id)
+                if item is None:
+                    errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Ítem no encontrado.'})
+                    continue
 
-            alumno = alumnos_map.get(alumno_id)
-            if alumno is None:
-                errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
-                continue
+                alumno = alumnos_map.get(alumno_id)
+                if alumno is None:
+                    errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
+                    continue
 
-            # El item debe pertenecer al plan de la materia/lapso solicitados
-            # — evita que, vía item_id, se escriban notas de otra materia.
-            if item.bloque.plan.materia_id != materia.id or item.bloque.plan.lapso_id != lapso.id:
-                errores.append({
-                    'item_id': item_id, 'alumno_id': alumno_id,
-                    'error': 'El ítem no pertenece al plan de evaluación de esta materia/lapso.',
+                # El item debe pertenecer al plan de la materia/lapso solicitados
+                # — evita que, vía item_id, se escriban notas de otra materia.
+                if item.bloque.plan.materia_id != materia.id or item.bloque.plan.lapso_id != lapso.id:
+                    errores.append({
+                        'item_id': item_id, 'alumno_id': alumno_id,
+                        'error': 'El ítem no pertenece al plan de evaluación de esta materia/lapso.',
+                    })
+                    continue
+
+                nota_item, _ = NotaItemEvaluacion.objects.update_or_create(
+                    item=item,
+                    alumno=alumno,
+                    defaults={
+                        'valor_numerico': item_data.get('valor_numerico'),
+                        'valor_letra':    item_data.get('valor_letra'),
+                    }
+                )
+                guardadas.append({
+                    'item_id':        item.id,
+                    'alumno_id':      alumno.id,
+                    'valor_numerico': nota_item.valor_numerico,
+                    'valor_letra':    nota_item.valor_letra,
                 })
-                continue
-
-            nota_item, _ = NotaItemEvaluacion.objects.update_or_create(
-                item=item,
-                alumno=alumno,
-                defaults={
-                    'valor_numerico': item_data.get('valor_numerico'),
-                    'valor_letra':    item_data.get('valor_letra'),
-                }
-            )
-            guardadas.append({
-                'item_id':        item.id,
-                'alumno_id':      alumno.id,
-                'valor_numerico': nota_item.valor_numerico,
-                'valor_letra':    nota_item.valor_letra,
-            })
 
         return Response({
             'guardadas': guardadas,

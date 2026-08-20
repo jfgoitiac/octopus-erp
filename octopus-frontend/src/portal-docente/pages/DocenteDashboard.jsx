@@ -1,7 +1,8 @@
+import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, MessageCircle, AlertTriangle } from 'lucide-react';
 
-import { useDocenteAuth } from '../context/DocenteAuthContext';
+import { AuthContext } from '../../context/AuthContext';
 import { useDocenteMisMaterias } from '../hooks/useDocenteMisMaterias';
 import { useDocenteConversaciones } from '../hooks/useDocenteConversaciones';
 import { useDocenteIncidentes } from '../hooks/useDocenteIncidentes';
@@ -24,7 +25,7 @@ import WidgetProgresoNotas from '../components/widgets/WidgetProgresoNotas';
 import WidgetIncidentes from '../components/widgets/WidgetIncidentes';
 
 const DocenteDashboard = () => {
-  const { user } = useDocenteAuth();
+  const { user } = useContext(AuthContext);
   const { materias, loading: loadingMaterias } = useDocenteMisMaterias();
   const { conversaciones, mensajes, loading: loadingConversaciones } = useDocenteConversaciones();
   const { incidentes, loading: loadingIncidentes } = useDocenteIncidentes();

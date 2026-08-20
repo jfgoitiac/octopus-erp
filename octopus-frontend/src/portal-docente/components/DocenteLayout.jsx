@@ -1,11 +1,12 @@
+import { useContext } from 'react';
 import { Outlet, useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
 import { LogOut, GraduationCap, LayoutDashboard, Home, ArrowLeft, BookOpen, MessageCircle, AlertTriangle, UserCircle } from 'lucide-react';
-import { useDocenteAuth } from '../context/DocenteAuthContext';
+import { AuthContext } from '../../context/AuthContext';
 import { useConfigColegio } from '../hooks/useConfigColegio';
 import DesktopRail from './DesktopRail';
 
 const DocenteLayout = () => {
-  const { logout } = useDocenteAuth();
+  const { logout } = useContext(AuthContext);
   const { nombre_colegio: nombreColegio, logo_url: logoColegio } = useConfigColegio();
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,7 +14,7 @@ const DocenteLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/portal-docente/login', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   return (

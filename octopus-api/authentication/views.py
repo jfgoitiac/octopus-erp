@@ -1,8 +1,4 @@
-import os
-import shutil
-import sqlite3
-import subprocess
-from datetime import datetime
+import secrets
 from django.conf import settings
 from django.http import FileResponse
 from django.contrib.auth import get_user_model
@@ -14,8 +10,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from authentication.cookie_views import REFRESH_COOKIE, AdminLoginThrottle
 from .models import PerfilUsuario
 from usuarios.models import LogAuditoria
+from usuarios.backup import generar_backup_bd
 from .serializers import UserSerializer, MyTokenObtainPairSerializer
 
 # --- PERMISOS PERSONALIZADOS ---
@@ -77,8 +77,16 @@ class IsDirector(permissions.BasePermission):
 class LoginView(TokenObtainPairView):
     """
     Maneja el inicio de sesión devolviendo el token y registrando el movimiento.
+    SEGURIDAD: protegido con throttle de 5 intentos/minuto por IP (mismo
+    patrón que PortalLoginThrottle).
+
+    NOTA: el frontend del panel administrativo no llama a este endpoint —
+    usa POST /api/token/ (CookieTokenObtainPairView, authentication/cookie_views.py),
+    que es el login único real de todo el staff (admin, docente, cajero,
+    etc.). Esta vista quedó sin uso; ver NOTAS_TECNICAS.md.
     """
     serializer_class = MyTokenObtainPairSerializer
+    throttle_classes = [AdminLoginThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -87,11 +95,9 @@ class LoginView(TokenObtainPairView):
         # Optimización: SimpleJWT ya guardó al usuario validado en el serializador
         user = serializer.user
 
-        # SEGURIDAD: el docente tiene su propio login separado en
-        # /api/portal-docente/login/ (ver academico/views.py::DocenteTokenView).
-        # Igual que el rol 'representante' no puede usar este login, el rol
-        # 'docente' tampoco — evita que la separación de portales sea solo
-        # cosmética a nivel de frontend.
+        # Rechazo heredado de cuando este endpoint sí se usaba y el docente
+        # tenía su propio login separado (ya eliminado — ver NOTAS_TECNICAS.md).
+        # Se deja tal cual por ser código sin uso, no por seguir vigente.
         if getattr(user, 'perfil', None) and user.perfil.rol == 'docente' and not user.is_superuser:
             return Response(
                 {'error': 'Los docentes deben ingresar desde el Portal Docente.'},
@@ -106,6 +112,34 @@ class LoginView(TokenObtainPairView):
         )
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+# --- VISTA DE LOGOUT (PANEL ADMINISTRATIVO) ---
+class LogoutView(APIView):
+    """
+    Invalida (blacklist) el refresh token del panel administrativo y borra
+    la cookie HttpOnly. SEGURIDAD: sin esto, un refresh token robado seguía
+    siendo válido hasta su expiración (24h) aunque el usuario "cerrara
+    sesión" en el frontend. Exclusivo del panel admin — el portal de
+    representantes tiene su propio JWT y no se toca aquí.
+    POST /api/authentication/logout/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        refresh = request.COOKIES.get(REFRESH_COOKIE)
+        if refresh:
+            try:
+                RefreshToken(refresh).blacklist()
+            except (TokenError, AttributeError):
+                # Token ya inválido/expirado/malformado o ya en blacklist:
+                # no es un error para el usuario, igual se cierra la sesión.
+                pass
+
+        response = Response({'mensaje': 'Sesión cerrada correctamente.'}, status=status.HTTP_200_OK)
+        response.delete_cookie('refresh_token', path='/api/token/')
+        return response
+
 
 # --- GESTIÓN DE USUARIOS (SISTEMAS) ---
 class UserManagementViewSet(viewsets.ModelViewSet):
@@ -191,54 +225,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            db_config = settings.DATABASES['default']
-            engine = db_config['ENGINE']
-            backup_dir = os.path.join(settings.MEDIA_ROOT, 'backups')
-
-            if not os.path.exists(backup_dir):
-                os.makedirs(backup_dir, exist_ok=True)
-
-            fecha_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"backup_{fecha_str}.sql"
-            file_path = os.path.join(backup_dir, filename)
-
-            if 'sqlite3' in engine:
-                # Volcado con el módulo estándar sqlite3: no depende de ningún binario externo.
-                db_path = str(db_config['NAME'])
-                source_conn = sqlite3.connect(db_path)
-                try:
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        for line in source_conn.iterdump():
-                            f.write(f'{line}\n')
-                finally:
-                    source_conn.close()
-
-            elif 'postgresql' in engine:
-                # pg_dump debe estar instalado en el servidor (paquete postgresql-client).
-                if not shutil.which('pg_dump'):
-                    raise RuntimeError(
-                        "pg_dump no está instalado en el servidor. "
-                        "Instala el paquete 'postgresql-client' para habilitar el respaldo."
-                    )
-
-                env = os.environ.copy()
-                if db_config.get('PASSWORD'):
-                    env['PGPASSWORD'] = db_config['PASSWORD']
-
-                cmd = [
-                    'pg_dump',
-                    '--no-owner',
-                    '--no-privileges',
-                    '-h', db_config.get('HOST') or 'localhost',
-                    '-p', str(db_config.get('PORT') or '5432'),
-                    '-U', db_config.get('USER') or '',
-                    '-d', db_config['NAME'],
-                    '-f', file_path,
-                ]
-                subprocess.run(cmd, check=True, shell=False, env=env)
-
-            else:
-                raise RuntimeError(f"Motor de base de datos no soportado para respaldo: {engine}")
+            file_path, filename = generar_backup_bd()
 
             LogAuditoria.objects.create(
                 usuario=request.user,
@@ -397,7 +384,7 @@ class ActivarPortalMasivoView(APIView):
         from django.contrib.auth import get_user_model
         User = get_user_model()
 
-        creados, errores = 0, []
+        creados, errores, credenciales = 0, [], []
         for rep in Representante.objects.all():
             if RepresentanteUser.objects.filter(representante=rep).exists():
                 continue
@@ -411,9 +398,17 @@ class ActivarPortalMasivoView(APIView):
                     }
                 )
                 if created:
-                    user.set_password(rep.cedula)
+                    # SEGURIDAD: la cédula es información cuasi-pública (aparece en
+                    # facturas/recibos), así que NO se usa como contraseña por
+                    # defecto — se genera una contraseña aleatoria de un solo uso
+                    # que el director debe comunicar al representante.
+                    pwd = secrets.token_urlsafe(9)
+                    user.set_password(pwd)
                     user.save()
-                RepresentanteUser.objects.create(representante=rep, user=user)
+                    credenciales.append({'cedula': rep.cedula, 'contrasena_inicial': pwd})
+                RepresentanteUser.objects.create(
+                    representante=rep, user=user, debe_cambiar_password=created
+                )
                 # El usuario del portal no debe conservar el rol 'cajero' por defecto
                 from portal.models import asignar_rol_portal
                 asignar_rol_portal(user)
@@ -421,4 +416,9 @@ class ActivarPortalMasivoView(APIView):
             except Exception as e:
                 errores.append(f'{rep.cedula}: {str(e)}')
 
-        return Response({'creados': creados, 'errores': errores})
+        return Response({
+            'creados': creados,
+            'errores': errores,
+            'credenciales': credenciales,
+            'nota': 'Comunique a cada representante su contraseña inicial y pídale que la cambie al primer ingreso.',
+        })

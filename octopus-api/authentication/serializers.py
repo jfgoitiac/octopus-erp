@@ -136,6 +136,12 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # El token JWT debe ser una representación fiel de la base de datos
         # Si no hay perfil, no inyectamos un rol falso.
         token['username'] = user.username
+        # 'nombre' se embebe como claim para que el frontend lo recupere al
+        # decodificar el access token tras un silent refresh, sin necesitar
+        # una llamada adicional al backend (antes solo lo hacían
+        # DocenteTokenView/CantinaTokenView; ahora que el login de todo el
+        # staff pasa por este serializer, se centraliza aquí).
+        token['nombre'] = f"{user.first_name} {user.last_name}".strip() or user.username
         if hasattr(user, 'perfil'):
             token['rol'] = user.perfil.rol
         else:

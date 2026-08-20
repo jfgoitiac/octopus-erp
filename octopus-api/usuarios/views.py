@@ -1,17 +1,6 @@
-from django.conf import settings
-from django.http import FileResponse
-from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-import subprocess
-import os
 from .models import LogAuditoria
 from .serializers import LogAuditoriaSerializer
-from authentication.serializers import UserSerializer
-import sys # Import sys
 
 class AuditoriaListView(generics.ListAPIView):
     queryset = LogAuditoria.objects.all().order_by('-fecha_hora')
@@ -33,77 +22,9 @@ class AuditoriaListView(generics.ListAPIView):
 # Removed UserListView, UserCreateView, UserDeleteView, UserResetPasswordView
 # These are now handled by authentication.views.UserManagementViewSet
 
-class DatabaseBackupView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        perfil = getattr(request.user, 'perfil', None)
-        # Only allow superusers or users with 'director' or 'sistemas' roles
-        if not request.user.is_superuser and (not perfil or perfil.rol not in ['director', 'sistemas', 'administrador']):
-            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
-
-        db_config = settings.DATABASES['default']
-        fecha = request.data.get('fecha', 'manual')
-
-        if db_config['ENGINE'] == 'django.db.backends.postgresql':
-            return self._backup_postgresql(db_config, request.user.username, fecha)
-        return self._backup_dumpdata(request.user.username, fecha)
-
-    def _backup_postgresql(self, db_config, username, fecha):
-        # pg_dump en formato plano: restaurable tal cual con `psql -f archivo.sql`
-        backup_file = f'backup_{username}_{fecha}.sql'
-        file_path = os.path.join(os.getcwd(), backup_file)
-
-        env = os.environ.copy()
-        if db_config.get('PASSWORD'):
-            env['PGPASSWORD'] = db_config['PASSWORD']
-
-        cmd = [
-            'pg_dump',
-            '--no-owner',
-            '--no-privileges',
-            '-h', db_config.get('HOST') or 'localhost',
-            '-p', str(db_config.get('PORT') or '5432'),
-            '-U', db_config['USER'],
-            '-f', file_path,
-            db_config['NAME'],
-        ]
-
-        try:
-            subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
-            return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=backup_file)
-        except FileNotFoundError:
-            return Response(
-                {'error': 'pg_dump no está instalado en el servidor. Instalar el paquete "postgresql-client".'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        except subprocess.CalledProcessError as e:
-            return Response({'error': f'Error en pg_dump: {e.stderr}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def _backup_dumpdata(self, username, fecha):
-        try:
-            # Get the path to manage.py dynamically
-            manage_py_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'manage.py')
-
-            # Ejecutar dumpdata
-            result = subprocess.run([
-                sys.executable, # Use the python executable from the current environment
-                manage_py_path,
-                'dumpdata',
-                '--exclude=auth.permission',
-                '--exclude=contenttypes',
-                '--indent=2' # Make the JSON output readable
-            ], capture_output=True, text=True, check=True) # check=True will raise CalledProcessError on non-zero exit codes
-
-            # Guardar en un archivo
-            backup_file = f'backup_{username}_{fecha}.json'
-            file_path = os.path.join(os.getcwd(), backup_file)
-            with open(file_path, 'w') as f:
-                f.write(result.stdout)
-
-            # Retornar el archivo como respuesta (FileResponse de django.http)
-            return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=backup_file)
-        except subprocess.CalledProcessError as e:
-            return Response({'error': f'Error en dumpdata: {e.stderr}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# DatabaseBackupView eliminada: duplicaba (de forma insegura) el backup que ya
+# provee authentication.views.UserManagementViewSet.backup. Esta versión
+# interpolaba el parámetro `fecha`, sin sanear, en una ruta de archivo del
+# servidor (path traversal — permitía escribir/leer archivos arbitrarios,
+# incluyendo el dump completo de la base de datos). Usar
+# POST /api/authentication/users/backup/ en su lugar.

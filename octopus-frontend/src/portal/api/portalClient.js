@@ -5,10 +5,14 @@ import axios from 'axios';
 // En producción: VITE_API_BASE_URL=https://api.micolegio.edu.ve
 // Si la variable no está definida, se usa el host local como fallback solo para desarrollo.
 //
-// NOTA SEGURIDAD (baja — arquitectural): portal_token se guarda en localStorage,
-// lo que lo expone a ataques XSS. La mitigación principal es un CSP estricto en el
-// servidor y evitar eval/innerHTML en el frontend. Migrar a httpOnly cookies requiere
-// cambios en el backend y está anotado en NOTAS_TECNICAS.md.
+// NOTA SEGURIDAD (baja — arquitectural): portal_token (access) se sigue
+// guardando en localStorage, lo que lo expone a ataques XSS. La mitigación
+// principal es un CSP estricto en el servidor y evitar eval/innerHTML en el
+// frontend. El REFRESH token ya NO vive en localStorage — viaja en una
+// cookie HttpOnly (`portal_refresh_token`, path=/api/portal/) seteada por el
+// backend (ver portal/views.py::PortalTokenView). Por eso withCredentials
+// está activado: el navegador adjunta esa cookie automáticamente en cada
+// petición a este baseURL, sin que JS pueda leerla ni manipularla.
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
 const portalClient = axios.create({
@@ -17,6 +21,7 @@ const portalClient = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 15000,
+  withCredentials: true,
 });
 
 // Interceptor de REQUEST — agrega el portal_token a cada petición
@@ -56,6 +61,16 @@ portalClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Contraseña temporal pendiente de cambio: el token es válido, pero el
+    // backend bloquea el resto del portal hasta que el representante la
+    // cambie. No tiene sentido refrescar el token ni cerrar sesión aquí.
+    if (error.response.data?.code === 'debe_cambiar_password') {
+      if (!window.location.pathname.includes('/portal/cambiar-contrasena')) {
+        window.location.href = '/portal/cambiar-contrasena';
+      }
+      return Promise.reject(error);
+    }
+
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
@@ -68,21 +83,15 @@ portalClient.interceptors.response.use(
     originalRequest._retry = true;
     isRefreshing = true;
 
-    const refreshToken = localStorage.getItem('portal_refresh_token');
-
-    if (!refreshToken) {
-      localStorage.removeItem('portal_token');
-      localStorage.removeItem('portal_refresh_token');
-      if (!window.location.pathname.includes('/portal/login')) {
-        window.location.href = '/portal/login';
-      }
-      return Promise.reject(error);
-    }
-
+    // El refresh token ya no se lee de localStorage: viaja solo en la cookie
+    // HttpOnly `portal_refresh_token`, que el navegador adjunta solo gracias a
+    // withCredentials: true. Si no hay cookie (o expiró), el backend responde 401.
     try {
-      const res = await axios.post(`${API_BASE}/api/portal/token/refresh/`, {
-        refresh: refreshToken,
-      });
+      const res = await axios.post(
+        `${API_BASE}/api/portal/token/refresh/`,
+        {},
+        { withCredentials: true }
+      );
 
       const newAccessToken = res.data.access;
       localStorage.setItem('portal_token', newAccessToken);
@@ -96,7 +105,6 @@ portalClient.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null);
       localStorage.removeItem('portal_token');
-      localStorage.removeItem('portal_refresh_token');
       if (!window.location.pathname.includes('/portal/login')) {
         window.location.href = '/portal/login';
       }

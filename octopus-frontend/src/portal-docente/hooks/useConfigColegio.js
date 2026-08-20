@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getConfigColegio } from '../api/colegio.service';
-import { API_BASE } from '../api/docenteApiClient';
+import { API_BASE } from '../../api/apiClient';
 
 // El logo puede venir como URL externa absoluta (ConfiguracionSistema.logo_url)
 // o como ruta relativa de Django media (ConfiguracionSistema.logo_colegio,

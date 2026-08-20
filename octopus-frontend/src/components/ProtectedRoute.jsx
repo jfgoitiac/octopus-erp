@@ -2,18 +2,7 @@ import { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-
-// Mapping de rol a primera ruta accesible
-const FIRST_ACCESSIBLE_ROUTE = {
-  'director': '/dashboard',
-  'cobranza': '/dashboard',
-  'administrador': '/dashboard',
-  'sistemas': '/cobranza/dashboard',
-  'secretaria': '/inscripciones',
-  'cajero': '/cobranza',
-  'directivo_red': '/multisede',
-  'docente': '/alumnos',
-};
+import { FIRST_ACCESSIBLE_ROUTE } from '../constants/roles';
 
 /**
  * Protege rutas del panel administrativo.

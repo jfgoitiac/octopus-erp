@@ -23,6 +23,35 @@ export const ROL_OPTIONS = [
 // Roles con acceso al panel de Sistemas
 export const ROLES_SISTEMAS = ['director', 'sistemas'];
 
+// Ruta de aterrizaje dentro del panel administrativo cuando ProtectedRoute
+// deniega el acceso a una ruta específica por rol (fallback "in-panel").
+// 'docente' apunta fuera del panel porque, con el login unificado, un
+// docente ya no tiene ninguna ruta propia dentro de MainLayout — antes
+// apuntaba a '/alumnos', una ruta que STAFF_SEDE tampoco le permitía ver
+// (fallback roto que nunca se ejercitó porque el docente ni siquiera podía
+// loguearse aquí).
+export const FIRST_ACCESSIBLE_ROUTE = {
+  'director': '/dashboard',
+  'cobranza': '/dashboard',
+  'administrador': '/dashboard',
+  'sistemas': '/cobranza/dashboard',
+  'secretaria': '/inscripciones',
+  'cajero': '/cobranza',
+  'directivo_red': '/multisede',
+  'docente': '/portal-docente',
+};
+
+// Ruta de aterrizaje justo después del login — antes de esto cada portal
+// (docente/cantina) redirigía manualmente dentro de su propia página de
+// login; ahora que el login es único, el destino se decide acá según el
+// rol embebido en el JWT.
+export const ROLE_REDIRECT_MAP = {
+  docente: '/portal-docente',
+  cajero: '/cantina',
+};
+
+export const getLandingRoute = (rol) => ROLE_REDIRECT_MAP[rol] || FIRST_ACCESSIBLE_ROUTE[rol] || '/dashboard';
+
 // Clases Tailwind para el badge de rol en tablas
 export const getRolStyle = (rol) => {
   switch (rol) {

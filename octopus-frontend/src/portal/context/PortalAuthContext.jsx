@@ -31,11 +31,12 @@ export const PortalAuthProvider = ({ children }) => {
 
   // Al montar: intenta restaurar sesión.
   // Si el access token está vigente lo usa directamente.
-  // Si está expirado pero hay refresh token, intenta un silent refresh antes de cerrar sesión.
+  // Si está expirado (o no existe), intenta un silent refresh: el refresh
+  // token ya no vive en localStorage, viaja solo en la cookie HttpOnly
+  // `portal_refresh_token` que el navegador adjunta solo (withCredentials).
   useEffect(() => {
     const silentRefresh = async () => {
-      const token        = localStorage.getItem('portal_token');
-      const refreshToken = localStorage.getItem('portal_refresh_token');
+      const token = localStorage.getItem('portal_token');
 
       if (token) {
         const userData = extractUserData(token);
@@ -46,20 +47,19 @@ export const PortalAuthProvider = ({ children }) => {
         }
       }
 
-      if (refreshToken) {
-        try {
-          const res = await axios.post(`${API_BASE}/api/portal/token/refresh/`, {
-            refresh: refreshToken,
-          });
-          const newAccessToken = res.data.access;
-          localStorage.setItem('portal_token', newAccessToken);
-          const userData = extractUserData(newAccessToken);
-          if (userData) setUser(userData);
-        } catch {
-          // Refresh expirado o inválido — fuerza re-login
-          localStorage.removeItem('portal_token');
-          localStorage.removeItem('portal_refresh_token');
-        }
+      try {
+        const res = await axios.post(
+          `${API_BASE}/api/portal/token/refresh/`,
+          {},
+          { withCredentials: true }
+        );
+        const newAccessToken = res.data.access;
+        localStorage.setItem('portal_token', newAccessToken);
+        const userData = extractUserData(newAccessToken);
+        if (userData) setUser(userData);
+      } catch {
+        // Refresh expirado, inválido o cookie inexistente — fuerza re-login
+        localStorage.removeItem('portal_token');
       }
 
       setLoading(false);
@@ -78,17 +78,22 @@ export const PortalAuthProvider = ({ children }) => {
       cedula_o_email: cedulaOEmail,
       contrasena: password,
     });
-    const { access, refresh } = res.data;
+    // El refresh token ya no viene en el body: el backend lo setea directo
+    // en la cookie HttpOnly `portal_refresh_token` (ver portal/views.py).
+    const { access, debe_cambiar_password } = res.data;
     localStorage.setItem('portal_token', access);
-    localStorage.setItem('portal_refresh_token', refresh);
     const userData = extractUserData(access);
     if (!userData) throw new Error('Token inválido recibido del servidor');
     setUser(userData);
+    return { debeCambiarPassword: Boolean(debe_cambiar_password) };
   };
 
   const logout = () => {
+    // Best-effort: invalida (blacklist) el refresh y borra la cookie en el
+    // backend. No se espera la respuesta para no bloquear el logout local
+    // si la red falla — el estado del cliente se limpia de todas formas.
+    portalClient.post('logout/').catch(() => {});
     localStorage.removeItem('portal_token');
-    localStorage.removeItem('portal_refresh_token');
     setUser(null);
   };
 

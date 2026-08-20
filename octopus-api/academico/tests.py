@@ -498,58 +498,6 @@ class GenerarAlertasRendimientoTests(TestCase):
         self.assertEqual(resp.data[0]['alumno_id'], self.alumno.id)
 
 
-# ─────────────────────────────────────────────
-# LOGIN DEL PORTAL DOCENTE
-# ─────────────────────────────────────────────
-class DocenteLoginTests(TestCase):
-    """
-    Cubre POST /api/portal-docente/login/:
-      - login exitoso con rol 'docente'
-      - rechazo (403) con rol distinto de 'docente'
-      - rechazo (401) con credenciales inválidas
-    """
-
-    def setUp(self):
-        from django.core.cache import cache
-        cache.clear()  # evita que el throttle de login acumule entre tests
-        self.client = APIClient()
-
-    def test_login_docente_exitoso(self):
-        crear_usuario('docente1', 'docente', 'clave-docente-123')
-
-        resp = self.client.post('/api/portal-docente/login/', {
-            'username': 'docente1',
-            'password': 'clave-docente-123',
-        })
-
-        self.assertEqual(resp.status_code, 200, resp.content)
-        self.assertIn('access', resp.data)
-        self.assertIn('refresh', resp.data)
-        self.assertEqual(resp.data['rol'], 'docente')
-        self.assertEqual(resp.data['username'], 'docente1')
-        self.assertIn('nombre', resp.data)
-
-    def test_login_rechaza_rol_no_docente(self):
-        crear_usuario('cajero1', 'cajero', 'clave-cajero-123')
-
-        resp = self.client.post('/api/portal-docente/login/', {
-            'username': 'cajero1',
-            'password': 'clave-cajero-123',
-        })
-
-        self.assertEqual(resp.status_code, 403, resp.content)
-
-    def test_login_rechaza_credenciales_invalidas(self):
-        crear_usuario('docente2', 'docente', 'clave-docente-456')
-
-        resp = self.client.post('/api/portal-docente/login/', {
-            'username': 'docente2',
-            'password': 'clave-incorrecta',
-        })
-
-        self.assertEqual(resp.status_code, 401, resp.content)
-
-
 class DocenteCambiarContrasenaTests(TestCase):
     """Cubre POST /api/portal-docente/cambiar-contrasena/."""
 
@@ -612,45 +560,13 @@ class DocenteRegistroYAccesoPortalTests(TestCase):
         })
         self.assertEqual(resp_crear.status_code, 201, resp_crear.content)
 
-        resp_login = APIClient().post('/api/portal-docente/login/', {
+        # Login unificado de staff: POST /api/token/ (ver CookieTokenObtainPairView).
+        resp_login = APIClient().post('/api/token/', {
             'username': 'docente_nuevo',
             'password': 'ClaveSegura!2026',
         })
         self.assertEqual(resp_login.status_code, 200, resp_login.content)
         self.assertEqual(resp_login.data['rol'], 'docente')
-
-
-class DocenteBloqueadoEnLoginAdminTests(TestCase):
-    """
-    El docente debe entrar solo por /api/portal-docente/login/, no por el
-    login del panel admin (/api/authentication/login/) — cierra el hueco de
-    que la separación de portales fuera solo cosmética en el frontend.
-    """
-
-    def setUp(self):
-        from django.core.cache import cache
-        cache.clear()
-        self.client = APIClient()
-
-    def test_docente_no_puede_usar_login_admin(self):
-        crear_usuario('docente_bloqueado', 'docente', 'clave-docente-789')
-
-        resp = self.client.post('/api/authentication/login/', {
-            'username': 'docente_bloqueado',
-            'password': 'clave-docente-789',
-        })
-
-        self.assertEqual(resp.status_code, 403, resp.content)
-
-    def test_no_docente_si_puede_usar_login_admin(self):
-        crear_usuario('secretaria1', 'secretaria', 'clave-secretaria-123')
-
-        resp = self.client.post('/api/authentication/login/', {
-            'username': 'secretaria1',
-            'password': 'clave-secretaria-123',
-        })
-
-        self.assertEqual(resp.status_code, 200, resp.content)
 
 
 # ─────────────────────────────────────────────

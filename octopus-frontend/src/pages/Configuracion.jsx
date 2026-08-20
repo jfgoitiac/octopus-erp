@@ -294,7 +294,7 @@ const Configuracion = () => {
                                                 Vista previa del portal
                                             </button>
                                             <button type="button"
-                                                onClick={() => window.open('/portal-docente/login', '_blank')}
+                                                onClick={() => window.open('/login', '_blank')}
                                                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                                                 style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
                                                 <GraduationCap size={14} />

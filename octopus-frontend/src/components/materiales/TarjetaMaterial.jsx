@@ -10,6 +10,15 @@ const formatFecha = (fechaStr) => {
   }
 };
 
+// Defensa en profundidad: nunca pasar un esquema no-http(s) a un href
+// (evita XSS vía "javascript:" en enlaces guardados antes de la validación
+// del backend, o datos viejos que hayan quedado sin validar).
+const esEnlaceSeguro = (enlace) => {
+  if (!enlace) return false;
+  const valor = enlace.trim();
+  return valor.startsWith('http://') || valor.startsWith('https://');
+};
+
 export default function TarjetaMaterial({ material, onEliminar, puedeEliminar }) {
   return (
     <div
@@ -41,15 +50,21 @@ export default function TarjetaMaterial({ material, onEliminar, puedeEliminar })
             </a>
           )}
           {material.enlace && (
-            <a
-              href={material.enlace}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-medium"
-              style={{ color: 'var(--pb)' }}
-            >
-              Abrir enlace
-            </a>
+            esEnlaceSeguro(material.enlace) ? (
+              <a
+                href={material.enlace}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium"
+                style={{ color: 'var(--pb)' }}
+              >
+                Abrir enlace
+              </a>
+            ) : (
+              <span className="text-xs" style={{ color: 'var(--ash)' }} title="Enlace con formato no válido">
+                Enlace no válido
+              </span>
+            )
           )}
           <span className="text-xs" style={{ color: 'var(--ash)' }}>{formatFecha(material.fecha)}</span>
         </div>

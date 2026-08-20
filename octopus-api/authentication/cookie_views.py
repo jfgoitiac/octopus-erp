@@ -6,11 +6,26 @@ El refresh token viaja SOLO via cookie HttpOnly;Secure — nunca en JSON.
 from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from authentication.serializers import MyTokenObtainPairSerializer
 
 REFRESH_COOKIE = 'refresh_token'
+
+
+class AdminLoginThrottle(AnonRateThrottle):
+    """
+    Limita los intentos de login del staff a 5 por minuto por IP.
+    Login único para todo el staff (admin, docente, cajero, etc. — ver
+    /api/token/): antes cada portal tenía su propio throttle
+    (DocenteLoginThrottle, CantinaLoginThrottle, ambos eliminados junto con
+    sus endpoints). Se define acá (y no en authentication/views.py, donde
+    vivía originalmente) porque ese módulo ya importa de este archivo
+    (REFRESH_COOKIE) — definirla allá crearía un import circular.
+    """
+    rate = '5/min'
+    scope = 'admin_login'
 
 def _cookie_settings():
     # AUTH_COOKIE_SECURE permite forzar False en producción sobre HTTP puro.
@@ -28,6 +43,7 @@ def _cookie_settings():
 class CookieTokenObtainPairView(TokenObtainPairView):
     """Login: devuelve access en body y guarda refresh en cookie HttpOnly."""
     serializer_class = MyTokenObtainPairSerializer
+    throttle_classes = [AdminLoginThrottle]
 
     def finalize_response(self, request, response, *args, **kwargs):
         if response.status_code == 200 and 'refresh' in response.data:

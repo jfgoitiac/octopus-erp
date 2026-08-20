@@ -278,6 +278,18 @@ class MaterialEstudioSerializer(serializers.ModelSerializer):
     def get_publicado_por_username(self, obj):
         return obj.publicado_por.username if obj.publicado_por else None
 
+    def validate_enlace(self, value):
+        # El campo es opcional (blank=True); solo se valida el esquema si
+        # trae contenido, para evitar XSS vía "javascript:" u otros esquemas
+        # no http(s) que el frontend renderiza directo en un <a href>.
+        if value:
+            value = value.strip()
+            if value and not (value.startswith('http://') or value.startswith('https://')):
+                raise serializers.ValidationError(
+                    'El enlace debe comenzar con http:// o https://.'
+                )
+        return value
+
 
 # ─────────────────────────────────────────────
 # EVENTO DE CALENDARIO

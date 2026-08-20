@@ -18,6 +18,7 @@ const extractUserData = (token) => {
         return {
             username: decoded.username || 'Usuario',
             rol: decoded.rol || 'cajero',
+            nombre: decoded.nombre || decoded.username || 'Usuario',
         };
     } catch {
         return null;
@@ -61,6 +62,7 @@ export const AuthProvider = ({ children }) => {
         const userData = extractUserData(token);
         if (!userData) throw new Error('Token invalido recibido del servidor');
         setUser(userData);
+        return userData;
     };
 
     const logout = () => {
