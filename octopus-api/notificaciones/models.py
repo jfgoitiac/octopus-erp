@@ -1,5 +1,7 @@
 from django.db import models
 
+from .crypto_fields import EncryptedTextField
+
 PROVEEDORES_WA = [
     ('', 'No configurado'),
     ('twilio', 'Twilio'),
@@ -16,7 +18,7 @@ class ConfiguracionNotificaciones(models.Model):
     email_port        = models.PositiveIntegerField(default=587)
     email_use_tls     = models.BooleanField(default=True)
     email_host_user   = models.CharField(max_length=200, blank=True, default='')
-    email_host_password = models.CharField(max_length=500, blank=True, default='')
+    email_host_password = EncryptedTextField(blank=True, default='')
     email_from        = models.CharField(max_length=200, blank=True, default='',
                                          help_text='Ej: Colegio <noreply@colegio.edu.ve>')
     director_email    = models.EmailField(blank=True, default='')
@@ -25,10 +27,10 @@ class ConfiguracionNotificaciones(models.Model):
     whatsapp_activo    = models.BooleanField(default=False, verbose_name='WhatsApp activo')
     whatsapp_proveedor = models.CharField(max_length=10, choices=PROVEEDORES_WA, blank=True, default='')
     twilio_account_sid   = models.CharField(max_length=100, blank=True, default='')
-    twilio_auth_token    = models.CharField(max_length=100, blank=True, default='')
+    twilio_auth_token    = EncryptedTextField(blank=True, default='')
     twilio_whatsapp_from = models.CharField(max_length=30, blank=True, default='',
                                              help_text='Ej: +14155238886')
-    meta_whatsapp_token    = models.CharField(max_length=500, blank=True, default='')
+    meta_whatsapp_token    = EncryptedTextField(blank=True, default='')
     meta_whatsapp_phone_id = models.CharField(max_length=50, blank=True, default='')
     director_whatsapp = models.CharField(max_length=30, blank=True, default='',
                                           help_text='Número del director para alertas de mora día 15')
@@ -105,6 +107,7 @@ class NotificacionLog(models.Model):
         ('comprobante',  'Comprobante subido'),
         ('comprobante_inscripcion', 'Comprobante de inscripción'),
         ('bienvenida',   'Bienvenida portal'),
+        ('reset_password', 'Recuperación de contraseña'),
         ('pago_exitoso', 'Pago confirmado'),
         ('prueba',       'Mensaje de prueba'),
         ('otro',         'Otro'),
