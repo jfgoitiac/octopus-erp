@@ -1,5 +1,21 @@
+from django import forms
 from django.contrib import admin
 from .models import NotificacionLog, ConfiguracionNotificaciones, PerfilEmailRemitente, SuscripcionPush
+
+# Campos que guardan credenciales/secretos (cifrados en reposo — ver
+# notificaciones/crypto_fields.py) y que por lo tanto NO deben mostrarse en
+# claro en el admin, igual que un campo de contraseña normal.
+CAMPOS_SECRETOS_CONFIG = ('email_host_password', 'twilio_auth_token', 'meta_whatsapp_token')
+
+
+class ConfiguracionNotificacionesForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionNotificaciones
+        fields = '__all__'
+        widgets = {
+            campo: forms.PasswordInput(render_value=False)
+            for campo in CAMPOS_SECRETOS_CONFIG
+        }
 
 
 @admin.register(NotificacionLog)
@@ -12,6 +28,7 @@ class NotificacionLogAdmin(admin.ModelAdmin):
 
 @admin.register(ConfiguracionNotificaciones)
 class ConfiguracionNotificacionesAdmin(admin.ModelAdmin):
+    form = ConfiguracionNotificacionesForm
     fieldsets = (
         ('Email (legado — ver Perfiles de Email por Área)', {
             'fields': ('director_email',),
