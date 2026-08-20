@@ -1,13 +1,18 @@
 #!/bin/bash
 set -e
 
-REPO="/var/www/octopus"
+# Parametrizable para reusar este mismo script en un ambiente de staging:
+#   REPO=/var/www/octopus-staging SERVICE=octopus-staging ./deploy.sh
+# Sin overrides, se comporta exactamente igual que antes (producción).
+REPO="${REPO:-/var/www/octopus}"
+SERVICE="${SERVICE:-octopus}"
 BACKEND="$REPO/octopus-api"
 FRONTEND="$REPO/octopus-frontend"
+SITIO="$REPO/octopus-sitio"
 VENV="$BACKEND/venv/bin"
 
 echo "═══════════════════════════════════════"
-echo "  OCTOPUS — Deploy $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  OCTOPUS — Deploy $(date '+%Y-%m-%d %H:%M:%S') [$SERVICE]"
 echo "═══════════════════════════════════════"
 
 # ── 1. Git pull ──────────────────────────────────────────────────
@@ -34,9 +39,9 @@ echo "▶ Recolectando archivos estáticos..."
 
 # ── 3. Reiniciar backend ─────────────────────────────────────────
 echo ""
-echo "▶ Reiniciando backend (octopus.service)..."
-sudo systemctl restart octopus
-sudo systemctl is-active --quiet octopus && echo "   ✓ Backend activo" || echo "   ✗ ERROR: Backend no arrancó"
+echo "▶ Reiniciando backend ($SERVICE.service)..."
+sudo systemctl restart "$SERVICE"
+sudo systemctl is-active --quiet "$SERVICE" && echo "   ✓ Backend activo" || echo "   ✗ ERROR: Backend no arrancó"
 
 # ── 4. Frontend — build ──────────────────────────────────────────
 echo ""
@@ -50,6 +55,15 @@ npm run build
 echo "▶ Recargando Nginx..."
 sudo systemctl reload nginx
 sudo systemctl is-active --quiet nginx && echo "   ✓ Nginx activo" || echo "   ✗ ERROR: Nginx no respondió"
+
+# ── 5. Sitio institucional (octopus-sitio) — build estático ─────
+echo ""
+echo "▶ Instalando dependencias Node (sitio institucional)..."
+cd "$SITIO"
+npm install --silent
+
+echo "▶ Compilando sitio institucional..."
+npm run build
 
 echo ""
 echo "═══════════════════════════════════════"

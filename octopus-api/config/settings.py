@@ -22,6 +22,24 @@ AUTH_COOKIE_SECURE = os.environ.get('AUTH_COOKIE_SECURE', 'False' if DEBUG else 
 # Permite manejar listas separadas por espacios o comas desde variables de entorno
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]').replace(',', ' ').split()
 
+# SEGURIDAD: mismo patrón que AUTH_COOKIE_SECURE — default seguro atado a DEBUG,
+# override por variable de entorno. En dev (HTTP puro) forzar estos a True rompe
+# el flujo local; en producción (HTTPS detrás de nginx) deben ir en True.
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False' if DEBUG else 'True') == 'True'
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False' if DEBUG else 'True') == 'True'
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False' if DEBUG else 'True') == 'True'
+# HSTS le dice al navegador que recuerde usar HTTPS con este dominio — solo tiene
+# sentido si SSL ya está andando de forma estable (si no, un dominio mal configurado
+# queda inaccesible hasta que expire el header). Empieza en 0 salvo que se active
+# explícitamente por env var una vez confirmado que HTTPS funciona en producción.
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False') == 'True'
+SECURE_HSTS_PRELOAD = os.environ.get('SECURE_HSTS_PRELOAD', 'False') == 'True'
+# nginx ya hace el TLS termination — sin esto Django no sabe que la conexión
+# original era HTTPS y SECURE_SSL_REDIRECT entraría en loop de redirects.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Sin esto, un 500 en producción (DEBUG=False) se reporta por email a ADMINS —
 # si ADMINS está vacío (como aquí), el error se pierde sin dejar rastro alguno,
 # ni en consola ni en journalctl. Se fuerza el traceback completo a stderr.
@@ -55,6 +73,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'simple_history',
     'django_filters',
 
@@ -70,6 +89,8 @@ INSTALLED_APPS = [
     'comunicacion.apps.ComunicacionConfig',
     'multisede.apps.MultisedeConfig',
     'notificaciones.apps.NotificacionesConfig',
+    'cantina.apps.CantinaConfig',
+    'sitio.apps.SitioConfig',
 
 ]
 
@@ -183,9 +204,16 @@ REST_FRAMEWORK = {
         # sobre HTTP) y no es necesario para esta API JWT. SessionAuthentication se mantiene
         # para el panel admin de Django (/admin/).
     ],
-    # Rate throttling para el login del portal (ver PortalLoginThrottle en portal/views.py)
+    # Rate throttling de login por IP: 5 intentos/minuto en cada punto de entrada.
+    # 'admin_login' cubre tanto el login único de todo el staff (AdminLoginThrottle
+    # en CookieTokenObtainPairView, authentication/cookie_views.py — POST /api/token/)
+    # como la vista legacy sin uso LoginView (mismo throttle, ver NOTAS_TECNICAS.md).
+    # docente/cajero ya no tienen scopes propios: sus endpoints de login
+    # (DocenteTokenView/CantinaTokenView) se eliminaron al unificar el login.
     'DEFAULT_THROTTLE_RATES': {
         'portal_login': '5/min',
+        'admin_login': '5/min',
+        'portal_password_reset': '5/min',
     },
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
@@ -199,6 +227,12 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'UPDATE_LAST_LOGIN': True,
+    # SEGURIDAD: al refrescar, invalida el refresh token anterior (queda en blacklist)
+    # y emite uno nuevo. Sin esto, un refresh token robado sigue siendo válido hasta
+    # su expiración (24h) aunque el usuario "cierre sesión" — ver endpoint de logout
+    # en authentication/views.py (LogoutView), que también hace blacklist explícito.
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURACIÓN DEL PORTAL DE REPRESENTANTES
@@ -299,6 +333,17 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'academico.tasks.generar_alertas_rendimiento',
         'schedule': crontab(hour=6, minute=0),
     },
+    # Cantina: tarjetas en saldo negativo sostenido, diario (Fase 6 — §5.5)
+    'verificar-saldos-negativos-cantina': {
+        'task': 'cantina.tasks.verificar_saldos_negativos_cantina',
+        'schedule': crontab(hour=7, minute=0),
+    },
+    # Respaldo automático de la BD, diario a las 3am (baja actividad) — local
+    # al servidor, con rotación de volcados >14 días (ver usuarios/tasks.py).
+    'respaldo-diario-bd': {
+        'task': 'usuarios.tasks.respaldo_diario_automatico',
+        'schedule': crontab(hour=3, minute=0),
+    },
 }
 # ── Fin Celery Beat ────────────────────────────────────────────────────────────
 
@@ -311,6 +356,17 @@ if not DEBUG and SECRET_KEY == _SECRET_KEY_DEFAULT:
     raise ValueError(
         "ERROR DE SEGURIDAD: La variable de entorno DJANGO_SECRET_KEY no está configurada. "
         "No se puede iniciar el servidor en modo producción (DEBUG=False) con la clave por defecto."
+    )
+
+# Si DEBUG=False y la base de datos sigue siendo SQLite, el arranque falla
+# explícitamente — evita que un deploy de producción quede corriendo sobre
+# SQLite por accidente (olvido de configurar DB_ENGINE en el .env).
+if not DEBUG and DATABASES['default']['ENGINE'].endswith('sqlite3'):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "ERROR DE SEGURIDAD: La base de datos está configurada como SQLite con DEBUG=False. "
+        "No se puede iniciar el servidor en modo producción sobre SQLite. "
+        "Configura DB_ENGINE=postgresql (junto con DB_NAME, DB_USER, DB_PASSWORD, etc.) en el .env."
     )
 
 FRONTEND_URL           = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
