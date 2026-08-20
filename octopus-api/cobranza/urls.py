@@ -12,6 +12,7 @@ from .views import (
     ClasificacionPagoCreateView,
     ClasificacionPagoDetailView,
     ComprobanteDetalleView,
+    AnularPagoView,
     ConfiguracionCobranzaView,
     ConfigNominaView,
     ConsultaComprobantesView,
@@ -76,5 +77,6 @@ urlpatterns = [
     path('pagos/clasificacion/<int:linea_id>/', ClasificacionPagoDetailView.as_view(), name='clasificacion-pago-detalle'),
     path('pagos/desglose-contable/',       DesgloseContableView.as_view(),         name='desglose-contable'),
     path('pagos/<int:pago_id>/corregir/',  CorregirPagoView.as_view(),             name='corregir-pago'),
+    path('pagos/<int:pago_id>/anular/',    AnularPagoView.as_view(),               name='anular-pago'),
     path('pagos/retroactivo/',             CargarPagoRetroactivoView.as_view(),    name='cargar-pago-retroactivo'),
 ]

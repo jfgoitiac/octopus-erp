@@ -236,7 +236,7 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
     from .models import CuotaInscripcion
 
     METODOS_CON_BANCO = ('transferencia', 'pago_movil', 'punto_de_venta')
-    METODOS_CON_REFERENCIA = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle', 'stripe')
+    METODOS_CON_REFERENCIA = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')
 
     datos = {
         'metodos_pago': [],

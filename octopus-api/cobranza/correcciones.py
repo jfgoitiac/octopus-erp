@@ -1,7 +1,7 @@
 """
 Módulo "Corrección de Pagos".
 
-Dos flujos de negocio relacionados pero distintos:
+Tres flujos de negocio relacionados pero distintos:
 
 - Función A (corregir_pago): un pago ya existente se registró con datos
   incorrectos (ej. método de pago equivocado). Se corrige IN-PLACE — no se
@@ -16,7 +16,14 @@ Dos flujos de negocio relacionados pero distintos:
   RegistrarPagoView (tasa BCV vigente al momento de la carga, no un
   histórico de tasas).
 
-Ambas comparten dos guardas:
+- Función C (anular_pago): el pago nunca debió contarse (reverso bancario,
+  error de caja, duplicado). Marca `estatus='anulado'` — no se borra el
+  registro (auditoría) — y revierte a "pendiente" cada mensualidad/cuota
+  que este pago había marcado como pagada, para que vuelva a aparecer como
+  deuda real. Libera también el número de referencia (la unique constraint
+  de Pago solo aplica a estatus completado/en_revision).
+
+Las tres comparten dos guardas:
   - No se puede tocar un período ya cerrado y validado por el director
     (fecha_en_cierre_validado).
   - Requieren un `motivo` explícito que se antepone a `observaciones`.
@@ -25,6 +32,7 @@ import re
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from .models import CierreCaja, Pago, TasaCambio
@@ -190,4 +198,59 @@ def cargar_pago_retroactivo(datos: dict, usuario, motivo: str) -> Pago:
         representante_nombre=datos.get('representante_nombre') or '',
     )
     pago.save()
+    return pago
+
+
+def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
+    """
+    Función C: anula un pago existente y revierte a "pendiente" cada
+    mensualidad/cuota que había marcado como pagada. No borra el registro
+    (auditoría) — solo cambia estatus, y HistoricalRecords deja constancia.
+
+    LIMITACIÓN CONOCIDA: no soporta pagos vinculados a CuotaProyectoInversion.
+    Esos abonos son parciales y no queda registrado, por pago, cuánto abonó
+    cada uno a cada cuota (solo el monto_pagado acumulado de la cuota) — no
+    hay forma segura de saber cuánto restarle sin arriesgar dejar la cuota
+    con un monto_pagado incorrecto. Ver NOTAS_TECNICAS.md.
+    """
+    if pago.estatus == 'anulado':
+        raise ValidationError({'estatus': 'Este pago ya fue anulado anteriormente.'})
+
+    if pago.proyectos_inversion_pagados.exists():
+        raise ValidationError({
+            'proyecto_inversion': (
+                'No se puede anular automáticamente un pago vinculado a un Proyecto '
+                'de Inversión (los abonos son parciales y no se puede determinar con '
+                'certeza cuánto restarle a la cuota). Contactar a Sistemas para un '
+                'ajuste manual.'
+            )
+        })
+
+    if fecha_en_cierre_validado(pago.usuario_receptor, pago.fecha_pago):
+        raise ValidationError({
+            'fecha_pago': (
+                'No se puede anular este pago: su fecha cae dentro de un cierre '
+                'de caja ya validado por el director.'
+            )
+        })
+
+    with transaction.atomic():
+        pago.mensualidades_pagadas.all().update(pagado=False, fecha_pago=None)
+        pago.cuotas_inscripcion_pagadas.all().update(pagado=False, fecha_pago=None)
+
+        # CuotaSolvencia deriva pagado/fecha_pago en save() a partir de
+        # monto_pagado — no se puede tocar con un .update() masivo (ver
+        # CuotaSolvencia.save()). Siempre se enlaza con monto_pagado ==
+        # monto_usd exacto (RegistrarPagoView no hace abonos parciales de
+        # solvencia), así que poner monto_pagado en 0 es la reversión exacta.
+        for cuota in pago.cuotas_solvencia_pagadas.all():
+            cuota.monto_pagado = Decimal('0.00')
+            cuota.save()
+
+        pago.estatus = 'anulado'
+        pago.anulado_en = timezone.now()
+        pago.anulado_por = usuario
+        pago.observaciones = f"[ANULACIÓN] {motivo}\n{pago.observaciones or ''}"
+        pago.save()
+
     return pago

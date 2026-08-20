@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileEdit, Search, X, PlusCircle, Pencil } from 'lucide-react';
+import { FileEdit, Search, X, PlusCircle, Pencil, Ban } from 'lucide-react';
 import { toast } from 'react-toastify';
 import DatePickerES from '../DatePickerES';
 import Pagination from '../shared/Pagination';
@@ -10,6 +10,7 @@ import {
     METODO_LABELS, ESTATUS_STYLE, inputStyle,
 } from '../../constants/reportes';
 import CorregirPagoModal from './CorregirPagoModal';
+import AnularPagoModal from './AnularPagoModal';
 import CargarPagoRetroactivoModal from './CargarPagoRetroactivoModal';
 
 const PAGE_SIZE = 20;
@@ -34,6 +35,7 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
     const [loading, setLoading] = useState(true);
 
     const [pagoACorregir, setPagoACorregir] = useState(null);
+    const [pagoAAnular, setPagoAAnular] = useState(null);
     const [mostrarRetroactivo, setMostrarRetroactivo] = useState(false);
 
     useEffect(() => {
@@ -85,6 +87,12 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
         setPagoACorregir(null);
         refrescar();
         toast.success('Pago corregido correctamente.');
+    };
+
+    const handlePagoAnulado = () => {
+        setPagoAAnular(null);
+        refrescar();
+        toast.success('Pago anulado correctamente.');
     };
 
     const handleRetroactivoGuardado = () => {
@@ -251,16 +259,28 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <button
-                                                onClick={() => setPagoACorregir(p)}
-                                                disabled={esAnulado}
-                                                title={esAnulado ? 'No se puede corregir un pago anulado' : 'Corregir este pago'}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                                                style={esAnulado
-                                                    ? { background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
-                                                    : { background: 'var(--pb)', color: '#fff' }}>
-                                                <Pencil size={13} /> Corregir
-                                            </button>
+                                            <div className="inline-flex items-center gap-1.5">
+                                                <button
+                                                    onClick={() => setPagoACorregir(p)}
+                                                    disabled={esAnulado}
+                                                    title={esAnulado ? 'No se puede corregir un pago anulado' : 'Corregir este pago'}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    style={esAnulado
+                                                        ? { background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
+                                                        : { background: 'var(--pb)', color: '#fff' }}>
+                                                    <Pencil size={13} /> Corregir
+                                                </button>
+                                                <button
+                                                    onClick={() => setPagoAAnular(p)}
+                                                    disabled={esAnulado}
+                                                    title={esAnulado ? 'Este pago ya está anulado' : 'Anular este pago'}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    style={esAnulado
+                                                        ? { background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
+                                                        : { background: '#fff', border: '0.5px solid var(--red)', color: 'var(--red)' }}>
+                                                    <Ban size={13} /> Anular
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -283,6 +303,14 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                     bancosDisponibles={bancosDisponibles}
                     onClose={() => setPagoACorregir(null)}
                     onGuardado={handleCorreccionGuardada}
+                />
+            )}
+
+            {pagoAAnular && (
+                <AnularPagoModal
+                    pago={pagoAAnular}
+                    onClose={() => setPagoAAnular(null)}
+                    onAnulado={handlePagoAnulado}
                 />
             )}
 

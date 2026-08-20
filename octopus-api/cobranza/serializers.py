@@ -7,6 +7,7 @@ from .models import (
     SolvenciaRepresentante, TasaCambio,
 )
 from secretaria.models import Alumno
+from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
 
 MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -545,11 +546,15 @@ class PagoCreateSerializer(serializers.Serializer):
                     )
 
             # --- Validación antifraude de referencia ---
+            # Delegada a pagos_comunes.buscar_referencia_duplicada (§5.9 de
+            # cantina.md) para que una referencia ya usada en `cantina`
+            # (recarga de tarjeta prepago) también quede detectada acá, y
+            # viceversa — antes cada módulo solo miraba su propia tabla.
             ref_raw = pago_item.get('referencia', '').strip()
             if not ref_raw:
                 continue
 
-            ref_normalizada = ' '.join(ref_raw.upper().split())
+            ref_normalizada = normalizar_referencia(ref_raw)
 
             # 1. Duplicate dentro de la misma solicitud (dos lineas con misma ref)
             if ref_normalizada in referencias_en_esta_solicitud:
@@ -559,30 +564,13 @@ class PagoCreateSerializer(serializers.Serializer):
                 )
             referencias_en_esta_solicitud.append(ref_normalizada)
 
-            # 2. Duplicate contra pagos ya registrados en BD
-            dup_pago = Pago.objects.filter(
-                referencia=ref_normalizada,
-                estatus__in=['completado', 'en_revision'],
-            ).first()
-            if dup_pago:
+            # 2. Duplicate contra cobranza.Pago, portal.ComprobantePago o cantina.RecargaTarjeta
+            duplicado = buscar_referencia_duplicada(ref_normalizada)
+            if duplicado:
                 raise serializers.ValidationError(
-                    f"Pago {i}: La referencia '{ref_normalizada}' ya fue registrada "
-                    f"en el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
-                    f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
+                    f"Pago {i}: La referencia '{ref_normalizada}' ya está en uso en "
+                    f"{duplicado['origen']} (#{duplicado['id']}, {duplicado['detalle']}). "
                     "Si cree que es un error, contacte al administrador."
-                )
-
-            # 3. Duplicate contra comprobantes pendientes/aprobados del portal
-            from portal.models import ComprobantePago
-            dup_comp = ComprobantePago.objects.filter(
-                referencia_bancaria=ref_normalizada,
-                estatus__in=['pendiente', 'aprobado'],
-            ).first()
-            if dup_comp:
-                raise serializers.ValidationError(
-                    f"Pago {i}: La referencia '{ref_normalizada}' ya existe en un "
-                    f"comprobante del portal (#{dup_comp.pk}, estatus: {dup_comp.estatus}). "
-                    "Verifique antes de continuar."
                 )
 
         # Adelantos de mensualidades futuras: solo se aceptan en Zelle o
@@ -617,6 +605,11 @@ class CorreccionPagoSerializer(serializers.Serializer):
         queryset=BancoInstitucional.objects.all(), required=False, allow_null=True
     )
     observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    motivo = serializers.CharField(min_length=10, required=True)
+
+
+class AnularPagoSerializer(serializers.Serializer):
+    """Función C del módulo de Corrección de Pagos: anular un pago existente."""
     motivo = serializers.CharField(min_length=10, required=True)
 
 

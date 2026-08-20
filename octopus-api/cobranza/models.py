@@ -79,7 +79,6 @@ class Pago(models.Model):
         ('zelle', 'Zelle'),
         ('efectivo', 'Efectivo Divisas'),
         ('efectivo_ves', 'Efectivo Bolívares'),
-        ('stripe', 'Stripe (Pago Online)'),
     )
 
     ESTATUS_PAGO = (
@@ -125,7 +124,7 @@ class Pago(models.Model):
         help_text="Número de lote del cierre de punto de venta (agrupa varias transacciones del mismo corte/día, no es único)"
     )
     observaciones = models.TextField(blank=True, null=True)
-    representante_documento = models.CharField(max_length=30, blank=True, null=True)
+    representante_documento = models.CharField(max_length=30, blank=True, null=True, db_index=True)
     estatus = models.CharField(
         max_length=20,
         choices=ESTATUS_PAGO,
@@ -150,6 +149,14 @@ class Pago(models.Model):
         null=True, blank=True,
         related_name='pagos',
         verbose_name='Sede',
+    )
+
+    # Anulación (ver cobranza/correcciones.py::anular_pago) — quién y cuándo,
+    # además del motivo que ya queda antepuesto en `observaciones`.
+    anulado_en = models.DateTimeField(null=True, blank=True)
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='pagos_anulados',
     )
 
     # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores

@@ -178,18 +178,18 @@ def _formatear_monto(monto):
     return f"$ {monto:.2f}" if monto else ''
 
 
-_CODIGOS_TIPO_TRANSFERENCIA = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle', 'stripe')
+_CODIGOS_TIPO_TRANSFERENCIA = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')
 
 
 def _combinar_metodos_transferencia(metodos_pago):
     """La planilla física solo tiene casillas de 'TRANSFERENCIA' y 'EFECTIVO'
-    — sin campos propios para Pago Móvil, Punto de Venta, Zelle o Stripe. Sin
+    — sin campos propios para Pago Móvil, Punto de Venta o Zelle. Sin
     este agrupamiento esos métodos quedaban totalmente fuera del comprobante
     (ni monto ni referencia), aunque el pago sí existiera en el sistema.
     Decisión del usuario: tratarlos todos como 'transferencia' — se suman
     montos y referencias, y el banco de origen/destino se toma del primer
     método que sí tenga banco asociado (Pago Móvil/Punto de Venta/
-    Transferencia; Zelle/Stripe no tienen banco en `calcular_datos_administrativos_inscripcion`)."""
+    Transferencia; Zelle no tiene banco en `calcular_datos_administrativos_inscripcion`)."""
     displays = {dict(Pago.METODOS)[c] for c in _CODIGOS_TIPO_TRANSFERENCIA}
     grupos = [m for m in metodos_pago if m['metodo_display'] in displays]
     if not grupos:

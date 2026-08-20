@@ -13,7 +13,7 @@ from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Min, Q, Sum
 from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
-from .serializers import BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, calcular_desglose_automatico
+from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, calcular_desglose_automatico
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
@@ -21,6 +21,7 @@ from .utils import generar_pdf_recibo
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
 from usuarios.models import LogAuditoria
 from config.pagination import StandardResultsPagination
+from .permissions import filtrar_por_sede, sedes_permitidas_ids
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,7 @@ class DashboardStatsView(APIView):
 
         from .mora import annotate_en_mora
 
-        activos   = Alumno.objects.filter(activo=True)
+        activos   = filtrar_por_sede(request.user, Alumno.objects.filter(activo=True), campo='sede')
         # Conteos en vivo con el criterio canónico de mora (coincide con la lista
         # de morosos y el módulo de alumnos, sin depender de la tarea Celery).
         activos_mora = annotate_en_mora(activos.exclude(estatus_financiero='becado'))
@@ -169,10 +170,10 @@ class DashboardStatsView(APIView):
 
         # Cobranza del día
         from datetime import date
-        pagos_hoy = Pago.objects.filter(
+        pagos_hoy = filtrar_por_sede(request.user, Pago.objects.filter(
             fecha_pago__date=date.today(),
             estatus='completado'
-        )
+        ), campo='sede')
         cobrado_hoy_usd = pagos_hoy.filter(
             metodo_pago__in=['efectivo', 'zelle']
         ).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
@@ -341,8 +342,10 @@ class BuscarAlumnoCobranzaView(APIView):
         # Intento 1: buscar como cédula de representante
         rep = Representante.objects.filter(cedula=cedula).first()
         if rep:
-            alumnos = Alumno.objects.filter(
-                representante=rep, activo=True
+            alumnos = filtrar_por_sede(
+                request.user,
+                Alumno.objects.filter(representante=rep, activo=True),
+                campo='sede',
             ).select_related('representante')
             return Response({
                 'representante': self._rep_data(rep),
@@ -350,7 +353,9 @@ class BuscarAlumnoCobranzaView(APIView):
             })
 
         # Intento 2: buscar como cédula escolar de alumno
-        alumno = Alumno.objects.filter(cedula_escolar=cedula, activo=True).select_related('representante').first()
+        alumno = filtrar_por_sede(
+            request.user, Alumno.objects.filter(cedula_escolar=cedula, activo=True), campo='sede'
+        ).select_related('representante').first()
         if alumno:
             return Response({
                 'representante': self._rep_data(alumno.representante) if alumno.representante else None,
@@ -396,6 +401,21 @@ class RegistrarPagoView(APIView):
 
         alumno_titular    = data['alumno']
         alumnos_resueltos = data['alumnos_resueltos']
+
+        # Multi-sede: un usuario restringido a una o más sedes no puede
+        # registrar pagos de alumnos de otra sede aunque conozca su id.
+        sede_ids_permitidas = sedes_permitidas_ids(request.user)
+        if sede_ids_permitidas is not None:
+            alumnos_fuera_de_sede = [
+                a['alumno'] for a in alumnos_resueltos
+                if a['alumno'].sede_id not in sede_ids_permitidas
+            ]
+            if alumno_titular.sede_id not in sede_ids_permitidas or alumnos_fuera_de_sede:
+                return Response(
+                    {"error": "No tiene acceso a uno o más de los alumnos de esta operación."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
         tasa   = data['tasa']
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
@@ -506,11 +526,21 @@ class RegistrarPagoView(APIView):
 
             # Correo de "pago confirmado" al representante, uno por cada pago
             # que quedó vinculado a una mensualidad (con recibo PDF adjunto).
+            # El pago ya quedó guardado en BD — si Celery/Redis está caído,
+            # no debe fallar el registro del pago solo porque no se pudo
+            # encolar el aviso (mismo patrón que portal/views.py, ver
+            # PortalComprobantePagoDetailView.patch).
             from notificaciones.tasks import task_notificar_pago_exitoso
             for pago in pagos_creados:
                 mensualidad_ref = pago.mensualidades_pagadas.first()
                 if mensualidad_ref:
-                    task_notificar_pago_exitoso.delay(mensualidad_ref.id, pago.id)
+                    try:
+                        task_notificar_pago_exitoso.delay(mensualidad_ref.id, pago.id)
+                    except Exception as exc:
+                        logger.error(
+                            'Pago #%s registrado pero falló el encolado de la notificación '
+                            'al representante: %s', pago.id, exc
+                        )
 
         todas_cuotas_inscripcion_qs = CuotaInscripcion.objects.none()
         for a in alumnos_resueltos:
@@ -622,7 +652,7 @@ class ReciboView(APIView):
 
     def get(self, request, pago_id):
         try:
-            pago_ref = Pago.objects.get(id=pago_id)
+            pago_ref = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(id=pago_id)
         except Pago.DoesNotExist:
             return Response({"error": "Pago no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -670,11 +700,11 @@ class AuditoriaDiariaView(APIView):
         if fi > ff:
             return Response({"error": "fecha_inicio no puede ser posterior a fecha_fin."}, status=status.HTTP_400_BAD_REQUEST)
 
-        pagos_hoy = Pago.objects.filter(
+        pagos_hoy = filtrar_por_sede(request.user, Pago.objects.filter(
             fecha_pago__date__gte=fi,
             fecha_pago__date__lte=ff,
             estatus='completado'
-        )
+        ), campo='sede')
 
         def _usd(metodo):
             return pagos_hoy.filter(metodo_pago=metodo).aggregate(t=Sum('monto_usd'))['t'] or Decimal('0')
@@ -735,8 +765,11 @@ class HistoricoMensualView(APIView):
         ff = date(year, month, last_day)
 
         rows = (
-            Pago.objects
-            .filter(fecha_pago__date__gte=fi, fecha_pago__date__lte=ff, estatus='completado')
+            filtrar_por_sede(
+                request.user,
+                Pago.objects.filter(fecha_pago__date__gte=fi, fecha_pago__date__lte=ff, estatus='completado'),
+                campo='sede',
+            )
             .annotate(dia=TruncDate('fecha_pago'))
             .values('dia')
             .annotate(
@@ -792,10 +825,10 @@ class ExportarAuditoriaExcelView(APIView):
 
         from .services import alumnos_de_pago
 
-        pagos = Pago.objects.filter(
+        pagos = filtrar_por_sede(request.user, Pago.objects.filter(
             fecha_pago__date__gte=fi,
             fecha_pago__date__lte=ff,
-        ).select_related('alumno', 'banco_receptor', 'usuario_receptor').prefetch_related(
+        ), campo='sede').select_related('alumno', 'banco_receptor', 'usuario_receptor').prefetch_related(
             'mensualidades_pagadas__alumno',
             'cuotas_inscripcion_pagadas__alumno',
             'cuotas_solvencia_pagadas__alumno',
@@ -908,7 +941,9 @@ class MensualidadesAlumnoView(APIView):
         from .services import generar_mensualidades, meses_ano_escolar, rango_ano_escolar
 
         try:
-            alumno = Alumno.objects.get(id=alumno_id, activo=True)
+            alumno = filtrar_por_sede(
+                request.user, Alumno.objects.filter(activo=True), campo='sede'
+            ).get(id=alumno_id)
         except Alumno.DoesNotExist:
             return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -951,15 +986,18 @@ class ActualizarMensualidadesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        mensualidades_permitidas = filtrar_por_sede(
+            request.user, Mensualidad.objects.all(), campo='alumno__sede'
+        )
+
         actualizadas = 0
         for item in items:
             mensualidad_id = item.get('id')
             monto = item.get('monto_usd')
             if mensualidad_id and monto is not None:
-                Mensualidad.objects.filter(id=mensualidad_id).update(
+                actualizadas += mensualidades_permitidas.filter(id=mensualidad_id).update(
                     monto_usd=Decimal(str(monto))
                 )
-                actualizadas += 1
 
         return Response({'actualizadas': actualizadas})
 
@@ -981,7 +1019,9 @@ class CuotaInscripcionAlumnoView(APIView):
         from secretaria.models import Alumno
 
         try:
-            alumno = Alumno.objects.get(id=alumno_id, activo=True)
+            alumno = filtrar_por_sede(
+                request.user, Alumno.objects.filter(activo=True), campo='sede'
+            ).get(id=alumno_id)
         except Alumno.DoesNotExist:
             return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1005,15 +1045,18 @@ class ActualizarCuotaInscripcionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        cuotas_permitidas = filtrar_por_sede(
+            request.user, CuotaInscripcion.objects.all(), campo='alumno__sede'
+        )
+
         actualizadas = 0
         for item in items:
             cuota_id = item.get('id')
             monto = item.get('monto_usd')
             if cuota_id and monto is not None:
-                CuotaInscripcion.objects.filter(id=cuota_id).update(
+                actualizadas += cuotas_permitidas.filter(id=cuota_id).update(
                     monto_usd=Decimal(str(monto))
                 )
-                actualizadas += 1
 
         return Response({'actualizadas': actualizadas})
 
@@ -1094,9 +1137,9 @@ class ConsultaComprobantesView(APIView):
     def get(self, request):
         from datetime import datetime
 
-        qs = Pago.objects.select_related(
+        qs = filtrar_por_sede(request.user, Pago.objects.select_related(
             'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-        ).order_by('-fecha_pago')
+        ).order_by('-fecha_pago'), campo='sede')
 
         factura_id = request.query_params.get('factura_id', '').strip()
         if factura_id:
@@ -1183,9 +1226,9 @@ class ComprobanteDetalleView(APIView):
 
     def get(self, request, factura_id):
         try:
-            pago = Pago.objects.select_related(
+            pago = filtrar_por_sede(request.user, Pago.objects.select_related(
                 'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-            ).get(factura_id=factura_id)
+            ), campo='sede').get(factura_id=factura_id)
         except Pago.DoesNotExist:
             return Response({"error": "Comprobante no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(ComprobanteSerializer(pago).data)
@@ -1224,9 +1267,9 @@ class PagosListView(APIView):
 
         filterset = PagoFilter(
             request.query_params,
-            queryset=Pago.objects.select_related(
+            queryset=filtrar_por_sede(request.user, Pago.objects.select_related(
                 'alumno', 'banco_receptor', 'usuario_receptor',
-            ).order_by('-fecha_pago'),
+            ).order_by('-fecha_pago'), campo='sede'),
         )
         if not filterset.is_valid():
             return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1532,9 +1575,9 @@ class EstadoClasificacionPagosView(APIView):
 
         filterset = PagoFilter(
             params_sin_concepto,
-            queryset=Pago.objects.select_related('alumno', 'alumno__representante', 'banco_receptor')
-            .prefetch_related('clasificaciones_manuales')
-            .order_by('-fecha_pago'),
+            queryset=filtrar_por_sede(request.user, Pago.objects.select_related(
+                'alumno', 'alumno__representante', 'banco_receptor'
+            ).prefetch_related('clasificaciones_manuales').order_by('-fecha_pago'), campo='sede'),
         )
         if not filterset.is_valid():
             return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1708,7 +1751,7 @@ class ClasificacionPagoCreateView(APIView):
 
     def post(self, request, pago_id):
         try:
-            pago = Pago.objects.get(pk=pago_id)
+            pago = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(pk=pago_id)
         except Pago.DoesNotExist:
             return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1761,7 +1804,7 @@ class CorregirPagoView(APIView):
 
     def patch(self, request, pago_id):
         try:
-            pago = Pago.objects.get(pk=pago_id)
+            pago = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(pk=pago_id)
         except Pago.DoesNotExist:
             return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1785,6 +1828,41 @@ class CorregirPagoView(APIView):
         return Response(PagoSerializer(pago_actualizado).data, status=status.HTTP_200_OK)
 
 
+class AnularPagoView(APIView):
+    """
+    Función C del módulo de Corrección de Pagos: anula un pago existente y
+    revierte a "pendiente" las mensualidades/cuotas que había marcado como
+    pagadas. No borra el registro — solo cambia estatus (auditoría intacta
+    vía HistoricalRecords). Ver cobranza/correcciones.py::anular_pago.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request, pago_id):
+        try:
+            pago = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(pk=pago_id)
+        except Pago.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AnularPagoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        motivo = serializer.validated_data['motivo']
+
+        try:
+            pago_anulado = correcciones.anular_pago(pago, request.user, motivo)
+        except DjangoValidationError as e:
+            detail = e.message_dict if hasattr(e, 'message_dict') else {'error': e.messages}
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="ANULAR_PAGO",
+            modulo="COBRANZA",
+            detalles={"pago_id": pago.id, "alumno_id": pago.alumno_id, "monto_usd": str(pago.monto_usd), "motivo": motivo},
+        )
+
+        return Response(PagoSerializer(pago_anulado).data, status=status.HTTP_200_OK)
+
+
 class CargarPagoRetroactivoView(APIView):
     """
     Función B del módulo de Corrección de Pagos: registra un pago simple
@@ -1799,6 +1877,15 @@ class CargarPagoRetroactivoView(APIView):
         serializer.is_valid(raise_exception=True)
         datos = dict(serializer.validated_data)
         motivo = datos.pop('motivo')
+
+        alumno_datos = datos.get('alumno')
+        if alumno_datos is not None:
+            sede_ids_permitidas = sedes_permitidas_ids(request.user)
+            if sede_ids_permitidas is not None and alumno_datos.sede_id not in sede_ids_permitidas:
+                return Response(
+                    {"error": "No tiene acceso a este alumno."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         try:
             pago = correcciones.cargar_pago_retroactivo(datos, request.user, motivo)
@@ -1853,11 +1940,13 @@ class ClasificacionPagoBatchCreateView(APIView):
         anio = request.data.get('anio') or None
         nota = request.data.get('nota') or None
 
+        pagos_permitidos = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede')
+
         resultados = []
         creadas = 0
         for pago_id in pago_ids:
             try:
-                pago = Pago.objects.get(pk=pago_id)
+                pago = pagos_permitidos.get(pk=pago_id)
             except (Pago.DoesNotExist, ValueError, TypeError):
                 resultados.append({'pago_id': pago_id, 'ok': False, 'error': 'Pago no encontrado.'})
                 continue
@@ -1901,7 +1990,9 @@ class ClasificacionPagoDetailView(APIView):
 
     def patch(self, request, linea_id):
         try:
-            linea = ClasificacionPagoManual.objects.select_related('pago').get(pk=linea_id)
+            linea = filtrar_por_sede(
+                request.user, ClasificacionPagoManual.objects.select_related('pago'), campo='pago__sede'
+            ).get(pk=linea_id)
         except ClasificacionPagoManual.DoesNotExist:
             return Response({'error': 'Clasificación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1953,7 +2044,9 @@ class ClasificacionPagoDetailView(APIView):
 
     def delete(self, request, linea_id):
         try:
-            linea = ClasificacionPagoManual.objects.select_related('pago').get(pk=linea_id)
+            linea = filtrar_por_sede(
+                request.user, ClasificacionPagoManual.objects.select_related('pago'), campo='pago__sede'
+            ).get(pk=linea_id)
         except ClasificacionPagoManual.DoesNotExist:
             return Response({'error': 'Clasificación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2015,14 +2108,16 @@ class DesgloseContableView(APIView):
 
         representante_documento = request.query_params.get('representante_documento')
 
-        qs = (
+        qs = filtrar_por_sede(
+            request.user,
             Pago.objects.filter(
                 fecha_pago__date__gte=dt_desde,
                 fecha_pago__date__lte=dt_hasta,
             )
             .exclude(estatus='anulado')
             .select_related('alumno', 'alumno__representante', 'banco_receptor')
-            .order_by('fecha_pago')
+            .order_by('fecha_pago'),
+            campo='sede',
         )
         if representante_documento:
             representante_documento = representante_documento.strip()
@@ -2288,10 +2383,10 @@ class ResumenConciliacionView(APIView):
         except (ValueError, TypeError):
             page, page_size = 1, 15
 
-        base_qs = Pago.objects.filter(
+        base_qs = filtrar_por_sede(request.user, Pago.objects.filter(
             fecha_pago__date__gte=fecha_desde,
             fecha_pago__date__lte=fecha_hasta,
-        )
+        ), campo='sede')
         if metodo_pago:
             base_qs = base_qs.filter(metodo_pago=metodo_pago)
         if estatus:
@@ -2444,7 +2539,7 @@ class LoteRevisionCajaListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        pagos = Pago.objects.filter(id__in=pago_ids)
+        pagos = filtrar_por_sede(request.user, Pago.objects.filter(id__in=pago_ids), campo='sede')
         if not pagos.exists():
             return Response({'error': 'Las transacciones indicadas no existen.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2474,7 +2569,9 @@ class LoteRevisionCajaDetailView(APIView):
         except LoteRevisionCaja.DoesNotExist:
             return Response({'error': 'Lote no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        pagos = lote.pagos.select_related('alumno', 'banco_receptor', 'usuario_receptor').order_by('-fecha_pago')
+        pagos = filtrar_por_sede(
+            request.user, lote.pagos.select_related('alumno', 'banco_receptor', 'usuario_receptor'), campo='sede'
+        ).order_by('-fecha_pago')
 
         data = LoteRevisionCajaSerializer(lote).data
         data['pagos'] = PagoSerializer(
@@ -2559,7 +2656,11 @@ class MensualidadesPuntualidadView(APIView):
         fecha_param  = request.query_params.get('fecha')
 
         hoy = _date.today()
-        qs  = Mensualidad.objects.filter(pagado=True, fecha_pago__isnull=False)
+        qs  = filtrar_por_sede(
+            request.user,
+            Mensualidad.objects.filter(pagado=True, fecha_pago__isnull=False),
+            campo='alumno__sede',
+        )
 
         if granularidad == 'dia':
             if fecha_param:
@@ -2657,7 +2758,11 @@ class RepresentantesResumenFinancieroView(APIView):
         if not representante_ids:
             return Response({})
 
-        alumnos_activos = Alumno.objects.filter(representante_id__in=representante_ids, activo=True)
+        alumnos_activos = filtrar_por_sede(
+            request.user,
+            Alumno.objects.filter(representante_id__in=representante_ids, activo=True),
+            campo='sede',
+        )
         qs = annotate_mora_detalle(alumnos_activos, date.today())
 
         por_representante = {}
@@ -2710,17 +2815,17 @@ class ListaMorososView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
-    def _build_qs(hoy, buscar=''):
+    def _build_qs(hoy, buscar='', user=None):
         from secretaria.models import Alumno
         from .mora import annotate_mora_detalle
 
         # Criterio de mora centralizado en cobranza/mora.py (fuente de verdad única
         # compartida con la tarea Celery y el módulo de alumnos).
+        alumnos_base = filtrar_por_sede(
+            user, Alumno.objects.filter(activo=True).exclude(estatus_financiero='becado'), campo='sede'
+        )
         qs = (
-            annotate_mora_detalle(
-                Alumno.objects.filter(activo=True).exclude(estatus_financiero='becado'),
-                hoy,
-            )
+            annotate_mora_detalle(alumnos_base, hoy)
             .filter(en_mora=True)
             .select_related('representante')
             .order_by('-monto_adeudado', 'apellido', 'nombre')
@@ -2741,7 +2846,7 @@ class ListaMorososView(APIView):
         from django.db.models import Sum
         hoy    = _date.today()
         buscar = request.query_params.get('buscar', '').strip()
-        qs     = self._build_qs(hoy, buscar)
+        qs     = self._build_qs(hoy, buscar, user=request.user)
 
         # Totales sobre el queryset completo (no solo la página actual), para
         # que las tarjetas de resumen financiero no queden truncadas al paginar.
@@ -2795,7 +2900,7 @@ class ExportarMorososExcelView(APIView):
 
         hoy    = _date.today()
         buscar = request.query_params.get('buscar', '').strip()
-        qs     = ListaMorososView._build_qs(hoy, buscar)
+        qs     = ListaMorososView._build_qs(hoy, buscar, user=request.user)
 
         columns = [
             ('Nombre',              'nombre'),

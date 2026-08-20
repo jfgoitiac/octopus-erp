@@ -813,3 +813,83 @@ class CalcularDatosAdministrativosInscripcionTest(TestCase):
 
         total = sum((g['monto'] for g in datos['metodos_pago']), Decimal('0.00'))
         self.assertEqual(total, Decimal('50.00'))
+
+
+class AnularPagoTests(TestCase):
+    """Función C del módulo de Corrección de Pagos (cobranza/correcciones.py)."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='sistemas_anular', password='password123', email='an@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula='V30000001', nombre='Rosa', apellido='Lugo', correo='rosa@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Tomas', apellido='Lugo', cedula_escolar='E95000001',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+
+    def _registrar_pago_mensualidad(self, referencia='TRF-ANULAR-1', mes_offset=0):
+        from .models import Mensualidad
+        hoy = date.today()
+        mes = ((hoy.month - 1 + mes_offset) % 12) + 1
+        anio = hoy.year + ((hoy.month - 1 + mes_offset) // 12)
+        mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno, mes=mes, anio=anio, monto_usd=Decimal('60.00')
+        )
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
+            "concepto": "mensualidad",
+            "pagos": [
+                {"metodo_pago": "transferencia", "monto_usd": "60.00", "referencia": referencia},
+            ],
+        }
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        assert resp.status_code == 201, resp.content
+        mensualidad.refresh_from_db()
+        pago = mensualidad.pagos.get()
+        return mensualidad, pago
+
+    def test_anular_revierte_mensualidad_a_pendiente(self):
+        mensualidad, pago = self._registrar_pago_mensualidad()
+        self.assertTrue(mensualidad.pagado)
+
+        resp = self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {
+            'motivo': 'Reverso bancario confirmado por el banco',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        pago.refresh_from_db()
+        mensualidad.refresh_from_db()
+        self.assertEqual(pago.estatus, 'anulado')
+        self.assertIsNotNone(pago.anulado_en)
+        self.assertEqual(pago.anulado_por_id, self.user.id)
+        self.assertIn('[ANULACIÓN]', pago.observaciones)
+        self.assertFalse(mensualidad.pagado)
+        self.assertIsNone(mensualidad.fecha_pago)
+
+    def test_no_se_puede_anular_dos_veces(self):
+        _, pago = self._registrar_pago_mensualidad()
+        primero = self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {'motivo': 'Motivo valido uno'}, format='json')
+        self.assertEqual(primero.status_code, 200)
+
+        segundo = self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {'motivo': 'Motivo valido dos'}, format='json')
+        self.assertEqual(segundo.status_code, 400)
+
+    def test_anular_libera_la_referencia_bancaria(self):
+        """La unique constraint de Pago excluye estatus='anulado' — un pago
+        anulado no debe bloquear que otro pago reuse su número de referencia."""
+        mensualidad, pago = self._registrar_pago_mensualidad(referencia='TRF-REUSABLE')
+        self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {'motivo': 'Referencia duplicada por error'}, format='json')
+
+        mensualidad2, pago2 = self._registrar_pago_mensualidad(referencia='TRF-REUSABLE', mes_offset=1)
+        self.assertEqual(pago2.estatus, 'completado')
+
+    def test_motivo_muy_corto_es_rechazado(self):
+        _, pago = self._registrar_pago_mensualidad()
+        resp = self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {'motivo': 'corto'}, format='json')
+        self.assertEqual(resp.status_code, 400)

@@ -55,3 +55,6 @@ export const corregirPago = (pagoId, payload, signal) =>
 
 export const cargarPagoRetroactivo = (payload, signal) =>
     apiClient.post('cobranza/pagos/retroactivo/', payload, { signal });
+
+export const anularPago = (pagoId, motivo, signal) =>
+    apiClient.post(`cobranza/pagos/${pagoId}/anular/`, { motivo }, { signal });
