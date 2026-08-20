@@ -25,7 +25,22 @@ class Empleado(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))]
     )
     es_pensionado = models.BooleanField(default=False)
-    
+
+    # Vínculo opcional hacia rrhh.Empleado. Los modelos rrhh.Empleado y
+    # nomina.Empleado son independientes por diseño histórico (ver
+    # NOTAS_TECNICAS.md). Este campo permite asociar manualmente un registro
+    # de nómina con su contraparte de RRHH sin fusionar ni migrar datos.
+    # Es nullable y SET_NULL para no afectar registros existentes ni requerir
+    # backfill: todos quedan en null hasta que un admin los vincule.
+    empleado_rrhh = models.ForeignKey(
+        'rrhh.Empleado',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='registros_nomina',
+        help_text='Vínculo opcional con el Empleado correspondiente en el módulo de RRHH.',
+    )
+
     def __str__(self):
         return f"{self.cedula} - {self.nombre} {self.apellido}"
 

@@ -5,6 +5,26 @@ class EmpleadoSerializer(serializers.ModelSerializer):
     """
     Serializer completo para el modelo Empleado.
     """
+    empleado_rrhh_activo = serializers.SerializerMethodField()
+    empleado_rrhh_nombre = serializers.SerializerMethodField()
+
     class Meta:
         model = Empleado
         fields = '__all__'
+        # empleado_rrhh_activo / empleado_rrhh_nombre no son campos del modelo,
+        # DRF los incluye automáticamente por estar declarados arriba.
+
+    def get_empleado_rrhh_activo(self, obj):
+        """
+        Indica el estado 'activo' del Empleado vinculado en rrhh, para que el
+        admin pueda detectar divergencias (ej. desactivado en RRHH pero
+        todavía presente en nómina). None si no hay vínculo.
+        """
+        if obj.empleado_rrhh_id:
+            return obj.empleado_rrhh.activo
+        return None
+
+    def get_empleado_rrhh_nombre(self, obj):
+        if obj.empleado_rrhh_id:
+            return f"{obj.empleado_rrhh.nombre} {obj.empleado_rrhh.apellido}"
+        return None
