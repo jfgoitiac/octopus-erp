@@ -29,6 +29,7 @@ Criterio de MORA (alumno activo, no becado):
     `monto_proyecto_inversion_adeudado` (saldo real, no el monto bruto) por
     el mismo motivo que la deuda de solvencia.
 """
+import calendar
 from datetime import date
 from decimal import Decimal
 
@@ -151,6 +152,14 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
         Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
         .values('alumno').annotate(c=Count('id')).values('c')[:1]
     )
+    anio_min_subq = (
+        Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
+        .order_by('anio', 'mes').values('anio')[:1]
+    )
+    mes_min_subq = (
+        Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
+        .order_by('anio', 'mes').values('mes')[:1]
+    )
     inscripcion_subq = (
         CuotaInscripcion.objects.filter(alumno=OuterRef('pk'), pagado=False)
         .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
@@ -184,7 +193,32 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
             Subquery(proyecto_inversion_subq, output_field=DecimalField(max_digits=10, decimal_places=2)),
             Decimal('0.00'),
         ),
+        _anio_mensualidad_mas_antigua=Subquery(anio_min_subq, output_field=IntegerField()),
+        _mes_mensualidad_mas_antigua=Subquery(mes_min_subq, output_field=IntegerField()),
     )
+
+
+def calcular_dias_atraso(alumno, hoy=None):
+    """
+    Días transcurridos desde el vencimiento de la mensualidad impaga más
+    antigua (el mes/año más antiguo con `pagado=False`) hasta hoy. La fecha
+    de vencimiento dentro de ese mes usa `dia_limite_pago` del alumno, igual
+    criterio que `_condicion_mora` para la deuda del mes actual.
+
+    Requiere que `alumno` provenga de un queryset anotado con
+    `annotate_mora_detalle` (usa `_anio_mensualidad_mas_antigua` y
+    `_mes_mensualidad_mas_antigua`). Si la mora es solo por inscripción,
+    solvencia o proyecto de inversión (sin mensualidades vencidas), no hay
+    fecha de vencimiento de mensualidad que medir y devuelve 0.
+    """
+    hoy = _hoy(hoy)
+    anio = getattr(alumno, '_anio_mensualidad_mas_antigua', None)
+    mes = getattr(alumno, '_mes_mensualidad_mas_antigua', None)
+    if not anio or not mes:
+        return 0
+    dia = min(alumno.dia_limite_pago or 1, calendar.monthrange(anio, mes)[1])
+    vencimiento = date(anio, mes, dia)
+    return max((hoy - vencimiento).days, 0)
 
 
 def estatus_financiero_actual(alumno):

@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from cobranza.models import TasaCambio
 from secretaria.models import Alumno, Representante
 
-from .models import CategoriaProducto, MovimientoInventario, MovimientoTarjeta, ProductoCantina, TarjetaPrepago, VentaCantina
+from .models import AperturaCajaCantina, CategoriaProducto, MovimientoInventario, MovimientoTarjeta, ProductoCantina, TarjetaPrepago, VentaCantina
 
 User = get_user_model()
 
@@ -56,6 +56,11 @@ class VentaCantinaTestsBase(TestCase):
         )
 
         TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+
+        # RegistrarVentaView exige una apertura de caja abierta del cajero
+        # que vende (§ apertura por cajero) — se abre acá para no repetirlo
+        # en cada test.
+        self.apertura = AperturaCajaCantina.objects.create(cajero=self.cajero_user, monto_inicial=Decimal('0.00'))
 
 
 class RegistrarVentaViewTests(VentaCantinaTestsBase):
@@ -184,6 +189,30 @@ class RegistrarVentaViewTests(VentaCantinaTestsBase):
             'metodo_pago': 'efectivo',
         }, format='json')
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_venta_queda_asociada_a_la_apertura_activa_del_cajero(self):
+        self.client.force_authenticate(user=self.cajero_user)
+        resp = self.client.post('/api/cantina/ventas/registrar/', {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 1}],
+            'metodo_pago': 'efectivo',
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+
+        venta = VentaCantina.objects.get(pk=resp.data['id'])
+        self.assertEqual(venta.apertura_id, self.apertura.id)
+
+    def test_venta_sin_apertura_de_caja_abierta_es_rechazada(self):
+        self.apertura.estado = 'cerrada'
+        self.apertura.save(update_fields=['estado'])
+
+        self.client.force_authenticate(user=self.cajero_user)
+        resp = self.client.post('/api/cantina/ventas/registrar/', {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 1}],
+            'metodo_pago': 'efectivo',
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', resp.data)
+        self.assertEqual(VentaCantina.objects.count(), 0)
 
 
 class AnularVentaViewTests(VentaCantinaTestsBase):

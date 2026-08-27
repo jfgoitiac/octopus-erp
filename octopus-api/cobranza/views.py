@@ -1724,7 +1724,9 @@ class EstadoClasificacionPagosView(APIView):
                 'concepto_display': pago.get_concepto_display(),
                 'monto_usd': resumen['monto_usd'],
                 'referencia': pago.referencia,
+                'metodo_pago': pago.metodo_pago,
                 'metodo_pago_display': pago.get_metodo_pago_display(),
+                'banco_receptor_id': pago.banco_receptor_id,
                 'banco_receptor': pago.banco_receptor.nombre if pago.banco_receptor else None,
                 'monto_operacion_usd': resumen['monto_operacion_usd'],
                 'monto_clasificado_usd': resumen['monto_clasificado_usd'],
@@ -2844,6 +2846,7 @@ class ListaMorososView(APIView):
     def get(self, request):
         from datetime import date as _date
         from django.db.models import Sum
+        from .mora import calcular_dias_atraso
         hoy    = _date.today()
         buscar = request.query_params.get('buscar', '').strip()
         qs     = self._build_qs(hoy, buscar, user=request.user)
@@ -2877,6 +2880,7 @@ class ListaMorososView(APIView):
                 'meses_adeudados':            a.meses_adeudados,
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
                 'monto_proyecto_inversion_adeudado': str(a.monto_proyecto_inversion_adeudado),
+                'dias_atraso':                calcular_dias_atraso(a, hoy),
             }
             for a in pagina
         ]

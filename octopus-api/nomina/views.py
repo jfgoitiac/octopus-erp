@@ -1,12 +1,97 @@
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework import status, viewsets, permissions
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import RegistroNomina, Empleado
-from .serializers import EmpleadoSerializer
+from django.db import transaction, IntegrityError
+from django.db.models import Q
+from django.utils.dateparse import parse_date
+from decimal import Decimal, InvalidOperation
+import json
+from cobranza.models import ParametroGlobal, TasaCambio
+from .models import RegistroNomina, Empleado, ParametroLegalNomina
+from .serializers import EmpleadoSerializer, ParametroLegalNominaSerializer, RegistroNominaSerializer
 from .utils import GeneradorReciboNomina
 from authentication.views import IsSystemAdminOrDirector
+
+
+class ParametroLegalNominaViewSet(viewsets.ModelViewSet):
+    queryset = ParametroLegalNomina.objects.all()
+    serializer_class = ParametroLegalNominaSerializer
+    permission_classes = [IsSystemAdminOrDirector]
+
+
+class RegistroNominaViewSet(viewsets.ModelViewSet):
+    queryset = RegistroNomina.objects.select_related('empleado').all()
+    serializer_class = RegistroNominaSerializer
+    permission_classes = [IsSystemAdminOrDirector]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        empleado = self.request.query_params.get('empleado')
+        mes = self.request.query_params.get('mes')
+        anio = self.request.query_params.get('anio')
+        if empleado:
+            queryset = queryset.filter(empleado_id=empleado)
+        if mes:
+            queryset = queryset.filter(mes_correspondiente=mes)
+        if anio:
+            queryset = queryset.filter(anio_correspondiente=anio)
+        return queryset.order_by('-anio_correspondiente', '-mes_correspondiente', '-fecha_proceso')
+
+    @action(detail=False, methods=['get'])
+    def configuracion_generacion(self, request):
+        tasa = TasaCambio.objects.order_by('-fecha').first()
+        cesta = {}
+        parametro = ParametroGlobal.objects.filter(clave='NOMINA_CONFIG_JSON').first()
+        if parametro and parametro.valor:
+            try:
+                cesta = json.loads(parametro.valor)
+            except (TypeError, ValueError):
+                cesta = {}
+        return Response({
+            'tasa_cambio': tasa.valor_bs if tasa else None,
+            'cesta_ticket': cesta,
+        })
+
+    @action(detail=False, methods=['post'])
+    def generar_lote(self, request):
+        try:
+            mes = int(request.data.get('mes'))
+            anio = int(request.data.get('anio'))
+            tasa = Decimal(str(request.data.get('tasa_cambio')))
+            cesta = Decimal(str(request.data.get('monto_cestaticket')))
+        except (TypeError, ValueError, InvalidOperation):
+            return Response({'detail': 'Mes, año, tasa de cambio y cesta ticket son obligatorios y numéricos.'}, status=400)
+        if not 1 <= mes <= 12 or tasa < 0 or cesta < 0:
+            return Response({'detail': 'Los valores del período y montos no son válidos.'}, status=400)
+
+        empleados = Empleado.objects.filter(
+            Q(empleado_rrhh__isnull=True) | Q(empleado_rrhh__activo=True)
+        ).distinct()
+        existentes = set(RegistroNomina.objects.filter(
+            empleado__in=empleados, mes_correspondiente=mes, anio_correspondiente=anio
+        ).values_list('empleado_id', flat=True))
+        if existentes:
+            return Response({'detail': 'Ya existen registros para uno o más empleados de este período.', 'empleados': list(existentes)}, status=409)
+
+        try:
+            with transaction.atomic():
+                for empleado in empleados:
+                    RegistroNomina.objects.create(
+                        empleado=empleado,
+                        mes_correspondiente=mes,
+                        anio_correspondiente=anio,
+                        monto_cestaticket=cesta,
+                        tasa_pago_bono=tasa,
+                    )
+                registros = list(RegistroNomina.objects.filter(
+                    empleado__in=empleados, mes_correspondiente=mes, anio_correspondiente=anio
+                ).select_related('empleado'))
+            return Response(RegistroNominaSerializer(registros, many=True).data, status=status.HTTP_201_CREATED)
+        except IntegrityError:
+            return Response({'detail': 'El período fue generado simultáneamente. Vuelve a consultar el historial.'}, status=409)
 
 class ReciboNominaPDFView(APIView):
     # IDOR fix: antes solo exigía IsAuthenticated, permitiendo a cualquier

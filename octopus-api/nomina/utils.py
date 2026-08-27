@@ -98,8 +98,8 @@ class GeneradorReciboNomina:
             ("Sueldo Mensual Base", emp.sueldo_base_ves, None),
             ("Bono de Alimentación (Cestaticket)", registro.monto_cestaticket, None),
             (f"Incentivo Especial ({registro.bono_usd} USD)", bono_ves, None),
-            ("Seguro Social (SSO 4%)", None, registro.monto_sso),
-            ("Ley de Política Habitacional (LPH 1%)", None, registro.monto_lph),
+            (f"Seguro Social (SSO {registro.porcentaje_sso_aplicado * 100}%)", None, registro.monto_sso),
+            (f"Ley de Política Habitacional (LPH {registro.porcentaje_lph_aplicado * 100}%)", None, registro.monto_lph),
         ]
 
         for desc, asigna, deduc in filas:

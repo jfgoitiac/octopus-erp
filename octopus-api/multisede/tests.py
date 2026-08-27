@@ -116,7 +116,7 @@ class DashboardConsolidadoNPlusOneTest(TestCase):
         # deuda futura no vencida — así el conteo de morosos (criterio canónico
         # en vivo) y la deuda total son consistentes entre sí.
         anio_mensualidad = 2020 if moroso else date.today().year + 1
-        with mock.patch('portal.tasks.programar_notificaciones_mensualidad'):
+        with mock.patch('notificaciones.tasks.programar_notificaciones_mensualidad'):
             Mensualidad.objects.create(alumno=alumno, mes=1, anio=anio_mensualidad, monto_usd=Decimal('35.00'))
         Pago.objects.create(
             alumno=alumno, usuario_receptor=self.user, metodo_pago='efectivo',

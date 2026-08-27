@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/PortalAuthContext';
+import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import { getDashboard } from '../api/portal.service';
 import { usePortalHeroExtra } from '../hooks/usePortalHeroExtra';
 import EstudianteSelector from '../components/EstudianteSelector';
@@ -18,7 +19,7 @@ const PortalDashboard = () => {
 
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
-  const [alumnoActivo, setAlumnoActivo] = useState(null);
+  const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [modalOpen, setModalOpen] = useState(false);
   const [mensualidadSeleccionada, setMensualidadSeleccionada] = useState(null);
 
@@ -28,16 +29,14 @@ const PortalDashboard = () => {
       const res = await getDashboard(signal);
       const data = res.data;
       setDashboardData(data);
-      if (data.alumnos?.length > 0) {
-        setAlumnoActivo(data.alumnos[0]);
-      }
+      sincronizarConLista(data.alumnos);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       toast.error('No se pudo cargar la información. Intenta más tarde.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sincronizarConLista]);
 
   useEffect(() => {
     const controller = new AbortController();

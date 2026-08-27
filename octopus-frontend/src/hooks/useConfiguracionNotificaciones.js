@@ -17,6 +17,9 @@ export const EMPTY_FORM = {
     meta_whatsapp_token: '',
     meta_whatsapp_phone_id: '',
     director_whatsapp: '',
+    dias_recordatorio_1: 5,
+    dias_recordatorio_2: 10,
+    dias_alerta_director: 15,
 };
 
 export const EMPTY_PERFIL_EMAIL = {
@@ -39,6 +42,8 @@ const WHATSAPP_KEYS = [
     'meta_whatsapp_token', 'meta_whatsapp_phone_id', 'director_whatsapp',
 ];
 
+const MORA_KEYS = ['dias_recordatorio_1', 'dias_recordatorio_2', 'dias_alerta_director'];
+
 const emptyPerfiles = () =>
     AREAS_EMAIL.reduce((acc, { value }) => ({ ...acc, [value]: EMPTY_PERFIL_EMAIL }), {});
 
@@ -49,6 +54,7 @@ export function useConfiguracionNotificaciones() {
     const [loading, setLoading] = useState(true);
     const [savingEmailArea, setSavingEmailArea] = useState({});
     const [savingWhatsApp, setSavingWhatsApp] = useState(false);
+    const [savingMora, setSavingMora] = useState(false);
     const [testForm, setTestForm] = useState({ canal: 'email', destino: '', mensaje: '', area: 'cobranza' });
     const [testLoading, setTestLoading] = useState(false);
     const [testResult, setTestResult] = useState(null);
@@ -129,6 +135,29 @@ export function useConfiguracionNotificaciones() {
         }
     }, [form]);
 
+    const saveMora = useCallback(async () => {
+        const d1 = Number(form.dias_recordatorio_1);
+        const d2 = Number(form.dias_recordatorio_2);
+        const d3 = Number(form.dias_alerta_director);
+        if (!(d1 > 0 && d1 < d2 && d2 < d3)) {
+            toast.error('Los días deben ser positivos y crecientes (recordatorio 1 < recordatorio 2 < alerta al director).');
+            return;
+        }
+        setSavingMora(true);
+        try {
+            const valores = { dias_recordatorio_1: d1, dias_recordatorio_2: d2, dias_alerta_director: d3 };
+            const payload = {};
+            MORA_KEYS.forEach(key => { payload[key] = valores[key]; });
+            const { data } = await axiosInstance.patch('notificaciones/configuracion/', payload);
+            setFormState({ ...EMPTY_FORM, ...data });
+            toast.success('Cronograma de recordatorios guardado.');
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Error al guardar.');
+        } finally {
+            setSavingMora(false);
+        }
+    }, [form]);
+
     const sendTest = useCallback(async () => {
         setTestLoading(true);
         setTestResult(null);
@@ -156,6 +185,7 @@ export function useConfiguracionNotificaciones() {
         loading,
         savingEmailArea,
         savingWhatsApp,
+        savingMora,
         testForm,
         setTestForm,
         testLoading,
@@ -165,6 +195,7 @@ export function useConfiguracionNotificaciones() {
         setPerfilField,
         saveEmailArea,
         saveWhatsApp,
+        saveMora,
         sendTest,
     };
 }

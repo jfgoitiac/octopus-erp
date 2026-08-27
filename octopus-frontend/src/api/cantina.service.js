@@ -147,6 +147,22 @@ export const registrarVenta = (payload, signal) =>
 export const descargarReciboVenta = (ventaId, signal) =>
   cantinaApiClient.get(`ventas/${ventaId}/recibo/`, { signal, responseType: 'blob' });
 
+/* ── Apertura de caja por cajero (hasta 3 simultáneas) ──
+ *
+ * GET apertura-caja/ → { apertura: null } si el cajero autenticado no tiene
+ *   ninguna apertura 'abierta', o { apertura: { id, cajero, cajero_username,
+ *   fecha_hora_apertura, monto_inicial, estado, cerrada_en } } si sí.
+ *
+ * POST apertura-caja/ con { monto_inicial } → 201 con la apertura creada, o
+ *   400 { detail: 'mensaje' } si el cajero ya tiene una abierta, o si ya hay
+ *   3 aperturas abiertas simultáneamente en el sistema.
+ */
+export const getAperturaCajaActual = (signal) =>
+  cantinaApiClient.get('apertura-caja/', { signal });
+
+export const abrirCajaCantina = (montoInicial, signal) =>
+  cantinaApiClient.post('apertura-caja/', { monto_inicial: montoInicial }, { signal });
+
 /* ── Cierre de caja (§5.6/§8 FASE 5 cantina.md) ──
  *
  * GET cierre-caja/ → { ya_cerrado: true, id, fecha, total_ventas,

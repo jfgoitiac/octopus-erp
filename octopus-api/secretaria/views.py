@@ -1424,14 +1424,63 @@ class LogAuditoriaListView(APIView):
 
         fecha_inicio = request.query_params.get('fecha_inicio')
         fecha_fin = request.query_params.get('fecha_fin')
+        modulo = request.query_params.get('modulo')
         if fecha_inicio:
             logs = logs.filter(fecha_hora__date__gte=parse_date(fecha_inicio))
         if fecha_fin:
             logs = logs.filter(fecha_hora__date__lte=parse_date(fecha_fin))
+        if modulo and modulo.upper() != 'TODOS':
+            logs = logs.filter(modulo__iexact=modulo)
 
-        logs = logs[:200]
-        serializer = LogAuditoriaSerializer(logs, many=True)
-        return Response(serializer.data)
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(200, max(1, int(request.query_params.get('page_size', 200))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 200
+
+        total = logs.count()
+        offset = (page - 1) * page_size
+        logs_pagina = logs[offset:offset + page_size]
+
+        return Response({
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': max(1, (total + page_size - 1) // page_size),
+            'results': LogAuditoriaSerializer(logs_pagina, many=True).data,
+        })
+
+
+class ExportarAuditoriaLogExcelView(APIView):
+    """Exporta el log de auditoría (LogAuditoria) a Excel, filtrado por rango de fechas y módulo."""
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def get(self, request):
+        from django.utils.dateparse import parse_date
+        from cobranza.exports import ExcelExporter
+
+        logs = LogAuditoria.objects.select_related('usuario').all().order_by('-fecha_hora')
+
+        fecha_inicio = request.query_params.get('fecha_inicio')
+        fecha_fin = request.query_params.get('fecha_fin')
+        modulo = request.query_params.get('modulo')
+        if fecha_inicio:
+            logs = logs.filter(fecha_hora__date__gte=parse_date(fecha_inicio))
+        if fecha_fin:
+            logs = logs.filter(fecha_hora__date__lte=parse_date(fecha_fin))
+        if modulo and modulo.upper() != 'TODOS':
+            logs = logs.filter(modulo__iexact=modulo)
+
+        columns = [
+            ('Fecha',    lambda x: x.fecha_hora.strftime('%d/%m/%Y %H:%M')),
+            ('Usuario',  lambda x: x.usuario.username if x.usuario else 'SISTEMA'),
+            ('Acción',   'accion'),
+            ('Módulo',   'modulo'),
+            ('IP',       lambda x: x.ip_address or ''),
+            ('Detalles', lambda x: x.detalles if isinstance(x.detalles, str) else (str(x.detalles) if x.detalles else '')),
+        ]
+
+        return ExcelExporter.export(logs, columns, "auditoria_log")
 
 
 # ─────────────────────────────────────────────

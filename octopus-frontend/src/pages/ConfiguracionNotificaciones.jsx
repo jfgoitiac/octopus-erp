@@ -120,11 +120,11 @@ const ConfiguracionNotificaciones = () => {
 
     const {
         form, perfiles, loading,
-        savingEmailArea, savingWhatsApp,
+        savingEmailArea, savingWhatsApp, savingMora,
         testForm, setTestForm,
         testLoading, testResult,
         setField, setPerfilField,
-        saveEmailArea, saveWhatsApp, sendTest,
+        saveEmailArea, saveWhatsApp, saveMora, sendTest,
     } = useConfiguracionNotificaciones();
 
     const toggleSecret = (key) =>
@@ -362,6 +362,45 @@ const ConfiguracionNotificaciones = () => {
                                 >
                                     <Send size={14} />
                                     Probar WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ─── Card Cronograma de recordatorios de mora ─── */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <Bell size={17} style={{ color: 'var(--pb)' }} />
+                            <span className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Cronograma de recordatorios de mora</span>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm" style={{ color: 'var(--ash)' }}>
+                                Días transcurridos desde el vencimiento de la mensualidad para cada aviso.
+                                El día 0 (factura generada) es fijo; estos tres hitos son configurables.
+                            </p>
+                            <div className="grid sm:grid-cols-3 gap-4">
+                                <div>
+                                    <FieldLabel htmlFor="dias_recordatorio_1">Primer recordatorio (días)</FieldLabel>
+                                    <TextInput fieldKey="dias_recordatorio_1" form={form} setField={setField} placeholder="5" type="number" />
+                                </div>
+                                <div>
+                                    <FieldLabel htmlFor="dias_recordatorio_2">Segundo aviso (días)</FieldLabel>
+                                    <TextInput fieldKey="dias_recordatorio_2" form={form} setField={setField} placeholder="10" type="number" />
+                                </div>
+                                <div>
+                                    <FieldLabel htmlFor="dias_alerta_director">Alerta al director (días)</FieldLabel>
+                                    <TextInput fieldKey="dias_alerta_director" form={form} setField={setField} placeholder="15" type="number" />
+                                </div>
+                            </div>
+                            <div className="pt-2">
+                                <button
+                                    onClick={saveMora}
+                                    disabled={savingMora}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+                                    style={{ background: 'var(--pb)' }}
+                                >
+                                    {savingMora ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    Guardar cronograma
                                 </button>
                             </div>
                         </div>

@@ -1,21 +1,29 @@
-import { useEffect } from 'react';
-import { Calendar, Users, Save, Loader2, GraduationCap } from 'lucide-react';
+import { useEffect, useMemo, useCallback } from 'react';
+import { Calendar, Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { es } from 'date-fns/locale';
+import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { useAsistencia } from '../hooks/useAsistencia';
 import GradoSelect from '../components/GradoSelect';
 import FilaAlumno from '../components/asistencia/FilaAlumno';
 import SkeletonFila from '../components/asistencia/SkeletonFila';
 
 const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
+// Sin `background` inline (a diferencia de INPUT_STYLE): así la clase
+// Tailwind `hover:bg-*` puede sobrescribirlo — un `style` inline con
+// background siempre gana sobre cualquier variante de Tailwind.
+const NAV_BTN_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--jet)' };
 
+// Nota: los colores de texto sobre fondo se eligieron para cumplir contraste
+// >= 4.5:1 en texto pequeño (WCAG AA). #16a34a/var(--ash) originales no
+// pasaban sobre sus fondos claros — se oscurecieron a #15803d y var(--jet).
 const CONTEO_ITEMS = [
-  { key: 'presentes',   label: 'Presentes',   color: '#16a34a',     bg: '#dcfce7' },
+  { key: 'presentes',   label: 'Presentes',   color: '#15803d',     bg: '#dcfce7' },
   { key: 'ausentes',    label: 'Ausentes',    color: 'var(--red)',  bg: 'var(--red-light)' },
   { key: 'justificados',label: 'Justificados',color: '#854d0e',     bg: '#fef9c3' },
   { key: 'retardados',  label: 'Retardados',  color: '#b45309',     bg: '#fef3c7' },
-  { key: 'sinMarcar',   label: 'Sin marcar',  color: 'var(--ash)',  bg: 'var(--ash-light)' },
+  { key: 'sinMarcar',   label: 'Sin marcar',  color: 'var(--jet)',  bg: 'var(--ash-light)' },
 ];
 
 const Asistencia = () => {
@@ -28,9 +36,21 @@ const Asistencia = () => {
     dirty,
     conteos,
     marcar,
+    marcarTodosPresentes,
     actualizarObservacion,
     guardar,
   } = useAsistencia();
+
+  const hoy = useMemo(() => startOfDay(new Date()), []);
+  const esHoy = isSameDay(fecha, hoy);
+
+  const irADiaAnterior = useCallback(() => {
+    setFecha(prev => addDays(prev, -1));
+  }, [setFecha]);
+
+  const irADiaSiguiente = useCallback(() => {
+    setFecha(prev => (isSameDay(prev, hoy) ? prev : addDays(prev, 1)));
+  }, [setFecha, hoy]);
 
   // Bloquear cierre/recarga de pestaña con cambios sin guardar
   useEffect(() => {
@@ -79,21 +99,44 @@ const Asistencia = () => {
           >
             Fecha
           </label>
-          <DatePicker
-            selected={fecha}
-            onChange={setFecha}
-            locale={es}
-            dateFormat="dd/MM/yyyy"
-            maxDate={new Date()}
-            wrapperClassName="w-full"
-            customInput={
-              <input
-                id="filtro-fecha"
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
-                style={INPUT_STYLE}
-              />
-            }
-          />
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={irADiaAnterior}
+              aria-label="Día anterior"
+              className="flex-shrink-0 flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg bg-white transition-colors hover:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
+              style={NAV_BTN_STYLE}
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <DatePicker
+              id="filtro-fecha"
+              selected={fecha}
+              onChange={setFecha}
+              locale={es}
+              dateFormat="dd/MM/yyyy"
+              maxDate={new Date()}
+              wrapperClassName="w-full"
+              customInput={
+                <input
+                  className="w-full px-3 py-2.5 sm:py-2 rounded-lg text-sm outline-none cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
+                  style={INPUT_STYLE}
+                />
+              }
+            />
+
+            <button
+              type="button"
+              onClick={irADiaSiguiente}
+              disabled={esHoy}
+              aria-label="Día siguiente"
+              className="flex-shrink-0 flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg bg-white transition-colors hover:enabled:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={NAV_BTN_STYLE}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
 
         <div>
@@ -127,6 +170,21 @@ const Asistencia = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Marcar todos presentes */}
+      {grado && !loading && registros.length > 0 && (
+        <div className="flex justify-end mb-3">
+          <button
+            type="button"
+            onClick={marcarTodosPresentes}
+            className="flex items-center gap-2 px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-1"
+            style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
+          >
+            <CheckCheck size={14} />
+            Marcar todos presentes
+          </button>
         </div>
       )}
 

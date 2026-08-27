@@ -99,7 +99,10 @@ export default function ResumenCobro({
         </p>
       )}
 
-      {quedaNegativo && (
+      {quedaNegativo ? (
+        // El saldo queda en negativo Y hace falta confirmar identidad: se
+        // fusionan en UN solo paso de confirmación en vez de dos checkboxes
+        // secuenciales — un solo check cubre ambas condiciones a la vez.
         <div className="space-y-2 rounded-lg px-3 py-2" style={{ background: '#fffbeb' }}>
           <p className="flex items-start gap-1.5 text-sm font-medium" style={{ color: '#b45309' }}>
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
@@ -108,23 +111,26 @@ export default function ResumenCobro({
           <label className="flex items-center gap-2 text-sm" style={{ color: '#b45309' }}>
             <input
               type="checkbox"
-              checked={confirmarSaldoNegativo}
-              onChange={e => onCambiarConfirmarSaldoNegativo(e.target.checked)}
+              checked={identidadConfirmada && confirmarSaldoNegativo}
+              onChange={e => {
+                onCambiarIdentidadConfirmada(e.target.checked);
+                onCambiarConfirmarSaldoNegativo(e.target.checked);
+              }}
             />
-            Confirmo que el saldo quedará en negativo y autorizo la venta.
+            Confirmo que la foto/nombre coincide con el estudiante frente a mí y que el saldo quedará en negativo — autorizo la venta.
           </label>
         </div>
+      ) : (
+        <label className="flex items-center gap-2 text-sm pt-1" style={{ borderTop: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+          <input
+            type="checkbox"
+            checked={identidadConfirmada}
+            onChange={e => onCambiarIdentidadConfirmada(e.target.checked)}
+          />
+          <CheckCircle2 size={14} style={{ color: 'var(--pb-mid, #0c7a86)' }} />
+          Confirmo que la foto/nombre coincide con el estudiante frente a mí.
+        </label>
       )}
-
-      <label className="flex items-center gap-2 text-sm pt-1" style={{ borderTop: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
-        <input
-          type="checkbox"
-          checked={identidadConfirmada}
-          onChange={e => onCambiarIdentidadConfirmada(e.target.checked)}
-        />
-        <CheckCircle2 size={14} style={{ color: 'var(--pb-mid, #0c7a86)' }} />
-        Confirmo que la foto/nombre coincide con el estudiante frente a mí.
-      </label>
     </div>
   );
 }

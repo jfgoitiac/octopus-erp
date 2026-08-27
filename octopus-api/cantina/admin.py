@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    AperturaCajaCantina,
     CategoriaProducto,
     CierreCajaCantina,
     DetalleVentaCantina,
@@ -82,6 +83,12 @@ class VentaCantinaAdmin(admin.ModelAdmin):
     list_filter = ('metodo_pago', 'estado')
     search_fields = ('alumno__nombre', 'alumno__apellido')
     inlines = (DetalleVentaCantinaInline,)
+
+
+@admin.register(AperturaCajaCantina)
+class AperturaCajaCantinaAdmin(admin.ModelAdmin):
+    list_display = ('cajero', 'fecha_hora_apertura', 'monto_inicial', 'estado', 'cerrada_en')
+    list_filter = ('estado',)
 
 
 @admin.register(CierreCajaCantina)

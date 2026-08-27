@@ -4,6 +4,26 @@ from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from datetime import date
+
+
+class ParametroLegalNomina(models.Model):
+    vigente_desde = models.DateField(unique=True)
+    porcentaje_sso = models.DecimalField(max_digits=6, decimal_places=4, validators=[MinValueValidator(Decimal('0'))])
+    porcentaje_lph = models.DecimalField(max_digits=6, decimal_places=4, validators=[MinValueValidator(Decimal('0'))])
+    descripcion = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['-vigente_desde']
+        verbose_name = 'Parámetro legal de nómina'
+        verbose_name_plural = 'Parámetros legales de nómina'
+
+    def __str__(self):
+        return f'Vigente desde {self.vigente_desde}'
+
+    @classmethod
+    def vigente_para(cls, periodo):
+        return cls.objects.filter(vigente_desde__lte=periodo).order_by('-vigente_desde').first()
 
 
 class Empleado(models.Model):
@@ -26,19 +46,13 @@ class Empleado(models.Model):
     )
     es_pensionado = models.BooleanField(default=False)
 
-    # Vínculo opcional hacia rrhh.Empleado. Los modelos rrhh.Empleado y
-    # nomina.Empleado son independientes por diseño histórico (ver
-    # NOTAS_TECNICAS.md). Este campo permite asociar manualmente un registro
-    # de nómina con su contraparte de RRHH sin fusionar ni migrar datos.
-    # Es nullable y SET_NULL para no afectar registros existentes ni requerir
-    # backfill: todos quedan en null hasta que un admin los vincule.
     empleado_rrhh = models.ForeignKey(
         'rrhh.Empleado',
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name='registros_nomina',
-        help_text='Vínculo opcional con el Empleado correspondiente en el módulo de RRHH.',
+        help_text='Ficha maestra correspondiente en el módulo de RRHH.',
     )
 
     def __str__(self):
@@ -65,21 +79,37 @@ class RegistroNomina(models.Model):
     monto_sso = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Seguro Social (4%)
     monto_lph = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Ley Política Habitacional (1%)
     monto_cestaticket = models.DecimalField(max_digits=12, decimal_places=2)
+    porcentaje_sso_aplicado = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    porcentaje_lph_aplicado = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
     
     # Incentivos en USD (Bonos de Guerra / Incentivos Internos)
     bono_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tasa_pago_bono = models.DecimalField(max_digits=12, decimal_places=2)
     total_pagar_ves = models.DecimalField(max_digits=15, decimal_places=2)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empleado', 'mes_correspondiente', 'anio_correspondiente'],
+                name='nomina_empleado_periodo_unico',
+            )
+        ]
+
     def calcular_deducciones(self):
         """
         Lógica según ley venezolana utilizando redondeo matemático seguro (.quantize).
         Si el empleado es pensionado, no se le descuenta SSO ni LPH.
         """
+        parametro = ParametroLegalNomina.vigente_para(
+            date(self.anio_correspondiente, self.mes_correspondiente, 1)
+        )
+        if parametro:
+            self.porcentaje_sso_aplicado = parametro.porcentaje_sso
+            self.porcentaje_lph_aplicado = parametro.porcentaje_lph
+
         if not self.empleado.es_pensionado:
-            # Eliminadas las líneas con errores. Usamos Decimal directo y redondeamos a 2 decimales.
-            self.monto_sso = (self.empleado.sueldo_base_ves * Decimal('0.04')).quantize(Decimal('0.01'))
-            self.monto_lph = (self.empleado.sueldo_base_ves * Decimal('0.01')).quantize(Decimal('0.01'))
+            self.monto_sso = (self.empleado.sueldo_base_ves * self.porcentaje_sso_aplicado).quantize(Decimal('0.01'))
+            self.monto_lph = (self.empleado.sueldo_base_ves * self.porcentaje_lph_aplicado).quantize(Decimal('0.01'))
         else:
             # Si el estatus cambia a pensionado, garantizamos que las deducciones se vuelvan cero
             self.monto_sso = Decimal('0.00')

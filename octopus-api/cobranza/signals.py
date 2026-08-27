@@ -43,7 +43,7 @@ def al_crear_mensualidad(sender, instance, created, **kwargs):
     """
     if created and not instance.pagado:
         try:
-            from portal.tasks import programar_notificaciones_mensualidad
+            from notificaciones.tasks import programar_notificaciones_mensualidad
             programar_notificaciones_mensualidad(instance.id)
         except Exception as e:
             import logging

@@ -21,6 +21,7 @@ from cobranza.models import BancoInstitucional, TasaCambio
 from secretaria.models import Alumno, Representante
 from .mora_cantina import dias_en_negativo
 from .models import (
+    AperturaCajaCantina,
     CategoriaProducto,
     CierreCajaCantina,
     DetalleVentaCantina,
@@ -35,6 +36,7 @@ from .models import (
 from .permissions import EsCajeroOAdmin
 from .serializers import (
     AjustarCreditoSerializer,
+    AperturaCajaCantinaSerializer,
     CategoriaProductoSerializer,
     CierreCajaCantinaSerializer,
     MovimientoInventarioSerializer,
@@ -740,6 +742,88 @@ class RechazarRecargaView(APIView):
 
 
 # ─────────────────────────────────────────────
+# Apertura de caja por cajero (hasta 3 cajeros vendiendo simultáneamente,
+# cada uno con su propia sesión de caja independiente — ver cantina.md)
+# ─────────────────────────────────────────────
+
+class AperturaCajaCantinaView(APIView):
+    """
+    GET: la apertura de caja 'abierta' del cajero autenticado, o
+    `{'apertura': None}` si no tiene ninguna (el frontend usa esto para
+    decidir si debe pedir el monto inicial antes de la primera venta del
+    turno).
+
+    POST {monto_inicial}: abre una nueva apertura de caja para el cajero
+    autenticado. Un mismo cajero no puede abrir dos veces (rechazado con
+    400), y el sistema entero no permite más de
+    `AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS` aperturas 'abierta' a
+    la vez (rechazado con 400 y mensaje claro).
+
+    El chequeo de "máximo 3 aperturas simultáneas" cruza filas de toda la
+    tabla — ninguna constraint de una sola fila puede expresarlo — así que
+    se serializa contra el singleton `ParametroCantina` con
+    `select_for_update()` dentro de `transaction.atomic()`: dos POST
+    concurrentes de dos cajeros distintos quedan en fila, uno detrás del
+    otro, antes de contar cuántas aperturas siguen abiertas.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request):
+        apertura = AperturaCajaCantina.objects.filter(cajero=request.user, estado='abierta').first()
+        if not apertura:
+            return Response({'apertura': None})
+        return Response({'apertura': AperturaCajaCantinaSerializer(apertura).data})
+
+    def post(self, request):
+        monto_inicial_raw = request.data.get('monto_inicial')
+        if monto_inicial_raw in (None, ''):
+            return Response(
+                {'detail': "El campo 'monto_inicial' es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            monto_inicial = Decimal(str(monto_inicial_raw))
+        except Exception:
+            return Response(
+                {'detail': "El campo 'monto_inicial' debe ser un número."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if monto_inicial < 0:
+            return Response(
+                {'detail': 'El monto inicial no puede ser negativo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            parametro = ParametroCantina.objects.select_for_update().first()
+            if parametro is None:
+                ParametroCantina.objects.create()
+                parametro = ParametroCantina.objects.select_for_update().first()
+
+            if AperturaCajaCantina.objects.filter(cajero=request.user, estado='abierta').exists():
+                return Response(
+                    {'detail': 'Ya tienes una apertura de caja abierta — no puedes abrir dos veces.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            abiertas_actuales = AperturaCajaCantina.objects.filter(estado='abierta').count()
+            if abiertas_actuales >= AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS:
+                return Response(
+                    {
+                        'detail': (
+                            f'Ya hay {AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS} cajas abiertas '
+                            'simultáneamente — un cajero debe cerrar su caja antes de que se pueda abrir otra.'
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            apertura = AperturaCajaCantina.objects.create(cajero=request.user, monto_inicial=monto_inicial)
+
+        return Response(AperturaCajaCantinaSerializer(apertura).data, status=status.HTTP_201_CREATED)
+
+
+# ─────────────────────────────────────────────
 # FASE 4 — POS y ventas (§5.6/§5.9/§8 FASE 4 de cantina.md)
 # ─────────────────────────────────────────────
 
@@ -776,6 +860,13 @@ class RegistrarVentaView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def post(self, request):
+        apertura = AperturaCajaCantina.objects.filter(cajero=request.user, estado='abierta').first()
+        if not apertura:
+            return Response(
+                {'error': 'Debes abrir tu caja (declarar el monto inicial) antes de registrar una venta.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         items = request.data.get('items')
         if not items or not isinstance(items, list):
             return Response(
@@ -879,6 +970,7 @@ class RegistrarVentaView(APIView):
                 venta = VentaCantina.objects.create(
                     alumno=alumno,
                     tarjeta=tarjeta,
+                    apertura=apertura,
                     cajero=request.user,
                     metodo_pago=metodo_pago,
                     total_usd=total_usd,
@@ -1005,29 +1097,37 @@ class ReciboVentaPDFView(APIView):
 # FASE 5 — Cierre de caja (§5.7/§8 FASE 5 de cantina.md)
 # ─────────────────────────────────────────────
 
-def _calcular_totales_dia_cajero(cajero, fecha):
+def _calcular_totales_apertura(cajero, apertura):
     """
-    Agrega ventas/recargas del `cajero` en la `fecha` dada. Usada tanto por
-    el GET (resumen preliminar, nada se persiste) como por el POST
+    Agrega las ventas registradas bajo la `apertura` del `cajero` dado —
+    NUNCA las de otros cajeros ni las de otras aperturas suyas (cerradas o
+    de otro turno), para que 3 cajeros con caja abierta a la vez no se
+    mezclen ni se bloqueen entre sí (§ apertura por cajero). Usada tanto
+    por el GET (resumen preliminar, nada se persiste) como por el POST
     (recálculo server-side antes de crear el `CierreCajaCantina` — nunca se
     confía en totales enviados por el cliente, mismo criterio que el resto
     del módulo con dinero, ver `RegistrarVentaView`).
+
+    Las recargas en efectivo del cajero, en cambio, se siguen agregando por
+    día calendario (no tienen concepto de apertura — fuera del alcance de
+    este cambio).
 
     Devuelve un dict con los 4 `Decimal` ya redondeados a 2 decimales
     (`Decimal('0.00')` si `aggregate` no encuentra filas, para evitar
     `None`).
     """
-    ventas_dia = VentaCantina.objects.filter(
-        cajero=cajero, estado='completada', creado_en__date=fecha,
+    ventas_apertura = VentaCantina.objects.filter(
+        cajero=cajero, estado='completada', apertura=apertura,
     )
-    total_ventas = ventas_dia.aggregate(total=Sum('total_usd'))['total'] or Decimal('0.00')
-    total_tarjeta = ventas_dia.filter(metodo_pago='tarjeta_prepago').aggregate(
+    total_ventas = ventas_apertura.aggregate(total=Sum('total_usd'))['total'] or Decimal('0.00')
+    total_tarjeta = ventas_apertura.filter(metodo_pago='tarjeta_prepago').aggregate(
         total=Sum('total_usd'),
     )['total'] or Decimal('0.00')
-    total_efectivo = ventas_dia.filter(
+    total_efectivo = ventas_apertura.filter(
         metodo_pago__in=['efectivo', 'efectivo_ves'],
     ).aggregate(total=Sum('total_usd'))['total'] or Decimal('0.00')
 
+    fecha = timezone.localtime(apertura.fecha_hora_apertura).date()
     total_recargas_efectivo = RecargaTarjeta.objects.filter(
         cajero=cajero, estatus='aprobado', registrado_por_portal=False, creado_en__date=fecha,
     ).aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
@@ -1042,38 +1142,53 @@ def _calcular_totales_dia_cajero(cajero, fecha):
 
 class CierreCajaCantinaView(APIView):
     """
-    GET/POST <sin parámetros>: cierre de caja diario del cajero autenticado
-    (§5.7/§8 FASE 5 de cantina.md).
+    GET/POST <sin parámetros>: cierre de caja del cajero autenticado
+    (§5.7/§8 FASE 5 de cantina.md), ahora sobre SU apertura de caja activa
+    en vez de "el día" — con 3 cajeros pudiendo tener caja abierta a la vez,
+    cerrar debe afectar únicamente la sesión de quien cierra, sin tocar ni
+    ver las de los otros dos (§ apertura por cajero).
 
     GET:
-      - Si `request.user` ya cerró caja HOY, devuelve ese `CierreCajaCantina`
-        serializado + `"ya_cerrado": true`.
-      - Si no, calcula (sin persistir) un resumen preliminar de sus ventas/
-        recargas de hoy vía `_calcular_totales_dia_cajero` + `"ya_cerrado": false`.
+      - Si el cajero no tiene ninguna apertura 'abierta', 400 con mensaje
+        claro (nada que cerrar).
+      - Si su apertura abierta ya tiene un `CierreCajaCantina` (carrera con
+        otra pestaña), lo devuelve serializado + `"ya_cerrado": true`.
+      - Si no, calcula (sin persistir) un resumen preliminar de esa
+        apertura vía `_calcular_totales_apertura` + `"ya_cerrado": false`.
 
     POST {conteo_fisico, observaciones}:
-      - Recalcula los mismos 4 totales server-side (nunca confía en lo que
-        mande el frontend) y crea el `CierreCajaCantina` dentro de
-        `transaction.atomic()`.
-      - Un segundo POST el mismo día devuelve 400 legible (el
-        `unique_together` del modelo lo impediría con un IntegrityError sin
-        capturar — se verifica ANTES para dar un mensaje claro, y además se
-        envuelve el `.create()` en try/except como red de seguridad ante una
-        carrera de dos POST simultáneos).
+      - Recalcula los mismos 4 totales server-side, sobre la apertura
+        abierta del cajero (nunca confía en lo que mande el frontend), y
+        compara el conteo físico contra monto_inicial + efectivo + recargas
+        de ESA apertura — nunca contra las ventas de otro cajero.
+      - Crea el `CierreCajaCantina` (ligado 1:1 a la apertura vía
+        `OneToOneField`) y marca la apertura como 'cerrada', todo dentro de
+        `transaction.atomic()`. Un segundo POST sobre la misma apertura
+        devuelve 400 legible (se verifica ANTES para dar un mensaje claro,
+        y además se envuelve el `.create()` en try/except como red de
+        seguridad ante una carrera de dos POST simultáneos).
     """
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        hoy = timezone.localdate()
-        cierre = CierreCajaCantina.objects.filter(cajero=request.user, fecha=hoy).first()
+        apertura = AperturaCajaCantina.objects.filter(cajero=request.user, estado='abierta').first()
+        if not apertura:
+            return Response(
+                {'detail': 'No tienes ninguna apertura de caja abierta — no hay nada que cerrar.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cierre = CierreCajaCantina.objects.filter(apertura=apertura).first()
         if cierre:
             data = CierreCajaCantinaSerializer(cierre).data
             data['ya_cerrado'] = True
             return Response(data)
 
-        totales = _calcular_totales_dia_cajero(request.user, hoy)
+        totales = _calcular_totales_apertura(request.user, apertura)
         return Response({
             'ya_cerrado': False,
+            'apertura_id': apertura.id,
+            'monto_inicial': str(apertura.monto_inicial),
             'total_ventas': str(totales['total_ventas']),
             'total_tarjeta': str(totales['total_tarjeta']),
             'total_efectivo': str(totales['total_efectivo']),
@@ -1081,11 +1196,16 @@ class CierreCajaCantinaView(APIView):
         })
 
     def post(self, request):
-        hoy = timezone.localdate()
-
-        if CierreCajaCantina.objects.filter(cajero=request.user, fecha=hoy).exists():
+        apertura = AperturaCajaCantina.objects.filter(cajero=request.user, estado='abierta').first()
+        if not apertura:
             return Response(
-                {'detail': 'Ya registraste el cierre de caja de hoy — no se puede cerrar dos veces el mismo día.'},
+                {'detail': 'No tienes ninguna apertura de caja abierta — no hay nada que cerrar.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if CierreCajaCantina.objects.filter(apertura=apertura).exists():
+            return Response(
+                {'detail': 'Esta apertura de caja ya fue cerrada — no se puede cerrar dos veces.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -1105,21 +1225,23 @@ class CierreCajaCantinaView(APIView):
 
         observaciones = request.data.get('observaciones', '') or ''
 
-        totales = _calcular_totales_dia_cajero(request.user, hoy)
+        totales = _calcular_totales_apertura(request.user, apertura)
 
         # La diferencia de caja se calcula contra el dinero que debería
-        # estar FÍSICAMENTE en caja o en la cuenta del cajero: efectivo +
-        # recargas cobradas en efectivo. El total de tarjeta prepago NO es
-        # dinero físico (el saldo vive en la tarjeta, no en la caja), pero
-        # sí entra en `total_ventas`/el registro para contexto administrativo.
-        efectivo_esperado = totales['total_efectivo'] + totales['total_recargas_efectivo']
+        # estar FÍSICAMENTE en la caja de ESTE cajero: su monto inicial
+        # declarado al abrir + efectivo cobrado + recargas cobradas en
+        # efectivo bajo su turno. El total de tarjeta prepago NO es dinero
+        # físico (el saldo vive en la tarjeta, no en la caja), pero sí entra
+        # en `total_ventas`/el registro para contexto administrativo.
+        efectivo_esperado = apertura.monto_inicial + totales['total_efectivo'] + totales['total_recargas_efectivo']
         diferencia = (conteo_fisico - efectivo_esperado).quantize(Decimal('0.01'))
 
         try:
             with transaction.atomic():
                 cierre = CierreCajaCantina.objects.create(
                     cajero=request.user,
-                    fecha=hoy,
+                    apertura=apertura,
+                    fecha=timezone.localtime(apertura.fecha_hora_apertura).date(),
                     total_ventas=totales['total_ventas'],
                     total_tarjeta=totales['total_tarjeta'],
                     total_efectivo=totales['total_efectivo'],
@@ -1128,11 +1250,15 @@ class CierreCajaCantinaView(APIView):
                     diferencia=diferencia,
                     observaciones=observaciones,
                 )
+                apertura.estado = 'cerrada'
+                apertura.cerrada_en = timezone.now()
+                apertura.save(update_fields=['estado', 'cerrada_en'])
         except IntegrityError:
-            # Red de seguridad ante una carrera de dos POST simultáneos del
-            # mismo cajero (el chequeo de arriba no es atómico por sí solo).
+            # Red de seguridad ante una carrera de dos POST simultáneos
+            # sobre la misma apertura (el chequeo de arriba no es atómico
+            # por sí solo).
             return Response(
-                {'detail': 'Ya registraste el cierre de caja de hoy — no se puede cerrar dos veces el mismo día.'},
+                {'detail': 'Esta apertura de caja ya fue cerrada — no se puede cerrar dos veces.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

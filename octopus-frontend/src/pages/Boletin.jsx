@@ -13,11 +13,60 @@ const inputStyle = {
   fontSize: '16px',
 };
 
-const SkeletonCard = () => (
-  <div className="rounded-xl p-6 space-y-4 animate-pulse" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-    {[...Array(5)].map((_, i) => (
-      <div key={i} className="h-4 rounded" style={{ background: 'var(--border-md)', width: `${60 + i * 8}%` }} />
+const CABECERAS_BOLETIN = ['Materia', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado'];
+
+const SkeletonFilaBoletin = () => (
+  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+    {CABECERAS_BOLETIN.map((_, i) => (
+      <td key={i} className="px-4 py-3">
+        <div className="h-4 rounded animate-pulse" style={{ background: 'var(--border-md)' }} />
+      </td>
     ))}
+  </tr>
+);
+
+const SkeletonBoletin = () => (
+  <div className="rounded-xl overflow-hidden animate-pulse" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+    {/* Header del colegio */}
+    <div className="px-6 py-5 text-center space-y-2" style={{ background: 'var(--pb)' }}>
+      <div className="h-5 w-56 rounded mx-auto" style={{ background: 'rgba(255,255,255,0.35)' }} />
+      <div className="h-3 w-40 rounded mx-auto" style={{ background: 'rgba(255,255,255,0.25)' }} />
+    </div>
+
+    {/* Datos del alumno */}
+    <div
+      className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 py-4"
+      style={{ borderBottom: '0.5px solid var(--border-md)' }}
+    >
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-2.5 w-16 rounded" style={{ background: 'var(--border-md)' }} />
+          <div className="h-3.5 w-24 rounded" style={{ background: 'var(--border-md)' }} />
+        </div>
+      ))}
+    </div>
+
+    {/* Tabla de materias */}
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr>
+            {CABECERAS_BOLETIN.map(h => (
+              <th
+                key={h}
+                className="px-4 py-3 text-[11px] uppercase tracking-widest"
+                style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[...Array(5)].map((_, i) => <SkeletonFilaBoletin key={i} />)}
+        </tbody>
+      </table>
+    </div>
   </div>
 );
 
@@ -68,7 +117,7 @@ const Boletin = () => {
             <input
               type="text"
               placeholder="Nombre o cédula escolar..."
-              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none"
+              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
               style={inputStyle}
               value={busqueda}
               onChange={e => handleChangeBusqueda(e.target.value)}
@@ -88,7 +137,7 @@ const Boletin = () => {
                   <button
                     key={a.id}
                     type="button"
-                    className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pb)]/40"
                     style={{ color: 'var(--jet)', borderBottom: '0.5px solid var(--border)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--pb-light)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -118,7 +167,7 @@ const Boletin = () => {
             Lapso
           </label>
           <select
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
             style={inputStyle}
             value={lapsoId}
             onChange={e => handleChangeLapso(e.target.value)}
@@ -132,12 +181,12 @@ const Boletin = () => {
       </div>
 
       {/* Acciones */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-6">
         <button
           type="button"
           onClick={handleVistaPrev}
           disabled={loading || !alumnoSeleccionado || !lapsoId}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 hover:enabled:bg-[var(--pb-mid)]"
           style={{ background: 'var(--pb)' }}
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
@@ -148,7 +197,7 @@ const Boletin = () => {
           <button
             type="button"
             onClick={() => generarBoletinPDF(boletin)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all min-h-[44px]"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--green)]/40 hover:brightness-95"
             style={{ background: 'var(--success, #16a34a)' }}
           >
             <Download size={16} />
@@ -158,7 +207,7 @@ const Boletin = () => {
       </div>
 
       {/* Vista previa del boletín */}
-      {loading && <SkeletonCard />}
+      {loading && <SkeletonBoletin />}
 
       {!loading && boletin && (
         <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>

@@ -1,12 +1,12 @@
 """
 Servicio ÚNICO de generación de mensualidades.
 
-Antes la creación de registros Mensualidad estaba dispersa y era manual:
-  - GenerarAnualidadView (endpoint manual, un alumno a la vez, año calendario)
-  - BuscarAlumnoCobranzaView (efecto secundario de la búsqueda, solo meses futuros)
-
-Resultado: los alumnos cargados a la BD no tenían mensualidades y nunca
-entraban en mora (cobranza/mora.py solo evalúa registros existentes).
+Antes la creación de registros Mensualidad estaba dispersa y era manual
+(un endpoint que generaba año calendario completo, y un efecto secundario
+de la búsqueda de alumno que solo cubría meses futuros). Resultado: los
+alumnos cargados a la BD no tenían mensualidades y nunca entraban en mora
+(cobranza/mora.py solo evalúa registros existentes). Aquel endpoint de año
+calendario ya fue eliminado del código; toda generación pasa por aquí.
 
 Este módulo centraliza la regla del período escolar activo — leída siempre de
 ConfiguracionSistema.fecha_inicio_ano_escolar / fecha_fin_ano_escolar, nunca de
@@ -22,8 +22,8 @@ en que le corresponda pagar.
 Nota: se usa bulk_create (no dispara la señal post_save de Mensualidad) para
 no enviar el email de "día 0" al crear meses futuros o históricos. Las
 notificaciones de cobranza siguen saliendo por la tarea diaria
-portal.tasks.revisar_y_programar_notificaciones_pendientes, que se basa en la
-fecha de vencimiento real de cada mensualidad.
+notificaciones.tasks.revisar_y_programar_notificaciones_pendientes, que se
+basa en la fecha de vencimiento real de cada mensualidad.
 """
 from decimal import Decimal
 

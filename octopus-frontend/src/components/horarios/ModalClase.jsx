@@ -60,10 +60,17 @@ export const ModalClase = ({
     form.hora_inicio &&
     tieneConflicto(form);
 
+  // Validación inline — evita depender solo del error del backend para un caso obvio
+  const horaInvalida = !!(form.hora_inicio && form.hora_fin && form.hora_inicio >= form.hora_fin);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.materia_id || !form.dia_semana || !form.hora_inicio || !form.hora_fin) {
       toast.warning('Completa todos los campos obligatorios.');
+      return;
+    }
+    if (horaInvalida) {
+      toast.warning('La hora de fin debe ser posterior a la de inicio.');
       return;
     }
     if (conflicto) {
@@ -93,7 +100,9 @@ export const ModalClase = ({
           <h3 id="modal-clase-titulo" className="font-bold text-base">
             {form.id ? 'Editar Clase' : 'Nueva Clase'}
           </h3>
-          <button onClick={onClose} aria-label="Cerrar modal" style={{ color: '#fff' }}>
+          <button onClick={onClose} aria-label="Cerrar modal"
+            className="rounded-md p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{ color: '#fff' }}>
             <X size={20} />
           </button>
         </div>
@@ -151,11 +160,21 @@ export const ModalClase = ({
               <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                 Hora fin
               </label>
-              <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
-                value={form.hora_fin} onChange={set('hora_fin')} required>
+              <select
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={horaInvalida ? { ...INPUT_STYLE, border: '1px solid var(--red)' } : INPUT_STYLE}
+                value={form.hora_fin} onChange={set('hora_fin')}
+                aria-invalid={horaInvalida}
+                aria-describedby={horaInvalida ? 'hora-fin-error' : undefined}
+                required>
                 <option value="">—</option>
                 {horasFin.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
+              {horaInvalida && (
+                <p id="hora-fin-error" className="text-[11px] mt-1.5" style={{ color: 'var(--red)' }}>
+                  Debe ser posterior a la hora de inicio.
+                </p>
+              )}
             </div>
           </div>
 
@@ -187,7 +206,7 @@ export const ModalClase = ({
               style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
               Cancelar
             </button>
-            <button type="submit" disabled={saving || materias.length === 0}
+            <button type="submit" disabled={saving || materias.length === 0 || horaInvalida || conflicto}
               className="flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
               style={{ background: 'var(--pb)' }}>
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

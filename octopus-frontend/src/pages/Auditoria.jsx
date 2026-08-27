@@ -96,9 +96,8 @@ const AuditoriaKPIs = ({ reporte }) => (
 
 // ─── Tabla con filtros y paginación ───────────────────────────────────────────
 
-const AuditoriaTabla = ({ logs }) => {
+const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
     const [searchTerm, setSearchTerm]     = useState('');
-    const [filtroModulo, setFiltroModulo] = useState('TODOS');
     const [currentPage, setCurrentPage]   = useState(1);
 
     const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
@@ -276,12 +275,15 @@ const Auditoria = () => {
     })();
     const [fechaInicio, setFechaInicio] = useState(today);
     const [fechaFin, setFechaFin]       = useState(today);
+    const [filtroModulo, setFiltroModulo] = useState('TODOS');
 
     const fechaInicioDate = useMemo(() => parseISODate(fechaInicio), [fechaInicio]);
     const fechaFinDate    = useMemo(() => parseISODate(fechaFin), [fechaFin]);
 
-    const { loading, refreshing, exporting, reporte, logs, error, refetch, exportarExcel } =
-        useAuditoria(fechaInicio, fechaFin);
+    const {
+        loading, refreshing, exporting, exportingPagos, reporte, logs, error,
+        refetch, exportarExcel, exportarPagosExcel,
+    } = useAuditoria(fechaInicio, fechaFin, filtroModulo);
 
     const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
@@ -344,6 +346,15 @@ const Auditoria = () => {
                         {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                         Exportar Excel
                     </button>
+                    <button
+                        onClick={exportarPagosExcel}
+                        disabled={exportingPagos}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 min-h-[44px]"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                    >
+                        {exportingPagos ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                        Exportar Pagos
+                    </button>
                 </div>
             </div>
 
@@ -357,7 +368,7 @@ const Auditoria = () => {
             )}
 
             <AuditoriaKPIs reporte={reporte} />
-            <AuditoriaTabla logs={logs} />
+            <AuditoriaTabla logs={logs} filtroModulo={filtroModulo} setFiltroModulo={setFiltroModulo} />
         </div>
     );
 };

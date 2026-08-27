@@ -38,6 +38,7 @@ function formatearFecha(iso) {
 export default function CantinaCierreCaja() {
   const [cierre, setCierre] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sinApertura, setSinApertura] = useState(false);
 
   const [conteoFisico, setConteoFisico] = useState('');
   const [observaciones, setObservaciones] = useState('');
@@ -47,10 +48,18 @@ export default function CantinaCierreCaja() {
 
   const cargarCierre = useCallback((signal) => {
     setLoading(true);
+    setSinApertura(false);
     return getCierreCajaHoy(signal)
       .then(res => setCierre(res.data))
       .catch(err => {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        // 400 sin apertura abierta: no es un error de carga, es un estado
+        // válido (el cajero todavía no abrió caja este turno) — se muestra
+        // aparte, sin toast de error genérico.
+        if (err.response?.status === 400) {
+          setSinApertura(true);
+          return;
+        }
         toast.error(err.response?.data?.detail || 'No se pudo cargar el resumen de caja.');
       })
       .finally(() => setLoading(false));
@@ -97,6 +106,25 @@ export default function CantinaCierreCaja() {
           <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>Cargando resumen del día...</p>
         </div>
         <SkeletonCierre />
+      </div>
+    );
+  }
+
+  if (sinApertura) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+            <Wallet size={20} style={{ color: 'var(--pb)' }} />
+            Cierre de Caja
+          </h1>
+        </div>
+        <div
+          className="rounded-2xl p-6 text-sm max-w-lg"
+          style={{ background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+        >
+          No tienes ninguna apertura de caja abierta — abre tu caja en el punto de venta antes de poder cerrarla.
+        </div>
       </div>
     );
   }

@@ -216,6 +216,41 @@ const Cobranza = () => {
         setCuotasProyectoInversion([]); setSelectedProyectos([]); setMontosParcialesProyectos({});
     }, []);
 
+    // Pre-rellena banco y método de pago de la primera línea con el más usado
+    // por el representante en sus últimos 3 pagos (queda editable, no bloqueado).
+    // Best-effort: si falla, el operador simplemente los completa a mano.
+    const autocompletarPagoRepresentante = useCallback(async (cedulaRepresentante) => {
+        try {
+            const res = await axiosInstance.get('cobranza/pagos/lista/', {
+                params: { representante_documento: cedulaRepresentante, page_size: 3, page: 1 },
+            });
+            const ultimosPagos = res.data?.results || [];
+            const masFrecuente = (campo) => {
+                const conteo = new Map();
+                ultimosPagos.forEach(p => {
+                    const val = p[campo];
+                    if (val === null || val === undefined || val === '') return;
+                    conteo.set(val, (conteo.get(val) || 0) + 1);
+                });
+                let mejor = null, max = 0;
+                conteo.forEach((count, val) => { if (count > max) { mejor = val; max = count; } });
+                return mejor;
+            };
+            const metodoFrecuente = masFrecuente('metodo_pago');
+            if (!metodoFrecuente) return;
+            const bancoFrecuente = masFrecuente('banco_receptor_id');
+            setLineas(prev => prev.map((l, i) => i === 0 ? {
+                ...l,
+                metodo_pago: metodoFrecuente,
+                banco_receptor_id: requiereBanco(metodoFrecuente) && bancoFrecuente
+                    ? String(bancoFrecuente)
+                    : l.banco_receptor_id,
+            } : l));
+        } catch {
+            // Autocompletado no crítico: no interrumpe la búsqueda del representante.
+        }
+    }, []);
+
     const buscarAlumno = useCallback((val) => {
         setCedula(val);
         clearTimeout(searchRef.current);
@@ -237,6 +272,7 @@ const Cobranza = () => {
                     );
                     setRepresentanteCedula(rep.cedula || '');
                     setAlumnosRep(alumnos);
+                    if (rep.cedula) autocompletarPagoRepresentante(rep.cedula);
                     setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
                     setCuotasProyectoInversion(alumnos[0]?.cuotas_proyecto_inversion_pendientes || []);
                     setSelectedProyectos([]); setMontosParcialesProyectos({});
@@ -261,7 +297,7 @@ const Cobranza = () => {
             setLoadingBusqueda(false);
             resetBusqueda();
         }
-    }, [resetBusqueda]);
+    }, [resetBusqueda, autocompletarPagoRepresentante]);
 
     const bancosAbortRef = useRef(null);
 

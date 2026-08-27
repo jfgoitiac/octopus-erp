@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboard } from '../api/portal.service';
 import { getRendimientoAlumnoPortal } from '../api/academico.service';
+import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 
 export function useRendimientoPortal() {
   const [alumnos, setAlumnos] = useState([]);
-  const [alumnoActivo, setAlumnoActivo] = useState(null);
+  const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [loadingAlumnos, setLoadingAlumnos] = useState(true);
 
   const [rendimiento, setRendimiento] = useState(null);
@@ -21,7 +22,7 @@ export function useRendimientoPortal() {
       .then(res => {
         const lista = res.data?.alumnos || [];
         setAlumnos(lista);
-        if (lista.length > 0) setAlumnoActivo(lista[0]);
+        sincronizarConLista(lista);
       })
       .catch(err => {
         if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return;
@@ -29,7 +30,7 @@ export function useRendimientoPortal() {
       })
       .finally(() => setLoadingAlumnos(false));
     return () => controller.abort();
-  }, []);
+  }, [sincronizarConLista]);
 
   useEffect(() => {
     if (!alumnoActivo) { setRendimiento(null); return; }

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Receipt } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Receipt, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getDashboard, getHistorial } from '../api/portal.service';
+import { getDashboard, getHistorial, getReciboPago } from '../api/portal.service';
+import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SkeletonCard from '../components/SkeletonCard';
 import { SkeletonLine } from '../components/SkeletonCard';
@@ -38,12 +39,13 @@ const EstatusBadge = ({ estatus }) => {
 
 const PortalHistorialPagos = () => {
   const [alumnos, setAlumnos] = useState([]);
-  const [alumnoActivo, setAlumnoActivo] = useState(null);
+  const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [pagos, setPagos] = useState([]);
   const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [loadingAlumnos, setLoadingAlumnos] = useState(true);
   const [loadingPagos, setLoadingPagos] = useState(false);
+  const [descargandoId, setDescargandoId] = useState(null);
 
   // Cargar alumnos al montar
   useEffect(() => {
@@ -55,7 +57,7 @@ const PortalHistorialPagos = () => {
         const res = await getDashboard(controller.signal);
         const lista = res.data.alumnos || [];
         setAlumnos(lista);
-        if (lista.length > 0) setAlumnoActivo(lista[0]);
+        sincronizarConLista(lista);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
         toast.error('No se pudo cargar los datos del representante.');
@@ -66,7 +68,7 @@ const PortalHistorialPagos = () => {
 
     cargarAlumnos();
     return () => controller.abort();
-  }, []);
+  }, [sincronizarConLista]);
 
   // Cargar historial cuando cambia alumno o página
   useEffect(() => {
@@ -101,6 +103,26 @@ const PortalHistorialPagos = () => {
   const handleSelectAlumno = (alumno) => {
     setAlumnoActivo(alumno);
     setPaginaActual(1);
+  };
+
+  const handleDescargarRecibo = async (pago) => {
+    setDescargandoId(pago.id);
+    try {
+      const res = await getReciboPago(pago.id);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Recibo_${pago.factura_id || pago.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('No se pudo descargar el recibo. Intenta más tarde.');
+    } finally {
+      setDescargandoId(null);
+    }
   };
 
   return (
@@ -167,6 +189,21 @@ const PortalHistorialPagos = () => {
                     ${Number(pago.monto_usd).toFixed(2)}
                   </p>
                   <EstatusBadge estatus={pago.estatus} />
+                  {pago.estatus === 'completado' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDescargarRecibo(pago)}
+                      disabled={descargandoId === pago.id}
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary,#0fa3b1)] hover:underline disabled:opacity-50 min-h-[32px]"
+                    >
+                      {descargandoId === pago.id ? (
+                        <span className="animate-spin inline-block w-3 h-3 border-2 border-[var(--portal-primary,#0fa3b1)] border-t-transparent rounded-full" aria-hidden="true" />
+                      ) : (
+                        <Download size={13} aria-hidden="true" />
+                      )}
+                      Recibo
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

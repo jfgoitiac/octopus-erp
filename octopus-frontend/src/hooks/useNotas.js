@@ -13,6 +13,7 @@ export function useNotas(esDocente = false) {
   const [loadingCombos, setLoadingCombos] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [pendingFiltro, setPendingFiltro] = useState(null); // { tipo: 'grado'|'materia'|'lapso', valor }
 
   const abortRef = useRef(null);
   useEffect(() => () => { abortRef.current?.abort(); }, []);
@@ -64,7 +65,7 @@ export function useNotas(esDocente = false) {
 
   const cambiarGrado = useCallback((nuevoGrado) => {
     if (dirty) {
-      toast.warning('Guarda o descarta las notas antes de cambiar el grado.');
+      setPendingFiltro({ tipo: 'grado', valor: nuevoGrado });
       return;
     }
     setGrado(nuevoGrado);
@@ -72,7 +73,7 @@ export function useNotas(esDocente = false) {
 
   const cambiarMateria = useCallback((nuevoId) => {
     if (dirty) {
-      toast.warning('Guarda o descarta las notas antes de cambiar la materia.');
+      setPendingFiltro({ tipo: 'materia', valor: nuevoId });
       return;
     }
     setMateriaId(nuevoId);
@@ -80,11 +81,27 @@ export function useNotas(esDocente = false) {
 
   const cambiarLapso = useCallback((nuevoId) => {
     if (dirty) {
-      toast.warning('Guarda o descarta las notas antes de cambiar el lapso.');
+      setPendingFiltro({ tipo: 'lapso', valor: nuevoId });
       return;
     }
     setLapsoId(nuevoId);
   }, [dirty]);
+
+  // El usuario eligió "Descartar cambios y continuar" en el modal de confirmación:
+  // se limpia el estado sucio (los datos originales se recargan solos por el
+  // useEffect de arriba al aplicar el nuevo filtro) y luego se aplica el cambio.
+  const confirmarDescartarCambios = useCallback(() => {
+    if (!pendingFiltro) return;
+    setDirty(false);
+    if (pendingFiltro.tipo === 'grado') setGrado(pendingFiltro.valor);
+    else if (pendingFiltro.tipo === 'materia') setMateriaId(pendingFiltro.valor);
+    else if (pendingFiltro.tipo === 'lapso') setLapsoId(pendingFiltro.valor);
+    setPendingFiltro(null);
+  }, [pendingFiltro]);
+
+  const cancelarDescartarCambios = useCallback(() => {
+    setPendingFiltro(null);
+  }, []);
 
   // Para resets forzados (ej: después de cerrar un lapso desde el modal)
   const resetLapso = useCallback(() => {
@@ -134,11 +151,14 @@ export function useNotas(esDocente = false) {
     loadingCombos,
     saving,
     dirty,
+    pendingFiltro,
     cambiarGrado,
     cambiarMateria,
     cambiarLapso,
     resetLapso,
     handleNotaChange,
     guardar,
+    confirmarDescartarCambios,
+    cancelarDescartarCambios,
   };
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
+import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
 import { getConfigColegio } from '../api/portal.service';
 import NotificacionesModal from './NotificacionesModal';
 import RepresentanteRail from './RepresentanteRail';
@@ -74,7 +75,9 @@ const PortalLayout = () => {
 
       {/* Contenido principal — pb-32 para que el botón flotante y la bottom nav no tapen contenido */}
       <main className="max-w-[480px] md:max-w-7xl mx-auto px-4 py-5 pb-32 sm:pb-10 md:pl-20">
-        <Outlet context={{ logoColegio: configColegio.logo_url }} />
+        <AlumnoActivoProvider>
+          <Outlet context={{ logoColegio: configColegio.logo_url }} />
+        </AlumnoActivoProvider>
       </main>
 
       {/* Bottom navigation — solo móvil */}

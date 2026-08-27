@@ -6,6 +6,23 @@ const TH_STYLE = {
   background: 'var(--porcelain)',
   borderBottom: '0.5px solid var(--border-md)',
 };
+// Columna "Hora" fija a la izquierda — visible mientras se hace scroll horizontal
+// entre los días en mobile/tablet, donde la grilla semanal completa no cabe.
+const TH_STICKY_STYLE = {
+  ...TH_STYLE,
+  position: 'sticky',
+  left: 0,
+  zIndex: 3,
+  boxShadow: '1px 0 0 0 var(--border-md)',
+};
+const HORA_CELL_STYLE = {
+  color: 'var(--ash)',
+  background: 'var(--porcelain)',
+  position: 'sticky',
+  left: 0,
+  zIndex: 1,
+  boxShadow: '1px 0 0 0 var(--border-md)',
+};
 const CELL_STYLE = {
   background: 'var(--porcelain)',
   verticalAlign: 'middle',
@@ -33,7 +50,7 @@ const SkeletonGrilla = ({ horasInicio }) => (
       <table className="w-full border-collapse" style={{ minWidth: 700 }}>
         <thead>
           <tr>
-            <th className="px-3 py-3 w-20" style={TH_STYLE} />
+            <th className="px-3 py-3 w-20" style={TH_STICKY_STYLE} />
             {DIAS.map(d => (
               <th key={d} className="px-3 py-3 text-[11px] uppercase tracking-widest text-center"
                 style={{ ...TH_STYLE, borderLeft: '0.5px solid var(--border)' }}>
@@ -45,7 +62,7 @@ const SkeletonGrilla = ({ horasInicio }) => (
         <tbody>
           {horasInicio.map((hora, row) => (
             <tr key={hora} style={{ borderBottom: '0.5px solid var(--border)' }}>
-              <td className="px-3 py-2" style={{ background: 'var(--porcelain)' }}>
+              <td className="px-3 py-2" style={HORA_CELL_STYLE}>
                 <div className="h-3 w-10 rounded animate-pulse" style={{ background: 'var(--border-md)' }} />
               </td>
               {DIAS.map((_, col) => (
@@ -69,7 +86,7 @@ const EmptyGrilla = () => (
       <table className="w-full border-collapse" style={{ minWidth: 700 }}>
         <thead>
           <tr>
-            <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-left w-20" style={TH_STYLE}>
+            <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-left w-20" style={TH_STICKY_STYLE}>
               Hora
             </th>
             {DIAS.map(d => (
@@ -114,7 +131,7 @@ export const GrillaHorario = ({
           <thead>
             <tr>
               <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-left w-20"
-                style={TH_STYLE}>
+                style={TH_STICKY_STYLE}>
                 Hora
               </th>
               {DIAS.map(d => (
@@ -128,8 +145,7 @@ export const GrillaHorario = ({
           <tbody>
             {horasInicio.map(hora => (
               <tr key={hora} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                <td className="px-3 py-2 text-xs font-medium"
-                  style={{ color: 'var(--ash)', background: 'var(--porcelain)' }}>
+                <td className="px-3 py-2 text-xs font-medium" style={HORA_CELL_STYLE}>
                   {hora}
                 </td>
                 {DIAS.map(dia => {
@@ -141,7 +157,7 @@ export const GrillaHorario = ({
                         <button
                           onClick={() => onCeldaClick(dia, hora)}
                           aria-label={`Editar ${clase.materia?.nombre || 'clase'} — ${dia} ${hora}`}
-                          className="w-full rounded-lg px-2 py-2 text-left transition-all hover:opacity-80 group relative"
+                          className="w-full rounded-lg px-2 py-2 text-left transition-all hover:opacity-80 group relative focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
                           style={{
                             background: getColor(clase.materia?.id),
                             border: isLocked ? '2px solid #7c3aed' : '1px solid rgba(0,0,0,0.07)',
@@ -162,7 +178,7 @@ export const GrillaHorario = ({
                               type="button"
                               onClick={e => { e.stopPropagation(); onToggleLock(clase.id); }}
                               aria-label={isLocked ? 'Desbloquear clase' : 'Bloquear clase para el generador'}
-                              className={`absolute top-1 left-1 p-0.5 rounded transition-all ${isLocked ? 'flex' : 'hidden group-hover:flex'}`}
+                              className={`absolute top-1 left-1 p-0.5 rounded transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/60 ${isLocked ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}
                               style={{ background: 'rgba(255,255,255,0.85)' }}
                             >
                               {isLocked
@@ -181,11 +197,12 @@ export const GrillaHorario = ({
                         <button
                           onClick={() => onCeldaClick(dia, hora)}
                           aria-label={`Agregar clase — ${dia} ${hora}`}
-                          // opacity-30 visible en móvil (sin hover); md:opacity-0 la oculta en desktop hasta hover
-                          className="w-full h-12 rounded-lg flex items-center justify-center transition-all opacity-30 hover:opacity-100 md:opacity-0 md:hover:opacity-100"
+                          // Borde siempre visible: marca el hueco como celda vacía y clicable.
+                          // El ícono "+" es sutil por defecto y se refuerza con hover/foco de teclado.
+                          className="group/empty w-full h-12 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--pb-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50"
                           style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
                         >
-                          <Plus size={14} />
+                          <Plus size={14} className="opacity-40 transition-opacity group-hover/empty:opacity-100 group-focus-visible/empty:opacity-100" />
                         </button>
                       )}
                     </td>

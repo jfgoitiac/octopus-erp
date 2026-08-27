@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from secretaria.models import Alumno
 from .models import (
@@ -12,9 +13,10 @@ from .services import calcular_rendimiento_seccion
 # MATERIA
 # ─────────────────────────────────────────────
 class MateriaSerializer(serializers.ModelSerializer):
-    # Mostrar id y username del docente en GET; aceptar solo id en escritura
+    # Mostrar id y username del docente en GET; aceptar id (o null) en escritura
     docente_id       = serializers.PrimaryKeyRelatedField(
-        source='docente', read_only=True
+        source='docente', queryset=get_user_model().objects.all(),
+        required=False, allow_null=True,
     )
     docente_username = serializers.SerializerMethodField()
 
@@ -31,6 +33,17 @@ class MateriaSerializer(serializers.ModelSerializer):
         if obj.docente:
             return obj.docente.username
         return None
+
+    def validate_docente_id(self, value):
+        # Solo se puede asignar como docente a un usuario cuyo perfil tenga rol 'docente'.
+        if value is None:
+            return value
+        rol = getattr(getattr(value, 'perfil', None), 'rol', None)
+        if rol != 'docente':
+            raise serializers.ValidationError(
+                'El usuario seleccionado no tiene rol "docente" y no puede ser asignado como docente de una materia.'
+            )
+        return value
 
 
 # ─────────────────────────────────────────────

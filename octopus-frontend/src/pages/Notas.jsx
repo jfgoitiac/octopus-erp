@@ -1,5 +1,5 @@
 import { useContext, useMemo } from 'react';
-import { BookOpen, GraduationCap, Save, Plus, Pencil, Loader2, AlertTriangle } from 'lucide-react';
+import { BookOpen, GraduationCap, Save, Plus, Pencil, Loader2, AlertTriangle, X } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import GradoSelect from '../components/GradoSelect';
 import { useNotas } from '../hooks/useNotas';
@@ -21,9 +21,10 @@ const Notas = () => {
 
   const {
     grado, materias, materiaId, lapsoId, notas,
-    loading, loadingCombos, saving, dirty,
+    loading, loadingCombos, saving, dirty, pendingFiltro,
     cambiarGrado, cambiarMateria, cambiarLapso, resetLapso,
     handleNotaChange, guardar,
+    confirmarDescartarCambios, cancelarDescartarCambios,
   } = useNotas(esDocente);
 
   const {
@@ -46,7 +47,7 @@ const Notas = () => {
   };
 
   return (
-    <div className="animate-fadeIn">
+    <div className="animate-fadeIn pb-24 sm:pb-0">
 
       {/* Header */}
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -59,10 +60,12 @@ const Notas = () => {
             Ingresa y actualiza las calificaciones por materia y lapso
           </p>
         </div>
+
+        {/* Botón guardar — visible en desktop */}
         <button
           onClick={guardar}
           disabled={saving || !dirty || !notas.length}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
+          className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
           style={{ background: 'var(--pb)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -82,7 +85,7 @@ const Notas = () => {
             <GradoSelect
               value={grado}
               onChange={e => cambiarGrado(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
               style={INPUT_STYLE}
               incluirVacio
             />
@@ -95,7 +98,7 @@ const Notas = () => {
             Materia
           </label>
           <select
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 disabled:opacity-50 disabled:cursor-not-allowed"
             style={INPUT_STYLE}
             value={materiaId}
             onChange={e => cambiarMateria(e.target.value)}
@@ -115,7 +118,7 @@ const Notas = () => {
           </label>
           <div className="flex gap-2 items-center">
             <select
-              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
               style={INPUT_STYLE}
               value={lapsoId}
               onChange={e => cambiarLapso(e.target.value)}
@@ -133,7 +136,7 @@ const Notas = () => {
                 onClick={abrirModalCrear}
                 title="Crear nuevo lapso"
                 aria-label="Crear nuevo lapso"
-                className="flex-shrink-0 p-2 rounded-lg text-white"
+                className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg text-white outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--pb-mid)]"
                 style={{ background: 'var(--pb)' }}
               >
                 <Plus size={16} />
@@ -145,7 +148,7 @@ const Notas = () => {
                 onClick={() => abrirModalEditar(lapsoId)}
                 title="Editar lapso seleccionado"
                 aria-label="Editar lapso seleccionado"
-                className="flex-shrink-0 p-2 rounded-lg"
+                className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
               >
                 <Pencil size={15} />
@@ -194,6 +197,72 @@ const Notas = () => {
           onCerrarLapso={handleCerrarLapso}
           onClose={cerrarModal}
         />
+      )}
+
+      {/* Modal confirmación al cambiar de filtro con notas sin guardar */}
+      {pendingFiltro && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-descartar-titulo"
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 id="modal-descartar-titulo" className="font-bold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+                <AlertTriangle size={18} style={{ color: '#b45309' }} />
+                Cambios sin guardar
+              </h3>
+              <button
+                onClick={cancelarDescartarCambios}
+                className="p-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
+                style={{ color: 'var(--ash)' }}
+                aria-label="Cerrar modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-sm mb-5" style={{ color: 'var(--ash)' }}>
+              Tienes notas sin guardar. Si continúas, se perderán los cambios realizados en esta materia/lapso.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={cancelarDescartarCambios}
+                className="flex-1 rounded-xl py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
+                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+              >
+                Seguir editando
+              </button>
+              <button
+                onClick={confirmarDescartarCambios}
+                className="flex-1 text-white rounded-xl py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]/40 transition-colors hover:brightness-90"
+                style={{ background: 'var(--red)' }}
+              >
+                Descartar cambios y continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Botón guardar sticky — solo mobile, visible cuando hay cambios */}
+      {dirty && notas.length > 0 && (
+        <div
+          className="fixed bottom-0 left-0 right-0 p-4 sm:hidden z-40"
+          style={{ background: 'var(--porcelain)', borderTop: '1px solid var(--border-md)' }}
+        >
+          <button
+            onClick={guardar}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
+            style={{ background: 'var(--pb)' }}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? 'Guardando...' : 'Guardar notas'}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -3,12 +3,13 @@ import { toast } from 'react-toastify';
 import { MessageCircle } from 'lucide-react';
 import { getDashboard } from '../api/portal.service';
 import { usePortalMensajes } from '../hooks/usePortalMensajes';
+import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import ChatMensajes from '../../components/mensajes/ChatMensajes';
 
 const PortalMensajes = () => {
   const [alumnos, setAlumnos] = useState([]);
-  const [alumnoActivo, setAlumnoActivo] = useState(null);
+  const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [loadingAlumnos, setLoadingAlumnos] = useState(true);
 
   const cargarAlumnos = useCallback(async (signal) => {
@@ -17,14 +18,14 @@ const PortalMensajes = () => {
       const res = await getDashboard(signal);
       const lista = res.data?.alumnos || [];
       setAlumnos(lista);
-      if (lista.length > 0) setAlumnoActivo(lista[0]);
+      sincronizarConLista(lista);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       toast.error('No se pudo cargar la información.');
     } finally {
       setLoadingAlumnos(false);
     }
-  }, []);
+  }, [sincronizarConLista]);
 
   useEffect(() => {
     const controller = new AbortController();

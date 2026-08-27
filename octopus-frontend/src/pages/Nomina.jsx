@@ -6,9 +6,8 @@ import {
 } from 'lucide-react';
 
 import { useNomina } from '../hooks/useNomina';
-import { useSyncedLocalStorage } from '../hooks/useSyncedLocalStorage';
-import { loadCestaConfig } from '../constants/avec';
 import { ReciboModal } from '../components/nomina/ReciboModal';
+import { GenerarNominaModal } from '../components/nomina/GenerarNominaModal';
 import { EmpleadoModal } from '../components/nomina/EmpleadoModal';
 import SkeletonFila from '../components/nomina/SkeletonFila';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -36,10 +35,7 @@ const Nomina = () => {
 
     const [activeTab,  setActiveTab]  = useState('docente');
     const [reciboEmp,  setReciboEmp]  = useState(null);
-
-    // cestaConfig se re-lee cada vez que la ventana recupera el foco,
-    // evitando calcular recibos con tasas BCV desactualizadas.
-    const cestaConfig = useSyncedLocalStorage(loadCestaConfig);
+    const [showGenerar, setShowGenerar] = useState(false);
 
     if (loading) return (
         <div className="animate-fadeIn">
@@ -86,6 +82,9 @@ const Nomina = () => {
                     </p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setShowGenerar(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--pb)' }}>
+                        <Receipt size={16} /> Generar nómina
+                    </button>
                     <button onClick={refetch} disabled={isRefreshing || loading}
                         aria-label="Recargar listado de empleados"
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
@@ -284,10 +283,11 @@ const Nomina = () => {
             {reciboEmp && (
                 <ReciboModal
                     emp={reciboEmp}
-                    cestaConfig={cestaConfig}
                     onClose={() => setReciboEmp(null)}
                 />
             )}
+
+            {showGenerar && <GenerarNominaModal onClose={() => setShowGenerar(false)} onGenerated={refetch} />}
 
             {/* ════════════════════════════════════════════════════════════
                 MODAL — REGISTRAR EMPLEADO

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Pencil, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Pencil, BookOpen, User, UserX } from 'lucide-react';
 import { getColor } from '../../constants/horarios';
 import { ModalMateria } from './ModalMateria';
 
@@ -30,7 +30,8 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
         <button
           type="button"
           onClick={() => setAbierto(p => !p)}
-          className="w-full px-4 py-3 flex items-center justify-between text-left"
+          aria-expanded={abierto}
+          className="w-full px-4 py-3 flex items-center justify-between text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pb)]/40"
           style={{ borderBottom: abierto ? '0.5px solid var(--border)' : 'none' }}
         >
           <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--jet)' }}>
@@ -53,34 +54,49 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
               </p>
             ) : (
               <div className="flex flex-wrap gap-2 mb-3">
-                {materias.map(m => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => abrirEditar(m)}
-                    title={`Editar ${m.nombre}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 group"
-                    style={{
-                      background: getColor(m.id),
-                      border: '1px solid rgba(0,0,0,0.07)',
-                      color: 'var(--jet)',
-                    }}
-                  >
-                    <span>{m.nombre}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                      style={{ background: 'rgba(0,0,0,0.08)' }}>
-                      {m.horas_academicas}h
-                    </span>
-                    <Pencil size={10} className="opacity-0 group-hover:opacity-60 transition-opacity" />
-                  </button>
-                ))}
+                {materias.map(m => {
+                  const docenteNombre = m.docente_username || m.docente?.username || null;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => abrirEditar(m)}
+                      title={docenteNombre ? `Editar ${m.nombre} — docente: ${docenteNombre}` : `Editar ${m.nombre} — sin docente asignado`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
+                      style={{
+                        background: getColor(m.id),
+                        border: docenteNombre ? '1px solid rgba(0,0,0,0.07)' : '1px dashed var(--red)',
+                        color: 'var(--jet)',
+                      }}
+                    >
+                      <span>{m.nombre}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                        style={{ background: 'rgba(0,0,0,0.08)' }}>
+                        {m.horas_academicas}h
+                      </span>
+                      {/* Indicador de docente asignado — jerarquía visual clara para grados sin cubrir */}
+                      {docenteNombre ? (
+                        <span className="flex items-center gap-1 text-[10px] font-normal" style={{ color: 'var(--jet-mid)' }}>
+                          <User size={10} />
+                          {docenteNombre}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: 'var(--red)' }}>
+                          <UserX size={10} />
+                          Sin docente
+                        </span>
+                      )}
+                      <Pencil size={10} className="opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60 transition-opacity" />
+                    </button>
+                  );
+                })}
               </div>
             )}
 
             <button
               type="button"
               onClick={abrirNueva}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--pb-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
               style={{
                 border: '0.5px dashed var(--border-md)',
                 color: 'var(--pb)',

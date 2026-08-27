@@ -309,7 +309,7 @@ CELERY_TASK_IGNORE_RESULT = True
 CELERY_BEAT_SCHEDULE = {
     # Revisar mensualidades vencidas cada día a las 8am y programar notificaciones pendientes
     'revisar-mensualidades-vencidas': {
-        'task': 'portal.tasks.revisar_y_programar_notificaciones_pendientes',
+        'task': 'notificaciones.tasks.revisar_y_programar_notificaciones_pendientes',
         'schedule': crontab(hour=8, minute=0),  # cada día a las 8am
     },
     # Sincronizar tasa BCV cada 2 horas en horario bancario (lun-vie, 8am-6pm)

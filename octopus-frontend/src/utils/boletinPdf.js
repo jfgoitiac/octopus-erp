@@ -68,6 +68,23 @@ export function generarBoletinPDF(boletin) {
   doc.setLineWidth(0.5);
   doc.line(14, infoY + 10, pageW - 14, infoY + 10);
 
+  // ── Aviso de boletín provisional (lapso aún en curso) ──
+  let tablaStartY = infoY + 14;
+  if (boletin.lapso?.activo) {
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(150, 100, 0);
+    doc.text(
+      'Boletín provisional — el lapso está en curso, las notas pueden cambiar.',
+      pageW / 2,
+      tablaStartY,
+      { align: 'center' }
+    );
+    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'normal');
+    tablaStartY += 5;
+  }
+
   // ── Tabla de materias ──
   const promedio = calcularPromedio(boletin.materias || []);
   const materiaRows = (boletin.materias || []).map(m => [
@@ -90,7 +107,7 @@ export function generarBoletinPDF(boletin) {
   }
 
   autoTable(doc, {
-    startY: infoY + 14,
+    startY: tablaStartY,
     head: [['Materia', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado']],
     body: materiaRows,
     styles: { fontSize: 8, cellPadding: 2.5 },

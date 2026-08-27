@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { INPUT_STYLE } from '../../constants/styles';
 import { useEscape } from '../../hooks/useEscape';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useDocentes } from '../../hooks/useDocentes';
 
 const buildForm = (materia) => ({
   id:                        materia?.id    ?? null,
@@ -12,12 +13,14 @@ const buildForm = (materia) => ({
   tipo_evaluacion:           materia?.tipo_evaluacion ?? 'numerica',
   cuenta_para_promedio:      materia?.cuenta_para_promedio ?? true,
   aporta_a_todas_las_materias: materia?.aporta_a_todas_las_materias ?? false,
+  docente_id:                materia?.docente_id ?? materia?.docente?.id ?? null,
 });
 
 export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => {
   const [form, setForm]                 = useState(() => buildForm(materia));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const containerRef                    = useRef(null);
+  const { docentes, loadingDocentes }   = useDocentes();
 
   useEscape(true, onClose);
   useFocusTrap(containerRef);
@@ -36,6 +39,11 @@ export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => 
   };
 
   const setCheckbox = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.checked }));
+
+  const setDocente = (e) => {
+    const value = e.target.value;
+    setForm(prev => ({ ...prev, docente_id: value ? Number(value) : null }));
+  };
 
   return (
     <div
@@ -118,6 +126,29 @@ export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => 
             >
               <option value="numerica">Numérica (puntos)</option>
               <option value="literal">Literal (A/B/C)</option>
+            </select>
+          </div>
+
+          {/* Docente asignado */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+              Docente
+            </label>
+            <select
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={INPUT_STYLE}
+              value={form.docente_id ?? ''}
+              onChange={setDocente}
+              disabled={loadingDocentes}
+            >
+              <option value="">
+                {loadingDocentes ? 'Cargando docentes...' : 'Sin asignar'}
+              </option>
+              {docentes.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.username}
+                </option>
+              ))}
             </select>
           </div>
 

@@ -91,6 +91,7 @@ export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGen
             Generar horario automático
           </h3>
           <button onClick={onClose} disabled={generando} aria-label="Cerrar modal"
+            className="rounded-md p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed"
             style={{ color: '#fff', opacity: generando ? 0.4 : 1 }}>
             <X size={20} />
           </button>
@@ -183,7 +184,7 @@ export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGen
                     <option value={30}>30 min</option>
                   </select>
                   <button type="button" onClick={() => removeReceso(i)}
-                    className="p-2 rounded-lg flex-shrink-0 transition-colors"
+                    className="p-2 rounded-lg flex-shrink-0 transition-colors hover:bg-[var(--red-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]/40"
                     style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
                     aria-label="Eliminar recreo">
                     <X size={14} />
@@ -192,7 +193,7 @@ export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGen
               ))}
             </div>
             <button type="button" onClick={addReceso}
-              className="mt-2 w-full py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+              className="mt-2 w-full py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors hover:bg-[var(--pb-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
               style={{ border: '0.5px dashed var(--border-md)', color: 'var(--ash)', background: 'transparent' }}>
               <Plus size={13} />
               Agregar otro recreo
@@ -218,7 +219,8 @@ export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGen
             <div className="flex flex-wrap gap-2">
               {DIAS_GENERADOR.map(d => (
                 <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  aria-pressed={config.dias.includes(d.value)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-1"
                   style={
                     config.dias.includes(d.value)
                       ? { background: 'var(--pb)', color: '#fff', border: '1px solid var(--pb)' }

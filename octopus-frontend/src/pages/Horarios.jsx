@@ -80,7 +80,7 @@ const Horarios = () => {
           <button
             onClick={() => setShowGenerador(true)}
             disabled={!grado}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
             style={{ background: 'var(--pb)' }}
             title={!grado ? 'Selecciona un grado primero' : 'Generar horario automáticamente'}
           >
@@ -90,7 +90,7 @@ const Horarios = () => {
           <button
             onClick={() => window.print()}
             disabled={!grado || !horarios.length}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
             style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
           >
             <Printer size={16} />

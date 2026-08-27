@@ -2,6 +2,7 @@
 // Modificar solo si cambian los convenios colectivos vigentes.
 
 export const SSO_TOPE               = 26.00;
+// Compatibilidad con el flujo legacy de Pagos. Nómina nueva usa el backend.
 export const SSO_PCT                = 0.04;
 export const SPF_PCT                = 0.005;
 export const FAOV_PCT               = 0.01;

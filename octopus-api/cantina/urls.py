@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     AjustarCreditoTarjetaView,
     AnularVentaView,
+    AperturaCajaCantinaView,
     AprobarRecargaView,
     AsignarTarjetaView,
     BancosCantinaView,
@@ -64,6 +65,9 @@ urlpatterns = [
     path('recargas/pendientes/', RecargasPendientesView.as_view(), name='cantina-recargas-pendientes'),
     path('recargas/<int:pk>/aprobar/', AprobarRecargaView.as_view(), name='cantina-recarga-aprobar'),
     path('recargas/<int:pk>/rechazar/', RechazarRecargaView.as_view(), name='cantina-recarga-rechazar'),
+
+    # Apertura de caja por cajero (hasta 3 simultáneas)
+    path('apertura-caja/', AperturaCajaCantinaView.as_view(), name='cantina-apertura-caja'),
 
     # Fase 4 — POS y ventas (§8 FASE 4 de cantina.md)
     path('ventas/registrar/', RegistrarVentaView.as_view(), name='cantina-registrar-venta'),

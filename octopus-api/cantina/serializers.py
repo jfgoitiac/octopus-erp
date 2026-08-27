@@ -6,6 +6,7 @@ from cobranza.models import Pago
 from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
 
 from .models import (
+    AperturaCajaCantina,
     CategoriaProducto,
     CierreCajaCantina,
     DetalleVentaCantina,
@@ -313,6 +314,24 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
 # FASE 5 — Cierre de caja (§5.7/§8 FASE 5 de cantina.md)
 # ─────────────────────────────────────────────
 
+class AperturaCajaCantinaSerializer(serializers.ModelSerializer):
+    """
+    Solo-lectura: una `AperturaCajaCantina` se crea siempre desde
+    `AperturaCajaCantinaView.post` (que valida el límite de 3 aperturas
+    simultáneas y que el cajero no tenga ya una abierta, dentro de
+    `transaction.atomic()`), nunca a través de `.save()` de este serializer.
+    """
+    cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
+
+    class Meta:
+        model = AperturaCajaCantina
+        fields = (
+            'id', 'cajero', 'cajero_username', 'fecha_hora_apertura',
+            'monto_inicial', 'estado', 'cerrada_en',
+        )
+        read_only_fields = fields
+
+
 class CierreCajaCantinaSerializer(serializers.ModelSerializer):
     """
     Solo-lectura: un `CierreCajaCantina` se crea siempre desde
@@ -324,11 +343,12 @@ class CierreCajaCantinaSerializer(serializers.ModelSerializer):
     (mostrar `username`, no `get_full_name()`).
     """
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
+    monto_inicial = serializers.DecimalField(source='apertura.monto_inicial', max_digits=10, decimal_places=2, read_only=True, default=None)
 
     class Meta:
         model = CierreCajaCantina
         fields = (
-            'id', 'cajero', 'cajero_username', 'fecha', 'total_ventas',
+            'id', 'cajero', 'cajero_username', 'apertura', 'monto_inicial', 'fecha', 'total_ventas',
             'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo',
             'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
         )

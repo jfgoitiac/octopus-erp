@@ -76,13 +76,19 @@ export function useHorarios() {
     return horarios.find(h => h.dia_semana === diaNum && h.hora_inicio === hora) ?? null;
   }, [horarios]);
 
-  // Devuelve true si ya existe otra clase en el mismo día y hora que el form indicado
+  // Devuelve true si ya existe otra clase que se solape en rango horario
+  // (no solo hora_inicio exacta) el mismo día, dentro de este grado.
+  // Nota: es solo feedback rápido en el cliente — no considera otros grados
+  // ni valida choque de aula/docente entre grados; el backend es la fuente
+  // de verdad y devuelve 400 si hay un choque que esta función no detectó.
   const tieneConflicto = useCallback((form) => {
     const diaNum = parseInt(form.dia_semana, 10);
+    if (!form.hora_inicio || !form.hora_fin) return false;
     return horarios.some(h =>
       h.dia_semana  === diaNum &&
-      h.hora_inicio === form.hora_inicio &&
-      h.id          !== form.id  // al editar, ignora la clase actual
+      h.id          !== form.id &&  // al editar, ignora la clase actual
+      form.hora_inicio < h.hora_fin &&
+      h.hora_inicio    < form.hora_fin
     );
   }, [horarios]);
 
@@ -160,6 +166,7 @@ export function useHorarios() {
         tipo_evaluacion: form.tipo_evaluacion,
         cuenta_para_promedio: form.cuenta_para_promedio,
         aporta_a_todas_las_materias: form.aporta_a_todas_las_materias,
+        docente_id: form.docente_id,
       });
       toast.success('Materia actualizada.');
       recargar();

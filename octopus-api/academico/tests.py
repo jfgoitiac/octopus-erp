@@ -8,8 +8,9 @@ Cubren:
   - Scoping de docente por sección (permitido en la suya, 403 en otra).
   - Validación de adjunto de incidentes (tamaño y tipo de archivo).
 """
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -20,14 +21,15 @@ from authentication.models import PerfilUsuario
 from secretaria.models import Alumno, Representante
 
 from .models import (
-    AlertaRendimiento, Asistencia, BloqueEvaluacion, IncidenteDisciplinario, ItemEvaluacion,
-    Lapso, Materia, MaterialEstudio, Nota, NotaItemEvaluacion, PlanEvaluacion,
+    AlertaRendimiento, Asistencia, BloqueEvaluacion, HorarioClase, IncidenteDisciplinario,
+    ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota, NotaItemEvaluacion, PlanEvaluacion,
 )
 from .serializers import estado_a_booleanos
 from .services import (
     calcular_plan_notas, calcular_rendimiento_alumno, calcular_rendimiento_seccion,
     generar_alertas_rendimiento,
 )
+from .views import _calcular_bloques, _ejecutar_algoritmo
 
 User = get_user_model()
 
@@ -276,6 +278,17 @@ class NotasDocenteScopingTests(TestCase):
             'notas': [{'alumno_id': self.alumno.id, 'evaluacion_1': '18.00'}],
         }, format='json')
         self.assertEqual(resp.status_code, 403)
+        self.assertEqual(Nota.objects.count(), 0)
+
+    def test_no_se_pueden_guardar_notas_con_lapso_cerrado(self):
+        self.lapso.activo = False
+        self.lapso.save()
+        resp = self.client.post('/api/academico/notas/', {
+            'materia_id': self.materia_propia.id,
+            'lapso_id': self.lapso.id,
+            'notas': [{'alumno_id': self.alumno.id, 'evaluacion_1': '18.00'}],
+        }, format='json')
+        self.assertEqual(resp.status_code, 409)
         self.assertEqual(Nota.objects.count(), 0)
 
 
@@ -843,3 +856,410 @@ class PlanEvaluacionEndpointTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertEqual(len(resp.data['guardadas']), 0)
         self.assertEqual(len(resp.data['errores']), 1)
+
+
+# ─────────────────────────────────────────────
+# MATERIA — asignación de docente vía API (docente_id escribible)
+# ─────────────────────────────────────────────
+class MateriaDocenteAsignacionTests(TestCase):
+    """Cubre el hallazgo #1 de NOTAS_TECNICAS.md (auditoría 2026-08-24):
+    docente_id era read_only y el backend ignoraba silenciosamente el valor
+    enviado por el cliente."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_materia', 'director')
+        self.docente = crear_usuario('docente_asignable', 'docente')
+        self.no_docente = crear_usuario('cajero_no_docente', 'cajero')
+        self.materia = Materia.objects.create(
+            nombre='Física', grado_seccion='5to Grado A', activa=True,
+        )
+
+    def test_admin_puede_asignar_docente_via_post(self):
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.post('/api/academico/materias/', {
+            'nombre': 'Química', 'grado_seccion': '5to Grado A',
+            'docente_id': self.docente.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        materia = Materia.objects.get(id=resp.data['id'])
+        self.assertEqual(materia.docente_id, self.docente.id)
+
+    def test_admin_puede_asignar_docente_via_put(self):
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.put(f'/api/academico/materias/{self.materia.id}/', {
+            'docente_id': self.docente.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.materia.refresh_from_db()
+        self.assertEqual(self.materia.docente_id, self.docente.id)
+
+    def test_asignar_usuario_sin_rol_docente_falla_con_400(self):
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.put(f'/api/academico/materias/{self.materia.id}/', {
+            'docente_id': self.no_docente.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.materia.refresh_from_db()
+        self.assertIsNone(self.materia.docente_id)
+
+    def test_puede_enviar_docente_id_null_para_quitar_asignacion(self):
+        self.materia.docente = self.docente
+        self.materia.save(update_fields=['docente'])
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.put(f'/api/academico/materias/{self.materia.id}/', {
+            'docente_id': None,
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.materia.refresh_from_db()
+        self.assertIsNone(self.materia.docente_id)
+
+    def test_docente_username_sigue_funcionando(self):
+        self.materia.docente = self.docente
+        self.materia.save(update_fields=['docente'])
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.get(f'/api/academico/materias/{self.materia.id}/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['docente_username'], self.docente.username)
+
+    def test_usuario_sin_permiso_no_puede_crear_materia(self):
+        docente_sin_permiso = crear_usuario('docente_sin_permiso', 'docente')
+        self.client.force_authenticate(user=docente_sin_permiso)
+        resp = self.client.post('/api/academico/materias/', {
+            'nombre': 'Historia', 'grado_seccion': '5to Grado A',
+        }, format='json')
+        self.assertEqual(resp.status_code, 403)
+
+    def test_usuario_sin_permiso_no_puede_editar_materia(self):
+        docente_sin_permiso = crear_usuario('docente_sin_permiso2', 'docente')
+        self.client.force_authenticate(user=docente_sin_permiso)
+        resp = self.client.put(f'/api/academico/materias/{self.materia.id}/', {
+            'docente_id': self.docente.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 403)
+        self.materia.refresh_from_db()
+        self.assertIsNone(self.materia.docente_id)
+
+
+# ─────────────────────────────────────────────
+# GENERADOR DE HORARIOS — semilla configurable (ya no forzada a 42)
+# ─────────────────────────────────────────────
+class GeneradorHorarioSemillaTests(TestCase):
+    def setUp(self):
+        self.grado = 'Horario Test Grado'
+        for i in range(5):
+            Materia.objects.create(
+                nombre=f'Materia Semilla {i}', grado_seccion=self.grado,
+                horas_academicas=2, activa=True,
+            )
+        self.config = {
+            'hora_inicio': '07:00', 'hora_fin': '12:00',
+            'duracion_clase_min': 45,
+            'dias': ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+            'recreo_hora': '09:00', 'recreo_duracion_min': 20,
+        }
+
+    def test_misma_semilla_reproduce_el_mismo_resultado(self):
+        asign1, _ = _ejecutar_algoritmo(self.grado, self.config, semilla=123)
+        asign2, _ = _ejecutar_algoritmo(self.grado, self.config, semilla=123)
+        resumen1 = [(a['materia'].id, a['dia'], a['bloque']['inicio']) for a in asign1]
+        resumen2 = [(a['materia'].id, a['dia'], a['bloque']['inicio']) for a in asign2]
+        self.assertTrue(resumen1)
+        self.assertEqual(resumen1, resumen2)
+
+    def test_sin_semilla_no_fuerza_seed_42_hardcodeado(self):
+        with mock.patch('academico.views.random.seed') as seed_mock:
+            _ejecutar_algoritmo(self.grado, self.config)
+            seed_mock.assert_not_called()
+
+    def test_con_semilla_explicita_se_pasa_a_random_seed(self):
+        with mock.patch('academico.views.random.seed') as seed_mock:
+            _ejecutar_algoritmo(self.grado, self.config, semilla=99)
+            seed_mock.assert_called_once_with(99)
+
+
+# ─────────────────────────────────────────────
+# GENERADOR DE HORARIOS — conflicto de docente por solapamiento de rango
+# ─────────────────────────────────────────────
+class GeneradorHorarioConflictoDocenteTests(TestCase):
+    def setUp(self):
+        self.docente = crear_usuario('docente_horario', 'docente')
+        self.grado_a = 'Grado Horario A'
+        self.grado_b = 'Grado Horario B'
+        self.materia_a = Materia.objects.create(
+            nombre='Materia Existente', grado_seccion=self.grado_a,
+            docente=self.docente, horas_academicas=1, activa=True,
+        )
+        # Bloque ya ocupado por el docente en OTRO grado: 07:00-08:00.
+        HorarioClase.objects.create(
+            materia=self.materia_a, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='08:00', aula='',
+        )
+        self.materia_b = Materia.objects.create(
+            nombre='Materia Nueva', grado_seccion=self.grado_b,
+            docente=self.docente, horas_academicas=1, activa=True,
+        )
+
+    def test_detecta_solapamiento_aunque_hora_inicio_no_sea_identica(self):
+        # Único bloque posible del día para grado_b: 07:30-08:15. Se solapa
+        # con el horario ya ocupado del docente (07:00-08:00) aunque NO
+        # comparta la misma hora_inicio exacta — antes esto no se detectaba
+        # porque la comparación era por igualdad de string.
+        config = {
+            'hora_inicio': '07:30', 'hora_fin': '08:15',
+            'duracion_clase_min': 45,
+            'dias': ['lunes'],
+            'recreo_hora': '12:00', 'recreo_duracion_min': 0,
+        }
+        asignaciones, advertencias = _ejecutar_algoritmo(self.grado_b, config)
+        self.assertEqual(asignaciones, [])
+        self.assertTrue(
+            any('conflicto' in a.lower() or 'no se pudo ubicar' in a.lower() for a in advertencias)
+        )
+
+    def test_sin_solapamiento_se_ubica_normalmente(self):
+        # Bloque 09:00-09:45 no se solapa con 07:00-08:00 del docente:
+        # debe poder ubicarse sin conflicto.
+        config = {
+            'hora_inicio': '09:00', 'hora_fin': '09:45',
+            'duracion_clase_min': 45,
+            'dias': ['lunes'],
+            'recreo_hora': '12:00', 'recreo_duracion_min': 0,
+        }
+        asignaciones, advertencias = _ejecutar_algoritmo(self.grado_b, config)
+        self.assertEqual(len(asignaciones), 1)
+        self.assertEqual(asignaciones[0]['materia'].id, self.materia_b.id)
+
+
+# ─────────────────────────────────────────────
+# HORARIOS — validación de choque (creación/edición manual, HorariosView)
+# ─────────────────────────────────────────────
+class HorarioManualChoqueTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_horario_manual', 'director')
+        self.docente = crear_usuario('docente_horario_manual', 'docente')
+        self.otro_docente = crear_usuario('otro_docente_horario_manual', 'docente')
+        self.grado_a = 'Grado Manual A'
+        self.grado_b = 'Grado Manual B'
+        self.materia_a = Materia.objects.create(
+            nombre='Materia Manual A', grado_seccion=self.grado_a,
+            docente=self.docente, horas_academicas=1, activa=True,
+        )
+        self.materia_b = Materia.objects.create(
+            nombre='Materia Manual B', grado_seccion=self.grado_b,
+            docente=self.docente, horas_academicas=1, activa=True,
+        )
+        self.materia_c = Materia.objects.create(
+            nombre='Materia Manual C', grado_seccion=self.grado_b,
+            docente=self.otro_docente, horas_academicas=1, activa=True,
+        )
+        # Bloque existente: materia_a, lunes 07:00-08:00, aula "101".
+        self.horario_existente = HorarioClase.objects.create(
+            materia=self.materia_a, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='08:00', aula='101',
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_rechaza_choque_de_docente_entre_grados_distintos(self):
+        # materia_b tiene el MISMO docente que materia_a, en otro grado,
+        # con un rango que se solapa parcialmente (07:30-08:30).
+        resp = self.client.post('/api/academico/horarios/', {
+            'materia_id':  self.materia_b.id,
+            'dia_semana':  'lunes',
+            'hora_inicio': '07:30',
+            'hora_fin':    '08:30',
+            'aula':        '202',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('error', resp.data)
+        self.assertIn('docente', resp.data['error'].lower())
+        self.assertEqual(
+            HorarioClase.objects.filter(materia=self.materia_b).count(), 0
+        )
+
+    def test_rechaza_choque_de_aula_aunque_sea_otro_docente(self):
+        # materia_c tiene OTRO docente, pero pide la misma aula "101" en un
+        # rango que se solapa con el horario existente.
+        resp = self.client.post('/api/academico/horarios/', {
+            'materia_id':  self.materia_c.id,
+            'dia_semana':  'lunes',
+            'hora_inicio': '07:15',
+            'hora_fin':    '07:45',
+            'aula':        '101',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('error', resp.data)
+        self.assertIn('aula', resp.data['error'].lower())
+        self.assertEqual(
+            HorarioClase.objects.filter(materia=self.materia_c).count(), 0
+        )
+
+    def test_permite_crear_sin_choque(self):
+        resp = self.client.post('/api/academico/horarios/', {
+            'materia_id':  self.materia_b.id,
+            'dia_semana':  'lunes',
+            'hora_inicio': '09:00',
+            'hora_fin':    '10:00',
+            'aula':        '202',
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_editar_horario_sin_cambiar_su_propio_rango_no_se_autorrechaza(self):
+        resp = self.client.put(
+            f'/api/academico/horarios/{self.horario_existente.pk}/',
+            {'aula': '101'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_editar_horario_para_chocar_con_otro_es_rechazado(self):
+        # Un segundo bloque, sin choque inicialmente (09:00-10:00, aula 303).
+        horario_b = HorarioClase.objects.create(
+            materia=self.materia_b, dia_semana='lunes',
+            hora_inicio='09:00', hora_fin='10:00', aula='303',
+        )
+        # Intentar moverlo para que choque en aula con el horario_existente.
+        resp = self.client.put(
+            f'/api/academico/horarios/{horario_b.pk}/',
+            {'hora_inicio': '07:30', 'hora_fin': '08:30', 'aula': '101'},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+        horario_b.refresh_from_db()
+        self.assertEqual(str(horario_b.hora_inicio), '09:00:00')
+
+
+# ─────────────────────────────────────────────
+# GENERADOR DE HORARIOS — end to end (sin regresiones)
+# ─────────────────────────────────────────────
+class GeneradorHorarioEndToEndTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_horario', 'director')
+        self.grado = 'Grado E2E'
+        for i in range(3):
+            Materia.objects.create(
+                nombre=f'Materia E2E {i}', grado_seccion=self.grado,
+                horas_academicas=2, activa=True,
+            )
+
+    def test_genera_y_persiste_horario(self):
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'grado_seccion':       self.grado,
+            'hora_inicio':         '07:00',
+            'hora_fin':            '12:00',
+            'duracion_clase_min':  45,
+            'recreo_hora':         '09:00',
+            'recreo_duracion_min': 20,
+            'semilla':             7,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertGreater(resp.data['clases_creadas'], 0)
+        self.assertEqual(
+            HorarioClase.objects.filter(materia__grado_seccion=self.grado).count(),
+            resp.data['clases_creadas'],
+        )
+
+
+# ─────────────────────────────────────────────
+# GENERADOR DE HORARIOS — respeta clases_bloqueadas y múltiples recesos
+# (el frontend promete que las clases bloqueadas no se mueven/borran; el
+# backend antes ignoraba `clases_bloqueadas` y el array `recesos`)
+# ─────────────────────────────────────────────
+class GeneradorHorarioClasesBloqueadasTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_horario_bloqueo', 'director')
+        self.grado = 'Grado Bloqueo'
+        for i in range(4):
+            Materia.objects.create(
+                nombre=f'Materia Bloqueo {i}', grado_seccion=self.grado,
+                horas_academicas=2, activa=True,
+            )
+        # Materia adicional cuya única clase existente se marcará como bloqueada.
+        self.materia_fija = Materia.objects.create(
+            nombre='Materia Fija', grado_seccion=self.grado,
+            horas_academicas=1, activa=True,
+        )
+        self.clase_bloqueada = HorarioClase.objects.create(
+            materia=self.materia_fija, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='07:45', aula='Aula Fija',
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_clase_bloqueada_sobrevive_al_reemplazar_existente(self):
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'grado_seccion':        self.grado,
+            'hora_inicio':          '07:00',
+            'hora_fin':             '12:00',
+            'duracion_clase_min':   45,
+            'recreo_hora':          '09:00',
+            'recreo_duracion_min':  20,
+            'reemplazar_existente': True,
+            'clases_bloqueadas':    [self.clase_bloqueada.id],
+            'semilla':              7,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        # La clase bloqueada sigue existiendo, intacta, tal cual se creó.
+        self.clase_bloqueada.refresh_from_db()
+        self.assertEqual(self.clase_bloqueada.dia_semana, 'lunes')
+        self.assertEqual(str(self.clase_bloqueada.hora_inicio), '07:00:00')
+        self.assertEqual(str(self.clase_bloqueada.hora_fin), '07:45:00')
+        self.assertEqual(self.clase_bloqueada.aula, 'Aula Fija')
+
+    def test_algoritmo_no_genera_clases_solapadas_con_bloqueo_ni_recesos(self):
+        config = {
+            'hora_inicio': '07:00', 'hora_fin': '12:00',
+            'duracion_clase_min': 45,
+            'dias': ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+            'recesos': [
+                {'hora': '09:00', 'duracion_min': 20},
+                {'hora': '11:00', 'duracion_min': 15},
+            ],
+            'bloqueos_por_dia': {
+                'lunes': [('07:00', '07:45')],
+            },
+        }
+        asignaciones, _ = _ejecutar_algoritmo(self.grado, config, semilla=5)
+        self.assertTrue(asignaciones)
+
+        def _solapa(a_ini, a_fin, b_ini, b_fin):
+            fmt = '%H:%M'
+            ai, af = datetime.strptime(a_ini, fmt), datetime.strptime(a_fin, fmt)
+            bi, bf = datetime.strptime(b_ini, fmt), datetime.strptime(b_fin, fmt)
+            return ai < bf and bi < af
+
+        recesos_lunes = [('09:00', '09:20'), ('11:00', '11:15')]
+        bloqueo_lunes = ('07:00', '07:45')
+
+        for a in asignaciones:
+            bloque = a['bloque']
+            if a['dia'] == 'lunes':
+                self.assertFalse(
+                    _solapa(bloque['inicio'], bloque['fin'], *bloqueo_lunes),
+                    f"La clase generada {bloque} se solapa con la clase bloqueada {bloqueo_lunes}",
+                )
+            for r_ini, r_fin in recesos_lunes:
+                self.assertFalse(
+                    _solapa(bloque['inicio'], bloque['fin'], r_ini, r_fin),
+                    f"La clase generada {a['dia']} {bloque} se solapa con el receso {r_ini}-{r_fin}",
+                )
+
+    def test_recesos_multiples_excluyen_ambos_bloques_de_la_grilla(self):
+        bloques = _calcular_bloques(
+            '07:00', '12:00', 45,
+            [
+                {'hora': '09:00', 'duracion_min': 20},
+                {'hora': '11:00', 'duracion_min': 15},
+            ],
+        )
+        fmt = '%H:%M'
+        for b in bloques:
+            ini = datetime.strptime(b['inicio'], fmt)
+            fin = datetime.strptime(b['fin'], fmt)
+            receso1 = (datetime.strptime('09:00', fmt), datetime.strptime('09:20', fmt))
+            receso2 = (datetime.strptime('11:00', fmt), datetime.strptime('11:15', fmt))
+            self.assertFalse(ini < receso1[1] and receso1[0] < fin)
+            self.assertFalse(ini < receso2[1] and receso2[0] < fin)

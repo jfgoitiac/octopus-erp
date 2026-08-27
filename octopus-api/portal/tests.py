@@ -75,7 +75,7 @@ def crear_alumno(representante, cedula_escolar, **kwargs):
 
 def crear_mensualidad(alumno, mes, anio, monto='35.00'):
     """Crea una mensualidad sin disparar la programación de notificaciones."""
-    with mock.patch('portal.tasks.programar_notificaciones_mensualidad'):
+    with mock.patch('notificaciones.tasks.programar_notificaciones_mensualidad'):
         return Mensualidad.objects.create(
             alumno=alumno, mes=mes, anio=anio, monto_usd=Decimal(monto)
         )
@@ -566,28 +566,37 @@ class RecordatoriosCobranzaTests(PortalTestBase):
     """Flujo de recordatorios automáticos día 0/5/10/15."""
 
     def test_dia_0_envia_email_al_representante(self):
-        from portal.tasks import enviar_notificacion_dia_0
-        enviar_notificacion_dia_0.apply(args=[self.mensualidad.id])
+        from notificaciones.tasks import task_notificar_mora_programada
+        task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_0'])
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.rep.correo, mail.outbox[0].to)
 
     def test_dia_0_omite_si_ya_pagada(self):
-        from portal.tasks import enviar_notificacion_dia_0
+        from notificaciones.tasks import task_notificar_mora_programada
         self.mensualidad.pagado = True
         self.mensualidad.save()
-        enviar_notificacion_dia_0.apply(args=[self.mensualidad.id])
+        task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_0'])
         self.assertEqual(len(mail.outbox), 0)
 
     def test_dia_15_alerta_al_director(self):
-        from portal.tasks import enviar_notificacion_dia_15
-        enviar_notificacion_dia_15.apply(args=[self.mensualidad.id])
+        # notificar_mora (notificaciones/services.py) envía la alerta de día 15
+        # solo al director — el aviso al representante ocurre en los días 5/10.
+        from notificaciones.tasks import task_notificar_mora_programada
+        task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_15'])
         destinatarios = [d for m in mail.outbox for d in m.to]
-        self.assertIn(self.rep.correo, destinatarios)
         self.assertIn('director@example.com', destinatarios)
+
+    def test_dia_0_registra_en_notificacion_log(self):
+        from notificaciones.tasks import task_notificar_mora_programada
+        from notificaciones.models import NotificacionLog
+        task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_0'])
+        self.assertTrue(
+            NotificacionLog.objects.filter(tipo='mora_dia_0', destinatario=self.rep.correo).exists()
+        )
 
     def test_beat_dispara_recordatorio_segun_dias_vencidos(self):
         """La task periódica dispara la notificación que corresponde (día 5)."""
-        from portal.tasks import revisar_y_programar_notificaciones_pendientes
+        from notificaciones.tasks import revisar_y_programar_notificaciones_pendientes
 
         vencimiento = date.today() - timedelta(days=5)
         self.alumno.dia_limite_pago = vencimiento.day
@@ -596,16 +605,10 @@ class RecordatoriosCobranzaTests(PortalTestBase):
             mes=vencimiento.month, anio=vencimiento.year
         )
 
-        with mock.patch('portal.tasks.enviar_notificacion_dia_5.delay') as m5, \
-             mock.patch('portal.tasks.enviar_notificacion_dia_0.delay') as m0, \
-             mock.patch('portal.tasks.enviar_notificacion_dia_10.delay') as m10, \
-             mock.patch('portal.tasks.enviar_notificacion_dia_15.delay') as m15:
+        with mock.patch('notificaciones.tasks.task_notificar_mora_programada.delay') as m:
             revisar_y_programar_notificaciones_pendientes()
 
-        m5.assert_called_once_with(self.mensualidad.id)
-        m0.assert_not_called()
-        m10.assert_not_called()
-        m15.assert_not_called()
+        m.assert_called_once_with(self.mensualidad.id, 'mora_dia_5')
 
 
 class ConfiguracionColegioPublicaCacheTest(TestCase):

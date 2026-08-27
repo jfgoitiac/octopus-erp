@@ -12,6 +12,7 @@ const MorososRow = ({ alu, animDelay }) => {
 
     const deuda        = parseFloat(alu.monto_adeudado || 0);
     const solvencia    = parseFloat(alu.monto_solvencia_adeudado || 0);
+    const diasAtraso   = alu.dias_atraso || 0;
     const mesesLabel   = alu.meses_adeudados === 1
         ? '1 mes'
         : `${alu.meses_adeudados} meses`;
@@ -100,6 +101,17 @@ const MorososRow = ({ alu, animDelay }) => {
                 {solvencia > 0 ? (
                     <span className="text-xs font-semibold tabular-nums" style={{ color: '#be123c' }}>
                         ${fmt(solvencia, 2)}
+                    </span>
+                ) : (
+                    <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
+                )}
+            </td>
+
+            {/* Días de atraso */}
+            <td className="px-4 py-3">
+                {diasAtraso > 0 ? (
+                    <span className="text-xs font-semibold tabular-nums" style={{ color: '#dc2626' }}>
+                        {diasAtraso} día{diasAtraso !== 1 ? 's' : ''}
                     </span>
                 ) : (
                     <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>

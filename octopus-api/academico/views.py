@@ -421,6 +421,12 @@ class NotasGradoView(APIView):
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if not lapso.activo:
+            return Response(
+                {'error': 'El lapso está cerrado — no se pueden registrar ni editar notas.'},
+                status=status.HTTP_409_CONFLICT
+            )
+
         # Prefetch de todos los alumnos del payload en una sola query (antes:
         # 1 query por fila con Alumno.objects.get() dentro del loop).
         alumno_ids  = [item['alumno_id'] for item in notas_data]
@@ -645,6 +651,65 @@ class ResumenAsistenciaView(APIView):
 # ─────────────────────────────────────────────
 # HORARIOS
 # ─────────────────────────────────────────────
+def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula, excluir_pk=None):
+    """
+    Verifica si el bloque propuesto (dia_semana, hora_inicio-hora_fin) choca con
+    otro HorarioClase existente para el MISMO docente (en cualquier grado_seccion,
+    no solo el grado de `materia`) o la MISMA aula (si viene informada).
+
+    Comparación por rango horario (no solo igualdad exacta de hora), para detectar
+    solapamientos parciales — ej. 07:00-08:00 vs 07:30-08:30 sí chocan.
+
+    Retorna una tupla (HorarioClase en conflicto, mismo_docente, misma_aula),
+    o (None, False, False) si no hay choque.
+    """
+    if not hora_inicio or not hora_fin:
+        return None, False, False
+
+    candidatos = HorarioClase.objects.filter(
+        dia_semana=dia_semana,
+    ).select_related('materia')
+    if excluir_pk is not None:
+        candidatos = candidatos.exclude(pk=excluir_pk)
+
+    docente_id = materia.docente_id if materia else None
+    aula_normalizada = (aula or '').strip()
+
+    filtro_docente_o_aula = Q()
+    if docente_id:
+        filtro_docente_o_aula |= Q(materia__docente_id=docente_id)
+    if aula_normalizada:
+        filtro_docente_o_aula |= Q(aula=aula_normalizada)
+
+    if not filtro_docente_o_aula:
+        return None, False, False
+
+    candidatos = candidatos.filter(filtro_docente_o_aula)
+
+    for otro in candidatos:
+        # Solapamiento de rango horario (intervalos semiabiertos [inicio, fin))
+        if hora_inicio < otro.hora_fin and otro.hora_inicio < hora_fin:
+            mismo_docente = bool(docente_id and otro.materia.docente_id == docente_id)
+            misma_aula = bool(aula_normalizada and otro.aula.strip() == aula_normalizada)
+            if mismo_docente or misma_aula:
+                return otro, mismo_docente, misma_aula
+    return None, False, False
+
+
+def _mensaje_choque_horario(otro, mismo_docente, misma_aula):
+    detalle = (
+        f"'{otro.materia.nombre}' ({otro.materia.grado_seccion}) "
+        f"el {otro.get_dia_semana_display()} de {otro.hora_inicio:%H:%M} a {otro.hora_fin:%H:%M}"
+    )
+    motivos = []
+    if mismo_docente:
+        motivos.append('el docente ya tiene clase asignada')
+    if misma_aula:
+        motivos.append("el aula ya está ocupada")
+    motivo = ' y '.join(motivos) if motivos else 'hay un choque de horario'
+    return f"Choque de horario: {motivo} en {detalle}."
+
+
 class HorariosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -688,6 +753,19 @@ class HorariosView(APIView):
             )
         serializer = HorarioClaseSerializer(data=request.data)
         if serializer.is_valid():
+            materia = serializer.validated_data.get('materia')
+            otro, mismo_docente, misma_aula = _buscar_choque_horario(
+                materia,
+                serializer.validated_data.get('dia_semana'),
+                serializer.validated_data.get('hora_inicio'),
+                serializer.validated_data.get('hora_fin'),
+                serializer.validated_data.get('aula'),
+            )
+            if otro:
+                return Response(
+                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -718,6 +796,21 @@ class HorarioDetailView(APIView):
             return Response({'error': 'Horario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = HorarioClaseSerializer(horario, data=request.data, partial=True)
         if serializer.is_valid():
+            datos = serializer.validated_data
+            materia = datos.get('materia', horario.materia)
+            dia_semana = datos.get('dia_semana', horario.dia_semana)
+            hora_inicio = datos.get('hora_inicio', horario.hora_inicio)
+            hora_fin = datos.get('hora_fin', horario.hora_fin)
+            aula = datos.get('aula', horario.aula)
+            otro, mismo_docente, misma_aula = _buscar_choque_horario(
+                materia, dia_semana, hora_inicio, hora_fin, aula,
+                excluir_pk=horario.pk,
+            )
+            if otro:
+                return Response(
+                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -856,6 +949,7 @@ class BoletinView(APIView):
                 'periodo_escolar': lapso.periodo_escolar,
                 'fecha_inicio':    lapso.fecha_inicio,
                 'fecha_fin':       lapso.fecha_fin,
+                'activo':          lapso.activo,
             },
             'materias': materias_notas,
             'asistencia': {
@@ -874,76 +968,181 @@ import random
 from datetime import datetime, timedelta
 
 
-def _calcular_bloques(hora_inicio_str, hora_fin_str, duracion_min, recreo_hora_str, recreo_duracion_min):
+def _calcular_bloques(hora_inicio_str, hora_fin_str, duracion_min, recesos):
     """
     Calcula la lista de bloques horarios disponibles en el día,
-    excluyendo el bloque de recreo.
+    excluyendo los bloques de receso.
+    `recesos`: lista de dicts [{'hora': 'HH:MM', 'duracion_min': int}, ...]
+    (soporta uno o varios recesos en el mismo día).
     Retorna: [{'inicio': 'HH:MM', 'fin': 'HH:MM'}, ...]
     """
     fmt = '%H:%M'
     inicio = datetime.strptime(hora_inicio_str, fmt)
     fin    = datetime.strptime(hora_fin_str, fmt)
-    recreo_inicio = datetime.strptime(recreo_hora_str, fmt)
-    recreo_fin    = recreo_inicio + timedelta(minutes=recreo_duracion_min)
-    duracion      = timedelta(minutes=duracion_min)
+    duracion = timedelta(minutes=duracion_min)
+
+    rangos_receso = []
+    for r in (recesos or []):
+        r_inicio = datetime.strptime(r['hora'], fmt)
+        r_fin    = r_inicio + timedelta(minutes=int(r['duracion_min']))
+        rangos_receso.append((r_inicio, r_fin))
 
     bloques = []
     cursor  = inicio
     while cursor + duracion <= fin:
         bloque_fin = cursor + duracion
-        # Omitir bloques que se solapen con el recreo
-        solapa = cursor < recreo_fin and bloque_fin > recreo_inicio
-        if not solapa:
+        # Omitir bloques que se solapen con cualquiera de los recesos
+        receso_solapado = next(
+            (rr for rr in rangos_receso if cursor < rr[1] and bloque_fin > rr[0]),
+            None,
+        )
+        if receso_solapado is None:
             bloques.append({
                 'inicio': cursor.strftime(fmt),
                 'fin':    bloque_fin.strftime(fmt),
             })
-        # Si el cursor está antes del recreo y el bloque llegaría al recreo, saltar al final del recreo
-        elif cursor < recreo_inicio:
-            cursor = recreo_fin
-            continue
-        cursor += duracion
+            cursor += duracion
+        elif cursor < receso_solapado[0]:
+            # Si el cursor está antes del receso y el bloque llegaría a solaparlo,
+            # saltar directo al final del receso para no generar bloques parciales.
+            cursor = receso_solapado[1]
+        else:
+            cursor += duracion
 
     return bloques
 
 
-def _ejecutar_algoritmo(grado_seccion, config):
+def _rangos_se_solapan(inicio_a, fin_a, inicio_b, fin_b, fmt='%H:%M'):
+    """True si los rangos [inicio_a, fin_a) y [inicio_b, fin_b) se solapan.
+    Compara por valor de hora (vía datetime.strptime), no por igualdad de string,
+    para detectar solapamientos parciales (ej. 07:00-08:00 vs 07:30-08:30)."""
+    ia = datetime.strptime(inicio_a, fmt)
+    fa = datetime.strptime(fin_a, fmt)
+    ib = datetime.strptime(inicio_b, fmt)
+    fb = datetime.strptime(fin_b, fmt)
+    return ia < fb and ib < fa
+
+
+def _intentar_recolocar(materia, dias, grilla, asignaciones, materia_dias, conflictos_docente):
+    """
+    Backtracking limitado (no un solver completo): cuando `materia` no logra
+    ubicarse, busca UNA asignación ya hecha de OTRA materia que pueda moverse
+    a un bloque libre alternativo, liberando así su bloque original para
+    `materia`. Se detiene en el primer movimiento válido encontrado.
+    Retorna la nueva asignación para `materia` si tuvo éxito, o None.
+    Muta `grilla`, `asignaciones` y `materia_dias` en caso de éxito.
+    """
+    def conflicto(m, dia, bloque):
+        if not m.docente_id:
+            return False
+        ocupados = conflictos_docente.get((m.docente_id, dia), [])
+        return any(
+            _rangos_se_solapan(bloque['inicio'], bloque['fin'], oi, of)
+            for oi, of in ocupados
+        )
+
+    for idx, asignada in enumerate(asignaciones):
+        otra_materia = asignada['materia']
+        if otra_materia.id == materia.id:
+            continue
+        dia_original    = asignada['dia']
+        bloque_original = asignada['bloque']
+
+        # ¿La materia que falla puede ocupar el bloque que dejaría libre `otra_materia`?
+        if conflicto(materia, dia_original, bloque_original):
+            continue
+
+        # Buscar un bloque libre alternativo, en cualquier día, para reubicar `otra_materia`
+        for dia_alt in dias:
+            for bloque_alt in list(grilla[dia_alt]):
+                if conflicto(otra_materia, dia_alt, bloque_alt):
+                    continue
+                # Movimiento válido: mover `otra_materia` a (dia_alt, bloque_alt)
+                # y ubicar `materia` en el bloque que queda libre.
+                grilla[dia_alt].remove(bloque_alt)
+                asignaciones[idx] = {'materia': otra_materia, 'dia': dia_alt, 'bloque': bloque_alt}
+                materia_dias[otra_materia.id].discard(dia_original)
+                materia_dias[otra_materia.id].add(dia_alt)
+                materia_dias[materia.id].add(dia_original)
+                return {'materia': materia, 'dia': dia_original, 'bloque': bloque_original}
+    return None
+
+
+def _ejecutar_algoritmo(grado_seccion, config, semilla=None):
     """
     Algoritmo de distribución de materias en la grilla horaria.
     Cada materia se asigna exactamente materia.horas_academicas veces en la semana
     (1 hora académica = 1 bloque de 45 min).
     Retorna (asignaciones, advertencias).
     asignaciones: [{'materia': <Materia>, 'dia': str, 'bloque': {'inicio': str, 'fin': str}}]
+
+    `semilla`: si se provee, fija random.seed(semilla) para que el resultado sea
+    reproducible. Si es None (default), NO se fija semilla y cada llamada usa
+    aleatoriedad real, aunque los datos de entrada sean idénticos.
     """
     materias = list(Materia.objects.filter(grado_seccion=grado_seccion, activa=True))
     if not materias:
         return [], ['No hay materias activas para este grado.']
 
-    dias    = config.get('dias', ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'])
+    dias = config.get('dias', ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'])
+
+    # Soporta el array `recesos` (múltiples recesos por día). Por compatibilidad
+    # hacia atrás, si no viene `recesos` se arma uno solo a partir de los campos
+    # singulares `recreo_hora` / `recreo_duracion_min`.
+    recesos = config.get('recesos')
+    if not recesos:
+        recesos = [{
+            'hora':         config.get('recreo_hora', '09:00'),
+            'duracion_min': config.get('recreo_duracion_min', 20),
+        }]
+
     bloques = _calcular_bloques(
         config['hora_inicio'],
         config['hora_fin'],
         config['duracion_clase_min'],
-        config['recreo_hora'],
-        config['recreo_duracion_min'],
+        recesos,
     )
 
     if not bloques:
         return [], ['No se pudieron calcular bloques horarios con la configuración dada.']
 
-    # Índice de conflictos de docentes en otros grados: {(docente_id, dia, hora_inicio): True}
+    # Índice de conflictos de docentes en otros grados:
+    # {(docente_id, dia): [(hora_inicio, hora_fin), ...]} — permite detectar
+    # solapamiento de rangos, no solo igualdad exacta de hora_inicio.
     horarios_otros = HorarioClase.objects.exclude(
         materia__grado_seccion=grado_seccion
     ).select_related('materia')
     conflictos_docente = {}
     for h in horarios_otros:
         if h.materia.docente_id:
-            conflictos_docente[(h.materia.docente_id, h.dia_semana, str(h.hora_inicio)[:5])] = True
+            clave = (h.materia.docente_id, h.dia_semana)
+            conflictos_docente.setdefault(clave, []).append(
+                (h.hora_inicio.strftime('%H:%M'), h.hora_fin.strftime('%H:%M'))
+            )
 
-    random.seed(42)
+    if semilla is not None:
+        random.seed(semilla)
 
     # Grilla: dia -> [bloques disponibles] (copia por día)
     grilla = {dia: list(bloques) for dia in dias}
+
+    # Bloques ocupados por clases marcadas como "bloqueadas" (que el usuario
+    # pidió explícitamente no mover/regenerar): {dia: [(inicio, fin), ...]}.
+    # Se excluyen por solapamiento de rango, igual que los recesos, para que
+    # el algoritmo nunca proponga una clase nueva encima de una bloqueada.
+    bloqueos_por_dia = config.get('bloqueos_por_dia') or {}
+    if bloqueos_por_dia:
+        for dia in dias:
+            ocupados_dia = bloqueos_por_dia.get(dia, [])
+            if not ocupados_dia:
+                continue
+            grilla[dia] = [
+                b for b in grilla[dia]
+                if not any(
+                    _rangos_se_solapan(b['inicio'], b['fin'], oi, of)
+                    for (oi, of) in ocupados_dia
+                )
+            ]
 
     # Rastrear en qué días ya está cada materia para distribuir equitativamente
     materia_dias = {m.id: set() for m in materias}
@@ -972,10 +1171,14 @@ def _ejecutar_algoritmo(grado_seccion, config):
                 if not intentar_sin_restriccion and dia in materia_dias[materia.id]:
                     continue
                 bloque = grilla[dia][0]
-                # Verificar conflicto de docente
+                # Verificar conflicto de docente: solapamiento de rango [inicio, fin),
+                # no solo igualdad exacta de hora_inicio.
                 if materia.docente_id:
-                    clave = (materia.docente_id, dia, bloque['inicio'])
-                    if conflictos_docente.get(clave):
+                    ocupados = conflictos_docente.get((materia.docente_id, dia), [])
+                    if any(
+                        _rangos_se_solapan(bloque['inicio'], bloque['fin'], oi, of)
+                        for oi, of in ocupados
+                    ):
                         advertencias.append(
                             f"Conflicto de docente: '{materia.nombre}' el {dia} a las {bloque['inicio']} — se intentará otro bloque."
                         )
@@ -987,6 +1190,16 @@ def _ejecutar_algoritmo(grado_seccion, config):
                 break
             if ubicada:
                 break
+
+        if not ubicada:
+            # Recolocación acotada: intenta liberar el bloque de otra materia
+            # que sí tenga una alternativa disponible en otro momento.
+            reubicacion = _intentar_recolocar(
+                materia, dias, grilla, asignaciones, materia_dias, conflictos_docente
+            )
+            if reubicacion:
+                asignaciones.append(reubicacion)
+                ubicada = True
 
         if not ubicada:
             advertencias.append(
@@ -1022,7 +1235,20 @@ class GenerarHorarioView(APIView):
         dias                 = request.data.get('dias', ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'])
         recreo_hora          = request.data.get('recreo_hora', '09:00')
         recreo_duracion_min  = int(request.data.get('recreo_duracion_min', 20))
+        # Array de múltiples recesos: [{'hora': 'HH:MM', 'duracion_min': int}, ...].
+        # Si no viene, se arma uno solo a partir de los campos singulares (compat).
+        recesos = request.data.get('recesos') or [{
+            'hora': recreo_hora, 'duracion_min': recreo_duracion_min,
+        }]
         reemplazar_existente = request.data.get('reemplazar_existente', False)
+        # IDs de HorarioClase que el usuario marcó explícitamente para que el
+        # generador NO las toque ni las mueva (ver ModalGenerador.jsx).
+        clases_bloqueadas_ids = request.data.get('clases_bloqueadas') or []
+        # Opcional: si se provee, fija random.seed(semilla) para que el horario
+        # generado sea reproducible. Si se omite, cada llamada usa aleatoriedad real.
+        semilla = request.data.get('semilla', None)
+        if semilla is not None:
+            semilla = int(semilla)
 
         if not grado_seccion:
             return Response(
@@ -1045,6 +1271,21 @@ class GenerarHorarioView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
 
+        # ── Clases bloqueadas: el generador debe respetarlas ────────────────────
+        # Se resuelven contra HorarioClase reales de este grado (se ignora
+        # cualquier id que no pertenezca al grado) para armar el mapa de
+        # bloques ya ocupados que el algoritmo no debe tocar.
+        clases_bloqueadas_qs = HorarioClase.objects.filter(
+            id__in=clases_bloqueadas_ids,
+            materia__grado_seccion=grado_seccion,
+        ) if clases_bloqueadas_ids else HorarioClase.objects.none()
+
+        bloqueos_por_dia = defaultdict(list)
+        for hc in clases_bloqueadas_qs:
+            bloqueos_por_dia[hc.dia_semana].append(
+                (hc.hora_inicio.strftime('%H:%M'), hc.hora_fin.strftime('%H:%M'))
+            )
+
         # ── Ejecutar algoritmo ────────────────────────────────────────────────
         config = {
             'hora_inicio':         hora_inicio,
@@ -1053,9 +1294,11 @@ class GenerarHorarioView(APIView):
             'dias':                dias,
             'recreo_hora':         recreo_hora,
             'recreo_duracion_min': recreo_duracion_min,
+            'recesos':             recesos,
+            'bloqueos_por_dia':    dict(bloqueos_por_dia),
         }
 
-        asignaciones, advertencias = _ejecutar_algoritmo(grado_seccion, config)
+        asignaciones, advertencias = _ejecutar_algoritmo(grado_seccion, config, semilla=semilla)
 
         if not asignaciones:
             return Response(
@@ -1067,9 +1310,13 @@ class GenerarHorarioView(APIView):
             )
 
         # ── Persistir resultado ───────────────────────────────────────────────
+        # Se excluyen las clases bloqueadas: el usuario pidió explícitamente que
+        # el generador no las toque, así que deben sobrevivir al reemplazo.
         if reemplazar_existente and tiene_horario:
             HorarioClase.objects.filter(
                 materia__grado_seccion=grado_seccion
+            ).exclude(
+                id__in=[hc.id for hc in clases_bloqueadas_qs]
             ).delete()
 
         creados = []

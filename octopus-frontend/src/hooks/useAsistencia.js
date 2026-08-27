@@ -72,6 +72,17 @@ export function useAsistencia() {
     }));
   }, []);
 
+  const marcarTodosPresentes = useCallback(() => {
+    setDirty(true);
+    setRegistros(prev => prev.map(r => ({
+      ...r,
+      estado:      ESTADO.PRESENTE,
+      presente:    true,
+      justificada: false,
+      observacion: '',
+    })));
+  }, []);
+
   const actualizarObservacion = useCallback((alumnoId, valor) => {
     setDirty(true);
     setRegistros(prev =>
@@ -125,6 +136,7 @@ export function useAsistencia() {
     dirty,
     conteos,
     marcar,
+    marcarTodosPresentes,
     actualizarObservacion,
     guardar,
   };

@@ -2,10 +2,23 @@ import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 
-export function useAuditoria(fechaInicio, fechaFin) {
+async function descargarExcel(url, params, filename) {
+    const res = await axiosInstance.get(url, { params, responseType: 'blob' });
+    const blobUrl = URL.createObjectURL(new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }));
+    const a = Object.assign(document.createElement('a'), { href: blobUrl, download: filename });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+}
+
+export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS') {
     const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting]   = useState(false);
+    const [exportingPagos, setExportingPagos] = useState(false);
     const [reporte, setReporte]       = useState(null);
     const [logs, setLogs]             = useState([]);
     const [error, setError]           = useState(null);
@@ -20,7 +33,7 @@ export function useAuditoria(fechaInicio, fechaFin) {
                 params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
             }),
             axiosInstance.get('secretaria/auditoria/', {
-                params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
+                params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin, page_size: 200 },
             }),
         ]);
 
@@ -35,8 +48,9 @@ export function useAuditoria(fechaInicio, fechaFin) {
         }
 
         if (resLogs.status === 'fulfilled') {
+            const data = resLogs.value.data?.results ?? resLogs.value.data ?? [];
             setLogs(
-                (resLogs.value.data || []).sort((a, b) =>
+                data.slice().sort((a, b) =>
                     new Date(b.fecha_hora || b.fecha) - new Date(a.fecha_hora || a.fecha)
                 )
             );
@@ -56,28 +70,37 @@ export function useAuditoria(fechaInicio, fechaFin) {
     const exportarExcel = useCallback(async () => {
         setExporting(true);
         try {
-            const res = await axiosInstance.get('cobranza/exportar-excel/', {
-                params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
-                responseType: 'blob',
-            });
-            const url = URL.createObjectURL(new Blob([res.data], {
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            }));
-            const a = Object.assign(document.createElement('a'), {
-                href: url,
-                download: `auditoria_${fechaInicio}_${fechaFin}.xlsx`,
-            });
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            await descargarExcel(
+                'secretaria/auditoria/exportar-excel/',
+                { fecha_inicio: fechaInicio, fecha_fin: fechaFin, modulo },
+                `auditoria_log_${fechaInicio}_${fechaFin}.xlsx`,
+            );
             toast.success('Archivo Excel descargado.');
         } catch {
             toast.error('No se pudo generar el Excel.');
         } finally {
             setExporting(false);
         }
+    }, [fechaInicio, fechaFin, modulo]);
+
+    const exportarPagosExcel = useCallback(async () => {
+        setExportingPagos(true);
+        try {
+            await descargarExcel(
+                'cobranza/exportar-excel/',
+                { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
+                `auditoria_pagos_${fechaInicio}_${fechaFin}.xlsx`,
+            );
+            toast.success('Archivo Excel descargado.');
+        } catch {
+            toast.error('No se pudo generar el Excel.');
+        } finally {
+            setExportingPagos(false);
+        }
     }, [fechaInicio, fechaFin]);
 
-    return { loading, refreshing, exporting, reporte, logs, error, refetch: fetchAuditoria, exportarExcel };
+    return {
+        loading, refreshing, exporting, exportingPagos, reporte, logs, error,
+        refetch: fetchAuditoria, exportarExcel, exportarPagosExcel,
+    };
 }

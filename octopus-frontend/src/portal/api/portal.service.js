@@ -43,6 +43,13 @@ export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = ''
 };
 
 /**
+ * Descarga el recibo PDF de un pago confirmado del historial (blob).
+ * @param {number|string} pagoId
+ */
+export const getReciboPago = (pagoId) =>
+  portalClient.get(`recibo/${pagoId}/`, { responseType: 'blob' });
+
+/**
  * Solicita el envío del email de recuperación de contraseña.
  * La respuesta es siempre 200 con el mismo mensaje (exista o no la cuenta),
  * así que el frontend no debe intentar distinguir "no existe" de "enviado".

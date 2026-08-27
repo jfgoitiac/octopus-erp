@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Search, AlertTriangle, Loader2, RefreshCcw, Download } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Search, AlertTriangle, Loader2, RefreshCcw, Download } from 'lucide-react';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useMorosos } from '../hooks/useMorosos';
 import MorososSummary from '../components/morosos/MorososSummary';
@@ -7,10 +7,11 @@ import MorososSkeleton from '../components/morosos/MorososSkeleton';
 import MorososRow from '../components/morosos/MorososRow';
 import Pagination from '../components/shared/Pagination';
 
-const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', 'Solvencia (USD)', ''];
+const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', 'Solvencia (USD)', 'Días de atraso', ''];
 
 const Morosos = () => {
     const [busqueda, setBusqueda] = useState('');
+    const [ordenDiasAtraso, setOrdenDiasAtraso] = useState(null); // null | 'asc' | 'desc'
     const { tasa } = useTasaBCV();
     const {
         alumnos,
@@ -26,6 +27,17 @@ const Morosos = () => {
         totalPages,
         pageSize,
     } = useMorosos(busqueda);
+
+    const alumnosOrdenados = useMemo(() => {
+        if (!ordenDiasAtraso) return alumnos;
+        const factor = ordenDiasAtraso === 'desc' ? -1 : 1;
+        return [...alumnos].sort(
+            (a, b) => factor * ((a.dias_atraso ?? 0) - (b.dias_atraso ?? 0))
+        );
+    }, [alumnos, ordenDiasAtraso]);
+
+    const toggleOrdenDiasAtraso = () =>
+        setOrdenDiasAtraso(prev => (prev === 'desc' ? 'asc' : 'desc'));
 
     return (
         <div className="flex flex-col gap-5 anim-fade-up">
@@ -97,7 +109,26 @@ const Morosos = () => {
                     <table className="w-full text-sm min-w-[700px]">
                         <thead>
                             <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                                {COL_HEADERS.map(h => (
+                                {COL_HEADERS.map(h => h === 'Días de atraso' ? (
+                                    <th
+                                        key={h}
+                                        className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
+                                        style={{ color: 'var(--ash)' }}
+                                    >
+                                        <button
+                                            onClick={toggleOrdenDiasAtraso}
+                                            aria-label="Ordenar por días de atraso"
+                                            className="inline-flex items-center gap-1 uppercase tracking-wide"
+                                        >
+                                            {h}
+                                            {ordenDiasAtraso === 'desc'
+                                                ? <ArrowDown size={11} />
+                                                : ordenDiasAtraso === 'asc'
+                                                    ? <ArrowUp size={11} />
+                                                    : <ArrowUpDown size={11} />}
+                                        </button>
+                                    </th>
+                                ) : (
                                     <th
                                         key={h}
                                         className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
@@ -111,9 +142,9 @@ const Morosos = () => {
                         <tbody>
                             {loading ? (
                                 <MorososSkeleton rows={6} />
-                            ) : alumnos.length === 0 ? (
+                            ) : alumnosOrdenados.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-12 text-center">
+                                    <td colSpan={9} className="px-4 py-12 text-center">
                                         <div className="flex flex-col items-center gap-2">
                                             <AlertTriangle size={28} style={{ color: 'var(--ash)' }} />
                                             <p className="text-xs" style={{ color: 'var(--ash)' }}>
@@ -124,7 +155,7 @@ const Morosos = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : alumnos.map((alu, idx) => (
+                            ) : alumnosOrdenados.map((alu, idx) => (
                                 <MorososRow
                                     key={alu.id}
                                     alu={alu}

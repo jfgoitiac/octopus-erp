@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Empleado
+from .models import Empleado, ParametroLegalNomina, RegistroNomina
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     """
@@ -23,6 +23,27 @@ class EmpleadoSerializer(serializers.ModelSerializer):
         if obj.empleado_rrhh_id:
             return obj.empleado_rrhh.activo
         return None
+
+
+class ParametroLegalNominaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ParametroLegalNomina
+        fields = '__all__'
+
+
+class RegistroNominaSerializer(serializers.ModelSerializer):
+    empleado_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RegistroNomina
+        fields = '__all__'
+        read_only_fields = [
+            'fecha_proceso', 'monto_sso', 'monto_lph', 'total_pagar_ves',
+            'porcentaje_sso_aplicado', 'porcentaje_lph_aplicado',
+        ]
+
+    def get_empleado_nombre(self, obj):
+        return f'{obj.empleado.nombre} {obj.empleado.apellido}'
 
     def get_empleado_rrhh_nombre(self, obj):
         if obj.empleado_rrhh_id:

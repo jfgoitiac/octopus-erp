@@ -197,6 +197,44 @@ class MovimientoInventario(models.Model):
         ordering = ['-creado_en']
 
 
+class AperturaCajaCantina(models.Model):
+    """
+    Sesión de caja de UN cajero (apertura por cajero, no global). El
+    colegio puede tener hasta `MAX_APERTURAS_SIMULTANEAS` cajeros vendiendo
+    a la vez (varios puntos de venta / turnos superpuestos): cada uno abre
+    su propia caja declarando su `monto_inicial`, y sus ventas quedan
+    asociadas a ESA apertura (ver `VentaCantina.apertura`), nunca a una caja
+    global. El límite de aperturas simultáneas es una regla de sistema que
+    cruza filas — no se puede expresar como constraint de una sola tabla,
+    se aplica en `AperturaCajaCantinaView.post` dentro de una transacción
+    serializada contra el singleton `ParametroCantina`.
+    """
+    ESTADOS = (
+        ('abierta', 'Abierta'),
+        ('cerrada', 'Cerrada'),
+    )
+    MAX_APERTURAS_SIMULTANEAS = 3
+
+    cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='aperturas_cantina')
+    fecha_hora_apertura = models.DateTimeField(auto_now_add=True)
+    monto_inicial = models.DecimalField(max_digits=10, decimal_places=2)
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='abierta')
+    cerrada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-fecha_hora_apertura']
+        constraints = [
+            # Un mismo cajero no puede tener dos aperturas 'abierta' a la vez.
+            models.UniqueConstraint(
+                fields=['cajero'], condition=models.Q(estado='abierta'),
+                name='unica_apertura_abierta_por_cajero',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Apertura #{self.id} — {self.cajero} ({self.get_estado_display()})'
+
+
 class VentaCantina(models.Model):
     METODOS_PAGO = (
         ('tarjeta_prepago', 'Tarjeta Prepago'),
@@ -214,6 +252,11 @@ class VentaCantina(models.Model):
     # restricción de esquema).
     alumno = models.ForeignKey(Alumno, null=True, blank=True, on_delete=models.SET_NULL, related_name='ventas_cantina')
     tarjeta = models.ForeignKey(TarjetaPrepago, null=True, blank=True, on_delete=models.SET_NULL, related_name='ventas')
+    # Apertura de caja del cajero bajo la que se registró esta venta — NUNCA
+    # una caja global (§ apertura por cajero). null=True solo por
+    # compatibilidad con ventas anteriores a este cambio; toda venta nueva
+    # exige una apertura abierta (ver RegistrarVentaView).
+    apertura = models.ForeignKey('AperturaCajaCantina', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas')
     cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='ventas_cantina')
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO)
     total_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Total canónico en USD (el precio de cada producto vive en USD)')
@@ -239,6 +282,14 @@ class DetalleVentaCantina(models.Model):
 
 class CierreCajaCantina(models.Model):
     cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='cierres_cantina')
+    # Cada cierre cierra EXACTAMENTE la apertura de ESE cajero — el
+    # OneToOneField es lo que impide cerrar la misma apertura dos veces
+    # (reemplaza el viejo unique_together=('cajero','fecha'), que asumía una
+    # sola sesión de caja por cajero por día; ahora un cajero puede abrir y
+    # cerrar más de una vez en el mismo día, cada apertura con su propio cierre).
+    apertura = models.OneToOneField(
+        AperturaCajaCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='cierre',
+    )
     fecha = models.DateField()
     total_ventas = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total_tarjeta = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -250,5 +301,4 @@ class CierreCajaCantina(models.Model):
     cerrado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('cajero', 'fecha')
         ordering = ['-fecha']

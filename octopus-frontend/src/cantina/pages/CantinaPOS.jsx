@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   getProductos, getTasaVigenteCantina, registrarVenta, descargarReciboVenta,
+  getAperturaCajaActual,
 } from '../../api/cantina.service';
 import { AuthContext } from '../../context/AuthContext';
 import CarritoVenta from '../../components/cantina/pos/CarritoVenta';
@@ -14,6 +15,7 @@ import BuscadorProductoManual from '../../components/cantina/pos/BuscadorProduct
 import BuscadorAlumnoManual from '../../components/cantina/pos/BuscadorAlumnoManual';
 import ResumenCobro from '../../components/cantina/pos/ResumenCobro';
 import TicketVenta from '../../components/cantina/pos/TicketVenta';
+import AperturaCajaModal from '../../components/cantina/pos/AperturaCajaModal';
 
 function SkeletonGrid() {
   return (
@@ -54,6 +56,14 @@ export default function CantinaPOS() {
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [tasaVigente, setTasaVigente] = useState(0);
 
+  // Apertura de caja del cajero (§ apertura por cajero, no global): hasta 3
+  // cajeros pueden tener caja abierta a la vez, cada uno con su propia
+  // sesión — antes de la primera venta del turno se exige declarar el
+  // monto inicial. `null` = todavía no se sabe (cargando), `false` = sin
+  // apertura (se muestra el modal bloqueante), objeto = apertura activa.
+  const [apertura, setApertura] = useState(null);
+  const [cargandoApertura, setCargandoApertura] = useState(true);
+
   const [carrito, setCarrito] = useState([]); // [{ producto, cantidad }]
   const [metodoPago, setMetodoPago] = useState('efectivo');
 
@@ -66,6 +76,19 @@ export default function CantinaPOS() {
   const [descargandoRecibo, setDescargandoRecibo] = useState(false);
 
   const abortRef = useRef(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getAperturaCajaActual(controller.signal)
+      .then(res => setApertura(res.data?.apertura ?? false))
+      .catch(err => {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo verificar tu apertura de caja.');
+        setApertura(false);
+      })
+      .finally(() => setCargandoApertura(false));
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -255,6 +278,9 @@ export default function CantinaPOS() {
 
   return (
     <div className="flex flex-col gap-4 h-[calc(100vh-64px-4rem)]">
+      {!cargandoApertura && apertura === false && (
+        <AperturaCajaModal onAbierta={data => setApertura(data)} />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>

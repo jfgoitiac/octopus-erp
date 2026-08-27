@@ -50,6 +50,7 @@ from .views import (
     PortalConfirmarResetView,
     PortalDashboardView,
     PortalHistorialPagosView,
+    PortalReciboPagoView,
     PortalComprobantePagoView,
     ActivarPortalRepresentanteView,
     PortalBancosView,
@@ -90,6 +91,9 @@ urlpatterns = [
 
     # Historial de pagos: GET /api/portal/historial/?alumno_id=X
     path('historial/', PortalHistorialPagosView.as_view(), name='portal_historial'),
+
+    # Recibo PDF de un pago confirmado: GET /api/portal/recibo/<pago_id>/
+    path('recibo/<int:pago_id>/', PortalReciboPagoView.as_view(), name='portal_recibo'),
 
     # Comprobantes: POST /api/portal/comprobante/ — GET /api/portal/comprobante/
     path('comprobante/', PortalComprobantePagoView.as_view(), name='portal_comprobante'),

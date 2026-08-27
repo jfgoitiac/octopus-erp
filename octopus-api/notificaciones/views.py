@@ -18,6 +18,9 @@ CAMPOS_WA = [
     'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
     'meta_whatsapp_token', 'meta_whatsapp_phone_id',
 ]
+CAMPOS_MORA = [
+    'dias_recordatorio_1', 'dias_recordatorio_2', 'dias_alerta_director',
+]
 CAMPOS_SECRETOS = {'email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'}
 CAMPOS_PERFIL_EMAIL = [
     'email_activo', 'email_host', 'email_port', 'email_use_tls',
@@ -44,7 +47,7 @@ def _ocultar_secretos(data, campos):
 
 def _cfg_to_dict(cfg):
     data = {}
-    for campo in CAMPOS_EMAIL + CAMPOS_WA:
+    for campo in CAMPOS_EMAIL + CAMPOS_WA + CAMPOS_MORA:
         data[campo] = getattr(cfg, campo)
     return _ocultar_secretos(data, CAMPOS_SECRETOS)
 
@@ -96,8 +99,21 @@ class ConfiguracionNotificacionesView(APIView):
         if not _check_rol(request):
             return Response({'error': 'Sin permiso.'}, status=403)
         cfg = self._get_cfg()
-        campos_permitidos = set(CAMPOS_EMAIL + CAMPOS_WA)
-        for campo, valor in request.data.items():
+        campos_permitidos = set(CAMPOS_EMAIL + CAMPOS_WA + CAMPOS_MORA)
+
+        datos = dict(request.data)
+        if any(c in datos for c in CAMPOS_MORA):
+            d1 = int(datos.get('dias_recordatorio_1', cfg.dias_recordatorio_1))
+            d2 = int(datos.get('dias_recordatorio_2', cfg.dias_recordatorio_2))
+            d3 = int(datos.get('dias_alerta_director', cfg.dias_alerta_director))
+            if not (0 < d1 < d2 < d3):
+                return Response(
+                    {'error': 'Los días de recordatorio deben ser positivos y crecientes '
+                              '(primer recordatorio < segundo aviso < alerta al director).'},
+                    status=400,
+                )
+
+        for campo, valor in datos.items():
             if campo not in campos_permitidos:
                 continue
             # Ignorar placeholders: '***' (formato viejo) y '••••xxxx' (formato nuevo)

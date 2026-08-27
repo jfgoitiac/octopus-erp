@@ -35,6 +35,16 @@ class ConfiguracionNotificaciones(models.Model):
     director_whatsapp = models.CharField(max_length=30, blank=True, default='',
                                           help_text='Número del director para alertas de mora día 15')
 
+    # ── Cronograma de recordatorios de mora ────────────────────────────────────
+    # Días desde el vencimiento de la mensualidad. El día 0 (factura generada)
+    # es fijo; estos tres hitos son configurables sin necesidad de deploy.
+    dias_recordatorio_1  = models.PositiveIntegerField(
+        default=5, verbose_name='Días — primer recordatorio')
+    dias_recordatorio_2  = models.PositiveIntegerField(
+        default=10, verbose_name='Días — segundo aviso')
+    dias_alerta_director = models.PositiveIntegerField(
+        default=15, verbose_name='Días — alerta al director')
+
     class Meta:
         verbose_name = 'Configuración de Notificaciones'
 

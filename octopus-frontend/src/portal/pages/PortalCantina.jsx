@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboard, getSaldoTarjetaCantina, getHistorialConsumoCantina } from '../api/portal.service';
+import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
 import HistorialConsumoList from '../components/HistorialConsumoList';
@@ -8,7 +9,7 @@ import RecargarTarjetaModal from '../components/RecargarTarjetaModal';
 
 const PortalCantina = () => {
   const [alumnos, setAlumnos] = useState([]);
-  const [alumnoActivo, setAlumnoActivo] = useState(null);
+  const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [loadingAlumnos, setLoadingAlumnos] = useState(true);
 
   const [saldoTarjeta, setSaldoTarjeta] = useState(null);
@@ -31,7 +32,7 @@ const PortalCantina = () => {
         const res = await getDashboard(controller.signal);
         const lista = res.data.alumnos || [];
         setAlumnos(lista);
-        if (lista.length > 0) setAlumnoActivo(lista[0]);
+        sincronizarConLista(lista);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
         toast.error('No se pudo cargar los datos del representante.');
@@ -42,7 +43,7 @@ const PortalCantina = () => {
 
     cargarAlumnos();
     return () => controller.abort();
-  }, []);
+  }, [sincronizarConLista]);
 
   // PortalSaldoTarjetaView SIEMPRE responde un arreglo (uno por alumno,
   // filtrado a 1 elemento cuando se pasa alumno_id) — nunca un objeto suelto.

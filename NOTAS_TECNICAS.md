@@ -143,12 +143,16 @@ Deuda técnica detectada al implementar la generación automática de mensualida
 (cobranza/services.py + tarea mensual de Celery + comando de backfill). Solo se
 anota, no se tocó:
 
-1. **`GenerarAnualidadView` usa año calendario, no período escolar** —
-   genera Ene–Dic (incluye agosto/vacaciones), mientras el resto del sistema
-   (búsqueda de cobranza, servicio nuevo) trabaja con el período Sep–Jul.
-   Conviven dos definiciones de "año". Migrar la vista al servicio
-   `cobranza.services.generar_mensualidades` cuando se pueda validar el impacto
-   en el frontend que la consume.
+1. **`GenerarAnualidadView` usa año calendario, no período escolar** — ✅ RESUELTO (verificado 2026-08-24)
+   `GenerarAnualidadView` ya no existe en el código (fue eliminada en un commit
+   posterior a esta nota). Toda generación de mensualidades pasa por
+   `cobranza.services.generar_mensualidades`, que lee siempre
+   `ConfiguracionSistema.fecha_inicio_ano_escolar`/`fecha_fin_ano_escolar` — ya
+   sea que el período escolar sea Sep–Jul, Sep 2026–Ago 2027, o cualquier otro
+   rango configurado, sin año calendario fijo. Confirmado también que ningún
+   reporte de cobranza (`BusinessIntelligenceTab`, `ClasificacionPagosTab`,
+   `CierreCajaTab`, etc.) asume Ene–Dic: solo etiquetan mes/año reales que
+   devuelve el backend.
 
 2. **Doble vía de notificaciones de cobranza** — la señal `post_save` de
    `Mensualidad` programa avisos con countdown (días 0/5/10/15 desde la creación)
@@ -1911,3 +1915,182 @@ el endpoint sí la servía si se llamaba directo.
   (2-5) y el scroll horizontal con columna fija es un patrón ya usado en
   otras tablas del proyecto (`WidgetMateriasTabla.jsx`); si algún colegio
   termina con bloques de muchos ítems, reevaluar una vista de tarjetas.
+
+---
+
+# AUDITORÍA FUNCIONAL — ACADÉMICO / PORTAL REPRESENTANTES / PORTAL DOCENTES (2026-08-24)
+
+Auditoría de solo lectura (3 exploraciones paralelas), sin implementar ninguna
+corrección. Ver mensaje de la conversación para el reporte completo con el plan
+priorizado; aquí solo queda la deuda técnica y los bugs para seguimiento futuro.
+
+## Módulo académico — Gestión de materias
+
+1. 🔴 **Alto — Asignación docente↔materia rota de punta a punta.**
+   `ModalMateria.jsx` no tiene campo `docente`, y aunque lo tuviera,
+   `MateriaSerializer.docente_id` (`academico/serializers.py:16-18`) es
+   `PrimaryKeyRelatedField(source='docente', read_only=True)` — el backend
+   ignora ese campo en POST/PUT. Hoy la única forma de asignar un docente a
+   una materia es el admin de Django. Bloquea operación normal del colegio
+   (secretaría no puede asignar docentes sin acceso a `/admin`).
+2. 🟠 Medio — Doble sistema de notas coexistiendo: `Nota` clásico y el nuevo
+   `PlanEvaluacion`/`BloqueEvaluacion`/`ItemEvaluacion` conviven sin
+   enforcement automático de exclusividad por materia+lapso (solo un
+   comentario en `models.py:180-182` advierte no mezclarlos). Riesgo de
+   datos contradictorios si alguien usa ambos para la misma materia.
+3. 🟡 Bajo — `grado_seccion` en `Materia` es un string libre acoplado
+   implícitamente a `ConfiguracionGrado.grado_seccion` (app `secretaria`),
+   sin FK real ni validación de integridad referencial entre apps.
+4. 🟡 Bajo — `octopus-api/urls.py` (raíz) es código muerto: no es el
+   `ROOT_URLCONF` real (`config/urls.py` lo es) y puede confundir a quien
+   audite rutas por primera vez.
+
+## Portal de representantes
+
+5. 🟠 **Medio — Bug de paginación silencioso en historial de pagos.**
+   `PortalHistorialPagosView.get` (`portal/views.py:433-440`) responde con
+   la clave `total_pages`, pero `PortalHistorialPagos.jsx:83-88` solo lee
+   `data.count`/`data.total_paginas` — ninguna existe en la respuesta real,
+   así que `totalPaginas` queda fijo en `1` y los controles
+   Anterior/Siguiente nunca se muestran aunque haya más de una página de
+   pagos. No lanza error, solo oculta silenciosamente la paginación.
+6. 🟡 Bajo — `portal_token` (JWT de acceso) sigue en `localStorage`,
+   expuesto a XSS — ya reconocido explícitamente como deuda en el propio
+   comentario de `portalClient.js:8-15` (mitigado solo por CSP en servidor).
+7. 🟡 Bajo — `portal.service.js` mezcla las llamadas del flujo financiero
+   (mensualidades) con las de cantina (`RecargarTarjetaModal`,
+   `SaldoTarjetaCard`, etc.) en un mismo archivo — "god file" de API calls
+   del portal, cohesivo pero creciendo sin separación por dominio.
+8. 🟢 Info — No hay un listado dedicado de "mis comprobantes" en el portal
+   (el estado Pendiente/Aprobado/Rechazado solo se ve indirecto vía
+   `estatus` en el historial de pagos); parece decisión de diseño (la
+   revisión Aprobar/Rechazar vive en el panel admin), pero vale confirmar
+   con el negocio si el representante debería ver ese detalle directamente.
+
+## Portal de docentes
+
+9. 🟡 Bajo — No hay endpoint dedicado "alumnos de mi sección/materia": el
+   frontend (`academico.service.js:91-96`) reutiliza `AsistenciaView` como
+   roster de alumnos, acoplamiento implícito y frágil ante cambios en esa
+   vista.
+10. 🟢 Info — `portal-docente/context/` existe en el frontend pero está
+    vacía — vestigio de un diseño de auth separada que se descartó (el
+    login real es el unificado `/login` con `ProtectedRoute` +
+    `allowedRoles`, confirmado también por el comentario en
+    `academico/urls_portal_docente.py:5-7`). Limpiar la carpeta evitaría
+    confusión futura sobre si existe o no un login propio del portal
+    docente.
+11. 🟢 Info — El portal docente no está aislado como microfrontend: importa
+    directamente componentes compartidos genéricos (`../../components/notas/TablaNotas`,
+    `../../components/asistencia/FilaAlumno`, `../../portal/components/SkeletonCard`).
+    Es una decisión de reuso razonable, no un bug, pero documentarlo evita
+    que alguien intente separarlo sin darse cuenta del acoplamiento.
+
+## Conclusión de completitud (referencia rápida)
+
+- **Módulo académico (materias)**: CRUD de materias funcional end-to-end
+  (backend + `Horarios.jsx`/`ModalMateria.jsx`), pero **sin asignación de
+  docente vía UI/API** — gap crítico de Fase 2. Notas, asistencia, horarios
+  (con generador automático) y boletín PDF ya existen y están conectados.
+- **Portal de representantes**: ~95% funcional end-to-end; único hallazgo
+  real es el bug de paginación del historial (#5), de bajo esfuerzo para
+  corregir.
+- **Portal de docentes**: ~85-90% completo — no es un login a dashboard
+  vacío; notas, asistencia, plan de evaluación, mensajería con
+  representantes, incidentes y perfil están conectados a endpoints reales
+  con permisos por rol/asignación.
+
+---
+
+# DIAGNÓSTICO — CONTROL DE ESTUDIO: NOTAS, BOLETINES, ASISTENCIA, HORARIOS (2026-08-24)
+
+Auditoría de solo lectura del flujo completo de notas, boletines PDF,
+asistencia y horarios (backend Django + frontend React), a pedido del
+usuario, previa a mejoras de UX. No se modificó código. Nota: al momento de
+esta auditoría había cambios sin commitear en `academico/serializers.py`,
+`views.py`, `tests.py` y `ModalMateria.jsx`/`useHorarios.js` (+140/-10
+líneas) que parecen estar resolviendo, en curso, el gap "sin asignación de
+docente vía UI/API" ya anotado en la sección anterior — no se tocaron ni se
+asumió que ya estén terminados.
+
+## Hallazgos por área
+
+| Sev. | Área | Archivo:línea | Descripción | Impacto |
+|---|---|---|---|---|
+| 🔴 Alto | Horarios | `views.py:1089-1182` (`GenerarHorarioView.post`) vs `ModalGenerador.jsx:14,58,208` | El generador automático de horarios **ignora silenciosamente** `clases_bloqueadas` y `recesos` (múltiples) que el frontend sí envía y le promete al usuario en el propio modal ("el generador las respetará y no las moverá"). Solo lee `recreo_hora`/`recreo_duracion_min` singulares. Si `reemplazar_existente=True`, borra **todas** las clases del grado (`views.py:1155-1158`), incluidas las que la UI dijo que "no se moverían". | El docente arma bloques que no quiere que el generador toque, ejecuta "generar", y esas clases se borran igual — pérdida de trabajo manual con una promesa de UI incumplida. Es el hallazgo más grave porque es silencioso: no hay error, el sistema simplemente no hace lo que dijo que haría. |
+| 🔴 Alto | Horarios | `views.py:679-736` (creación/edición manual) + `models.py:360-366` | No existe validación de choque de horario **docente** ni **aula** en creación/edición manual, ni server-side ni completa en frontend. `useHorarios.js:80-87` solo detecta choque de mismo día+hora exacta **dentro del mismo grado** — no compara rangos parciales, no consulta otros grados, no valida aula. El generador automático (`_rangos_se_solapan`, `views.py:910-918`) sí valida solape de docente entre grados, pero solo ahí, no en la edición manual. | Un docente puede quedar asignado a dos secciones distintas en el mismo bloque horario si se edita manualmente, sin ningún aviso — inconsistencia grave para la operación real del colegio. |
+| 🟠 Medio | Notas | `views.py:391-466` (`NotasGradoView.post`) vs `views.py:2098-2102`/`1918-1924` (Plan de Evaluación) | El sistema **clásico** de notas no valida `lapso.activo` server-side — el bloqueo de "lapso cerrado" es únicamente `disabled` en el frontend (`Notas.jsx:177`, `TablaNotas.jsx:89`), evadible con una llamada directa a la API. El sistema de **Plan de Evaluación** sí lo valida en el backend. Inconsistencia entre los dos sistemas de notas que conviven. | Un docente (o cualquier llamada directa a la API) puede modificar notas de un lapso ya cerrado sin que el backend lo impida, en el flujo "clásico" únicamente. |
+| 🟠 Medio | Notas | `models.py:180-182` (comentario) vs modelo/serializer | El comentario en el modelo dice que el sistema clásico (`Nota.evaluacion_1..4`) y el Plan de Evaluación **nunca deben coexistir** para la misma materia+lapso, pero nada a nivel de modelo/serializer lo fuerza. | Riesgo de que una materia termine con datos en ambos sistemas simultáneamente (ej. por error de configuración), generando boletines o reportes inconsistentes sin que nada lo detecte. |
+| 🟡 Bajo | Notas | Sin ubicación específica (ausencia) | No hay validación de "materia sin docente asignado" al cargar notas — ni frontend ni backend. Se puede cargar notas para una materia que no tiene docente. | Bajo impacto práctico hoy (probablemente el flujo de asignación de docente, en desarrollo según los cambios sin commitear, mitigue esto pronto), pero vale revisar una vez cerrado ese gap. |
+| 🟡 Bajo | Boletines | `views.py:742-867` (`BoletinView.get`) | El boletín se genera correctamente desde un único endpoint agregado (sin riesgo de desincronización entre llamadas), pero no valida si el lapso ya cerró ni lo indica en el PDF — se puede generar un boletín "en vivo" con notas que aún pueden cambiar, sin ninguna marca de "provisional". | Confusión potencial si un representante o docente genera/imprime un boletín antes del cierre real del lapso y las notas cambian después. |
+| 🟡 Bajo | Asistencia | `Asistencia.jsx:1-4,24` (react-datepicker) vs `ResumenAsistenciaView` (`views.py:591-642`) | El filtro con `react-datepicker` en la pantalla de carga solo permite un **día puntual**, no rango — coherente con que la carga es por día, pero el resumen (lectura) sí opera por mes. No es un bug, pero es una limitación de UX si el usuario quiere revisar/corregir varios días seguidos sin navegar uno por uno. | Fricción menor de UX, no de datos. |
+| 🟢 Info | Horarios | `models.py:345-349` (`HorarioClase.materia`, CASCADE) vs `views.py:268-280` (`MateriaDetailView.delete`, soft-delete) | La vista de la API hace soft-delete de materias, pero el modelo sigue con `on_delete=CASCADE` real. Borrar una `Materia` desde el admin de Django (no la vista) elimina en cascada notas e historial de horario — mismo patrón de riesgo ya documentado para otros modelos en este archivo (representante→alumno, `on_delete` inconsistente en cobranza). | Pérdida de datos solo si alguien usa el admin de Django directamente en vez del endpoint; bajo riesgo de ocurrencia pero alto impacto si pasa. |
+| 🟢 Info | Transversal | `RendimientoAlumnoView`, `RendimientoSeccionView`, `AlertasRendimientoView` (`urls.py:63-65`) | Endpoints backend sin consumidor evidente en `academico.service.js` — parecen pensados para un módulo de "seguimiento gráfico" no implementado aún, o abandonado. | Código muerto o funcionalidad pendiente de conectar; confirmar con el negocio cuál es el caso. |
+| 🟢 Info | Transversal | `Boletin.jsx` (comparado con `TablaNotas`/`GrillaHorario`/`SkeletonFila`) | No tiene skeleton loader propio, a diferencia del resto del módulo académico que sí lo adoptó como patrón. | Inconsistencia de UX menor, fácil de corregir siguiendo el patrón ya establecido (`SkeletonFila.jsx`). |
+
+## Fortalezas confirmadas (no requieren acción)
+
+- Carga de **notas** y **asistencia** ya es bulk por grado/sección en un solo submit (no hay fricción de "un alumno a la vez"): `NotasGradoView.post`, `PlanEvaluacionNotasView.post`, `AsistenciaView.post`.
+- Validación de rango de nota (0-20) presente en ambos lados (frontend y backend).
+- Todas las llamadas Axios revisadas en los hooks del módulo (`useNotas`, `useAsistencia`, `useHorarios`, `useDocentes`, `useBoletin`) usan try/catch + `react-toastify` correctamente.
+- Auditoría de cambios de notas vía `HistoricalRecords` (`Nota`, `NotaItemEvaluacion`), expuesta a director/sistemas.
+- Scoping por sección del docente en asistencia validado server-side con tests dedicados.
+
+## Propuesta priorizada (sin implementar — a la espera de tu aprobación)
+
+**Rápidas (bajo esfuerzo, alto valor):**
+1. Backend: agregar validación de `lapso.activo` en `NotasGradoView.post`, igual que ya existe en Plan de Evaluación — cierra el gap de seguridad más simple de los dos sistemas de notas.
+2. Skeleton loader en `Boletin.jsx` siguiendo el patrón de `SkeletonFila.jsx`.
+3. Indicar en el PDF del boletín si el lapso sigue abierto ("Boletín provisional — lapso en curso") cuando `lapso.activo` sea `True`.
+
+**Estructurales (requieren más diseño/pruebas):**
+4. Corregir el generador de horarios para que realmente respete `clases_bloqueadas` y `recesos` (múltiples), o si se decide simplificar el alcance, quitar esa promesa de la UI del modal para que no mienta sobre el comportamiento real — cualquiera de las dos opciones es aceptable, pero el estado actual (promesa + comportamiento distinto) no lo es.
+5. Agregar validación de choque de horario docente/aula en creación y edición **manual** (no solo en el generador automático), tanto en backend (fuente de verdad) como en frontend (feedback inmediato).
+6. Definir y aplicar una constraint real (a nivel de modelo o validación fuerte en el serializer) que impida que una materia+lapso tenga datos en el sistema clásico y en Plan de Evaluación simultáneamente.
+
+Sugiero empezar por los ítems 1 y 4 primero: el primero es una línea de validación de bajo riesgo, y el 4 es el hallazgo más grave (una promesa de UI que el backend no cumple, con pérdida de datos real).
+
+---
+
+# AUDITORÍA COMERCIAL — FUNCIONES VENDIDAS VS. ESTADO REAL (2026-08-27)
+
+Auditoría de solo lectura (6 exploraciones en paralelo) comparando la lista de
+funciones y beneficios usada para vender los planes Básico/Intermedio/Premium
+contra el código real de `octopus-api` y `octopus-frontend`, más conteo de
+clics de los flujos más frecuentes. No se modificó código de producto.
+
+## Hallazgos por área
+
+| Sev. | Área | Archivo:línea | Descripción | Impacto |
+|---|---|---|---|---|
+| 🔴 Alto | Cobranza | `cobranza/models.py:509` (`CierreCaja`), sin view/URL | "Cierre de caja diario con control de lotes" (función vendida) no existe como flujo operativo: el modelo `CierreCaja` no tiene ningún endpoint que lo cree. El componente frontend `CierreCajaTab.jsx` es solo un reporte de lectura (`auditoria-diaria/`), no permite declarar monto contado ni cerrar el día. | Se vende una función de arqueo/control diario que hoy es inalcanzable desde el producto — riesgo directo si un cliente la pide en demo. |
+| 🔴 Alto | Nómina/RRHH | `nomina/models.py` (motor legal correcto, sin admin/viewset) vs `constants/avec.js` + `ReciboModal.jsx` (UI real) | El cálculo automático de SSO 4%/LPH 1%/cesta ticket/bonos USD **sí existe** pero en un módulo backend sin ningún endpoint de creación (`nomina/admin.py` vacío, sin viewset). La UI que el usuario realmente usa hace el mismo cálculo duplicado **en JavaScript** (`avec.js:65-68`) y genera el PDF client-side sin guardar nada en el servidor: no hay "nómina del período" como entidad, no hay historial de recibos, la tasa BCV y el monto de cesta ticket se tipean a mano en cada recibo en vez de traerse de `cobranza.TasaCambio`. Además `rrhh.Empleado` y `nomina.Empleado` son dos fichas de personal distintas, vinculadas solo manualmente. | No hay "generar nómina del mes" en lote; se repite el proceso manual empleado por empleado, sin registro server-side ni recalculo automático real (el signal que sí lo hace en `nomina/models.py:106-122` es código muerto porque nunca se crea un `RegistroNomina`). Alto riesgo de error humano y de tasa desactualizada. |
+| 🔴 Alto | Recordatorios de cobranza | `portal/tasks.py` (activa) vs `notificaciones/tasks.py`/`services.py` (completa pero no conectada) | Hay **dos implementaciones paralelas** del flujo día 0/5/10/15. La que realmente corre (`portal/tasks.py`, disparada por signal + Celery Beat) manda texto plano, no usa las plantillas HTML ya creadas y **no registra nada en `NotificacionLog`**. La otra (`notificaciones/tasks.py::task_notificar_mora`) sí usa plantillas HTML, sí loguea, y ya tiene **WhatsApp real implementado** (Twilio + Meta Business API, no placeholder) — pero nada la llama (0 referencias fuera de su propia definición). | El director/staff no ve en el panel ningún recordatorio de cobranza enviado (la pantalla de trazabilidad de `Configuracion.jsx` queda ciega para este flujo). Y el WhatsApp que se vende como "ya preparado para conectar" en realidad ya está terminado y funcional, solo desconectado — cambiar de tasks module sería la vía más rápida a producción, no reescribir desde cero. |
+| 🟠 Medio | Cobranza | `cobranza/models.py:22-41` (`TransferenciaInterna`) | "Transferencias internas entre cuentas del colegio" (función vendida) es un modelo sin ningún view/endpoint — huérfano. | Función vendida inexistente en la práctica. |
+| 🟠 Medio | Cobranza | `pages/Morosos.jsx:10` (`COL_HEADERS`) vs `cobranza/mora.py:150-153` | "Reporte de morosos con días de atraso" solo calcula meses vencidos, no días; la tabla del frontend no tiene columna de días de atraso. | El usuario debe inferir manualmente la gravedad de la mora en vez de verla directamente, contrario a lo prometido. |
+| 🟠 Medio | Portal representantes | `PortalDashboard.jsx`, `PortalHistorialPagos.jsx`, `PortalRendimiento.jsx`, `PortalMensajes.jsx`, `PortalCantina.jsx` | El selector de hijo (para representantes con varios hijos) es un `useState` local independiente en cada una de las 5 páginas, siempre reinicializado en `alumnos[0]`, sin contexto compartido ni persistencia en URL/localStorage. | Con 2+ hijos, ver la deuda del hijo B, luego sus notas y luego su cantina obliga a re-seleccionar el mismo hijo en cada sección visitada — fricción de clics directamente evitable. |
+| 🟡 Bajo | Asistencia | `useAsistencia.js`/`FilaAlumno.jsx` (ausencia) | No existe acción masiva "marcar todos presentes" ni atajos de teclado por fila; para una sección de 30 alumnos son 30 clics mínimo aunque la mayoría esté presente. | Fricción de clics alta en el flujo diario más repetido del módulo académico. |
+| 🟡 Bajo | Notas | `TablaNotas.jsx:3-4` vs `PlanEvaluacionPanel.jsx` (portal-docente) | Dos sistemas de notas paralelos y desconectados: el flujo admin/secretaría (`Notas.jsx`) usa 4 evaluaciones fijas hardcodeadas; el modelo configurable de ítems/bloques (`PlanEvaluacion`) prometido en la venta solo tiene UI en el portal-docente. | Riesgo de inconsistencia de datos entre ambos sistemas para la misma materia/lapso; ya señalado también en la auditoría del 2026-08-24 de este archivo. |
+| 🟡 Bajo | Auditoría del sistema | `Auditoria.jsx:338-346` → `cobranza/views.py:811-855` (`ExportarAuditoriaExcelView`) | El botón "Exportar Excel" de la pantalla de Auditoría exporta **pagos (`Pago`)**, no el log de acciones administrativas (`LogAuditoria`). La bitácora real sí existe, tiene filtro de fecha y búsqueda en frontend, pero no tiene filtro por módulo en backend, está capada a 200 registros sin paginación real, y el login vía JWT no se audita (inconsistencia ya anotada en `NOTAS_TECNICAS.md:615-617`). | "Exportación de reportes de auditoría a Excel" (función vendida) no exporta lo que dice exportar. |
+| 🟡 Bajo | Cantina | `CantinaPOS.jsx` (ausencia) | No hay botón de "abrir caja" al inicio del turno — el cajero puede vender sin haber declarado apertura, dificultando el arqueo. Confirmación de "saldo negativo" y "confirmar identidad" son dos checkboxes secuenciales que podrían fusionarse cuando aplican juntos. | Fricción de clics menor; riesgo de arqueo impreciso. |
+| 🟢 Info | Cobranza | `ClasificacionPagoBatchCreateView` / `ClasificacionBatchModal.jsx` | Acción masiva de clasificación de pagos ya implementada — buen ejemplo a replicar en asistencia y nómina. | Ninguno, es una fortaleza. |
+| 🟢 Info | Cantina | `ScannerProducto.jsx` | Escaneo por código de barras ya implementado en el POS. | Ninguno, es una fortaleza. |
+| 🟢 Info | Multisede | `multisede/` (modelos, views, `SedeSwitcher.jsx`) | No es un placeholder vacío: tiene modelos, endpoints y componentes reales en desarrollo activo, más adelantado de lo esperado para Fase 3. | Ninguno, contexto para priorización. |
+| 🟢 Info | Menú principal | `Sidebar.jsx` | 21 ítems en 6 secciones agrupadas por dominio (Principal, Finanzas, Académico, Comunicación, Multi-Sede, Sistema), filtradas por rol — no está sobrecargado ni plano. | Ninguno, no requiere reorganización. |
+
+## Propuesta priorizada (sin implementar — a la espera de tu aprobación)
+
+**Rápidas (bajo esfuerzo, alto valor):**
+1. ✅ **Resuelto (2026-08-27).** `portal/tasks.py` ya no duplica el envío: `enviar_notificacion_dia_0/5/10/15` delegan en `notificaciones.tasks.task_notificar_mora` (plantillas HTML, log en `NotificacionLog` y WhatsApp Twilio/Meta ya funcionando). Además, los días de cada hito (antes fijos en 5/10/15) ahora son configurables desde `ConfiguracionNotificaciones` (campos `dias_recordatorio_1/2`, `dias_alerta_director`), expuestos en el panel de Configuración de Notificaciones — cambiarlos no requiere deploy. Nota de comportamiento: la alerta de día 15 ahora la recibe solo el director (antes también se le mandaba un email al representante desde `portal/tasks.py`); si el negocio prefiere que el representante también reciba ese último aviso, hay que ajustarlo en `notificaciones/services.py::notificar_mora`.
+2. Compartir el `alumnoActivo` del portal de representantes vía Context/URL param entre las 5 páginas — elimina la re-selección repetida.
+3. Agregar columna de "días de atraso" en `Morosos.jsx` (el dato ya se puede derivar de `mora.py`).
+4. Botón "Marcar todos presentes" + excepciones en `Asistencia.jsx`, siguiendo el patrón ya validado de `ClasificacionBatchModal`.
+5. Corregir `ExportarAuditoriaExcelView` para que exporte `LogAuditoria`, no `Pago` (o renombrar el botón si el negocio prefiere mantenerlo como está).
+
+**Estructurales (requieren más diseño/decisión de negocio):**
+6. Decidir el futuro de `CierreCaja`: implementar el flujo real de arqueo (declarar monto contado, validación de director, bloqueo de ediciones) o renombrar `CierreCajaTab.jsx` para dejar de prometer algo que no hace.
+7. Unificar `rrhh.Empleado` y `nomina.Empleado`, y conectar el motor de cálculo legal (`nomina/models.py`) a un flujo real de "generar nómina del mes en lote" con persistencia server-side, reemplazando el cálculo duplicado en `avec.js`.
+8. Dar de alta el endpoint faltante para `TransferenciaInterna`, o quitar esa función de la lista comercial si no se va a construir.
+9. Definir si el sistema de Notas "clásico" y el de Plan de Evaluación conviven a propósito o si uno debe reemplazar al otro (mismo hallazgo que el diagnóstico del 2026-08-24 de este archivo, ítem 6).
+
+Los ítems 1 y 3 son los de mejor relación esfuerzo/impacto: el primero activa una función (WhatsApp) que ya está construida y pagada en horas de desarrollo, y el segundo es un cambio de una columna con datos que ya existen en el backend.

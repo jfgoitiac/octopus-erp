@@ -440,6 +440,62 @@ class PortalHistorialPagosView(APIView):
         })
 
 
+class PortalReciboPagoView(APIView):
+    """
+    GET /api/portal/recibo/<pago_id>/
+    Descarga el recibo PDF de un pago confirmado del representante autenticado.
+    Reusa cobranza.utils.generar_pdf_recibo — el mismo generador que
+    cobranza.views.ReciboView usa para el panel admin — para no duplicar el
+    formato del recibo ni el manejo de operaciones multipago (un Pago puede
+    saldar la deuda de varios hermanos a la vez, ver pagos_de_alumno).
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pago_id):
+        from django.db.models import Q
+        from django.http import FileResponse
+        from cobranza.utils import generar_pdf_recibo
+
+        representante = _get_representante(request)
+
+        try:
+            pago = Pago.objects.filter(
+                Q(alumno__representante=representante)
+                | Q(mensualidades_pagadas__alumno__representante=representante)
+                | Q(cuotas_inscripcion_pagadas__alumno__representante=representante)
+                | Q(cuotas_solvencia_pagadas__alumno__representante=representante)
+            ).distinct().get(id=pago_id, estatus='completado')
+        except Pago.DoesNotExist:
+            return Response(
+                {'error': 'Pago no encontrado, no está confirmado, o no pertenece a sus alumnos.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        pagos = list(
+            Pago.objects.filter(operacion_uuid=pago.operacion_uuid).select_related(
+                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
+            ).order_by('id')
+        )
+
+        try:
+            pdf_buffer = generar_pdf_recibo(pagos)
+        except Exception as e:
+            logger.error(f'Error generando PDF de recibo {pago_id} (portal): {e}')
+            return Response(
+                {'error': 'No se pudo generar el recibo PDF.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        factura_label = pago.factura_id or f"{pago.id:06d}"
+        return FileResponse(
+            pdf_buffer,
+            as_attachment=True,
+            filename=f"Recibo_{factura_label}.pdf",
+            content_type='application/pdf'
+        )
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # SUBIDA DE COMPROBANTE DE PAGO
 # ──────────────────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ from .views import (
     ExportarAlumnosExcelView, ExportarRepresentantesExcelView,
     GradosListView, InscripcionListView, MatriculaGradoView,
     ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
+    ExportarAuditoriaLogExcelView,
     ImportarEstudiantesView,
     InscripcionNuevaView, LogAuditoriaListView,
     PlanillaPreinscripcionView, PlanillaPreinscripcionMasivaView,
@@ -45,6 +46,7 @@ urlpatterns = [
 
     # Auditoría
     path('auditoria/',                            LogAuditoriaListView.as_view(),         name='auditoria-lista'),
+    path('auditoria/exportar-excel/',             ExportarAuditoriaLogExcelView.as_view(), name='auditoria-exportar-excel'),
 
     # Exportaciones Excel
     path('exportar-alumnos-excel/',               ExportarAlumnosExcelView.as_view(),         name='exportar-alumnos-excel'),
