@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, PlusCircle, Loader2, Save, Search, User, AlertCircle } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import { PlusCircle, Loader2, Save, Search, User, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
 import DatePickerES from '../DatePickerES';
 import DecimalInput from '../DecimalInput';
 import { getDeudaAlumno, cargarPagoRetroactivo } from '../../api/cobranza.service';
 import { METODO_LABELS, today, getErrorMessage } from '../../constants/reportes';
+import { Modal } from '../ui/Modal';
 
 const MOTIVO_MIN_LEN = 10;
 
@@ -32,15 +32,6 @@ const requiereBanco = (m) => m && !['efectivo', 'efectivo_ves'].includes(m);
  * completo de Cobranza.jsx.
  */
 const CargarPagoRetroactivoModal = ({ bancosDisponibles, onClose, onGuardado }) => {
-    const containerRef = useRef(null);
-    useFocusTrap(containerRef);
-
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onClose]);
-
     // ── Búsqueda de alumno/representante por cédula ──
     const [cedula, setCedula] = useState('');
     const [buscando, setBuscando] = useState(false);
@@ -144,246 +135,238 @@ const CargarPagoRetroactivoModal = ({ bancosDisponibles, onClose, onGuardado }) 
         }
     };
 
+    const footer = (
+        <>
+            <button onClick={onClose}
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                Cancelar
+            </button>
+            <button
+                onClick={handleGuardar}
+                disabled={guardando || (touched && hayErrores)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--pb)' }}>
+                {guardando ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Registrar pago
+            </button>
+        </>
+    );
+
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
-            style={{ background: 'rgba(43,48,58,0.6)' }}
-            role="dialog" aria-modal="true" aria-labelledby="retroactivo-title">
-            <div
-                ref={containerRef}
-                className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl animate-fadeInUp"
-                style={{ background: '#fff' }}>
-                {/* Encabezado */}
-                <div className="px-6 py-4 flex items-start justify-between gap-3"
-                    style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                    <div>
-                        <h3 id="retroactivo-title" className="text-base font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-                            <PlusCircle size={18} style={{ color: 'var(--pb)' }} />
-                            Cargar Pago Retroactivo
-                        </h3>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                            Registra un pago cuyo dinero ya se recibió, con fecha en el pasado.
-                        </p>
+        <Modal
+            open
+            onClose={onClose}
+            className="z-[100]"
+            titulo={(
+                <div>
+                    <div className="flex items-center gap-2">
+                        <PlusCircle size={17} />
+                        Cargar Pago Retroactivo
                     </div>
-                    <button onClick={onClose} aria-label="Cerrar" style={{ color: 'var(--ash)' }}
-                        className="flex items-center justify-center p-2 rounded-lg min-h-[44px] min-w-[44px]">
-                        <X size={18} />
-                    </button>
+                    <p className="text-xs mt-0.5 font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                        Registra un pago cuyo dinero ya se recibió, con fecha en el pasado.
+                    </p>
+                </div>
+            )}
+            footer={footer}
+            size="md"
+        >
+            <div className="space-y-4">
+                {/* Búsqueda de alumno */}
+                <div>
+                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                        Cédula del representante
+                    </label>
+                    <div className="relative">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
+                        <input
+                            type="text"
+                            value={cedula}
+                            onChange={e => buscarAlumno(e.target.value)}
+                            placeholder="Ej: V-12345678"
+                            className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
+                            style={{ border: `0.5px solid ${touched && errores.alumno ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                        />
+                        {buscando && <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--pb)' }} />}
+                    </div>
+                    {touched && errores.alumno && (
+                        <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: 'var(--red)' }}>
+                            <AlertCircle size={11} /> Busca y selecciona el alumno.
+                        </p>
+                    )}
                 </div>
 
-                <div className="p-6 space-y-4">
-                    {/* Búsqueda de alumno */}
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                            Cédula del representante
-                        </label>
-                        <div className="relative">
-                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
-                            <input
-                                type="text"
-                                value={cedula}
-                                onChange={e => buscarAlumno(e.target.value)}
-                                placeholder="Ej: V-12345678"
-                                className="w-full pl-9 pr-8 py-2 rounded-lg text-sm outline-none"
-                                style={{ border: `0.5px solid ${touched && errores.alumno ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
-                            />
-                            {buscando && <Loader2 size={14} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--pb)' }} />}
-                        </div>
-                        {touched && errores.alumno && (
-                            <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: 'var(--red)' }}>
-                                <AlertCircle size={11} /> Busca y selecciona el alumno.
-                            </p>
-                        )}
+                {representante && (
+                    <div className="rounded-lg p-3" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                        <p className="text-xs font-semibold" style={{ color: 'var(--jet)' }}>{representante.nombre}</p>
+                        <p className="text-[10px] font-mono" style={{ color: 'var(--ash)' }}>{representante.cedula}</p>
                     </div>
+                )}
 
-                    {representante && (
-                        <div className="rounded-lg p-3" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
-                            <p className="text-xs font-semibold" style={{ color: 'var(--jet)' }}>{representante.nombre}</p>
-                            <p className="text-[10px] font-mono" style={{ color: 'var(--ash)' }}>{representante.cedula}</p>
-                        </div>
-                    )}
-
-                    {/* Selección de alumno (si hay más de uno) */}
-                    {alumnos.length > 0 && (
-                        <div>
-                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                Alumno
-                            </label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {alumnos.map(a => (
-                                    <button
-                                        key={a.id}
-                                        type="button"
-                                        onClick={() => setAlumnoSeleccionado(a)}
-                                        className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium"
-                                        style={{
-                                            border: alumnoSeleccionado?.id === a.id ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
-                                            background: alumnoSeleccionado?.id === a.id ? 'var(--pb-light)' : '#fff',
-                                            color: alumnoSeleccionado?.id === a.id ? 'var(--pb)' : 'var(--ash)',
-                                        }}>
-                                        <User size={12} />
-                                        {a.nombre_completo || a.nombre}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Concepto */}
+                {/* Selección de alumno (si hay más de uno) */}
+                {alumnos.length > 0 && (
                     <div>
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                            Concepto
+                            Alumno
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                            {alumnos.map(a => (
+                                <button
+                                    key={a.id}
+                                    type="button"
+                                    onClick={() => setAlumnoSeleccionado(a)}
+                                    className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium"
+                                    style={{
+                                        border: alumnoSeleccionado?.id === a.id ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
+                                        background: alumnoSeleccionado?.id === a.id ? 'var(--pb-light)' : '#fff',
+                                        color: alumnoSeleccionado?.id === a.id ? 'var(--pb)' : 'var(--ash)',
+                                    }}>
+                                    <User size={12} />
+                                    {a.nombre_completo || a.nombre}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Concepto */}
+                <div>
+                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                        Concepto
+                    </label>
+                    <select
+                        value={concepto}
+                        onChange={e => setConcepto(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+                        {CONCEPTOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                </div>
+
+                {/* Método + Monto */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Método de pago
                         </label>
                         <select
-                            value={concepto}
-                            onChange={e => setConcepto(e.target.value)}
+                            value={metodoPago}
+                            onChange={e => {
+                                const val = e.target.value;
+                                setMetodoPago(val);
+                                if (!requiereBanco(val)) setBancoReceptor('');
+                                if (val !== 'punto_de_venta') setNumeroLote('');
+                            }}
                             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                             style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
-                            {CONCEPTOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                            {Object.entries(METODO_LABELS).map(([val, label]) => (
+                                <option key={val} value={val}>{label}</option>
+                            ))}
                         </select>
                     </div>
-
-                    {/* Método + Monto */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                Método de pago
-                            </label>
-                            <select
-                                value={metodoPago}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    setMetodoPago(val);
-                                    if (!requiereBanco(val)) setBancoReceptor('');
-                                    if (val !== 'punto_de_venta') setNumeroLote('');
-                                }}
-                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
-                                {Object.entries(METODO_LABELS).map(([val, label]) => (
-                                    <option key={val} value={val}>{label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                Monto USD
-                            </label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>$</span>
-                                <DecimalInput
-                                    value={montoUsd}
-                                    onChange={setMontoUsd}
-                                    className="w-full pl-7 pr-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: `0.5px solid ${touched && errores.monto ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
-                                />
-                            </div>
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Monto USD
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>$</span>
+                            <DecimalInput
+                                value={montoUsd}
+                                onChange={setMontoUsd}
+                                className="w-full pl-7 pr-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: `0.5px solid ${touched && errores.monto ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                            />
                         </div>
                     </div>
+                </div>
 
-                    {/* Banco */}
-                    {bancoRequerido && (
+                {/* Banco */}
+                {bancoRequerido && (
+                    <div>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Banco receptor
+                        </label>
+                        <select
+                            value={bancoReceptor}
+                            onChange={e => setBancoReceptor(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                            style={{ border: `0.5px solid ${touched && errores.banco ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}>
+                            <option value="">Seleccionar banco…</option>
+                            {bancosDisponibles.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+                        </select>
+                    </div>
+                )}
+
+                {/* Referencia + lote */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className={esPuntoDeVenta ? '' : 'col-span-2'}>
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Nº de referencia{esPuntoDeVenta ? ' (4 dígitos)' : ''}
+                        </label>
+                        <input
+                            type="text"
+                            value={referencia}
+                            onChange={e => setReferencia(esPuntoDeVenta ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value)}
+                            maxLength={esPuntoDeVenta ? 4 : undefined}
+                            placeholder={esPuntoDeVenta ? 'Ej: 1234' : 'Opcional'}
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                            style={{ border: `0.5px solid ${touched && errores.referenciaPdv ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                        />
+                    </div>
+                    {esPuntoDeVenta && (
                         <div>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                Banco receptor
-                            </label>
-                            <select
-                                value={bancoReceptor}
-                                onChange={e => setBancoReceptor(e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                style={{ border: `0.5px solid ${touched && errores.banco ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}>
-                                <option value="">Seleccionar banco…</option>
-                                {bancosDisponibles.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* Referencia + lote */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className={esPuntoDeVenta ? '' : 'col-span-2'}>
-                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                Nº de referencia{esPuntoDeVenta ? ' (4 dígitos)' : ''}
+                                Nº de lote (4 dígitos)
                             </label>
                             <input
                                 type="text"
-                                value={referencia}
-                                onChange={e => setReferencia(esPuntoDeVenta ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value)}
-                                maxLength={esPuntoDeVenta ? 4 : undefined}
-                                placeholder={esPuntoDeVenta ? 'Ej: 1234' : 'Opcional'}
+                                value={numeroLote}
+                                onChange={e => setNumeroLote(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                maxLength={4}
+                                placeholder="Ej: 0042"
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                style={{ border: `0.5px solid ${touched && errores.referenciaPdv ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                style={{ border: `0.5px solid ${touched && errores.lote ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
                             />
                         </div>
-                        {esPuntoDeVenta && (
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                    Nº de lote (4 dígitos)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={numeroLote}
-                                    onChange={e => setNumeroLote(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                    maxLength={4}
-                                    placeholder="Ej: 0042"
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: `0.5px solid ${touched && errores.lote ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Fecha de pago (retroactiva, no futura) */}
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                            Fecha en que se recibió el pago
-                        </label>
-                        <DatePickerES
-                            value={fechaPago}
-                            onChange={e => setFechaPago(e.target.value)}
-                            maxDate={today()}
-                            className="px-3 py-2 rounded-lg text-sm outline-none w-full"
-                            style={{ border: `0.5px solid ${touched && errores.fecha ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
-                        />
-                    </div>
-
-                    {/* Motivo (obligatorio) */}
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
-                            Motivo de la carga retroactiva <span style={{ color: 'var(--red)' }}>*</span>
-                        </label>
-                        <textarea
-                            value={motivo}
-                            onChange={e => setMotivo(e.target.value)}
-                            rows={3}
-                            placeholder="Explica por qué se registra este pago fuera del flujo normal (mínimo 10 caracteres)…"
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-                            style={{ border: `0.5px solid ${touched && errores.motivo ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
-                        />
-                        {touched && errores.motivo && (
-                            <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
-                                Escribe al menos {MOTIVO_MIN_LEN} caracteres explicando el motivo.
-                            </p>
-                        )}
-                    </div>
+                    )}
                 </div>
 
-                {/* Footer */}
-                <div className="px-6 py-4 flex justify-end gap-2"
-                    style={{ borderTop: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                    <button onClick={onClose}
-                        className="px-4 py-2 rounded-lg text-sm font-medium"
-                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={handleGuardar}
-                        disabled={guardando || (touched && hayErrores)}
-                        className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                        style={{ background: 'var(--pb)' }}>
-                        {guardando ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                        Registrar pago
-                    </button>
+                {/* Fecha de pago (retroactiva, no futura) */}
+                <div>
+                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                        Fecha en que se recibió el pago
+                    </label>
+                    <DatePickerES
+                        value={fechaPago}
+                        onChange={e => setFechaPago(e.target.value)}
+                        maxDate={today()}
+                        className="px-3 py-2 rounded-lg text-sm outline-none w-full"
+                        style={{ border: `0.5px solid ${touched && errores.fecha ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                    />
+                </div>
+
+                {/* Motivo (obligatorio) */}
+                <div>
+                    <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                        Motivo de la carga retroactiva <span style={{ color: 'var(--red)' }}>*</span>
+                    </label>
+                    <textarea
+                        value={motivo}
+                        onChange={e => setMotivo(e.target.value)}
+                        rows={3}
+                        placeholder="Explica por qué se registra este pago fuera del flujo normal (mínimo 10 caracteres)…"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                        style={{ border: `0.5px solid ${touched && errores.motivo ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                    />
+                    {touched && errores.motivo && (
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
+                            Escribe al menos {MOTIVO_MIN_LEN} caracteres explicando el motivo.
+                        </p>
+                    )}
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 

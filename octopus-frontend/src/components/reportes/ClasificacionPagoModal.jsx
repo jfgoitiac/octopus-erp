@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import {
-    Loader2, Save, Layers, Pencil, Trash2, PlusCircle, X, AlertTriangle, ArrowRight,
+    Loader2, Save, Layers, Pencil, Trash2, PlusCircle, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { toast } from 'react-toastify';
 import {
     crearClasificacionPago,
@@ -11,6 +10,7 @@ import {
     eliminarClasificacionLinea,
 } from '../../api/cobranza.service';
 import { fmt, MONTH_NAMES, CURRENT_YEAR, TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, getErrorMessage } from '../../constants/reportes';
+import { Modal } from '../ui/Modal';
 
 /**
  * Modal/drawer para desglosar un pago (especialmente los marcados como "mixto")
@@ -18,15 +18,6 @@ import { fmt, MONTH_NAMES, CURRENT_YEAR, TIPO_CLASIFICACION_LABELS, ESTADO_CLASI
  * Mes Atrasado (con mes+año) o Proyecto de Inversión Atrasado.
  */
 const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado, onSiguientePendiente }) => {
-    const containerRef = useRef(null);
-    useFocusTrap(containerRef);
-
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onClose]);
-
     const [lineas, setLineas] = useState(pago.clasificaciones || []);
     const [montoClasificado, setMontoClasificado] = useState(pago.monto_clasificado_usd || 0);
     const [montoPendiente, setMontoPendiente] = useState(pago.monto_pendiente_usd ?? pago.monto_usd);
@@ -170,43 +161,40 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado, onSiguienteP
 
     const estStyle = ESTADO_CLASIF_STYLE[estadoClasificacion] || ESTADO_CLASIF_STYLE.sin_clasificar;
 
+    const titulo = (
+        <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+                <Layers size={17} />
+                Clasificar Pago
+            </div>
+            <p className="text-xs mt-0.5 font-normal truncate" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                {pago.alumno || '—'} · {pago.representante_nombre} · Ref. {pago.referencia || '—'}
+            </p>
+        </div>
+    );
+
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
-            style={{ background: 'rgba(43,48,58,0.55)' }}>
-            <div
-                ref={containerRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="clasificacion-modal-title"
-                className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl animate-fadeInUp"
-                style={{ background: '#fff' }}>
-                {/* Encabezado */}
-                <div className="px-6 py-4 flex items-start justify-between gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                    <div>
-                        <h3 id="clasificacion-modal-title" className="text-base font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-                            <Layers size={18} style={{ color: 'var(--pb)' }} />
-                            Clasificar Pago
-                        </h3>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                            {pago.alumno || '—'} · {pago.representante_nombre} · Ref. {pago.referencia || '—'}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
+        <>
+            <Modal
+                open
+                onClose={onClose}
+                className="z-[100]"
+                titulo={(
+                    <div className="flex items-center justify-between w-full gap-2">
+                        {titulo}
                         {onSiguientePendiente && (
                             <button
                                 onClick={() => onSiguientePendiente(pago.id)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
-                                style={{ background: 'var(--pb)', color: '#fff' }}>
-                                Siguiente pendiente <ArrowRight size={13} />
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0"
+                                style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                                Siguiente <ArrowRight size={13} />
                             </button>
                         )}
-                        <button onClick={onClose} aria-label="Cerrar" style={{ color: 'var(--ash)' }}>
-                            <X size={18} />
-                        </button>
                     </div>
-                </div>
-
-                <div className="p-6 space-y-6">
+                )}
+                size="lg"
+            >
+                <div className="space-y-6">
                     {/* Progreso */}
                     <div>
                         <div className="flex justify-between items-center mb-1.5">
@@ -398,7 +386,7 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado, onSiguienteP
                         </button>
                     </div>
                 </div>
-            </div>
+            </Modal>
 
             {lineaAEliminar && (
                 <ConfirmDeleteModal
@@ -408,7 +396,7 @@ const ClasificacionPagoModal = ({ pago, onClose, onPagoActualizado, onSiguienteP
                     onCancel={() => !eliminando && setLineaAEliminar(null)}
                 />
             )}
-        </div>
+        </>
     );
 };
 
