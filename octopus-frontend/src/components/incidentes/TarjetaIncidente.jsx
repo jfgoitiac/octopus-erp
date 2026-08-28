@@ -9,7 +9,8 @@ const SEVERIDAD_CONFIG = {
 };
 
 const TarjetaIncidente = memo(({ incidente }) => {
-  const { alumno_nombre, fecha, descripcion, severidad, severidad_label, adjunto, registrado_por_username } = incidente;
+  const { alumno_nombre, fecha, descripcion, severidad, severidad_label, adjunto, registrado_por_username, registrado_por_nombre } = incidente;
+  const registradoPor = registrado_por_nombre || registrado_por_username;
   const cfg = SEVERIDAD_CONFIG[severidad] || SEVERIDAD_CONFIG.L;
 
   return (
@@ -30,7 +31,7 @@ const TarjetaIncidente = memo(({ incidente }) => {
       <p className="text-sm mb-3" style={{ color: 'var(--jet)' }}>{descripcion}</p>
 
       <div className="flex items-center justify-between text-xs" style={{ color: 'var(--ash)' }}>
-        <span>{fmtFecha(fecha)} {registrado_por_username ? `— ${registrado_por_username}` : ''}</span>
+        <span>{fmtFecha(fecha)} {registradoPor ? `— ${registradoPor}` : ''}</span>
         {adjunto && (
           <a
             href={adjunto}

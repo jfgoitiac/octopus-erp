@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { parse, format, isValid } from 'date-fns';
 import { useAuditoria } from '../hooks/useAuditoria';
 import { fmt, formatLogDate, badgeClass } from '../utils/auditoria.utils';
+import { nombreUsuario, inicialesUsuario } from '../utils/nombreUsuario';
 
 function parseISODate(str) {
     if (!str) return null;
@@ -104,7 +105,8 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
 
     const logsFiltrados = useMemo(() => (
         logs.filter(log => {
-            const username    = log.usuario?.username || log.usuario_nombre || 'SISTEMA';
+            const username    = log.usuario?.username || '';
+            const nombre      = nombreUsuario(log.usuario) || 'SISTEMA';
             const accion      = log.accion || '';
             const detallesStr = typeof log.detalles === 'string'
                 ? log.detalles
@@ -113,6 +115,7 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
             const cumpleBusqueda =
                 detallesStr.toLowerCase().includes(term) ||
                 username.toLowerCase().includes(term) ||
+                nombre.toLowerCase().includes(term) ||
                 accion.toLowerCase().includes(term);
             const cumpleModulo = filtroModulo === 'TODOS' || log.modulo === filtroModulo;
             return cumpleBusqueda && cumpleModulo;
@@ -209,10 +212,10 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
                                             style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                            {(log.usuario?.username || 'S')[0].toUpperCase()}
+                                            {log.usuario ? inicialesUsuario(log.usuario) : 'S'}
                                         </div>
                                         <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
-                                            {log.usuario?.username || log.usuario_nombre || 'SISTEMA'}
+                                            {log.usuario ? nombreUsuario(log.usuario) : 'SISTEMA'}
                                         </span>
                                     </div>
                                 </td>

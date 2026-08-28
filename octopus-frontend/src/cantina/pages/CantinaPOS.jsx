@@ -8,6 +8,7 @@ import {
   getAperturaCajaActual,
 } from '../../api/cantina.service';
 import { AuthContext } from '../../context/AuthContext';
+import { nombreUsuario } from '../../utils/nombreUsuario';
 import CarritoVenta from '../../components/cantina/pos/CarritoVenta';
 import ScannerProducto from '../../components/cantina/pos/ScannerProducto';
 import ScannerTarjeta from '../../components/cantina/pos/ScannerTarjeta';
@@ -288,7 +289,7 @@ export default function CantinaPOS() {
             Punto de venta
           </h1>
           <p className="text-sm" style={{ color: 'var(--ash)' }}>
-            Cajero: {user?.nombre || user?.username} · {format(new Date(), "d 'de' MMMM, HH:mm", { locale: es })}
+            Cajero: {nombreUsuario(user)} · {format(new Date(), "d 'de' MMMM, HH:mm", { locale: es })}
           </p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
+import { nombreUsuario } from '../../utils/nombreUsuario';
 
 // Nav de cantina.md — todas las fases (0-7) ya están implementadas:
 // Inventario (Fase 1), Tarjetas (Fase 2), POS (Fase 4), Cierre de caja
@@ -82,7 +83,7 @@ const CantinaLayout = () => {
         <div className="px-3 py-4 border-t border-gray-100">
           <div className="px-3 py-2 mb-1">
             <p className="text-sm font-medium text-gray-800 truncate">
-              {user?.nombre || user?.username}
+              {nombreUsuario(user)}
             </p>
             <p className="text-xs text-gray-400">
               {ROL_LABELS[user?.rol] || user?.rol}

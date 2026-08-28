@@ -142,7 +142,7 @@ export default function CantinaCierreCaja() {
         </h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
           {yaCerrado
-            ? `Caja cerrada el ${formatearFecha(cierre.cerrado_en)} por ${cierre.cajero_username || 'ti'}.`
+            ? `Caja cerrada el ${formatearFecha(cierre.cerrado_en)} por ${cierre.cajero_nombre || cierre.cajero_username || 'ti'}.`
             : 'Revisa el resumen del día y registra el conteo físico para cerrar la caja.'}
         </p>
       </div>

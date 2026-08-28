@@ -5,7 +5,8 @@ import CircularLecturasModal from './CircularLecturasModal';
 
 const TarjetaCircular = memo(({ circular }) => {
   const [verLecturas, setVerLecturas] = useState(false);
-  const { id, titulo, cuerpo, fecha_publicacion, adjunto, requiere_confirmacion, publicado_por_username, total_destinatarios, total_leidas } = circular;
+  const { id, titulo, cuerpo, fecha_publicacion, adjunto, requiere_confirmacion, publicado_por_username, publicado_por_nombre, total_destinatarios, total_leidas } = circular;
+  const publicadoPor = publicado_por_nombre || publicado_por_username;
 
   return (
     <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -24,7 +25,7 @@ const TarjetaCircular = memo(({ circular }) => {
       <p className="text-sm mb-3 line-clamp-3" style={{ color: 'var(--jet)' }}>{cuerpo}</p>
 
       <div className="flex items-center justify-between text-xs flex-wrap gap-2" style={{ color: 'var(--ash)' }}>
-        <span>{fmtFecha(fecha_publicacion)} {publicado_por_username ? `— ${publicado_por_username}` : ''}</span>
+        <span>{fmtFecha(fecha_publicacion)} {publicadoPor ? `— ${publicadoPor}` : ''}</span>
         <div className="flex items-center gap-3">
           {adjunto && (
             <a

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Lock, Eye, EyeOff, Key, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { nombreUsuario } from '../../../utils/nombreUsuario';
 
 const ResetPasswordModal = ({ targetUser, onClose, onResetPassword }) => {
     const [newPassword,  setNewPassword]  = useState('');
@@ -32,7 +33,7 @@ const ResetPasswordModal = ({ targetUser, onClose, onResetPassword }) => {
                     <div>
                         <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Restablecer contraseña</h3>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                            Usuario: <span className="font-bold">{targetUser?.username}</span>
+                            Usuario: <span className="font-bold">{nombreUsuario(targetUser)}</span>
                         </p>
                     </div>
                     <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>

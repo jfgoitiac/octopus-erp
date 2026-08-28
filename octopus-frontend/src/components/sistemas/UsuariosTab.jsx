@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useUsuariosSistemas } from '../../hooks/useUsuariosSistemas';
 import { getRolStyle } from '../../constants/roles';
+import { nombreUsuario } from '../../utils/nombreUsuario';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import CrearUsuarioModal from './modals/CrearUsuarioModal';
 import EditRolModal from './modals/EditRolModal';
@@ -86,7 +87,7 @@ const UsuariosTab = () => {
                             ) : usuarios.length > 0 ? usuarios.map(u => (
                                 <tr key={u.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
                                     <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                        {u.username}
+                                        {nombreUsuario(u)}
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase ${getRolStyle(u.perfil?.rol)}`}>
@@ -209,7 +210,7 @@ const UsuariosTab = () => {
             {showDelete && selectedUser && (
                 <ConfirmDeleteModal
                     titulo="Eliminar usuario"
-                    nombre={selectedUser.username}
+                    nombre={nombreUsuario(selectedUser)}
                     onConfirm={handleConfirmDelete}
                     onCancel={() => { setShowDelete(false); setSelectedUser(null); }}
                 />

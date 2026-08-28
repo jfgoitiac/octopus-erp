@@ -55,7 +55,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
             ) : (
               <div className="flex flex-wrap gap-2 mb-3">
                 {materias.map(m => {
-                  const docenteNombre = m.docente_username || m.docente?.username || null;
+                  const docenteNombre = m.docente_nombre || m.docente_username || m.docente?.username || null;
                   return (
                     <button
                       key={m.id}

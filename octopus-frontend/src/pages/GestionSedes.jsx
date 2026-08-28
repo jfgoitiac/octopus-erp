@@ -7,6 +7,7 @@ import { useSedes } from '../hooks/useSedes';
 import { useUsuariosSede } from '../hooks/useUsuariosSede';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { ROL_OPTIONS } from '../constants/roles';
+import { nombreUsuario } from '../utils/nombreUsuario';
 
 // ── Skeleton genérico ─────────────────────────────────────────────────────────
 // cols debe coincidir con el número real de columnas de cada tabla
@@ -326,7 +327,7 @@ const GestionSedes = () => {
                       </tr>
                     ) : usuarios.map(u => (
                       <tr key={u.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                        <td className="py-2.5 pr-3 font-medium" style={{ color: 'var(--jet)' }}>{u.username}</td>
+                        <td className="py-2.5 pr-3 font-medium" style={{ color: 'var(--jet)' }}>{nombreUsuario(u)}</td>
                         <td className="py-2.5 pr-3">
                           <span
                             className="px-2 py-0.5 rounded-full text-[10px] capitalize"
@@ -491,7 +492,7 @@ const GestionSedes = () => {
       {usuarioParaRevocar && (
         <ConfirmDeleteModal
           titulo="Revocar acceso a la sede"
-          nombre={usuarioParaRevocar.username}
+          nombre={nombreUsuario(usuarioParaRevocar)}
           onConfirm={confirmarRevocar}
           onCancel={cancelarRevocar}
         />

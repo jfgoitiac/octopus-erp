@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, UserCog, Loader2 } from 'lucide-react';
 import { ROL_OPTIONS } from '../../../constants/roles';
+import { nombreUsuario } from '../../../utils/nombreUsuario';
 
 const EditRolModal = ({ targetUser, onClose, onEditRol }) => {
     const [newRol,   setNewRol]   = useState(targetUser?.perfil?.rol ?? 'cajero');
@@ -30,7 +31,7 @@ const EditRolModal = ({ targetUser, onClose, onEditRol }) => {
                     <div>
                         <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Editar rol</h3>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                            Usuario: <span className="font-bold">{targetUser?.username}</span>
+                            Usuario: <span className="font-bold">{nombreUsuario(targetUser)}</span>
                         </p>
                     </div>
                     <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>

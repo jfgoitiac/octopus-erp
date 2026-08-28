@@ -15,7 +15,7 @@ const Materias = () => {
     const termino = filtro.trim().toLowerCase();
     return materias.filter(materia => {
       const coincideGrado = !grado || materia.grado_seccion === grado;
-      const coincideTexto = !termino || `${materia.nombre} ${materia.grado_seccion} ${materia.docente_username || ''}`.toLowerCase().includes(termino);
+      const coincideTexto = !termino || `${materia.nombre} ${materia.grado_seccion} ${materia.docente_nombre || materia.docente_username || ''}`.toLowerCase().includes(termino);
       return coincideGrado && coincideTexto;
     });
   }, [filtro, grado, materias]);
@@ -97,7 +97,7 @@ const Materias = () => {
                   <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
                     <GraduationCap size={13} /> {materia.grado_seccion}
                     <span aria-hidden="true">·</span>
-                    <UserRound size={13} /> {materia.docente_username || 'Sin docente asignado'}
+                    <UserRound size={13} /> {materia.docente_nombre || materia.docente_username || 'Sin docente asignado'}
                   </p>
                 </div>
                 <span className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--ash)' }}>{materia.horas_academicas} h/sem.</span>

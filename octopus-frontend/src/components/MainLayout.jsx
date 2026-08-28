@@ -6,6 +6,7 @@ import Sidebar from './Sidebar';
 import { AuthContext } from '../context/AuthContext';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import axiosInstance from '../api/apiClient';
+import { inicialesUsuario } from '../utils/nombreUsuario';
 
 const PAGE_TITLES = {
   '/':                   'Panel de control',
@@ -35,7 +36,7 @@ const MainLayout = () => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
   const title = PAGE_TITLES[location.pathname] || 'Octopus ERP';
-  const initials = (user?.username || 'U').slice(0, 2).toUpperCase();
+  const initials = inicialesUsuario(user);
   const isFullPage = FULL_HEIGHT_PAGES.includes(location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

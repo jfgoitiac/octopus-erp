@@ -5,6 +5,7 @@ import { useSede } from '../context/SedeContext';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import SedeSwitcher from './SedeSwitcher';
 import logoColegio from '../assets/logo-colegio.png';
+import { nombreUsuario, inicialesUsuario } from '../utils/nombreUsuario';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, ShieldCheck,
@@ -50,6 +51,7 @@ const navSections = [
       { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'sistemas', 'secretaria'] },
       { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas'] },
       { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director', 'sistemas'] },
+      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,     roles: ['director', 'sistemas'] },
       { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'sistemas', 'administrador'] },
     ],
   },
@@ -86,7 +88,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
   const location = useLocation();
 
   const userRole = (user?.rol || '').toLowerCase().trim();
-  const initials = (user?.username || 'U').slice(0, 2).toUpperCase();
+  const initials = inicialesUsuario(user);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -155,7 +157,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
-            {user?.username || 'Usuario'}
+            {nombreUsuario(user)}
           </p>
           <span
             className="text-[10px] px-2 py-0.5 rounded-full mt-0.5 inline-block capitalize"
