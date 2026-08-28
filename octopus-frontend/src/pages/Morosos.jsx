@@ -6,6 +6,7 @@ import MorososSummary from '../components/morosos/MorososSummary';
 import MorososSkeleton from '../components/morosos/MorososSkeleton';
 import MorososRow from '../components/morosos/MorososRow';
 import Pagination from '../components/shared/Pagination';
+import { TablaScroll } from '../components/ui/TablaScroll';
 
 const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', 'Solvencia (USD)', 'Días de atraso', ''];
 
@@ -51,8 +52,8 @@ const Morosos = () => {
             />
 
             {/* Toolbar */}
-            <div className="flex items-center gap-2">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1 sm:max-w-sm">
                     <Search
                         size={13}
                         className="absolute left-3 top-1/2 -translate-y-1/2"
@@ -75,11 +76,12 @@ const Morosos = () => {
                         }}
                     />
                 </div>
+                <div className="flex gap-2">
                 <button
                     onClick={refetch}
                     disabled={loading}
                     aria-label="Refrescar lista de morosos"
-                    className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs disabled:opacity-50 min-h-[44px]"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-[7px] rounded-lg text-xs disabled:opacity-50 min-h-[44px]"
                     style={{
                         border: '0.5px solid var(--border-md)',
                         color: 'var(--ash)',
@@ -93,7 +95,7 @@ const Morosos = () => {
                     onClick={handleExportExcel}
                     disabled={exportingExcel || loading}
                     aria-label="Exportar morosos a Excel"
-                    className="flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[44px]"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[44px]"
                     style={{ background: 'var(--jet)' }}
                 >
                     {exportingExcel
@@ -101,11 +103,12 @@ const Morosos = () => {
                         : <Download size={13} />}
                     Excel
                 </button>
+                </div>
             </div>
 
             {/* Tabla con scroll horizontal en móvil */}
             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-                <div className="overflow-x-auto">
+                <TablaScroll>
                     <table className="w-full text-sm min-w-[700px]">
                         <thead>
                             <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
@@ -164,7 +167,7 @@ const Morosos = () => {
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </TablaScroll>
                 {!loading && (
                     <Pagination
                         page={page}
