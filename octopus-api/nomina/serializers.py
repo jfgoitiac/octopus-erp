@@ -33,6 +33,7 @@ class ParametroLegalNominaSerializer(serializers.ModelSerializer):
 
 class RegistroNominaSerializer(serializers.ModelSerializer):
     empleado_nombre = serializers.SerializerMethodField()
+    empleado_rrhh_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = RegistroNomina
@@ -46,6 +47,7 @@ class RegistroNominaSerializer(serializers.ModelSerializer):
         return f'{obj.empleado.nombre} {obj.empleado.apellido}'
 
     def get_empleado_rrhh_nombre(self, obj):
-        if obj.empleado_rrhh_id:
-            return f"{obj.empleado_rrhh.nombre} {obj.empleado_rrhh.apellido}"
+        rrhh = obj.empleado.empleado_rrhh
+        if rrhh:
+            return f"{rrhh.nombre} {rrhh.apellido}"
         return None

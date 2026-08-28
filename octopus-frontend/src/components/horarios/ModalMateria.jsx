@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { X, Save, Loader2, Trash2, AlertTriangle, BookOpen } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { INPUT_STYLE } from '../../constants/styles';
+import GradoSelect from '../GradoSelect';
 import { useEscape } from '../../hooks/useEscape';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useDocentes } from '../../hooks/useDocentes';
@@ -9,6 +10,7 @@ import { useDocentes } from '../../hooks/useDocentes';
 const buildForm = (materia) => ({
   id:                        materia?.id    ?? null,
   nombre:                    materia?.nombre ?? '',
+  grado_seccion:             materia?.grado_seccion ?? '',
   horas_academicas:          materia?.horas_academicas ?? 4,
   tipo_evaluacion:           materia?.tipo_evaluacion ?? 'numerica',
   cuenta_para_promedio:      materia?.cuenta_para_promedio ?? true,
@@ -16,7 +18,7 @@ const buildForm = (materia) => ({
   docente_id:                materia?.docente_id ?? materia?.docente?.id ?? null,
 });
 
-export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => {
+export const ModalMateria = ({ materia, mostrarGrado = false, saving, onClose, onSave, onDelete }) => {
   const [form, setForm]                 = useState(() => buildForm(materia));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const containerRef                    = useRef(null);
@@ -30,6 +32,7 @@ export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.nombre.trim()) { toast.warning('Ingresa el nombre de la materia.'); return; }
+    if (mostrarGrado && !form.grado_seccion) { toast.warning('Selecciona el grado / año.'); return; }
     const horas = parseInt(form.horas_academicas, 10);
     if (!horas || horas < 1 || horas > 30) {
       toast.warning('Las horas académicas deben estar entre 1 y 30.');
@@ -71,6 +74,22 @@ export const ModalMateria = ({ materia, saving, onClose, onSave, onDelete }) => 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+          {mostrarGrado && (
+            <div>
+              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                Grado / Año
+              </label>
+              <GradoSelect
+                value={form.grado_seccion}
+                onChange={set('grado_seccion')}
+                incluirVacio
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={INPUT_STYLE}
+                required
+              />
+            </div>
+          )}
 
           {/* Nombre */}
           <div>

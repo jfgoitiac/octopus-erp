@@ -39,8 +39,8 @@ export function useHorarios() {
           const startH = parseInt(inicio.split(':')[0], 10);
           const endH   = parseInt(fin.split(':')[0], 10);
           setHorasFin(buildHoraBlocks(
-            `${String(startH + 1).padStart(2, '0')}:00`,
-            `${String(endH   + 1).padStart(2, '0')}:00`
+            `${String((startH + 1) % 24).padStart(2, '0')}:00`,
+            `${String((endH   + 1) % 24).padStart(2, '0')}:00`
           ));
         }
       })
@@ -162,6 +162,7 @@ export function useHorarios() {
     try {
       await updateMateria(form.id, {
         nombre: form.nombre,
+        grado_seccion: form.grado_seccion,
         horas_academicas: form.horas_academicas,
         tipo_evaluacion: form.tipo_evaluacion,
         cuenta_para_promedio: form.cuenta_para_promedio,

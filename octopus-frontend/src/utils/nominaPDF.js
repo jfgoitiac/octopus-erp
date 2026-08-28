@@ -7,13 +7,21 @@ import { fmtBs } from '../constants/nominaFmt';
 
 // Fallback usado solo si el llamador no pasa un objeto institucion.
 // El valor real viene de GET /api/secretaria/configuracion/ vía useInstitucionPDF.
-const INST_DEFAULT = { nombre: 'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA', logoColegio: null, logoAvec: null };
+const INST_DEFAULT = {
+    nombre:          'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA',
+    direccion:       'Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcón.',
+    municipioEstado: 'YARACAL ESTADO FALCÓN',
+    telefono:        '0259 938 1347  -  0426 563 1569',
+    rif:             'RIF-J-085222910',
+    logoColegio:     null,
+    logoAvec:        null,
+};
 
 export { fmtBs };
 
 // ── Lógica interna compartida para el recibo AVEC ────────────────────────────
 function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
-    const { nombre: nombreColegio, logoColegio, logoAvec } = { ...INST_DEFAULT, ...institucion };
+    const { nombre: nombreColegio, direccion, municipioEstado, telefono, rif, logoColegio, logoAvec } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
@@ -67,10 +75,9 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
 
     doc.setFontSize(6); doc.setFont('helvetica', 'normal');
     doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', cx, y, { align: 'center' }); y += 3;
-    doc.text('YARACAL ESTADO FALCÓN', cx, y, { align: 'center' }); y += 3;
-    doc.text('TELÉFONO 0259 938 1347  -  0426 563 1569', cx, y, { align: 'center' }); y += 3;
-    doc.text('CÓDIGO DEA PD00131104', cx, y, { align: 'center' }); y += 3;
-    doc.text('RIF-J-085222910', cx, y, { align: 'center' });
+    doc.text(municipioEstado, cx, y, { align: 'center' }); y += 3;
+    doc.text(`TELÉFONO ${telefono}`, cx, y, { align: 'center' }); y += 3;
+    doc.text(rif, cx, y, { align: 'center' });
 
     // Separador debajo de logos
     y = HDR_TOP + LOGO_SIZE + 4;
@@ -209,10 +216,7 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
     doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
     doc.line(LM, H - 14, RM, H - 14);
     doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
-    doc.text(
-        'Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcón.',
-        W / 2, H - 9, { align: 'center' }
-    );
+    doc.text(direccion, W / 2, H - 9, { align: 'center' });
 
     return doc;
 }
@@ -225,7 +229,7 @@ export function generarReciboAVECPDF(emp, data, calc, cesta, institucion = {}) {
 
 // ── Recibo simple (Administrativo / Apoyo) ────────────────────────────────────
 export function generarReciboSimplePDF(emp, data, institucion = {}) {
-    const { nombre: nombreColegio, logoColegio } = { ...INST_DEFAULT, ...institucion };
+    const { nombre: nombreColegio, municipioEstado, telefono, rif, logoColegio } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
@@ -244,7 +248,7 @@ export function generarReciboSimplePDF(emp, data, institucion = {}) {
     doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' }); y += 3.5;
     doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
     doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.text('YARACAL ESTADO FALCÓN  ·  TELÉFONOS 0259 938 1347  ·  CÓDIGO DEA PD00131104  ·  RIF-J-085222910', W / 2, y, { align: 'center' }); y += 5;
+    doc.text(`${municipioEstado}  ·  TELÉFONOS ${telefono}  ·  ${rif}`, W / 2, y, { align: 'center' }); y += 5;
     doc.setDrawColor(204, 204, 204); doc.setLineWidth(0.3); doc.line(LM, y, W - LM, y); y += 4;
     doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(204, 0, 0);
     doc.text('RECIBO DE PAGO', W / 2, y, { align: 'center' });
@@ -429,7 +433,7 @@ export function reciboAVECBytes(emp, data, calc, cesta, institucion = {}) {
  * Igual que generarReciboSimplePDF pero retorna Uint8Array en vez de auto-descargar.
  */
 export function reciboSimpleBytes(emp, data, institucion = {}) {
-    const { nombre: nombreColegio, logoColegio } = { ...INST_DEFAULT, ...institucion };
+    const { nombre: nombreColegio, municipioEstado, telefono, rif, logoColegio } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
@@ -447,7 +451,7 @@ export function reciboSimpleBytes(emp, data, institucion = {}) {
     doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' }); y += 3.5;
     doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
     doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.text('YARACAL ESTADO FALCÓN  ·  TELÉFONOS 0259 938 1347  ·  CÓDIGO DEA PD00131104  ·  RIF-J-085222910', W / 2, y, { align: 'center' }); y += 5;
+    doc.text(`${municipioEstado}  ·  TELÉFONOS ${telefono}  ·  ${rif}`, W / 2, y, { align: 'center' }); y += 5;
     doc.setDrawColor(204, 204, 204); doc.setLineWidth(0.3); doc.line(LM, y, W - LM, y); y += 4;
     doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(204, 0, 0);
     doc.text('RECIBO DE PAGO', W / 2, y, { align: 'center' });

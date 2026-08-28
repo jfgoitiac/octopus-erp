@@ -254,7 +254,7 @@ const Nomina = () => {
                                                 disabled={deletingId === emp.id}
                                                 className="flex items-center gap-1 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium min-h-[40px] sm:min-h-0 disabled:opacity-50"
                                                 style={{ color: 'var(--red)', border: '0.5px solid var(--border-md)' }}
-                                                aria-label={`Eliminar a ${emp.nombre} ${emp.apellido}`}>
+                                                aria-label={`Desactivar a ${emp.nombre} ${emp.apellido}`}>
                                                 {deletingId === emp.id
                                                     ? <Loader2 size={12} className="animate-spin" />
                                                     : <Trash2 size={12} />}
@@ -331,8 +331,10 @@ const Nomina = () => {
             ════════════════════════════════════════════════════════════ */}
             {empleadoParaEliminar && (
                 <ConfirmDeleteModal
-                    titulo="Eliminar empleado"
+                    titulo="Desactivar empleado"
                     nombre={`${empleadoParaEliminar.nombre} ${empleadoParaEliminar.apellido}`}
+                    mensaje={<>¿Desactivar a <b>{empleadoParaEliminar.nombre} {empleadoParaEliminar.apellido}</b>? No se eliminará su historial de nómina y podrá reactivarse más adelante.</>}
+                    labelBoton="Desactivar"
                     onConfirm={confirmarEliminarEmpleado}
                     onCancel={cancelarEliminarEmpleado}
                 />

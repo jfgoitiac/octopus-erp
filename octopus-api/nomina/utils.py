@@ -12,20 +12,28 @@ class GeneradorArchivoBancario:
         """
         Genera una cadena de texto formateada para el servicio de Nómina Banesco.
         Formato simplificado: Identificador + Cédula (10) + Monto (12) + Cuenta (20).
+
+        Devuelve (texto, cedulas_omitidas). Los empleados sin cuenta bancaria
+        vinculada en RRHH se omiten del archivo (no hay a dónde transferir);
+        el llamador debe avisar de `cedulas_omitidas` antes de enviar el archivo al banco.
         """
         lineas = []
+        omitidos = []
         for registro in registros_nomina:
-            # Ejemplo de formateo de posición fija
-            cedula = registro.empleado.cedula.zfill(10)
+            empleado_rrhh = getattr(registro.empleado, 'empleado_rrhh', None)
+            cuenta = (getattr(empleado_rrhh, 'numero_cuenta', '') or '').strip()
+            if not empleado_rrhh or not cuenta:
+                omitidos.append(registro.empleado.cedula)
+                continue
+            cedula = registro.empleado.cedula.lstrip('VEve-').zfill(10)
             # El monto debe ir sin puntos ni comas, 2 decimales implícitos (ej: 100,50 -> 000000010050)
             monto = str(int(registro.total_pagar_ves * 100)).zfill(12)
-            # En un entorno real, se usaría el número de cuenta guardado en el perfil del empleado
-            cuenta_dummy = "01340000000000000000" 
-            
-            linea = f"N{cedula}{monto}{cuenta_dummy}"
+            cuenta_fmt = cuenta.zfill(20)
+
+            linea = f"N{cedula}{monto}{cuenta_fmt}"
             lineas.append(linea)
-            
-        return "\n".join(lineas)
+
+        return "\n".join(lineas), omitidos
 
 class GeneradorReciboNomina:
     """

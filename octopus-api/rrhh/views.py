@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 
@@ -44,6 +45,7 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
         from django.db import models as db_models
         empleados = self.get_queryset().filter(
             db_models.Q(numero_cuenta__startswith='0114') |
+            db_models.Q(banco__codigo_bancario='0114') |
             db_models.Q(banco__nombre__icontains='bancaribe')
         ).filter(numero_cuenta__gt='', tipo_cuenta__gt='')
 
@@ -141,7 +143,22 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def get_choices(self, request):
-        return Response(
-            {"cargos": ["Profesor", "Administrativo", "Mantenimiento", "Director"]},
-            status=status.HTTP_200_OK
+        cargos = list(
+            TipoCargo.objects.filter(activo=True).order_by('nombre').values_list('nombre', flat=True)
         )
+        return Response({"cargos": cargos}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def desactivar(self, request, pk=None):
+        """Baja lógica: preserva el historial de nómina (a diferencia de un DELETE físico)."""
+        empleado = get_object_or_404(Empleado, pk=pk)
+        empleado.activo = False
+        empleado.save(update_fields=['activo'])
+        return Response(EmpleadoSerializer(empleado).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def reactivar(self, request, pk=None):
+        empleado = get_object_or_404(Empleado, pk=pk)
+        empleado.activo = True
+        empleado.save(update_fields=['activo'])
+        return Response(EmpleadoSerializer(empleado).data, status=status.HTTP_200_OK)

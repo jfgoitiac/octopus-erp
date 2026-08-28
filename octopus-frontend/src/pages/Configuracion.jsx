@@ -1351,6 +1351,17 @@ const Configuracion = () => {
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     placeholder="Ej. Banesco, Mercantil, BNC" />
                             </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Código bancario (4 dígitos)</label>
+                                <input type="text" value={bancoNominaForm.codigo_bancario || ''} maxLength={4}
+                                    onChange={e => setBancoNominaForm(p => ({ ...p, codigo_bancario: e.target.value.replace(/\D/g, '') }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                    placeholder="Ej. 0114" />
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    Usado para identificar automáticamente pagos a este banco (ej. planillas Bancaribe).
+                                </p>
+                            </div>
                             {bancoNominaEditando && (
                                 <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                     <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>

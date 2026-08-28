@@ -20,7 +20,17 @@ const LogoPlaceholder = ({ label }) => (
   </div>
 );
 
-const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs }) => (
+const INST_FALLBACK = {
+  nombre:          'U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA',
+  direccion:       'Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcon.',
+  municipioEstado: 'YARACAL ESTADO FALCÓN',
+  telefono:        '0259 938 1347  ·  0426 563 1569',
+  rif:             'RIF-J-085222910',
+};
+
+const ReceiptPreview = ({ info, institucion = {}, asignaciones, retenciones, alimentario, calcs }) => {
+  const inst = { ...INST_FALLBACK, ...institucion };
+  return (
   <div style={{
     width: '100%', minHeight: '802px',
     fontFamily: '"Arial", sans-serif',
@@ -45,11 +55,11 @@ const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs })
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
               <span style={{ fontSize: '8px',   color: '#003366' }}>REPÚBLICA BOLIVARIANA DE VENEZUELA</span>
               <span style={{ fontSize: '7.5px', color: '#000000' }}>MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</span>
-              <span style={{ fontSize: '7.5px', color: '#003366', fontWeight: '700' }}>U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA</span>
+              <span style={{ fontSize: '7.5px', color: '#003366', fontWeight: '700' }}>{inst.nombre}</span>
               <span style={{ fontSize: '7px',   color: '#000000' }}>AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA</span>
-              <span style={{ fontSize: '7px',   color: '#000000' }}>YARACAL ESTADO FALCÓN</span>
-              <span style={{ fontSize: '7px',   color: '#000000' }}>TELÉFONOS 0259 938 1347</span>
-              <span style={{ fontSize: '7px',   color: '#000000' }}>CÓDIGO DEA PD00131104 &nbsp;&nbsp; RIF-J-085222910</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>{inst.municipioEstado}</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>TELÉFONOS {inst.telefono}</span>
+              <span style={{ fontSize: '7px',   color: '#000000' }}>{inst.rif}</span>
             </div>
           </td>
           <td style={{ width: '13%', border: 'none', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -234,11 +244,12 @@ const ReceiptPreview = ({ info, asignaciones, retenciones, alimentario, calcs })
       borderTop: `1.5px solid ${NAVY}`,
       paddingTop: '10px',
     }}>
-      Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcon.<br />
-      Teléfonos de Contacto: 0259 938 1347 &nbsp;&nbsp; 0426 563 1569
+      {inst.direccion}<br />
+      Teléfonos de Contacto: {inst.telefono}
     </div>
 
   </div>
-);
+  );
+};
 
 export default ReceiptPreview;

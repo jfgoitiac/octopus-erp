@@ -1,6 +1,8 @@
 // Tablas AVEC / MPPE — lógica financiera pura, sin dependencias de UI
 // Modificar solo si cambian los convenios colectivos vigentes.
 
+import axiosInstance from '../api/apiClient';
+
 export const SSO_TOPE               = 26.00;
 // Compatibilidad con el flujo legacy de Pagos. Nómina nueva usa el backend.
 export const SSO_PCT                = 0.04;
@@ -93,11 +95,13 @@ export function validarCedula(cedula) {
     return /^[VEve]-?\d{6,9}$/.test((cedula || '').trim());
 }
 
-// ── Cesta ticket config (localStorage) ──────────────────────────────────────
+// ── Cesta ticket config (backend, GET/PUT cobranza/config-nomina/) ──────────
+// Antes vivía solo en localStorage del navegador: cada administrador veía una
+// configuración distinta según desde qué equipo la hubiera cargado. Ahora se
+// persiste centralizada en el backend (ParametroGlobal, clave NOMINA_CONFIG_JSON),
+// el mismo almacén que ya usa Pagos.jsx.
 // [DEUDA] Sin fecha de expiración — el usuario debe actualizarla manualmente cada período.
 // Considerar agregar un campo `fecha_config` y mostrar aviso si tiene más de 30 días.
-
-export const CESTA_LS_KEY = 'nomina_cesta_config';
 
 const buildCategoriasDefault = () =>
     Object.fromEntries(CATEGORIAS_DOCENTE.map(c => [c, { sueldo_mensual: '' }]));
@@ -112,19 +116,19 @@ export const CESTA_DEFAULT = {
     administrativo:       { monto_usd: '' },
 };
 
-
-export function loadCestaConfig() {
+export async function loadCestaConfig() {
     try {
-        const raw = localStorage.getItem(CESTA_LS_KEY);
-        if (!raw) return structuredClone(CESTA_DEFAULT);
-        const saved      = JSON.parse(raw);
-        const categorias = { ...buildCategoriasDefault(), ...(saved.categorias || {}) };
-        return { ...CESTA_DEFAULT, ...saved, categorias };
-    } catch { return structuredClone(CESTA_DEFAULT); }
+        const { data } = await axiosInstance.get('cobranza/config-nomina/');
+        if (data && Object.keys(data).length > 0) {
+            const categorias = { ...buildCategoriasDefault(), ...(data.categorias || {}) };
+            return { ...CESTA_DEFAULT, ...data, categorias };
+        }
+    } catch { /* sin configuración guardada aún o error de red — usar default */ }
+    return structuredClone(CESTA_DEFAULT);
 }
 
-export function saveCestaConfig(cfg) {
-    localStorage.setItem(CESTA_LS_KEY, JSON.stringify(cfg));
+export async function saveCestaConfig(cfg) {
+    await axiosInstance.put('cobranza/config-nomina/', cfg);
 }
 
 // ── Valores iniciales de formularios ────────────────────────────────────────

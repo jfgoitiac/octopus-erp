@@ -18,6 +18,10 @@ class TipoCargo(models.Model):
 
 class BancoNomina(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
+    codigo_bancario = models.CharField(
+        max_length=4, blank=True, default='',
+        help_text='Código de 4 dígitos del banco en Venezuela (ej. 0114 = Bancaribe).',
+    )
     activo = models.BooleanField(default=True)
 
     class Meta:
@@ -71,36 +75,48 @@ class Empleado(models.Model):
         return f"{self.nombre} {self.apellido} ({self.cedula})"
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+        from django.db import transaction
 
-        # RRHH es la ficha maestra; la ficha de nómina se mantiene sincronizada
-        # por cédula para conservar compatibilidad con los registros históricos.
-        from nomina.models import Empleado as EmpleadoNomina
-        tipo_nomina = self.tipo_personal if self.tipo_personal in {
-            'docente', 'administrativo', 'directivo', 'obrero'
-        } else 'administrativo'
-        empleado_nomina, _ = EmpleadoNomina.objects.get_or_create(
-            cedula=self.cedula,
-            defaults={
-                'nombre': self.nombre,
-                'apellido': self.apellido,
-                'tipo_personal': tipo_nomina,
-                'fecha_ingreso': self.fecha_ingreso or timezone.now().date(),
-                'sueldo_base_ves': self.sueldo_base or 0,
-                'empleado_rrhh': self,
-            },
-        )
-        if empleado_nomina.empleado_rrhh_id != self.id or any([
-            empleado_nomina.nombre != self.nombre,
-            empleado_nomina.apellido != self.apellido,
-            empleado_nomina.tipo_personal != tipo_nomina,
-            empleado_nomina.fecha_ingreso != (self.fecha_ingreso or empleado_nomina.fecha_ingreso),
-            empleado_nomina.sueldo_base_ves != (self.sueldo_base or 0),
-        ]):
-            empleado_nomina.nombre = self.nombre
-            empleado_nomina.apellido = self.apellido
-            empleado_nomina.tipo_personal = tipo_nomina
-            empleado_nomina.fecha_ingreso = self.fecha_ingreso or empleado_nomina.fecha_ingreso
-            empleado_nomina.sueldo_base_ves = self.sueldo_base or 0
-            empleado_nomina.empleado_rrhh_id = self.id
-            empleado_nomina.save()
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            # RRHH es la ficha maestra; la ficha de nómina se mantiene sincronizada.
+            # Se busca primero por el vínculo ya existente (empleado_rrhh_id) para no
+            # crear una ficha de nómina duplicada si la cédula cambia después del
+            # primer vínculo; solo se recurre a la cédula para el primer enlace o
+            # para registros históricos de nómina creados antes de RRHH.
+            from nomina.models import Empleado as EmpleadoNomina
+            tipo_nomina = self.tipo_personal if self.tipo_personal in {
+                'docente', 'administrativo', 'directivo', 'obrero'
+            } else 'administrativo'
+
+            empleado_nomina = EmpleadoNomina.objects.filter(empleado_rrhh_id=self.id).first()
+            if empleado_nomina is None:
+                empleado_nomina, _ = EmpleadoNomina.objects.get_or_create(
+                    cedula=self.cedula,
+                    defaults={
+                        'nombre': self.nombre,
+                        'apellido': self.apellido,
+                        'tipo_personal': tipo_nomina,
+                        'fecha_ingreso': self.fecha_ingreso or timezone.now().date(),
+                        'sueldo_base_ves': self.sueldo_base or 0,
+                        'empleado_rrhh': self,
+                    },
+                )
+
+            if empleado_nomina.empleado_rrhh_id != self.id or any([
+                empleado_nomina.cedula != self.cedula,
+                empleado_nomina.nombre != self.nombre,
+                empleado_nomina.apellido != self.apellido,
+                empleado_nomina.tipo_personal != tipo_nomina,
+                empleado_nomina.fecha_ingreso != (self.fecha_ingreso or empleado_nomina.fecha_ingreso),
+                empleado_nomina.sueldo_base_ves != (self.sueldo_base or 0),
+            ]):
+                empleado_nomina.cedula = self.cedula
+                empleado_nomina.nombre = self.nombre
+                empleado_nomina.apellido = self.apellido
+                empleado_nomina.tipo_personal = tipo_nomina
+                empleado_nomina.fecha_ingreso = self.fecha_ingreso or empleado_nomina.fecha_ingreso
+                empleado_nomina.sueldo_base_ves = self.sueldo_base or 0
+                empleado_nomina.empleado_rrhh_id = self.id
+                empleado_nomina.save()

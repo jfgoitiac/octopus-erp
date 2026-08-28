@@ -2939,6 +2939,14 @@ class ConfigNominaView(APIView):
         except Exception:
             return Response({})
 
+    def put(self, request):
+        valor = _json.dumps(request.data)
+        ParametroGlobal.objects.update_or_create(
+            clave=self.CLAVE,
+            defaults={'valor': valor, 'descripcion': 'Configuracion cesta ticket y nomina'},
+        )
+        return Response(request.data)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SOLVENCIA DEL REPRESENTANTE
@@ -3010,11 +3018,3 @@ class EmitirSolvenciaManualView(APIView):
         data = SolvenciaRepresentanteSerializer(solvencia).data
         data["ya_existia"] = not creada
         return Response(data, status=status.HTTP_200_OK if not creada else status.HTTP_201_CREATED)
-
-    def put(self, request):
-        valor = _json.dumps(request.data)
-        ParametroGlobal.objects.update_or_create(
-            clave=self.CLAVE,
-            defaults={'valor': valor, 'descripcion': 'Configuracion cesta ticket y nomina'},
-        )
-        return Response(request.data)

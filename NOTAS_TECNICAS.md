@@ -112,7 +112,177 @@ Auditoría 2026-07-02. Resuelto en esta pasada:
 - Tabla de empleados sin paginación ni virtualización — aceptable para el volumen típico de nómina de un colegio, pero si algún colegio supera unos cientos de empleados convendría paginar.
 - `ReciboModal` no se probó en un viewport real de 360-390px con teclado numérico abierto (solo revisión de código) — el diseño con `maxHeight: 92vh` + grillas responsive debería funcionar pero falta verificación manual en dispositivo/emulador.
 - `eslint` reporta `react-hooks/set-state-in-effect` en `useNomina.js:90-94` (el `useEffect` de carga inicial llama `fetchData` directamente, que hace `setState` de forma síncrona). Es un patrón preexistente no introducido por esta auditoría; el mismo aviso ya se documentó como resuelto en Cobranza vía SmartDateInput — aplicar el mismo patrón de corrección aquí queda pendiente.
-- `utils/nominaPDF.js.bak` — archivo de respaldo suelto en el repo, no debería estar versionado.
+- ~~`utils/nominaPDF.js.bak` — archivo de respaldo suelto en el repo, no debería estar versionado.~~ ✅ RESUELTO (2026-08-27) — eliminado, confirmado sin ningún import en el repo.
+
+## AUDITORÍA NÓMINA/RRHH — BUGS FINANCIEROS Y HARDCODEO (2026-08-27)
+
+Auditoría solicitada por el usuario ("audita el módulo de Nómina y RRHH") sobre
+`octopus-api/nomina/`, `octopus-api/rrhh/`, y los componentes/hooks/utils de
+`octopus-frontend` del módulo. El usuario pidió corregir todo lo encontrado,
+con cuidado de no romper flujos existentes. Verificado con `python manage.py
+test nomina rrhh cobranza portal secretaria multisede` (141 tests, todos OK)
+y `vite build` limpio tras cada tanda de cambios.
+
+### 🔴 CRÍTICO — resueltos
+
+1. **`nomina/utils.py::GeneradorArchivoBancario.generar_txt_banesco`** usaba una
+   cuenta bancaria dummy fija (`"01340000000000000000"`) para *todos* los
+   empleados en el archivo plano bancario, en vez de leer la cuenta real
+   (`empleado.empleado_rrhh.numero_cuenta`). Función sin ningún caller en el
+   repo (confirmado por grep) — quedó así como código muerto/WIP, sin haber
+   llegado a producción, pero se corrigió antes de que alguien la conecte sin
+   revisar. Ahora omite (y reporta) empleados sin cuenta vinculada en vez de
+   generar una línea con datos falsos.
+
+2. **Duplicación de ficha de nómina al editar la cédula en RRHH** —
+   `rrhh/models.py::Empleado.save()` sincronizaba con `nomina.Empleado`
+   buscando por `cedula`. Si se editaba la cédula de un empleado ya vinculado,
+   no encontraba la ficha de nómina existente y creaba una segunda,
+   dejando dos registros de nómina para un solo empleado real. Corregido:
+   ahora busca primero por `empleado_rrhh_id` (el vínculo ya existente) y solo
+   cae a buscar por cédula para el primer enlace. Además se agregó una
+   validación a nivel de modelo (`nomina.Empleado.clean()`) que impide que dos
+   fichas de nómina apunten al mismo `empleado_rrhh` — defensa en profundidad
+   mientras no se audite la data existente para promover `empleado_rrhh` a
+   `OneToOneField` real a nivel de BD (ver pendiente más abajo).
+
+3. **Empleado "eliminado" seguía recibiendo nómina indefinidamente** —
+   `useNomina.js` hacía `DELETE` físico sobre `rrhh.Empleado`. Como
+   `nomina.Empleado.empleado_rrhh` usa `on_delete=SET_NULL` y
+   `generar_lote` trata `empleado_rrhh__isnull=True` como "activo" (para
+   soportar empleados de nómina históricos sin vínculo a RRHH), un empleado
+   borrado quedaba indistinguible de esos históricos y seguía cobrando.
+   Corregido: el botón "Eliminar" ahora hace baja lógica
+   (`POST rrhh/empleados/<id>/desactivar/`, nuevo endpoint) en vez de `DELETE`
+   físico — el campo `activo` (ya existía en el modelo, no se usaba) se pone
+   en `False`, preservando el historial y evitando el problema de raíz.
+   También se agregó `reactivar/`.
+
+4. **`RegistroNominaViewSet` permitía editar/borrar recibos ya emitidos sin
+   auditoría**, y `monto_cestaticket`/`bono_usd`/`tasa_pago_bono` no tenían
+   `MinValueValidator` (permitían negativos). Corregido: el viewset ahora solo
+   acepta `GET`/`POST` (`http_method_names`), y los tres campos tienen
+   `MinValueValidator(0)`.
+
+5. **Crash sin manejar si no hay `ParametroLegalNomina` vigente** —
+   `calcular_deducciones()` hacía `Decimal * None` (`TypeError`) si no había
+   parámetros configurados para el período, tumbando la generación completa
+   del lote sin un mensaje útil. Corregido: ahora lanza `ValidationError` con
+   mensaje explícito, y `generar_lote` la traduce a un 400 legible.
+
+6. **`cobranza/views.py::EmitirSolvenciaManualView` tenía un método `put()`
+   ajeno pegado por error** (probablemente un mal corte/pegado), que
+   referenciaba `self.CLAVE` — atributo que no existe en esa clase (hubiera
+   lanzado `AttributeError` si alguna vez se invocaba `PUT` sobre
+   `emitir-solvencia-manual/`). Ese `put()` en realidad implementaba el guardado
+   de `ConfigNominaView` (config de cesta ticket), que solo tenía `GET` — por
+   lo que el botón "Guardar" de configuración de nómina en `Pagos.jsx` siempre
+   fallaba con 405. Corregido moviendo el método a la clase correcta.
+
+7. **Configuración de cesta ticket migrada de `localStorage` al backend** —
+   decisión explícita del usuario. `constants/avec.js::loadCestaConfig/
+   saveCestaConfig` ahora son `async` y usan `GET`/`PUT
+   cobranza/config-nomina/` (el mismo endpoint que ya usaba `Pagos.jsx`, ahora
+   arreglado — ver punto 6) en vez de `localStorage`. Se actualizó
+   `ParametroGlobal.valor` de `CharField(max_length=255)` a `TextField` (el
+   JSON de cesta ticket con las 7 categorías docentes supera fácilmente 255
+   caracteres, lo que habría truncado/corrompido el guardado). `useRecibo.js`
+   se adaptó al nuevo contrato async (antes llamaba `loadCestaConfig()` de
+   forma síncrona dentro de un `useMemo`).
+
+### 🟠 ALTO — resueltos
+
+8. **Datos institucionales de un colegio específico hardcodeados en 4 lugares**
+   (`nominaPDF.js` ×3, `ReceiptPreview.jsx` ×1) — dirección, RIF, teléfonos.
+   Rompía el multi-tenant del SaaS: cualquier otro colegio recibía recibos con
+   los datos de este colegio. Corregido: `useInstitucionPDF.js` ahora expone
+   también `direccion`, `municipioEstado`, `telefono`, `rif` (ya existían como
+   campos de `ConfiguracionSistema`, solo faltaba exponerlos), con los mismos
+   valores que estaban hardcodeados como *fallback* — ningún colegio existente
+   ve un cambio visual hasta que complete su propia ficha en Configuración.
+   Se propagó el prop `institucion` también a `Recibos.jsx`/`ReceiptPreview.jsx`
+   (antes no lo recibía en absoluto). El texto "AFILIADO A LA ASOCIACIÓN
+   VENEZOLANA DE EDUCACIÓN CATÓLICA" y el "Código DEA" (sin campo de
+   configuración disponible) se dejaron como boilerplate/omitidos — si se
+   necesita parametrizar el código DEA por colegio, falta agregar el campo a
+   `ConfiguracionSistema`.
+
+9. **`rrhh/views.py::get_choices` devolvía una lista hardcodeada** de cargos
+   distinta a `Empleado.TIPOS_PERSONAL` y al modelo `TipoCargo` ya existente
+   (con su propio endpoint). Corregido: ahora lee `TipoCargo.objects.filter
+   (activo=True)`. `Empleado.cargo` se dejó como texto libre (decisión
+   explícita del usuario) — no se migró a FK.
+
+10. **Matching de banco Bancaribe por texto/prefijo hardcodeado**
+    (`numero_cuenta__startswith='0114'` / `banco__nombre__icontains=
+    'bancaribe'`) en `preview_bancaribe`. Se agregó `BancoNomina.
+    codigo_bancario` (campo nuevo, migración `rrhh/0009`) y se sumó como
+    condición adicional (`banco__codigo_bancario='0114'`) sin quitar las
+    anteriores — 100% aditivo, cero riesgo de dejar de matchear bancos ya
+    configurados por nombre. Se agregó el campo al modal de banco en
+    `Configuracion.jsx`.
+
+11. **Baja de empleados como `DELETE` físico** — ver punto 3 (mismo fix).
+
+12. **`nomina/tests.py` estaba vacío** (solo boilerplate) en un módulo
+    financiero. Se agregaron 10 tests cubriendo: crash sin parámetro legal,
+    pensionado sin deducciones, redondeo comercial, duplicado de
+    `empleado_rrhh` bloqueado, permisos de `generar_lote`, lote con cero
+    empleados, lote con período sin parámetros (400 limpio), y
+    edición/borrado deshabilitados en `RegistroNominaViewSet`.
+
+13. **Sincronización RRHH→Nómina sin `transaction.atomic()`** — ver punto 2
+    (mismo fix, envuelto en `with transaction.atomic()`).
+
+### 🟡 MEDIO — resueltos
+
+14. **`Decimal.quantize()` sin `rounding` explícito** (usaba `ROUND_HALF_EVEN`
+    por defecto) en `nomina/models.py`. Se agregó un helper `redondear()` con
+    `ROUND_HALF_UP` explícito (redondeo comercial, el criterio usual en
+    nómina) y se aplicó en los 3 puntos de cálculo monetario.
+
+15. **Bug adicional encontrado durante el fix (no estaba en el reporte de
+    auditoría original)**: `HistorialRecibos.jsx` (usado por el botón
+    "Recibo" de `Nomina.jsx`) filtraba `nomina/registros/?empleado=<id>`
+    pasando el `id` del empleado de **RRHH**, pero ese filtro busca por el
+    `id` del empleado de **nómina** — son tablas con PKs independientes. El
+    historial de recibos y la descarga de PDF estaban efectivamente rotos
+    (vacíos o con datos de otro empleado) desde la página principal de
+    Nómina. Corregido: se agregó el filtro `empleado_rrhh` a
+    `RegistroNominaViewSet.get_queryset` y `HistorialRecibos.jsx` ahora lo usa.
+    También se formatearon las fechas del historial con `date-fns`/locale
+    `es` (antes mostraba `mes/año` como números crudos), cumpliendo la regla
+    del proyecto.
+
+16. **`RegistroNominaSerializer.get_empleado_rrhh_nombre` era código muerto**
+    (el método existía pero el campo nunca se declaró como
+    `SerializerMethodField`, así que DRF nunca lo llamaba) — y además, al
+    declararlo, se descubrió que referenciaba `obj.empleado_rrhh_id`
+    directamente sobre `RegistroNomina`, que no tiene ese campo (está en
+    `RegistroNomina.empleado.empleado_rrhh`). Ambos corregidos.
+
+### Pendiente — decisiones explícitas del usuario de NO implementar ahora
+
+- **Dos sistemas de cálculo de nómina en paralelo** (backend con
+  `ParametroLegalNomina`/SSO+LPH vs. frontend AVEC con SSO/SPF/FAOV
+  hardcodeados en `constants/avec.js`, usado para los recibos AVEC/legacy).
+  El usuario decidió explícitamente **no unificarlos** en esta pasada — alto
+  riesgo de romper el flujo AVEC ya en uso sin pruebas exhaustivas. Se
+  corrigieron los bugs de cada lado por separado (redondeo, validaciones,
+  crash), pero la causa raíz (dos fuentes de verdad para el mismo cálculo)
+  sigue latente. Migración recomendada a futuro: que el frontend deje de
+  recalcular y solo pinte lo que devuelve el backend.
+- **`nomina.ConceptoNomina` sigue huérfano** — modelo existente
+  (asignaciones/deducciones configurables) sin conectar a
+  `RegistroNomina.calcular_deducciones()`. El usuario decidió explícitamente
+  dejarlo anotado, no implementar el motor de conceptos ni eliminar el
+  modelo en esta pasada.
+- **`empleado_rrhh` sigue siendo `ForeignKey`, no `OneToOneField`** a nivel
+  de BD — se agregó la validación a nivel de aplicación (punto 2 arriba) como
+  mitigación inmediata sin migración de datos. Promoverlo a `OneToOneField`
+  real requiere primero auditar si ya existen duplicados en la BD de
+  producción (una migración con `unique=True` fallaría si los hay); no se
+  hizo en esta pasada por el riesgo de tocar el schema sin esa auditoría previa.
 
 ## CHECKLIST
 

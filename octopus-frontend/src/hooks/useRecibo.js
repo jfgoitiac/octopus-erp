@@ -43,6 +43,13 @@ export function useRecibo() {
     horasInasistencia: '', descuentoInasistencia: '',
   });
 
+  // Configuración de cesta ticket (tarifa/hora, etc.) — persistida en el backend,
+  // no en localStorage (ver constants/avec.js).
+  const [cestaConfig, setCestaConfig] = useState(null);
+  useEffect(() => {
+    loadCestaConfig().then(setCestaConfig);
+  }, []);
+
   // ── Handlers genéricos ────────────────────────────────────────────────────
   const setInfoField = useCallback(
     (field, value) => setInfo(p => ({ ...p, [field]: value })),
@@ -105,9 +112,8 @@ export function useRecibo() {
     const totalRetenciones  = retenciones.reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
     // PRD §5.3 + §6.5: Costo_Diario = Monto_por_Hora × Horas_por_Día
     // horas_por_dia viene de cestaConfig (configurable en Pagos → Cesta Ticket)
-    const cestaConf    = loadCestaConfig();
-    const montoPorHora = parseFloat(alimentario.montoPorHora)    || 0;
-    const horasPorDia  = parseFloat(cestaConf.horas_por_dia)     || 6.67;
+    const montoPorHora = parseFloat(alimentario.montoPorHora)      || 0;
+    const horasPorDia  = parseFloat(cestaConfig?.horas_por_dia)    || 6.67;
     const costoDiario  = montoPorHora * horasPorDia;
     const totalBeneficioRecibir =
       (parseFloat(alimentario.totalBeneficio)       || 0) -
@@ -121,7 +127,7 @@ export function useRecibo() {
       costoDiario,
       totalBeneficioRecibir,
     };
-  }, [asignaciones, retenciones, alimentario]);
+  }, [asignaciones, retenciones, alimentario, cestaConfig]);
 
   return {
     info,        setInfoField,   handleLogoUpload,

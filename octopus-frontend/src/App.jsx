@@ -53,6 +53,7 @@ const Notas                    = lazy(() => import('./pages/Notas'));
 const Boletin                  = lazy(() => import('./pages/Boletin'));
 const Asistencia               = lazy(() => import('./pages/Asistencia'));
 const Horarios                 = lazy(() => import('./pages/Horarios'));
+const Materias                 = lazy(() => import('./pages/Materias'));
 const Incidentes               = lazy(() => import('./pages/Incidentes'));
 const Rendimiento              = lazy(() => import('./pages/Rendimiento'));
 
@@ -315,6 +316,11 @@ function App() {
               <Route path="horarios" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Horarios />
+                </ProtectedRoute>
+              } />
+              <Route path="materias" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
+                  <Materias />
                 </ProtectedRoute>
               } />
               <Route path="incidentes" element={

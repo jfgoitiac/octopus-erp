@@ -7,7 +7,7 @@ export function useBancosNomina() {
     const [bancosNominaLoading, setBancosNominaLoading] = useState(false);
     const [showBancoNominaModal, setShowBancoNominaModal] = useState(false);
     const [bancoNominaEditando, setBancoNominaEditando] = useState(null);
-    const [bancoNominaForm, setBancoNominaForm] = useState({ nombre: '', activo: true });
+    const [bancoNominaForm, setBancoNominaForm] = useState({ nombre: '', codigo_bancario: '', activo: true });
     const [bancoNominaSaving, setBancoNominaSaving] = useState(false);
     const [showDeleteBancoNominaModal, setShowDeleteBancoNominaModal] = useState(false);
     const [bancoNominaAEliminar, setBancoNominaAEliminar] = useState(null);
@@ -28,13 +28,13 @@ export function useBancosNomina() {
 
     const openCreateBancoNomina = () => {
         setBancoNominaEditando(null);
-        setBancoNominaForm({ nombre: '', activo: true });
+        setBancoNominaForm({ nombre: '', codigo_bancario: '', activo: true });
         setShowBancoNominaModal(true);
     };
 
     const openEditBancoNomina = (banco) => {
         setBancoNominaEditando(banco);
-        setBancoNominaForm({ nombre: banco.nombre, activo: banco.activo });
+        setBancoNominaForm({ nombre: banco.nombre, codigo_bancario: banco.codigo_bancario || '', activo: banco.activo });
         setShowBancoNominaModal(true);
     };
 

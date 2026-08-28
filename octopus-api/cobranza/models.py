@@ -13,7 +13,9 @@ from simple_history.models import HistoricalRecords
 class ParametroGlobal(models.Model):
     """Almacena configuraciones globales como el monto base de mensualidad"""
     clave = models.CharField(max_length=50, unique=True)
-    valor = models.CharField(max_length=255)
+    # TextField: algunos valores son JSON (ej. NOMINA_CONFIG_JSON con categorías
+    # docentes) que superan fácilmente los 255 caracteres del CharField original.
+    valor = models.TextField()
     descripcion = models.TextField(blank=True, null=True)
 
     def __str__(self):

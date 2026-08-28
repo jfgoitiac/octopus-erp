@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 from django.utils.dateparse import parse_date
@@ -23,17 +24,27 @@ class ParametroLegalNominaViewSet(viewsets.ModelViewSet):
 
 
 class RegistroNominaViewSet(viewsets.ModelViewSet):
+    """
+    Los recibos de nómina ya emitidos no se editan ni se borran por API una vez
+    creados (son comprobantes de pago con auditoría) — update/partial_update/
+    destroy están deshabilitados. Si se generó con datos incorrectos, corregir
+    en el admin de Django (bajo supervisión) o regenerar el período.
+    """
     queryset = RegistroNomina.objects.select_related('empleado').all()
     serializer_class = RegistroNominaSerializer
     permission_classes = [IsSystemAdminOrDirector]
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
         queryset = super().get_queryset()
         empleado = self.request.query_params.get('empleado')
+        empleado_rrhh = self.request.query_params.get('empleado_rrhh')
         mes = self.request.query_params.get('mes')
         anio = self.request.query_params.get('anio')
         if empleado:
             queryset = queryset.filter(empleado_id=empleado)
+        if empleado_rrhh:
+            queryset = queryset.filter(empleado__empleado_rrhh_id=empleado_rrhh)
         if mes:
             queryset = queryset.filter(mes_correspondiente=mes)
         if anio:
@@ -92,6 +103,8 @@ class RegistroNominaViewSet(viewsets.ModelViewSet):
             return Response(RegistroNominaSerializer(registros, many=True).data, status=status.HTTP_201_CREATED)
         except IntegrityError:
             return Response({'detail': 'El período fue generado simultáneamente. Vuelve a consultar el historial.'}, status=409)
+        except DjangoValidationError as e:
+            return Response({'detail': '; '.join(e.messages) if hasattr(e, 'messages') else str(e)}, status=400)
 
 class ReciboNominaPDFView(APIView):
     # IDOR fix: antes solo exigía IsAuthenticated, permitiendo a cualquier

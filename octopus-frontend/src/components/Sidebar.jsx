@@ -49,6 +49,7 @@ const navSections = [
       { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria'] },
       { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'sistemas', 'secretaria'] },
       { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas'] },
+      { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director', 'sistemas'] },
       { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'sistemas', 'administrador'] },
     ],
   },

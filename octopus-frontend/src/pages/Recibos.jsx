@@ -2,10 +2,11 @@ import { useRef, useCallback, useState } from 'react';
 import { Plus, Trash2, Printer, Pencil, Check, X, Receipt } from 'lucide-react';
 import { getYear } from 'date-fns';
 
-import { useRecibo }       from '../hooks/useRecibo';
-import { imprimirRecibo }  from '../utils/imprimirRecibo';
-import ReceiptPreview      from '../components/nomina/ReceiptPreview';
-import { MESES }           from '../constants/recibo';
+import { useRecibo }         from '../hooks/useRecibo';
+import { useInstitucionPDF } from '../hooks/useInstitucionPDF';
+import { imprimirRecibo }    from '../utils/imprimirRecibo';
+import ReceiptPreview        from '../components/nomina/ReceiptPreview';
+import { MESES }             from '../constants/recibo';
 
 // ── Estilos de formulario ────────────────────────────────────────────────────
 const inputCls   = 'w-full text-xs px-2.5 py-1.5 rounded-lg outline-none';
@@ -161,6 +162,7 @@ const cardStyle = { background: 'var(--bg)', border: '0.5px solid var(--border)'
 
 const Recibos = () => {
   const previewRef = useRef(null);
+  const institucion = useInstitucionPDF();
 
   const {
     info,        setInfoField,   handleLogoUpload,
@@ -434,6 +436,7 @@ const Recibos = () => {
         >
           <ReceiptPreview
             info={info}
+            institucion={institucion}
             asignaciones={asignaciones}
             retenciones={retenciones}
             alimentario={alimentario}

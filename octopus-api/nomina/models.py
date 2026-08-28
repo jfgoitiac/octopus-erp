@@ -1,10 +1,18 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from datetime import date
+
+CENTAVO = Decimal('0.01')
+
+
+def redondear(valor):
+    """Redondeo comercial (0.005 siempre sube), no el ROUND_HALF_EVEN por defecto de Decimal."""
+    return valor.quantize(CENTAVO, rounding=ROUND_HALF_UP)
 
 
 class ParametroLegalNomina(models.Model):
@@ -58,6 +66,18 @@ class Empleado(models.Model):
     def __str__(self):
         return f"{self.cedula} - {self.nombre} {self.apellido}"
 
+    def clean(self):
+        if self.empleado_rrhh_id and Empleado.objects.filter(
+            empleado_rrhh_id=self.empleado_rrhh_id
+        ).exclude(pk=self.pk).exists():
+            raise ValidationError(
+                'Este empleado de RRHH ya está vinculado a otra ficha de nómina.'
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
 
 class ConceptoNomina(models.Model):
     nombre = models.CharField(max_length=100)
@@ -78,13 +98,22 @@ class RegistroNomina(models.Model):
     # Montos calculados
     monto_sso = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Seguro Social (4%)
     monto_lph = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Ley Política Habitacional (1%)
-    monto_cestaticket = models.DecimalField(max_digits=12, decimal_places=2)
+    monto_cestaticket = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
     porcentaje_sso_aplicado = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
     porcentaje_lph_aplicado = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
-    
+
     # Incentivos en USD (Bonos de Guerra / Incentivos Internos)
-    bono_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    tasa_pago_bono = models.DecimalField(max_digits=12, decimal_places=2)
+    bono_usd = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    tasa_pago_bono = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
     total_pagar_ves = models.DecimalField(max_digits=15, decimal_places=2)
 
     class Meta:
@@ -103,29 +132,34 @@ class RegistroNomina(models.Model):
         parametro = ParametroLegalNomina.vigente_para(
             date(self.anio_correspondiente, self.mes_correspondiente, 1)
         )
-        if parametro:
-            self.porcentaje_sso_aplicado = parametro.porcentaje_sso
-            self.porcentaje_lph_aplicado = parametro.porcentaje_lph
+        if not parametro:
+            raise ValidationError(
+                f'No hay parámetros legales de nómina (SSO/LPH) configurados para '
+                f'{self.mes_correspondiente}/{self.anio_correspondiente}. '
+                f'Configura un ParametroLegalNomina vigente para ese período antes de generar la nómina.'
+            )
+        self.porcentaje_sso_aplicado = parametro.porcentaje_sso
+        self.porcentaje_lph_aplicado = parametro.porcentaje_lph
 
         if not self.empleado.es_pensionado:
-            self.monto_sso = (self.empleado.sueldo_base_ves * self.porcentaje_sso_aplicado).quantize(Decimal('0.01'))
-            self.monto_lph = (self.empleado.sueldo_base_ves * self.porcentaje_lph_aplicado).quantize(Decimal('0.01'))
+            self.monto_sso = redondear(self.empleado.sueldo_base_ves * self.porcentaje_sso_aplicado)
+            self.monto_lph = redondear(self.empleado.sueldo_base_ves * self.porcentaje_lph_aplicado)
         else:
             # Si el estatus cambia a pensionado, garantizamos que las deducciones se vuelvan cero
             self.monto_sso = Decimal('0.00')
             self.monto_lph = Decimal('0.00')
-        
+
     def save(self, *args, **kwargs):
         # 1. Forzar el cálculo de las deducciones antes de guardar
         self.calcular_deducciones()
-        
+
         # 2. Calcular el contravalor del bono en Bolívares
-        bono_en_ves = (self.bono_usd * self.tasa_pago_bono).quantize(Decimal('0.01'))
-        
+        bono_en_ves = redondear(self.bono_usd * self.tasa_pago_bono)
+
         # 3. Ecuación final de la nómina: (Sueldo + Bono + Cestaticket) - Deducciones de Ley
         total = (self.empleado.sueldo_base_ves + bono_en_ves + self.monto_cestaticket) - (self.monto_sso + self.monto_lph)
-        self.total_pagar_ves = total.quantize(Decimal('0.01'))
-        
+        self.total_pagar_ves = redondear(total)
+
         super().save(*args, **kwargs)
 
 

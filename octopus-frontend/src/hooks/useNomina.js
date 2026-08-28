@@ -232,8 +232,11 @@ export function useNomina() {
         setDeletingId(id);
         setEmpleadoParaEliminar(null);
         try {
-            await axiosInstance.delete(`rrhh/empleados/${id}/`);
-            toast.success(`${nombre} ${apellido} eliminado exitosamente.`);
+            // Baja lógica (activo=false), no DELETE físico: conserva el historial
+            // de nómina y evita que el empleado quede "huérfano" pero activo
+            // para futuras generaciones de nómina.
+            await axiosInstance.post(`rrhh/empleados/${id}/desactivar/`);
+            toast.success(`${nombre} ${apellido} desactivado exitosamente.`);
             setEmpleados(prev => prev.filter(e => e.id !== id));
         } catch (err) {
             const msg = parseApiError(err);

@@ -2,7 +2,10 @@ import apiClient from './apiClient';
 
 // Materias
 export const getMaterias = (gradoSeccion, signal) =>
-  apiClient.get(`academico/materias/?grado_seccion=${encodeURIComponent(gradoSeccion)}`, signal ? { signal } : undefined);
+  apiClient.get(
+    gradoSeccion ? `academico/materias/?grado_seccion=${encodeURIComponent(gradoSeccion)}` : 'academico/materias/',
+    signal ? { signal } : undefined
+  );
 
 export const getMateria = (id, signal) =>
   apiClient.get(`academico/materias/${id}/`, signal ? { signal } : undefined);
