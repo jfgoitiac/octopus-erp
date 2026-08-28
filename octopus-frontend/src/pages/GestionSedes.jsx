@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import {
   Building2, Plus, Edit3, Trash2, UserPlus,
-  Shield, X, Save, Loader2,
+  Shield, Save, Loader2,
 } from 'lucide-react';
 import { useSedes } from '../hooks/useSedes';
 import { useUsuariosSede } from '../hooks/useUsuariosSede';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { Modal } from '../components/ui/Modal';
 import { ROL_OPTIONS } from '../constants/roles';
 import { nombreUsuario } from '../utils/nombreUsuario';
 
@@ -19,37 +20,6 @@ const SkeletonRow = ({ cols = 5 }) => (
       </td>
     ))}
   </tr>
-);
-
-// ── Modal genérico — scrollable en mobile ─────────────────────────────────────
-const Modal = ({ title, onClose, children }) => (
-  <div
-    className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto"
-    style={{ background: 'rgba(0,0,0,0.4)' }}
-  >
-    <div
-      className="w-full max-w-md rounded-2xl shadow-xl"
-      style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-    >
-      <div
-        className="flex items-center justify-between px-5 py-4"
-        style={{ borderBottom: '0.5px solid var(--border)' }}
-      >
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>{title}</h2>
-        <button
-          onClick={onClose}
-          aria-label="Cerrar modal"
-          className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ color: 'var(--ash)', transition: 'background 0.15s' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--ash-light)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <div className="px-5 py-4">{children}</div>
-    </div>
-  </div>
 );
 
 // ── Input reutilizable ────────────────────────────────────────────────────────
@@ -372,7 +342,7 @@ const GestionSedes = () => {
 
       {/* ── Modal: crear / editar sede ── */}
       {modalSede && (
-        <Modal title={editingSede ? 'Editar sede' : 'Nueva sede'} onClose={cerrarModalSede}>
+        <Modal open titulo={editingSede ? 'Editar sede' : 'Nueva sede'} onClose={cerrarModalSede} size="sm">
           <form onSubmit={guardar} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nombre"    name="nombre"    value={sedeForm.nombre}    onChange={handleFormChange} required />
@@ -430,7 +400,7 @@ const GestionSedes = () => {
 
       {/* ── Modal: asignar usuario ── */}
       {modalUsuario && (
-        <Modal title="Asignar usuario a sede" onClose={cerrarModalUsuario}>
+        <Modal open titulo="Asignar usuario a sede" onClose={cerrarModalUsuario} size="sm">
           <form onSubmit={asignarUsuario} className="space-y-3">
             {/* Q-3 fix: reutiliza Field en lugar de input inline */}
             <Field

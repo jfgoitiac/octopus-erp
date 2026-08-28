@@ -124,7 +124,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-comprobante-titulo"
-        className="bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl p-5 space-y-4"
+        className="bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 max-h-[92vh] overflow-y-auto"
       >
         {/* Encabezado */}
         <div className="flex items-center justify-between">

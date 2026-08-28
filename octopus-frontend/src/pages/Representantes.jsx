@@ -1,10 +1,11 @@
 import { useEffect, useContext } from 'react';
-import { Search, UserPlus, Download, Loader2, Trash2 } from 'lucide-react';
+import { Search, UserPlus, Download, Loader2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useRepresentantes } from '../hooks/useRepresentantes';
 import TablaRepresentantes, { TablaRepresentantesSkeleton } from '../components/representantes/TablaRepresentantes';
 import RepresentanteFicha from '../components/representantes/RepresentanteFicha';
 import ModalRepresentante from '../components/representantes/ModalRepresentante';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/shared/Pagination';
 
 const INPUT_STYLE = {
@@ -152,40 +153,19 @@ const Representantes = () => {
 
             {/* Modal confirmar eliminación */}
             {rep.confirmDelete && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center"
-                    style={{ background: 'rgba(0,0,0,0.45)' }}
-                    onClick={(e) => { if (e.target === e.currentTarget) rep.setConfirmDelete(null); }}
-                >
-                    <div className="rounded-2xl w-full max-w-sm mx-4" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
-                        <div className="px-5 py-4">
-                            <p className="text-sm font-semibold mb-1" style={{ color: 'var(--jet)' }}>¿Eliminar representante?</p>
-                            <p className="text-xs" style={{ color: 'var(--ash)' }}>
-                                Se eliminará a <strong>{rep.confirmDelete.nombre} {rep.confirmDelete.apellido}</strong>.
-                                {' '}Si tiene alumnos activos vinculados, también serán retirados automáticamente
-                                (se conserva su historial de pagos y facturas). Esta acción no se puede deshacer.
-                            </p>
-                        </div>
-                        <div className="flex gap-2 px-5 pb-4">
-                            <button
-                                onClick={() => rep.setConfirmDelete(null)}
-                                className="flex-1 min-h-[44px] rounded-lg text-xs font-medium"
-                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={rep.handleDelete}
-                                disabled={rep.deleting}
-                                className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] rounded-lg text-xs font-medium text-white disabled:opacity-70"
-                                style={{ background: 'var(--red)' }}
-                            >
-                                {rep.deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                                {rep.deleting ? 'Eliminando…' : 'Eliminar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDeleteModal
+                    titulo="¿Eliminar representante?"
+                    mensaje={(
+                        <>
+                            Se eliminará a <strong>{rep.confirmDelete.nombre} {rep.confirmDelete.apellido}</strong>.
+                            {' '}Si tiene alumnos activos vinculados, también serán retirados automáticamente
+                            (se conserva su historial de pagos y facturas). Esta acción no se puede deshacer.
+                        </>
+                    )}
+                    labelBoton={rep.deleting ? 'Eliminando…' : 'Eliminar'}
+                    onConfirm={rep.handleDelete}
+                    onCancel={() => rep.setConfirmDelete(null)}
+                />
             )}
         </div>
     );

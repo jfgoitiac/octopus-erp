@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-    FileText, Loader2, AlertCircle, Download, X,
+    FileText, Loader2, AlertCircle, Download,
     Users, Wheat, Check, DollarSign, Settings2,
     GraduationCap, Briefcase, Wrench,
 } from 'lucide-react';
+import { Modal } from '../components/ui/Modal';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 
@@ -635,46 +636,53 @@ const Pagos = () => {
                 MODAL 1 — INCENTIVO (Bancaribe)
             ════════════════════════════════════════════════════════════ */}
             {showBancaribeModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-                    style={{ background: 'rgba(43,48,58,0.6)' }}
-                    role="dialog" aria-modal="true" aria-label="Generar pago Incentivo Bancaribe">
-                    <div ref={bancaribeModalRef}
-                        className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-                        style={{ background: 'var(--porcelain)', maxHeight: '90vh' }}>
-
-                        {/* Header */}
-                        <div className="flex justify-between items-center px-6 py-4 flex-shrink-0"
-                            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#004FA3' }} />
-                                <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                    Incentivo — Pago Bancaribe
-                                </h3>
-                                <div className="flex items-center gap-2">
-                                    <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
-                                        Tasa Bs/USD
-                                    </label>
-                                    <input type="number" min="0" step="0.0001" value={tasaDia}
-                                        onChange={e => setTasaDia(parseFloat(e.target.value) || 0)}
-                                        className="w-28 px-2.5 py-1 rounded-lg text-sm font-mono outline-none text-right"
-                                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                        aria-label="Tasa de cambio Bs/USD" />
-                                </div>
-                                {tasaDia <= 0 && (
-                                    <span className="text-[11px] flex items-center gap-1" style={{ color: '#b45309' }}>
-                                        <AlertCircle size={12} /> Ingresa la tasa
-                                    </span>
-                                )}
+                <Modal
+                    ref={bancaribeModalRef}
+                    open
+                    onClose={closeBancaribeModal}
+                    size="xl"
+                    titulo={(
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#004FA3' }} />
+                            <span>Incentivo — Pago Bancaribe</span>
+                            <div className="flex items-center gap-2">
+                                <label className="text-[11px] uppercase tracking-widest font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                    Tasa Bs/USD
+                                </label>
+                                <input type="number" min="0" step="0.0001" value={tasaDia}
+                                    onChange={e => setTasaDia(parseFloat(e.target.value) || 0)}
+                                    className="w-28 px-2.5 py-1 rounded-lg text-sm font-mono outline-none text-right"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                    aria-label="Tasa de cambio Bs/USD" />
                             </div>
-                            <button onClick={closeBancaribeModal} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar modal Incentivo"
-                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
-                                <X size={18} />
-                            </button>
+                            {tasaDia <= 0 && (
+                                <span className="text-[11px] font-normal flex items-center gap-1" style={{ color: '#fef3c7' }}>
+                                    <AlertCircle size={12} /> Ingresa la tasa
+                                </span>
+                            )}
                         </div>
-
+                    )}
+                    footer={(
+                        <>
+                            <p className="mr-auto text-xs self-center" style={{ color: 'var(--ash)' }}>
+                                {bancaribeRows.filter(r => parseFloat(r.monto_usd) > 0).length} de {bancaribeRows.length} empleado(s) con monto
+                            </p>
+                            <button onClick={closeBancaribeModal}
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                Cancelar
+                            </button>
+                            <button onClick={() => handleAbrirConcepto('incentivo')}
+                                disabled={loadingBancaribe || !bancaribeRows.some(r => parseFloat(r.monto_usd) > 0)}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                                style={{ background: '#004FA3' }}>
+                                <Download size={15} /> Generar TXT
+                            </button>
+                        </>
+                    )}
+                >
                         {/* Tabla — UX-1: overflow-auto para scroll horizontal en mobile */}
-                        <div className="overflow-auto flex-1">
+                        <div className="overflow-auto -m-6">
                             {loadingBancaribe ? (
                                 <table className="w-full min-w-[560px] text-left">
                                     <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
@@ -757,79 +765,75 @@ const Pagos = () => {
                                 </table>
                             )}
                         </div>
-
-                        {/* Footer */}
-                        <div className="px-6 py-4 flex justify-between items-center flex-shrink-0"
-                            style={{ borderTop: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <p className="text-xs" style={{ color: 'var(--ash)' }}>
-                                {bancaribeRows.filter(r => parseFloat(r.monto_usd) > 0).length} de {bancaribeRows.length} empleado(s) con monto
-                            </p>
-                            <div className="flex gap-2">
-                                <button onClick={closeBancaribeModal}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium"
-                                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                    Cancelar
-                                </button>
-                                <button onClick={() => handleAbrirConcepto('incentivo')}
-                                    disabled={loadingBancaribe || !bancaribeRows.some(r => parseFloat(r.monto_usd) > 0)}
-                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                                    style={{ background: '#004FA3' }}>
-                                    <Download size={15} /> Generar TXT
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ════════════════════════════════════════════════════════════
                 MODAL 2 — NÓMINA (con tabs por estamento)
             ════════════════════════════════════════════════════════════ */}
             {showNominaModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-                    style={{ background: 'rgba(43,48,58,0.6)' }}
-                    role="dialog" aria-modal="true" aria-label="Generar pago de Nómina">
-                    <div ref={nominaModalRef}
-                        className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-                        style={{ background: 'var(--porcelain)', maxHeight: '90vh' }}>
-
-                        {/* Header */}
-                        <div className="flex justify-between items-start px-6 py-4 flex-shrink-0"
-                            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <div className="flex flex-col gap-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#6d28d9' }} />
-                                    <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                        Nómina — Pago de Sueldo
-                                    </h3>
-                                </div>
-                                {/* Selector de período */}
-                                <div className="flex gap-1 ml-5">
-                                    {PERIODOS.map(p => (
-                                        <button key={p}
-                                            onClick={() => handleNominaPeriodoChange(p)}
-                                            aria-pressed={nominaPeriodo === p}
-                                            className="px-3 py-1 rounded-lg text-xs font-medium transition-all min-h-[36px]"
-                                            style={{
-                                                background: nominaPeriodo === p ? '#6d28d9' : 'var(--porcelain)',
-                                                color:      nominaPeriodo === p ? '#fff' : 'var(--ash)',
-                                                border:     `0.5px solid ${nominaPeriodo === p ? '#6d28d9' : 'var(--border-md)'}`,
-                                            }}>
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
+                <Modal
+                    ref={nominaModalRef}
+                    open
+                    onClose={() => setShowNominaModal(false)}
+                    size="xl"
+                    titulo={(
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#6d28d9' }} />
+                                <span>Nómina — Pago de Sueldo</span>
                             </div>
-                            <button onClick={() => setShowNominaModal(false)} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar modal Nómina"
-                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
-                                <X size={18} />
-                            </button>
+                            {/* Selector de período */}
+                            <div className="flex gap-1 ml-5">
+                                {PERIODOS.map(p => (
+                                    <button key={p}
+                                        onClick={() => handleNominaPeriodoChange(p)}
+                                        aria-pressed={nominaPeriodo === p}
+                                        className="px-3 py-1 rounded-lg text-xs font-medium transition-all min-h-[36px]"
+                                        style={{
+                                            background: nominaPeriodo === p ? '#fff' : 'transparent',
+                                            color:      nominaPeriodo === p ? '#6d28d9' : '#fff',
+                                            border:     '0.5px solid rgba(255,255,255,0.5)',
+                                        }}>
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-
+                    )}
+                    footer={(
+                        <>
+                            <div className="mr-auto text-xs space-y-0.5 self-center" style={{ color: 'var(--ash)' }}>
+                                <p>
+                                    <span className="font-medium" style={{ color: 'var(--jet)' }}>
+                                        {TABS_CESTA.find(t => t.key === nominaTab)?.label}:
+                                    </span>
+                                    {' '}
+                                    {(nominaRowsByEstamento[nominaTab] || []).filter(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r)).length} empleado(s) en TXT
+                                    {' · '}
+                                    Total: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
+                                        {fmtBs((nominaRowsByEstamento[nominaTab] || []).reduce((s, r) => s + (parseFloat(r.monto_bs) || 0), 0))} Bs
+                                    </span>
+                                </p>
+                            </div>
+                            <button onClick={() => setShowNominaModal(false)}
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                Cerrar
+                            </button>
+                            <button onClick={() => handleAbrirConcepto('nomina', nominaTab)}
+                                disabled={loadingNomina}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                                style={{ background: '#6d28d9' }}>
+                                <Download size={15} />
+                                Generar TXT — {TABS_CESTA.find(t => t.key === nominaTab)?.label}
+                            </button>
+                        </>
+                    )}
+                >
                         {/* Aviso global si hay empleados sin calcular */}
                         {!loadingNomina && nominaRows.some(r => !r.calculado) && (
-                            <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 text-xs"
+                            <div className="-mx-6 -mt-6 mb-4 px-6 py-2 flex items-center gap-2 text-xs"
                                 style={{ background: '#fef9c3', color: '#92400e', borderBottom: '0.5px solid #fde047' }}>
                                 <AlertCircle size={13} />
                                 Algunos empleados no tienen datos suficientes para cálculo automático. Puedes ingresar el monto manualmente.
@@ -837,7 +841,7 @@ const Pagos = () => {
                         )}
 
                         {/* Tabs por estamento */}
-                        <div className="px-6 pt-4 pb-2 flex-shrink-0">
+                        <div className="mb-4">
                             <div className="flex gap-1 p-1 rounded-xl"
                                 style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
                                 {TABS_CESTA.map(t => {
@@ -868,7 +872,7 @@ const Pagos = () => {
                         </div>
 
                         {/* Tabla del tab activo — UX-1: overflow-auto para mobile */}
-                        <div className="overflow-auto flex-1">
+                        <div className="overflow-auto -mx-6">
                             <table className="w-full min-w-[640px] text-left">
                                 <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
                                     <tr>
@@ -953,88 +957,74 @@ const Pagos = () => {
                                 </tbody>
                             </table>
                         </div>
-
-                        {/* Footer */}
-                        <div className="px-6 py-4 flex justify-between items-center flex-shrink-0"
-                            style={{ borderTop: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <div className="text-xs space-y-0.5" style={{ color: 'var(--ash)' }}>
-                                <p>
-                                    <span className="font-medium" style={{ color: 'var(--jet)' }}>
-                                        {TABS_CESTA.find(t => t.key === nominaTab)?.label}:
-                                    </span>
-                                    {' '}
-                                    {(nominaRowsByEstamento[nominaTab] || []).filter(r => parseFloat(r.monto_bs) > 0 && esBancaribe(r)).length} empleado(s) en TXT
-                                    {' · '}
-                                    Total: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                        {fmtBs((nominaRowsByEstamento[nominaTab] || []).reduce((s, r) => s + (parseFloat(r.monto_bs) || 0), 0))} Bs
-                                    </span>
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setShowNominaModal(false)}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium"
-                                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                    Cerrar
-                                </button>
-                                <button onClick={() => handleAbrirConcepto('nomina', nominaTab)}
-                                    disabled={loadingNomina}
-                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                                    style={{ background: '#6d28d9' }}>
-                                    <Download size={15} />
-                                    Generar TXT — {TABS_CESTA.find(t => t.key === nominaTab)?.label}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ════════════════════════════════════════════════════════════
                 MODAL 3 — CESTATICKET (con tabs por estamento)
             ════════════════════════════════════════════════════════════ */}
             {showCestaModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-                    style={{ background: 'rgba(43,48,58,0.6)' }}
-                    role="dialog" aria-modal="true" aria-label="Generar pago de Cestaticket">
-                    <div ref={cestaModalRef}
-                        className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-                        style={{ background: 'var(--porcelain)', maxHeight: '90vh' }}>
-
-                        {/* Header */}
-                        <div className="flex justify-between items-start px-6 py-4 flex-shrink-0"
-                            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#16a34a' }} />
-                                    <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                        Cestaticket — Bono Alimentario
-                                    </h3>
-                                </div>
-                                {cestaConfigState && (
-                                    <p className="text-xs ml-5" style={{ color: 'var(--ash)' }}>
-                                        Tasa BCV: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                            {parseFloat(cestaConfigState.tasa_bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs/USD
-                                        </span>
-                                        {' · '}
-                                        <button
-                                            onClick={() => { setCestaFormLocal({ ...cestaConfigLocal }); setShowCestaConfigModal(true); }}
-                                            className="underline underline-offset-2"
-                                            style={{ color: 'var(--pb)' }}>
-                                            Editar configuración
-                                        </button>
-                                    </p>
-                                )}
+                <Modal
+                    ref={cestaModalRef}
+                    open
+                    onClose={() => setShowCestaModal(false)}
+                    size="xl"
+                    titulo={(
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#16a34a' }} />
+                                <span>Cestaticket — Bono Alimentario</span>
                             </div>
-                            <button onClick={() => setShowCestaModal(false)} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar modal Cestaticket"
-                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
-                                <X size={18} />
-                            </button>
+                            {cestaConfigState && (
+                                <p className="text-xs ml-5 font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                    Tasa BCV: <span className="font-mono font-medium">
+                                        {parseFloat(cestaConfigState.tasa_bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs/USD
+                                    </span>
+                                    {' · '}
+                                    <button
+                                        onClick={() => { setCestaFormLocal({ ...cestaConfigLocal }); setShowCestaConfigModal(true); }}
+                                        className="underline underline-offset-2">
+                                        Editar configuración
+                                    </button>
+                                </p>
+                            )}
                         </div>
-
+                    )}
+                    footer={(
+                        <>
+                            <div className="mr-auto text-xs self-center" style={{ color: 'var(--ash)' }}>
+                                <span className="font-medium" style={{ color: 'var(--jet)' }}>
+                                    {TABS_CESTA.find(t => t.key === cestaTab)?.label}:
+                                </span>
+                                {' '}
+                                {cestaConfigState
+                                    ? (cestaRowsByEstamento[cestaTab] || []).filter(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r)).length
+                                    : 0} empleado(s) en TXT
+                                {' · '}
+                                Total: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
+                                    {cestaConfigState
+                                        ? fmtBs((cestaRowsByEstamento[cestaTab] || []).reduce((s, r) => s + getCestaMontoFinal(r, cestaConfigState), 0))
+                                        : '0'} Bs
+                                </span>
+                            </div>
+                            <button onClick={() => setShowCestaModal(false)}
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                Cerrar
+                            </button>
+                            <button onClick={() => handleAbrirConcepto('cesta', cestaTab)}
+                                disabled={loadingCesta}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                                style={{ background: '#16a34a' }}>
+                                <Download size={15} />
+                                Generar TXT — {TABS_CESTA.find(t => t.key === cestaTab)?.label}
+                            </button>
+                        </>
+                    )}
+                >
                         {/* Aviso global si hay empleados sin monto */}
                         {!loadingCesta && cestaRows.some(r => !r.ok_cesta) && (
-                            <div className="px-6 py-2 flex items-center gap-2 flex-shrink-0 text-xs"
+                            <div className="-mx-6 -mt-6 mb-4 px-6 py-2 flex items-center gap-2 text-xs"
                                 style={{ background: '#fef9c3', color: '#92400e', borderBottom: '0.5px solid #fde047' }}>
                                 <AlertCircle size={13} />
                                 Algunos empleados no tienen monto USD configurado para su estamento. Usa el botón "Configurar" en esta página.
@@ -1042,7 +1032,7 @@ const Pagos = () => {
                         )}
 
                         {/* Tabs por estamento */}
-                        <div className="px-6 pt-4 pb-2 flex-shrink-0">
+                        <div className="mb-4">
                             <div className="flex gap-1 p-1 rounded-xl"
                                 style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
                                 {TABS_CESTA.map(t => {
@@ -1075,7 +1065,7 @@ const Pagos = () => {
                         </div>
 
                         {/* Tabla del tab activo — UX-1: overflow-auto para mobile */}
-                        <div className="overflow-auto flex-1">
+                        <div className="overflow-auto -mx-6">
                             <table className="w-full min-w-[700px] text-left">
                                 <thead className="sticky top-0" style={{ background: 'var(--porcelain)', zIndex: 1 }}>
                                     <tr>
@@ -1158,146 +1148,110 @@ const Pagos = () => {
                                 </tbody>
                             </table>
                         </div>
-
-                        {/* Footer */}
-                        <div className="px-6 py-4 flex justify-between items-center flex-shrink-0"
-                            style={{ borderTop: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <div className="text-xs" style={{ color: 'var(--ash)' }}>
-                                <span className="font-medium" style={{ color: 'var(--jet)' }}>
-                                    {TABS_CESTA.find(t => t.key === cestaTab)?.label}:
-                                </span>
-                                {' '}
-                                {cestaConfigState
-                                    ? (cestaRowsByEstamento[cestaTab] || []).filter(r => getCestaMontoFinal(r, cestaConfigState) > 0 && esBancaribe(r)).length
-                                    : 0} empleado(s) en TXT
-                                {' · '}
-                                Total: <span className="font-mono font-medium" style={{ color: 'var(--jet)' }}>
-                                    {cestaConfigState
-                                        ? fmtBs((cestaRowsByEstamento[cestaTab] || []).reduce((s, r) => s + getCestaMontoFinal(r, cestaConfigState), 0))
-                                        : '0'} Bs
-                                </span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setShowCestaModal(false)}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium"
-                                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                    Cerrar
-                                </button>
-                                <button onClick={() => handleAbrirConcepto('cesta', cestaTab)}
-                                    disabled={loadingCesta}
-                                    className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                                    style={{ background: '#16a34a' }}>
-                                    <Download size={15} />
-                                    Generar TXT — {TABS_CESTA.find(t => t.key === cestaTab)?.label}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* ════════════════════════════════════════════════════════════
                 MODAL CONCEPTO — compartido por las 3 secciones
             ════════════════════════════════════════════════════════════ */}
             {showConceptoModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[60] p-4"
-                    style={{ background: 'rgba(43,48,58,0.7)' }}
-                    role="dialog" aria-modal="true" aria-label="Concepto de pago">
-                    <div ref={conceptoModalRef}
-                        className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
-                        style={{ background: 'var(--porcelain)' }}>
-                        <div className="flex justify-between items-center px-5 py-4"
-                            style={{ borderBottom: '0.5px solid var(--border)' }}>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <div className="w-2 h-2 rounded-full" style={{
+                <Modal
+                    ref={conceptoModalRef}
+                    open
+                    onClose={() => { setShowConceptoModal(false); setConceptoPago(''); }}
+                    className="z-[60]"
+                    size="sm"
+                    titulo={(
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <div className="w-2 h-2 rounded-full" style={{
+                                background: conceptoFor === 'incentivo' ? '#004FA3'
+                                          : conceptoFor === 'nomina'    ? '#6d28d9'
+                                          : '#16a34a',
+                            }} />
+                            <span>Concepto de pago</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full capitalize font-normal"
+                                style={{ background: 'rgba(255,255,255,0.2)' }}>
+                                {conceptoFor}
+                                {conceptoEstamento && ` · ${TABS_CESTA.find(t => t.key === conceptoEstamento)?.label}`}
+                            </span>
+                        </div>
+                    )}
+                    footer={(
+                        <>
+                            <button type="button"
+                                onClick={() => { setShowConceptoModal(false); setConceptoPago(''); }}
+                                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={handleConfirmarGeneracion}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white"
+                                style={{
                                     background: conceptoFor === 'incentivo' ? '#004FA3'
                                               : conceptoFor === 'nomina'    ? '#6d28d9'
                                               : '#16a34a',
-                                }} />
-                                <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                    Concepto de pago
-                                </h3>
-                                <span className="text-xs px-2 py-0.5 rounded-full capitalize"
-                                    style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-                                    {conceptoFor}
-                                    {conceptoEstamento && ` · ${TABS_CESTA.find(t => t.key === conceptoEstamento)?.label}`}
-                                </span>
-                            </div>
-                            <button onClick={() => { setShowConceptoModal(false); setConceptoPago(''); }}
-                                style={{ color: 'var(--ash)' }} aria-label="Cerrar modal concepto"
-                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
-                                <X size={18} />
+                                }}>
+                                <Download size={14} /> Descargar
                             </button>
-                        </div>
-                        <div className="p-5 space-y-4">
-                            <p className="text-xs" style={{ color: 'var(--ash)' }}>
-                                Aparecerá en la planilla PDF. Ej: <em>Nómina I Quincena Junio 2026</em>
-                            </p>
-                            <div>
-                                <label className={`block ${labelCls}`} style={labelStyle}>
-                                    Concepto <span style={{ color: 'var(--red)' }}>*</span>
-                                </label>
-                                <input type="text" autoFocus
-                                    placeholder="Ej: Nómina I Quincena Junio 2026"
-                                    value={conceptoPago}
-                                    onChange={e => setConceptoPago(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleConfirmarGeneracion()}
-                                    className={inputCls} style={{ ...inputStyle, fontSize: '16px' }} />
-                            </div>
-                            <div className="flex gap-2 pt-1">
-                                <button type="button"
-                                    onClick={() => { setShowConceptoModal(false); setConceptoPago(''); }}
-                                    className="flex-1 py-2 rounded-lg text-sm font-medium"
-                                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                    Cancelar
-                                </button>
-                                <button type="button" onClick={handleConfirmarGeneracion}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white"
-                                    style={{
-                                        background: conceptoFor === 'incentivo' ? '#004FA3'
-                                                  : conceptoFor === 'nomina'    ? '#6d28d9'
-                                                  : '#16a34a',
-                                    }}>
-                                    <Download size={14} /> Descargar
-                                </button>
-                            </div>
+                        </>
+                    )}
+                >
+                    <div className="space-y-4">
+                        <p className="text-xs" style={{ color: 'var(--ash)' }}>
+                            Aparecerá en la planilla PDF. Ej: <em>Nómina I Quincena Junio 2026</em>
+                        </p>
+                        <div>
+                            <label className={`block ${labelCls}`} style={labelStyle}>
+                                Concepto <span style={{ color: 'var(--red)' }}>*</span>
+                            </label>
+                            <input type="text" autoFocus
+                                placeholder="Ej: Nómina I Quincena Junio 2026"
+                                value={conceptoPago}
+                                onChange={e => setConceptoPago(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleConfirmarGeneracion()}
+                                className={inputCls} style={{ ...inputStyle, fontSize: '16px' }} />
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
 
             {/* ════════════════════════════════════════════════════════════
                 MODAL — CONFIGURACIÓN CESTA TICKET
             ════════════════════════════════════════════════════════════ */}
             {showCestaConfigModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[70] p-4"
-                    style={{ background: 'rgba(43,48,58,0.65)' }}
-                    role="dialog" aria-modal="true" aria-label="Configuración de Cesta Ticket">
-                    <div ref={cestaConfigModalRef}
-                        className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-                        style={{ background: 'var(--porcelain)', maxHeight: '92vh' }}>
-
-                        <div className="flex justify-between items-center px-6 py-4 flex-shrink-0"
-                            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <div className="flex items-center gap-2">
-                                <DollarSign size={16} style={{ color: 'var(--pb)' }} />
-                                <div>
-                                    <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                                        Configuración de Cesta Ticket
-                                    </h3>
-                                    <p className="text-[11px]" style={{ color: 'var(--ash)' }}>
-                                        Monto en USD por estamento · Se guarda en el servidor
-                                    </p>
-                                </div>
+                <Modal
+                    ref={cestaConfigModalRef}
+                    open
+                    onClose={() => setShowCestaConfigModal(false)}
+                    className="z-[70]"
+                    size="sm"
+                    titulo={(
+                        <div className="flex items-center gap-2">
+                            <DollarSign size={16} />
+                            <div>
+                                <div>Configuración de Cesta Ticket</div>
+                                <p className="text-[11px] font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                    Monto en USD por estamento · Se guarda en el servidor
+                                </p>
                             </div>
-                            <button onClick={() => setShowCestaConfigModal(false)} style={{ color: 'var(--ash)' }}
-                                aria-label="Cerrar configuración de cesta ticket"
-                                className="flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 transition-colors min-h-[44px] min-w-[44px]">
-                                <X size={18} />
-                            </button>
                         </div>
-
-                        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                    )}
+                    footer={(
+                        <>
+                            <button onClick={() => setShowCestaConfigModal(false)}
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                                Cancelar
+                            </button>
+                            <button onClick={handleSaveCestaConfig}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white"
+                                style={{ background: 'var(--pb)' }}>
+                                <Settings2 size={14} /> Guardar configuración
+                            </button>
+                        </>
+                    )}
+                >
+                        <div className="space-y-5">
 
                             {/* Tabla AVEC: sueldo base mensual por categoría */}
                             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
@@ -1410,22 +1364,7 @@ const Pagos = () => {
                                 })}
                             </div>
                         </div>
-
-                        <div className="px-6 py-4 flex justify-end gap-2 flex-shrink-0"
-                            style={{ borderTop: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                            <button onClick={() => setShowCestaConfigModal(false)}
-                                className="px-4 py-2 rounded-lg text-sm font-medium"
-                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                                Cancelar
-                            </button>
-                            <button onClick={handleSaveCestaConfig}
-                                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white"
-                                style={{ background: 'var(--pb)' }}>
-                                <Settings2 size={14} /> Guardar configuración
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
         </div>

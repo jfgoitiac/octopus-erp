@@ -1,11 +1,12 @@
 import { useContext, useMemo } from 'react';
-import { BookOpen, GraduationCap, Save, Plus, Pencil, Loader2, AlertTriangle, X } from 'lucide-react';
+import { BookOpen, GraduationCap, Save, Plus, Pencil, Loader2, AlertTriangle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import GradoSelect from '../components/GradoSelect';
 import { useNotas } from '../hooks/useNotas';
 import { useLapsos } from '../hooks/useLapsos';
 import { TablaNotas } from '../components/notas/TablaNotas';
 import { ModalLapso } from '../components/notas/ModalLapso';
+import { Modal } from '../components/ui/Modal';
 
 const INPUT_STYLE = {
   border: '0.5px solid var(--border-md)',
@@ -201,50 +202,39 @@ const Notas = () => {
 
       {/* Modal confirmación al cambiar de filtro con notas sin guardar */}
       {pendingFiltro && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-descartar-titulo"
-        >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h3 id="modal-descartar-titulo" className="font-bold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-                <AlertTriangle size={18} style={{ color: '#b45309' }} />
-                Cambios sin guardar
-              </h3>
+        <Modal
+          open
+          onClose={cancelarDescartarCambios}
+          titulo={(
+            <>
+              <AlertTriangle size={18} style={{ color: '#b45309' }} />
+              Cambios sin guardar
+            </>
+          )}
+          footer={(
+            <>
               <button
                 onClick={cancelarDescartarCambios}
-                className="p-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
-                style={{ color: 'var(--ash)' }}
-                aria-label="Cerrar modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="text-sm mb-5" style={{ color: 'var(--ash)' }}>
-              Tienes notas sin guardar. Si continúas, se perderán los cambios realizados en esta materia/lapso.
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                onClick={cancelarDescartarCambios}
-                className="flex-1 rounded-xl py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
+                className="w-full sm:w-auto rounded-xl py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
               >
                 Seguir editando
               </button>
               <button
                 onClick={confirmarDescartarCambios}
-                className="flex-1 text-white rounded-xl py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]/40 transition-colors hover:brightness-90"
+                className="w-full sm:w-auto text-white rounded-xl py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]/40 transition-colors hover:brightness-90"
                 style={{ background: 'var(--red)' }}
               >
                 Descartar cambios y continuar
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+          size="sm"
+        >
+          <p className="text-sm" style={{ color: 'var(--ash)' }}>
+            Tienes notas sin guardar. Si continúas, se perderán los cambios realizados en esta materia/lapso.
+          </p>
+        </Modal>
       )}
 
       {/* Botón guardar sticky — solo mobile, visible cuando hay cambios */}

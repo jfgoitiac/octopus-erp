@@ -11,6 +11,7 @@ import { es } from 'date-fns/locale';
 import { AuthContext } from '../context/AuthContext';
 import DatePickerES from '../components/DatePickerES';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { Modal } from '../components/ui/Modal';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useGrados } from '../hooks/useGrados';
 import { useBancosCobranza } from '../hooks/useBancosCobranza';
@@ -1075,320 +1076,315 @@ const Configuracion = () => {
             {/* ── Modales ── */}
 
             {showLogosModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                            <div className="flex items-center gap-2">
-                                <Image size={18} style={{ color: 'var(--pb)' }} />
-                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Configurar Logos del Recibo</h3>
-                            </div>
-                            <button type="button" onClick={() => setShowLogosModal(false)}>
-                                <X size={18} style={{ color: 'var(--ash)' }} />
+                <Modal
+                    open
+                    onClose={() => setShowLogosModal(false)}
+                    titulo={(
+                        <>
+                            <Image size={18} />
+                            Configurar Logos del Recibo
+                        </>
+                    )}
+                    footer={(
+                        <>
+                            <button type="button" onClick={() => setShowLogosModal(false)} disabled={savingLogos}
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                                Cancelar
                             </button>
-                        </div>
-                        <div className="p-6 grid grid-cols-2 gap-6">
-                            {[
-                                { field: 'logoColegio', label: 'Logo Colegio' },
-                                { field: 'logoAvec', label: 'Logo AVEC' },
-                            ].map(({ field, label }) => (
-                                <div key={field} className="flex flex-col items-center gap-3">
-                                    <p className="text-[11px] uppercase tracking-widest font-semibold self-start" style={{ color: 'var(--ash)' }}>{label}</p>
-                                    <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
-                                        {logosForm[field]
-                                            ? <img src={logosForm[field]} alt={label} className="w-24 h-24 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
-                                            : <div className="w-24 h-24 rounded-lg flex flex-col items-center justify-center gap-2"
-                                                style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
-                                                <Image size={28} className="opacity-25" />
-                                                <span className="text-[10px]">Sin imagen</span>
-                                            </div>
-                                        }
-                                        <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
-                                            style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
-                                            <Upload size={13} />
-                                            {logosForm[field] ? 'Cambiar imagen' : 'Subir imagen'}
-                                            <input type="file" accept="image/*" className="hidden" onChange={e => handleLogosUpload(field, e)} />
-                                        </label>
-                                        {logosForm[field] && (
-                                            <button type="button" onClick={() => handleRemoveLogo(field)}
-                                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
-                                                style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
-                                                <Trash size={13} /> Eliminar
-                                            </button>
-                                        )}
-                                    </div>
+                            <button type="button" onClick={handleSaveLogos} disabled={savingLogos}
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                style={{ background: 'var(--pb)' }}>
+                                {savingLogos ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Guardar logos
+                            </button>
+                        </>
+                    )}
+                    size="md"
+                >
+                    <div className="grid grid-cols-2 gap-6 mb-4">
+                        {[
+                            { field: 'logoColegio', label: 'Logo Colegio' },
+                            { field: 'logoAvec', label: 'Logo AVEC' },
+                        ].map(({ field, label }) => (
+                            <div key={field} className="flex flex-col items-center gap-3">
+                                <p className="text-[11px] uppercase tracking-widest font-semibold self-start" style={{ color: 'var(--ash)' }}>{label}</p>
+                                <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                                    {logosForm[field]
+                                        ? <img src={logosForm[field]} alt={label} className="w-24 h-24 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                        : <div className="w-24 h-24 rounded-lg flex flex-col items-center justify-center gap-2"
+                                            style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                            <Image size={28} className="opacity-25" />
+                                            <span className="text-[10px]">Sin imagen</span>
+                                        </div>
+                                    }
+                                    <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
+                                        style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
+                                        <Upload size={13} />
+                                        {logosForm[field] ? 'Cambiar imagen' : 'Subir imagen'}
+                                        <input type="file" accept="image/*" className="hidden" onChange={e => handleLogosUpload(field, e)} />
+                                    </label>
+                                    {logosForm[field] && (
+                                        <button type="button" onClick={() => handleRemoveLogo(field)}
+                                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
+                                            style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
+                                            <Trash size={13} /> Eliminar
+                                        </button>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                        <div className="px-6 pb-6">
-                            <p className="text-[11px] mb-4 px-3 py-2 rounded-lg" style={{ color: 'var(--ash)', background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                Los logos se guardan en el servidor y estarán disponibles desde cualquier dispositivo al generar recibos de pago.
-                            </p>
-                            <div className="flex gap-3">
-                                <button type="button" onClick={() => setShowLogosModal(false)} disabled={savingLogos}
-                                    className="flex-1 py-2.5 rounded-lg text-sm font-medium"
-                                    style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
-                                    Cancelar
-                                </button>
-                                <button type="button" onClick={handleSaveLogos} disabled={savingLogos}
-                                    className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
-                                    style={{ background: 'var(--pb)' }}>
-                                    {savingLogos ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                    Guardar logos
-                                </button>
                             </div>
-                        </div>
+                        ))}
                     </div>
-                </div>
+                    <p className="text-[11px] px-3 py-2 rounded-lg" style={{ color: 'var(--ash)', background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                        Los logos se guardan en el servidor y estarán disponibles desde cualquier dispositivo al generar recibos de pago.
+                    </p>
+                </Modal>
             )}
 
             {showGradoModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
-                                <BarChart3 size={18} />
-                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                                    {gradoEditando ? 'Editar Grado' : 'Agregar Grado'}
-                                </h3>
-                            </div>
-                            <button type="button" onClick={() => setShowGradoModal(false)}>
-                                <X size={18} style={{ color: 'var(--ash)' }} />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Grado *</label>
-                                <input type="text" value={gradoForm.grado_seccion}
-                                    onChange={e => setGradoForm(p => ({ ...p, grado_seccion: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Ej. Sala de 4, Kinder primera etapa, 1er Grado" />
-                            </div>
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Cupos Máximos</label>
-                                <input type="number" value={gradoForm.cupos_maximos} min={1}
-                                    onChange={e => setGradoForm(p => ({ ...p, cupos_maximos: parseInt(e.target.value) || 1 }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
-                            </div>
-                        </div>
-                        <div className="flex gap-3 px-6 pb-6">
+                <Modal
+                    open
+                    onClose={() => setShowGradoModal(false)}
+                    titulo={(
+                        <>
+                            <BarChart3 size={18} />
+                            {gradoEditando ? 'Editar Grado' : 'Agregar Grado'}
+                        </>
+                    )}
+                    footer={(
+                        <>
                             <button type="button" onClick={() => setShowGradoModal(false)}
-                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveGrado} disabled={gradoSaving}
-                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {gradoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
                             </button>
+                        </>
+                    )}
+                    size="sm"
+                >
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Grado *</label>
+                            <input type="text" value={gradoForm.grado_seccion}
+                                onChange={e => setGradoForm(p => ({ ...p, grado_seccion: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Ej. Sala de 4, Kinder primera etapa, 1er Grado" />
+                        </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Cupos Máximos</label>
+                            <input type="number" value={gradoForm.cupos_maximos} min={1}
+                                onChange={e => setGradoForm(p => ({ ...p, cupos_maximos: parseInt(e.target.value) || 1 }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
 
             {showTipoCargoModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
-                                <Briefcase size={18} />
-                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                                    {tipoCargoEditando ? 'Editar Tipo de Cargo' : 'Agregar Tipo de Cargo'}
-                                </h3>
-                            </div>
-                            <button type="button" onClick={() => setShowTipoCargoModal(false)}>
-                                <X size={18} style={{ color: 'var(--ash)' }} />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Cargo *</label>
-                                <input type="text" value={tipoCargoForm.nombre}
-                                    onChange={e => setTipoCargoForm(p => ({ ...p, nombre: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Ej. Profesor, Administrativo" />
-                            </div>
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Descripción</label>
-                                <input type="text" value={tipoCargoForm.descripcion}
-                                    onChange={e => setTipoCargoForm(p => ({ ...p, descripcion: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Opcional" />
-                            </div>
-                            {tipoCargoEditando && (
-                                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                    <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" className="sr-only peer" checked={tipoCargoForm.activo}
-                                            onChange={e => setTipoCargoForm(p => ({ ...p, activo: e.target.checked }))} />
-                                        <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
-                                            style={{ background: tipoCargoForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
-                                    </label>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex gap-3 px-6 pb-6">
+                <Modal
+                    open
+                    onClose={() => setShowTipoCargoModal(false)}
+                    titulo={(
+                        <>
+                            <Briefcase size={18} />
+                            {tipoCargoEditando ? 'Editar Tipo de Cargo' : 'Agregar Tipo de Cargo'}
+                        </>
+                    )}
+                    footer={(
+                        <>
                             <button type="button" onClick={() => setShowTipoCargoModal(false)}
-                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveTipoCargo} disabled={tipoCargoSaving}
-                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {tipoCargoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
                             </button>
+                        </>
+                    )}
+                    size="sm"
+                >
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Cargo *</label>
+                            <input type="text" value={tipoCargoForm.nombre}
+                                onChange={e => setTipoCargoForm(p => ({ ...p, nombre: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Ej. Profesor, Administrativo" />
                         </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Descripción</label>
+                            <input type="text" value={tipoCargoForm.descripcion}
+                                onChange={e => setTipoCargoForm(p => ({ ...p, descripcion: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Opcional" />
+                        </div>
+                        {tipoCargoEditando && (
+                            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" className="sr-only peer" checked={tipoCargoForm.activo}
+                                        onChange={e => setTipoCargoForm(p => ({ ...p, activo: e.target.checked }))} />
+                                    <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                        style={{ background: tipoCargoForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                </label>
+                            </div>
+                        )}
                     </div>
-                </div>
+                </Modal>
             )}
 
             {showBancoModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
-                                <Building size={18} />
-                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                                    {bancoEditando ? 'Editar Banco' : 'Agregar Banco'}
-                                </h3>
-                            </div>
-                            <button type="button" onClick={() => setShowBancoModal(false)}>
-                                <X size={18} style={{ color: 'var(--ash)' }} />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Banco *</label>
-                                <input type="text" value={bancoForm.nombre} onChange={e => setBancoForm(p => ({ ...p, nombre: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Ej. Banesco" />
-                            </div>
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Número de Cuenta</label>
-                                <input type="text" value={bancoForm.numero_cuenta} onChange={e => setBancoForm(p => ({ ...p, numero_cuenta: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Opcional" />
-                            </div>
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Métodos de Pago Aceptados</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {Object.entries(TIPO_LABELS).map(([val, label]) => {
-                                        const checked = (bancoForm.tipos || []).includes(val);
-                                        return (
-                                            <label key={val} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
-                                                style={{ border: '0.5px solid var(--border-md)', background: checked ? 'var(--pb-light)' : '#fff', color: 'var(--jet)' }}>
-                                                <input type="checkbox" checked={checked}
-                                                    onChange={e => setBancoForm(p => ({
-                                                        ...p,
-                                                        tipos: e.target.checked
-                                                            ? [...(p.tipos || []), val]
-                                                            : (p.tipos || []).filter(t => t !== val),
-                                                    }))} />
-                                                {label}
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            {bancoEditando && (
-                                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                    <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" className="sr-only peer" checked={bancoForm.activo}
-                                            onChange={e => setBancoForm(p => ({ ...p, activo: e.target.checked }))} />
-                                        <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
-                                            style={{ background: bancoForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
-                                    </label>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex gap-3 px-6 pb-6">
+                <Modal
+                    open
+                    onClose={() => setShowBancoModal(false)}
+                    titulo={(
+                        <>
+                            <Building size={18} />
+                            {bancoEditando ? 'Editar Banco' : 'Agregar Banco'}
+                        </>
+                    )}
+                    footer={(
+                        <>
                             <button type="button" onClick={() => setShowBancoModal(false)}
-                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveBanco} disabled={bancoSaving}
-                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {bancoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
                             </button>
+                        </>
+                    )}
+                    size="sm"
+                >
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Banco *</label>
+                            <input type="text" value={bancoForm.nombre} onChange={e => setBancoForm(p => ({ ...p, nombre: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Ej. Banesco" />
                         </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Número de Cuenta</label>
+                            <input type="text" value={bancoForm.numero_cuenta} onChange={e => setBancoForm(p => ({ ...p, numero_cuenta: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Opcional" />
+                        </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Métodos de Pago Aceptados</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {Object.entries(TIPO_LABELS).map(([val, label]) => {
+                                    const checked = (bancoForm.tipos || []).includes(val);
+                                    return (
+                                        <label key={val} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
+                                            style={{ border: '0.5px solid var(--border-md)', background: checked ? 'var(--pb-light)' : '#fff', color: 'var(--jet)' }}>
+                                            <input type="checkbox" checked={checked}
+                                                onChange={e => setBancoForm(p => ({
+                                                    ...p,
+                                                    tipos: e.target.checked
+                                                        ? [...(p.tipos || []), val]
+                                                        : (p.tipos || []).filter(t => t !== val),
+                                                }))} />
+                                            {label}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        {bancoEditando && (
+                            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" className="sr-only peer" checked={bancoForm.activo}
+                                        onChange={e => setBancoForm(p => ({ ...p, activo: e.target.checked }))} />
+                                    <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                        style={{ background: bancoForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                </label>
+                            </div>
+                        )}
                     </div>
-                </div>
+                </Modal>
             )}
 
             {showBancoNominaModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4" style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp" style={{ background: 'var(--porcelain)' }}>
-                        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                            <div className="flex items-center gap-2" style={{ color: 'var(--pb)' }}>
-                                <Landmark size={18} />
-                                <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                                    {bancoNominaEditando ? 'Editar Banco de Nómina' : 'Agregar Banco de Nómina'}
-                                </h3>
-                            </div>
-                            <button type="button" onClick={() => setShowBancoNominaModal(false)}>
-                                <X size={18} style={{ color: 'var(--ash)' }} />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Banco *</label>
-                                <input type="text" value={bancoNominaForm.nombre}
-                                    onChange={e => setBancoNominaForm(p => ({ ...p, nombre: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Ej. Banesco, Mercantil, BNC" />
-                            </div>
-                            <div>
-                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Código bancario (4 dígitos)</label>
-                                <input type="text" value={bancoNominaForm.codigo_bancario || ''} maxLength={4}
-                                    onChange={e => setBancoNominaForm(p => ({ ...p, codigo_bancario: e.target.value.replace(/\D/g, '') }))}
-                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
-                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                                    placeholder="Ej. 0114" />
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
-                                    Usado para identificar automáticamente pagos a este banco (ej. planillas Bancaribe).
-                                </p>
-                            </div>
-                            {bancoNominaEditando && (
-                                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                    <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" className="sr-only peer" checked={bancoNominaForm.activo}
-                                            onChange={e => setBancoNominaForm(p => ({ ...p, activo: e.target.checked }))} />
-                                        <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
-                                            style={{ background: bancoNominaForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
-                                    </label>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex gap-3 px-6 pb-6">
+                <Modal
+                    open
+                    onClose={() => setShowBancoNominaModal(false)}
+                    titulo={(
+                        <>
+                            <Landmark size={18} />
+                            {bancoNominaEditando ? 'Editar Banco de Nómina' : 'Agregar Banco de Nómina'}
+                        </>
+                    )}
+                    footer={(
+                        <>
                             <button type="button" onClick={() => setShowBancoNominaModal(false)}
-                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveBancoNomina} disabled={bancoNominaSaving}
-                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {bancoNominaSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
                             </button>
+                        </>
+                    )}
+                    size="sm"
+                >
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Banco *</label>
+                            <input type="text" value={bancoNominaForm.nombre}
+                                onChange={e => setBancoNominaForm(p => ({ ...p, nombre: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Ej. Banesco, Mercantil, BNC" />
                         </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Código bancario (4 dígitos)</label>
+                            <input type="text" value={bancoNominaForm.codigo_bancario || ''} maxLength={4}
+                                onChange={e => setBancoNominaForm(p => ({ ...p, codigo_bancario: e.target.value.replace(/\D/g, '') }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Ej. 0114" />
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                Usado para identificar automáticamente pagos a este banco (ej. planillas Bancaribe).
+                            </p>
+                        </div>
+                        {bancoNominaEditando && (
+                            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" className="sr-only peer" checked={bancoNominaForm.activo}
+                                        onChange={e => setBancoNominaForm(p => ({ ...p, activo: e.target.checked }))} />
+                                    <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                        style={{ background: bancoNominaForm.activo ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                </label>
+                            </div>
+                        )}
                     </div>
-                </div>
+                </Modal>
             )}
 
             {/* Modales de confirmación de eliminación */}
@@ -1426,34 +1422,36 @@ const Configuracion = () => {
             )}
 
             {showQuitarGradosModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
-                    style={{ background: 'rgba(43,48,58,0.55)' }}>
-                    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp"
-                        style={{ background: 'var(--porcelain)' }}>
-                        <div className="p-6 flex flex-col items-center text-center"
-                            style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                            <AlertTriangle size={28} className="mb-3" />
-                            <h3 className="text-base font-bold">Quitar Grado a Todos los Alumnos</h3>
-                            <p className="text-sm mt-1 opacity-80">
-                                Se le quitará el grado a <b>todos los alumnos activos</b> y quedarán "sin inscribir".
-                                Esta acción no se puede deshacer. ¿Continuar?
-                            </p>
-                        </div>
-                        <div className="flex gap-3 p-6">
+                <Modal
+                    open
+                    onClose={() => setShowQuitarGradosModal(false)}
+                    footer={(
+                        <>
                             <button type="button" onClick={() => setShowQuitarGradosModal(false)}
-                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button"
                                 onClick={async () => { setShowQuitarGradosModal(false); await handleQuitarGradosAlumnos(); }}
-                                className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
                                 style={{ background: 'var(--red)' }}>
                                 <GraduationCap size={16} /> Quitar Grados
                             </button>
-                        </div>
+                        </>
+                    )}
+                    size="sm"
+                >
+                    <div className="-m-6 mb-0 p-6 flex flex-col items-center text-center"
+                        style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                        <AlertTriangle size={28} className="mb-3" />
+                        <h3 className="text-base font-bold">Quitar Grado a Todos los Alumnos</h3>
+                        <p className="text-sm mt-1 opacity-80">
+                            Se le quitará el grado a <b>todos los alumnos activos</b> y quedarán "sin inscribir".
+                            Esta acción no se puede deshacer. ¿Continuar?
+                        </p>
                     </div>
-                </div>
+                </Modal>
             )}
         </div>
     );

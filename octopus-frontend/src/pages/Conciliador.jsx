@@ -1,12 +1,13 @@
 import { useCallback } from 'react';
 import {
-  Upload, Search, X, FileSpreadsheet,
+  Upload, Search, FileSpreadsheet,
   CheckCircle, AlertCircle, Building2, Trash2,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { BANKS } from '../utils/bankParsers';
 import { useConciliador } from '../hooks/useConciliador';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { Modal } from '../components/ui/Modal';
 
 // Formateador de montos fuera del componente para evitar recreaciones
 const fmt = (v) =>
@@ -218,49 +219,23 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
 
   const isValidLength = query.length >= 4 && query.length <= 6;
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="search-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(43,48,58,0.5)', backdropFilter: 'blur(4px)' }}
-    >
-      <div
-        className="rounded-2xl w-full max-w-md"
-        style={{
-          background:  'var(--bg)',
-          boxShadow:   '0 24px 80px rgba(0,0,0,0.22)',
-          border:      '0.5px solid var(--border-md)',
-        }}
-      >
-        {/* Encabezado */}
-        <div className="flex items-center justify-between p-6 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--pb-light)' }}>
-              <Search size={15} style={{ color: 'var(--pb)' }} />
-            </div>
-            <div>
-              <h3 id="search-modal-title" className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                Buscar transacción
-              </h3>
-              <p className="text-[11px]" style={{ color: 'var(--ash)' }}>
-                {bankInfo?.label} · {transactions.length} movimientos cargados
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar búsqueda"
-            className="p-1.5 rounded-lg"
-            style={{ color: 'var(--ash)' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+  const titulo = (
+    <div className="flex items-center gap-2.5">
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--pb-light)' }}>
+        <Search size={15} style={{ color: 'var(--pb)' }} />
+      </div>
+      <div>
+        <div className="text-sm font-semibold">Buscar transacción</div>
+        <p className="text-[11px] font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+          {bankInfo?.label} · {transactions.length} movimientos cargados
+        </p>
+      </div>
+    </div>
+  );
 
-        <div className="px-6 pb-6 space-y-4">
+  return (
+    <Modal open onClose={onClose} titulo={titulo} size="sm">
+      <div className="space-y-4">
           {/* Input */}
           <div>
             <label htmlFor="ref-search" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>
@@ -372,9 +347,8 @@ function SearchModal({ bankInfo, transactions, query, setQuery, results, setResu
               </div>
             )
           )}
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
