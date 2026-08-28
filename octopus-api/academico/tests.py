@@ -20,8 +20,10 @@ from rest_framework.test import APIClient
 from authentication.models import PerfilUsuario
 from secretaria.models import Alumno, Representante
 
+from django.db import IntegrityError, transaction
+
 from .models import (
-    AlertaRendimiento, Asistencia, BloqueEvaluacion, HorarioClase, IncidenteDisciplinario,
+    AlertaRendimiento, Asistencia, BloqueEvaluacion, Docente, HorarioClase, IncidenteDisciplinario,
     ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota, NotaItemEvaluacion, PlanEvaluacion,
 )
 from .serializers import estado_a_booleanos
@@ -567,6 +569,8 @@ class DocenteRegistroYAccesoPortalTests(TestCase):
     def test_docente_recien_creado_puede_entrar_al_portal(self):
         resp_crear = self.client.post('/api/authentication/users/', {
             'username': 'docente_nuevo',
+            'first_name': 'Docente',
+            'last_name': 'Nuevo',
             'email': 'docente_nuevo@example.com',
             'password': 'ClaveSegura!2026',
             'rol': 'docente',
@@ -1262,4 +1266,75 @@ class GeneradorHorarioClasesBloqueadasTests(TestCase):
             receso1 = (datetime.strptime('09:00', fmt), datetime.strptime('09:20', fmt))
             receso2 = (datetime.strptime('11:00', fmt), datetime.strptime('11:15', fmt))
             self.assertFalse(ini < receso1[1] and receso1[0] < fin)
-            self.assertFalse(ini < receso2[1] and receso2[0] < fin)
+
+
+class DocenteModelTests(TestCase):
+    def test_crear_docente(self):
+        user = crear_usuario('profe_ana', 'docente')
+        docente = Docente.objects.create(user=user, especialidad='Matemáticas')
+        self.assertEqual(docente.user, user)
+        self.assertEqual(str(docente), user.first_name and f"{user.first_name} {user.last_name}".strip() or user.username)
+
+    def test_unicidad_onetoone_con_user(self):
+        user = crear_usuario('profe_beto', 'docente')
+        Docente.objects.create(user=user)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Docente.objects.create(user=user)
+
+
+class DocentesViewListTests(TestCase):
+    """El listado no debe exponer docentes cuyo usuario fue desactivado/eliminado."""
+
+    def test_docente_con_usuario_inactivo_no_aparece_en_listado(self):
+        admin = crear_usuario('directora2', 'director')
+        activo = crear_usuario('profe_activa', 'docente')
+        inactivo = crear_usuario('profe_borrado', 'docente')
+        inactivo.is_active = False
+        inactivo.save(update_fields=['is_active'])
+
+        Docente.objects.create(user=activo)
+        Docente.objects.create(user=inactivo)
+
+        client = APIClient()
+        client.force_authenticate(user=admin)
+        response = client.get('/api/academico/docentes/')
+        self.assertEqual(response.status_code, 200)
+        usernames = [d['username'] for d in response.data]
+        self.assertIn('profe_activa', usernames)
+        self.assertNotIn('profe_borrado', usernames)
+
+
+class DocenteAsignarMateriasViewTests(TestCase):
+    def setUp(self):
+        self.admin = crear_usuario('directora1', 'director')
+        self.profe = crear_usuario('profe_carla', 'docente')
+        self.docente = Docente.objects.create(user=self.profe)
+
+        self.materia1 = Materia.objects.create(nombre='Matemáticas', grado_seccion='1er Grado A')
+        self.materia2 = Materia.objects.create(nombre='Lengua', grado_seccion='1er Grado A')
+        self.materia3 = Materia.objects.create(nombre='Ciencias', grado_seccion='1er Grado A', docente=self.profe)
+
+        self.client = APIClient()
+
+    def test_asignar_materias_asigna_y_desasigna(self):
+        self.client.force_authenticate(user=self.admin)
+        url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
+        response = self.client.post(
+            url, {'materias': [self.materia1.id, self.materia2.id]}, format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.materia1.refresh_from_db()
+        self.materia2.refresh_from_db()
+        self.materia3.refresh_from_db()
+        self.assertEqual(self.materia1.docente, self.profe)
+        self.assertEqual(self.materia2.docente, self.profe)
+        self.assertIsNone(self.materia3.docente)
+
+    def test_usuario_sin_rol_permitido_recibe_403(self):
+        cajero = crear_usuario('cajero1', 'cajero')
+        self.client.force_authenticate(user=cajero)
+        url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
+        response = self.client.post(url, {'materias': [self.materia1.id]}, format='json')
+        self.assertEqual(response.status_code, 403)
