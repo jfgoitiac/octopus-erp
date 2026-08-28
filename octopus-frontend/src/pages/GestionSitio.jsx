@@ -644,7 +644,12 @@ const GestionSitio = () => {
 
       {tab === 'editor' && (
         <div className="space-y-5">
-          <ConstructorPaginas pagina={paginaEditorVisual} />
+          <div className="lg:hidden rounded-xl p-6 text-center text-sm" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+            Editor disponible solo en pantallas de escritorio.
+          </div>
+          <div className="hidden lg:block">
+            <ConstructorPaginas pagina={paginaEditorVisual} />
+          </div>
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
               Biblioteca de medios
