@@ -1,10 +1,10 @@
-import { useState, useRef, useMemo } from 'react';
-import { X, Save, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Save, AlertCircle } from 'lucide-react';
 import { parse, format, isValid, differenceInYears } from 'date-fns';
 import { toast } from 'react-toastify';
 import SmartDateInput from '../SmartDateInput';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
+import { Modal } from '../ui/Modal';
 
 function parseISODate(str) {
     if (!str) return null;
@@ -30,9 +30,6 @@ const REQUERIDOS = ['nombre', 'apellido', 'fecha_nacimiento', 'genero'];
 // antes de poder continuar con la inscripción — evita reinscribir con fichas
 // incompletas (dirección, etc.).
 const ModalCompletarAlumno = ({ alumno, onClose, onGuardar }) => {
-    const containerRef = useRef(null);
-    useFocusTrap(containerRef);
-
     // OJO: cedula_escolar NO se vacía aunque sea temporal — en el flujo de
     // inscripción el backend usa este valor como llave de update_or_create
     // (ver InscripcionSerializer.create en secretaria/serializers.py). Vaciarlo
@@ -79,131 +76,121 @@ const ModalCompletarAlumno = ({ alumno, onClose, onGuardar }) => {
         onGuardar(form);
     };
 
+    const footer = (
+        <>
+            <button type="button" onClick={onClose}
+                className="w-full sm:w-auto py-3 rounded-xl font-bold"
+                style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
+                Cancelar
+            </button>
+            <button type="button" onClick={handleGuardar}
+                className="w-full sm:w-auto py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                style={{ background: 'var(--pb)', color: '#fff' }}>
+                <Save size={18} /> Guardar y continuar
+            </button>
+        </>
+    );
+
     return (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-             style={{ background: 'rgba(43,48,58,0.5)' }}>
-            <div
-                ref={containerRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="modal-completar-alumno-titulo"
-                className="rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-[90vh] flex flex-col"
-                style={{ background: 'var(--porcelain)' }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-6 flex justify-between items-center" style={{ borderBottom: '0.5px solid var(--border)' }}>
-                    <div>
-                        <h2 id="modal-completar-alumno-titulo" className="text-xl font-bold" style={{ color: 'var(--jet)' }}>
-                            Completar datos del estudiante
-                        </h2>
-                        <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
-                            {form.nombre} {form.apellido}
-                        </p>
-                    </div>
-                    <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>
-                        <X size={24} />
-                    </button>
+        <Modal
+            open
+            onClose={onClose}
+            titulo={(
+                <div>
+                    <div>Completar datos del estudiante</div>
+                    <p className="text-xs mt-1 font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                        {form.nombre} {form.apellido}
+                    </p>
+                </div>
+            )}
+            footer={footer}
+            size="lg"
+        >
+            {faltantesIniciales.length > 0 && (
+                <div className="mb-4 p-3 rounded-xl flex items-start gap-2 text-xs"
+                     style={{ background: '#fef2f2', color: '#b91c1c' }}>
+                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
+                    <span>Este estudiante tiene datos obligatorios pendientes. Complétalos para poder inscribirlo.</span>
+                </div>
+            )}
+
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Campo label="Nombre" requerido error={errores.nombre}>
+                        <input type="text" className={inputClass} style={inputStyle('nombre')} value={form.nombre || ''} onChange={set('nombre')} />
+                    </Campo>
+                    <Campo label="Apellido" requerido error={errores.apellido}>
+                        <input type="text" className={inputClass} style={inputStyle('apellido')} value={form.apellido || ''} onChange={set('apellido')} />
+                    </Campo>
+                    <Campo label="Cédula Escolar (Opcional)">
+                        <input type="text" placeholder="Se autogenera si se deja en blanco" className={inputClass} style={inputStyle('cedula_escolar')} value={form.cedula_escolar || ''} onChange={set('cedula_escolar')} />
+                    </Campo>
+                    <Campo label="Fecha de nacimiento" requerido error={errores.fecha_nacimiento}>
+                        <SmartDateInput
+                            className={inputClass} style={inputStyle('fecha_nacimiento')}
+                            value={fechaNacimientoDate} onChange={handleFechaNacimiento}
+                            aria-label="Fecha de nacimiento"
+                        />
+                        {edadCalculada !== null && (
+                            <p className="text-[11px] mt-1.5" style={{ color: 'var(--ash)' }}>
+                                Edad: {edadCalculada} {edadCalculada === 1 ? 'año' : 'años'}
+                            </p>
+                        )}
+                    </Campo>
+                    <Campo label="Género" requerido error={errores.genero}>
+                        <select className={inputClass} style={inputStyle('genero')} value={form.genero || ''} onChange={set('genero')}>
+                            <option value="">Seleccione...</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                        </select>
+                    </Campo>
                 </div>
 
-                {faltantesIniciales.length > 0 && (
-                    <div className="mx-6 mt-4 p-3 rounded-xl flex items-start gap-2 text-xs"
-                         style={{ background: '#fef2f2', color: '#b91c1c' }}>
-                        <AlertCircle size={16} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
-                        <span>Este estudiante tiene datos obligatorios pendientes. Complétalos para poder inscribirlo.</span>
-                    </div>
-                )}
-
-                <div className="p-6 overflow-y-auto space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Campo label="Nombre" requerido error={errores.nombre}>
-                            <input type="text" className={inputClass} style={inputStyle('nombre')} value={form.nombre || ''} onChange={set('nombre')} />
+                <div>
+                    <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
+                        Nacimiento, procedencia y salud (opcional)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Campo label="Lugar de nacimiento">
+                            <input type="text" className={inputClass} style={inputStyle('lugar_nacimiento')} value={form.lugar_nacimiento || ''} onChange={set('lugar_nacimiento')} />
                         </Campo>
-                        <Campo label="Apellido" requerido error={errores.apellido}>
-                            <input type="text" className={inputClass} style={inputStyle('apellido')} value={form.apellido || ''} onChange={set('apellido')} />
+                        <Campo label="País">
+                            <input type="text" className={inputClass} style={inputStyle('pais_nacimiento')} value={form.pais_nacimiento || ''} onChange={set('pais_nacimiento')} />
                         </Campo>
-                        <Campo label="Cédula Escolar (Opcional)">
-                            <input type="text" placeholder="Se autogenera si se deja en blanco" className={inputClass} style={inputStyle('cedula_escolar')} value={form.cedula_escolar || ''} onChange={set('cedula_escolar')} />
+                        <Campo label="Estado">
+                            <input type="text" className={inputClass} style={inputStyle('estado_nacimiento')} value={form.estado_nacimiento || ''} onChange={set('estado_nacimiento')} />
                         </Campo>
-                        <Campo label="Fecha de nacimiento" requerido error={errores.fecha_nacimiento}>
-                            <SmartDateInput
-                                className={inputClass} style={inputStyle('fecha_nacimiento')}
-                                value={fechaNacimientoDate} onChange={handleFechaNacimiento}
-                                aria-label="Fecha de nacimiento"
-                            />
-                            {edadCalculada !== null && (
-                                <p className="text-[11px] mt-1.5" style={{ color: 'var(--ash)' }}>
-                                    Edad: {edadCalculada} {edadCalculada === 1 ? 'año' : 'años'}
-                                </p>
-                            )}
+                        <div className="md:col-span-3">
+                            <Campo label="Institución de procedencia">
+                                <input type="text" className={inputClass} style={inputStyle('institucion_procedencia')} value={form.institucion_procedencia || ''} onChange={set('institucion_procedencia')} />
+                            </Campo>
+                        </div>
+                        <Campo label="Peso (kg)">
+                            <input type="number" step="0.01" className={inputClass} style={inputStyle('peso')} value={form.peso || ''} onChange={set('peso')} />
                         </Campo>
-                        <Campo label="Género" requerido error={errores.genero}>
-                            <select className={inputClass} style={inputStyle('genero')} value={form.genero || ''} onChange={set('genero')}>
-                                <option value="">Seleccione...</option>
-                                <option value="masculino">Masculino</option>
-                                <option value="femenino">Femenino</option>
+                        <Campo label="Estatura (cm)">
+                            <input type="number" step="0.01" className={inputClass} style={inputStyle('estatura')} value={form.estatura || ''} onChange={set('estatura')} />
+                        </Campo>
+                        <Campo label="Bautizado">
+                            <select
+                                className={inputClass} style={inputStyle('bautizado')}
+                                value={form.bautizado === null || form.bautizado === undefined ? '' : String(form.bautizado)}
+                                onChange={(e) => setForm(prev => ({ ...prev, bautizado: e.target.value === '' ? null : e.target.value === 'true' }))}
+                            >
+                                <option value="">No especifica</option>
+                                <option value="true">Sí</option>
+                                <option value="false">No</option>
                             </select>
                         </Campo>
-                    </div>
-
-                    <div>
-                        <h4 className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
-                            Nacimiento, procedencia y salud (opcional)
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Campo label="Lugar de nacimiento">
-                                <input type="text" className={inputClass} style={inputStyle('lugar_nacimiento')} value={form.lugar_nacimiento || ''} onChange={set('lugar_nacimiento')} />
+                        <div className="md:col-span-3">
+                            <Campo label="Alérgico a">
+                                <input type="text" className={inputClass} style={inputStyle('alergico')} value={form.alergico || ''} onChange={set('alergico')} />
                             </Campo>
-                            <Campo label="País">
-                                <input type="text" className={inputClass} style={inputStyle('pais_nacimiento')} value={form.pais_nacimiento || ''} onChange={set('pais_nacimiento')} />
-                            </Campo>
-                            <Campo label="Estado">
-                                <input type="text" className={inputClass} style={inputStyle('estado_nacimiento')} value={form.estado_nacimiento || ''} onChange={set('estado_nacimiento')} />
-                            </Campo>
-                            <div className="md:col-span-3">
-                                <Campo label="Institución de procedencia">
-                                    <input type="text" className={inputClass} style={inputStyle('institucion_procedencia')} value={form.institucion_procedencia || ''} onChange={set('institucion_procedencia')} />
-                                </Campo>
-                            </div>
-                            <Campo label="Peso (kg)">
-                                <input type="number" step="0.01" className={inputClass} style={inputStyle('peso')} value={form.peso || ''} onChange={set('peso')} />
-                            </Campo>
-                            <Campo label="Estatura (cm)">
-                                <input type="number" step="0.01" className={inputClass} style={inputStyle('estatura')} value={form.estatura || ''} onChange={set('estatura')} />
-                            </Campo>
-                            <Campo label="Bautizado">
-                                <select
-                                    className={inputClass} style={inputStyle('bautizado')}
-                                    value={form.bautizado === null || form.bautizado === undefined ? '' : String(form.bautizado)}
-                                    onChange={(e) => setForm(prev => ({ ...prev, bautizado: e.target.value === '' ? null : e.target.value === 'true' }))}
-                                >
-                                    <option value="">No especifica</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </Campo>
-                            <div className="md:col-span-3">
-                                <Campo label="Alérgico a">
-                                    <input type="text" className={inputClass} style={inputStyle('alergico')} value={form.alergico || ''} onChange={set('alergico')} />
-                                </Campo>
-                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div className="p-6 border-t flex gap-3" style={{ background: 'var(--ash-light)', borderTop: '0.5px solid var(--border)' }}>
-                    <button type="button" onClick={onClose}
-                        className="flex-1 py-3 rounded-xl font-bold"
-                        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
-                        Cancelar
-                    </button>
-                    <button type="button" onClick={handleGuardar}
-                        className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                        style={{ background: 'var(--pb)', color: '#fff' }}>
-                        <Save size={18} /> Guardar y continuar
-                    </button>
-                </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 

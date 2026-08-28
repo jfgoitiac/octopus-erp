@@ -12,6 +12,7 @@ import {
   createArticulo, updateArticulo, publicarArticulo, getCategorias,
 } from '../../api/sitio.service';
 import BibliotecaMedia from './BibliotecaMedia';
+import { Modal } from '../ui/Modal';
 
 const ESTADO_STYLE = {
   publicado: { background: '#dcfce7', color: '#16a34a' },
@@ -405,34 +406,14 @@ const EditorArticulo = ({ articulo = null, onGuardado = () => {}, onCancelar = (
       </div>
 
       {(selectorMediaAbierto || insertarImagenAbierto) && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-          style={{ background: 'rgba(43,48,58,0.75)' }}
-          onClick={() => { setSelectorMediaAbierto(false); setInsertarImagenAbierto(false); }}
+        <Modal
+          open
+          onClose={() => { setSelectorMediaAbierto(false); setInsertarImagenAbierto(false); }}
+          titulo={selectorMediaAbierto ? 'Elegir imagen destacada' : 'Insertar imagen en el cuerpo'}
+          size="xl"
         >
-          <div
-            className="max-w-4xl w-full max-h-[85vh] overflow-y-auto rounded-xl"
-            style={{ background: 'var(--bg)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 sticky top-0" style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-                {selectorMediaAbierto ? 'Elegir imagen destacada' : 'Insertar imagen en el cuerpo'}
-              </p>
-              <button
-                type="button"
-                onClick={() => { setSelectorMediaAbierto(false); setInsertarImagenAbierto(false); }}
-                className="p-1 rounded-lg"
-                style={{ color: 'var(--ash)' }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4">
-              <BibliotecaMedia onSeleccionar={selectorMediaAbierto ? handleSeleccionarDestacada : handleInsertarImagenCuerpo} />
-            </div>
-          </div>
-        </div>
+          <BibliotecaMedia onSeleccionar={selectorMediaAbierto ? handleSeleccionarDestacada : handleInsertarImagenCuerpo} />
+        </Modal>
       )}
     </div>
   );

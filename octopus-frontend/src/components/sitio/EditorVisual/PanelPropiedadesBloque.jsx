@@ -6,6 +6,7 @@ import {
 import { updateSeccion } from '../../../api/sitio.service';
 import BibliotecaMedia from '../BibliotecaMedia';
 import { resolverImagenUrl } from './bloques/utils';
+import { Modal } from '../../ui/Modal';
 
 const AUTOSAVE_DELAY_MS = 600;
 
@@ -458,24 +459,14 @@ const PanelPropiedadesBloque = ({ seccion = null, onChange }) => {
       </div>
 
       {selectorCallback && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ background: 'rgba(43,48,58,0.6)' }} onClick={() => setSelectorCallback(null)}>
-          <div className="w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-xl" style={{ background: 'var(--bg)' }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3.5 sticky top-0" style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Elegir imagen</p>
-              <button type="button" onClick={() => setSelectorCallback(null)} className="p-1 rounded-lg" style={{ color: 'var(--ash)' }}>
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-5">
-              <BibliotecaMedia
-                onSeleccionar={(media) => {
-                  selectorCallback(media);
-                  setSelectorCallback(null);
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <Modal open onClose={() => setSelectorCallback(null)} className="z-[110]" titulo="Elegir imagen" size="xl">
+          <BibliotecaMedia
+            onSeleccionar={(media) => {
+              selectorCallback(media);
+              setSelectorCallback(null);
+            }}
+          />
+        </Modal>
       )}
     </div>
   );

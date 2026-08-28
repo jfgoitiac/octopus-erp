@@ -1,49 +1,39 @@
-import { useEffect, useRef } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Modal } from './ui/Modal';
 
 const ConfirmDeleteModal = ({ titulo, nombre, mensaje, labelBoton = 'Eliminar', onConfirm, onCancel }) => {
-    const containerRef = useRef(null);
-    useFocusTrap(containerRef);
-
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onCancel(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onCancel]);
+    const footer = (
+        <>
+            <button type="button" onClick={onCancel}
+                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
+                Cancelar
+            </button>
+            <button type="button" onClick={onConfirm}
+                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                style={{ background: 'var(--red)' }}>
+                <Trash2 size={16} /> {labelBoton}
+            </button>
+        </>
+    );
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-[100] p-4"
-            style={{ background: 'rgba(43,48,58,0.55)' }}>
-            <div
-                ref={containerRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="confirm-delete-title"
-                className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-fadeInUp"
-                style={{ background: 'var(--porcelain)' }}>
-                <div className="p-6 flex flex-col items-center text-center"
-                    style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                    <AlertTriangle size={28} className="mb-3" aria-hidden="true" />
-                    <h3 id="confirm-delete-title" className="text-base font-bold">{titulo}</h3>
-                    <p className="text-sm mt-1 opacity-80">
-                        {mensaje ?? <>¿Eliminar <b>{nombre}</b>? Esta acción no se puede deshacer.</>}
-                    </p>
-                </div>
-                <div className="flex gap-3 p-6">
-                    <button type="button" onClick={onCancel}
-                        className="flex-1 py-2.5 rounded-lg text-sm font-medium"
-                        style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
-                        Cancelar
-                    </button>
-                    <button type="button" onClick={onConfirm}
-                        className="flex-[2] py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
-                        style={{ background: 'var(--red)' }}>
-                        <Trash2 size={16} /> {labelBoton}
-                    </button>
-                </div>
+        <Modal
+            open
+            onClose={onCancel}
+            className="z-[100]"
+            footer={footer}
+            size="sm"
+        >
+            <div className="-m-6 mb-0 p-6 flex flex-col items-center text-center"
+                style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                <AlertTriangle size={28} className="mb-3" aria-hidden="true" />
+                <h3 className="text-base font-bold">{titulo}</h3>
+                <p className="text-sm mt-1 opacity-80">
+                    {mensaje ?? <>¿Eliminar <b>{nombre}</b>? Esta acción no se puede deshacer.</>}
+                </p>
             </div>
-        </div>
+        </Modal>
     );
 };
 

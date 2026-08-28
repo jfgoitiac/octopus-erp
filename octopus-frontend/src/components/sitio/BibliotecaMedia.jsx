@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Image, Search, Upload, Trash2, Loader2, X, Save } from 'lucide-react';
+import { Image, Search, Upload, Trash2, Loader2, Save } from 'lucide-react';
 import { getMedia, subirMedia, deleteMedia, updateMedia } from '../../api/sitio.service';
 import Pagination from '../shared/Pagination';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { Modal } from '../ui/Modal';
 
 const PAGE_SIZE = 20;
 const MAX_MB = 15;
@@ -207,46 +208,40 @@ const BibliotecaMedia = ({ onSeleccionar = null }) => {
       />
 
       {preview && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(43,48,58,0.75)' }} onClick={() => setPreview(null)}>
-          <div className="max-w-2xl w-full rounded-xl overflow-hidden" style={{ background: '#fff' }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-              <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Detalle de imagen</p>
-              <button type="button" onClick={() => setPreview(null)} className="p-1 rounded-lg" style={{ color: 'var(--ash)' }}>
-                <X size={16} />
+        <Modal open onClose={() => setPreview(null)} titulo="Detalle de imagen" size="lg">
+          <div className="-m-6 mb-4">
+            <img src={preview.variantes?.md || preview.variantes?.original} alt={preview.alt_text} className="w-full max-h-[70vh] object-contain" />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+              Descripción (alt text — accesibilidad y SEO)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={altTextEditando}
+                onChange={(e) => setAltTextEditando(e.target.value)}
+                maxLength={200}
+                placeholder="Ej. Estudiantes en el patio del colegio"
+                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+              />
+              <button
+                type="button"
+                onClick={handleGuardarAltText}
+                disabled={guardandoAlt || altTextEditando === (preview.alt_text || '')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+                style={{ background: 'var(--pb)' }}
+              >
+                {guardandoAlt ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />} Guardar
               </button>
             </div>
-            <img src={preview.variantes?.md || preview.variantes?.original} alt={preview.alt_text} className="w-full max-h-[70vh] object-contain" />
-            <div className="px-4 py-3 space-y-2" style={{ borderTop: '0.5px solid var(--border-md)' }}>
-              <label className="block text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
-                Descripción (alt text — accesibilidad y SEO)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={altTextEditando}
-                  onChange={(e) => setAltTextEditando(e.target.value)}
-                  maxLength={200}
-                  placeholder="Ej. Estudiantes en el patio del colegio"
-                  className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                />
-                <button
-                  type="button"
-                  onClick={handleGuardarAltText}
-                  disabled={guardandoAlt || altTextEditando === (preview.alt_text || '')}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
-                  style={{ background: 'var(--pb)' }}
-                >
-                  {guardandoAlt ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />} Guardar
-                </button>
-              </div>
-            </div>
-            <div className="px-4 py-2.5 text-xs flex gap-4" style={{ color: 'var(--ash)', borderTop: '0.5px solid var(--border-md)' }}>
-              <span>{preview.ancho_original}×{preview.alto_original}px</span>
-              <span>{formatBytes(preview.peso_bytes)}</span>
-            </div>
           </div>
-        </div>
+          <div className="mt-3 pt-3 text-xs flex gap-4" style={{ color: 'var(--ash)', borderTop: '0.5px solid var(--border-md)' }}>
+            <span>{preview.ancho_original}×{preview.alto_original}px</span>
+            <span>{formatBytes(preview.peso_bytes)}</span>
+          </div>
+        </Modal>
       )}
 
       {aEliminar && (

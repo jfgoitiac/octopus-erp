@@ -1,47 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
-import { X, AlertTriangle, Loader2, Trash2 } from 'lucide-react';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useState } from 'react';
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
+import { Modal } from '../ui/Modal';
 
 const FRASE_CONFIRMACION = 'ELIMINAR TODOS LOS ALUMNOS';
 
 // TODO-TEMPORAL: quitar junto con LimpiezaDatosTab tras limpieza de datos de prueba.
 // Borrado físico masivo (no soft-delete) — exige escribir una frase exacta para confirmar.
 const ModalEliminarTodosAlumnos = ({ saving, onClose, onConfirmar }) => {
-    const containerRef = useRef(null);
-    useFocusTrap(containerRef);
     const [confirmacion, setConfirmacion] = useState('');
-
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onClose]);
 
     const habilitado = confirmacion.trim() === FRASE_CONFIRMACION;
 
     return (
-    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         style={{ background: 'rgba(43,48,58,0.5)' }}>
-        <div
-            ref={containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-eliminar-todos-alumnos-titulo"
-            className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
-            style={{ background: 'var(--porcelain)' }}
-            onClick={(e) => e.stopPropagation()}>
-
-            <div className="p-6 flex justify-between items-center"
-                 style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                <h3 id="modal-eliminar-todos-alumnos-titulo" className="font-bold flex items-center gap-2">
-                    <AlertTriangle size={18} /> Eliminar TODOS los alumnos
-                </h3>
-                <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--red)' }}>
-                    <X size={20} />
-                </button>
-            </div>
-
-            <div className="p-6 space-y-4">
+        <Modal
+            open
+            onClose={onClose}
+            titulo={(
+                <>
+                    <AlertTriangle size={17} /> Eliminar TODOS los alumnos
+                </>
+            )}
+            size="sm"
+        >
+            <div className="space-y-4">
                 <p className="text-sm" style={{ color: 'var(--ash)' }}>
                     Esta acción borrará de forma <span className="font-bold" style={{ color: 'var(--red)' }}>permanente e irreversible</span> a{' '}
                     <span className="font-bold" style={{ color: 'var(--jet)' }}>todos los alumnos</span> del sistema,
@@ -72,8 +53,7 @@ const ModalEliminarTodosAlumnos = ({ saving, onClose, onConfirmar }) => {
                     Eliminar todos definitivamente
                 </button>
             </div>
-        </div>
-    </div>
+        </Modal>
     );
 };
 

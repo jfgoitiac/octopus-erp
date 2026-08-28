@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { X, Loader2, User, Search, Paperclip, AlertTriangle } from 'lucide-react';
+import { Loader2, User, Search, Paperclip, AlertTriangle } from 'lucide-react';
 import { buscarAlumnos } from '../../api/secretaria.service';
+import { Modal } from '../ui/Modal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const TAMANO_MAX_MB = 5;
@@ -106,165 +107,157 @@ export default function ModalNuevoIncidente({ onClose, onSubmit }) {
     if (ok) onClose();
   };
 
-  const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+  const footer = (
+    <>
+      <button
+        onClick={onClose}
+        className="w-full sm:w-auto rounded-xl py-2.5 text-sm min-h-[44px]"
+        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={handleGuardar}
+        disabled={guardando}
+        className="w-full sm:w-auto text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+        style={{ background: 'var(--pb)' }}
+      >
+        {guardando ? <><Loader2 size={14} className="animate-spin" /> Registrando...</> : 'Registrar Incidente'}
+      </button>
+    </>
+  );
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-      onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-incidente-titulo"
-      tabIndex={-1}
+    <Modal
+      open
+      onClose={onClose}
+      titulo={(
+        <>
+          <AlertTriangle size={17} />
+          Nuevo Incidente
+        </>
+      )}
+      footer={footer}
+      size="md"
     >
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="modal-incidente-titulo" className="font-bold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <AlertTriangle size={18} style={{ color: 'var(--pb)' }} />
-            Nuevo Incidente
-          </h3>
-          <button onClick={onClose} className="p-1 rounded-lg" style={{ color: 'var(--ash)' }} aria-label="Cerrar modal">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Buscador de alumno */}
-          <div className="relative" ref={searchRef}>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-              Alumno
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5" size={16} style={{ color: 'var(--ash)' }} />
-              <input
-                type="text"
-                placeholder="Nombre o cédula escolar..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
-                style={FIELD_STYLE}
-                value={busqueda}
-                onChange={e => handleChangeBusqueda(e.target.value)}
-              />
-              {buscando && <Loader2 size={14} className="absolute right-3 top-2.5 animate-spin" style={{ color: 'var(--pb)' }} />}
-            </div>
-
-            {showDropdown && (
-              <div
-                className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-xl overflow-hidden"
-                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-              >
-                {resultados.length > 0 ? (
-                  resultados.slice(0, 8).map(a => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors"
-                      style={{ color: 'var(--jet)', borderBottom: '0.5px solid var(--border)' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--pb-light)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      onClick={() => handleSelectAlumno(a)}
-                    >
-                      <User size={15} style={{ color: 'var(--ash)' }} />
-                      <span>{a.nombre} {a.apellido}</span>
-                      <span className="text-xs ml-auto" style={{ color: 'var(--ash)' }}>
-                        {a.grado_seccion || 'Sin grado'}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  !buscando && (
-                    <p className="px-4 py-3 text-sm" style={{ color: 'var(--ash)' }}>
-                      Sin resultados para &quot;{busqueda}&quot;
-                    </p>
-                  )
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Descripción */}
-          <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-              Descripción
-            </label>
-            <textarea
-              rows={3}
-              placeholder="¿Qué ocurrió?"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+      <div className="space-y-4">
+        {/* Buscador de alumno */}
+        <div className="relative" ref={searchRef}>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+            Alumno
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5" size={16} style={{ color: 'var(--ash)' }} />
+            <input
+              type="text"
+              placeholder="Nombre o cédula escolar..."
+              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
-              value={descripcion}
-              onChange={e => setDescripcion(e.target.value)}
+              value={busqueda}
+              onChange={e => handleChangeBusqueda(e.target.value)}
             />
+            {buscando && <Loader2 size={14} className="absolute right-3 top-2.5 animate-spin" style={{ color: 'var(--pb)' }} />}
           </div>
 
-          {/* Severidad */}
-          <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-              Severidad
-            </label>
-            <div className="flex gap-2">
-              {SEVERIDADES.map(s => (
-                <button
-                  key={s.value}
-                  type="button"
-                  aria-pressed={severidad === s.value}
-                  onClick={() => setSeveridad(s.value)}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px]"
-                  style={severidad === s.value ? s.activeStyle : IDLE_STYLE}
-                >
-                  {s.label}
-                </button>
-              ))}
+          {showDropdown && (
+            <div
+              className="absolute top-full left-0 right-0 z-10 mt-1 rounded-xl shadow-xl overflow-hidden"
+              style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
+            >
+              {resultados.length > 0 ? (
+                resultados.slice(0, 8).map(a => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors"
+                    style={{ color: 'var(--jet)', borderBottom: '0.5px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--pb-light)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onClick={() => handleSelectAlumno(a)}
+                  >
+                    <User size={15} style={{ color: 'var(--ash)' }} />
+                    <span>{a.nombre} {a.apellido}</span>
+                    <span className="text-xs ml-auto" style={{ color: 'var(--ash)' }}>
+                      {a.grado_seccion || 'Sin grado'}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                !buscando && (
+                  <p className="px-4 py-3 text-sm" style={{ color: 'var(--ash)' }}>
+                    Sin resultados para &quot;{busqueda}&quot;
+                  </p>
+                )
+              )}
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Adjunto opcional */}
-          <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-              Foto (opcional, máx. {TAMANO_MAX_MB}MB)
-            </label>
-            {preview ? (
-              <div className="flex items-center gap-3">
-                <img src={preview} alt="Vista previa del adjunto" className="w-16 h-16 rounded-lg object-cover" style={{ border: '0.5px solid var(--border-md)' }} />
-                <button
-                  type="button"
-                  onClick={quitarAdjunto}
-                  className="text-xs font-medium"
-                  style={{ color: 'var(--red)' }}
-                >
-                  Quitar foto
-                </button>
-              </div>
-            ) : (
-              <label
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-lg text-sm cursor-pointer min-h-[44px]"
-                style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
+        {/* Descripción */}
+        <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+            Descripción
+          </label>
+          <textarea
+            rows={3}
+            placeholder="¿Qué ocurrió?"
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+            style={FIELD_STYLE}
+            value={descripcion}
+            onChange={e => setDescripcion(e.target.value)}
+          />
+        </div>
+
+        {/* Severidad */}
+        <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+            Severidad
+          </label>
+          <div className="flex gap-2">
+            {SEVERIDADES.map(s => (
+              <button
+                key={s.value}
+                type="button"
+                aria-pressed={severidad === s.value}
+                onClick={() => setSeveridad(s.value)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px]"
+                style={severidad === s.value ? s.activeStyle : IDLE_STYLE}
               >
-                <Paperclip size={15} />
-                Adjuntar foto
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleArchivo} />
-              </label>
-            )}
+                {s.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl py-2.5 text-sm min-h-[44px]"
-            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleGuardar}
-            disabled={guardando}
-            className="flex-1 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
-            style={{ background: 'var(--pb)' }}
-          >
-            {guardando ? <><Loader2 size={14} className="animate-spin" /> Registrando...</> : 'Registrar Incidente'}
-          </button>
+        {/* Adjunto opcional */}
+        <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+            Foto (opcional, máx. {TAMANO_MAX_MB}MB)
+          </label>
+          {preview ? (
+            <div className="flex items-center gap-3">
+              <img src={preview} alt="Vista previa del adjunto" className="w-16 h-16 rounded-lg object-cover" style={{ border: '0.5px solid var(--border-md)' }} />
+              <button
+                type="button"
+                onClick={quitarAdjunto}
+                className="text-xs font-medium"
+                style={{ color: 'var(--red)' }}
+              >
+                Quitar foto
+              </button>
+            </div>
+          ) : (
+            <label
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-lg text-sm cursor-pointer min-h-[44px]"
+              style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
+            >
+              <Paperclip size={15} />
+              Adjuntar foto
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleArchivo} />
+            </label>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

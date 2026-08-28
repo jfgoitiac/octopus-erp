@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
-  X, Loader2, ArrowLeft, FileText, LayoutTemplate, Check, Maximize2, FilePlus2,
+  Loader2, ArrowLeft, FileText, LayoutTemplate, Check, Maximize2, FilePlus2,
 } from 'lucide-react';
 import { crearPaginaConSecciones, crearPreviewPlantilla, getPlantillasUsuario } from '../../api/sitio.service';
 import { PLANTILLAS } from './plantillas';
 import PreviewBloque from './EditorVisual/PreviewBloque';
+import { Modal } from '../ui/Modal';
 
 const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
@@ -157,113 +158,112 @@ const CrearPaginaModal = ({ onCerrar, onCreada }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ background: 'rgba(43,48,58,0.6)' }} onClick={() => !creando && onCerrar()}>
-      <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-xl" style={{ background: 'var(--bg)' }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-3.5 sticky top-0 z-10" style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
-          <div className="flex items-center gap-2">
-            {paso === 2 && (
-              <button type="button" onClick={() => setPaso(1)} className="p-1 rounded-lg" style={{ color: 'var(--ash)' }}>
-                <ArrowLeft size={16} />
-              </button>
-            )}
-            <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-              {paso === 1 ? 'Nueva página' : 'Elegir plantilla'}
-            </p>
-          </div>
-          <button type="button" onClick={onCerrar} disabled={creando} className="p-1 rounded-lg disabled:opacity-40" style={{ color: 'var(--ash)' }}>
-            <X size={16} />
-          </button>
-        </div>
+  const handleClose = () => { if (!creando) onCerrar(); };
 
-        {paso === 1 ? (
-          <form onSubmit={irAPlantillas} className="p-5 space-y-4">
+  return (
+    <Modal
+      open
+      onClose={handleClose}
+      className="z-[110]"
+      titulo={(
+        <div className="flex items-center gap-2">
+          {paso === 2 && (
+            <button type="button" onClick={() => setPaso(1)} className="p-1 rounded-lg" style={{ color: '#fff' }}>
+              <ArrowLeft size={16} />
+            </button>
+          )}
+          {paso === 1 ? 'Nueva página' : 'Elegir plantilla'}
+        </div>
+      )}
+      size="lg"
+    >
+      {paso === 1 ? (
+        <form onSubmit={irAPlantillas} className="space-y-4">
+          <div>
+            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Título</label>
+            <input
+              type="text"
+              autoFocus
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Ej. Admisiones"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={inputStyle}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--jet)' }}>
+            <input type="checkbox" checked={mostrarEnMenu} onChange={(e) => setMostrarEnMenu(e.target.checked)} />
+            Mostrar en el menú de navegación
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--jet)' }}>
+            <input type="checkbox" checked={esHome} onChange={(e) => setEsHome(e.target.checked)} />
+            Usar como página de inicio
+          </label>
+          {esHome && (
+            <p className="text-[11px]" style={{ color: '#b45309' }}>
+              Al publicarla, reemplazará a la página de inicio actual.
+            </p>
+          )}
+          <div className="flex justify-end pt-2">
+            <button type="submit" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: 'var(--pb)' }}>
+              Continuar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-4">
+          {plantillasUsuario.length > 0 && (
             <div>
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Título</label>
-              <input
-                type="text"
-                autoFocus
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ej. Admisiones"
-                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                style={inputStyle}
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--jet)' }}>
-              <input type="checkbox" checked={mostrarEnMenu} onChange={(e) => setMostrarEnMenu(e.target.checked)} />
-              Mostrar en el menú de navegación
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--jet)' }}>
-              <input type="checkbox" checked={esHome} onChange={(e) => setEsHome(e.target.checked)} />
-              Usar como página de inicio
-            </label>
-            {esHome && (
-              <p className="text-[11px]" style={{ color: '#b45309' }}>
-                Al publicarla, reemplazará a la página de inicio actual.
-              </p>
-            )}
-            <div className="flex justify-end pt-2">
-              <button type="submit" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: 'var(--pb)' }}>
-                Continuar
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="p-5 space-y-4">
-            {plantillasUsuario.length > 0 && (
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Tus plantillas</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {plantillasUsuario.map((p) => (
-                    <TarjetaPlantilla
-                      key={`usuario-${p.id}`}
-                      plantilla={p}
-                      seleccionada={plantillaId === `usuario-${p.id}`}
-                      onClick={() => setPlantillaId(`usuario-${p.id}`)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              {plantillasUsuario.length > 0 && (
-                <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Catálogo</p>
-              )}
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Tus plantillas</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <TarjetaPlantilla
-                  plantilla={{ nombre: 'Página en blanco' }}
-                  seleccionada={plantillaId === 'blanco'}
-                  onClick={() => setPlantillaId('blanco')}
-                />
-                {PLANTILLAS.map((p) => (
+                {plantillasUsuario.map((p) => (
                   <TarjetaPlantilla
-                    key={p.id}
+                    key={`usuario-${p.id}`}
                     plantilla={p}
-                    seleccionada={plantillaId === p.id}
-                    onClick={() => setPlantillaId(p.id)}
-                    token={tokensPorId[p.id]}
-                    onAbrirPestana={() => window.open(`${SITIO_URL}/preview/${tokensPorId[p.id]}`, '_blank')}
+                    seleccionada={plantillaId === `usuario-${p.id}`}
+                    onClick={() => setPlantillaId(`usuario-${p.id}`)}
                   />
                 ))}
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleCrear}
-                disabled={creando}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: 'var(--pb)' }}
-              >
-                {creando ? <Loader2 className="animate-spin" size={16} /> : (plantillaId === 'blanco' ? <FileText size={16} /> : <LayoutTemplate size={16} />)}
-                Crear página
-              </button>
+          )}
+          <div>
+            {plantillasUsuario.length > 0 && (
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Catálogo</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TarjetaPlantilla
+                plantilla={{ nombre: 'Página en blanco' }}
+                seleccionada={plantillaId === 'blanco'}
+                onClick={() => setPlantillaId('blanco')}
+              />
+              {PLANTILLAS.map((p) => (
+                <TarjetaPlantilla
+                  key={p.id}
+                  plantilla={p}
+                  seleccionada={plantillaId === p.id}
+                  onClick={() => setPlantillaId(p.id)}
+                  token={tokensPorId[p.id]}
+                  onAbrirPestana={() => window.open(`${SITIO_URL}/preview/${tokensPorId[p.id]}`, '_blank')}
+                />
+              ))}
             </div>
           </div>
-        )}
-      </div>
-    </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={handleCrear}
+              disabled={creando}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: 'var(--pb)' }}
+            >
+              {creando ? <Loader2 className="animate-spin" size={16} /> : (plantillaId === 'blanco' ? <FileText size={16} /> : <LayoutTemplate size={16} />)}
+              Crear página
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 };
 

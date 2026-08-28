@@ -1,17 +1,12 @@
-import { useState, useEffect } from 'react';
-import { X, UserCog, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { UserCog, Loader2 } from 'lucide-react';
 import { ROL_OPTIONS } from '../../../constants/roles';
 import { nombreUsuario } from '../../../utils/nombreUsuario';
+import { Modal } from '../../ui/Modal';
 
 const EditRolModal = ({ targetUser, onClose, onEditRol }) => {
     const [newRol,   setNewRol]   = useState(targetUser?.perfil?.rol ?? 'cajero');
     const [loading,  setLoading]  = useState(false);
-
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onClose]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -21,53 +16,49 @@ const EditRolModal = ({ targetUser, onClose, onEditRol }) => {
         if (ok) onClose();
     };
 
+    const footer = (
+        <>
+            <button type="button" onClick={onClose} disabled={loading}
+                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium transition-all"
+                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+                Cancelar
+            </button>
+            <button type="submit" form="form-editar-rol" disabled={loading}
+                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ background: 'var(--pb)' }}>
+                {loading ? <Loader2 className="animate-spin" size={15} /> : <UserCog size={15} />}
+                {loading ? 'Guardando...' : 'Guardar cambio'}
+            </button>
+        </>
+    );
+
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            style={{ background: 'rgba(43,48,58,0.55)' }}>
-            <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-                style={{ background: 'var(--porcelain)' }}>
-                <div className="flex justify-between items-center px-5 py-4"
-                    style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
-                    <div>
-                        <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Editar rol</h3>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-                            Usuario: <span className="font-bold">{nombreUsuario(targetUser)}</span>
-                        </p>
-                    </div>
-                    <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>
-                        <X size={17} />
-                    </button>
+        <Modal
+            open
+            onClose={onClose}
+            titulo={(
+                <div>
+                    <div>Editar rol</div>
+                    <p className="text-xs mt-0.5 font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                        Usuario: <span className="font-bold">{nombreUsuario(targetUser)}</span>
+                    </p>
                 </div>
-
-                <form onSubmit={handleSubmit} className="p-5 space-y-4">
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5"
-                            style={{ color: 'var(--ash)' }}>Nuevo Rol</label>
-                        <select value={newRol} onChange={e => setNewRol(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none appearance-none"
-                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
-                            {ROL_OPTIONS.map(r => (
-                                <option key={r.value} value={r.value}>{r.label}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="flex gap-2 pt-1">
-                        <button type="button" onClick={onClose} disabled={loading}
-                            className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
-                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={loading}
-                            className="flex-1 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
-                            style={{ background: 'var(--pb)' }}>
-                            {loading ? <Loader2 className="animate-spin" size={15} /> : <UserCog size={15} />}
-                            {loading ? 'Guardando...' : 'Guardar cambio'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            )}
+            footer={footer}
+            size="sm"
+        >
+            <form id="form-editar-rol" onSubmit={handleSubmit}>
+                <label className="block text-[11px] uppercase tracking-widest mb-1.5"
+                    style={{ color: 'var(--ash)' }}>Nuevo Rol</label>
+                <select value={newRol} onChange={e => setNewRol(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none appearance-none"
+                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}>
+                    {ROL_OPTIONS.map(r => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                </select>
+            </form>
+        </Modal>
     );
 };
 
