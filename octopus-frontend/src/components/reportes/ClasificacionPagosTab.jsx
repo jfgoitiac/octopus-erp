@@ -642,7 +642,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                         style={inputStyle}
                     />
                 </div>
-                <div className="relative flex-1 min-w-[220px]">
+                <div className="relative flex-1 w-full min-w-[220px]">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                     <input
                         type="text"

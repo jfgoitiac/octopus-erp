@@ -399,7 +399,7 @@ export default function Conciliador() {
 
       {/* Barra de acciones */}
       {transactions.length > 0 && (
-        <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-4">
           <div className="flex items-center gap-3">
             <span className="text-sm" style={{ color: 'var(--ash)' }}>
               <span className="font-semibold" style={{ color: 'var(--jet)' }}>{transactions.length}</span> transacciones cargadas
@@ -417,7 +417,7 @@ export default function Conciliador() {
           <button
             type="button"
             onClick={openSearch}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
             style={{
               background:  'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
               boxShadow:   '0 4px 14px rgba(15,163,177,0.3)',

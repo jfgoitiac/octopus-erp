@@ -517,11 +517,11 @@ export default function Comprobantes() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 pt-1">
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold text-white transition-all duration-150"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold text-white transition-all duration-150"
             style={{
               background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
               boxShadow: loading ? 'none' : 'var(--glow-pb)',

@@ -364,7 +364,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                         style={inputStyle}
                     />
                 </div>
-                <div className="relative flex-1 min-w-[220px]">
+                <div className="relative flex-1 w-full min-w-[220px]">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                     <input
                         type="text"
@@ -415,7 +415,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
 
             {/* Barra de progreso de conciliación (página actual) + acciones */}
             <div className="rounded-xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3" style={cardStyle}>
-                <div className="flex-1 min-w-[220px]">
+                <div className="flex-1 w-full min-w-[220px]">
                     <div className="flex justify-between items-center mb-1.5">
                         <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
                             Progreso de esta página

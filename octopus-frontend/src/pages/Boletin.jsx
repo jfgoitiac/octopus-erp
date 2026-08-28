@@ -181,12 +181,12 @@ const Boletin = () => {
       </div>
 
       {/* Acciones */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
         <button
           type="button"
           onClick={handleVistaPrev}
           disabled={loading || !alumnoSeleccionado || !lapsoId}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 hover:enabled:bg-[var(--pb-mid)]"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 hover:enabled:bg-[var(--pb-mid)]"
           style={{ background: 'var(--pb)' }}
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
@@ -197,7 +197,7 @@ const Boletin = () => {
           <button
             type="button"
             onClick={() => generarBoletinPDF(boletin)}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--green)]/40 hover:brightness-95"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--green)]/40 hover:brightness-95"
             style={{ background: 'var(--success, #16a34a)' }}
           >
             <Download size={16} />
