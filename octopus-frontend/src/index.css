@@ -36,6 +36,11 @@
 
 html { scroll-behavior: smooth; }
 
+/* Red de seguridad anti-desborde horizontal — no es la solución, es un
+   respaldo. El contenedor culpable de cualquier desborde real debe
+   corregirse en su propio componente. */
+html, body { overflow-x: hidden; }
+
 /* ── react-datepicker — experiencia premium Octopus ── */
 .react-datepicker-wrapper { width: 100%; }
 .react-datepicker__input-container { width: 100%; }
