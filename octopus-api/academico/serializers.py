@@ -4,7 +4,7 @@ from secretaria.models import Alumno
 from .models import (
     Materia, Lapso, Nota, Asistencia, HorarioClase, IncidenteDisciplinario,
     MaterialEstudio, EventoCalendario,
-    PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion,
+    PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion, Docente,
 )
 from .services import calcular_rendimiento_seccion
 
@@ -19,11 +19,13 @@ class MateriaSerializer(serializers.ModelSerializer):
         required=False, allow_null=True,
     )
     docente_username = serializers.SerializerMethodField()
+    docente_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model  = Materia
         fields = [
             'id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username',
+            'docente_nombre',
             'activa', 'horas_academicas',
             # Plan de Evaluación (sistema nuevo) — editables solo por admin/control de estudios
             'tipo_evaluacion', 'aporta_a_todas_las_materias', 'cuenta_para_promedio',
@@ -33,6 +35,9 @@ class MateriaSerializer(serializers.ModelSerializer):
         if obj.docente:
             return obj.docente.username
         return None
+
+    def get_docente_nombre(self, obj):
+        return obj.docente.nombre_completo if obj.docente else None
 
     def validate_docente_id(self, value):
         # Solo se puede asignar como docente a un usuario cuyo perfil tenga rol 'docente'.
@@ -44,6 +49,43 @@ class MateriaSerializer(serializers.ModelSerializer):
                 'El usuario seleccionado no tiene rol "docente" y no puede ser asignado como docente de una materia.'
             )
         return value
+
+
+# ─────────────────────────────────────────────
+# DOCENTE
+# ─────────────────────────────────────────────
+class DocenteSerializer(serializers.ModelSerializer):
+    user_id         = serializers.IntegerField(source='user.id', read_only=True)
+    username        = serializers.CharField(source='user.username', read_only=True)
+    nombre_completo = serializers.SerializerMethodField()
+    rol             = serializers.SerializerMethodField()
+    materias        = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Docente
+        fields = [
+            'id', 'user', 'empleado',
+            'user_id', 'username', 'nombre_completo', 'rol',
+            'titulo_academico', 'especialidad', 'fecha_ingreso', 'telefono',
+            'email_institucional', 'observaciones', 'activo', 'sede',
+            'materias',
+        ]
+        extra_kwargs = {
+            'user': {'write_only': True},
+        }
+
+    def get_nombre_completo(self, obj):
+        nombre = f"{obj.user.first_name} {obj.user.last_name}".strip()
+        return nombre or obj.user.username
+
+    def get_rol(self, obj):
+        return getattr(getattr(obj.user, 'perfil', None), 'rol', None)
+
+    def get_materias(self, obj):
+        return [
+            {'id': m.id, 'nombre': m.nombre, 'grado_seccion': m.grado_seccion}
+            for m in obj.materias_asignadas
+        ]
 
 
 # ─────────────────────────────────────────────
@@ -219,13 +261,14 @@ class IncidenteDisciplinarioSerializer(serializers.ModelSerializer):
     alumno_nombre    = serializers.SerializerMethodField()
     severidad_label  = serializers.SerializerMethodField()
     registrado_por_username = serializers.SerializerMethodField()
+    registrado_por_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model  = IncidenteDisciplinario
         fields = [
             'id', 'alumno_id', 'alumno_nombre', 'fecha', 'descripcion',
             'severidad', 'severidad_label', 'adjunto',
-            'registrado_por_username', 'created_at',
+            'registrado_por_username', 'registrado_por_nombre', 'created_at',
         ]
         read_only_fields = ['fecha', 'created_at']
 
@@ -237,6 +280,9 @@ class IncidenteDisciplinarioSerializer(serializers.ModelSerializer):
 
     def get_registrado_por_username(self, obj):
         return obj.registrado_por.username if obj.registrado_por else None
+
+    def get_registrado_por_nombre(self, obj):
+        return obj.registrado_por.nombre_completo if obj.registrado_por else None
 
 
 # ─────────────────────────────────────────────
@@ -276,12 +322,13 @@ class MaterialEstudioSerializer(serializers.ModelSerializer):
     materia_id       = serializers.PrimaryKeyRelatedField(source='materia', queryset=Materia.objects.all())
     materia_nombre   = serializers.SerializerMethodField()
     publicado_por_username = serializers.SerializerMethodField()
+    publicado_por_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model  = MaterialEstudio
         fields = [
             'id', 'materia_id', 'materia_nombre', 'titulo', 'descripcion',
-            'archivo', 'enlace', 'publicado_por_username', 'fecha',
+            'archivo', 'enlace', 'publicado_por_username', 'publicado_por_nombre', 'fecha',
         ]
         read_only_fields = ['fecha']
 
@@ -290,6 +337,9 @@ class MaterialEstudioSerializer(serializers.ModelSerializer):
 
     def get_publicado_por_username(self, obj):
         return obj.publicado_por.username if obj.publicado_por else None
+
+    def get_publicado_por_nombre(self, obj):
+        return obj.publicado_por.nombre_completo if obj.publicado_por else None
 
     def validate_enlace(self, value):
         # El campo es opcional (blank=True); solo se valida el esquema si

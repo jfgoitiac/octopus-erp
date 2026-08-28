@@ -657,3 +657,33 @@ la cuota. Restar a ciegas el `monto_usd` del pago podría dejar `monto_pagado` i
 a la misma cuota. `anular_pago` rechaza explícitamente estos casos con un mensaje que pide ajuste manual por
 Sistemas. Si se necesita automatizar esto, hay que primero registrar el abono por pago-cuota (una tabla
 intermedia con el monto exacto), no solo el acumulado en la cuota.
+
+## Nombre completo de usuario (first_name/last_name) — deuda encontrada durante la implementación
+
+- `cobranza/serializers.py` tiene dos campos llamados `usuario_nombre` (líneas ~122 y ~190,
+  `CierreCajaSerializer`/similar) que en realidad exponen `source='...username'`, no un nombre. El nombre
+  del campo es engañoso — deberían llamarse `usuario_username` o exponer de verdad `nombre_completo`. No se
+  tocó porque cambiar el nombre del campo rompe el contrato de API vigente (regla explícita de esta tarea:
+  "No rompas contratos de API vigentes"); habría que agregar un campo nuevo y deprecar el viejo en una tarea
+  aparte.
+- `pages/GestionSedes.jsx` / `hooks/useUsuariosSede.js` (modal "Asignar usuario a sede") NO crean usuarios —
+  asignan un `PermisoSede` a un usuario ya existente, buscado por `username` o `email`
+  (`multisede/views.py::UsuariosSedeView.post`). El backend no acepta ni usa `first_name`/`last_name` ahí.
+  El Paso 8 original pedía agregar esos campos a ese formulario; se omitió tras confirmarlo con el usuario
+  porque no tendría efecto (el backend los ignoraría).
+- `portal/pages/PortalPerfil.jsx` y `portal-docente/pages/DocentePerfil.jsx` ya usan
+  `first_name`/`last_name` con fallback a `username` para el nombre del representante/docente, pero con
+  lógica inline propia en vez del helper `utils/nombreUsuario.js` (son módulos de portal, fuera del alcance
+  explícito del Paso 7 de esta tarea, que solo listó pantallas del panel admin). Deberían migrarse al
+  helper único en una pasada futura para evitar duplicar la lógica de fallback.
+- `UserManagementViewSet.partial_update` (`authentication/views.py`) está reservado exclusivamente a las
+  acciones `reactivar`/`cambiar_rol` — nunca invoca `UserSerializer.update()`. Hoy no existe ningún endpoint
+  de PATCH parcial para editar `first_name`/`last_name`/`email` de un usuario existente desde Sistemas; solo
+  el PUT completo (`update()` estándar del ViewSet) pasa por el serializer. Si se quiere permitir editar
+  nombre/apellido sin reenviar todos los campos (incluida `password`), habría que agregar soporte explícito
+  en `partial_update` o exponer un endpoint dedicado.
+- 13 usuarios existentes en la base de datos (al `2026-08-28`) quedaron sin `first_name`/`last_name`
+  completos tras el Paso 1 (`AbstractUser` no los tenía poblados previamente): `admin`, `anarelis16`,
+  `andrilugo`, `beatrizleal`, `director`, `ednysm`, `lilianalopez`, `mariamendez`, `mayerlincuauro`,
+  `mmolina`, `nelidaguanipa`, `pruebadiag01`, `secprimaria`. Mientras no se completen a mano (vía
+  `python manage.py completar_nombres --aplicar <csv>`), `nombreUsuario()` cae al `username` para ellos.

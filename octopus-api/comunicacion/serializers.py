@@ -8,6 +8,7 @@ from .models import Circular, LecturaCircular, MensajeDirecto
 # ─────────────────────────────────────────────
 class CircularSerializer(serializers.ModelSerializer):
     publicado_por_username = serializers.SerializerMethodField()
+    publicado_por_nombre = serializers.SerializerMethodField()
     total_destinatarios = serializers.SerializerMethodField()
     total_leidas = serializers.SerializerMethodField()
 
@@ -15,13 +16,16 @@ class CircularSerializer(serializers.ModelSerializer):
         model = Circular
         fields = [
             'id', 'titulo', 'cuerpo', 'adjunto', 'requiere_confirmacion',
-            'publicado_por_username', 'fecha_publicacion',
+            'publicado_por_username', 'publicado_por_nombre', 'fecha_publicacion',
             'total_destinatarios', 'total_leidas',
         ]
         read_only_fields = ['fecha_publicacion']
 
     def get_publicado_por_username(self, obj):
         return obj.publicado_por.username if obj.publicado_por else None
+
+    def get_publicado_por_nombre(self, obj):
+        return obj.publicado_por.nombre_completo if obj.publicado_por else None
 
     def get_total_destinatarios(self, obj):
         return obj.lecturas.count()

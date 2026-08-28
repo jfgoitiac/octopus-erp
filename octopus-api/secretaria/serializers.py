@@ -714,7 +714,9 @@ class LogAuditoriaSerializer(serializers.ModelSerializer):
         fields = ['id', 'fecha_hora', 'usuario', 'accion', 'modulo', 'detalles']
 
     def get_usuario(self, obj):
-        return {"username": obj.usuario.username} if obj.usuario else None
+        if not obj.usuario:
+            return None
+        return {"username": obj.usuario.username, "nombre": obj.usuario.nombre_completo}
 
     def get_fecha_hora(self, obj):
         # Soporta dinámicamente campos 'fecha_hora' o 'fecha' con formato ISO

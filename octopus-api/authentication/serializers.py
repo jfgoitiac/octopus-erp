@@ -18,13 +18,17 @@ class UserSerializer(serializers.ModelSerializer):
     # Protegemos el campo estructural: 'rol' ahora es solo para entrada (creación/edición).
     # Esto evita que el valor real se exponga en GET y previene mutaciones no validadas.
     rol = serializers.CharField(write_only=True, required=False)
-    
+
+    first_name = serializers.CharField(required=True, allow_blank=False)
+    last_name = serializers.CharField(required=True, allow_blank=False)
+    nombre_completo = serializers.ReadOnlyField()
+
     # Implementamos un campo calculado seguro para el Frontend.
     permissions_context = serializers.SerializerMethodField()
 
     class Meta:
         model = get_user_model()
-        fields = ['id', 'username', 'email', 'password', 'is_active', 'perfil', 'rol', 'permissions_context', 'last_login']
+        fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name', 'nombre_completo', 'is_active', 'perfil', 'rol', 'permissions_context', 'last_login']
         extra_kwargs = {'password': {'write_only': True}}
 
     def get_permissions_context(self, obj):
@@ -81,6 +85,9 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         rol = validated_data.pop('rol', None)
         password = validated_data.pop('password', None)
+
+        # D3: el username es inmutable después de creado el usuario.
+        validated_data.pop('username', None)
 
         if password:
             instance.set_password(password)

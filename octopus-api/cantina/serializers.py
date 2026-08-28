@@ -92,10 +92,11 @@ class LoteTarjetasSerializer(serializers.ModelSerializer):
     de este serializer con `.save()`.
     """
     generado_por_username = serializers.CharField(source='generado_por.username', read_only=True)
+    generado_por_nombre = serializers.CharField(source='generado_por.nombre_completo', read_only=True)
 
     class Meta:
         model = LoteTarjetas
-        fields = ('id', 'cantidad', 'generado_por', 'generado_por_username', 'creado_en')
+        fields = ('id', 'cantidad', 'generado_por', 'generado_por_username', 'generado_por_nombre', 'creado_en')
         read_only_fields = fields
 
 
@@ -166,7 +167,9 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
     tarjeta_serial = serializers.CharField(source='tarjeta.serial', read_only=True)
     alumno_nombre = serializers.SerializerMethodField()
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
+    cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     revisado_por_username = serializers.CharField(source='revisado_por.username', read_only=True, default=None)
+    revisado_por_nombre = serializers.CharField(source='revisado_por.nombre_completo', read_only=True, default=None)
 
     class Meta:
         model = RecargaTarjeta
@@ -174,8 +177,8 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
             'id', 'tarjeta', 'tarjeta_serial', 'alumno_nombre', 'metodo_pago',
             'monto_usd', 'tasa_aplicada', 'monto_ves', 'banco_receptor',
             'banco_procedencia', 'referencia', 'numero_lote', 'estatus',
-            'comprobante', 'registrado_por_portal', 'cajero', 'cajero_username',
-            'revisado_por', 'revisado_por_username', 'creado_en', 'revisado_en',
+            'comprobante', 'registrado_por_portal', 'cajero', 'cajero_username', 'cajero_nombre',
+            'revisado_por', 'revisado_por_username', 'revisado_por_nombre', 'creado_en', 'revisado_en',
         )
         # monto_usd/monto_ves/saldo derivados nunca se aceptan del cliente si
         # son calculados por el backend — ver §10 checklist de cantina.md.
@@ -291,16 +294,18 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
     alumno_nombre = serializers.SerializerMethodField()
     tarjeta_serial = serializers.CharField(source='tarjeta.serial', read_only=True, default=None)
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
+    cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     anulada_por_username = serializers.CharField(source='anulada_por.username', read_only=True, default=None)
+    anulada_por_nombre = serializers.CharField(source='anulada_por.nombre_completo', read_only=True, default=None)
     detalles = DetalleVentaCantinaSerializer(many=True, read_only=True)
 
     class Meta:
         model = VentaCantina
         fields = (
             'id', 'alumno', 'alumno_nombre', 'tarjeta', 'tarjeta_serial',
-            'cajero', 'cajero_username', 'metodo_pago', 'total_usd',
+            'cajero', 'cajero_username', 'cajero_nombre', 'metodo_pago', 'total_usd',
             'tasa_aplicada', 'total_ves', 'estado', 'saldo_tarjeta_despues',
-            'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username',
+            'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
         )
         read_only_fields = fields
 
@@ -322,11 +327,12 @@ class AperturaCajaCantinaSerializer(serializers.ModelSerializer):
     `transaction.atomic()`), nunca a través de `.save()` de este serializer.
     """
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
+    cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
 
     class Meta:
         model = AperturaCajaCantina
         fields = (
-            'id', 'cajero', 'cajero_username', 'fecha_hora_apertura',
+            'id', 'cajero', 'cajero_username', 'cajero_nombre', 'fecha_hora_apertura',
             'monto_inicial', 'estado', 'cerrada_en',
         )
         read_only_fields = fields
@@ -343,12 +349,13 @@ class CierreCajaCantinaSerializer(serializers.ModelSerializer):
     (mostrar `username`, no `get_full_name()`).
     """
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
+    cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     monto_inicial = serializers.DecimalField(source='apertura.monto_inicial', max_digits=10, decimal_places=2, read_only=True, default=None)
 
     class Meta:
         model = CierreCajaCantina
         fields = (
-            'id', 'cajero', 'cajero_username', 'apertura', 'monto_inicial', 'fecha', 'total_ventas',
+            'id', 'cajero', 'cajero_username', 'cajero_nombre', 'apertura', 'monto_inicial', 'fecha', 'total_ventas',
             'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo',
             'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
         )

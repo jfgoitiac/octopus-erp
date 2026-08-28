@@ -4,8 +4,13 @@ from django.conf import settings
 
 
 class Usuario(AbstractUser):
+    @property
+    def nombre_completo(self):
+        nombre = f"{self.first_name} {self.last_name}".strip()
+        return nombre if nombre else self.username
+
     def __str__(self):
-        return self.username
+        return self.nombre_completo
 
 
 class LogAuditoria(models.Model):
