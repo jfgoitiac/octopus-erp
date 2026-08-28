@@ -79,7 +79,7 @@ export function ModalLapso({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>
               Fecha inicio

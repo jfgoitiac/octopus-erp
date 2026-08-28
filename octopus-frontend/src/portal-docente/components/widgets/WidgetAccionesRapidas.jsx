@@ -22,7 +22,7 @@ const ACCIONES = [
 ];
 
 const WidgetAccionesRapidas = ({ className = '' }) => (
-  <div className={`grid grid-cols-3 gap-3 ${className}`}>
+  <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 ${className}`}>
     {ACCIONES.map(({ to, state, icon: Icon, label }) => (
       <Link
         key={label}

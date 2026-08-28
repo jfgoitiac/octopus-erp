@@ -70,7 +70,7 @@ const SedeCard = ({ sede, onVerDetalle }) => {
       </div>
 
       {/* Métricas 2×2 */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: 'var(--ash)' }}>
             Alumnos

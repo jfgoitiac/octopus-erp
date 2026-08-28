@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Banknote, Receipt, TrendingUp, Megaphone } from 'lucide-react';
 
 const WidgetAccionesRapidas = ({ onPagar, className = '' }) => (
-  <div className={`grid grid-cols-4 gap-3 ${className}`}>
+  <div className={`grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 ${className}`}>
     <button
       onClick={onPagar}
       className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"

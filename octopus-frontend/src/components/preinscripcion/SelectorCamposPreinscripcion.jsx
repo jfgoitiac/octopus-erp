@@ -83,7 +83,7 @@ const SelectorCamposPreinscripcion = ({ modo, generando, onCerrar, onGenerar }) 
                     <p className="text-[11px] uppercase tracking-widest font-bold mb-2" style={{ color: 'var(--ash)' }}>
                         Formato de salida
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                             type="button"
                             onClick={() => setFormato('individual')}
@@ -123,7 +123,7 @@ const SelectorCamposPreinscripcion = ({ modo, generando, onCerrar, onGenerar }) 
                            style={{ color: 'var(--ash)' }}>
                             {seccion.titulo}
                         </p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {seccion.campos.map((campo) => {
                                 const activo = seleccion.includes(campo.key);
                                 return (

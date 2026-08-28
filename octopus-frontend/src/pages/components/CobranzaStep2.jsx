@@ -157,7 +157,7 @@ const CobranzaStep2 = ({
                                 )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                 {CONCEPTOS.map(c => (
                                     <button
                                         key={c.value}
@@ -330,7 +330,7 @@ const CobranzaStep2 = ({
                                 </div>
 
                                 {/* Banco + Referencia */}
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {requiereBanco(l.metodo_pago) && (
                                         <div>
                                             <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>

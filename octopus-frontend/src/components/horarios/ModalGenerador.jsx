@@ -119,7 +119,7 @@ export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGen
         )}
 
         {/* Horas por día / duración */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
               Horas por día
@@ -144,7 +144,7 @@ export const ModalGenerador = ({ generando, lockedIds, onClose, onGenerar, onGen
         </div>
 
         {/* Hora inicio / fin */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
               Hora de inicio

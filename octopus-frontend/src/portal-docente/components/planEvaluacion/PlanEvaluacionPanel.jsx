@@ -353,7 +353,7 @@ function BuilderPlan({
           </div>
 
           {!esLiteral && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="block text-[11px] font-medium text-gray-400 mb-1">Total de puntos</label>
                 <input

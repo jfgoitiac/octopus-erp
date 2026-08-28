@@ -64,7 +64,7 @@ export function GenerarNominaModal({ onClose, onGenerated }) {
             <form id="form-generar-nomina" onSubmit={submit} className="space-y-5">
                 <p className="text-xs -mt-2" style={{ color: 'var(--ash)' }}>Los valores se guardarán en cada registro.</p>
                 {loading ? <div className="h-24 animate-pulse rounded-lg" style={{ background: 'var(--border)' }} /> : <>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label className="text-xs" style={{ color: 'var(--ash)' }}>Mes<input name="mes" type="number" min="1" max="12" value={form.mes} onChange={update} className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={inputStyle} /></label>
                         <label className="text-xs" style={{ color: 'var(--ash)' }}>Año<input name="anio" type="number" min="2000" value={form.anio} onChange={update} className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={inputStyle} /></label>
                     </div>

@@ -82,7 +82,7 @@ const ImportarEstudiantesModal = ({ onClose, onPreview, onConfirm, loadingPrevie
 
                 {resumen && (
                     <div className="space-y-3">
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-center">
                             <div className="p-3 rounded-lg" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
                                 <div className="text-lg font-semibold" style={{ color: 'var(--jet)' }}>{resumen.total}</div>
                                 <div className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total</div>

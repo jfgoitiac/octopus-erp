@@ -353,7 +353,7 @@ const DocenteMateriaDetalle = () => {
           </div>
 
           {!loadingAsistencia && registros.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {[
                 { key: 'presentes', label: 'Presentes', color: 'text-green-600', bg: 'bg-green-50' },
                 { key: 'ausentes', label: 'Ausentes', color: 'text-red-600', bg: 'bg-red-50' },

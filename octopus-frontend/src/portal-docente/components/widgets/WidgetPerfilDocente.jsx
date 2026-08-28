@@ -19,7 +19,7 @@ const WidgetPerfilDocente = ({ nombre, cantidadMaterias, cantidadAlumnos }) => {
         <p className="text-sm font-semibold text-gray-900">{nombre || 'Docente'}</p>
         <p className="text-xs text-gray-400">Ver mi perfil</p>
       </div>
-      <div className="grid grid-cols-2 gap-3 w-full pt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full pt-1">
         <div className="flex flex-col items-center gap-1 rounded-xl bg-[var(--docente-bg)] py-2.5">
           <BookOpen size={16} className="text-[var(--docente-primary)]" />
           <p className="text-sm font-bold text-gray-900 leading-none">{cantidadMaterias}</p>

@@ -52,7 +52,7 @@ const SlidePendientes = ({ mensajesNoLeidos, incidentesRecientes, loading }) => 
   return (
     <div className="relative h-full flex flex-col justify-center">
       <p className="text-xs text-white/70">Resumen de pendientes</p>
-      <div className="grid grid-cols-2 gap-3 mt-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
         <div className="bg-white/15 rounded-xl px-3 py-2.5 backdrop-blur-sm">
           <div className="flex items-center gap-1.5 text-white/70">
             <MessageCircle size={14} />

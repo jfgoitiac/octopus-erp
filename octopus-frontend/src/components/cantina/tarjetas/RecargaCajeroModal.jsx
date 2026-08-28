@@ -345,7 +345,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
 
           {/* Datos bancarios / referencia según método (§5.9 cantina.md) */}
           {requiereBanco(metodoPago) && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco receptor</label>
                 <select

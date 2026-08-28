@@ -77,7 +77,7 @@ export default function ResumenCobro({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
         <div className="rounded-lg px-3 py-2" style={{ background: '#fff' }}>
           <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo actual</p>
           <p className="font-semibold" style={{ color: saldoActual < 0 ? 'var(--red, #dc2626)' : 'var(--jet)' }}>

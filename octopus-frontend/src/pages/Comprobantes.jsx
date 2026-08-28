@@ -622,7 +622,7 @@ export default function Comprobantes() {
                       <EstatusBadge estatus={c.estatus} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
                       <div>
                         <p style={{ color: 'var(--ash)' }}>Fecha</p>
                         <p className="font-medium" style={{ color: 'var(--jet)' }}>

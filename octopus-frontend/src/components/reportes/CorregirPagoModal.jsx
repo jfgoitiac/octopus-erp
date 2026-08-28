@@ -140,7 +140,7 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                 )}
 
                 {/* Referencia + lote */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className={esPuntoDeVenta ? '' : 'col-span-2'}>
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                             Nº de referencia

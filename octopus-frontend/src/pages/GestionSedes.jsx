@@ -344,7 +344,7 @@ const GestionSedes = () => {
       {modalSede && (
         <Modal open titulo={editingSede ? 'Editar sede' : 'Nueva sede'} onClose={cerrarModalSede} size="sm">
           <form onSubmit={guardar} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Nombre"    name="nombre"    value={sedeForm.nombre}    onChange={handleFormChange} required />
               <Field label="RIF"       name="rif"       value={sedeForm.rif}       onChange={handleFormChange} />
               <Field label="Teléfono"  name="telefono"  value={sedeForm.telefono}  onChange={handleFormChange} />

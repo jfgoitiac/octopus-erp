@@ -428,7 +428,7 @@ const PanelPropiedadesBloque = ({ seccion = null, onChange }) => {
               <option value="completo">Completo</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Espaciado superior</Label>
               <select value={configEstilo.espaciado_top || 'md'} onChange={(e) => actualizarConfigEstilo('espaciado_top', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>

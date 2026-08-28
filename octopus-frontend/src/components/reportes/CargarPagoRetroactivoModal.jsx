@@ -245,7 +245,7 @@ const CargarPagoRetroactivoModal = ({ bancosDisponibles, onClose, onGuardado }) 
                 </div>
 
                 {/* Método + Monto */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                             Método de pago
@@ -299,7 +299,7 @@ const CargarPagoRetroactivoModal = ({ bancosDisponibles, onClose, onGuardado }) 
                 )}
 
                 {/* Referencia + lote */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className={esPuntoDeVenta ? '' : 'col-span-2'}>
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                             Nº de referencia{esPuntoDeVenta ? ' (4 dígitos)' : ''}

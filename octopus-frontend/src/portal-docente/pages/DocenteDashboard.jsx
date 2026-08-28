@@ -69,11 +69,11 @@ const DocenteDashboard = () => {
       {/* Estadísticas rápidas */}
       <div className="md:col-span-12">
         {cargando ? (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={1} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
               { icon: BookOpen, label: 'Materias', value: materias.length, to: '/portal-docente/materias' },
               { icon: MessageCircle, label: 'Sin leer', value: mensajesNoLeidos, to: '/portal-docente/mensajes' },

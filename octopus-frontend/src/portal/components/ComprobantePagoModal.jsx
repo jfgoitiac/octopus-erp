@@ -145,7 +145,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
 
         {/* Área de carga */}
         {!archivo ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-gray-50 transition-colors min-h-[90px]">
               <Camera size={26} className="text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />
               <span className="text-sm font-medium text-gray-600">Cámara</span>

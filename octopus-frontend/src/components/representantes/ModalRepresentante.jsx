@@ -56,7 +56,7 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
             size="sm"
         >
             <form id="form-representante" onSubmit={onSave} className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field id="rep-nombre" label="Nombre" required error={formErrors.nombre}>
                         <input id="rep-nombre" {...field('nombre')} />
                     </Field>

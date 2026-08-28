@@ -88,7 +88,7 @@ const TabConfig = () => {
           <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Marca</h3>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Color Primario</label>
               <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ const TabConfig = () => {
           <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Menú y footer</h3>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Color del menú</label>
               <select value={config?.estilo_menu || 'claro'} onChange={(e) => handleChange('estilo_menu', e.target.value)}
@@ -180,7 +180,7 @@ const TabConfig = () => {
           <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Tipografía y botones</h3>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Tipografía</label>
               <select value={config?.tipografia || 'moderna'} onChange={(e) => handleChange('tipografia', e.target.value)}

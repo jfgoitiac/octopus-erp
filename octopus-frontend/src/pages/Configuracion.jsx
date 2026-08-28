@@ -179,7 +179,7 @@ const Configuracion = () => {
                             <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Datos del Colegio</h3>
                         </div>
                         <div className="p-5 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="col-span-2">
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Nombre del Colegio</label>
                                     <input type="text" name="nombre_colegio" value={config?.nombre_colegio || ''} onChange={handleConfigChange}
@@ -323,7 +323,7 @@ const Configuracion = () => {
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none font-medium"
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio del Año</label>
                                     <DatePickerES name="fecha_inicio_ano_escolar" value={config?.fecha_inicio_ano_escolar || ''} onChange={handleConfigChange}
@@ -357,7 +357,7 @@ const Configuracion = () => {
                             </span>
                         </div>
                         <div className="p-5">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Inicio Inscripciones</label>
                                     <DatePickerES name="fecha_inicio_inscripciones" value={config?.fecha_inicio_inscripciones || ''} onChange={handleConfigChange}
@@ -557,7 +557,7 @@ const Configuracion = () => {
                     </button>
                 </div>
                 <div className="p-5">
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         {[
                             { key: 'logoColegio', label: 'Logo Colegio' },
                             { key: 'logoAvec', label: 'Logo AVEC' },
@@ -1102,7 +1102,7 @@ const Configuracion = () => {
                     )}
                     size="md"
                 >
-                    <div className="grid grid-cols-2 gap-6 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-4">
                         {[
                             { field: 'logoColegio', label: 'Logo Colegio' },
                             { field: 'logoAvec', label: 'Logo AVEC' },
@@ -1291,7 +1291,7 @@ const Configuracion = () => {
                         </div>
                         <div>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Métodos de Pago Aceptados</label>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {Object.entries(TIPO_LABELS).map(([val, label]) => {
                                     const checked = (bancoForm.tipos || []).includes(val);
                                     return (
