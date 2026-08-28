@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import {
-  X, Loader2, Search, Wallet, AlertTriangle, CheckCircle2, UserRound,
+  Loader2, Search, Wallet, AlertTriangle, CheckCircle2, UserRound,
 } from 'lucide-react';
 import {
   buscarTarjetaActiva, getBancosCantina, getTasaVigenteCantina, recargarTarjetaCajero,
 } from '../../../api/cantina.service';
+import { Modal } from '../../ui/Modal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const LABEL_STYLE = { color: 'var(--ash)' };
@@ -197,237 +198,225 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
     }
   };
 
-  const handleKeyDown = (e) => { if (e.key === 'Escape' && !enviando) onClose(); };
+  const handleClose = () => { if (!enviando) onClose(); };
+
+  const footer = (
+    <>
+      <button
+        onClick={handleClose}
+        disabled={enviando}
+        className="w-full sm:w-auto rounded-xl py-2.5 text-sm min-h-[44px] disabled:opacity-40"
+        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+      >
+        Cancelar
+      </button>
+      {tarjeta && (
+        <button
+          onClick={handleConfirmar}
+          disabled={enviando}
+          className="w-full sm:w-auto text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+          style={{ background: 'var(--pb)' }}
+        >
+          {enviando ? <><Loader2 size={14} className="animate-spin" /> Recargando...</> : 'Confirmar recarga'}
+        </button>
+      )}
+    </>
+  );
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-      onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-recarga-titulo"
-      tabIndex={-1}
+    <Modal
+      open
+      onClose={handleClose}
+      titulo={(
+        <>
+          <Wallet size={17} />
+          Recargar tarjeta
+        </>
+      )}
+      footer={footer}
+      size="md"
     >
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-1">
-          <h3 id="modal-recarga-titulo" className="font-bold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <Wallet size={18} style={{ color: 'var(--pb)' }} />
-            Recargar tarjeta
-          </h3>
-          <button
-            onClick={() => !enviando && onClose()}
-            className="p-1 rounded-lg disabled:opacity-40"
-            style={{ color: 'var(--ash)' }}
-            aria-label="Cerrar modal"
-            disabled={enviando}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {!tarjeta ? (
-          <div className="space-y-3 mt-3">
-            <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
-              Código QR o serial de la tarjeta
-            </label>
-            <div className="flex gap-2">
-              <input
-                autoFocus
-                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
-                style={FIELD_STYLE}
-                value={entradaTarjeta}
-                onChange={e => { setEntradaTarjeta(e.target.value); setErrorBusqueda(''); }}
-                onKeyDown={e => { if (e.key === 'Enter') handleBuscarTarjeta(); }}
-                placeholder="CANT-7K9M2XQPRT o L003-0007"
-              />
-              <button
-                onClick={handleBuscarTarjeta}
-                disabled={buscando}
-                className="px-4 rounded-xl text-sm font-medium text-white flex items-center gap-1.5 disabled:opacity-50 min-h-[44px]"
-                style={{ background: 'var(--pb)' }}
-              >
-                {buscando ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                Buscar
-              </button>
-            </div>
-            {errorBusqueda && (
-              <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red, #dc2626)' }}>
-                <AlertTriangle size={14} /> {errorBusqueda}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4 mt-3">
-            <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2" style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}>
-              <span className="flex items-center gap-2">
-                <UserRound size={16} />
-                {tarjeta.alumno?.nombre
-                  ? `${tarjeta.alumno.nombre} ${tarjeta.alumno.apellido || ''}`.trim()
-                  : `Tarjeta ${tarjeta.serial}`}
-              </span>
-              <span className="font-semibold" style={{ color: tarjeta.saldo < 0 ? 'var(--red, #dc2626)' : 'var(--pb-mid, #0c7a86)' }}>
-                Saldo: ${Number(tarjeta.saldo ?? 0).toFixed(2)}
-              </span>
-            </div>
-            <button onClick={cambiarTarjeta} disabled={enviando} className="text-xs -mt-2" style={{ color: 'var(--ash)' }}>
-              Cambiar tarjeta
+      {!tarjeta ? (
+        <div className="space-y-3">
+          <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
+            Código QR o serial de la tarjeta
+          </label>
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              style={FIELD_STYLE}
+              value={entradaTarjeta}
+              onChange={e => { setEntradaTarjeta(e.target.value); setErrorBusqueda(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleBuscarTarjeta(); }}
+              placeholder="CANT-7K9M2XQPRT o L003-0007"
+            />
+            <button
+              onClick={handleBuscarTarjeta}
+              disabled={buscando}
+              className="px-4 rounded-xl text-sm font-medium text-white flex items-center gap-1.5 disabled:opacity-50 min-h-[44px]"
+              style={{ background: 'var(--pb)' }}
+            >
+              {buscando ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              Buscar
             </button>
+          </div>
+          {errorBusqueda && (
+            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red, #dc2626)' }}>
+              <AlertTriangle size={14} /> {errorBusqueda}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2" style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}>
+            <span className="flex items-center gap-2">
+              <UserRound size={16} />
+              {tarjeta.alumno?.nombre
+                ? `${tarjeta.alumno.nombre} ${tarjeta.alumno.apellido || ''}`.trim()
+                : `Tarjeta ${tarjeta.serial}`}
+            </span>
+            <span className="font-semibold" style={{ color: tarjeta.saldo < 0 ? 'var(--red, #dc2626)' : 'var(--pb-mid, #0c7a86)' }}>
+              Saldo: ${Number(tarjeta.saldo ?? 0).toFixed(2)}
+            </span>
+          </div>
+          <button onClick={cambiarTarjeta} disabled={enviando} className="text-xs -mt-2" style={{ color: 'var(--ash)' }}>
+            Cambiar tarjeta
+          </button>
 
-            {/* Método de pago */}
+          {/* Método de pago */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Método de pago</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {METODOS.map(m => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => handleCambiarMetodo(m.value)}
+                  disabled={enviando}
+                  className="py-2 px-2 rounded-lg text-xs font-medium min-h-[40px]"
+                  style={metodoPago === m.value ? ACTIVE_STYLE : IDLE_STYLE}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Monto + moneda */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Monto</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>
+                  {moneda === 'USD' ? '$' : 'Bs.'}
+                </span>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg text-sm font-semibold outline-none min-h-[44px]"
+                  style={FIELD_STYLE}
+                  value={monto}
+                  onChange={e => setMonto(e.target.value)}
+                  placeholder="0.00"
+                  disabled={enviando}
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Método de pago</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {METODOS.map(m => (
+              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Moneda</label>
+              <div className="flex gap-1.5">
+                {['USD', 'VES'].map(mo => (
                   <button
-                    key={m.value}
+                    key={mo}
                     type="button"
-                    onClick={() => handleCambiarMetodo(m.value)}
+                    onClick={() => setMoneda(mo)}
                     disabled={enviando}
-                    className="py-2 px-2 rounded-lg text-xs font-medium min-h-[40px]"
-                    style={metodoPago === m.value ? ACTIVE_STYLE : IDLE_STYLE}
+                    className="px-3 py-2 rounded-lg text-xs font-medium min-h-[44px]"
+                    style={moneda === mo ? ACTIVE_STYLE : IDLE_STYLE}
                   >
-                    {m.label}
+                    {mo}
                   </button>
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Monto + moneda */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Monto</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>
-                    {moneda === 'USD' ? '$' : 'Bs.'}
-                  </span>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm font-semibold outline-none min-h-[44px]"
-                    style={FIELD_STYLE}
-                    value={monto}
-                    onChange={e => setMonto(e.target.value)}
-                    placeholder="0.00"
-                    disabled={enviando}
-                  />
-                </div>
-              </div>
+          {/* Datos bancarios / referencia según método (§5.9 cantina.md) */}
+          {requiereBanco(metodoPago) && (
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Moneda</label>
-                <div className="flex gap-1.5">
-                  {['USD', 'VES'].map(mo => (
-                    <button
-                      key={mo}
-                      type="button"
-                      onClick={() => setMoneda(mo)}
-                      disabled={enviando}
-                      className="px-3 py-2 rounded-lg text-xs font-medium min-h-[44px]"
-                      style={moneda === mo ? ACTIVE_STYLE : IDLE_STYLE}
-                    >
-                      {mo}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Datos bancarios / referencia según método (§5.9 cantina.md) */}
-            {requiereBanco(metodoPago) && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco receptor</label>
-                  <select
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
-                    style={{
-                      ...FIELD_STYLE,
-                      border: tocado.banco && !bancoReceptorId ? '1px solid #ef4444' : FIELD_STYLE.border,
-                    }}
-                    value={bancoReceptorId}
-                    onChange={e => setBancoReceptorId(e.target.value)}
-                    onBlur={() => marcarTocado('banco')}
-                    disabled={enviando}
-                  >
-                    <option value="">Seleccionar banco…</option>
-                    {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
-                  </select>
-                  {tocado.banco && !bancoReceptorId && (
-                    <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco de procedencia</label>
-                  <input
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
-                    style={FIELD_STYLE}
-                    value={bancoProcedencia}
-                    onChange={e => setBancoProcedencia(e.target.value)}
-                    placeholder="Banco del representante"
-                    disabled={enviando}
-                  />
-                </div>
-              </div>
-            )}
-
-            {requiereReferencia(metodoPago) && (
-              <div>
-                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
-                  {metodoPago === 'zelle' ? 'Número de confirmación Zelle' : 'Referencia (6 dígitos)'}
-                </label>
-                <input
-                  type="text"
+                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco receptor</label>
+                <select
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
                   style={{
                     ...FIELD_STYLE,
-                    border: tocado.referencia && referenciaInvalida(metodoPago, referencia) ? '1px solid #ef4444' : FIELD_STYLE.border,
+                    border: tocado.banco && !bancoReceptorId ? '1px solid #ef4444' : FIELD_STYLE.border,
                   }}
-                  value={referencia}
-                  onChange={e => setReferencia(
-                    metodoPago === 'zelle' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6)
-                  )}
-                  onBlur={() => marcarTocado('referencia')}
-                  maxLength={metodoPago === 'zelle' ? 100 : 6}
-                  placeholder={metodoPago === 'zelle' ? 'Ej: ZL-2026-XXXXXXXX' : 'Ej: 123456'}
+                  value={bancoReceptorId}
+                  onChange={e => setBancoReceptorId(e.target.value)}
+                  onBlur={() => marcarTocado('banco')}
                   disabled={enviando}
-                />
-                {tocado.referencia && referenciaInvalida(metodoPago, referencia) && (
-                  <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>
-                    {metodoPago === 'zelle' ? 'Ingresa el número de confirmación.' : 'Debe tener exactamente 6 dígitos numéricos.'}
-                  </p>
+                >
+                  <option value="">Seleccionar banco…</option>
+                  {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+                </select>
+                {tocado.banco && !bancoReceptorId && (
+                  <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
                 )}
               </div>
-            )}
-
-            {(metodoPago === 'efectivo' || metodoPago === 'efectivo_ves') && (
-              <div className="rounded-lg px-3 py-2.5 text-xs flex items-center gap-2" style={{ background: 'var(--porcelain)', color: 'var(--ash)' }}>
-                <CheckCircle2 size={14} />
-                Recibido en caja — sin datos bancarios, aprobación instantánea.
+              <div>
+                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco de procedencia</label>
+                <input
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+                  style={FIELD_STYLE}
+                  value={bancoProcedencia}
+                  onChange={e => setBancoProcedencia(e.target.value)}
+                  placeholder="Banco del representante"
+                  disabled={enviando}
+                />
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={() => !enviando && onClose()}
-            disabled={enviando}
-            className="flex-1 rounded-xl py-2.5 text-sm min-h-[44px] disabled:opacity-40"
-            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-          >
-            Cancelar
-          </button>
-          {tarjeta && (
-            <button
-              onClick={handleConfirmar}
-              disabled={enviando}
-              className="flex-1 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
-              style={{ background: 'var(--pb)' }}
-            >
-              {enviando ? <><Loader2 size={14} className="animate-spin" /> Recargando...</> : 'Confirmar recarga'}
-            </button>
+          {requiereReferencia(metodoPago) && (
+            <div>
+              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+                {metodoPago === 'zelle' ? 'Número de confirmación Zelle' : 'Referencia (6 dígitos)'}
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+                style={{
+                  ...FIELD_STYLE,
+                  border: tocado.referencia && referenciaInvalida(metodoPago, referencia) ? '1px solid #ef4444' : FIELD_STYLE.border,
+                }}
+                value={referencia}
+                onChange={e => setReferencia(
+                  metodoPago === 'zelle' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6)
+                )}
+                onBlur={() => marcarTocado('referencia')}
+                maxLength={metodoPago === 'zelle' ? 100 : 6}
+                placeholder={metodoPago === 'zelle' ? 'Ej: ZL-2026-XXXXXXXX' : 'Ej: 123456'}
+                disabled={enviando}
+              />
+              {tocado.referencia && referenciaInvalida(metodoPago, referencia) && (
+                <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>
+                  {metodoPago === 'zelle' ? 'Ingresa el número de confirmación.' : 'Debe tener exactamente 6 dígitos numéricos.'}
+                </p>
+              )}
+            </div>
+          )}
+
+          {(metodoPago === 'efectivo' || metodoPago === 'efectivo_ves') && (
+            <div className="rounded-lg px-3 py-2.5 text-xs flex items-center gap-2" style={{ background: 'var(--porcelain)', color: 'var(--ash)' }}>
+              <CheckCircle2 size={14} />
+              Recibido en caja — sin datos bancarios, aprobación instantánea.
+            </div>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }
