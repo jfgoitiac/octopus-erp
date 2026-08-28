@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { X, Save, History, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
+import { Save, History, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Modal } from '../ui/Modal';
 
 // Q-3 fix: formatea h.fecha con date-fns en español
 const formatearFechaHistorial = (fecha) => {
@@ -28,31 +29,35 @@ const ModalAjustarMensualidades = ({
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
 
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onClose]);
+    const footer = (
+        <>
+            <button
+                onClick={onClose}
+                className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm"
+                style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
+                Cancelar
+            </button>
+            <button
+                onClick={onSave}
+                disabled={saving || mensualidades.length === 0}
+                className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
+                style={{ background: 'var(--pb)' }}>
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+        </>
+    );
 
     return (
-    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         style={{ background: 'rgba(43,48,58,0.5)' }}>
-        <div
+        <Modal
             ref={containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-mensualidades-titulo"
-            className="rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn"
-            style={{ background: 'var(--porcelain)' }}
-            onClick={(e) => e.stopPropagation()}>
-
-            {/* Header */}
-            <div className="p-6 flex justify-between items-center"
-                 style={{ borderBottom: '0.5px solid var(--border)' }}>
+            open
+            onClose={onClose}
+            titulo={(
                 <div>
-                    <h2 id="modal-mensualidades-titulo" className="text-xl font-bold" style={{ color: 'var(--jet)' }}>Ajustar Mensualidades</h2>
+                    <div>Ajustar Mensualidades</div>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <p className="text-xs" style={{ color: 'var(--ash)' }}>
+                        <p className="text-xs font-normal" style={{ color: 'var(--ash)' }}>
                             {alumno.nombre} {alumno.apellido}
                         </p>
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
@@ -62,13 +67,11 @@ const ModalAjustarMensualidades = ({
                         </span>
                     </div>
                 </div>
-                <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>
-                    <X size={24} />
-                </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4">
+            )}
+            footer={footer}
+            size="sm"
+        >
+            <div className="space-y-4">
                 {loadingMensualidades ? (
                     // C-5 fix: skeleton mientras cargan las mensualidades
                     <div className="space-y-3">
@@ -153,26 +156,7 @@ const ModalAjustarMensualidades = ({
                     </>
                 )}
             </div>
-
-            {/* Footer */}
-            <div className="p-6 flex gap-3" style={{ background: 'var(--ash-light)' }}>
-                <button
-                    onClick={onClose}
-                    className="flex-1 py-3 rounded-xl font-bold"
-                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
-                    Cancelar
-                </button>
-                <button
-                    onClick={onSave}
-                    disabled={saving || mensualidades.length === 0}
-                    className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-                    style={{ background: 'var(--pb)', color: '#fff' }}>
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {saving ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-            </div>
-        </div>
-    </div>
+        </Modal>
     );
 };
 

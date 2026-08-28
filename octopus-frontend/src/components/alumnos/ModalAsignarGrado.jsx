@@ -1,46 +1,31 @@
-import { useEffect, useRef } from 'react';
-import { X, UserCheck, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
+import { UserCheck, Loader2 } from 'lucide-react';
 import GradoSelect from '../GradoSelect';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Modal } from '../ui/Modal';
 
 const ModalAsignarGrado = ({ alumno, nuevoGrado, setNuevoGrado, saving, onClose, onConfirmar }) => {
     const containerRef = useRef(null);
     useFocusTrap(containerRef);
 
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [onClose]);
-
     return (
-    <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         style={{ background: 'rgba(43,48,58,0.5)' }}>
-        <div
+        <Modal
             ref={containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-grado-titulo"
-            className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
-            style={{ background: 'var(--porcelain)' }}
-            onClick={(e) => e.stopPropagation()}>
-
-            <div className="p-6 flex justify-between items-center"
-                 style={{ borderBottom: '0.5px solid var(--border)' }}>
+            open
+            onClose={onClose}
+            titulo={(
                 <div>
-                    <h3 id="modal-grado-titulo" className="font-bold" style={{ color: 'var(--jet)' }}>Asignar Grado / Año</h3>
+                    <div>Asignar Grado / Año</div>
                     {alumno && (
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
+                        <p className="text-xs mt-0.5 font-normal" style={{ color: 'var(--ash)' }}>
                             {alumno.nombre} {alumno.apellido}
                         </p>
                     )}
                 </div>
-                <button onClick={onClose} aria-label="Cerrar modal" style={{ color: 'var(--ash)' }}>
-                    <X size={20} />
-                </button>
-            </div>
-
-            <div className="p-6 space-y-4">
+            )}
+            size="sm"
+        >
+            <div className="space-y-4">
                 <label className="block text-[11px] uppercase tracking-widest mb-1.5"
                        style={{ color: 'var(--ash)' }}>
                     Seleccione Nivel Escolar
@@ -62,8 +47,7 @@ const ModalAsignarGrado = ({ alumno, nuevoGrado, setNuevoGrado, saving, onClose,
                     Confirmar Asignación
                 </button>
             </div>
-        </div>
-    </div>
+        </Modal>
     );
 };
 
