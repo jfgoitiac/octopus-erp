@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { User, Mail, Lock, Eye, EyeOff, X, UserPlus, Loader2, Check, AlertCircle } from 'lucide-react';
 import { ROL_OPTIONS } from '../../../constants/roles';
 
-const EMPTY_FORM = { username: '', email: '', password: '', rol: 'cajero' };
+const EMPTY_FORM = { username: '', first_name: '', last_name: '', email: '', password: '', rol: 'cajero' };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Espeja las reglas activas en AUTH_PASSWORD_VALIDATORS (config/settings.py del backend)
@@ -33,21 +33,32 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
     );
     const passwordValid = passwordChecks.every(c => c.ok);
     const emailValid = formData.email === '' || EMAIL_REGEX.test(formData.email);
-    const canSubmit = formData.username.trim() !== '' && emailValid && formData.email !== '' && passwordValid;
+    const canSubmit = formData.username.trim() !== ''
+        && formData.first_name.trim() !== ''
+        && formData.last_name.trim() !== ''
+        && emailValid && formData.email !== '' && passwordValid;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setTouched({ username: true, email: true, password: true });
+        setTouched({ username: true, first_name: true, last_name: true, email: true, password: true });
         if (!canSubmit) return;
         setLoading(true);
-        const payload = { ...formData, username: formData.username.trim(), email: formData.email.trim() };
+        const payload = {
+            ...formData,
+            username: formData.username.trim(),
+            first_name: formData.first_name.trim(),
+            last_name: formData.last_name.trim(),
+            email: formData.email.trim(),
+        };
         const ok = await onCreate(payload);
         setLoading(false);
         if (ok) onClose();
     };
 
     const FIELDS = [
-        { label: 'Usuario', name: 'username', type: 'text',  Icon: User, placeholder: 'jperez' },
+        { label: 'Usuario (solo para iniciar sesión)', name: 'username', type: 'text',  Icon: User, placeholder: 'jperez' },
+        { label: 'Nombre', name: 'first_name', type: 'text', Icon: User, placeholder: 'Juan' },
+        { label: 'Apellido', name: 'last_name', type: 'text', Icon: User, placeholder: 'Pérez' },
         {
             label: 'Correo', name: 'email', type: 'email', Icon: Mail, placeholder: 'usuario@colegio.com',
             error: touched.email && formData.email !== '' && !emailValid ? 'Correo electrónico inválido' : null,
