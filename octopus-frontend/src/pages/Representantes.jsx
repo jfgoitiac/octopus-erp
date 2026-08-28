@@ -7,6 +7,7 @@ import RepresentanteFicha from '../components/representantes/RepresentanteFicha'
 import ModalRepresentante from '../components/representantes/ModalRepresentante';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/shared/Pagination';
+import { TablaScroll } from '../components/ui/TablaScroll';
 
 const INPUT_STYLE = {
     background: 'var(--bg)', border: '0.5px solid var(--border-md)',
@@ -29,13 +30,13 @@ const Representantes = () => {
     }, [rep.confirmDelete, rep.setConfirmDelete]);
 
     return (
-        <div className="flex gap-4 items-start">
+        <div className="flex flex-col lg:flex-row gap-4 items-start">
             {/* Panel principal */}
-            <div className="flex-1 min-w-0 flex flex-col gap-4">
+            <div className="flex-1 min-w-0 w-full flex flex-col gap-4">
 
                 {/* Barra de búsqueda + acciones */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <div className="relative flex-1 min-w-[180px]">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="relative flex-1 sm:min-w-[180px]">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
                         <input
                             type="search"
@@ -55,13 +56,15 @@ const Representantes = () => {
                             value={rep.minHijos}
                             min="0"
                             onChange={e => rep.setMinHijos(e.target.value)}
-                            style={{ ...INPUT_STYLE, width: '120px' }}
+                            style={{ ...INPUT_STYLE, width: '100%' }}
+                            className="sm:w-[120px]"
                         />
                     </div>
+                    <div className="flex gap-2">
                     {canWrite && (
                         <button
                             onClick={rep.openCrear}
-                            className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white min-h-[44px]"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white min-h-[44px]"
                             style={{ background: 'var(--pb)', whiteSpace: 'nowrap' }}
                         >
                             <UserPlus size={14} />
@@ -72,7 +75,7 @@ const Representantes = () => {
                         <button
                             onClick={rep.handleExportExcel}
                             disabled={rep.exportingExcel || rep.loading}
-                            className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[44px]"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[44px]"
                             style={{ background: 'var(--jet)', whiteSpace: 'nowrap' }}
                             aria-label="Exportar a Excel"
                         >
@@ -80,12 +83,13 @@ const Representantes = () => {
                             Excel
                         </button>
                     )}
+                    </div>
                 </div>
 
                 {/* Tabla */}
                 <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    <TablaScroll>
+                        <table className="w-full text-sm min-w-[640px]">
                             <thead>
                                 <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
                                     {['Cédula', 'Nombre', 'Teléfono', 'Correo', 'Alumnos activos', ''].map(h => (
@@ -106,7 +110,7 @@ const Representantes = () => {
                                 />
                             )}
                         </table>
-                    </div>
+                    </TablaScroll>
                     {!rep.loading && (
                         <Pagination
                             page={rep.page}

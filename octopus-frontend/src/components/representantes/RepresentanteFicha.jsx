@@ -21,11 +21,11 @@ const RepresentanteFicha = ({
     cargandoProyectoId, onCargarProyectoInversion,
 }) => (
     <div
-        className="w-72 flex-shrink-0 rounded-xl flex flex-col"
+        className="w-full lg:w-72 flex-shrink-0 rounded-xl flex flex-col"
         style={{
             background: 'var(--porcelain)',
             border: '0.5px solid var(--border-md)',
-            maxHeight: 'calc(100vh - 66px)',
+            maxHeight: 'calc(100dvh - 66px)',
             overflowY: 'auto',
             position: 'sticky',
             top: '50px',
