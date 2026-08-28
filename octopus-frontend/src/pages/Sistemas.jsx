@@ -45,21 +45,23 @@ const SistemasInner = () => {
             </div>
 
             {/* Navegación de tabs */}
-            <div className="flex gap-1 mb-5 p-1 rounded-xl w-fit"
-                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
-                {TABS.map(({ id, label, icon: Icon }) => {
-                    const active = activeTab === id;
-                    return (
-                        <button key={id} onClick={() => setActiveTab(id)}
-                            aria-current={active ? 'page' : undefined}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[40px]"
-                            style={active
-                                ? { background: 'var(--pb)', color: '#fff' }
-                                : { color: 'var(--ash)' }}>
-                            <Icon size={13} /> {label}
-                        </button>
-                    );
-                })}
+            <div className="w-full overflow-x-auto mb-5 -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="flex gap-1 p-1 rounded-xl w-fit"
+                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+                    {TABS.map(({ id, label, icon: Icon }) => {
+                        const active = activeTab === id;
+                        return (
+                            <button key={id} onClick={() => setActiveTab(id)}
+                                aria-current={active ? 'page' : undefined}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all min-h-[40px] whitespace-nowrap"
+                                style={active
+                                    ? { background: 'var(--pb)', color: '#fff' }
+                                    : { color: 'var(--ash)' }}>
+                                <Icon size={13} /> {label}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Contenido del tab activo */}
