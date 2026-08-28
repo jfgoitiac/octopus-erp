@@ -178,11 +178,11 @@ const Recibos = () => {
   );
 
   return (
-    <div className="flex h-full" style={{ background: 'var(--bg)' }}>
+    <div className="flex flex-col lg:flex-row lg:h-full" style={{ background: 'var(--bg)' }}>
 
       {/* ── Panel izquierdo: formulario ──────────────────────────────────── */}
       <div
-        className="w-[400px] flex-shrink-0 h-full overflow-y-auto custom-scrollbar"
+        className="w-full lg:w-[400px] flex-shrink-0 lg:h-full overflow-y-auto custom-scrollbar"
         style={{ borderRight: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
       >
         <div className="p-5 space-y-4">
@@ -207,7 +207,7 @@ const Recibos = () => {
             <p className="text-[10px] mb-2" style={{ color: 'var(--ash)' }}>
               Los logos se cargan desde el módulo de Configuración. Puedes sobreescribirlos solo para este recibo.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { field: 'logoColegio', label: 'Logo Colegio' },
                 { field: 'logoAvec',    label: 'Logo AVEC'    },
@@ -237,7 +237,7 @@ const Recibos = () => {
           {/* Período */}
           <div className={card} style={cardStyle}>
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Período</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Mes">
                 <select
                   value={info.mes}
@@ -279,7 +279,7 @@ const Recibos = () => {
             <Field label="Apellidos y Nombres">
               <TextInput value={info.nombre}    onChange={e => setInfoField('nombre', e.target.value)}    placeholder="PÉREZ JUAN" />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="C.I Nº">
                 <TextInput value={info.cedula}       onChange={e => setInfoField('cedula', e.target.value)}       placeholder="V-12.345.678" />
               </Field>
@@ -287,7 +287,7 @@ const Recibos = () => {
                 <TextInput value={info.horasSemana}  onChange={e => setInfoField('horasSemana', e.target.value)}  placeholder="36" />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Cargo">
                 <TextInput value={info.cargo}        onChange={e => setInfoField('cargo', e.target.value)}        placeholder="PPH" />
               </Field>
@@ -295,7 +295,7 @@ const Recibos = () => {
                 <TextInput value={info.fechaIngreso} onChange={e => setInfoField('fechaIngreso', e.target.value)} placeholder="18/09/2017" />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Título">
                 <TextInput value={info.titulo}  onChange={e => setInfoField('titulo', e.target.value)}  placeholder="LND" />
               </Field>
@@ -379,7 +379,7 @@ const Recibos = () => {
             <Field label="Total Beneficio de Alimentación">
               <NumInput value={alimentario.totalBeneficio}       onChange={e => setAlimentarioField('totalBeneficio',       e.target.value)} />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Nº H/MENS inasistencia">
                 <NumInput
                   step="1"
@@ -415,7 +415,7 @@ const Recibos = () => {
 
       {/* ── Panel derecho: vista previa A4 ──────────────────────────────── */}
       <div
-        className="flex-1 h-full overflow-y-auto custom-scrollbar flex flex-col items-center py-8 gap-4"
+        className="flex-1 lg:h-full overflow-y-auto custom-scrollbar flex flex-col items-center py-8 gap-4"
         style={{ background: 'linear-gradient(160deg, #c8d6e5 0%, #b8c9d8 100%)' }}
       >
         <span
@@ -424,24 +424,27 @@ const Recibos = () => {
         >
           Vista previa — A4
         </span>
-        <div
-          ref={previewRef}
-          style={{
-            width: 595,
-            minHeight: 842,
-            background: '#fff',
-            boxShadow: '0 8px 40px rgba(30,58,95,0.22), 0 2px 8px rgba(30,58,95,0.10)',
-            borderRadius: '2px',
-          }}
-        >
-          <ReceiptPreview
-            info={info}
-            institucion={institucion}
-            asignaciones={asignaciones}
-            retenciones={retenciones}
-            alimentario={alimentario}
-            calcs={calcs}
-          />
+        <div className="w-full overflow-x-auto px-4">
+          <div
+            ref={previewRef}
+            style={{
+              width: 595,
+              minHeight: 842,
+              background: '#fff',
+              boxShadow: '0 8px 40px rgba(30,58,95,0.22), 0 2px 8px rgba(30,58,95,0.10)',
+              borderRadius: '2px',
+              marginInline: 'auto',
+            }}
+          >
+            <ReceiptPreview
+              info={info}
+              institucion={institucion}
+              asignaciones={asignaciones}
+              retenciones={retenciones}
+              alimentario={alimentario}
+              calcs={calcs}
+            />
+          </div>
         </div>
       </div>
 
