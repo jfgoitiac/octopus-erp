@@ -7,6 +7,7 @@ import { useInstitucionPDF } from '../hooks/useInstitucionPDF';
 import { imprimirRecibo }    from '../utils/imprimirRecibo';
 import ReceiptPreview        from '../components/nomina/ReceiptPreview';
 import { MESES }             from '../constants/recibo';
+import { Card } from '../components/ui/Card';
 
 // ── Estilos de formulario ────────────────────────────────────────────────────
 const inputCls   = 'w-full text-xs px-2.5 py-1.5 rounded-lg outline-none';
@@ -157,9 +158,6 @@ const DynamicRows = ({ title, rows, onChangeRow, onAdd, onRemove }) => {
 };
 
 // ── Página principal ──────────────────────────────────────────────────────────
-const card      = 'p-4 rounded-xl space-y-3';
-const cardStyle = { background: 'var(--bg)', border: '0.5px solid var(--border)' };
-
 const Recibos = () => {
   const previewRef = useRef(null);
   const institucion = useInstitucionPDF();
@@ -197,7 +195,7 @@ const Recibos = () => {
           </div>
 
           {/* Logos */}
-          <div className={card} style={cardStyle}>
+          <Card className="space-y-3">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Logos</p>
               <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
@@ -232,10 +230,10 @@ const Recibos = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* Período */}
-          <div className={card} style={cardStyle}>
+          <Card className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Período</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Mes">
@@ -271,10 +269,10 @@ const Recibos = () => {
                 onChange={e => setInfoField('tipoRecibo', e.target.value)}
               />
             </Field>
-          </div>
+          </Card>
 
           {/* Datos del empleado */}
-          <div className={card} style={cardStyle}>
+          <Card className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Datos del Empleado</p>
             <Field label="Apellidos y Nombres">
               <TextInput value={info.nombre}    onChange={e => setInfoField('nombre', e.target.value)}    placeholder="PÉREZ JUAN" />
@@ -306,10 +304,10 @@ const Recibos = () => {
             <Field label="Categoría Docente">
               <TextInput value={info.categoriaDocente} onChange={e => setInfoField('categoriaDocente', e.target.value)} placeholder="Docente" />
             </Field>
-          </div>
+          </Card>
 
           {/* Asignaciones */}
-          <div className="p-4 rounded-xl" style={cardStyle}>
+          <Card>
             <DynamicRows
               title="Asignaciones Mensuales"
               rows={asignaciones}
@@ -331,10 +329,10 @@ const Recibos = () => {
                 <span style={{ color: 'var(--jet)' }}>{fmt2(calcs.segundaQuincena)}</span>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Retenciones */}
-          <div className="p-4 rounded-xl" style={cardStyle}>
+          <Card>
             <DynamicRows
               title="Retenciones"
               rows={retenciones}
@@ -348,7 +346,7 @@ const Recibos = () => {
                 <span className="font-semibold" style={{ color: '#b91c1c' }}>{fmt2(calcs.totalRetenciones)}</span>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Neto a Depositar */}
           <div
@@ -360,7 +358,7 @@ const Recibos = () => {
           </div>
 
           {/* Programa Alimentario */}
-          <div className={card} style={cardStyle}>
+          <Card className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Programa Alimentario</p>
             <Field label="Monto beneficio por hora">
               <NumInput value={alimentario.montoPorHora} onChange={e => setAlimentarioField('montoPorHora', e.target.value)} />
@@ -396,7 +394,7 @@ const Recibos = () => {
               <span style={{ color: 'var(--ash)' }}>Total Beneficio a Recibir</span>
               <span className="font-semibold" style={{ color: '#b91c1c' }}>{fmt2(calcs.totalBeneficioRecibir)}</span>
             </div>
-          </div>
+          </Card>
 
           {/* Botón imprimir */}
           <button
