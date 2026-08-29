@@ -518,3 +518,50 @@ class MaterialEstudio(models.Model):
 
     def __str__(self):
         return f"{self.materia.nombre} — {self.titulo}"
+
+
+# ─────────────────────────────────────────────
+# DOCENTE
+# ─────────────────────────────────────────────
+class Docente(models.Model):
+    user     = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='docente',
+    )
+    empleado = models.OneToOneField(
+        'rrhh.Empleado',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='docente',
+    )
+
+    titulo_academico    = models.CharField(max_length=120, blank=True, default='')
+    especialidad        = models.CharField(max_length=120, blank=True, default='')
+    fecha_ingreso        = models.DateField(null=True, blank=True)
+    telefono             = models.CharField(max_length=30, blank=True, default='')
+    email_institucional  = models.EmailField(blank=True, default='')
+    observaciones        = models.TextField(blank=True, default='')
+    activo                = models.BooleanField(default=True)
+
+    sede = models.ForeignKey(
+        'multisede.Sede',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='docentes',
+    )
+
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ['user__first_name']
+        verbose_name = 'Docente'
+        verbose_name_plural = 'Docentes'
+
+    def __str__(self):
+        nombre_completo = f"{self.user.first_name} {self.user.last_name}".strip()
+        return nombre_completo or self.user.username
+
+    @property
+    def materias_asignadas(self):
+        return Materia.objects.filter(docente=self.user, activa=True)

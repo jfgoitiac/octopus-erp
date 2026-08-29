@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
-import { X, Save, Loader2, Trash2, AlertTriangle, BookOpen } from 'lucide-react';
+import { Save, Loader2, Trash2, AlertTriangle, BookOpen } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { INPUT_STYLE } from '../../constants/styles';
 import GradoSelect from '../GradoSelect';
-import { useEscape } from '../../hooks/useEscape';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useDocentes } from '../../hooks/useDocentes';
+import { Modal } from '../ui/Modal';
 
 const buildForm = (materia) => ({
   id:                        materia?.id    ?? null,
@@ -24,7 +24,6 @@ export const ModalMateria = ({ materia, mostrarGrado = false, saving, onClose, o
   const containerRef                    = useRef(null);
   const { docentes, loadingDocentes }   = useDocentes();
 
-  useEscape(true, onClose);
   useFocusTrap(containerRef);
 
   const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
@@ -48,32 +47,71 @@ export const ModalMateria = ({ materia, mostrarGrado = false, saving, onClose, o
     setForm(prev => ({ ...prev, docente_id: value ? Number(value) : null }));
   };
 
-  return (
-    <div
-      className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(43,48,58,0.5)' }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-materia-titulo"
-    >
-      <div
-        ref={containerRef}
-        className="rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-fadeIn"
-        style={{ background: 'var(--porcelain)' }}
-      >
-        {/* Header */}
-        <div className="p-5 flex justify-between items-center"
-          style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--pb)', color: '#fff' }}>
-          <h3 id="modal-materia-titulo" className="font-bold text-base flex items-center gap-2">
-            <BookOpen size={17} />
-            {form.id ? 'Editar Materia' : 'Nueva Materia'}
-          </h3>
-          <button onClick={onClose} aria-label="Cerrar" style={{ color: '#fff' }}>
-            <X size={20} />
-          </button>
-        </div>
+  const footer = (
+    <>
+      {form.id && !confirmDelete && (
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          className="w-full sm:w-auto py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+          style={{ color: 'var(--red)', border: '0.5px solid var(--red)', background: 'transparent' }}
+        >
+          <Trash2 size={14} />
+          Eliminar materia
+        </button>
+      )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      {confirmDelete && (
+        <div className="w-full rounded-xl p-4" style={{ background: '#fef2f2', border: '0.5px solid #fca5a5' }}>
+          <p className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: '#991b1b' }}>
+            <AlertTriangle size={15} />
+            ¿Eliminar esta materia? Se desactivará y no aparecerá en el horario.
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-2 rounded-lg text-sm"
+              style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
+              Cancelar
+            </button>
+            <button type="button" onClick={() => onDelete(form.id)} disabled={saving}
+              className="flex-1 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: 'var(--red)' }}>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              Eliminar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button type="button" onClick={onClose}
+        className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm"
+        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
+        Cancelar
+      </button>
+      <button type="submit" form="form-materia" disabled={saving}
+        className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
+        style={{ background: 'var(--pb)' }}>
+        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+        {form.id ? 'Actualizar' : 'Agregar'}
+      </button>
+    </>
+  );
+
+  return (
+    <Modal
+      ref={containerRef}
+      open
+      onClose={onClose}
+      titulo={(
+        <>
+          <BookOpen size={17} />
+          {form.id ? 'Editar Materia' : 'Nueva Materia'}
+        </>
+      )}
+      footer={footer}
+      size="sm"
+    >
+      <form id="form-materia" onSubmit={handleSubmit} className="space-y-4">
 
           {mostrarGrado && (
             <div>
@@ -164,8 +202,8 @@ export const ModalMateria = ({ materia, mostrarGrado = false, saving, onClose, o
                 {loadingDocentes ? 'Cargando docentes...' : 'Sin asignar'}
               </option>
               {docentes.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.username}
+                <option key={d.id} value={d.user_id}>
+                  {d.nombre_completo || d.username}
                 </option>
               ))}
             </select>
@@ -204,58 +242,7 @@ export const ModalMateria = ({ materia, mostrarGrado = false, saving, onClose, o
             </p>
           </div>
 
-          {/* Botones */}
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm"
-              style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
-              Cancelar
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
-              style={{ background: 'var(--pb)' }}>
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              {form.id ? 'Actualizar' : 'Agregar'}
-            </button>
-          </div>
-
-          {/* Eliminar — solo en edición */}
-          {form.id && !confirmDelete && (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="w-full py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-              style={{ color: 'var(--red)', border: '0.5px solid var(--red)', background: 'transparent' }}
-            >
-              <Trash2 size={14} />
-              Eliminar materia
-            </button>
-          )}
-
-          {confirmDelete && (
-            <div className="rounded-xl p-4" style={{ background: '#fef2f2', border: '0.5px solid #fca5a5' }}>
-              <p className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: '#991b1b' }}>
-                <AlertTriangle size={15} />
-                ¿Eliminar esta materia? Se desactivará y no aparecerá en el horario.
-              </p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setConfirmDelete(false)}
-                  className="flex-1 py-2 rounded-lg text-sm"
-                  style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
-                  Cancelar
-                </button>
-                <button type="button" onClick={() => onDelete(form.id)} disabled={saving}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 flex items-center justify-center gap-2"
-                  style={{ background: 'var(--red)' }}>
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          )}
-
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };

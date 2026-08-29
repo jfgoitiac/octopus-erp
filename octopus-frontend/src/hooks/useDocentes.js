@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import apiClient from '../api/apiClient';
+import { listarDocentes } from '../api/academico.service';
 
 // Catálogo de docentes activos — usado por selects que asignan un docente
-// a una materia (ver ModalMateria). Se filtra client-side por perfil.rol
-// porque el endpoint de usuarios no expone un filtro de rol por querystring.
+// a una materia (ver ModalMateria). Cada item trae user_id (el id que se
+// guarda en Materia.docente) además del id propio del registro Docente.
 export function useDocentes() {
   const [docentes, setDocentes]         = useState([]);
   const [loadingDocentes, setLoadingDocentes] = useState(true);
@@ -13,12 +13,9 @@ export function useDocentes() {
     const controller = new AbortController();
 
     setLoadingDocentes(true);
-    apiClient.get('authentication/users/', { signal: controller.signal })
+    listarDocentes({ activo: 'true' }, controller.signal)
       .then(res => {
-        const soloDocentes = (res.data || []).filter(
-          (u) => u.perfil?.rol === 'docente' && u.perfil?.esta_activo !== false
-        );
-        setDocentes(soloDocentes);
+        setDocentes(res.data || []);
       })
       .catch((err) => {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;

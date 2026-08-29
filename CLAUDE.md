@@ -102,6 +102,7 @@ Dejar el código preparado con comentarios para conectar WhatsApp
 - Si encuentras deuda técnica o código mejorable, anótalo en NOTAS_TECNICAS.md sin tocarlo
 - Usa los patrones que ya existen en el proyecto (revisa primero cómo están hechos otros módulos)
 - Toda fecha visible al usuario debe formatearse con date-fns en español (es locale)
+- Toda interfaz nueva o modificada debe cumplir el ESTÁNDAR DE DISEÑO RESPONSIVE (ver al final de este archivo) — es criterio de aceptación, no una recomendación
 
 ## graphify
 
@@ -112,3 +113,80 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+---
+
+# ESTÁNDAR DE DISEÑO RESPONSIVE (obligatorio en todo el proyecto)
+
+Toda interfaz nueva o modificada — panel administrativo, portal de
+representantes, cantina y sitio institucional — debe ser responsive dinámica:
+se adapta al dispositivo real, no a medidas fijas elegidas a mano.
+Esto no es una preferencia estética: una pantalla con contenido inalcanzable
+es un defecto funcional y bloquea la entrega.
+
+## Principios
+
+1. **Mobile-first.** Se escribe primero el layout de 360px y se amplía con
+   breakpoints hacia arriba. Nunca al revés.
+2. **Fluido antes que fijo.** Los contenedores se dimensionan con `w-full`,
+   `max-w-*`, `flex` y `grid`. Un ancho o alto absoluto solo se admite si es
+   un mínimo de legibilidad dentro de un contenedor que ya scrollea.
+3. **El desborde se contiene, no se propaga.** El scroll horizontal vive
+   siempre DENTRO del elemento ancho (tabla, grilla, carrusel). El `<body>`
+   nunca scrollea en horizontal, en ningún tamaño.
+4. **Nada queda fuera de alcance.** Todo control accionable — sobre todo los
+   botones de confirmar, guardar y eliminar — debe ser visible y clicable en
+   los cuatro tamaños de referencia.
+
+## Parámetros
+
+- **Breakpoints:** solo los de Tailwind v4 ya en uso — base < `sm`(640) <
+  `md`(768) < `lg`(1024) < `xl`(1280). Prohibido inventar breakpoints nuevos
+  o escribir media queries sueltas en CSS.
+- **Tamaños de referencia obligatorios:** 360×640 (celular), 768×1024
+  (tablet), 1366×768 (laptop), 1920×1080 (escritorio). Los cuatro deben
+  funcionar antes de dar una pantalla por terminada.
+- **Alturas de viewport:** usar `dvh`, nunca `vh`. En móvil la barra del
+  navegador rompe el cálculo de `vh` y corta el contenido.
+- **Grillas:** ninguna `grid-cols-N` sin breakpoint. Reglas por defecto:
+  - `grid-cols-2` → `grid-cols-1 sm:grid-cols-2`
+  - `grid-cols-3` → `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+  - `grid-cols-4` → `grid-cols-2 sm:grid-cols-2 lg:grid-cols-4`
+  Única excepción: grupos de botones cortos (teclado numérico, selector de
+  montos), donde 2–3 columnas sí caben en 360px.
+- **Barras de filtros y acciones:** `flex flex-col gap-2 sm:flex-row
+  sm:items-center sm:gap-3`; el botón de acción principal, `w-full sm:w-auto`.
+- **Tipografía y espaciado:** escalar con breakpoints (`text-sm sm:text-base`,
+  `p-3 sm:p-5`). No fijar tamaños en px salvo casos justificados.
+
+## Componentes obligatorios
+
+No se reimplementan estos patrones a mano. Todo lo nuevo los reutiliza:
+
+- `src/components/ui/Modal.jsx` — único contenedor de modal permitido.
+  Slots `header` / `body` (scrollable) / `footer`, prop `size`, cierre con
+  Escape y con click en el overlay. Ningún componente debe volver a escribir
+  `fixed inset-0` por su cuenta.
+- `src/components/ui/TablaScroll.jsx` — envuelve toda tabla que pueda superar
+  el ancho del viewport. La tabla conserva su `min-w-*`: se scrollea, no se
+  comprime.
+
+## Excepciones declaradas
+
+- **`sitio/EditorVisual/`**: editor drag & drop, no adaptable a celular. Por
+  debajo de `lg` muestra el aviso "Editor disponible solo en pantallas de
+  escritorio" en lugar del editor.
+- **`cantina/` (POS)**: su uso real es pantalla de caja o tablet. Objetivo
+  mínimo 768×1024 sin cortes; en 360px basta con que nada quede inalcanzable.
+- **`portal/` (representantes)**: mobile-first estricto, es la zona de mayor
+  prioridad — el representante entra desde su celular.
+
+Cualquier excepción nueva debe consultarse antes, no decidirse sobre la marcha.
+
+## Criterio de aceptación
+
+Una pantalla no está terminada hasta haberla abierto en el navegador en los
+cuatro tamaños de referencia y confirmado que: nada queda cortado ni
+inalcanzable, los botones de todo modal son visibles y clicables, el `<body>`
+no scrollea en horizontal, no hay texto solapado y la consola no arroja
+errores nuevos. "Debería funcionar" no es una verificación.

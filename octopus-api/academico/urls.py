@@ -1,5 +1,8 @@
 from django.urls import path
 from .views import (
+    DocentesView,
+    DocenteDetailView,
+    DocenteAsignarMateriasView,
     HistorialNotaView,
     MateriasView,
     MateriaDetailView,
@@ -36,6 +39,9 @@ from .views import (
 urlpatterns = [
     path('materias/',              MateriasView.as_view()),
     path('materias/<int:pk>/',     MateriaDetailView.as_view()),
+    path('docentes/',              DocentesView.as_view()),
+    path('docentes/<int:pk>/',     DocenteDetailView.as_view()),
+    path('docentes/<int:pk>/asignar-materias/', DocenteAsignarMateriasView.as_view()),
     path('lapsos/',                LapsosView.as_view()),
     path('lapsos/<int:pk>/',       LapsoDetailView.as_view()),
     path('notas/',                 NotasGradoView.as_view()),

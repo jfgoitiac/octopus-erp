@@ -14,6 +14,7 @@ from .models import (
     AlertaRendimiento,
     Asistencia,
     BloqueEvaluacion,
+    Docente,
     EventoCalendario,
     HorarioClase,
     IncidenteDisciplinario,
@@ -37,6 +38,7 @@ from .services import (
 from .serializers import (
     AsistenciaBulkSerializer,
     AsistenciaSerializer,
+    DocenteSerializer,
     EventoCalendarioSerializer,
     HorarioClaseSerializer,
     IncidenteDisciplinarioSerializer,
@@ -50,6 +52,7 @@ from .serializers import (
     PlanEvaluacionInputSerializer,
     PlanEvaluacionSerializer,
 )
+from usuarios.models import crear_log
 
 
 # ─────────────────────────────────────────────
@@ -278,6 +281,132 @@ class MateriaDetailView(APIView):
         materia.activa = False
         materia.save(update_fields=['activa'])
         return Response({'mensaje': 'Materia desactivada correctamente.'})
+
+
+# ─────────────────────────────────────────────
+# DOCENTES
+# ─────────────────────────────────────────────
+class DocentesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Lista docentes. Filtros opcionales: ?activo=true/false&search=&sede="""
+        qs = Docente.objects.select_related('user', 'user__perfil', 'sede').filter(user__is_active=True)
+
+        sede_id = request.query_params.get('sede')
+        if sede_id:
+            qs = qs.filter(sede_id=sede_id)
+
+        activo = request.query_params.get('activo')
+        if activo is not None:
+            qs = qs.filter(activo=(activo.lower() == 'true'))
+
+        buscar = request.query_params.get('search')
+        if buscar:
+            qs = qs.filter(
+                Q(user__first_name__icontains=buscar)
+                | Q(user__last_name__icontains=buscar)
+                | Q(user__username__icontains=buscar)
+                | Q(especialidad__icontains=buscar)
+            )
+
+        return Response(DocenteSerializer(qs, many=True).data)
+
+    def post(self, request):
+        """Crea un docente. Roles permitidos: director, sistemas, administrador."""
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response(
+                {'error': 'No tienes permisos para crear docentes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = DocenteSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DocenteDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_docente(self, pk):
+        try:
+            return Docente.objects.select_related('user', 'user__perfil', 'sede').get(pk=pk)
+        except Docente.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        """Detalle de un docente."""
+        docente = self._get_docente(pk)
+        if not docente:
+            return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(DocenteSerializer(docente).data)
+
+    def put(self, request, pk):
+        """Actualiza un docente."""
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response(
+                {'error': 'No tienes permisos para editar docentes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        docente = self._get_docente(pk)
+        if not docente:
+            return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = DocenteSerializer(docente, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        """Desactiva un docente (soft delete — no elimina el registro)."""
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response(
+                {'error': 'No tienes permisos para desactivar docentes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        docente = self._get_docente(pk)
+        if not docente:
+            return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        docente.activo = False
+        docente.save(update_fields=['activo'])
+        return Response({'mensaje': 'Docente desactivado correctamente.'})
+
+
+class DocenteAsignarMateriasView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        """
+        Recibe {"materias": [ids]} y asigna esas materias al docente,
+        desasignando las que tenía y ya no vienen en la lista.
+        """
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response(
+                {'error': 'No tienes permisos para asignar materias.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            docente = Docente.objects.select_related('user').get(pk=pk)
+        except Docente.DoesNotExist:
+            return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        ids = request.data.get('materias', [])
+        if not isinstance(ids, list):
+            return Response({'error': 'materias debe ser una lista de ids.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            Materia.objects.filter(id__in=ids).update(docente=docente.user)
+            Materia.objects.filter(docente=docente.user).exclude(id__in=ids).update(docente=None)
+
+        crear_log(
+            usuario=request.user,
+            accion='Asignación de materias a docente',
+            modulo='academico',
+            detalles={'docente_id': docente.id, 'materias': ids},
+        )
+
+        return Response(DocenteSerializer(docente).data)
 
 
 # ─────────────────────────────────────────────

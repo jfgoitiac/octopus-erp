@@ -19,6 +19,25 @@ export const updateMateria = (id, data) =>
 export const deleteMateria = (id) =>
   apiClient.delete(`academico/materias/${id}/`);
 
+// Docentes
+export const listarDocentes = (filtros, signal) => {
+  const params = new URLSearchParams(filtros || {});
+  const qs = params.toString();
+  return apiClient.get(`academico/docentes/${qs ? `?${qs}` : ''}`, signal ? { signal } : undefined);
+};
+
+export const crearDocente = (data) =>
+  apiClient.post('academico/docentes/', data);
+
+export const actualizarDocente = (id, data) =>
+  apiClient.put(`academico/docentes/${id}/`, data);
+
+export const eliminarDocente = (id) =>
+  apiClient.delete(`academico/docentes/${id}/`);
+
+export const asignarMateriasDocente = (id, materias) =>
+  apiClient.post(`academico/docentes/${id}/asignar-materias/`, { materias });
+
 // Lapsos
 export const getLapsos = (periodoEscolar) => {
   const url = periodoEscolar

@@ -2,7 +2,7 @@ from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     Nota, Asistencia, Materia, Lapso, HorarioClase, IncidenteDisciplinario, MaterialEstudio, EventoCalendario,
-    PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion,
+    PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion, Docente,
 )
 
 
@@ -32,6 +32,13 @@ class MateriaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'grado_seccion', 'codigo', 'docente', 'activa')
     list_filter = ('grado_seccion', 'activa')
     search_fields = ('nombre', 'codigo')
+
+
+@admin.register(Docente)
+class DocenteAdmin(SimpleHistoryAdmin):
+    list_display = ('user', 'especialidad', 'sede', 'activo')
+    list_filter = ('activo', 'sede')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'especialidad')
 
 
 @admin.register(Lapso)

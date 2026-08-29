@@ -2264,3 +2264,98 @@ clics de los flujos más frecuentes. No se modificó código de producto.
 9. Definir si el sistema de Notas "clásico" y el de Plan de Evaluación conviven a propósito o si uno debe reemplazar al otro (mismo hallazgo que el diagnóstico del 2026-08-24 de este archivo, ítem 6).
 
 Los ítems 1 y 3 son los de mejor relación esfuerzo/impacto: el primero activa una función (WhatsApp) que ya está construida y pagada en horas de desarrollo, y el segundo es un cambio de una columna con datos que ya existen en el backend.
+
+## MÓDULO DOCENTE (2026-08-28) — solo anotado, no implementado
+
+Deuda detectada al construir `academico.Docente` (perfil de docente separado de
+`Materia.docente`, que sigue apuntando a `AUTH_USER_MODEL`):
+
+1. **Sin ViewSet/router en `academico`** — Materia y ahora Docente se sirven con
+   `APIView` + `path()` explícitos en `urls.py`, no con `ModelViewSet` + router
+   DRF. Es consistente con el resto de la app, pero significa que cualquier
+   endpoint nuevo repite a mano el boilerplate de permisos/paginación/filtros
+   que un router+viewset resolvería una sola vez. Cambiarlo ahora sería un
+   refactor grande fuera de alcance de esta tarea.
+2. **Sin filtro de sede real en `MateriasView`/`DocentesView`** — el modelo
+   `Materia` ya tiene FK a `multisede.Sede` desde antes, y `Docente` la agrega
+   también (D4 del pedido), pero ninguna de las dos vistas de listado filtra
+   automáticamente por la sede del usuario autenticado — solo aceptan
+   `?sede=<id>` opcional. Si multi-sede pasa a ser estricto, falta ese
+   scoping automático en ambos endpoints.
+3. **`useDocentes()` vs `useDocentesAdmin()`** — quedaron dos hooks distintos:
+   uno liviano de solo-lectura para pickers (`useDocentes`, usado por
+   `ModalMateria`) y otro con el CRUD completo (`useDocentesAdmin`, usado por
+   `Docentes.jsx`). Es deliberado (evita que el picker cargue lógica de
+   guardado que no usa), pero ambos golpean el mismo endpoint
+   `academico/docentes/` — si se necesita cachear la lista en el futuro,
+   conviene unificarlos con algo tipo React Query en vez de duplicar el
+   fetch.
+4bis. **Los 6 `Docente` creados por el backfill apuntan a usuarios con
+   `is_active=False`** — es decir, esas cuentas ya estaban desactivadas/
+   "eliminadas" en el sistema (ver `authentication/views.py:269`, el borrado
+   de usuario es lógico vía `is_active=False`). `DocentesView.get()` ahora
+   filtra `user__is_active=True` (fix del 2026-08-28, ver commit de API),
+   así que el listado de Docentes y el selector en Materias van a aparecer
+   **vacíos** hasta que existan usuarios con rol 'docente' realmente activos.
+   Esto es correcto — antes del fix, se podían asignar materias a cuentas ya
+   dadas de baja — pero puede sorprender si no se sabe la causa.
+4. **Backfill (`sincronizar_docentes`) dejó 4 de 6 docentes sin `empleado`
+   enlazado** — el emparejamiento por email o cédula/username no encontró
+   coincidencia clara para `mmolina`, `beatrizleal`, `nelidaguanipa` y
+   `anarelis16`. Requiere revisión manual desde el admin de Django
+   (`/admin/academico/docente/`) para enlazar el `rrhh.Empleado` correcto de
+   cada uno, o corregir los correos/usernames para que coincidan.
+
+---
+
+## ESTÁNDAR RESPONSIVE — dónde vive la norma
+
+La deuda de responsive dejó de anotarse como hallazgo suelto: la norma
+permanente está en `CLAUDE.md`, sección **ESTÁNDAR DE DISEÑO RESPONSIVE**
+(breakpoints, tamaños de referencia, componentes obligatorios `ui/Modal.jsx` y
+`ui/TablaScroll.jsx`, excepciones declaradas y criterio de aceptación).
+
+## AUDITORÍA RESPONSIVE 2026-08-28 — resultado
+
+Barrido completo del panel admin, académico, comunicación, sitio/cantina y
+login en los 4 tamaños de referencia (360×640, 768×1024, 1366×768, 1920×1080).
+Detalle pantalla por pantalla en el informe de la sesión (tabla del PASO 3).
+Resumen de lo que quedó frágil o sin verificar:
+
+- **Cantina (`CantinaLayout.jsx`)** — layout desktop-first documentado en el
+  propio código (comentario explícito: "se opera desde una PC/tablet fija en
+  la cantina"). A 360px el sidebar fijo de 240px deja ~120px de contenido:
+  el botón "Nuevo producto" en Inventario queda visualmente cortado (su borde
+  derecho cae 26px fuera del viewport), aunque se verificó que sigue siendo
+  100% clickable en la porción visible. Cumple la excepción declarada en
+  CLAUDE.md ("en 360px basta con que nada quede inalcanzable"), pero es un
+  layout frágil: si se agrega contenido con textos más largos a esa franja
+  de 120px, sí podría volverse inalcanzable. No se tocó — es una decisión de
+  diseño explícita, no un bug.
+- **Reportes** (7 pestañas, no 4 como decía el pedido original: Cierre de
+  Caja, Conciliación, Clasificación de Pagos, Corrección de Pagos, Histórico
+  Mensual, Business Intelligence, Puntualidad) — las 7 se verificaron a
+  360×640. A 768/1366/1920 solo se re-verificó la pestaña Business
+  Intelligence (mayor riesgo por gráficos). Las otras 6 pestañas en esos 3
+  tamaños quedan sin re-confirmar (aunque comparten el mismo contenedor y
+  patrones que BI, por lo que el riesgo real es bajo).
+- **Portal de representantes (`/portal/*`)** — **NO VERIFICADO en ningún
+  tamaño**. No había credenciales de prueba; se generaron 28 cuentas nuevas
+  vía `python manage.py crear_usuarios_portal` (representante existente,
+  usuario = cédula, password inicial = cédula), pero el login devolvió
+  `400 Bad Request — "Credenciales incorrectas o acceso no habilitado."` pese
+  a que `check_password` confirma la contraseña correcta desde el shell de
+  Django. No se investigó la causa (podría ser el flag `debe_cambiar_password`,
+  una validación adicional de rol en el serializer de `portal/views.py`, o
+  algo del lado de `esta_activo`) — la auditoría se cortó antes de resolverlo
+  a pedido del usuario. **Quedan 28 cuentas de prueba en la base de datos
+  local** (`RepresentanteUser` con contraseña = cédula del representante);
+  conviene revisar si conviene desactivarlas o dejarlas para depurar el login
+  fallido más adelante.
+- **Cobranza** (paso 2 — registrar pago) y **Cantina · Tarjetas/Reportes a
+  360px** no se verificaron por falta de datos de prueba / tiempo — quedan
+  como NO VERIFICADOS explícitos en el informe, no como "OK" supuesto.
+- Un error 401 aislado apareció en consola en Cantina · Tarjetas a 1920px
+  (no relacionado a layout, probablemente una llamada de fondo con token
+  vencido); no se investigó por estar fuera del alcance de esta auditoría.
+Aquí solo se anotan incumplimientos concretos pendientes de corregir.
