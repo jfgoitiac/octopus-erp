@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchConfiguracionInscripcion } from '../../api/inscripciones.service';
 import { SkeletonGrado } from './SkeletonGrado';
+import { Card } from '../ui/Card';
 
 export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) => {
     const [grados,  setGrados]  = useState([]);
@@ -131,10 +132,7 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
 
                 {/* Panel de detalles */}
                 <div className="space-y-6">
-                    <div
-                        className="p-8 rounded-2xl space-y-6"
-                        style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-                    >
+                    <Card className="space-y-6">
                         <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                             Detalles de inscripción
                         </h3>
@@ -240,7 +238,7 @@ export const PasoConfiguracion = ({ datos, setDatos, onContinuar, onVolver }) =>
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
             </div>
 
