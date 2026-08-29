@@ -18,9 +18,17 @@ import { TableRowSkeleton } from '../shared/Skeleton';
 import ClasificacionBatchModal from './ClasificacionBatchModal';
 import {
     today, daysAgo, fmt, getErrorMessage, MONTH_NAMES,
-    TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, ESTADO_CLASIF_FILTROS, inputStyle, cardStyle,
+    TIPO_CLASIFICACION_LABELS, ESTADO_CLASIF_STYLE, ESTADO_CLASIF_FILTROS, inputStyle,
 } from '../../constants/reportes';
 import BancoSelect from './BancoSelect';
+import { Card } from '../ui/Card';
+import { Tabla } from '../ui/Tabla';
+
+const DESGLOSE_MES_COLUMNAS = [
+    { key: 'concepto', label: 'Concepto' },
+    { key: 'monto_usd', label: 'Monto USD', align: 'right' },
+    { key: 'monto_ves', label: 'Monto Bs', align: 'right' },
+];
 
 const CLASIF_PAGE_SIZE = 20;
 
@@ -678,7 +686,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 que lo que el operador ve sea siempre lo que se va a exportar. Por
                 eso NO se llaman "a imprimir" — cambiarlos también cambia lo que
                 aparece en pantalla ahora mismo. */}
-            <div className="rounded-xl p-4 mb-4 flex flex-wrap items-end gap-3" style={cardStyle}>
+            <Card className="mb-4 flex flex-wrap items-end gap-3">
                 <div className="flex flex-col gap-1">
                     <label className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Concepto (filtra tabla y exportación)</label>
                     <select
@@ -717,7 +725,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     {exportandoClasifPdf ? <Loader2 size={16} className="animate-spin" /> : <FilePlus2 size={16} />}
                     Exportar PDF (desglose contable)
                 </button>
-            </div>
+            </Card>
 
             {!loadingClasif && gruposPorRepresentante.length > 0 && (
                 <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
@@ -760,7 +768,7 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
 
             {/* Tabla — agrupada por representante (no por alumno/pago suelto), para no
                 tener que "buscar" mentalmente cuáles filas pertenecen al mismo pagador. */}
-            <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
+            <Card padding="none" className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[900px]">
                     <thead>
                         <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
@@ -943,13 +951,13 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                     total={clasifTotal}
                     pageSize={CLASIF_PAGE_SIZE}
                 />
-            </div>
+            </Card>
 
             {/* Desglose de dinero acreditado por mes: agrupa por el mes/tipo
                 REAL de clasificación (no por la fecha en que entró el pago) —
                 un pago de agosto clasificado como "febrero" suma en Febrero.
                 Usa las mismas filas cargadas para los exports Excel/PDF. */}
-            <div className="rounded-xl p-4 mt-4" style={cardStyle}>
+            <Card className="mt-4">
                 <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: 'var(--jet)' }}>
                     <CalendarRange size={16} style={{ color: 'var(--pb)' }} />
                     Desglose de dinero acreditado por mes
@@ -964,33 +972,24 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
                 ) : desgloseMensual.filas.length === 0 ? (
                     <p className="text-sm py-2" style={{ color: 'var(--ash)' }}>No hay movimientos que coincidan con los filtros seleccionados.</p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm min-w-[420px]">
-                            <thead>
-                                <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                                    <th className="text-left px-3 py-2 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Concepto</th>
-                                    <th className="text-right px-3 py-2 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto USD</th>
-                                    <th className="text-right px-3 py-2 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto Bs</th>
+                    <Tabla columnas={DESGLOSE_MES_COLUMNAS} minWidth={420}>
+                        {[
+                            ...desgloseMensual.filas.map((f) => (
+                                <tr key={f.label}>
+                                    <td className="px-3 py-2" style={{ color: f.label === 'Sin clasificar' ? 'var(--red)' : 'var(--jet)' }}>{f.label}</td>
+                                    <td className="px-3 py-2 text-right font-mono" style={{ color: '#16a34a' }}>${fmt(f.monto_usd)}</td>
+                                    <td className="px-3 py-2 text-right font-mono" style={{ color: 'var(--ash)' }}>Bs {fmt(f.monto_ves)}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {desgloseMensual.filas.map((f) => (
-                                    <tr key={f.label} style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                                        <td className="px-3 py-2" style={{ color: f.label === 'Sin clasificar' ? 'var(--red)' : 'var(--jet)' }}>{f.label}</td>
-                                        <td className="px-3 py-2 text-right font-mono" style={{ color: '#16a34a' }}>${fmt(f.monto_usd)}</td>
-                                        <td className="px-3 py-2 text-right font-mono" style={{ color: 'var(--ash)' }}>Bs {fmt(f.monto_ves)}</td>
-                                    </tr>
-                                ))}
-                                <tr>
-                                    <td className="px-3 py-2 font-semibold" style={{ color: 'var(--jet)' }}>TOTAL</td>
-                                    <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(desgloseMensual.totalUsd)}</td>
-                                    <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: 'var(--jet)' }}>Bs {fmt(desgloseMensual.totalVes)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                            )),
+                            <tr key="total-desglose-mes">
+                                <td className="px-3 py-2 font-semibold" style={{ color: 'var(--jet)' }}>TOTAL</td>
+                                <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(desgloseMensual.totalUsd)}</td>
+                                <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: 'var(--jet)' }}>Bs {fmt(desgloseMensual.totalVes)}</td>
+                            </tr>,
+                        ]}
+                    </Tabla>
                 )}
-            </div>
+            </Card>
 
             {mostrarBatchModal && pagosSeleccionados.length > 0 && (
                 <ClasificacionBatchModal
