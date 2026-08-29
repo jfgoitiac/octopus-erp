@@ -4,7 +4,8 @@ import { toast } from 'react-toastify';
 import axiosInstance from '../../api/apiClient';
 import DatePickerES from '../DatePickerES';
 import { CardSkeleton } from '../shared/Skeleton';
-import { getErrorMessage, today, MONTH_NAMES, CURRENT_YEAR, cardStyle } from '../../constants/reportes';
+import { getErrorMessage, today, MONTH_NAMES, CURRENT_YEAR } from '../../constants/reportes';
+import { Card } from '../ui/Card';
 
 const PuntualidadTab = () => {
     const [puntualidad, setPuntualidad] = useState({ total: 0, atrasado: 0, a_tiempo: 0, adelantado: 0 });
@@ -167,7 +168,7 @@ const PuntualidadTab = () => {
                     {/* Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {cards.map((c) => (
-                            <div key={c.label} className="rounded-xl p-5" style={cardStyle}>
+                            <Card key={c.label}>
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className="p-2 rounded-lg" style={{ background: c.bg, color: c.color }}>
                                         {c.icon}
@@ -190,13 +191,13 @@ const PuntualidadTab = () => {
                                             style={{ width: `${pct(c.value)}%`, background: c.barColor }} />
                                     </div>
                                 </div>
-                            </div>
+                            </Card>
                         ))}
                     </div>
 
                     {/* Barra proporcional apilada */}
                     {total > 0 && (
-                        <div className="rounded-xl p-5" style={cardStyle}>
+                        <Card>
                             <div className="flex items-center justify-between mb-3">
                                 <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                                     Distribución total — {total.toLocaleString()} mensualidades en {periodoLabel}
@@ -233,16 +234,16 @@ const PuntualidadTab = () => {
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </Card>
                     )}
 
                     {total === 0 && (
-                        <div className="flex flex-col items-center py-10 rounded-xl" style={cardStyle}>
+                        <Card className="flex flex-col items-center py-10">
                             <Clock size={32} className="mb-2 opacity-20" style={{ color: 'var(--pb)' }} />
                             <p className="text-sm" style={{ color: 'var(--ash)' }}>
                                 Sin mensualidades pagadas registradas para {periodoLabel}.
                             </p>
-                        </div>
+                        </Card>
                     )}
                 </div>
             )}
