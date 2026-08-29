@@ -6,6 +6,8 @@ import { ModalAsignarMaterias } from '../components/docentes/ModalAsignarMateria
 import { INPUT_STYLE } from '../constants/styles';
 import { useDocentesAdmin } from '../hooks/useDocentesAdmin';
 import { fmtFecha } from '../utils/format';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
 
 const Docentes = () => {
   const { docentes, loading, saving, crear, actualizar, eliminar, asignarMaterias } = useDocentesAdmin();
@@ -53,25 +55,20 @@ const Docentes = () => {
 
   return (
     <div className="animate-fadeIn">
-      <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <UserRound size={20} style={{ color: 'var(--pb)' }} />
-            Docentes
-          </h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-            Gestiona los docentes del colegio y sus materias asignadas.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setModal({ docente: null })}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
-          style={{ background: 'var(--pb)' }}
-        >
-          <Plus size={16} /> Nuevo docente
-        </button>
-      </div>
+      <PageHeader
+        titulo="Docentes"
+        descripcion="Gestiona los docentes del colegio y sus materias asignadas."
+        acciones={(
+          <button
+            type="button"
+            onClick={() => setModal({ docente: null })}
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white w-full sm:w-auto"
+            style={{ background: 'var(--pb)' }}
+          >
+            <Plus size={16} /> Nuevo docente
+          </button>
+        )}
+      />
 
       <div className="mb-5">
         <label className="relative block max-w-sm">
@@ -87,7 +84,7 @@ const Docentes = () => {
         </label>
       </div>
 
-      <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+      <Card padding="none">
         {loading ? (
           <div className="p-5 space-y-3">
             {[1, 2, 3].map(item => <div key={item} className="h-14 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />)}
@@ -141,7 +138,7 @@ const Docentes = () => {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {modal && (
         <ModalDocente
