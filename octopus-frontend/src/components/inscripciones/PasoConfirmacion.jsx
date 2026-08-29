@@ -2,6 +2,7 @@ import React from 'react';
 import { Info, Check, Loader2, ArrowLeft } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Card } from '../ui/Card';
 
 const formatFecha = (fecha) => {
     if (!fecha) return '—';
@@ -11,10 +12,7 @@ const formatFecha = (fecha) => {
 
 export const PasoConfirmacion = ({ datos, onContinuar, onVolver, cargando }) => (
     <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn">
-        <div
-            className="rounded-2xl border overflow-hidden shadow-sm"
-            style={{ background: 'var(--porcelain)', borderColor: 'var(--border-md)' }}
-        >
+        <Card padding="none" className="overflow-hidden">
             <div
                 className="p-8 text-white flex justify-between items-center"
                 style={{ background: 'var(--pb)' }}
@@ -115,6 +113,6 @@ export const PasoConfirmacion = ({ datos, onContinuar, onVolver, cargando }) => 
                     </button>
                 </div>
             </div>
-        </div>
+        </Card>
     </div>
 );
