@@ -2510,3 +2510,70 @@ errores preexistentes confirmados con `git stash`: `no-unused-vars` de
 — mismo patrón generalizado ya documentado en bloque 3). Grep de hex colors
 y grids sin breakpoint: solo coincidencias semánticas preexistentes (rojo de
 error/advertencia), sin hallazgos nuevos.
+
+## Bloques 5, 6 y 7 (completos): resto del panel administrativo
+
+Migración ejecutada en paralelo (4 subagentes + trabajo directo) sobre:
+Notas.jsx, Boletin.jsx, Asistencia.jsx, Horarios.jsx, Materias.jsx,
+Docentes.jsx, Sistemas.jsx, Auditoria.jsx, Nomina.jsx, Recibos.jsx,
+Comunicacion.jsx, Incidentes.jsx, Rendimiento.jsx. Cada commit se verificó
+individualmente (`vite build` + `eslint` + revisión de diff) antes de
+aceptarse; ningún subagente hizo `git commit` por su cuenta.
+
+- **Notas.jsx / Boletin.jsx**: encabezado → PageHeader, estado vacío → Card.
+  En Boletin.jsx además se migró el panel completo de vista previa del
+  boletín (banda de colegio + datos del alumno + tabla de materias +
+  asistencia + firmas) a `Card padding="none"` y la tabla de materias a
+  `Tabla` — se verificó primero que `generarBoletinPDF` (utils/boletinPdf.js)
+  construye el PDF desde los datos con jsPDF, sin capturar este DOM (a
+  diferencia de Recibos.jsx), por lo que restructurar la vista previa es
+  seguro. `TablaNotas.jsx` (usado también por `DocenteMateriaDetalle.jsx` y
+  `PlanEvaluacionPanel.jsx` del portal-docente, fuera de este alcance) quedó
+  sin tocar a propósito.
+- **Asistencia.jsx / Horarios.jsx**: encabezado → PageHeader. `GrillaHorario`
+  (tipo calendario, filas=horas/columnas=días) y `PanelMaterias` (acordeón de
+  chips), así como las filas de alumno con botones de estado (`FilaAlumno`),
+  quedan sin tocar — no son tablas de datos homogéneas ni cards de contenido
+  simple.
+- **Materias.jsx / Docentes.jsx**: encabezado → PageHeader (botón "Nuevo X"
+  como acción), contenedor de la lista → Card. Las listas en sí usan filas
+  tipo botón (no `<table>`), se dejaron igual dentro de Card.
+- **Sistemas.jsx**: solo el encabezado → PageHeader; la navegación de tabs y
+  las pestañas delegadas (`UsuariosTab`, etc.) quedan sin tocar.
+- **Auditoria.jsx**: encabezado con filtros de fecha y botones de exportación
+  → PageHeader (`acciones`); las 4 tarjetas KPI → Card; la tabla de logs →
+  Card padding="none" + Tabla, con su barra de filtros propia conservada
+  como markup interno (no calza en `titulo`/`accion` de Card).
+- **Nomina.jsx**: encabezado (ambos estados, loading e inicial) → PageHeader;
+  tabla de empleados → Card padding="none" + Tabla con columnas dinámicas
+  según estamento. Las 3 tarjetas de resumen por estamento (borde que cambia
+  a `var(--pb)` cuando ese tab está activo) quedan sin tocar — Card tiene un
+  borde fijo, forzarlas habría perdido la señal de tab activo.
+- **Recibos.jsx**: los 7 bloques del panel izquierdo (formulario) → Card. El
+  bloque "Neto a Depositar" (resaltado de color) y **todo el panel derecho**
+  (`ref={previewRef}`, el insumo literal de `imprimirRecibo`) quedan sin
+  tocar — ese sí es la plantilla real de impresión/PDF, a diferencia de
+  Boletin.jsx.
+- **Comunicacion.jsx / Incidentes.jsx / Rendimiento.jsx**: encabezado →
+  PageHeader, panel de estado vacío → Card. Las listas de tarjetas propias
+  (`TarjetaCircular`, `TarjetaIncidente`) y los widgets de color semántico
+  (`MapaCalorSeccion`, `AlertasRiesgoList`) quedan sin tocar.
+
+Un subagente (Notas.jsx/Boletin.jsx) falló a mitad de tarea por un error de
+servidor después de terminar Notas.jsx y solo alcanzar a agregar los imports
+en Boletin.jsx (sin migrar su contenido) — se detectó con `git diff` y se
+completó Boletin.jsx manualmente antes de commitear.
+
+Verificación: `vite build` verde y `eslint` limpio en todos los commits
+(salvo los mismos patrones preexistentes ya documentados arriba, confirmados
+archivo por archivo con `git diff`/`git stash` antes de aceptarse). Grep de
+hex colors, grids sin breakpoint y `vh`: sin hallazgos nuevos en todo
+`src/pages`.
+
+### Pendiente de este batch
+
+- **Configuracion.jsx** (1460 líneas, un solo componente monolítico sin
+  dividir en sub-tabs como Reportes.jsx) — no se migró en esta pasada por su
+  tamaño; requiere una revisión dedicada, no delegable a la ligera a un
+  subagente en paralelo con los demás. Queda como el único pendiente real de
+  bloque 6.
