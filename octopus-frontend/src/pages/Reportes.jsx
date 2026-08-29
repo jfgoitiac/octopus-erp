@@ -10,6 +10,7 @@ import CorreccionPagosTab from '../components/reportes/CorreccionPagosTab';
 import HistoricoMensualTab from '../components/reportes/HistoricoMensualTab';
 import BusinessIntelligenceTab from '../components/reportes/BusinessIntelligenceTab';
 import PuntualidadTab from '../components/reportes/PuntualidadTab';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const TABS = [
     { id: 'caja',          label: 'Cierre de Caja',        icon: Wallet,      group: 'diaria' },
@@ -121,13 +122,10 @@ const Reportes = () => {
 
     return (
         <div className="animate-fadeIn p-4 md:p-0">
-            {/* Cabecera */}
-            <div className="mb-6">
-                <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Reportes</h2>
-                <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-                    Cierre de caja, conciliación bancaria, clasificación contable y análisis de cobranza.
-                </p>
-            </div>
+            <PageHeader
+                titulo="Reportes"
+                descripcion="Cierre de caja, conciliación bancaria, clasificación contable y análisis de cobranza."
+            />
 
             {/* Navegación de tabs */}
             <div className="flex items-end gap-4 mb-6 p-2 rounded-xl w-fit overflow-x-auto max-w-full"
