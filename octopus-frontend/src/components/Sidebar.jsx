@@ -1,8 +1,10 @@
 import { useContext } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
 import { useSede } from '../context/SedeContext';
 import { useConfiguracion } from '../hooks/useConfiguracion';
+import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
 import SedeSwitcher from './SedeSwitcher';
 import logoColegio from '../assets/logo-colegio.png';
 import { nombreUsuario, inicialesUsuario } from '../utils/nombreUsuario';
@@ -10,7 +12,8 @@ import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, LogOut, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
-  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe
+  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
+  Pin, PinOff, ChevronDown
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
@@ -82,29 +85,57 @@ const navSections = [
 
 const SIDEBAR_POS = 'top-[var(--topbar-h)] lg:top-[var(--topbar-h-lg)] h-[calc(100dvh-var(--topbar-h))] lg:h-[calc(100dvh-var(--topbar-h-lg))]';
 
+const ACENTOS = { á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', ñ: 'n' };
+const slugify = (label) =>
+  label
+    .toLowerCase()
+    .replace(/[áéíóúñ]/g, (c) => ACENTOS[c])
+    .replace(/[^a-z0-9]+/g, '-');
+
 // Ítem de navegación único — usado tanto en los grupos como en la sección de Favoritos.
-const SidebarNavItem = ({ item, isActive, animationDelay }) => {
+// El botón de fijar es hermano del Link (no anidado) para no meter un <button>
+// interactivo dentro de un <a> interactivo.
+const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFavorito }) => {
   const Icon = item.icon;
+
+  const handlePinClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onToggleFavorito(item);
+  };
+
   return (
-    <Link
-      to={item.path}
-      className={`anim-fade-up flex items-center gap-2.5 px-3 py-2.5 text-sm relative overflow-hidden transition-colors ${isActive ? '' : 'hover:bg-[var(--ash-light)]'}`}
-      style={{
-        animationDelay,
-        borderRadius: 'var(--radius-card)',
-        ...(isActive
-          ? {
-              background: 'var(--surface)',
-              color: 'var(--jet)',
-              fontWeight: 500,
-              boxShadow: 'var(--shadow-sm)',
-            }
-          : { color: 'var(--jet-mid)' })
-      }}
-    >
-      <Icon size={15} style={{ color: isActive ? 'var(--pb)' : 'var(--ash)', flexShrink: 0 }} />
-      <span className="truncate">{item.name}</span>
-    </Link>
+    <div className="group relative anim-fade-up" style={{ animationDelay }}>
+      <Link
+        to={item.path}
+        className={`flex items-center gap-2.5 pl-3 pr-10 py-2.5 text-sm relative overflow-hidden transition-colors ${isActive ? '' : 'hover:bg-[var(--ash-light)]'}`}
+        style={{
+          borderRadius: 'var(--radius-card)',
+          ...(isActive
+            ? {
+                background: 'var(--surface)',
+                color: 'var(--jet)',
+                fontWeight: 500,
+                boxShadow: 'var(--shadow-sm)',
+              }
+            : { color: 'var(--jet-mid)' })
+        }}
+      >
+        <Icon size={15} style={{ color: isActive ? 'var(--pb)' : 'var(--ash)', flexShrink: 0 }} />
+        <span className="truncate">{item.name}</span>
+      </Link>
+      <button
+        type="button"
+        onClick={handlePinClick}
+        aria-label={isFavorito ? `Quitar ${item.name} de favoritos` : `Fijar ${item.name} en favoritos`}
+        className={`absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+          isFavorito ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100'
+        }`}
+        style={{ color: isFavorito ? 'var(--pb)' : 'var(--ash)', outlineColor: 'var(--pb)' }}
+      >
+        {isFavorito ? <PinOff size={14} /> : <Pin size={14} />}
+      </button>
+    </div>
   );
 };
 
@@ -114,9 +145,16 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
   const { config } = useConfiguracion();
   const navigate = useNavigate();
   const location = useLocation();
+  const { favoritos, gruposColapsados, toggleFavorito, toggleGrupo, esFavorito } = useSidebarPrefs(user?.username);
 
   const userRole = (user?.rol || '').toLowerCase().trim();
   const initials = inicialesUsuario(user);
+
+  const handleToggleFavorito = (item) => {
+    const yaEraFavorito = esFavorito(item.path);
+    toggleFavorito(item.path);
+    toast.success(yaEraFavorito ? `${item.name} quitado de favoritos` : `${item.name} fijado en favoritos`);
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -185,39 +223,92 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
 
       {/* Navegación — única zona que scrollea */}
       <nav className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-2 custom-scrollbar">
-        {navSections.map((section, sIdx) => {
-          const visible = section.items.filter(item => item.roles.includes(userRole));
-          if (!visible.length) return null;
+        {(() => {
+          const itemsVisiblesPorRol = navSections.flatMap(s => s.items.filter(item => item.roles.includes(userRole)));
+          const favoritosVisibles = favoritos
+            .map(path => itemsVisiblesPorRol.find(item => item.path === path))
+            .filter(Boolean);
+          const hayFavoritos = favoritosVisibles.length > 0;
+
           return (
-            <div
-              key={section.label}
-              className={`anim-slide-in ${sIdx === 0 ? 'mt-2' : 'mt-5'}`}
-              style={{ animationDelay: `${sIdx * 60}ms` }}
-            >
-              <label
-                className="block text-xs uppercase tracking-widest px-3 py-2 font-medium"
-                style={{ color: 'var(--ash)' }}
-              >
-                {section.label}
-              </label>
-              <div className="space-y-0.5">
-                {visible.map((item, iIdx) => {
-                  const isActive =
-                    location.pathname === item.path ||
-                    (item.path === '/dashboard' && location.pathname === '/');
-                  return (
-                    <SidebarNavItem
-                      key={item.name}
-                      item={item}
-                      isActive={isActive}
-                      animationDelay={`${sIdx * 60 + iIdx * 35}ms`}
-                    />
-                  );
-                })}
-              </div>
-            </div>
+            <>
+              {hayFavoritos && (
+                <div className="anim-slide-in mt-2">
+                  <label
+                    className="block text-xs uppercase tracking-widest px-3 py-2 font-medium"
+                    style={{ color: 'var(--ash)' }}
+                  >
+                    Favoritos
+                  </label>
+                  <div className="space-y-0.5">
+                    {favoritosVisibles.map((item, iIdx) => {
+                      const isActive =
+                        location.pathname === item.path ||
+                        (item.path === '/dashboard' && location.pathname === '/');
+                      return (
+                        <SidebarNavItem
+                          key={`fav-${item.path}`}
+                          item={item}
+                          isActive={isActive}
+                          animationDelay={`${iIdx * 35}ms`}
+                          isFavorito
+                          onToggleFavorito={handleToggleFavorito}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {navSections.map((section, sIdx) => {
+                const visible = section.items.filter(item => item.roles.includes(userRole));
+                if (!visible.length) return null;
+                const groupId = `sidebar-group-${slugify(section.label)}`;
+                const colapsadoGuardado = gruposColapsados.includes(section.label);
+                const contieneActivo = visible.some(item =>
+                  location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/')
+                );
+                const colapsado = colapsadoGuardado && !contieneActivo;
+                return (
+                  <div
+                    key={section.label}
+                    className={`anim-slide-in ${sIdx === 0 && !hayFavoritos ? 'mt-2' : 'mt-5'}`}
+                    style={{ animationDelay: `${sIdx * 60}ms` }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleGrupo(section.label)}
+                      aria-expanded={!colapsado}
+                      aria-controls={groupId}
+                      className="w-full flex items-center justify-between gap-2 text-xs uppercase tracking-widest px-3 py-2 font-medium rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                      style={{ color: 'var(--ash)', outlineColor: 'var(--pb)' }}
+                    >
+                      <span>{section.label}</span>
+                      <ChevronDown size={14} className={`transition-transform flex-shrink-0 ${colapsado ? '-rotate-90' : ''}`} />
+                    </button>
+                    <div id={groupId} className="space-y-0.5">
+                      {!colapsado && visible.map((item, iIdx) => {
+                        const isActive =
+                          location.pathname === item.path ||
+                          (item.path === '/dashboard' && location.pathname === '/');
+                        return (
+                          <SidebarNavItem
+                            key={item.name}
+                            item={item}
+                            isActive={isActive}
+                            animationDelay={`${sIdx * 60 + iIdx * 35}ms`}
+                            isFavorito={esFavorito(item.path)}
+                            onToggleFavorito={handleToggleFavorito}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           );
-        })}
+        })()}
       </nav>
 
       {/* Usuario + logout — anclados abajo, siempre alcanzables */}
