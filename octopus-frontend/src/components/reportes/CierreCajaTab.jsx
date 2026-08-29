@@ -9,7 +9,8 @@ import DatePickerES from '../DatePickerES';
 import axiosInstance from '../../api/apiClient';
 import { toast } from 'react-toastify';
 import { CardSkeleton } from '../shared/Skeleton';
-import { today, fmt, fmtInt, getErrorMessage, METODO_LABELS, ESTATUS_STYLE, inputStyle, cardStyle } from '../../constants/reportes';
+import { today, fmt, fmtInt, getErrorMessage, METODO_LABELS, ESTATUS_STYLE, inputStyle } from '../../constants/reportes';
+import { Card } from '../ui/Card';
 
 const CierreCajaTab = () => {
     const [caja, setCaja] = useState({
@@ -357,7 +358,7 @@ const CierreCajaTab = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="rounded-xl p-6" style={cardStyle}>
+                    <Card>
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 rounded-lg" style={{ background: '#dcfce7', color: '#16a34a' }}>
                                 <DollarSign size={20} />
@@ -369,9 +370,9 @@ const CierreCajaTab = () => {
                         <p className="text-3xl font-bold font-mono" style={{ color: 'var(--pb)' }}>
                             ${fmt(caja.total_usd)}
                         </p>
-                    </div>
+                    </Card>
 
-                    <div className="rounded-xl p-6" style={cardStyle}>
+                    <Card>
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 rounded-lg" style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
                                 <Wallet size={20} />
@@ -406,9 +407,9 @@ const CierreCajaTab = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </Card>
 
-                    <div className="rounded-xl p-6" style={cardStyle}>
+                    <Card>
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 rounded-lg" style={{ background: '#fef9c3', color: '#ca8a04' }}>
                                 <Hash size={20} />
@@ -419,7 +420,7 @@ const CierreCajaTab = () => {
                             {fmtInt(caja.conteo_pagos)}
                         </p>
                         <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>transacciones completadas</p>
-                    </div>
+                    </Card>
                 </div>
             )}
 
