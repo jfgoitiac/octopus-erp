@@ -11,15 +11,10 @@ import DonutChart from '../components/dashboard/DonutChart';
 import StackedBar from '../components/dashboard/StackedBar';
 import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
 import { fmt } from '../utils/format';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
 
 // ─── pequeños helpers de UI locales ──────────────────────────────────────────
-
-const SectionTitle = memo(({ children }) => (
-    <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
-        {children}
-    </p>
-));
-SectionTitle.displayName = 'SectionTitle';
 
 const Legend = memo(({ items }) => (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 justify-center">
@@ -117,20 +112,23 @@ const Dashboard = () => {
     );
 
     return (
-        <div className="flex flex-col gap-5">
+        <div>
+            <PageHeader
+                titulo="Panel de control"
+                descripcion={today}
+                acciones={
+                    <button
+                        onClick={retry}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 min-h-[44px] w-full sm:w-auto justify-center"
+                        style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                    >
+                        <RefreshCw size={12} />
+                        Actualizar
+                    </button>
+                }
+            />
 
-            {/* ── Cabecera con botón de actualizar ── */}
-            <div className="flex items-center justify-end">
-                <button
-                    onClick={retry}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 min-h-[44px]"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                >
-                    <RefreshCw size={12} />
-                    Actualizar
-                </button>
-            </div>
-
+            <div className="flex flex-col gap-5">
             {/* ── Row 1: KPI cards ── */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 <KpiCard icon={Users}         label="Alumnos activos" value={kpi.totalActivos}
@@ -153,19 +151,15 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* Estado financiero */}
-                <div className="rounded-xl p-4 flex flex-col anim-scale-in card-lift"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '80ms' }}>
-                    <SectionTitle>Estado financiero</SectionTitle>
+                <Card titulo="Estado financiero" className="flex flex-col anim-scale-in card-lift">
                     <div className="flex justify-center flex-1 items-center">
                         <DonutChart data={financialData} size={180} thickness={30} />
                     </div>
                     <Legend items={financialData} />
-                </div>
+                </Card>
 
                 {/* Distribución por género */}
-                <div className="rounded-xl p-4 flex flex-col anim-scale-in card-lift"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '160ms' }}>
-                    <SectionTitle>Distribución por género</SectionTitle>
+                <Card titulo="Distribución por género" className="flex flex-col anim-scale-in card-lift">
                     <div className="flex justify-center my-4">
                         <DonutChart data={genderData} size={180} thickness={30} label="estudiantes" />
                     </div>
@@ -181,12 +175,10 @@ const Dashboard = () => {
                             );
                         })}
                     </div>
-                </div>
+                </Card>
 
                 {/* Cobranza hoy */}
-                <div className="rounded-xl p-4 flex flex-col gap-3 anim-scale-in card-lift"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '240ms' }}>
-                    <SectionTitle>Cobranza hoy</SectionTitle>
+                <Card titulo="Cobranza hoy" className="flex flex-col gap-3 anim-scale-in card-lift">
                     <CobranzaFila icon={DollarSign} label="Total USD cobrado" value={kpi.cobradoHoyUsd} color="#16a34a" bg="#dcfce7" />
                     <CobranzaFila icon={Wallet}     label="Total VES cobrado" value={kpi.cobradoHoyVes} color="#4f6ef7" bg="var(--pb-light)" />
                     <CobranzaFila icon={BookOpen}   label="Pagos procesados"  value={kpi.pagosHoyCount} color="#7c3aed" bg="#ede9fe" />
@@ -195,13 +187,11 @@ const Dashboard = () => {
                             Sin pagos registrados hoy.
                         </p>
                     )}
-                </div>
+                </Card>
             </div>
 
             {/* ── Row 3: ocupación por grado ── */}
-            <div className="rounded-xl p-4 anim-scale-in card-lift"
-                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)', animationDelay: '320ms' }}>
-                <SectionTitle>Ocupación por grado</SectionTitle>
+            <Card titulo="Ocupación por grado" className="anim-scale-in card-lift">
                 {processedGradeData.length === 0 ? (
                     <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>
                         Sin grados configurados
@@ -224,6 +214,7 @@ const Dashboard = () => {
                         ))}
                     </div>
                 )}
+            </Card>
             </div>
         </div>
     );
