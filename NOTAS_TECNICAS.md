@@ -2472,3 +2472,41 @@ bloque 6: Sistemas.jsx, Configuracion.jsx, Auditoria.jsx, Nomina.jsx,
 Recibos.jsx (este último: si la migración afectaría la maquetación de
 impresión/PDF, debe dejarse sin migrar y reportarse).
 bloque 7: Comunicacion.jsx, Incidentes.jsx, Rendimiento.jsx.
+
+## Bloque 4 (completo): Inscripciones.jsx, Representantes.jsx
+
+- **Representantes.jsx**: se agregó PageHeader (no tenía encabezado propio
+  antes), y la tabla pasó de `TablaScroll` + `<table>` manual a Card+Tabla.
+  `TablaRepresentantes.jsx` y su skeleton dejaron de envolverse en su propio
+  `<tbody>` para poder usarse como children de Tabla (mismo ajuste que
+  `MorososRow`/`MorososSkeleton` en bloque 1). La ficha lateral
+  (`RepresentanteFicha.jsx`, panel `position: sticky` con `maxHeight`
+  calculado) queda sin tocar — Card no expone un prop `style` para ese
+  posicionamiento/alto especial.
+- **Inscripciones.jsx** (shell): el encabezado centrado ("Admisión Octopus")
+  pasó a PageHeader estándar (alineado a la izquierda) — decisión confirmada
+  explícitamente con el usuario, ya que era una desviación visual intencional
+  del resto de páginas.
+- **PasoRepresentante.jsx**: los 2 paneles con borde (formulario de
+  representante nuevo, tarjeta de confirmación de representante existente)
+  → Card. El buscador de cédula (sin borde propio) y el aviso de datos
+  faltantes (rojo semántico) quedan sin tocar.
+- **PasoAlumno.jsx**: el panel "Datos del Nuevo Estudiante" → Card. La
+  grilla de tarjetas seleccionables (alumno nuevo/existente, con estados de
+  selección por color) y el aviso de datos faltantes quedan sin tocar — son
+  tiles de selección tipo radio, no bloques de contenido.
+- **PasoConfiguracion.jsx**: el panel "Detalles de inscripción" → Card. La
+  grilla de tarjetas de grado/sección seleccionables y el aviso de período
+  cerrado quedan sin tocar, mismo criterio que PasoAlumno.
+- **PasoConfirmacion.jsx**: el panel completo → Card `padding="none"`,
+  conservando su banda de encabezado azul con ícono (no calza en el slot
+  `titulo` de Card, mismo criterio que los paneles de BusinessIntelligenceTab
+  en bloque 3).
+
+Verificación: `vite build` verde y `eslint` limpio en cada commit (salvo
+errores preexistentes confirmados con `git stash`: `no-unused-vars` de
+`React` sin usar en varios archivos de `inscripciones/`, y más casos de
+`react-hooks/set-state-in-effect`/`react-hooks/preserve-manual-memoization`
+— mismo patrón generalizado ya documentado en bloque 3). Grep de hex colors
+y grids sin breakpoint: solo coincidencias semánticas preexistentes (rojo de
+error/advertencia), sin hallazgos nuevos.
