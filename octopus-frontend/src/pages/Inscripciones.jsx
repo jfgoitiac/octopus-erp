@@ -6,6 +6,7 @@ import { PasoAlumno }        from '../components/inscripciones/PasoAlumno';
 import { PasoConfiguracion } from '../components/inscripciones/PasoConfiguracion';
 import { PasoConfirmacion }  from '../components/inscripciones/PasoConfirmacion';
 import { PantallaExito }     from '../components/inscripciones/PantallaExito';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const Inscripciones = () => {
     const {
@@ -21,14 +22,10 @@ const Inscripciones = () => {
         <div className="min-h-screen pb-20 animate-fadeIn">
             <div className="max-w-6xl mx-auto px-4">
                 {!exito && (
-                    <header className="mb-12 text-center">
-                        <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>
-                            Admisión Octopus
-                        </h2>
-                        <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-                            Módulo de control de matriculación y nuevos ingresos
-                        </p>
-                    </header>
+                    <PageHeader
+                        titulo="Admisión Octopus"
+                        descripcion="Módulo de control de matriculación y nuevos ingresos"
+                    />
                 )}
 
                 {!exito && <BarraProgreso pasoActual={paso} />}
