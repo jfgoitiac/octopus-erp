@@ -2359,3 +2359,116 @@ Resumen de lo que quedó frágil o sin verificar:
   (no relacionado a layout, probablemente una llamada de fondo con token
   vencido); no se investigó por estar fuera del alcance de esta auditoría.
 Aquí solo se anotan incumplimientos concretos pendientes de corregir.
+
+---
+
+# MIGRACIÓN VISUAL A PRIMITIVAS COMPARTIDAS (Card/PageHeader/Tabla) — bloques 1-3
+
+Progreso de la migración de pantallas del panel administrativo a las
+primitivas `src/components/ui/{Card,PageHeader,Tabla,TablaScroll,Modal}.jsx`.
+Verificación estática únicamente (build + lint + grep) por indicación
+expresa del usuario — sin auditoría visual en navegador.
+
+## Hallazgo previo: primitivas sin commit
+
+`Card.jsx`, `PageHeader.jsx` y `Tabla.jsx` llevaban commiteadas las pantallas
+que ya las usaban (Dashboard, ListaAlumnos, Morosos, Cobranza) pero las
+primitivas mismas nunca se habían commiteado — quedaban sueltas en el
+working tree. Si alguien hubiera hecho `git stash`/clonado limpio, esas
+pantallas ya "migradas" habrían roto el build por import faltante. Corregido
+commiteando las 3 primitivas en un commit separado antes de seguir.
+
+## Bloque 2 (completo): Comprobantes.jsx, Pagos.jsx
+
+- **Comprobantes.jsx**: encabezado → PageHeader, panel de filtros y panel de
+  resultados → Card. La tabla de escritorio (`hidden sm:block`) y la vista de
+  tarjetas en móvil (`sm:hidden`) se dejaron con su markup propio — Tabla.jsx
+  solo sabe renderizar un `<table>` único, no un modo "tarjeta" alterno; forzar
+  la vista móvil a Tabla habría perdido ese layout responsive a propósito.
+- **Pagos.jsx**: encabezado → PageHeader, las 3 tarjetas de acción
+  (Incentivo/Nómina/Cestaticket) → Card. Las tablas de los 3 modales
+  (sticky `thead`, tabs por estamento, estados vacíos con `colSpan`) quedan
+  sin tocar — decisión explícita del usuario tras consulta, por no calzar
+  con la API de columnas de Tabla.
+
+## Bloque 3 (completo): Conciliador.jsx, Reportes.jsx + sus 7 pestañas
+
+- **Conciliador.jsx**: encabezado → PageHeader, selector de banco → Card,
+  tabla de transacciones → Card+Tabla. La zona de arrastre de archivos
+  (`DropZone`) queda sin tocar: su borde punteado cambia de color según el
+  estado de "arrastrando", un estado de interacción que Card no representa
+  sin perder ese feedback visual.
+- **Reportes.jsx** (shell): solo el encabezado → PageHeader.
+- **CierreCajaTab.jsx**: sin tabla raíz — las 3 tarjetas de resumen
+  (Total USD, Distribución por Método, Total de Pagos) → Card.
+- **HistoricoMensualTab.jsx**: tabla → Card+Tabla. La fila de totales del mes
+  (antes `<tfoot>`) pasó a ser la última fila del `tbody` dentro de Tabla,
+  porque la primitiva no soporta `tfoot` — mismo criterio aplicado después en
+  ClasificacionPagosTab (desglose por mes).
+- **PuntualidadTab.jsx**: sin tabla raíz — las 3 tarjetas de métrica, la
+  tarjeta de distribución total y el estado vacío → Card.
+- **CorreccionPagosTab.jsx**: tabla de pagos → Card+Tabla. Los 3 modales
+  (Corregir, Anular, Cargar Retroactivo) quedan sin tocar.
+- **BusinessIntelligenceTab.jsx**: los 3 paneles (proyección de ingresos,
+  morosidad por grado, comparativa de períodos) → Card `padding="none"`,
+  conservando su encabezado propio (icono + selector de año inline, que no
+  calza en el slot `titulo` de Card). La tabla comparativa interna → Tabla.
+- **ConciliacionTab.jsx**: solo la barra de progreso y el estado vacío → Card.
+  La lista de representantes (acordeón expandible con checklist de
+  conciliación) y el historial de lotes (acordeón similar) quedan sin tocar
+  a propósito — son listados de tarjetas expandibles con checkboxes
+  anidados, no tablas; forzarlos a Tabla habría significado reescribir su
+  estructura de interacción, no solo su presentación.
+- **ClasificacionPagosTab.jsx**: filtro de concepto/banco+exportación → Card;
+  desglose de dinero por mes → Card+Tabla. La tabla principal (agrupada por
+  representante con filas `Fragment`, checkbox de selección múltiple y fila
+  de encabezado de grupo con `colSpan=8`) mantiene su markup de tabla propio
+  dentro de un `Card padding="none"` — esa estructura de grupo
+  expandible/seleccionable no tiene equivalente en la API de columnas de
+  Tabla sin reescribir la lógica de agrupación.
+
+## Deuda técnica preexistente encontrada (no introducida por esta migración)
+
+- **`react-hooks/set-state-in-effect`**: casi todos los archivos tocados en
+  bloques 2 y 3 (Comprobantes, Pagos, CierreCajaTab, HistoricoMensualTab,
+  PuntualidadTab, CorreccionPagosTab, BusinessIntelligenceTab,
+  ConciliacionTab, ClasificacionPagosTab) disparan este error de ESLint en
+  sus `useEffect` de carga inicial (`useEffect(() => { fetchX(...) }, [...])`
+  que llama una función que hace `setState`). Confirmado con `git stash` que
+  el error ya existía antes de esta migración en cada caso — no se corrigió
+  por estar fuera de alcance (cambiar la forma en que se dispara el fetch es
+  lógica, no presentación). Patrón generalizado, candidato a una pasada
+  dedicada futura (ver patrón ya resuelto antes en Cobranza vía
+  `SmartDateInput`, referenciado más arriba en este archivo).
+- **Colores hex literales fuera de `var(--*)`**: siguen presentes en
+  Comprobantes.jsx (mapas de color por método de pago/estatus/clasificación),
+  Pagos.jsx (colores por tipo de módulo: azul Incentivo, púrpura Nómina,
+  verde Cestaticket) y varios `components/reportes/*.jsx` (colores
+  semánticos de estado). Todos preexistentes, no tocados — el alcance de
+  esta migración es solo estructura de layout (Card/PageHeader/Tabla), no
+  tokens de color; cambiarlos sin revisar cada caso podría alterar
+  significado semántico (ej. rojo = atrasado) por accidente.
+
+## Verificación estática final (bloques 1-3)
+
+- `npx vite build`: verde en cada commit.
+- `npx eslint <archivos tocados>`: limpio salvo los `set-state-in-effect`
+  preexistentes documentados arriba (confirmados con `git stash` en varios
+  casos representativos).
+- `grep -rn "#[0-9a-fA-F]\{6\}" src/pages --include=*.jsx`: coincidencias solo
+  en colores semánticos preexistentes (ver arriba) y en pantallas aún no
+  migradas (Asistencia, Auditoria, Boletin, CobranzaDashboard — bloques
+  futuros).
+- `grep -rn "grid-cols-[2-9]" src/pages --include=*.jsx | grep -v "sm:grid-cols\|md:grid-cols\|lg:grid-cols"`:
+  sin resultados.
+- `grep -rn "\bvh\b" src/pages --include=*.jsx`: sin resultados.
+
+## Pendiente para bloque 4 en adelante
+
+bloque 4: Inscripciones.jsx, Representantes.jsx (Grados.jsx ya migrado).
+bloque 5: Notas.jsx, Boletin.jsx, Asistencia.jsx, Horarios.jsx, Materias.jsx,
+Docentes.jsx.
+bloque 6: Sistemas.jsx, Configuracion.jsx, Auditoria.jsx, Nomina.jsx,
+Recibos.jsx (este último: si la migración afectaría la maquetación de
+impresión/PDF, debe dejarse sin migrar y reportarse).
+bloque 7: Comunicacion.jsx, Incidentes.jsx, Rendimiento.jsx.
