@@ -5,6 +5,8 @@ import {
     GraduationCap, Briefcase, Wrench,
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 
@@ -524,22 +526,16 @@ const Pagos = () => {
     return (
         <div className="animate-fadeIn">
 
-            {/* ── Header ──────────────────────────────────────────────────── */}
-            <div className="mb-6">
-                <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>
-                    Módulo de Pagos
-                </h2>
-                <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-                    Generación de archivos TXT y planillas PDF para transferencias bancarias
-                </p>
-            </div>
+            <PageHeader
+                titulo="Módulo de Pagos"
+                descripcion="Generación de archivos TXT y planillas PDF para transferencias bancarias"
+            />
 
             {/* ── Tres tarjetas de acción ──────────────────────────────────── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* 1 ── Incentivo */}
-                <div className="rounded-xl p-5 flex flex-col gap-4"
-                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <Card className="flex flex-col gap-4">
                     <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ background: '#e8f0fc' }}>
@@ -561,11 +557,10 @@ const Pagos = () => {
                             ? <><Loader2 className="animate-spin" size={15} /> Cargando...</>
                             : <><FileText size={15} /> Generar Incentivo</>}
                     </button>
-                </div>
+                </Card>
 
                 {/* 2 ── Nómina */}
-                <div className="rounded-xl p-5 flex flex-col gap-4"
-                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <Card className="flex flex-col gap-4">
                     <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ background: '#ede9fe' }}>
@@ -587,11 +582,10 @@ const Pagos = () => {
                             ? <><Loader2 className="animate-spin" size={15} /> Cargando...</>
                             : <><Users size={15} /> Generar Nómina</>}
                     </button>
-                </div>
+                </Card>
 
                 {/* 3 ── Cestaticket */}
-                <div className="rounded-xl p-5 flex flex-col gap-4"
-                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <Card className="flex flex-col gap-4">
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
                             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -628,7 +622,7 @@ const Pagos = () => {
                             ? <><Loader2 className="animate-spin" size={15} /> Cargando...</>
                             : <><Wheat size={15} /> Generar Cestaticket</>}
                     </button>
-                </div>
+                </Card>
 
             </div>
 
