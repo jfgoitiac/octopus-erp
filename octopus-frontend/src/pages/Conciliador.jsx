@@ -8,6 +8,9 @@ import { BANKS } from '../utils/bankParsers';
 import { useConciliador } from '../hooks/useConciliador';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Tabla } from '../components/ui/Tabla';
 
 // Formateador de montos fuera del componente para evitar recreaciones
 const fmt = (v) =>
@@ -16,10 +19,7 @@ const fmt = (v) =>
 // ─── Sub-componente: selector de banco ────────────────────────────────────────
 function BankSelector({ bank, onSelect }) {
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-    >
+    <Card>
       <p
         className="text-[11px] font-medium uppercase tracking-wider mb-3"
         style={{ color: 'var(--ash)' }}
@@ -46,7 +46,7 @@ function BankSelector({ bank, onSelect }) {
           </button>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -115,6 +115,14 @@ function DropZone({ dragging, loading, fileName, transactions, bankInfo, fileRef
 // ─── Sub-componente: tabla de transacciones ───────────────────────────────────
 const PAGE_SIZE = 20;
 
+const TRANSACCIONES_COLUMNAS = [
+  { key: 'fecha', label: 'Fecha' },
+  { key: 'referencia', label: 'Referencia' },
+  { key: 'descripcion', label: 'Descripción' },
+  { key: 'tipo', label: 'Tipo' },
+  { key: 'monto', label: 'Monto (Bs.)', align: 'right' },
+];
+
 function TransactionsTable({ transactions, page, setPage }) {
   const totalPages = Math.max(1, Math.ceil(transactions.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -122,56 +130,32 @@ function TransactionsTable({ transactions, page, setPage }) {
   const visible = transactions.slice(start, start + PAGE_SIZE);
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm" aria-label="Transacciones cargadas">
-          <thead>
-            <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-              {['Fecha', 'Referencia', 'Descripción', 'Tipo', 'Monto (Bs.)'].map((h, i) => (
-                <th
-                  key={h}
-                  scope="col"
-                  className={`px-4 py-3 text-${i === 4 ? 'right' : 'left'} text-[11px] font-medium uppercase tracking-wider`}
-                  style={{ color: 'var(--ash)' }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((tx, i) => (
-              <tr
-                key={`${tx.referencia}-${i}`}
+    <Card padding="none">
+      <Tabla columnas={TRANSACCIONES_COLUMNAS} minWidth={640}>
+        {visible.map((tx, i) => (
+          <tr key={`${tx.referencia}-${i}`}>
+            <td className="px-4 py-2.5 text-xs tabular-nums" style={{ color: 'var(--ash)' }}>{tx.fecha}</td>
+            <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--jet)' }}>{tx.referencia}</td>
+            <td className="px-4 py-2.5 text-xs max-w-xs truncate" style={{ color: 'var(--ash)' }} title={tx.descripcion}>
+              {tx.descripcion || '—'}
+            </td>
+            <td className="px-4 py-2.5 text-xs">
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide"
                 style={{
-                  borderBottom: '0.5px solid var(--border)',
-                  background: i % 2 === 0 ? 'var(--bg)' : 'var(--porcelain)',
+                  color:      tx.tipo === 'egreso' ? 'var(--red)' : 'var(--green, #16a34a)',
+                  background: tx.tipo === 'egreso' ? 'var(--red-light)' : 'var(--green-light, #f0fdf4)',
                 }}
               >
-                <td className="px-4 py-2.5 text-xs tabular-nums" style={{ color: 'var(--ash)' }}>{tx.fecha}</td>
-                <td className="px-4 py-2.5 font-mono text-xs" style={{ color: 'var(--jet)' }}>{tx.referencia}</td>
-                <td className="px-4 py-2.5 text-xs max-w-xs truncate" style={{ color: 'var(--ash)' }} title={tx.descripcion}>
-                  {tx.descripcion || '—'}
-                </td>
-                <td className="px-4 py-2.5 text-xs">
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide"
-                    style={{
-                      color:      tx.tipo === 'egreso' ? 'var(--red)' : 'var(--green, #16a34a)',
-                      background: tx.tipo === 'egreso' ? 'var(--red-light)' : 'var(--green-light, #f0fdf4)',
-                    }}
-                  >
-                    {tx.tipo === 'egreso' ? 'Egreso' : 'Ingreso'}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-xs" style={{ color: 'var(--jet)' }}>
-                  {fmt(tx.monto)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                {tx.tipo === 'egreso' ? 'Egreso' : 'Ingreso'}
+              </span>
+            </td>
+            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-xs" style={{ color: 'var(--jet)' }}>
+              {fmt(tx.monto)}
+            </td>
+          </tr>
+        ))}
+      </Tabla>
 
       {totalPages > 1 && (
         <div
@@ -206,7 +190,7 @@ function TransactionsTable({ transactions, page, setPage }) {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -371,13 +355,10 @@ export default function Conciliador() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Encabezado */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--jet)' }}>Conciliador Bancario</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-          Carga tu estado de cuenta para verificar transacciones por los últimos 4 a 6 dígitos de referencia.
-        </p>
-      </div>
+      <PageHeader
+        titulo="Conciliador Bancario"
+        descripcion="Carga tu estado de cuenta para verificar transacciones por los últimos 4 a 6 dígitos de referencia."
+      />
 
       {/* Paso 1: selector de banco + zona de carga */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
