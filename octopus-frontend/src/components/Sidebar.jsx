@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
@@ -156,6 +156,23 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
     toast.success(yaEraFavorito ? `${item.name} quitado de favoritos` : `${item.name} fijado en favoritos`);
   };
 
+  // Si el usuario navega hacia una ruta que vive dentro de un grupo colapsado,
+  // se expande automáticamente para que vea dónde está parado. Esto NO pisa
+  // un colapso manual mientras el usuario ya está dentro de ese grupo — solo
+  // actúa al entrar a la ruta, así el botón de contraer siempre responde al click.
+  useEffect(() => {
+    const seccionActiva = navSections.find(section =>
+      section.items.some(item =>
+        item.roles.includes(userRole) &&
+        (location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/'))
+      )
+    );
+    if (seccionActiva && gruposColapsados.includes(seccionActiva.label)) {
+      toggleGrupo(seccionActiva.label);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, userRole]);
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
   if (loading) return (
@@ -264,11 +281,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
                 const visible = section.items.filter(item => item.roles.includes(userRole));
                 if (!visible.length) return null;
                 const groupId = `sidebar-group-${slugify(section.label)}`;
-                const colapsadoGuardado = gruposColapsados.includes(section.label);
-                const contieneActivo = visible.some(item =>
-                  location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/')
-                );
-                const colapsado = colapsadoGuardado && !contieneActivo;
+                const colapsado = gruposColapsados.includes(section.label);
                 return (
                   <div
                     key={section.label}
