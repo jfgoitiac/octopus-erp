@@ -10,9 +10,10 @@ import { toast } from 'react-toastify';
 import { TableRowSkeleton } from '../shared/Skeleton';
 import {
     today, daysAgo, fmt, getErrorMessage, claveConciliacion,
-    METODO_LABELS, ESTATUS_STYLE, inputStyle, cardStyle,
+    METODO_LABELS, ESTATUS_STYLE, inputStyle,
 } from '../../constants/reportes';
 import BancoSelect from './BancoSelect';
+import { Card } from '../ui/Card';
 
 const DETALLE_PAGE_SIZE = 15;
 
@@ -414,7 +415,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
             </div>
 
             {/* Barra de progreso de conciliación (página actual) + acciones */}
-            <div className="rounded-xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3" style={cardStyle}>
+            <Card className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex-1 w-full min-w-[220px]">
                     <div className="flex justify-between items-center mb-1.5">
                         <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
@@ -450,7 +451,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                         Finalizar Lote {totalMarcadasPendientes > 0 ? `(${totalMarcadasPendientes})` : ''}
                     </button>
                 </div>
-            </div>
+            </Card>
 
             {/* Resumen agrupado por representante */}
             {loadingDetalle ? (
@@ -458,7 +459,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                     <table className="w-full text-sm"><tbody><TableRowSkeleton cols={1} rows={4} /></tbody></table>
                 </div>
             ) : gruposPorRepresentante.length === 0 ? (
-                <div className="flex flex-col items-center py-10 rounded-xl gap-3" style={cardStyle}>
+                <Card className="flex flex-col items-center py-10 gap-3">
                     <ListChecks size={30} className="opacity-20" style={{ color: 'var(--pb)' }} />
                     <p className="text-sm" style={{ color: 'var(--ash)' }}>
                         No hay transacciones que coincidan con el filtro.
@@ -469,7 +470,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}>
                         Limpiar filtros y ver últimos 30 días
                     </button>
-                </div>
+                </Card>
             ) : (
                 <div className="space-y-3">
                     {gruposPorRepresentante.map(representante => {
