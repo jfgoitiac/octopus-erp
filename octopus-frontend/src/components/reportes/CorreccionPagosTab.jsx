@@ -12,8 +12,21 @@ import {
 import CorregirPagoModal from './CorregirPagoModal';
 import AnularPagoModal from './AnularPagoModal';
 import CargarPagoRetroactivoModal from './CargarPagoRetroactivoModal';
+import { Card } from '../ui/Card';
+import { Tabla } from '../ui/Tabla';
 
 const PAGE_SIZE = 20;
+
+const CORRECCION_COLUMNAS = [
+    { key: 'fecha', label: 'Fecha' },
+    { key: 'alumno', label: 'Alumno' },
+    { key: 'representante', label: 'Representante' },
+    { key: 'concepto', label: 'Concepto' },
+    { key: 'metodo', label: 'Método / Banco / Ref.' },
+    { key: 'monto', label: 'Monto', align: 'right' },
+    { key: 'estatus', label: 'Estatus', align: 'center' },
+    { key: 'acciones', label: 'Acciones', align: 'center' },
+];
 
 /**
  * @param bancosDisponibles lista de bancos compartida con Conciliación/Clasificación
@@ -191,21 +204,8 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
             </div>
 
             {/* Tabla */}
-            <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
-                <table className="w-full text-sm min-w-[900px]">
-                    <thead>
-                        <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Fecha</th>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Alumno</th>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Representante</th>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Concepto</th>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Método / Banco / Ref.</th>
-                            <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Monto</th>
-                            <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Estatus</th>
-                            <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <Card padding="none">
+                <Tabla columnas={CORRECCION_COLUMNAS} minWidth={900}>
                         {loading ? (
                             <TableRowSkeleton cols={8} rows={8} />
                         ) : pagos.length === 0 ? (
@@ -223,18 +223,14 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                                 </td>
                             </tr>
                         ) : (
-                            pagos.map((p, idx) => {
+                            pagos.map((p) => {
                                 const estStyle = ESTATUS_STYLE[p.estatus] || { label: p.estatus || '—', color: 'var(--ash)', bg: 'var(--ash-light)' };
                                 const esAnulado = p.estatus === 'anulado';
                                 const fecha = p.fecha_pago
                                     ? new Date(p.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })
                                     : '—';
                                 return (
-                                    <tr key={p.id}
-                                        style={{
-                                            background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
-                                            borderBottom: '0.5px solid var(--border-md)',
-                                        }}>
+                                    <tr key={p.id}>
                                         <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{fecha}</td>
                                         <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>
                                             {`${p.nombre_alumno || ''} ${p.apellido_alumno || ''}`.trim() || '—'}
@@ -286,8 +282,7 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                                 );
                             })
                         )}
-                    </tbody>
-                </table>
+                </Tabla>
                 <Pagination
                     page={page}
                     totalPages={totalPages}
@@ -295,7 +290,7 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                     total={total}
                     pageSize={PAGE_SIZE}
                 />
-            </div>
+            </Card>
 
             {pagoACorregir && (
                 <CorregirPagoModal
