@@ -55,12 +55,12 @@ const ModalCompletarRepresentante = ({ representante, onClose, onGuardar }) => {
     const footer = (
         <>
             <button type="button" onClick={onClose}
-                className="w-full sm:w-auto py-3 rounded-xl font-bold"
+                className="w-full sm:w-auto px-4 py-3 rounded-xl font-bold"
                 style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
                 Cancelar
             </button>
             <button type="button" onClick={handleGuardar}
-                className="w-full sm:w-auto py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2"
                 style={{ background: 'var(--pb)', color: '#fff' }}>
                 <Save size={18} /> Guardar y continuar
             </button>

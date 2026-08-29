@@ -10,12 +10,12 @@ const ModalConfirmarQuitarGrado = ({ alumno, saving, onConfirmar, onCancelar }) 
     const footer = (
         <>
             <button onClick={onCancelar}
-                className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm"
                 style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
                 Cancelar
             </button>
             <button onClick={onConfirmar} disabled={saving}
-                className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
                 style={{ background: 'var(--red)' }}>
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
                 {saving ? 'Quitando...' : 'Confirmar'}

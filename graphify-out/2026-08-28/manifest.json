@@ -1415,8 +1415,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/MainLayout.jsx": {
-    "mtime": 1787930034.5650418,
-    "ast_hash": "08d23eade28a02994c33f6d0c0636d3c",
+    "mtime": 1787969838.3481112,
+    "ast_hash": "beafaca1f669124f74d722abdff5593f",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/ProtectedRoute.jsx": {
@@ -1430,8 +1430,8 @@
     "semantic_hash": "64dc8c0467f6ddc57812793bc461f1de"
   },
   "octopus-frontend/src/components/Sidebar.jsx": {
-    "mtime": 1787930002.4453037,
-    "ast_hash": "0c66a99a5f448781ff0bc79cec56cffb",
+    "mtime": 1787969881.406019,
+    "ast_hash": "5901f205ca775349a7aad253f5eadcee",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/alumnos/ModalAjustarMensualidades.jsx": {
@@ -1470,8 +1470,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/alumnos/TablaAlumnos.jsx": {
-    "mtime": 1784561312.5182567,
-    "ast_hash": "e830807c5435967bb4087fcb1b29dd57",
+    "mtime": 1787967347.631131,
+    "ast_hash": "2187f28024d85bf736101f4ae53c89ce",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/asistencia/FilaAlumno.jsx": {
@@ -1935,13 +1935,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Comprobantes.jsx": {
-    "mtime": 1787947566.3633306,
-    "ast_hash": "e3d7d240ae9c81ebde5c6c096d5336b1",
+    "mtime": 1787969006.6308134,
+    "ast_hash": "1f3158f4e4bc38765415dd833d8516bb",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Conciliador.jsx": {
-    "mtime": 1787947006.3238256,
-    "ast_hash": "2299d579d227b18a70d865dc626387b0",
+    "mtime": 1787969364.666148,
+    "ast_hash": "7cb7858f27ad7680a0dab7f7562c422a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Configuracion.jsx": {
@@ -1955,8 +1955,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Dashboard.jsx": {
-    "mtime": 1782257509.0762694,
-    "ast_hash": "33ce2629677a578553ad328ba2716326",
+    "mtime": 1787967237.2505183,
+    "ast_hash": "90c13a7fd4ce19cf7c43dc9dd2066e24",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/GestionSedes.jsx": {
@@ -1965,8 +1965,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Grados.jsx": {
-    "mtime": 1784056202.0413744,
-    "ast_hash": "6d4a265879d6caf11b336663067bf2aa",
+    "mtime": 1787969364.6681497,
+    "ast_hash": "bab2974adb49ad8e2bca42d9f9a66525",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Horarios.jsx": {
@@ -1980,8 +1980,8 @@
     "semantic_hash": "aee77b9576b5e20a8116867a15740401"
   },
   "octopus-frontend/src/pages/ListaAlumnos.jsx": {
-    "mtime": 1784722282.3866,
-    "ast_hash": "301c63b0232050baa4813fa295aca31e",
+    "mtime": 1787967391.0963538,
+    "ast_hash": "236178dcec5206ca6950fbc85f1d3c0d",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Login.jsx": {
@@ -1990,8 +1990,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Morosos.jsx": {
-    "mtime": 1787959003.8098712,
-    "ast_hash": "50dd9547380d1e9aadd882554d5b211c",
+    "mtime": 1787967596.760999,
+    "ast_hash": "23ccf1f89f1cce1ba21757ac3439285a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/MultiSedeDashboard.jsx": {
@@ -2015,8 +2015,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Pagos.jsx": {
-    "mtime": 1787945789.4280758,
-    "ast_hash": "8d89ac2e8a899c51afa0dee830fa5ad7",
+    "mtime": 1787969111.77523,
+    "ast_hash": "5d6ae0d3b7cabbc798502c5b5bec288e",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Recibos.jsx": {
@@ -2025,8 +2025,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Reportes.jsx": {
-    "mtime": 1786047781.7441165,
-    "ast_hash": "59ad46405f0cae7cfbc188e083eb162b",
+    "mtime": 1787969578.3239372,
+    "ast_hash": "2186aaf8ac4b7853f82dcd3a9e3b13f7",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Representantes.jsx": {
@@ -2240,8 +2240,8 @@
     "semantic_hash": "53aa2860f052a083d440f8b3ee1ab855"
   },
   "octopus-frontend/NOTAS_TECNICAS.md": {
-    "mtime": 1785954157.7679458,
-    "ast_hash": "b3a1f4e18819d8dac62456b96d5458af",
+    "mtime": 1787968449.247162,
+    "ast_hash": "6e0fcda7b49b2bc4ab79bcf0ccb7678a",
     "semantic_hash": ""
   },
   "octopus-frontend/README.md": {
@@ -2600,7 +2600,7 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1787945229.9591625,
+    "mtime": 1787968127.221647,
     "ast_hash": "bf6cfeb8f826d44e961b4c754a94021d",
     "semantic_hash": ""
   },
@@ -2615,8 +2615,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1787965448.458039,
-    "ast_hash": "bfa29a30bc3ea3d67b8dc59708236bc0",
+    "mtime": 1787970112.5787425,
+    "ast_hash": "eca76c6ec71b5339706794eeddca09bf",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -2715,13 +2715,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/CobranzaStep1.jsx": {
-    "mtime": 1785979784.104061,
-    "ast_hash": "0bd533aeb0c020aac2de67b7d62c6cf2",
+    "mtime": 1787967853.165225,
+    "ast_hash": "6b4815b2147b257889ce3becae5aa9e4",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/CobranzaStep2.jsx": {
-    "mtime": 1787947566.224668,
-    "ast_hash": "58fb52dea06016f3b4c401ffe68c2d29",
+    "mtime": 1787967906.6175468,
+    "ast_hash": "77e72c4a52e383c1f57d3c0da6170358",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/ResumenPago.jsx": {
@@ -3565,8 +3565,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1787960836.1702557,
-    "ast_hash": "5ff0a207145513a101de3cf0322347b9",
+    "mtime": 1787969882.72381,
+    "ast_hash": "6b565c146a5445368af0890e13651b0d",
     "semantic_hash": ""
   },
   "octopus-api/academico/migrations/0010_eventocalendario.py": {
@@ -4155,8 +4155,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/CierreCajaTab.jsx": {
-    "mtime": 1785979201.8697133,
-    "ast_hash": "1386f07491e2a526c3ecd8f985fd2c95",
+    "mtime": 1787969715.617462,
+    "ast_hash": "56d9eb3f9be949e70908a9596262eb60",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/ClasificacionBatchModal.jsx": {
@@ -4180,8 +4180,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/CorreccionPagosTab.jsx": {
-    "mtime": 1787946280.9239185,
-    "ast_hash": "04c1b9d1ed9d9eb23b6d78fef9f60004",
+    "mtime": 1787970104.1178784,
+    "ast_hash": "f10dd3ad9f728e1b54e028479f30fc6b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/CorregirPagoModal.jsx": {
@@ -4190,13 +4190,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/HistoricoMensualTab.jsx": {
-    "mtime": 1785979217.235384,
-    "ast_hash": "39b6353d997b6df1609ce8513ca6cdbc",
+    "mtime": 1787969835.5923526,
+    "ast_hash": "dbc9a6ee1b363614aaa2414d1eedb2b5",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/PuntualidadTab.jsx": {
-    "mtime": 1785979232.1390495,
-    "ast_hash": "9c12b58f8f68dd2718e69f5a73727206",
+    "mtime": 1787969975.1162884,
+    "ast_hash": "917b8b459e8a48eb8da271701236d526",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/TrendBadge.jsx": {
@@ -4965,8 +4965,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/.impeccable/hook.cache.json": {
-    "mtime": 1787959222.4467762,
-    "ast_hash": "d6c7d7b280e71209efc1f5daaacca29f",
+    "mtime": 1787970105.3974504,
+    "ast_hash": "02574b4b5f076728b3c93a699c3b7473",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/docentes/ModalAsignarMaterias.jsx": {
@@ -5017,6 +5017,36 @@
   "octopus-frontend/src/components/ui/TablaScroll.jsx": {
     "mtime": 1787931806.236996,
     "ast_hash": "b9602c38205558380625bea1a8f49f76",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/Card.jsx": {
+    "mtime": 1787966217.1357207,
+    "ast_hash": "860f77d5fb1270acd585631d0760feb0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/PageHeader.jsx": {
+    "mtime": 1787966234.1580412,
+    "ast_hash": "94541f3423dfb71b9ba8f832e1899560",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/Tabla.jsx": {
+    "mtime": 1787966284.2853956,
+    "ast_hash": "8c28def7f73d72462d008a2e7a6ab519",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useSidebarPrefs.js": {
+    "mtime": 1787967968.2460072,
+    "ast_hash": "d48ce19388354a192b0a49bdfa2f35ee",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/assets/octopus-symbol.png": {
+    "mtime": 1787968797.580324,
+    "ast_hash": "bcc3842737d34400dcab606ec24d191c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/assets/octopus-symbol.svg": {
+    "mtime": 1787968797.4942715,
+    "ast_hash": "af4debdfa065e545439b8279cf9541be",
     "semantic_hash": ""
   }
 }

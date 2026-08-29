@@ -2,6 +2,81 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## ASSETS — BARRA SUPERIOR (acabado visual + símbolo de marca)
+
+- **Solo se copió la variante "paper" (clara) del símbolo Octopus**
+  (`src/assets/octopus-symbol.svg` / `.png`, desde `brand_pkg_D/01_symbol/`).
+  El paquete de origen trae 4 variantes (`ink`, `ink_on_paper`, `paper`,
+  `paper_on_ink`) pensadas para distintos fondos. Si en el futuro el header
+  deja de ser oscuro (tema claro, otra sede con paleta distinta), esta
+  variante dejará de tener contraste suficiente y habrá que traer la variante
+  correspondiente — no generarla editando el SVG actual.
+- **El PNG (`octopus-symbol.png`, 512px) se copió pero no se usa** — el
+  componente importa solo el SVG (D2 de la sesión). Queda en el repo "por si"
+  se necesita un raster; si nunca se usa, es peso muerto a limpiar.
+- **El degradado del header vive en dos lugares con distinta alpha** (vigente
+  tras migrar a 4 paradas animadas `--topbar-c1..c4`): los tokens base
+  (opacos, para el respaldo sin `backdrop-filter` y para `@media print`) y los
+  valores `rgba(12,130,141,0.88)` / `rgba(11,122,114,0.88)` /
+  `rgba(10,109,119,0.88)` / `rgba(10,107,131,0.88)` hardcodeados dentro del
+  bloque `@supports` en `index.css` (no se pudo expresar la alpha como token
+  porque los tokens base están en hex, no en canales rgb separados). Si el
+  color de marca cambia, hay que actualizar ambos lugares a mano.
+- **Esquinas superiores redondeadas del panel de contenido (PASO 6, sesión
+  2026-08-28)**: se implementó sin envolver sidebar+main en un contenedor
+  común ni agregar `overflow:hidden` nuevo (el `overflow:hidden` del
+  contenedor de contenido ya existía de antes y no recorta `position:fixed`
+  por especificación CSS al no haber `transform` de por medio). En su lugar,
+  cada panel (`Sidebar.jsx`, contenedor de contenido en `MainLayout.jsx`)
+  redondea su propia esquina sobre su propio fondo. Efecto secundario: el
+  fondo del `<div>` raíz de `MainLayout` pasó de `var(--bg)` a
+  `var(--topbar-c3)` (oscuro) para que se note el redondeo en el hueco que
+  queda entre la barra y el panel — si algún día se agrega contenido visible
+  directamente en ese `<div>` raíz (fuera de header/sidebar/contenido), habrá
+  que revisar que no quede sobre fondo oscuro sin querer.
+- **Primer intento del redondeo (mismo PASO 6) dejaba el contenedor de
+  contenido arrancando en `y=0`** (con `h-dvh` y el offset del topbar aplicado
+  solo como `padding-top` en `<main>`, para que el contenido "pasara detrás"
+  del header traslúcido — diseño de una tarea previa de blur/profundidad).
+  Como el header (`position:fixed`, opaco/semi-opaco) se pinta encima, la
+  esquina redondeada del contenedor quedaba oculta debajo del header y nunca
+  se veía — solo se notaba la del Sidebar, que sí arranca en
+  `top-[var(--topbar-h)]`. Corregido dándole al contenedor de contenido el
+  mismo offset (`mt-[var(--topbar-h)]` + altura `calc(100dvh - var(--topbar-h))`
+  en vez de `h-dvh` + padding). **Resolución aplicada**: la zona fuera del
+  redondeo se pinta con la misma superficie del header (`.topbar-surface`) para
+  conservar la sensación de continuidad visual y mantener el efecto de
+  profundidad sin exigir que el contenido pase detrás del header. El
+  `backdrop-filter` del bloque `@supports` queda como un pequeño ajuste de
+  profundidad para la superficie del topbar y el borde de costura, sin depender
+  de que haya contenido real detrás del header; por eso ya no es un efecto
+  inocuo ni roto, sino un detalle de acabado del mismo sistema visual.
+
+## SISTEMA DE BOTONES/CONTROLES (auditoría 2026-08-29)
+
+- **`.label`, `.input` y `.btn-primary` estaban muertos** (0 usos en `src/`,
+  solo la propia definición en `index.css`) y usaban paleta azul/gris de
+  Tailwind por defecto en vez de los tokens de marca (`--pb`, `--jet`,
+  `--border`). Se corrigieron para usar los tokens y se agregó un sistema
+  base (`.btn`, `.btn-sm`, `.btn-secondary`, `.btn-ghost`, `.btn-danger`)
+  con tamaño táctil mínimo (40px base / 32px `.btn-sm`), `focus-visible`
+  accesible y `disabled` consistente.
+- **Ninguna de las clases nuevas está adoptada todavía en el JSX.** Los 604
+  `<button>` de `src/` siguen resolviéndose con utilidades Tailwind sueltas
+  (`bg-[var(--pb)] ...` repetido 155 veces en 100 archivos distintos, y
+  variantes de borde/hover ad-hoc por módulo). Migrar cada botón a
+  `.btn .btn-primary|.btn-secondary|.btn-ghost|.btn-danger [.btn-sm]` es
+  trabajo aparte (~600 sitios), fuera del alcance de esta auditoría porque
+  implica tocar JSX en casi todos los módulos, no solo `index.css`.
+  Recomendado: migrar módulo por módulo empezando por los modales (mayor
+  densidad de botones repetidos: cantina, portal, portal-docente, sistemas,
+  reportes) y, si el volumen lo justifica, extraer un componente
+  `src/components/ui/Button.jsx` que envuelva estas clases en vez de escribir
+  `className="btn btn-primary"` a mano en cada sitio.
+- **Variante destructiva inconsistente en JSX:** varios modales de
+  eliminar/rechazar usan `bg-red-*` de Tailwind en vez de `--red` de marca.
+  Se resuelve al migrar a `.btn-danger`, no se tocó en esta pasada.
+
 ## MÓDULO COBRANZA
 
 ### 🔴 CRÍTICO
@@ -2577,3 +2652,39 @@ hex colors, grids sin breakpoint y `vh`: sin hallazgos nuevos en todo
   tamaño; requiere una revisión dedicada, no delegable a la ligera a un
   subagente en paralelo con los demás. Queda como el único pendiente real de
   bloque 6.
+
+## TOKENS DE index.css AGREGADOS PARA CORREGIR ESQUINAS CUADRADAS (2026-08-29)
+
+`ui/Card.jsx` y `Sidebar.jsx` ya usaban `--radius-card`, `--surface`,
+`--pad-card(-lg)`, `--fw-semibold` y otros tokens que nunca se definieron en
+el `:root` de `index.css` — colapsaban a su valor inválido (radio 0), por eso
+toda tarjeta del sistema salía cuadrada. Se agregaron:
+
+- `--radius-card: 14px` — un escalón por debajo de `--shell-radius` (20px),
+  porque Card es un elemento interno, no el shell de la página.
+- `--surface: var(--porcelain)` / `--surface-sunken: var(--bg)` — alias
+  semánticos de los tokens de color ya existentes, sin hex nuevos.
+- `--pad-card: 1rem` / `--pad-card-lg: 1.25rem` — el par móvil/desktop que
+  `Card.jsx` ya esperaba vía `p-[var(--pad-card)] sm:p-[var(--pad-card-lg)]`.
+- `--fw-medium: 500` / `--fw-semibold: 600`.
+- `--ink: var(--jet)` — alias, sin uso real detectado más allá de la única
+  referencia existente.
+- `--gap-section` / `--gap-section-lg` — definidos por completar el listado
+  pedido; sin consumidores detectados por grep al momento de agregarlos.
+- **`--portal-primary` / `--portal-secondary`**: derivados de `--pb` /
+  `--pb-mid` (marca genérica actual de Octopus) como placeholder. Estos dos
+  también se sobrescriben en runtime por `PortalLayout.jsx` (`root.style.
+  setProperty`) leyendo `color_primario`/`color_secundario` del perfil del
+  colegio — **pendiente de confirmar** si el valor por defecto (antes de que
+  cargue el perfil, o si el colegio no configuró colores) debe seguir siendo
+  la marca de Octopus o un neutro genérico.
+
+**Pendiente, fuera de alcance de este cambio**: los portales `portal/` y
+`portal-docente/` (~31 archivos) usan un patrón de tarjeta propio y
+consistente — `rounded-2xl` + `bg-white` + `border-gray-100` hardcodeado en
+cada archivo — que nunca pasa por `ui/Card.jsx` ni por los tokens de arriba.
+No estaba roto (ya redondeaba, era el mismo valor en los 31 archivos) así que
+no se tocó sin pedirlo explícitamente; si se quiere una única fuente de
+verdad para el radio en todo el proyecto, esos 31 archivos son candidatos a
+migrar a `var(--radius-card)` (o a un token de radio propio del portal) en un
+batch dedicado.

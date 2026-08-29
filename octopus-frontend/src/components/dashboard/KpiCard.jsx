@@ -23,7 +23,7 @@ const KpiCard = memo(({ icon: Icon, label, value, sub, accent, iconBg, iconColor
     return (
         <div
             ref={cardRef}
-            className="rounded-xl p-4 flex flex-col gap-2 anim-scale-in card-lift cursor-default"
+            className="rounded-[var(--radius-card)] p-4 flex flex-col gap-2 anim-scale-in card-lift cursor-default"
             style={{
                 background: 'var(--porcelain)',
                 border: `0.5px solid var(--border-md)`,

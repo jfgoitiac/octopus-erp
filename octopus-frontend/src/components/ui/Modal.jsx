@@ -1,4 +1,5 @@
 import { forwardRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const SIZE_CLASSES = {
@@ -33,7 +34,7 @@ export const Modal = forwardRef(function Modal(
 
   const sizeClass = SIZE_CLASSES[size] || SIZE_CLASSES.md;
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 overflow-y-auto flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity ${className}`}
       style={{ background: 'rgba(43,48,58,0.5)' }}
@@ -72,6 +73,7 @@ export const Modal = forwardRef(function Modal(
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 });

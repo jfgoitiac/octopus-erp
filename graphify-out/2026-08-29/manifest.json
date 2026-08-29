@@ -1,0 +1,5052 @@
+{
+  "octopus-api/academico/__init__.py": {
+    "mtime": 1780047789.3743923,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/academico/admin.py": {
+    "mtime": 1787927901.7058816,
+    "ast_hash": "676199a51ad8a50f34190cff631de6c6",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/apps.py": {
+    "mtime": 1780047792.6541958,
+    "ast_hash": "f036b38aab624460360ea2d806714ecd",
+    "semantic_hash": "f036b38aab624460360ea2d806714ecd"
+  },
+  "octopus-api/academico/filters.py": {
+    "mtime": 1785262591.548246,
+    "ast_hash": "76756e01fdeb1cc514ca19e422a0beea",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0001_initial.py": {
+    "mtime": 1780047943.3202524,
+    "ast_hash": "939b51c2ed7587aa0239608494e322c9",
+    "semantic_hash": "939b51c2ed7587aa0239608494e322c9"
+  },
+  "octopus-api/academico/migrations/0002_historical_nota_asistencia.py": {
+    "mtime": 1780048801.5998466,
+    "ast_hash": "9f435a76308d5da5636fd24458e3bf0c",
+    "semantic_hash": "9f435a76308d5da5636fd24458e3bf0c"
+  },
+  "octopus-api/academico/migrations/0003_materia_sede.py": {
+    "mtime": 1780093302.9462965,
+    "ast_hash": "f7e097e4c69f3bddfa6d6f55278497c7",
+    "semantic_hash": "f7e097e4c69f3bddfa6d6f55278497c7"
+  },
+  "octopus-api/academico/migrations/0004_alter_historicalasistencia_options_and_more.py": {
+    "mtime": 1780508746.2877805,
+    "ast_hash": "3333dd09cbb71d39fcc8a88eda185d61",
+    "semantic_hash": "3333dd09cbb71d39fcc8a88eda185d61"
+  },
+  "octopus-api/academico/migrations/0005_materia_horas_academicas.py": {
+    "mtime": 1780780856.947979,
+    "ast_hash": "1932cc3a6673156640fcbd51437bc6bf",
+    "semantic_hash": "1932cc3a6673156640fcbd51437bc6bf"
+  },
+  "octopus-api/academico/migrations/__init__.py": {
+    "mtime": 1780047789.7130616,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/academico/models.py": {
+    "mtime": 1787927761.8722153,
+    "ast_hash": "59672e0bf3227c61e03c5c40c8105995",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/serializers.py": {
+    "mtime": 1787929697.3955467,
+    "ast_hash": "4117df7ebf1e3899fbe12dfe1af7c401",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/urls.py": {
+    "mtime": 1787928082.493987,
+    "ast_hash": "b9401128e22c4207681f4fbb3f4e630f",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/views.py": {
+    "mtime": 1787929997.3165371,
+    "ast_hash": "615660aced9881908065ef4758079a4c",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/__init__.py": {
+    "mtime": 1778694919.8100119,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/authentication/apps.py": {
+    "mtime": 1778694965.813207,
+    "ast_hash": "c733b0b515727a05465bf9a2ee1f681c",
+    "semantic_hash": "c733b0b515727a05465bf9a2ee1f681c"
+  },
+  "octopus-api/authentication/authentication.py": {
+    "mtime": 1781198736.9090965,
+    "ast_hash": "e70ce6d0d43c4d71b1e62df0bd66fd0a",
+    "semantic_hash": "e70ce6d0d43c4d71b1e62df0bd66fd0a"
+  },
+  "octopus-api/authentication/cookie_views.py": {
+    "mtime": 1787175803.6688704,
+    "ast_hash": "36c6d31594a766841147e3abf7765be4",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/migrations/0001_initial.py": {
+    "mtime": 1779322396.0337076,
+    "ast_hash": "4cd9c25356352200725969ce2fd2b577",
+    "semantic_hash": "4cd9c25356352200725969ce2fd2b577"
+  },
+  "octopus-api/authentication/migrations/0002_initial.py": {
+    "mtime": 1779322396.0337076,
+    "ast_hash": "4992ab2709a80211118cbbe3ccdd7af6",
+    "semantic_hash": "4992ab2709a80211118cbbe3ccdd7af6"
+  },
+  "octopus-api/authentication/migrations/0003_alter_perfilusuario_options_alter_perfilusuario_rol.py": {
+    "mtime": 1780508746.2775998,
+    "ast_hash": "43e63e9b1a1b2414c5261dfcaaec7935",
+    "semantic_hash": "43e63e9b1a1b2414c5261dfcaaec7935"
+  },
+  "octopus-api/authentication/migrations/0004_alter_perfilusuario_rol.py": {
+    "mtime": 1781384546.8385763,
+    "ast_hash": "9102e46962c7c9eea3935749e1339744",
+    "semantic_hash": "9102e46962c7c9eea3935749e1339744"
+  },
+  "octopus-api/authentication/migrations/0005_add_docente_role.py": {
+    "mtime": 1781784595.420555,
+    "ast_hash": "6dcf2adde0f1487d859290b5e1096fb1",
+    "semantic_hash": "6dcf2adde0f1487d859290b5e1096fb1"
+  },
+  "octopus-api/authentication/migrations/__init__.py": {
+    "mtime": 1779144015.361012,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/authentication/models.py": {
+    "mtime": 1785803813.2694366,
+    "ast_hash": "c5c4887fddbdc7481d3de737a383736f",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/serializers.py": {
+    "mtime": 1787929577.5055375,
+    "ast_hash": "c03dcb227502c7f6736fa7ed4c9fa158",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/signals.py": {
+    "mtime": 1778697965.3742008,
+    "ast_hash": "11bbde6aa3f8c778f787abb2629f573c",
+    "semantic_hash": "11bbde6aa3f8c778f787abb2629f573c"
+  },
+  "octopus-api/authentication/urls.py": {
+    "mtime": 1787164149.606846,
+    "ast_hash": "b3cc40406f005247473ca0d884e776cf",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/views.py": {
+    "mtime": 1787237976.001055,
+    "ast_hash": "4e217f17c028caf44cab6bcdf364d625",
+    "semantic_hash": ""
+  },
+  "octopus-api/backup_director_manual.json": {
+    "mtime": 1779514373.7690215,
+    "ast_hash": "205b766dbb44fc2b9cf6d2f2f1b048e1",
+    "semantic_hash": "205b766dbb44fc2b9cf6d2f2f1b048e1"
+  },
+  "octopus-api/cobranza/__init__.py": {
+    "mtime": 1777322663.6166272,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/cobranza/admin.py": {
+    "mtime": 1784771845.5885117,
+    "ast_hash": "4bc4712f749bf284f9e7f7e50d7d4d9c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/apps.py": {
+    "mtime": 1777391989.8128958,
+    "ast_hash": "43675ec1b4a79455b2ae10d05a679c61",
+    "semantic_hash": "43675ec1b4a79455b2ae10d05a679c61"
+  },
+  "octopus-api/cobranza/conciliacion.py": {
+    "mtime": 1785935652.4176059,
+    "ast_hash": "c4ecc89d620a2c13562c8470e710638a",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/exports.py": {
+    "mtime": 1779577723.758893,
+    "ast_hash": "09eee01f1d0b1d61e8bc37baa5daf300",
+    "semantic_hash": "09eee01f1d0b1d61e8bc37baa5daf300"
+  },
+  "octopus-api/cobranza/filters.py": {
+    "mtime": 1786041358.0710435,
+    "ast_hash": "5b4512699622e48a3c0511569097aa1d",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0001_initial.py": {
+    "mtime": 1779322396.0414786,
+    "ast_hash": "fc579a9729b97c2cce8c9f935f99a910",
+    "semantic_hash": "fc579a9729b97c2cce8c9f935f99a910"
+  },
+  "octopus-api/cobranza/migrations/0002_initial.py": {
+    "mtime": 1779322396.0439713,
+    "ast_hash": "3160b093bcd1eec3e12cb6ffa420a0ce",
+    "semantic_hash": "3160b093bcd1eec3e12cb6ffa420a0ce"
+  },
+  "octopus-api/cobranza/migrations/0003_alter_pago_tasa_aplicada_alter_tasacambio_valor_bs.py": {
+    "mtime": 1779568668.8959079,
+    "ast_hash": "ef2600067d6d1c5f8fd9f3f404ddb531",
+    "semantic_hash": "ef2600067d6d1c5f8fd9f3f404ddb531"
+  },
+  "octopus-api/cobranza/migrations/0004_bancoinstitucional_tipo.py": {
+    "mtime": 1779776508.5258133,
+    "ast_hash": "9ceefde0213c228fb8b7f360f6ad27a0",
+    "semantic_hash": "9ceefde0213c228fb8b7f360f6ad27a0"
+  },
+  "octopus-api/cobranza/migrations/0005_pago_factura_id.py": {
+    "mtime": 1779883707.4072144,
+    "ast_hash": "51d8566677ff66eadcbd02a4327df6f1",
+    "semantic_hash": "51d8566677ff66eadcbd02a4327df6f1"
+  },
+  "octopus-api/cobranza/migrations/0006_cuota_inscripcion.py": {
+    "mtime": 1779885831.0103319,
+    "ast_hash": "61b3a56080982b3e842db28cf7375725",
+    "semantic_hash": "61b3a56080982b3e842db28cf7375725"
+  },
+  "octopus-api/cobranza/migrations/0007_pago_vuelto.py": {
+    "mtime": 1779899553.1856694,
+    "ast_hash": "9e49cd5971c8fab0b80081a30ff52657",
+    "semantic_hash": "9e49cd5971c8fab0b80081a30ff52657"
+  },
+  "octopus-api/cobranza/migrations/0008_historical_pago_mensualidad.py": {
+    "mtime": 1780048819.2554982,
+    "ast_hash": "2d7926f9f9d298132c53fe4993b5587c",
+    "semantic_hash": "2d7926f9f9d298132c53fe4993b5587c"
+  },
+  "octopus-api/cobranza/migrations/0009_pago_sede.py": {
+    "mtime": 1780093296.9904778,
+    "ast_hash": "eccb5da496508e791977dad328fef190",
+    "semantic_hash": "eccb5da496508e791977dad328fef190"
+  },
+  "octopus-api/cobranza/migrations/0010_pago_metodo_stripe.py": {
+    "mtime": 1780109040.80959,
+    "ast_hash": "f85e51f411710e6c8e62c07ab4bc0d9e",
+    "semantic_hash": "f85e51f411710e6c8e62c07ab4bc0d9e"
+  },
+  "octopus-api/cobranza/migrations/0011_alter_historicalmensualidad_options_and_more.py": {
+    "mtime": 1780508746.2897885,
+    "ast_hash": "d185c9bc9e02017c5b092adf4dbbb986",
+    "semantic_hash": "d185c9bc9e02017c5b092adf4dbbb986"
+  },
+  "octopus-api/cobranza/migrations/0012_pago_unique_referencia_activo.py": {
+    "mtime": 1781383844.0149977,
+    "ast_hash": "72e6af7e8e4826c13963e19fd2a3cca7",
+    "semantic_hash": "72e6af7e8e4826c13963e19fd2a3cca7"
+  },
+  "octopus-api/cobranza/migrations/0013_alter_historicalpago_metodo_pago_and_more.py": {
+    "mtime": 1781384546.8385763,
+    "ast_hash": "10925a3a66d31c3fbb03c5f734b349d3",
+    "semantic_hash": "10925a3a66d31c3fbb03c5f734b349d3"
+  },
+  "octopus-api/cobranza/migrations/__init__.py": {
+    "mtime": 1777322663.622289,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/cobranza/models.py": {
+    "mtime": 1787885383.2901895,
+    "ast_hash": "e4711dc3f4476abb5fa97b8176e62f74",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/serializers.py": {
+    "mtime": 1787236905.0350037,
+    "ast_hash": "724721ea8ca287ddc3db6c79842c09ae",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/services.py": {
+    "mtime": 1787845551.9723337,
+    "ast_hash": "3733cb8303d72eb907d9ada29971b079",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/signals.py": {
+    "mtime": 1787845394.8038054,
+    "ast_hash": "b0368dc6648940aa5309192ffc167851",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/tasks.py": {
+    "mtime": 1783341098.0076437,
+    "ast_hash": "9c5d88147f34507d3a57ed6decbfb9dc",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/tests.py": {
+    "mtime": 1787237581.0668645,
+    "ast_hash": "68d126b689abbc038dfcd21bd51829a2",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/urls.py": {
+    "mtime": 1787236973.575612,
+    "ast_hash": "3e543d1ac76a3f6cf426a509e9b10d79",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/utils.py": {
+    "mtime": 1784645292.215716,
+    "ast_hash": "63b43e30e870bcaab2eda2c273ced6af",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/utils_pdf.py": {
+    "mtime": 1777350195.04468,
+    "ast_hash": "079b03ce93ed11fdc3f9e799fe609f61",
+    "semantic_hash": "079b03ce93ed11fdc3f9e799fe609f61"
+  },
+  "octopus-api/cobranza/views.py": {
+    "mtime": 1787885351.2323897,
+    "ast_hash": "b25127edc27e3cca40314b12543ab1b0",
+    "semantic_hash": ""
+  },
+  "octopus-api/config/__init__.py": {
+    "mtime": 1780048787.065319,
+    "ast_hash": "04709361a7dc122644c595cb6594f1ea",
+    "semantic_hash": "04709361a7dc122644c595cb6594f1ea"
+  },
+  "octopus-api/config/asgi.py": {
+    "mtime": 1777322660.7613504,
+    "ast_hash": "09ae6302340dd7c5350f52292250356b",
+    "semantic_hash": "09ae6302340dd7c5350f52292250356b"
+  },
+  "octopus-api/config/celery.py": {
+    "mtime": 1780091299.354521,
+    "ast_hash": "a1defbdd8b4b482552885ab6d10df1da",
+    "semantic_hash": "a1defbdd8b4b482552885ab6d10df1da"
+  },
+  "octopus-api/config/seed.py": {
+    "mtime": 1779546742.747451,
+    "ast_hash": "a27e1ececd1ed435b2706fc2fc5c0720",
+    "semantic_hash": "a27e1ececd1ed435b2706fc2fc5c0720"
+  },
+  "octopus-api/config/settings.py": {
+    "mtime": 1787845424.7406354,
+    "ast_hash": "e8968951d3e2071b88d68d892a318c1f",
+    "semantic_hash": ""
+  },
+  "octopus-api/config/urls.py": {
+    "mtime": 1787164595.0282364,
+    "ast_hash": "7194ec8b40cdb3b804c3dd936330aeb9",
+    "semantic_hash": ""
+  },
+  "octopus-api/config/wsgi.py": {
+    "mtime": 1777322660.7696638,
+    "ast_hash": "a84d331117eb39ac8499026591f369de",
+    "semantic_hash": "a84d331117eb39ac8499026591f369de"
+  },
+  "octopus-api/create_director.py": {
+    "mtime": 1783454620.5255303,
+    "ast_hash": "c463250c9dfa8751f5a7340f19801273",
+    "semantic_hash": ""
+  },
+  "octopus-api/diagnosticar_excel.py": {
+    "mtime": 1781792951.487046,
+    "ast_hash": "1a40b392cc4ca6f69c13a9889e314723",
+    "semantic_hash": "1a40b392cc4ca6f69c13a9889e314723"
+  },
+  "octopus-api/import_docentes.py": {
+    "mtime": 1781793020.0261064,
+    "ast_hash": "6ce392c9532f5562d3cc5a34bc5744ae",
+    "semantic_hash": "6ce392c9532f5562d3cc5a34bc5744ae"
+  },
+  "octopus-api/import_docentes_final.py": {
+    "mtime": 1781793148.2749126,
+    "ast_hash": "8e510652521f85867408fd9d1e3595a4",
+    "semantic_hash": "8e510652521f85867408fd9d1e3595a4"
+  },
+  "octopus-api/manage.py": {
+    "mtime": 1777322660.758309,
+    "ast_hash": "747c8c1f612fb07e1ea90758e5c3b6ad",
+    "semantic_hash": "747c8c1f612fb07e1ea90758e5c3b6ad"
+  },
+  "octopus-api/media/backups/backup_20260526_231242.sql": {
+    "mtime": 1779851562.3474975,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/media/backups/backup_20260526_231244.sql": {
+    "mtime": 1779851564.3291967,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/media/backups/backup_20260526_231245.sql": {
+    "mtime": 1779851565.1022706,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/media/backups/backup_20260526_231248.sql": {
+    "mtime": 1779851568.7448351,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/media/backups/backup_20260526_231249.sql": {
+    "mtime": 1779851569.4313946,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/multisede/__init__.py": {
+    "mtime": 1780091850.940131,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/multisede/admin.py": {
+    "mtime": 1780091939.284343,
+    "ast_hash": "543e791f6a2d1977321f87c3c62f5449",
+    "semantic_hash": "543e791f6a2d1977321f87c3c62f5449"
+  },
+  "octopus-api/multisede/apps.py": {
+    "mtime": 1780091854.9505248,
+    "ast_hash": "aa92534161842cd3da4ad7201a1a5c68",
+    "semantic_hash": "aa92534161842cd3da4ad7201a1a5c68"
+  },
+  "octopus-api/multisede/migrations/0001_initial.py": {
+    "mtime": 1780091951.2338536,
+    "ast_hash": "9c8526fbcc0a15b757d384da1e04d281",
+    "semantic_hash": "9c8526fbcc0a15b757d384da1e04d281"
+  },
+  "octopus-api/multisede/migrations/__init__.py": {
+    "mtime": 1780091851.406771,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/multisede/models.py": {
+    "mtime": 1780091866.4477272,
+    "ast_hash": "a16e1c13c6a80b854b4899b0ece189b5",
+    "semantic_hash": "a16e1c13c6a80b854b4899b0ece189b5"
+  },
+  "octopus-api/multisede/serializers.py": {
+    "mtime": 1783051084.2804785,
+    "ast_hash": "8204d18abc722b2f5467c1043228761c",
+    "semantic_hash": ""
+  },
+  "octopus-api/multisede/urls.py": {
+    "mtime": 1780109693.6338503,
+    "ast_hash": "ae04bc09a875a2ffeac478464210ea2f",
+    "semantic_hash": "ae04bc09a875a2ffeac478464210ea2f"
+  },
+  "octopus-api/multisede/views.py": {
+    "mtime": 1783051074.2221751,
+    "ast_hash": "c0fdd232b955b8366ae2c04e4f7932cc",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/__init__.py": {
+    "mtime": 1777322664.283218,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/nomina/admin.py": {
+    "mtime": 1787885577.723925,
+    "ast_hash": "1cad1b65cbb3c5c1b6842c290f3ca7c6",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/apps.py": {
+    "mtime": 1777322664.2802103,
+    "ast_hash": "6949b6217719e852b81f72aea1460799",
+    "semantic_hash": "6949b6217719e852b81f72aea1460799"
+  },
+  "octopus-api/nomina/migrations/0001_initial.py": {
+    "mtime": 1779322396.0337076,
+    "ast_hash": "ac88830108e37b7fae998c38d078c5f6",
+    "semantic_hash": "ac88830108e37b7fae998c38d078c5f6"
+  },
+  "octopus-api/nomina/migrations/0002_alter_empleado_sueldo_base_ves.py": {
+    "mtime": 1779568668.8959079,
+    "ast_hash": "57abb1f08e1ade6a6aa7d52d41d3118a",
+    "semantic_hash": "57abb1f08e1ade6a6aa7d52d41d3118a"
+  },
+  "octopus-api/nomina/migrations/__init__.py": {
+    "mtime": 1777322664.2851639,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/nomina/models.py": {
+    "mtime": 1787885478.4622955,
+    "ast_hash": "d5d2c6a42773e522548bf6da9b3a4e98",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/serializers.py": {
+    "mtime": 1787886211.4862032,
+    "ast_hash": "824a51c4916376bdb4af98155576c990",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/signals.py": {
+    "mtime": 1777346384.6728258,
+    "ast_hash": "5006c0eecba94af753dccee0b773c3ea",
+    "semantic_hash": "5006c0eecba94af753dccee0b773c3ea"
+  },
+  "octopus-api/nomina/tests.py": {
+    "mtime": 1787886229.625935,
+    "ast_hash": "394acf7a5c2a9cc97e1619dddea31d64",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/urls.py": {
+    "mtime": 1787850704.979887,
+    "ast_hash": "4120a982890df10a2d1190a4e54388dc",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/utils.py": {
+    "mtime": 1787885561.851961,
+    "ast_hash": "3c6ba052052109491f0e015f083919e6",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/views.py": {
+    "mtime": 1787885526.6586835,
+    "ast_hash": "7d8958989e355b46a2cc22b12d6b5cd7",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/__init__.py": {
+    "mtime": 1780128001.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/notificaciones/admin.py": {
+    "mtime": 1787164308.3069313,
+    "ast_hash": "15e90878b5ef1adaa16a126551f8f137",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/apps.py": {
+    "mtime": 1780128014.183841,
+    "ast_hash": "257dd7d99a7152a3bad827e7f292e756",
+    "semantic_hash": "257dd7d99a7152a3bad827e7f292e756"
+  },
+  "octopus-api/notificaciones/migrations/0001_initial.py": {
+    "mtime": 1780128041.3544693,
+    "ast_hash": "c0596c7e62d3b93b957a1095dba25237",
+    "semantic_hash": "c0596c7e62d3b93b957a1095dba25237"
+  },
+  "octopus-api/notificaciones/migrations/0002_configuracionnotificaciones.py": {
+    "mtime": 1780141154.8259997,
+    "ast_hash": "8654c31788954f3f6f71ddda4d597ed4",
+    "semantic_hash": "8654c31788954f3f6f71ddda4d597ed4"
+  },
+  "octopus-api/notificaciones/migrations/__init__.py": {
+    "mtime": 1780128001.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/notificaciones/models.py": {
+    "mtime": 1787843258.94774,
+    "ast_hash": "8ff765bc34acabc4e8544d761660bf8b",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/services.py": {
+    "mtime": 1787235753.502105,
+    "ast_hash": "6e0e5d24862a154c7b2c39560aeb3d4c",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/tasks.py": {
+    "mtime": 1787845352.1639688,
+    "ast_hash": "2262038d916b3a7752489e09c2477506",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/urls.py": {
+    "mtime": 1784567832.1351554,
+    "ast_hash": "14d75b7d1e6fdff60e6efff6d245896b",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/views.py": {
+    "mtime": 1787843344.7343767,
+    "ast_hash": "3f69a8a5b0213b4393b1052d395962fa",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/__init__.py": {
+    "mtime": 1780026532.7091062,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/portal/apps.py": {
+    "mtime": 1780026537.7152915,
+    "ast_hash": "85dd813c78b60f423ddaddeaf9de3dbb",
+    "semantic_hash": "85dd813c78b60f423ddaddeaf9de3dbb"
+  },
+  "octopus-api/portal/authentication.py": {
+    "mtime": 1787161602.825947,
+    "ast_hash": "4db64079b7180a0048a58380aeed3585",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/management/__init__.py": {
+    "mtime": 1780764858.712453,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/portal/management/commands/__init__.py": {
+    "mtime": 1780764858.7144399,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/portal/management/commands/crear_usuarios_portal.py": {
+    "mtime": 1781198783.1082132,
+    "ast_hash": "e8d041d84bcbe21a741381ef5a98b43e",
+    "semantic_hash": "e8d041d84bcbe21a741381ef5a98b43e"
+  },
+  "octopus-api/portal/migrations/0001_initial.py": {
+    "mtime": 1780026725.7018404,
+    "ast_hash": "01c58378c05d9b4edc2bbdd2ce7b4521",
+    "semantic_hash": "01c58378c05d9b4edc2bbdd2ce7b4521"
+  },
+  "octopus-api/portal/migrations/0002_rol_representante_usuarios_portal.py": {
+    "mtime": 1781198804.7376816,
+    "ast_hash": "9e971d0982f6ba127f547286c735a271",
+    "semantic_hash": "9e971d0982f6ba127f547286c735a271"
+  },
+  "octopus-api/portal/migrations/0003_comprobante_antifraude.py": {
+    "mtime": 1781383804.1867201,
+    "ast_hash": "4faebeccaa57f30a682c56c0464d2ddc",
+    "semantic_hash": "4faebeccaa57f30a682c56c0464d2ddc"
+  },
+  "octopus-api/portal/migrations/__init__.py": {
+    "mtime": 1780026533.348176,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/portal/models.py": {
+    "mtime": 1787161475.6380105,
+    "ast_hash": "a35ed3c5558a3bf68ad5f35269019776",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/serializers.py": {
+    "mtime": 1787235644.3531144,
+    "ast_hash": "de444f345fd5a0c154e683a4c87ffc5f",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/tasks.py": {
+    "mtime": 1787845509.21293,
+    "ast_hash": "fe086f910afc0f031192c803f7c355bd",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/tests.py": {
+    "mtime": 1787845614.8011289,
+    "ast_hash": "673090ac8d91c50e599f634c9a5bb89c",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/urls.py": {
+    "mtime": 1787847085.3720198,
+    "ast_hash": "23952139045b8af7f911b632449a84fc",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/views.py": {
+    "mtime": 1787847041.1746492,
+    "ast_hash": "7c409e48d19f000c38e8c7cddce19fa1",
+    "semantic_hash": ""
+  },
+  "octopus-api/rrhh/__init__.py": {
+    "mtime": 1778696232.3177426,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/rrhh/admin.py": {
+    "mtime": 1779819245.2490425,
+    "ast_hash": "e90f20b832d99e78982590c1a5d629a4",
+    "semantic_hash": "e90f20b832d99e78982590c1a5d629a4"
+  },
+  "octopus-api/rrhh/apps.py": {
+    "mtime": 1778696262.234712,
+    "ast_hash": "85763794d39f928376c1e5bc051b4a00",
+    "semantic_hash": "85763794d39f928376c1e5bc051b4a00"
+  },
+  "octopus-api/rrhh/migrations/0001_initial.py": {
+    "mtime": 1779513348.505904,
+    "ast_hash": "3afddfd92db2a84409d0107ec8ed36fb",
+    "semantic_hash": "3afddfd92db2a84409d0107ec8ed36fb"
+  },
+  "octopus-api/rrhh/migrations/0002_tipocargo.py": {
+    "mtime": 1779819251.5421128,
+    "ast_hash": "f440df082fc77c7f4b9253ef3ecafb35",
+    "semantic_hash": "f440df082fc77c7f4b9253ef3ecafb35"
+  },
+  "octopus-api/rrhh/migrations/0003_empleado_cuenta_telefono_correo.py": {
+    "mtime": 1779908574.8302422,
+    "ast_hash": "9e5be6847cd297946e3b2e8a690bd886",
+    "semantic_hash": "9e5be6847cd297946e3b2e8a690bd886"
+  },
+  "octopus-api/rrhh/migrations/0004_add_banconimina_and_optional_sueldo.py": {
+    "mtime": 1779909614.2185688,
+    "ast_hash": "b34dfc527971b44b09eef5911e644ac1",
+    "semantic_hash": "b34dfc527971b44b09eef5911e644ac1"
+  },
+  "octopus-api/rrhh/migrations/0005_empleado_tipo_cuenta.py": {
+    "mtime": 1779910759.8644114,
+    "ast_hash": "e7dd23245e695cc20921af1e41a5ed6b",
+    "semantic_hash": "e7dd23245e695cc20921af1e41a5ed6b"
+  },
+  "octopus-api/rrhh/migrations/0006_empleado_anos_servicio_empleado_categoria_docente_and_more.py": {
+    "mtime": 1780422822.2606068,
+    "ast_hash": "5ea41b0b6dec533f6c62f1a0a275f727",
+    "semantic_hash": "5ea41b0b6dec533f6c62f1a0a275f727"
+  },
+  "octopus-api/rrhh/migrations/0007_alter_empleado_tipo_personal.py": {
+    "mtime": 1780508746.2816498,
+    "ast_hash": "ba7c798c036ab37b37bbfe46b315f21e",
+    "semantic_hash": "ba7c798c036ab37b37bbfe46b315f21e"
+  },
+  "octopus-api/rrhh/migrations/__init__.py": {
+    "mtime": 1779513348.501739,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/rrhh/models.py": {
+    "mtime": 1787885636.6361265,
+    "ast_hash": "f1b47ab47ed3197c5134bb19df601677",
+    "semantic_hash": ""
+  },
+  "octopus-api/rrhh/serializers.py": {
+    "mtime": 1779909631.3455749,
+    "ast_hash": "40a0405651d7d10319ecad292689a7dd",
+    "semantic_hash": "40a0405651d7d10319ecad292689a7dd"
+  },
+  "octopus-api/rrhh/urls.py": {
+    "mtime": 1779909664.8227642,
+    "ast_hash": "6a93c4ebd236bd3c13b8475857ee85fd",
+    "semantic_hash": "6a93c4ebd236bd3c13b8475857ee85fd"
+  },
+  "octopus-api/rrhh/views.py": {
+    "mtime": 1787885692.3289366,
+    "ast_hash": "b1f9a76492e02751036f0f9ca90aca0d",
+    "semantic_hash": ""
+  },
+  "octopus-api/run_django.ps1": {
+    "mtime": 1777348279.1203916,
+    "ast_hash": "f2d6035cc771bfe5d8134099f0d5d2d9",
+    "semantic_hash": "f2d6035cc771bfe5d8134099f0d5d2d9"
+  },
+  "octopus-api/secretaria/__init__.py": {
+    "mtime": 1777322662.9327586,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/secretaria/admin.py": {
+    "mtime": 1777407754.407085,
+    "ast_hash": "d2118f03632b3614c7479b7b7ba58888",
+    "semantic_hash": "d2118f03632b3614c7479b7b7ba58888"
+  },
+  "octopus-api/secretaria/apps.py": {
+    "mtime": 1782947595.8997548,
+    "ast_hash": "8359003b50889c1b44db2715c1c4b2e9",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0001_initial.py": {
+    "mtime": 1779322396.0498912,
+    "ast_hash": "727357f14be1a3f89712e38fd1273c95",
+    "semantic_hash": "727357f14be1a3f89712e38fd1273c95"
+  },
+  "octopus-api/secretaria/migrations/0002_initial.py": {
+    "mtime": 1779322396.0498912,
+    "ast_hash": "33da29c28f19e75d9c10a9de944b769a",
+    "semantic_hash": "33da29c28f19e75d9c10a9de944b769a"
+  },
+  "octopus-api/secretaria/migrations/0003_alumno_activo_alumno_fecha_retiro_and_more.py": {
+    "mtime": 1779544809.6891513,
+    "ast_hash": "c56dbaac62788ba10139ea811011b2de",
+    "semantic_hash": "c56dbaac62788ba10139ea811011b2de"
+  },
+  "octopus-api/secretaria/migrations/0004_configuracionsistema_and_more.py": {
+    "mtime": 1779557126.5204203,
+    "ast_hash": "277b7e7d493015b45aef9d7a04e5a220",
+    "semantic_hash": "277b7e7d493015b45aef9d7a04e5a220"
+  },
+  "octopus-api/secretaria/migrations/0005_normalizar_grados_seccion_unica.py": {
+    "mtime": 1779776895.7398124,
+    "ast_hash": "f68e9513bfc7e08a8ce54bdbbf245c58",
+    "semantic_hash": "f68e9513bfc7e08a8ce54bdbbf245c58"
+  },
+  "octopus-api/secretaria/migrations/0006_configuracionsistema_datos_colegio.py": {
+    "mtime": 1779899629.6226442,
+    "ast_hash": "d149914c30b0fc7c79c407ba5f6f3549",
+    "semantic_hash": "d149914c30b0fc7c79c407ba5f6f3549"
+  },
+  "octopus-api/secretaria/migrations/0007_alumno_sede.py": {
+    "mtime": 1780093289.6240926,
+    "ast_hash": "63ac22f20526321fd308a6cbfe25716c",
+    "semantic_hash": "63ac22f20526321fd308a6cbfe25716c"
+  },
+  "octopus-api/secretaria/migrations/0008_configuracionsistema_colores.py": {
+    "mtime": 1780109623.0860817,
+    "ast_hash": "5298acf261f90dbc41d3197fa50dc694",
+    "semantic_hash": "5298acf261f90dbc41d3197fa50dc694"
+  },
+  "octopus-api/secretaria/migrations/__init__.py": {
+    "mtime": 1777322662.9341047,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/secretaria/models.py": {
+    "mtime": 1784400361.4348598,
+    "ast_hash": "0726fb959e2207c17a17425f6d9d6b2e",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/seed_primer_ano.py": {
+    "mtime": 1782162681.3957417,
+    "ast_hash": "5719a1ebf2de5c94a45944a8707a5d33",
+    "semantic_hash": "5719a1ebf2de5c94a45944a8707a5d33"
+  },
+  "octopus-api/secretaria/seeds.py": {
+    "mtime": 1779776958.4294572,
+    "ast_hash": "40fc32735efd2558574907c81ea1f951",
+    "semantic_hash": "40fc32735efd2558574907c81ea1f951"
+  },
+  "octopus-api/secretaria/serializers.py": {
+    "mtime": 1787930174.935409,
+    "ast_hash": "780e659b0e1ff8fcda50994975d5c915",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/services.py": {
+    "mtime": 1784581830.958042,
+    "ast_hash": "b5bce2e5fa0fec47d403b50fdb30272c",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/tests.py": {
+    "mtime": 1784724545.0518634,
+    "ast_hash": "488977da6a844024fd9bca13681fa797",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/urls.py": {
+    "mtime": 1787847018.553223,
+    "ast_hash": "bfabab1ab6f976908db7b340cde07cf5",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/views.py": {
+    "mtime": 1787846994.7871304,
+    "ast_hash": "2b0de6feb0cceb047f447ee16b6074b3",
+    "semantic_hash": ""
+  },
+  "octopus-api/seed_docentes.py": {
+    "mtime": 1781793392.1904025,
+    "ast_hash": "ebac8f2f3856e67a737944204be79dac",
+    "semantic_hash": "ebac8f2f3856e67a737944204be79dac"
+  },
+  "octopus-api/staticfiles/admin/js/SelectBox.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "2850cd23f8b9decde673507e2622bf71",
+    "semantic_hash": "2850cd23f8b9decde673507e2622bf71"
+  },
+  "octopus-api/staticfiles/admin/js/SelectFilter2.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "8fe86a8a2e53a55529940186442b884b",
+    "semantic_hash": "8fe86a8a2e53a55529940186442b884b"
+  },
+  "octopus-api/staticfiles/admin/js/actions.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "823f3c4ca261b73884fc04dfdfd5a943",
+    "semantic_hash": "823f3c4ca261b73884fc04dfdfd5a943"
+  },
+  "octopus-api/staticfiles/admin/js/admin/DateTimeShortcuts.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "24a692ece0f57035691b446986b4ede6",
+    "semantic_hash": "24a692ece0f57035691b446986b4ede6"
+  },
+  "octopus-api/staticfiles/admin/js/admin/RelatedObjectLookups.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "260b6a4ad9bb6822940e2f62cb4c0420",
+    "semantic_hash": "260b6a4ad9bb6822940e2f62cb4c0420"
+  },
+  "octopus-api/staticfiles/admin/js/autocomplete.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "40ab034229350fb396903af1d0c67683",
+    "semantic_hash": "40ab034229350fb396903af1d0c67683"
+  },
+  "octopus-api/staticfiles/admin/js/calendar.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "9f4b41795c30c55a06f269480d473363",
+    "semantic_hash": "9f4b41795c30c55a06f269480d473363"
+  },
+  "octopus-api/staticfiles/admin/js/cancel.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "1228c7fd2a1376673e82977c6f3bc127",
+    "semantic_hash": "1228c7fd2a1376673e82977c6f3bc127"
+  },
+  "octopus-api/staticfiles/admin/js/change_form.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "9b0a1db785092e08b19450c16fa735a1",
+    "semantic_hash": "9b0a1db785092e08b19450c16fa735a1"
+  },
+  "octopus-api/staticfiles/admin/js/core.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "fffe649db50d0723321fbd331c655add",
+    "semantic_hash": "fffe649db50d0723321fbd331c655add"
+  },
+  "octopus-api/staticfiles/admin/js/filters.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "4b17b1bf569bf6ea09e6e873531441e1",
+    "semantic_hash": "4b17b1bf569bf6ea09e6e873531441e1"
+  },
+  "octopus-api/staticfiles/admin/js/inlines.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "ab412991869e354fc71bfc55969db2d3",
+    "semantic_hash": "ab412991869e354fc71bfc55969db2d3"
+  },
+  "octopus-api/staticfiles/admin/js/jquery.init.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "e7255eadcce0acb1701d6364906958f8",
+    "semantic_hash": "e7255eadcce0acb1701d6364906958f8"
+  },
+  "octopus-api/staticfiles/admin/js/nav_sidebar.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "bb40967c30c4b92b37633155ff83529a",
+    "semantic_hash": "bb40967c30c4b92b37633155ff83529a"
+  },
+  "octopus-api/staticfiles/admin/js/popup_response.js": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "7f9f05a115a36711a7c42c5c0c9adadb",
+    "semantic_hash": "7f9f05a115a36711a7c42c5c0c9adadb"
+  },
+  "octopus-api/staticfiles/admin/js/prepopulate.js": {
+    "mtime": 1781760320.971723,
+    "ast_hash": "4c552da9c7100050ef1537a54c13efea",
+    "semantic_hash": "4c552da9c7100050ef1537a54c13efea"
+  },
+  "octopus-api/staticfiles/admin/js/prepopulate_init.js": {
+    "mtime": 1781760320.972733,
+    "ast_hash": "95ff3dc87285b1d684155f9bf78f8425",
+    "semantic_hash": "95ff3dc87285b1d684155f9bf78f8425"
+  },
+  "octopus-api/staticfiles/admin/js/theme.js": {
+    "mtime": 1781760320.972733,
+    "ast_hash": "1663d3f593217c3dc740e500bfa3d7bb",
+    "semantic_hash": "1663d3f593217c3dc740e500bfa3d7bb"
+  },
+  "octopus-api/staticfiles/admin/js/urlify.js": {
+    "mtime": 1781760320.972733,
+    "ast_hash": "c5bc38750345aa0d6e728f19a18974bd",
+    "semantic_hash": "c5bc38750345aa0d6e728f19a18974bd"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/jquery/jquery.js": {
+    "mtime": 1781760320.9778962,
+    "ast_hash": "c189afb5631e62a12a3497fced34384b",
+    "semantic_hash": "c189afb5631e62a12a3497fced34384b"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/jquery/jquery.min.js": {
+    "mtime": 1781760320.9778962,
+    "ast_hash": "c9a1b0aa0167c8a4df724d18d06814a8",
+    "semantic_hash": "c9a1b0aa0167c8a4df724d18d06814a8"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/af.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "b03483e1e9e609c305e9a28f2dede4f0",
+    "semantic_hash": "b03483e1e9e609c305e9a28f2dede4f0"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ar.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "8805cb817f58cb87c6cdf4ab903c8bf1",
+    "semantic_hash": "8805cb817f58cb87c6cdf4ab903c8bf1"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/az.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "6236c7429891e5fdcd0e1476f496af31",
+    "semantic_hash": "6236c7429891e5fdcd0e1476f496af31"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/bg.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "2bb639d9db98e694e3ec753394049502",
+    "semantic_hash": "2bb639d9db98e694e3ec753394049502"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/bn.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "04e3ad3c557a24034e9102fb264122f8",
+    "semantic_hash": "04e3ad3c557a24034e9102fb264122f8"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/bs.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "7dcc0f93e7cb1677a255427a2c78f3e0",
+    "semantic_hash": "7dcc0f93e7cb1677a255427a2c78f3e0"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ca.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "2463a58629757e02011a3ca74b5f3f8c",
+    "semantic_hash": "2463a58629757e02011a3ca74b5f3f8c"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/cs.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "e2d5190024e7e012ef6b19b50c9acd16",
+    "semantic_hash": "e2d5190024e7e012ef6b19b50c9acd16"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/da.js": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "c5b263ee4ba67fb02959fb3143e3d371",
+    "semantic_hash": "c5b263ee4ba67fb02959fb3143e3d371"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/de.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "b6d7419dfbb68bd15cb1dd0a4b9e6d72",
+    "semantic_hash": "b6d7419dfbb68bd15cb1dd0a4b9e6d72"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/dsb.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "b1ab3ffb70cf1cc66f1e19189c8b4d3b",
+    "semantic_hash": "b1ab3ffb70cf1cc66f1e19189c8b4d3b"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/el.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "b9449ec9469cc9176e429e7db853697d",
+    "semantic_hash": "b9449ec9469cc9176e429e7db853697d"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/en.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "a736240bea8a9b8163b7a5233de64b84",
+    "semantic_hash": "a736240bea8a9b8163b7a5233de64b84"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/es.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "3ae888b7b053c0fbafc93cb5909678ee",
+    "semantic_hash": "3ae888b7b053c0fbafc93cb5909678ee"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/et.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "2bd9febda7210c905592c96153f784b1",
+    "semantic_hash": "2bd9febda7210c905592c96153f784b1"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/eu.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "c43c61d954be19a4b7632f1f2541b69a",
+    "semantic_hash": "c43c61d954be19a4b7632f1f2541b69a"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/fa.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "142f247c1211c6e7a5aa54f4c6664ab0",
+    "semantic_hash": "142f247c1211c6e7a5aa54f4c6664ab0"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/fi.js": {
+    "mtime": 1781760320.9886098,
+    "ast_hash": "c40303e39caf59f8bcdb205a9e79c629",
+    "semantic_hash": "c40303e39caf59f8bcdb205a9e79c629"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/fr.js": {
+    "mtime": 1781760320.9947896,
+    "ast_hash": "224a5e4b028d5efa77dc2976114ac38d",
+    "semantic_hash": "224a5e4b028d5efa77dc2976114ac38d"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/gl.js": {
+    "mtime": 1781760320.9947896,
+    "ast_hash": "0141f0744bab4875d41fa3a22c225640",
+    "semantic_hash": "0141f0744bab4875d41fa3a22c225640"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/he.js": {
+    "mtime": 1781760320.9947896,
+    "ast_hash": "828f17d170db8a23174560e153394eb2",
+    "semantic_hash": "828f17d170db8a23174560e153394eb2"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/hi.js": {
+    "mtime": 1781760320.9947896,
+    "ast_hash": "83ba5a2eeae2760e4c9718b4f6a9d115",
+    "semantic_hash": "83ba5a2eeae2760e4c9718b4f6a9d115"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/hr.js": {
+    "mtime": 1781760320.9947896,
+    "ast_hash": "922b85b38959d45b692da243953ef4c5",
+    "semantic_hash": "922b85b38959d45b692da243953ef4c5"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/hsb.js": {
+    "mtime": 1781760320.9947896,
+    "ast_hash": "ad373a5362d5e3051425d94e6fa18eb9",
+    "semantic_hash": "ad373a5362d5e3051425d94e6fa18eb9"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/hu.js": {
+    "mtime": 1781760320.9989927,
+    "ast_hash": "e45c2713756961cfd651d2b8b2621dfa",
+    "semantic_hash": "e45c2713756961cfd651d2b8b2621dfa"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/hy.js": {
+    "mtime": 1781760320.9989927,
+    "ast_hash": "150864ec34130c99a44811196edfc0a4",
+    "semantic_hash": "150864ec34130c99a44811196edfc0a4"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/id.js": {
+    "mtime": 1781760321.00103,
+    "ast_hash": "2e53f749e4d57a68607477104c993339",
+    "semantic_hash": "2e53f749e4d57a68607477104c993339"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/is.js": {
+    "mtime": 1781760321.0017083,
+    "ast_hash": "686d32e4d5e61ebc2ed4d07a4b22c985",
+    "semantic_hash": "686d32e4d5e61ebc2ed4d07a4b22c985"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/it.js": {
+    "mtime": 1781760321.0022552,
+    "ast_hash": "1b16e89ede3b971643d5a2702e961afd",
+    "semantic_hash": "1b16e89ede3b971643d5a2702e961afd"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ja.js": {
+    "mtime": 1781760321.0028386,
+    "ast_hash": "b94b9c0e70a385378f74cf7db2744c79",
+    "semantic_hash": "b94b9c0e70a385378f74cf7db2744c79"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ka.js": {
+    "mtime": 1781760321.0028386,
+    "ast_hash": "a81569ec3800db3e9ead1c430dc5952e",
+    "semantic_hash": "a81569ec3800db3e9ead1c430dc5952e"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/km.js": {
+    "mtime": 1781760321.0028386,
+    "ast_hash": "53fed178211ebdd1bbeca4917bdc70ab",
+    "semantic_hash": "53fed178211ebdd1bbeca4917bdc70ab"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ko.js": {
+    "mtime": 1781760321.0046132,
+    "ast_hash": "703f3ba62f25f9e875408cee1a08f9d1",
+    "semantic_hash": "703f3ba62f25f9e875408cee1a08f9d1"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/lt.js": {
+    "mtime": 1781760321.0046132,
+    "ast_hash": "23264ff51adc24286abccede1f7d8ec5",
+    "semantic_hash": "23264ff51adc24286abccede1f7d8ec5"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/lv.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "5e32e41390434e1bd4ff6e9d3da71ded",
+    "semantic_hash": "5e32e41390434e1bd4ff6e9d3da71ded"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/mk.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "465bc25ef379ff6ea031f3cc799e92ca",
+    "semantic_hash": "465bc25ef379ff6ea031f3cc799e92ca"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ms.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "3c136724820bc2b8b849c522c95cefe9",
+    "semantic_hash": "3c136724820bc2b8b849c522c95cefe9"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/nb.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "e08b1d6c871c0a5fbf537f238d1df8af",
+    "semantic_hash": "e08b1d6c871c0a5fbf537f238d1df8af"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ne.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "a42f5beff9ec7074546f388dcf7fad9d",
+    "semantic_hash": "a42f5beff9ec7074546f388dcf7fad9d"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/nl.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "8cbdab7e04f758e37561cf940df9261b",
+    "semantic_hash": "8cbdab7e04f758e37561cf940df9261b"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/pl.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "f4f4faf127a44a48ceb48fbfef87a493",
+    "semantic_hash": "f4f4faf127a44a48ceb48fbfef87a493"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ps.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "c86fab96d81e005bb5974343709db171",
+    "semantic_hash": "c86fab96d81e005bb5974343709db171"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/pt-BR.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "68eb3f5252462f43d0416fa77eba074a",
+    "semantic_hash": "68eb3f5252462f43d0416fa77eba074a"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/pt.js": {
+    "mtime": 1781760321.006954,
+    "ast_hash": "1fad42b6e5eeec6d3eb88d5a6458fbe5",
+    "semantic_hash": "1fad42b6e5eeec6d3eb88d5a6458fbe5"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ro.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "086b564db1fcbd42272b6b7084f77b4f",
+    "semantic_hash": "086b564db1fcbd42272b6b7084f77b4f"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/ru.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "d32023858d046fb87c568a69065b30b8",
+    "semantic_hash": "d32023858d046fb87c568a69065b30b8"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/sk.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "52694b5411f46e283d30c640b5a7ee60",
+    "semantic_hash": "52694b5411f46e283d30c640b5a7ee60"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/sl.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "8ef1f853317e38b844e94144b7a51ed4",
+    "semantic_hash": "8ef1f853317e38b844e94144b7a51ed4"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/sq.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "59703b8bbe5642c0c638b69aa474efcd",
+    "semantic_hash": "59703b8bbe5642c0c638b69aa474efcd"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/sr-Cyrl.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "5102c929b784c87ad62053b044526d2f",
+    "semantic_hash": "5102c929b784c87ad62053b044526d2f"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/sr.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "f16300898acb05e25c9353d1d215dae5",
+    "semantic_hash": "f16300898acb05e25c9353d1d215dae5"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/sv.js": {
+    "mtime": 1781760321.0141249,
+    "ast_hash": "3faeff791d680d2d0dd01724c3cb60a2",
+    "semantic_hash": "3faeff791d680d2d0dd01724c3cb60a2"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/th.js": {
+    "mtime": 1781760321.0205784,
+    "ast_hash": "44c77cd647edf2b6d6c1af9c5d2dd566",
+    "semantic_hash": "44c77cd647edf2b6d6c1af9c5d2dd566"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/tk.js": {
+    "mtime": 1781760321.0205784,
+    "ast_hash": "3cc937544b8cc25dae0d2bf2ed54823f",
+    "semantic_hash": "3cc937544b8cc25dae0d2bf2ed54823f"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/tr.js": {
+    "mtime": 1781760321.021951,
+    "ast_hash": "1dca8ca775f2096176c94e4e646f674a",
+    "semantic_hash": "1dca8ca775f2096176c94e4e646f674a"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/uk.js": {
+    "mtime": 1781760321.021951,
+    "ast_hash": "85ebeaf28923b509e79f9f1ca5ad782f",
+    "semantic_hash": "85ebeaf28923b509e79f9f1ca5ad782f"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/vi.js": {
+    "mtime": 1781760321.0237844,
+    "ast_hash": "cca9e768f3e229b432ea5a635ddbb48e",
+    "semantic_hash": "cca9e768f3e229b432ea5a635ddbb48e"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/zh-CN.js": {
+    "mtime": 1781760321.0245378,
+    "ast_hash": "d90daee0e141dfbb12874a56489140ca",
+    "semantic_hash": "d90daee0e141dfbb12874a56489140ca"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/i18n/zh-TW.js": {
+    "mtime": 1781760321.0254624,
+    "ast_hash": "458105e1f5f2800da3fce4c83292c546",
+    "semantic_hash": "458105e1f5f2800da3fce4c83292c546"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/select2.full.js": {
+    "mtime": 1781760321.0274732,
+    "ast_hash": "d6ee614f69ff94243e6311f2da3ded56",
+    "semantic_hash": "d6ee614f69ff94243e6311f2da3ded56"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/select2.full.min.js": {
+    "mtime": 1781760321.0290582,
+    "ast_hash": "c98e452180e29cc09fed81218358b845",
+    "semantic_hash": "c98e452180e29cc09fed81218358b845"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/xregexp/xregexp.js": {
+    "mtime": 1781760321.032094,
+    "ast_hash": "a157dc7ac4f434a58ec45cd0bf4f5ead",
+    "semantic_hash": "a157dc7ac4f434a58ec45cd0bf4f5ead"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/xregexp/xregexp.min.js": {
+    "mtime": 1781760321.0358655,
+    "ast_hash": "71bed35197fcaf0e783308794d0321cc",
+    "semantic_hash": "71bed35197fcaf0e783308794d0321cc"
+  },
+  "octopus-api/staticfiles/rest_framework/js/ajax-form.js": {
+    "mtime": 1781760321.0619512,
+    "ast_hash": "a0ef5ad7228241edb39da91fe85ce697",
+    "semantic_hash": "a0ef5ad7228241edb39da91fe85ce697"
+  },
+  "octopus-api/staticfiles/rest_framework/js/bootstrap.min.js": {
+    "mtime": 1781760321.068434,
+    "ast_hash": "105a4995b8777aeaf68bff64bf7d2ae0",
+    "semantic_hash": "105a4995b8777aeaf68bff64bf7d2ae0"
+  },
+  "octopus-api/staticfiles/rest_framework/js/csrf.js": {
+    "mtime": 1781760321.0694788,
+    "ast_hash": "499064ea43b44e0c7f5d5516a66056b1",
+    "semantic_hash": "499064ea43b44e0c7f5d5516a66056b1"
+  },
+  "octopus-api/staticfiles/rest_framework/js/default.js": {
+    "mtime": 1781760321.0694788,
+    "ast_hash": "6b466c9bf15108c185e8f6f1a42aeecf",
+    "semantic_hash": "6b466c9bf15108c185e8f6f1a42aeecf"
+  },
+  "octopus-api/staticfiles/rest_framework/js/jquery-3.7.1.min.js": {
+    "mtime": 1781760321.0694788,
+    "ast_hash": "c9a1b0aa0167c8a4df724d18d06814a8",
+    "semantic_hash": "c9a1b0aa0167c8a4df724d18d06814a8"
+  },
+  "octopus-api/staticfiles/rest_framework/js/load-ajax-form.js": {
+    "mtime": 1781760321.0694788,
+    "ast_hash": "43105db9cc3064a0d1976aa24273efb6",
+    "semantic_hash": "43105db9cc3064a0d1976aa24273efb6"
+  },
+  "octopus-api/staticfiles/rest_framework/js/prettify-min.js": {
+    "mtime": 1781760321.0733333,
+    "ast_hash": "b56ed594da5b2708e3b71df6185a12b4",
+    "semantic_hash": "b56ed594da5b2708e3b71df6185a12b4"
+  },
+  "octopus-api/urls.py": {
+    "mtime": 1779242525.9248655,
+    "ast_hash": "e99fa85c2611b4d7fd944839a7968437",
+    "semantic_hash": "e99fa85c2611b4d7fd944839a7968437"
+  },
+  "octopus-api/usuarios/__init__.py": {
+    "mtime": 1777322662.3413293,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/usuarios/admin.py": {
+    "mtime": 1779302863.4382646,
+    "ast_hash": "a0ce0bd22d8568012827cfc8066fd51e",
+    "semantic_hash": "a0ce0bd22d8568012827cfc8066fd51e"
+  },
+  "octopus-api/usuarios/apps.py": {
+    "mtime": 1779321462.2581646,
+    "ast_hash": "4d3c102cbb4876aaa77fc010c3f7188a",
+    "semantic_hash": "4d3c102cbb4876aaa77fc010c3f7188a"
+  },
+  "octopus-api/usuarios/migrations/0001_initial.py": {
+    "mtime": 1779322396.055471,
+    "ast_hash": "94db2398a5a0c2c7bba5f34244ce57d9",
+    "semantic_hash": "94db2398a5a0c2c7bba5f34244ce57d9"
+  },
+  "octopus-api/usuarios/migrations/0002_alter_logauditoria_detalles.py": {
+    "mtime": 1779543263.2988458,
+    "ast_hash": "757cd53c622006a6ad0c9aa2993d36a9",
+    "semantic_hash": "757cd53c622006a6ad0c9aa2993d36a9"
+  },
+  "octopus-api/usuarios/migrations/__init__.py": {
+    "mtime": 1777322662.3429005,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "octopus-api/usuarios/models.py": {
+    "mtime": 1787929532.3916657,
+    "ast_hash": "1e1aa0f1ab52a52cdbde962f2a77d80f",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/serializers.py": {
+    "mtime": 1787929615.936769,
+    "ast_hash": "493a8420911e0c84e8b88b521d8b6ae4",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/tests.py": {
+    "mtime": 1777322662.338765,
+    "ast_hash": "e08f0582500f6562bf0a931ef9503b39",
+    "semantic_hash": "e08f0582500f6562bf0a931ef9503b39"
+  },
+  "octopus-api/usuarios/urls.py": {
+    "mtime": 1787160736.7537394,
+    "ast_hash": "febaf1ea21838879e8436a6797d28044",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/views.py": {
+    "mtime": 1787160721.8134377,
+    "ast_hash": "96f2ee325fca415abb447ad15a0c557f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/eslint.config.js": {
+    "mtime": 1777319149.6437283,
+    "ast_hash": "3aa4b57d7f08181d86bde52a4dcb7f22",
+    "semantic_hash": "3aa4b57d7f08181d86bde52a4dcb7f22"
+  },
+  "octopus-frontend/package.json": {
+    "mtime": 1786910607.2405581,
+    "ast_hash": "6f6ba7b22f15732e5e8db38d734d8630",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/postcss.config.js": {
+    "mtime": 1777691669.2220094,
+    "ast_hash": "f91fdd67c3c13a794f2f6c4ea16a4eec",
+    "semantic_hash": "f91fdd67c3c13a794f2f6c4ea16a4eec"
+  },
+  "octopus-frontend/src/App.jsx": {
+    "mtime": 1787928436.389748,
+    "ast_hash": "9b69ef03a5fc279f7997976966803a53",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/academico.service.js": {
+    "mtime": 1787928117.481852,
+    "ast_hash": "173cfce1bc6c5640f8811f2ae5488453",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/apiClient.js": {
+    "mtime": 1787174433.2375143,
+    "ast_hash": "31955ab7cd1a6a978c1cf2c8e049ab9b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/cobranza.service.js": {
+    "mtime": 1787237629.0194867,
+    "ast_hash": "46eff73096f473e7dedd8d7ee4cb74d1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/dashboardService.js": {
+    "mtime": 1780336114.657416,
+    "ast_hash": "7bd35eebbbab9c05790b90c88de9ba56",
+    "semantic_hash": "7bd35eebbbab9c05790b90c88de9ba56"
+  },
+  "octopus-frontend/src/api/inscripciones.service.js": {
+    "mtime": 1784144956.6444185,
+    "ast_hash": "ce64b83a3a2ea20e51327d3dde867c16",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/multisede.service.js": {
+    "mtime": 1780364925.0836627,
+    "ast_hash": "f20d33d7ae96fc5b7fbed563c1cf0710",
+    "semantic_hash": "f20d33d7ae96fc5b7fbed563c1cf0710"
+  },
+  "octopus-frontend/src/api/portalAdmin.service.js": {
+    "mtime": 1780765662.0705535,
+    "ast_hash": "ddc2e24708d61b266354f5869f55327f",
+    "semantic_hash": "ddc2e24708d61b266354f5869f55327f"
+  },
+  "octopus-frontend/src/api/secretaria.service.js": {
+    "mtime": 1784230328.2857404,
+    "ast_hash": "3817aa9a94d2ba6fa9859ac0b83eeb41",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/tokenStore.js": {
+    "mtime": 1780602930.080051,
+    "ast_hash": "2bca7bd30b217c375f86bde51c53c6d7",
+    "semantic_hash": "2bca7bd30b217c375f86bde51c53c6d7"
+  },
+  "octopus-frontend/src/components/AppProviders.jsx": {
+    "mtime": 1787174621.6954448,
+    "ast_hash": "1e06a5ef4999af5227559ec6be4af283",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ConfirmDeleteModal.jsx": {
+    "mtime": 1787936655.4444468,
+    "ast_hash": "69d72c40555b19c1ca2006e16c4b5b55",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/DatePickerES.jsx": {
+    "mtime": 1786046265.446155,
+    "ast_hash": "0040f2c86a72af4801f52018bba7acc7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/GradoSelect.jsx": {
+    "mtime": 1783524553.8755572,
+    "ast_hash": "374d5fdfd5a3d918dba17b1f65e60864",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/MainLayout.jsx": {
+    "mtime": 1787982226.8664346,
+    "ast_hash": "92cfd519812a4771afd959eb46f0a981",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ProtectedRoute.jsx": {
+    "mtime": 1787174487.9711566,
+    "ast_hash": "b5cbe784cc2f7be2fa0374ebee704659",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/SedeSwitcher.jsx": {
+    "mtime": 1780091892.8182213,
+    "ast_hash": "64dc8c0467f6ddc57812793bc461f1de",
+    "semantic_hash": "64dc8c0467f6ddc57812793bc461f1de"
+  },
+  "octopus-frontend/src/components/Sidebar.jsx": {
+    "mtime": 1787982095.8719685,
+    "ast_hash": "4cbbb93b3963e3acee964a2433399a0d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalAjustarMensualidades.jsx": {
+    "mtime": 1787933239.6268797,
+    "ast_hash": "25a85a75a51364ca0c6e74a83ba414ef",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalAsignarGrado.jsx": {
+    "mtime": 1787933500.4343948,
+    "ast_hash": "0b64aa55aea66807c490f0a95b62ccf1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalConfirmarReactivar.jsx": {
+    "mtime": 1787933728.299512,
+    "ast_hash": "a962517e3f9a362062cef870670c3722",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalEditarAlumno.jsx": {
+    "mtime": 1787933812.4064727,
+    "ast_hash": "8572f3a5ba40ba0f7b4a3edcc04c1ff2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalRegistrarAlumno.jsx": {
+    "mtime": 1787933890.7390406,
+    "ast_hash": "82a978648ff5baad85dca2d20fd493f4",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalRetirar.jsx": {
+    "mtime": 1787933912.6089644,
+    "ast_hash": "4775049db1cbd324401056230fadbfee",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/SidebarFichaAlumno.jsx": {
+    "mtime": 1784056219.9392087,
+    "ast_hash": "51af48d53df257b0a206dacceeca524b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/TablaAlumnos.jsx": {
+    "mtime": 1787967347.631131,
+    "ast_hash": "2187f28024d85bf736101f4ae53c89ce",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/asistencia/FilaAlumno.jsx": {
+    "mtime": 1787846418.5896163,
+    "ast_hash": "6644d807cf87ee0c0cd58239ad93a91e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/asistencia/SkeletonFila.jsx": {
+    "mtime": 1787613418.540216,
+    "ast_hash": "ffdaa842ed779cdba2f71521b4e13a8b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/dashboard/DashboardSkeleton.jsx": {
+    "mtime": 1780323672.3568695,
+    "ast_hash": "92a2093acfc87c7e20ecbd5b3933be14",
+    "semantic_hash": "92a2093acfc87c7e20ecbd5b3933be14"
+  },
+  "octopus-frontend/src/components/dashboard/DonutChart.jsx": {
+    "mtime": 1782003089.7661972,
+    "ast_hash": "a50fc08978f60b5599acedf599a4fcbb",
+    "semantic_hash": "a50fc08978f60b5599acedf599a4fcbb"
+  },
+  "octopus-frontend/src/components/dashboard/KpiCard.jsx": {
+    "mtime": 1782003076.6272967,
+    "ast_hash": "e9b9a3022e473ed81fec4ecd7b0a830f",
+    "semantic_hash": "e9b9a3022e473ed81fec4ecd7b0a830f"
+  },
+  "octopus-frontend/src/components/dashboard/StackedBar.jsx": {
+    "mtime": 1782003095.7187347,
+    "ast_hash": "27baeaa481a9aeb56372e9e87772f09b",
+    "semantic_hash": "27baeaa481a9aeb56372e9e87772f09b"
+  },
+  "octopus-frontend/src/components/horarios/GrillaHorario.jsx": {
+    "mtime": 1787947347.9139128,
+    "ast_hash": "f832893e9c1a83b4be6f90f9810a8470",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/horarios/ModalClase.jsx": {
+    "mtime": 1787947563.8845408,
+    "ast_hash": "629f7477e34a172dfaecabfc430ef252",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/horarios/ModalGenerador.jsx": {
+    "mtime": 1787947564.228828,
+    "ast_hash": "fa6587ff7407c3c4f5e24490200f82aa",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/horarios/ModalMateria.jsx": {
+    "mtime": 1787932772.7379649,
+    "ast_hash": "d7cb5bff6085f15e5b384155a9efdc0c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/horarios/PanelMaterias.jsx": {
+    "mtime": 1787930335.4191914,
+    "ast_hash": "d56823496d0f5422319ba9be25b611cf",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/BarraProgreso.jsx": {
+    "mtime": 1781377890.3798845,
+    "ast_hash": "49daf8fee1cb4c0ef57940bbc360ee1e",
+    "semantic_hash": "49daf8fee1cb4c0ef57940bbc360ee1e"
+  },
+  "octopus-frontend/src/components/inscripciones/PantallaExito.jsx": {
+    "mtime": 1784398369.6795657,
+    "ast_hash": "45eaa355aa094ed973c8be02865ec050",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/PasoAlumno.jsx": {
+    "mtime": 1787981840.7215283,
+    "ast_hash": "505ae0a7f2b9b481496d85d97c08b505",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/PasoConfiguracion.jsx": {
+    "mtime": 1787981930.0226815,
+    "ast_hash": "5ecccd05d84d1132c97a87d8134a8d69",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/PasoConfirmacion.jsx": {
+    "mtime": 1787982021.4586105,
+    "ast_hash": "3a313fac483139107c27d489b03bbea7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/PasoRepresentante.jsx": {
+    "mtime": 1787981742.0444338,
+    "ast_hash": "da2470bfa74e748e5e410f1876729f2c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/SkeletonCard.jsx": {
+    "mtime": 1781377877.1642163,
+    "ast_hash": "f4f379755da2a8702b71a3f435739e74",
+    "semantic_hash": "f4f379755da2a8702b71a3f435739e74"
+  },
+  "octopus-frontend/src/components/inscripciones/SkeletonGrado.jsx": {
+    "mtime": 1781377879.1920316,
+    "ast_hash": "e2ce81261de2c8e3403995c178e59fd0",
+    "semantic_hash": "e2ce81261de2c8e3403995c178e59fd0"
+  },
+  "octopus-frontend/src/components/morosos/MorososRow.jsx": {
+    "mtime": 1787844444.4102569,
+    "ast_hash": "7a0285746c3be71ff3656d69db905195",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/morosos/MorososSkeleton.jsx": {
+    "mtime": 1787844486.3973927,
+    "ast_hash": "0c7e335086c6455e162183c6fabe7002",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/morosos/MorososSummary.jsx": {
+    "mtime": 1783452453.8020043,
+    "ast_hash": "7a75c7a9ecdb89f1311087b70e1af3b8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/multisede/MorososList.jsx": {
+    "mtime": 1780365129.8996806,
+    "ast_hash": "be4f3ecc46ff0845a22a4d060337952d",
+    "semantic_hash": "be4f3ecc46ff0845a22a4d060337952d"
+  },
+  "octopus-frontend/src/components/multisede/PagosTable.jsx": {
+    "mtime": 1780365119.043597,
+    "ast_hash": "294b3d4e4dd8747bb05971f5623715e4",
+    "semantic_hash": "294b3d4e4dd8747bb05971f5623715e4"
+  },
+  "octopus-frontend/src/components/multisede/SedeCard.jsx": {
+    "mtime": 1787947564.3867197,
+    "ast_hash": "fc74da71e2c08b23432c20ab21a7ec9e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/EmpleadoForm.jsx": {
+    "mtime": 1783018146.6611185,
+    "ast_hash": "fe11eb4bc168ae58c758d26f0445ce86",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/EmpleadoModal.jsx": {
+    "mtime": 1787935718.2425692,
+    "ast_hash": "6595e57f47d33a584ca062c4e2dbc0cb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/ReceiptPreview.jsx": {
+    "mtime": 1787886949.7962034,
+    "ast_hash": "3ce564a566a28eda57c1893946b6b27b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/ReciboModal.jsx": {
+    "mtime": 1787935774.8290105,
+    "ast_hash": "09d6537cf6929a8f53d2d1c848364518",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/reciboStyles.js": {
+    "mtime": 1780521593.6630235,
+    "ast_hash": "e7ac7028844b2afc55ada30b7e5bf1f9",
+    "semantic_hash": "e7ac7028844b2afc55ada30b7e5bf1f9"
+  },
+  "octopus-frontend/src/components/notas/ModalLapso.jsx": {
+    "mtime": 1787947564.6806805,
+    "ast_hash": "d9bfb590a4905d2a5d6f1f98c8e2f78c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/notas/TablaNotas.jsx": {
+    "mtime": 1787845554.7594357,
+    "ast_hash": "7ee18d8ab182b37c3a5335786961db8a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/representantes/ModalRepresentante.jsx": {
+    "mtime": 1787947565.6781619,
+    "ast_hash": "ab78fb6c95c2bd0a5f39e0b141b5ae58",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/representantes/RepresentanteFicha.jsx": {
+    "mtime": 1787958712.4736452,
+    "ast_hash": "8e153790a81182860e67619de2066860",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/representantes/TablaRepresentantes.jsx": {
+    "mtime": 1787981359.33437,
+    "ast_hash": "17ac0fc4c6958abdeb7f1a154ef923fd",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/shared/InitialsAvatar.jsx": {
+    "mtime": 1780411323.0687416,
+    "ast_hash": "c9ad8f8ec87b3f0385da5dfd45b025d3",
+    "semantic_hash": "c9ad8f8ec87b3f0385da5dfd45b025d3"
+  },
+  "octopus-frontend/src/components/sistemas/LogsTab.jsx": {
+    "mtime": 1780335887.5335324,
+    "ast_hash": "55392022794931806a7b0568e2602e2d",
+    "semantic_hash": "55392022794931806a7b0568e2602e2d"
+  },
+  "octopus-frontend/src/components/sistemas/NotificacionesTab.jsx": {
+    "mtime": 1784568398.2535417,
+    "ast_hash": "8d0f9dd8d320b668892edc5556f1b71e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/UsuariosTab.jsx": {
+    "mtime": 1787930072.8922236,
+    "ast_hash": "406ddb119d034a9ee2135f5c28ec8103",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/modals/CrearUsuarioModal.jsx": {
+    "mtime": 1787936510.32899,
+    "ast_hash": "5a98eb8698aeb95410332d9df949c614",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/modals/EditRolModal.jsx": {
+    "mtime": 1787936533.3420653,
+    "ast_hash": "ccb21a4e565af57128a9c93d92253855",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/modals/ResetPasswordModal.jsx": {
+    "mtime": 1787936601.981086,
+    "ast_hash": "3fba25b17b0b1eebad00a0856648e737",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/asistencia.js": {
+    "mtime": 1785262591.593451,
+    "ast_hash": "fde8c83132505ad5e4bdc25749459ec7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/avec.js": {
+    "mtime": 1787885842.4167545,
+    "ast_hash": "a8d1546fb6752ccd0917394c8f05860c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/horarios.js": {
+    "mtime": 1780769702.1421027,
+    "ast_hash": "ff0321f590cd892b67c8be7730dc88c6",
+    "semantic_hash": "ff0321f590cd892b67c8be7730dc88c6"
+  },
+  "octopus-frontend/src/constants/recibo.js": {
+    "mtime": 1780346581.6290498,
+    "ast_hash": "808efd0882797e349721682a3d20f5e7",
+    "semantic_hash": "808efd0882797e349721682a3d20f5e7"
+  },
+  "octopus-frontend/src/constants/roles.js": {
+    "mtime": 1787174465.2414734,
+    "ast_hash": "15646212e396d724975b7369386b48d1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/styles.js": {
+    "mtime": 1782257691.1191554,
+    "ast_hash": "036a9df4a34295875ff26add6be5ef31",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/context/AuthContext.jsx": {
+    "mtime": 1787174529.8423064,
+    "ast_hash": "6f9d07f9f44641d57afd24230e17b42f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/context/AuthContextValue.jsx": {
+    "mtime": 1778705493.9227326,
+    "ast_hash": "775a82edf0c256bb996e1a86024fe1f2",
+    "semantic_hash": "775a82edf0c256bb996e1a86024fe1f2"
+  },
+  "octopus-frontend/src/context/SedeContext.jsx": {
+    "mtime": 1780603023.0403292,
+    "ast_hash": "a03f5a23f570160dc3b142ac9de83b58",
+    "semantic_hash": "a03f5a23f570160dc3b142ac9de83b58"
+  },
+  "octopus-frontend/src/hooks/useAlumnos.js": {
+    "mtime": 1786045144.6324074,
+    "ast_hash": "f1941e09067a386086d2b504e797eef5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useAsistencia.js": {
+    "mtime": 1787846504.657188,
+    "ast_hash": "3142ae1e6093c5b37ef42e335fa69ed2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useAuditoria.js": {
+    "mtime": 1787847080.115942,
+    "ast_hash": "913f780b956dbbd1c6f5c9364604bfaf",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useBancosCobranza.js": {
+    "mtime": 1784563302.0747926,
+    "ast_hash": "d24ed26a330141b40b04d6158cdc9bbd",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useBancosNomina.js": {
+    "mtime": 1787887104.2664218,
+    "ast_hash": "dff56245dbe69e73b735796279bd252e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useBoletin.js": {
+    "mtime": 1785813208.4005315,
+    "ast_hash": "4a25fc1114f2ffd559500a468ab78910",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useConciliador.js": {
+    "mtime": 1785775885.1664724,
+    "ast_hash": "57cac0892ed32bec711f58a7d507fb36",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useConfiguracion.js": {
+    "mtime": 1784560510.9458816,
+    "ast_hash": "f39450afb48b152d9df83d4428aa4e46",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useConfiguracionNotificaciones.js": {
+    "mtime": 1787843624.1017067,
+    "ast_hash": "cee96f07c7535fc8c62df30d793ad055",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useDashboardStats.js": {
+    "mtime": 1782003064.609842,
+    "ast_hash": "3e95d25ac6531d72a4d0d468a9fe488e",
+    "semantic_hash": "3e95d25ac6531d72a4d0d468a9fe488e"
+  },
+  "octopus-frontend/src/hooks/useEscape.js": {
+    "mtime": 1780619915.7347846,
+    "ast_hash": "07a9cbfaa6c065ac29ce11b0cee44998",
+    "semantic_hash": "07a9cbfaa6c065ac29ce11b0cee44998"
+  },
+  "octopus-frontend/src/hooks/useFocusTrap.js": {
+    "mtime": 1780769619.8160164,
+    "ast_hash": "c5ae55bb104beacda4af6510537913a9",
+    "semantic_hash": "c5ae55bb104beacda4af6510537913a9"
+  },
+  "octopus-frontend/src/hooks/useGrados.js": {
+    "mtime": 1780280219.0807924,
+    "ast_hash": "400098c2b67491128d9cc0f0255aaa37",
+    "semantic_hash": "400098c2b67491128d9cc0f0255aaa37"
+  },
+  "octopus-frontend/src/hooks/useHorarios.js": {
+    "mtime": 1787884699.1611109,
+    "ast_hash": "57041fe285f61c698c7e2ac7d9a99cc1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useInscripcion.js": {
+    "mtime": 1784398345.9653592,
+    "ast_hash": "6094bedd83dcc699edac4b0703fdc64f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useInstitucionPDF.js": {
+    "mtime": 1787886511.9844928,
+    "ast_hash": "3f93bb84a6b023adbb41c888ae2156ea",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useLapsos.js": {
+    "mtime": 1780349947.9653678,
+    "ast_hash": "a8a4011ca92781aeb96ed4d84ac1c561",
+    "semantic_hash": "a8a4011ca92781aeb96ed4d84ac1c561"
+  },
+  "octopus-frontend/src/hooks/useLogosRecibo.js": {
+    "mtime": 1784400810.2943752,
+    "ast_hash": "003587148cc87e8ba134faa2ef8ba957",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useLogsSistemas.js": {
+    "mtime": 1780335620.1076124,
+    "ast_hash": "41950f6bd5c23970b00b12ca0f9db28c",
+    "semantic_hash": "41950f6bd5c23970b00b12ca0f9db28c"
+  },
+  "octopus-frontend/src/hooks/useMatriculaGrado.js": {
+    "mtime": 1780324596.4279895,
+    "ast_hash": "9134a4dde6bc0cca1a564c6c61b82378",
+    "semantic_hash": "9134a4dde6bc0cca1a564c6c61b82378"
+  },
+  "octopus-frontend/src/hooks/useMensualidadesAlumno.js": {
+    "mtime": 1783713217.990787,
+    "ast_hash": "fb8c9c61dfaef6d24d180e0ef3d69b31",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useMorosos.js": {
+    "mtime": 1783879073.758449,
+    "ast_hash": "c35ae9eb12cc5889c95d7fc6412d6527",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useMultiSedeDashboard.js": {
+    "mtime": 1780364938.76067,
+    "ast_hash": "7637750f367bc0d86fa805ba28e9f337",
+    "semantic_hash": "7637750f367bc0d86fa805ba28e9f337"
+  },
+  "octopus-frontend/src/hooks/useNomina.js": {
+    "mtime": 1787885722.6873467,
+    "ast_hash": "09127d45c39a12446017febd3ed7900b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useNotas.js": {
+    "mtime": 1787845645.4047067,
+    "ast_hash": "7a4e98e5f2ab3df583b8c36c4de96b48",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useNotificaciones.js": {
+    "mtime": 1784574015.955428,
+    "ast_hash": "0954666b5027277cae07f231e7cbe893",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useRecibo.js": {
+    "mtime": 1787885885.0576155,
+    "ast_hash": "45f9d3d8a381a294dd5051937d880e6c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useRepresentantes.js": {
+    "mtime": 1784734771.0169842,
+    "ast_hash": "e0151e47906d7ed314a52c9d1233805d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useSedeDetalle.js": {
+    "mtime": 1780364802.2039304,
+    "ast_hash": "f8c9d78c2a2a76b8bfe1f5e85b544690",
+    "semantic_hash": "f8c9d78c2a2a76b8bfe1f5e85b544690"
+  },
+  "octopus-frontend/src/hooks/useSedes.js": {
+    "mtime": 1780365744.2977374,
+    "ast_hash": "a65b5bbfbd48c46bf658a816336137c0",
+    "semantic_hash": "a65b5bbfbd48c46bf658a816336137c0"
+  },
+  "octopus-frontend/src/hooks/useSyncedLocalStorage.js": {
+    "mtime": 1780619922.337107,
+    "ast_hash": "46678ba5f7551c0a40cf3a6f24f0524b",
+    "semantic_hash": "46678ba5f7551c0a40cf3a6f24f0524b"
+  },
+  "octopus-frontend/src/hooks/useTasaBCV.js": {
+    "mtime": 1782256212.9472806,
+    "ast_hash": "dd847532343a15ef74002ff8bec09a5b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useTiposCargo.js": {
+    "mtime": 1780280263.7416797,
+    "ast_hash": "b2dbda77ab61a9adeb901dc962ba976a",
+    "semantic_hash": "b2dbda77ab61a9adeb901dc962ba976a"
+  },
+  "octopus-frontend/src/hooks/useUsuariosSede.js": {
+    "mtime": 1780365762.6223612,
+    "ast_hash": "dde4234d20a41ae17dcdff30c9fcd966",
+    "semantic_hash": "dde4234d20a41ae17dcdff30c9fcd966"
+  },
+  "octopus-frontend/src/hooks/useUsuariosSistemas.js": {
+    "mtime": 1784556769.7741258,
+    "ast_hash": "6c864461fb7b48c672f29bc63a1bdfd8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/main.jsx": {
+    "mtime": 1779851550.2018094,
+    "ast_hash": "0eaca7a503171186f6a51dabe924042d",
+    "semantic_hash": "0eaca7a503171186f6a51dabe924042d"
+  },
+  "octopus-frontend/src/pages/Asistencia.jsx": {
+    "mtime": 1787846574.4429717,
+    "ast_hash": "a1ae52e6ace4ca1bdc72e1a32a4a4f4f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Auditoria.jsx": {
+    "mtime": 1787930207.4128172,
+    "ast_hash": "eb32154d2f2d6fa9a75ac2155f71dd62",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Boletin.jsx": {
+    "mtime": 1787947095.6908338,
+    "ast_hash": "6c4963be697a6df3178fdb32ad4385b5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Cobranza.jsx": {
+    "mtime": 1787844737.4147177,
+    "ast_hash": "86217fbdc326affc00501e092d6ab808",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/CobranzaDashboard.jsx": {
+    "mtime": 1782257832.431038,
+    "ast_hash": "a27e3b027bc0f01f35fa3ecdc47d0252",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Comprobantes.jsx": {
+    "mtime": 1787969006.6308134,
+    "ast_hash": "1f3158f4e4bc38765415dd833d8516bb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Conciliador.jsx": {
+    "mtime": 1787969364.666148,
+    "ast_hash": "7cb7858f27ad7680a0dab7f7562c422a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Configuracion.jsx": {
+    "mtime": 1787947567.328915,
+    "ast_hash": "ef8f8b67f6e43be8c9316e4d29f273a7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/ConfiguracionNotificaciones.jsx": {
+    "mtime": 1787843660.735601,
+    "ast_hash": "ad95a2a0748cde919dc466a913adb51c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Dashboard.jsx": {
+    "mtime": 1787967237.2505183,
+    "ast_hash": "90c13a7fd4ce19cf7c43dc9dd2066e24",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/GestionSedes.jsx": {
+    "mtime": 1787947567.4759321,
+    "ast_hash": "34e797bdbf99d17e4382636b68969ab6",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Grados.jsx": {
+    "mtime": 1787981651.8118367,
+    "ast_hash": "bab2974adb49ad8e2bca42d9f9a66525",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Horarios.jsx": {
+    "mtime": 1787613418.5706444,
+    "ast_hash": "282355f210d49c52d50e4bafa89e051b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Inscripciones.jsx": {
+    "mtime": 1787981651.8154678,
+    "ast_hash": "62cd3a962e420d0c62ef9b3889591be0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/ListaAlumnos.jsx": {
+    "mtime": 1787967391.0963538,
+    "ast_hash": "236178dcec5206ca6950fbc85f1d3c0d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Login.jsx": {
+    "mtime": 1787174557.328638,
+    "ast_hash": "9f35dd81406058c83e1edf4b3341a9f1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Morosos.jsx": {
+    "mtime": 1787967596.760999,
+    "ast_hash": "23ccf1f89f1cce1ba21757ac3439285a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/MultiSedeDashboard.jsx": {
+    "mtime": 1787947568.0848172,
+    "ast_hash": "05cf678c21bbd8f68ac7fa2167c63f50",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Nomina.jsx": {
+    "mtime": 1787885750.5537875,
+    "ast_hash": "2cd84e10bf675cb3aae5e7bc5d2d198f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/NotFound.jsx": {
+    "mtime": 1780413628.3910015,
+    "ast_hash": "c81e82a6c6e4c9c4edbe3c8d8e8d04b2",
+    "semantic_hash": "c81e82a6c6e4c9c4edbe3c8d8e8d04b2"
+  },
+  "octopus-frontend/src/pages/Notas.jsx": {
+    "mtime": 1787945426.333034,
+    "ast_hash": "ba3e435960e236308082679b0750a45b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Pagos.jsx": {
+    "mtime": 1787969111.77523,
+    "ast_hash": "5d6ae0d3b7cabbc798502c5b5bec288e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Recibos.jsx": {
+    "mtime": 1787959107.2535965,
+    "ast_hash": "0a9e6f8dff0776b19ba3f36b9552e48b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Reportes.jsx": {
+    "mtime": 1787969578.3239372,
+    "ast_hash": "2186aaf8ac4b7853f82dcd3a9e3b13f7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Representantes.jsx": {
+    "mtime": 1787981417.2274475,
+    "ast_hash": "bfea607a11ef2201e8abcd5614ac037a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/SedeDetalle.jsx": {
+    "mtime": 1780365167.6969695,
+    "ast_hash": "65b7637a109133630f216d6da684875f",
+    "semantic_hash": "65b7637a109133630f216d6da684875f"
+  },
+  "octopus-frontend/src/pages/Sistemas.jsx": {
+    "mtime": 1787959221.6055212,
+    "ast_hash": "ebd848d4ef023b0faa35a6503dcf63b9",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/api/portal.service.js": {
+    "mtime": 1787847137.862423,
+    "ast_hash": "4e18b0202469ae7adb39a28b7e5dbc91",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/api/portalClient.js": {
+    "mtime": 1787164744.6046176,
+    "ast_hash": "22a90d6eeba8347f675fbb953bb0a5d4",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/ComprobantePagoModal.jsx": {
+    "mtime": 1787947569.0573316,
+    "ast_hash": "dddcc83c827c64d19c9f46aaacbbf320",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/EstudianteSelector.jsx": {
+    "mtime": 1785949619.2982564,
+    "ast_hash": "a48a6bf50b3bcf4f1c32b625a9d63b4f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/PortalLayout.jsx": {
+    "mtime": 1787847253.7759209,
+    "ast_hash": "4436e91fe33bb08779388bff16704f18",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/PortalProtectedRoute.jsx": {
+    "mtime": 1780026611.1494389,
+    "ast_hash": "c050e08854f5bf621a653514243a20d1",
+    "semantic_hash": "c050e08854f5bf621a653514243a20d1"
+  },
+  "octopus-frontend/src/portal/components/SkeletonCard.jsx": {
+    "mtime": 1780026625.0672505,
+    "ast_hash": "d42b787abc23b1038612f5eabc0a0e1b",
+    "semantic_hash": "d42b787abc23b1038612f5eabc0a0e1b"
+  },
+  "octopus-frontend/src/portal/context/PortalAuthContext.jsx": {
+    "mtime": 1787164771.7095385,
+    "ast_hash": "f023574ebb5f6cf5ab2e39b07ad53b2c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalCambiarContrasena.jsx": {
+    "mtime": 1785949619.311744,
+    "ast_hash": "e58bb4408381577b8196e15eb10d7b8c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalDashboard.jsx": {
+    "mtime": 1787847324.433347,
+    "ast_hash": "40639484c0a1a5ed35ac67e34f8ebae3",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalHistorialPagos.jsx": {
+    "mtime": 1787847476.6238763,
+    "ast_hash": "df0a9699fc006f18f6989b9f08a7db14",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalLogin.jsx": {
+    "mtime": 1787236176.6053958,
+    "ast_hash": "ea390b89f74a860d8bd22b40b178eba9",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/auditoria.utils.js": {
+    "mtime": 1780321716.1771276,
+    "ast_hash": "1fe474471e4b4c4be7f523ce96a2f1de",
+    "semantic_hash": "1fe474471e4b4c4be7f523ce96a2f1de"
+  },
+  "octopus-frontend/src/utils/bankParsers.js": {
+    "mtime": 1785937285.6870723,
+    "ast_hash": "df530fea745baa655739d2649bd8f31e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/boletinPdf.js": {
+    "mtime": 1787613418.5756476,
+    "ast_hash": "75800b877b5a09b16a43f6aa8282d699",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/format.js": {
+    "mtime": 1780364786.1865556,
+    "ast_hash": "8bbedcb11c16cde171784ee4defc9197",
+    "semantic_hash": "8bbedcb11c16cde171784ee4defc9197"
+  },
+  "octopus-frontend/src/utils/imprimirRecibo.js": {
+    "mtime": 1780346724.468084,
+    "ast_hash": "d79d4ff03fc17b995d563837c5611795",
+    "semantic_hash": "d79d4ff03fc17b995d563837c5611795"
+  },
+  "octopus-frontend/src/utils/nominaPDF.js": {
+    "mtime": 1787886815.3328338,
+    "ast_hash": "ee21d782982342b0e45705c180a5c0de",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/notas.utils.js": {
+    "mtime": 1780349890.8170261,
+    "ast_hash": "d84bec23cbe31c3c42e500ea13e32e7a",
+    "semantic_hash": "d84bec23cbe31c3c42e500ea13e32e7a"
+  },
+  "octopus-frontend/src/utils/printComprobanteCompacto.jsx": {
+    "mtime": 1781382266.1871965,
+    "ast_hash": "fc5072b5ffc45d959dc55f75deb0df54",
+    "semantic_hash": "fc5072b5ffc45d959dc55f75deb0df54"
+  },
+  "octopus-frontend/src/utils/printReciboCobranza.jsx": {
+    "mtime": 1784645292.2375455,
+    "ast_hash": "adc36c7d218291297063547cb4f702a8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/reportGenerator.js": {
+    "mtime": 1781382277.8256867,
+    "ast_hash": "625264135a0633571e1a0143788d02c7",
+    "semantic_hash": "625264135a0633571e1a0143788d02c7"
+  },
+  "octopus-frontend/tailwind.config.js": {
+    "mtime": 1777690453.6788168,
+    "ast_hash": "0f4033162d509acbbe6009d4d9aa6c64",
+    "semantic_hash": "0f4033162d509acbbe6009d4d9aa6c64"
+  },
+  "octopus-frontend/vite.config.js": {
+    "mtime": 1786823404.9410048,
+    "ast_hash": "c82b12abc9649e07cc3bba9ca833957a",
+    "semantic_hash": ""
+  },
+  "octopus-api/ARRANQUE_CELERY.md": {
+    "mtime": 1780048841.3540785,
+    "ast_hash": "9244cb4b3db2af95bc69692c19e78cd5",
+    "semantic_hash": "9244cb4b3db2af95bc69692c19e78cd5"
+  },
+  "octopus-api/IMPORTAR_DOCENTES.md": {
+    "mtime": 1781793158.8996806,
+    "ast_hash": "5cd630bd459e0d0b6e65cd7b6d0f83df",
+    "semantic_hash": "5cd630bd459e0d0b6e65cd7b6d0f83df"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/base_email.html": {
+    "mtime": 1780128167.268964,
+    "ast_hash": "153c38dd3aa9c59e7ef359d8c8321bd6",
+    "semantic_hash": "153c38dd3aa9c59e7ef359d8c8321bd6"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/bienvenida_portal.html": {
+    "mtime": 1780128222.8094554,
+    "ast_hash": "be53c006d26768a3ff462476174b28ff",
+    "semantic_hash": "be53c006d26768a3ff462476174b28ff"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/mora_dia_0.html": {
+    "mtime": 1780128177.9287598,
+    "ast_hash": "627d981c8edd538bd06d022d177329b6",
+    "semantic_hash": "627d981c8edd538bd06d022d177329b6"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/mora_dia_10.html": {
+    "mtime": 1780128196.8636227,
+    "ast_hash": "5112f0649829b1c4922bf479c7cd234d",
+    "semantic_hash": "5112f0649829b1c4922bf479c7cd234d"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/mora_dia_15.html": {
+    "mtime": 1780128212.4424222,
+    "ast_hash": "958fcfd35a1265270b16cf639bb044a1",
+    "semantic_hash": "958fcfd35a1265270b16cf639bb044a1"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/mora_dia_5.html": {
+    "mtime": 1780128187.7312412,
+    "ast_hash": "c6648b0cff165062dd80e847fb5176fd",
+    "semantic_hash": "c6648b0cff165062dd80e847fb5176fd"
+  },
+  "octopus-api/notificaciones/templates/notificaciones/pago_exitoso.html": {
+    "mtime": 1780128231.4101777,
+    "ast_hash": "a949f558544d38198bbf505d9a9db984",
+    "semantic_hash": "a949f558544d38198bbf505d9a9db984"
+  },
+  "octopus-api/requirements.txt": {
+    "mtime": 1786910607.1896298,
+    "ast_hash": "6a1709011fe341eecf8b1abd96e04655",
+    "semantic_hash": ""
+  },
+  "octopus-api/staticfiles/admin/css/vendor/select2/LICENSE-SELECT2.md": {
+    "mtime": 1781760320.936195,
+    "ast_hash": "1f589eea356a598e6a4240b2a1835671",
+    "semantic_hash": "1f589eea356a598e6a4240b2a1835671"
+  },
+  "octopus-api/staticfiles/admin/img/README.md": {
+    "mtime": 1781760320.9415154,
+    "ast_hash": "4e9b5363cb40d5e7a65ba1506c1f1198",
+    "semantic_hash": "4e9b5363cb40d5e7a65ba1506c1f1198"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/jquery/LICENSE.txt": {
+    "mtime": 1781760320.972733,
+    "ast_hash": "7ccd50f549b1f8635cd65d4bc62d4e02",
+    "semantic_hash": "7ccd50f549b1f8635cd65d4bc62d4e02"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/select2/LICENSE.md": {
+    "mtime": 1781760320.9808006,
+    "ast_hash": "1f589eea356a598e6a4240b2a1835671",
+    "semantic_hash": "1f589eea356a598e6a4240b2a1835671"
+  },
+  "octopus-api/staticfiles/admin/js/vendor/xregexp/LICENSE.txt": {
+    "mtime": 1781760321.030708,
+    "ast_hash": "53aa2860f052a083d440f8b3ee1ab855",
+    "semantic_hash": "53aa2860f052a083d440f8b3ee1ab855"
+  },
+  "octopus-frontend/NOTAS_TECNICAS.md": {
+    "mtime": 1787981651.7960775,
+    "ast_hash": "49fc3027b982c77638140a0e76a462f8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/README.md": {
+    "mtime": 1777319149.7048829,
+    "ast_hash": "a28dc4cb878325f3e9e5649f3e1469ac",
+    "semantic_hash": "a28dc4cb878325f3e9e5649f3e1469ac"
+  },
+  "octopus-frontend/index.html": {
+    "mtime": 1780622143.188097,
+    "ast_hash": "488cda09b75599e074c3d2eb3127b361",
+    "semantic_hash": "488cda09b75599e074c3d2eb3127b361"
+  },
+  "octopus-api/media/comprobantes/pago.png": {
+    "mtime": 1781198458.0258887,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": "93ca32a536da1698ea979f183679af29"
+  },
+  "octopus-api/staticfiles/admin/img/calendar-icons.svg": {
+    "mtime": 1781760320.9415154,
+    "ast_hash": "f5473dd8daa992c6acd64731ec8c4a2f",
+    "semantic_hash": "f5473dd8daa992c6acd64731ec8c4a2f"
+  },
+  "octopus-api/staticfiles/admin/img/icon-addlink.svg": {
+    "mtime": 1781760320.9415154,
+    "ast_hash": "1120861a032653eba7d9af98c1d3908a",
+    "semantic_hash": "1120861a032653eba7d9af98c1d3908a"
+  },
+  "octopus-api/staticfiles/admin/img/icon-alert-dark.svg": {
+    "mtime": 1781760320.9441788,
+    "ast_hash": "9398cba0b5dcef041520804fd8541ac5",
+    "semantic_hash": "9398cba0b5dcef041520804fd8541ac5"
+  },
+  "octopus-api/staticfiles/admin/img/icon-alert.svg": {
+    "mtime": 1781760320.9441788,
+    "ast_hash": "5f80bfc6ae7750d959b459d7ca051503",
+    "semantic_hash": "5f80bfc6ae7750d959b459d7ca051503"
+  },
+  "octopus-api/staticfiles/admin/img/icon-calendar.svg": {
+    "mtime": 1781760320.9441788,
+    "ast_hash": "493b3b76e4d98b69ff756b8d086ba368",
+    "semantic_hash": "493b3b76e4d98b69ff756b8d086ba368"
+  },
+  "octopus-api/staticfiles/admin/img/icon-changelink.svg": {
+    "mtime": 1781760320.9441788,
+    "ast_hash": "571b83e2e364a46c0f667331a7030746",
+    "semantic_hash": "571b83e2e364a46c0f667331a7030746"
+  },
+  "octopus-api/staticfiles/admin/img/icon-clock.svg": {
+    "mtime": 1781760320.9441788,
+    "ast_hash": "4aeb76153fb3474045f70e3018806e6b",
+    "semantic_hash": "4aeb76153fb3474045f70e3018806e6b"
+  },
+  "octopus-api/staticfiles/admin/img/icon-debug-dark.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "857056b4405b78f886bbe556503ce1da",
+    "semantic_hash": "857056b4405b78f886bbe556503ce1da"
+  },
+  "octopus-api/staticfiles/admin/img/icon-debug.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "427cbb4c665be8d2a92f66c5d08712d5",
+    "semantic_hash": "427cbb4c665be8d2a92f66c5d08712d5"
+  },
+  "octopus-api/staticfiles/admin/img/icon-deletelink.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "26da35d129ca4e05d44c3fae8cda8117",
+    "semantic_hash": "26da35d129ca4e05d44c3fae8cda8117"
+  },
+  "octopus-api/staticfiles/admin/img/icon-hidelink.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "39397902c789dcbb9ad42171fcd6c49e",
+    "semantic_hash": "39397902c789dcbb9ad42171fcd6c49e"
+  },
+  "octopus-api/staticfiles/admin/img/icon-info-dark.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "b32f7910b2d0377ee1d5ab5ebea69921",
+    "semantic_hash": "b32f7910b2d0377ee1d5ab5ebea69921"
+  },
+  "octopus-api/staticfiles/admin/img/icon-info.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "3680c8acab3659a6c8e53d3b0cc5b17b",
+    "semantic_hash": "3680c8acab3659a6c8e53d3b0cc5b17b"
+  },
+  "octopus-api/staticfiles/admin/img/icon-no-dark.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "55aec90924d14bb19bbfc0fbe113ee63",
+    "semantic_hash": "55aec90924d14bb19bbfc0fbe113ee63"
+  },
+  "octopus-api/staticfiles/admin/img/icon-no.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "0ebed55ae13dae95fb6fd5583966a00b",
+    "semantic_hash": "0ebed55ae13dae95fb6fd5583966a00b"
+  },
+  "octopus-api/staticfiles/admin/img/icon-unknown-alt.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "462c0ff8570e7b7b8f616b796a912611",
+    "semantic_hash": "462c0ff8570e7b7b8f616b796a912611"
+  },
+  "octopus-api/staticfiles/admin/img/icon-unknown.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "ce2f9655cd30a8efad90008f94183d82",
+    "semantic_hash": "ce2f9655cd30a8efad90008f94183d82"
+  },
+  "octopus-api/staticfiles/admin/img/icon-viewlink.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "b36e7a715529ab98ad0b66352b361c7b",
+    "semantic_hash": "b36e7a715529ab98ad0b66352b361c7b"
+  },
+  "octopus-api/staticfiles/admin/img/icon-yes-dark.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "512d88f83ee2be4844910851fc8415d8",
+    "semantic_hash": "512d88f83ee2be4844910851fc8415d8"
+  },
+  "octopus-api/staticfiles/admin/img/icon-yes.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "10a67c83329d2cd4bc0dbac960001b1b",
+    "semantic_hash": "10a67c83329d2cd4bc0dbac960001b1b"
+  },
+  "octopus-api/staticfiles/admin/img/inline-delete.svg": {
+    "mtime": 1781760320.9477763,
+    "ast_hash": "15c2d54f5ec39867a8f1e692e4ed8b89",
+    "semantic_hash": "15c2d54f5ec39867a8f1e692e4ed8b89"
+  },
+  "octopus-api/staticfiles/admin/img/search.svg": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "9db491dcc4ec9c0ac92de1a5940fac59",
+    "semantic_hash": "9db491dcc4ec9c0ac92de1a5940fac59"
+  },
+  "octopus-api/staticfiles/admin/img/selector-icons.svg": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "c9859b8d4c8d5381365f331f58010d43",
+    "semantic_hash": "c9859b8d4c8d5381365f331f58010d43"
+  },
+  "octopus-api/staticfiles/admin/img/sorting-icons.svg": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "64c94186bf62c8adee01086400a9e8ca",
+    "semantic_hash": "64c94186bf62c8adee01086400a9e8ca"
+  },
+  "octopus-api/staticfiles/admin/img/tooltag-add.svg": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "9b700814ab14ae9972b7ac0b815aaa54",
+    "semantic_hash": "9b700814ab14ae9972b7ac0b815aaa54"
+  },
+  "octopus-api/staticfiles/admin/img/tooltag-arrowright.svg": {
+    "mtime": 1781760320.9568086,
+    "ast_hash": "87e057710cf85ae7cb2f69a2f9a9b086",
+    "semantic_hash": "87e057710cf85ae7cb2f69a2f9a9b086"
+  },
+  "octopus-api/staticfiles/rest_framework/fonts/fontawesome-webfont.svg": {
+    "mtime": 1781760321.052536,
+    "ast_hash": "99f258f770d4f4b88c780374bf220a36",
+    "semantic_hash": "99f258f770d4f4b88c780374bf220a36"
+  },
+  "octopus-api/staticfiles/rest_framework/fonts/glyphicons-halflings-regular.svg": {
+    "mtime": 1781760321.0557766,
+    "ast_hash": "a6a9a4e7d5f2b993957f464d719ade75",
+    "semantic_hash": "a6a9a4e7d5f2b993957f464d719ade75"
+  },
+  "octopus-api/staticfiles/rest_framework/img/glyphicons-halflings-white.png": {
+    "mtime": 1781760321.0619512,
+    "ast_hash": "9bbc6e9602998a385c2ea13df56470fd",
+    "semantic_hash": "9bbc6e9602998a385c2ea13df56470fd"
+  },
+  "octopus-api/staticfiles/rest_framework/img/glyphicons-halflings.png": {
+    "mtime": 1781760321.0619512,
+    "ast_hash": "90233c9067e91fc860cacaa1e5e2b696",
+    "semantic_hash": "90233c9067e91fc860cacaa1e5e2b696"
+  },
+  "octopus-api/staticfiles/rest_framework/img/grid.png": {
+    "mtime": 1781760321.0619512,
+    "ast_hash": "a4b938cf382b8f5b60d69ee68d214c37",
+    "semantic_hash": "a4b938cf382b8f5b60d69ee68d214c37"
+  },
+  "octopus-frontend/public/favicon.png": {
+    "mtime": 1779882497.4662979,
+    "ast_hash": "9729772a359f39e172cf00125fd14814",
+    "semantic_hash": "9729772a359f39e172cf00125fd14814"
+  },
+  "octopus-frontend/public/favicon.svg": {
+    "mtime": 1777319149.745174,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "octopus-frontend/public/icons.svg": {
+    "mtime": 1777319149.764763,
+    "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
+    "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  },
+  "octopus-frontend/src/assets/hero.png": {
+    "mtime": 1777319149.721374,
+    "ast_hash": "aead493361b27e7510691c5d7072dfc1",
+    "semantic_hash": "aead493361b27e7510691c5d7072dfc1"
+  },
+  "octopus-frontend/src/assets/logo-colegio.png": {
+    "mtime": 1779882497.4662979,
+    "ast_hash": "9729772a359f39e172cf00125fd14814",
+    "semantic_hash": "9729772a359f39e172cf00125fd14814"
+  },
+  "octopus-frontend/src/assets/react.svg": {
+    "mtime": 1777319149.784686,
+    "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": "f0402b67b6ce880f65666bb49e841696"
+  },
+  "octopus-frontend/src/assets/vite.svg": {
+    "mtime": 1777319149.7937114,
+    "ast_hash": "9960a24288958394ac50e57ff638b036",
+    "semantic_hash": "9960a24288958394ac50e57ff638b036"
+  },
+  "backend/crypto.py": {
+    "mtime": 1780130000.2232542,
+    "ast_hash": "d7e874aa0f7a0d15eed1f42a46adae5c",
+    "semantic_hash": ""
+  },
+  "backend/database.py": {
+    "mtime": 1780130019.119023,
+    "ast_hash": "20ae0e39713a7302c78b889da983cf0a",
+    "semantic_hash": ""
+  },
+  "backend/main.py": {
+    "mtime": 1780130186.4818518,
+    "ast_hash": "865d2f1ab873c319c31eafcf8a62822f",
+    "semantic_hash": ""
+  },
+  "backend/models.py": {
+    "mtime": 1780130030.3865106,
+    "ast_hash": "def4101e70fb08883a4e95e4a0be000a",
+    "semantic_hash": ""
+  },
+  "backend/routers/__init__.py": {
+    "mtime": 1780130050.3246398,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "backend/routers/notifications.py": {
+    "mtime": 1780130161.4810772,
+    "ast_hash": "5badc8a129b61f50f11b77f9d31b6733",
+    "semantic_hash": ""
+  },
+  "backend/schemas.py": {
+    "mtime": 1780130045.3509705,
+    "ast_hash": "e476b2877818b4f93848a60338a0bdba",
+    "semantic_hash": ""
+  },
+  "backend/services/__init__.py": {
+    "mtime": 1780130038.0177095,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "backend/services/email_service.py": {
+    "mtime": 1780130057.4977207,
+    "ast_hash": "fdfd1d643dbab798dc833b42544efc91",
+    "semantic_hash": ""
+  },
+  "backend/services/notification_runner.py": {
+    "mtime": 1780130101.8380945,
+    "ast_hash": "56a31f25a831a738e2521a7194805dae",
+    "semantic_hash": ""
+  },
+  "backend/services/scheduler.py": {
+    "mtime": 1780130134.806358,
+    "ast_hash": "cc26d55ffe5077dc95c4675af4c9b75b",
+    "semantic_hash": ""
+  },
+  "backend/services/whatsapp_service.py": {
+    "mtime": 1780130070.9382026,
+    "ast_hash": "7d120698f4894156ec621feacfd412fd",
+    "semantic_hash": ""
+  },
+  "deploy.sh": {
+    "mtime": 1787238164.9392264,
+    "ast_hash": "dd0f61ea303028f24b8b12be4c6367aa",
+    "semantic_hash": ""
+  },
+  "import_docentes.py": {
+    "mtime": 1781793024.854284,
+    "ast_hash": "61e7ec469b31de09dc27088211415c3e",
+    "semantic_hash": ""
+  },
+  "import_docentes_django.py": {
+    "mtime": 1781793183.7844906,
+    "ast_hash": "cb979ca554758aa1e2e2ba976683dbb6",
+    "semantic_hash": ""
+  },
+  "importar_docentes_command.py": {
+    "mtime": 1781793194.155787,
+    "ast_hash": "a7eeff7a5f316714f4dcae5cbd150bcc",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/mora.py": {
+    "mtime": 1787844268.4851658,
+    "ast_hash": "c72193c0f0c47b1e01a6bf84b47c8b2d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/apiError.js": {
+    "mtime": 1782256148.5903738,
+    "ast_hash": "7f34e08790ff0a0074de788174a364a8",
+    "semantic_hash": ""
+  },
+  "octopus-info.json": {
+    "mtime": 1781387509.463194,
+    "ast_hash": "fe7a82e3aab820625ebde817e2891b39",
+    "semantic_hash": ""
+  },
+  "read_docentes.py": {
+    "mtime": 1781792511.4277542,
+    "ast_hash": "6be902c9d1f9165e415e9eda7574148c",
+    "semantic_hash": ""
+  },
+  "read_docentes2.py": {
+    "mtime": 1781792552.4932618,
+    "ast_hash": "3fdbfc22095f28fa8b56eae137e683ed",
+    "semantic_hash": ""
+  },
+  "read_excel.py": {
+    "mtime": 1781792665.1430707,
+    "ast_hash": "d3aaf04db503c678403d88c812b750ce",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/NotificationsSettingsPage.jsx": {
+    "mtime": 1780128735.685094,
+    "ast_hash": "0b5adeea109f75e05b330f5d589ab10d",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/components/EmailConfigCard.jsx": {
+    "mtime": 1780128595.0346239,
+    "ast_hash": "a241e3b3d7b1dfa062008e8cc9d59b5b",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/components/NotificationRulesTable.jsx": {
+    "mtime": 1780128674.854939,
+    "ast_hash": "c824e29ff068e3339f6e03abe3bb496c",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/components/StatusBadge.jsx": {
+    "mtime": 1780128571.353604,
+    "ast_hash": "4f7c538d905b19ad364b602db1838aed",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/components/TemplateEditor.jsx": {
+    "mtime": 1780128651.3636317,
+    "ast_hash": "d8ed13e691f9f93a377018e900e1a279",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/components/TestSendModal.jsx": {
+    "mtime": 1783787139.572251,
+    "ast_hash": "8d8a72fa8295f11cd12cf6cd35b2683b",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/components/WhatsAppConfigCard.jsx": {
+    "mtime": 1780128644.9480443,
+    "ast_hash": "1d46b1fa0dbb3f323924bff6a344cfa0",
+    "semantic_hash": ""
+  },
+  "src/modules/notifications/hooks/useNotificationSettings.js": {
+    "mtime": 1780128562.148659,
+    "ast_hash": "024127e6190ac137f4cb315ded14667b",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1787968127.221647,
+    "ast_hash": "bf6cfeb8f826d44e961b4c754a94021d",
+    "semantic_hash": ""
+  },
+  "C\uf03aTempextracted.txt": {
+    "mtime": 1780415020.061857,
+    "ast_hash": "37c1b30a8502c4931a58ae18c55b8de9",
+    "semantic_hash": ""
+  },
+  "HANDOFF_NOMINA.md": {
+    "mtime": 1780454580.2062228,
+    "ast_hash": "a4e7dd3bc4882b718dda2c62e9554934",
+    "semantic_hash": ""
+  },
+  "NOTAS_TECNICAS.md": {
+    "mtime": 1787982179.8311987,
+    "ast_hash": "5a9b1a7d5a752aedd02f1b1dcbb3c3b7",
+    "semantic_hash": ""
+  },
+  "PRD_EXPANSION.md": {
+    "mtime": 1781585365.9849534,
+    "ast_hash": "82c99c2f60ae0330d4bd028774d54c4b",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1785262591.5356822,
+    "ast_hash": "7c0c9b886959b9d3d25587981ecb0fe2",
+    "semantic_hash": ""
+  },
+  "backend/requirements.txt": {
+    "mtime": 1780129987.193014,
+    "ast_hash": "aad806f4a6fe391bbc8d30b175d5875f",
+    "semantic_hash": ""
+  },
+  "dashboard-preview.html": {
+    "mtime": 1780782212.9744196,
+    "ast_hash": "c66ee2fc378c7405e75ce6d4b1133c7a",
+    "semantic_hash": ""
+  },
+  "docs/APP_FLOW.md": {
+    "mtime": 1781398857.2965336,
+    "ast_hash": "14121af9bd604bbe176dd7eea53a6b0b",
+    "semantic_hash": ""
+  },
+  "docs/BACKEND_SCHEMA.md": {
+    "mtime": 1781399031.6041,
+    "ast_hash": "c697f24356729ad75a22c1b27d5e43d1",
+    "semantic_hash": ""
+  },
+  "docs/IMPLEMENTATION_PLAN.md": {
+    "mtime": 1781399128.6840677,
+    "ast_hash": "f7dc92b0090e974b7c264db5009e4c3a",
+    "semantic_hash": ""
+  },
+  "docs/TRD.md": {
+    "mtime": 1781398783.5770469,
+    "ast_hash": "1e92052c7bbe0ac24810b5402a59a46f",
+    "semantic_hash": ""
+  },
+  "docs/UI_UX_BRIEF.md": {
+    "mtime": 1781398958.171511,
+    "ast_hash": "21e0183352dbf461721e9527b4ecd508",
+    "semantic_hash": ""
+  },
+  "docx_content.txt": {
+    "mtime": 1780765411.518566,
+    "ast_hash": "5ad4ad3307564dc48c6cc8b8a4afd716",
+    "semantic_hash": ""
+  },
+  "docx_temp/unpacked/docProps/thumbnail.jpeg": {
+    "mtime": 1780765364.0828679,
+    "ast_hash": "90fd87cbb448593802403de5b92f8006",
+    "semantic_hash": ""
+  },
+  "octopus-api/multisede/tests.py": {
+    "mtime": 1787845651.1168277,
+    "ast_hash": "00e3f030c0c30e0e2913a2a0e82a22c5",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/signals.py": {
+    "mtime": 1782945965.3898969,
+    "ast_hash": "761177ff513c63ab1bfdf17fb91fba25",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0006_alter_asistencia_fecha_and_more.py": {
+    "mtime": 1782948254.3206415,
+    "ast_hash": "5841b017a8b2b83e97c7d86a1fde98da",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0014_alter_historicalmensualidad_pagado_and_more.py": {
+    "mtime": 1782948254.3206415,
+    "ast_hash": "bb6946dc3b933d763640eef1730db0c8",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/migrations/0004_alter_comprobantepago_estatus_and_more.py": {
+    "mtime": 1782948254.3206415,
+    "ast_hash": "179af80f8a829d6ebd9cf7b37c337099",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0009_alter_alumno_grado_seccion.py": {
+    "mtime": 1782948254.3206415,
+    "ast_hash": "e71daf9e1fa65dd3934330b304a4619c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/SmartDateInput.jsx": {
+    "mtime": 1783781645.1583548,
+    "ast_hash": "0a90d44ecd4ca82d7cd8142527564a8b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/DecimalInput.jsx": {
+    "mtime": 1783007928.4301226,
+    "ast_hash": "c8bcec65c72a14ec238803c5628804fc",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/components/CobranzaStep1.jsx": {
+    "mtime": 1787967853.165225,
+    "ast_hash": "6b4815b2147b257889ce3becae5aa9e4",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/components/CobranzaStep2.jsx": {
+    "mtime": 1787967906.6175468,
+    "ast_hash": "77e72c4a52e383c1f57d3c0da6170358",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/components/ResumenPago.jsx": {
+    "mtime": 1785979823.1143196,
+    "ast_hash": "1f9b57b33543783d0086cecb58010d12",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/construirItemsRecibo.js": {
+    "mtime": 1784768358.7973628,
+    "ast_hash": "1ddd537f32313a4774b9a359b5f79b8b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/formato.js": {
+    "mtime": 1783009429.0593896,
+    "ast_hash": "c68bc0a3fbf9ae0bfa406446ade50b03",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/SkeletonFila.jsx": {
+    "mtime": 1783018403.0017056,
+    "ast_hash": "b221d0d3b92b4fff7a901dbf740d4586",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/nominaFmt.js": {
+    "mtime": 1783018290.973758,
+    "ast_hash": "2ef3a2ba3d782ed82af82274d9b4c944",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/__init__.py": {
+    "mtime": 1783049136.5437098,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/__init__.py": {
+    "mtime": 1783049136.5441308,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/generar_mensualidades.py": {
+    "mtime": 1783341098.0005305,
+    "ast_hash": "b668ba0450ab1b12e3ca8b1882234197",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_generacion_mensualidades.py": {
+    "mtime": 1783444264.9473412,
+    "ast_hash": "909f9617dca5f4222a415d87623f4557",
+    "semantic_hash": ""
+  },
+  "OctopusServicesLanding.jsx": {
+    "mtime": 1783111404.200343,
+    "ast_hash": "f00afcb65db78b154e0ffc322c9097d8",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0007_asistencia_estado_incidentedisciplinario.py": {
+    "mtime": 1785191211.6277845,
+    "ast_hash": "7b8f7327b21238051f5cc29e3df3ca35",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0008_materialestudio.py": {
+    "mtime": 1785203459.9255319,
+    "ast_hash": "333d123a091ff4d97227ea64d75cd1a6",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0009_alertarendimiento.py": {
+    "mtime": 1785262187.9823344,
+    "ast_hash": "b9b57112fa69a72acb2369a47256488f",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/services.py": {
+    "mtime": 1785818000.8957462,
+    "ast_hash": "5747d2077e0cace99314a674fc2a72e9",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/tasks.py": {
+    "mtime": 1785262136.4973435,
+    "ast_hash": "ee5b3853e7ddddd3d4da22f772530303",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/tests.py": {
+    "mtime": 1787932411.4397724,
+    "ast_hash": "694b3e73427f10e401698d023c1bcdfc",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/urls_portal.py": {
+    "mtime": 1785262115.2129624,
+    "ast_hash": "ffbfcdf8ddc38172feef0cbd41c9e1f4",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/views_portal.py": {
+    "mtime": 1785262112.3354023,
+    "ast_hash": "81dc04faeb26079980795a0b74602c08",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/agrupar_pagos_historicos.py": {
+    "mtime": 1784770433.9443188,
+    "ast_hash": "721f2c6bd973cb6bff3a8c4b5ae7ca27",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/generar_cuotas_inscripcion.py": {
+    "mtime": 1784731176.149207,
+    "ast_hash": "a1518624b7be30645e11e7d665a75268",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/generar_solvencias.py": {
+    "mtime": 1784771850.1508784,
+    "ast_hash": "e6d6554797c2c96a6ce86c31137d0f87",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/resetear_deudas.py": {
+    "mtime": 1784771859.2498963,
+    "ast_hash": "54f3d4a9ca2d348b60a997fec173ff5c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/sincronizar_proyectos_inversion.py": {
+    "mtime": 1784773430.9995313,
+    "ast_hash": "6070d0e559b19c35f035db57aa7550e8",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/management/commands/sincronizar_solvencias.py": {
+    "mtime": 1784770436.3931763,
+    "ast_hash": "34be183d59a43bbc3f2774d8ea51e827",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0015_alter_historicalpago_concepto_alter_pago_concepto_and_more.py": {
+    "mtime": 1783437365.731937,
+    "ast_hash": "4603d626b6c345c005aa0ebbf21c801c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0016_cuotasolvencia_concepto.py": {
+    "mtime": 1783453991.972026,
+    "ast_hash": "c5e339c6fe0e1aec08e9048d294aadb9",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0017_historicalpago_banco_procedencia_and_more.py": {
+    "mtime": 1783613272.3137984,
+    "ast_hash": "9c612aedd119e1dbbda29fc271aa9af9",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0018_alter_historicalpago_concepto_alter_pago_concepto.py": {
+    "mtime": 1783654940.9734406,
+    "ast_hash": "0015d8e28c1917fa5dfe3dc959c0c65c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0019_historicalcuotainscripcion.py": {
+    "mtime": 1783655380.067497,
+    "ast_hash": "a8863cbdd072f3be09c9bca0aa1cc50c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0020_historicalcuotaproyectoinversion_and_more.py": {
+    "mtime": 1783655878.5050392,
+    "ast_hash": "eb8ba728781308d81ddac248f5718476",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0021_alter_historicalpago_concepto_alter_pago_concepto.py": {
+    "mtime": 1783692411.3558006,
+    "ast_hash": "8cc89e2f08d1fb414fc165530f7140d6",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0022_solvenciarepresentante.py": {
+    "mtime": 1783696141.4815004,
+    "ast_hash": "3a8a80859400345fc14c31aac32dde92",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0023_banco_tipos_multiples.py": {
+    "mtime": 1784563208.510939,
+    "ast_hash": "aec1cfd9a8defb829f2c0b22a62bed43",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0024_historicalpago_numero_lote_pago_numero_lote.py": {
+    "mtime": 1784569189.5087898,
+    "ast_hash": "3c8c04476d6317220767181d8c41aaba",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0025_cuotaproyectoinversion_monto_pagado.py": {
+    "mtime": 1784744871.0140138,
+    "ast_hash": "55031d04918ea7458c9bf77781e18142",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0026_cuotasolvencia_monto_pagado.py": {
+    "mtime": 1784769947.034917,
+    "ast_hash": "215daa6091af74c6f7ea9359910f305b",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0027_loterevisioncaja.py": {
+    "mtime": 1784816913.5004988,
+    "ast_hash": "c081660a94c910fe1ea7bbd01a52b82b",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/solvencia.py": {
+    "mtime": 1783696041.2385585,
+    "ast_hash": "219b45d451347638b4ceec81f294c29d",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/__init__.py": {
+    "mtime": 1785194090.5181437,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/admin.py": {
+    "mtime": 1785203581.251802,
+    "ast_hash": "6f934d72ce60116ae58065f1490cdbf3",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/apps.py": {
+    "mtime": 1785194091.083563,
+    "ast_hash": "8fc8083471b3b8324e4f42323df6f3dc",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/migrations/0001_initial.py": {
+    "mtime": 1785194306.133257,
+    "ast_hash": "ab3cf90d6f297a73e7fb97eb86362b2f",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/migrations/0002_mensajedirecto.py": {
+    "mtime": 1785203572.7198637,
+    "ast_hash": "cbc8897e50092b7e1b7699e5c7063bcf",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/migrations/__init__.py": {
+    "mtime": 1785194091.2998338,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/models.py": {
+    "mtime": 1785203555.374997,
+    "ast_hash": "3bd5b4258b8bea2616e7d0cec70e8e1b",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/serializers.py": {
+    "mtime": 1787929721.971648,
+    "ast_hash": "d1c75966dc76ea57001532d3ba4e3791",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/tests.py": {
+    "mtime": 1785205249.9814603,
+    "ast_hash": "c51649283d1ec8b42be0ffaac66fe500",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/urls.py": {
+    "mtime": 1785203911.258943,
+    "ast_hash": "3906fbceb76a4f4164686d473cafd74d",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/urls_portal.py": {
+    "mtime": 1785203918.2264142,
+    "ast_hash": "e82ca094b7ffc9a65c18892cb2f11881",
+    "semantic_hash": ""
+  },
+  "octopus-api/comunicacion/views.py": {
+    "mtime": 1785203903.3650043,
+    "ast_hash": "9b37ed4406f49fb21311aa21f09f3484",
+    "semantic_hash": ""
+  },
+  "octopus-api/config/pagination.py": {
+    "mtime": 1783877629.8143663,
+    "ast_hash": "3d85562bcd75d13ff4a17a16b32dafe0",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/migrations/0003_perfilemailremitente_alter_notificacionlog_tipo.py": {
+    "mtime": 1784567624.175457,
+    "ast_hash": "d839e75204a0cc33873cd34c285e31c2",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/import_estudiantes.py": {
+    "mtime": 1784147443.0327268,
+    "ast_hash": "3d62897948101d7eac32a8d402d64ef2",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/management/__init__.py": {
+    "mtime": 1783449678.4899178,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/management/commands/__init__.py": {
+    "mtime": 1783449678.4914105,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/management/commands/borrar_alumnos_representantes.py": {
+    "mtime": 1783517905.054779,
+    "ast_hash": "a6b58a5afed88f620440c6c954727e64",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/management/commands/revertir_doble_promocion.py": {
+    "mtime": 1783449698.8354237,
+    "ast_hash": "8bb0ccc8387399590527f85f5d5acc87",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0010_inscripcion_unica_inscripcion_por_periodo.py": {
+    "mtime": 1783452971.6690905,
+    "ast_hash": "7577822974b462466f83a7c2b43f9492",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0011_alumno_alergico_alumno_bautizado_and_more.py": {
+    "mtime": 1783613272.3274858,
+    "ast_hash": "dad2d4d6e848803e1d7892feb780b4a1",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0012_alumno_fecha_nacimiento_opcional.py": {
+    "mtime": 1783782065.0437715,
+    "ast_hash": "8d64c9a50d5b183ebcb8fcc3ffb34b95",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0013_representante_activo_representante_fecha_eliminacion.py": {
+    "mtime": 1783787518.5101671,
+    "ast_hash": "15ba476517a766d0cd028e3b4a9a45d8",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0014_alumno_parentesco_por_estudiante.py": {
+    "mtime": 1783972050.6875653,
+    "ast_hash": "c73bf736e6748dc7fd0202d33c42da2d",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0015_eliminar_contacto_emergencia.py": {
+    "mtime": 1784055422.8979313,
+    "ast_hash": "c60154afb37eb6129bb4c5c61457fbf6",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0016_configuracionsistema_logo_avec_and_more.py": {
+    "mtime": 1784400413.583469,
+    "ast_hash": "04298bc147c31da1046aa4597eb2c76f",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/utils_preinscripcion.py": {
+    "mtime": 1787234885.464259,
+    "ast_hash": "f642aff211f1c012fc61aaac6f17a9d2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/comunicacion.service.js": {
+    "mtime": 1785205297.1676939,
+    "ast_hash": "ba14335688267533f630e2ab3decdeb4",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/preinscripcion.service.js": {
+    "mtime": 1784290868.4147866,
+    "ast_hash": "3fe4b297220b238dad0d7a7ffcf04b30",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalAjustarInscripcion.jsx": {
+    "mtime": 1787933192.011041,
+    "ast_hash": "7ee77dbf04d7bb2887384f4e6b51c8ea",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/alumnos/ModalConfirmarQuitarGrado.jsx": {
+    "mtime": 1787933684.4226086,
+    "ast_hash": "373f1727869a941b06cb4b50fe4d90b3",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/comunicacion/CircularLecturasModal.jsx": {
+    "mtime": 1787935869.2286322,
+    "ast_hash": "2ab05c46be3f3b3f0f8ff27f1b5d1e61",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/comunicacion/ModalNuevaCircular.jsx": {
+    "mtime": 1787935904.9769354,
+    "ast_hash": "b241ddcd0edf50d2b08a0cdd5399a8a0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/comunicacion/SkeletonCircular.jsx": {
+    "mtime": 1785194551.4272738,
+    "ast_hash": "b354f15a64f20f5c208506a56956643e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/comunicacion/TarjetaCircular.jsx": {
+    "mtime": 1787930283.3178575,
+    "ast_hash": "d362bb91468da1edee9b80878fa600b0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/incidentes/ModalNuevoIncidente.jsx": {
+    "mtime": 1787935972.7107208,
+    "ast_hash": "3bbec305396e9c0446555989e7db0157",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/incidentes/SkeletonIncidente.jsx": {
+    "mtime": 1785192112.8004558,
+    "ast_hash": "e2608b8280411da75e51a647177d2d76",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/incidentes/TarjetaIncidente.jsx": {
+    "mtime": 1787930303.5184288,
+    "ast_hash": "1336b34fde2960f3edd0b420795d65f0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/ModalCompletarAlumno.jsx": {
+    "mtime": 1787936035.0919118,
+    "ast_hash": "4cb92a809631e179f16f31014456e465",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/inscripciones/ModalCompletarRepresentante.jsx": {
+    "mtime": 1787936076.0084693,
+    "ast_hash": "edec005c0df6b45f8569f1709f64de22",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/materiales/ModalNuevoMaterial.jsx": {
+    "mtime": 1787936111.4216132,
+    "ast_hash": "097096d942efbc085bb662ba53073c29",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/materiales/TarjetaMaterial.jsx": {
+    "mtime": 1787164317.6197066,
+    "ast_hash": "25b6a9d6a3add20067a60e32c6c2178c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/mensajes/ChatMensajes.jsx": {
+    "mtime": 1785205573.7419314,
+    "ast_hash": "6fdf125ecf3543fdcec2d4a8747dfd04",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/preinscripcion/SelectorCamposPreinscripcion.jsx": {
+    "mtime": 1787947565.141073,
+    "ast_hash": "56bb04f78460e973884950a85342503e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/rendimiento/AlertasRiesgoList.jsx": {
+    "mtime": 1785262515.7655344,
+    "ast_hash": "369bd775ca7447c621f622a28218eb22",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/rendimiento/MapaCalorSeccion.jsx": {
+    "mtime": 1785262507.5459013,
+    "ast_hash": "c17deda327d9f0557c7ebdb26b66b65d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/shared/Pagination.jsx": {
+    "mtime": 1783878923.6599183,
+    "ast_hash": "9d31e22d13db56d7a784eb8231684682",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/LimpiezaDatosTab.jsx": {
+    "mtime": 1784230377.045637,
+    "ast_hash": "90ca25d7d6ff356e41ecd484c9c41715",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/ModalEliminarDefinitivo.jsx": {
+    "mtime": 1787936266.3560007,
+    "ast_hash": "fca4c4787328f1f5012d945473852814",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/ModalEliminarTodosAlumnos.jsx": {
+    "mtime": 1787936292.5316858,
+    "ast_hash": "45ffeba0b27f5920f85a001f4abcd09b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sistemas/modals/ImportarEstudiantesModal.jsx": {
+    "mtime": 1787947565.809904,
+    "ast_hash": "b0d63337ab10084c15725ea42b9c5be5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/preinscripcionCampos.js": {
+    "mtime": 1784229367.0173955,
+    "ast_hash": "3bf99f169d75413eb7b8599fd5f75979",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useCirculares.js": {
+    "mtime": 1785194545.346447,
+    "ast_hash": "ea9bfe87654ebf07bdb41597d37285cd",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useConsultaInscripcion.js": {
+    "mtime": 1784398359.607692,
+    "ast_hash": "b5fd92302059b5178fb3e68bf12be7f8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useCuotaInscripcionAlumno.js": {
+    "mtime": 1783709765.2529032,
+    "ast_hash": "cd904df3b327f336bed8e8bfef369ec2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useIncidentes.js": {
+    "mtime": 1785192100.065432,
+    "ast_hash": "15819d94c2cdf30b4452c7d8ffd04880",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useMateriales.js": {
+    "mtime": 1785205344.9708722,
+    "ast_hash": "c0940257e5bb2a39682756257ff13416",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/usePreinscripcion.js": {
+    "mtime": 1784290876.54666,
+    "ast_hash": "bd92bdaf81a5e11e9d6c6accaa703b0c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useRendimiento.js": {
+    "mtime": 1785262494.8844821,
+    "ast_hash": "64b0da815ed15af4cf9311b514c198b2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Comunicacion.jsx": {
+    "mtime": 1785194636.2525575,
+    "ast_hash": "631a4a1a42b80a8fc88a6e60523f858c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/ConsultaInscripcion.jsx": {
+    "mtime": 1784287512.8513935,
+    "ast_hash": "5c2470bd6f9434a762c4bd34827b9548",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/ConsultaSolvencia.jsx": {
+    "mtime": 1783696276.9844995,
+    "ast_hash": "c5628411f0b91549d0f6868804272d53",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Incidentes.jsx": {
+    "mtime": 1785192831.0734837,
+    "ast_hash": "c52c0c2868e2e996b3254bebbe99bc12",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Preinscripcion.jsx": {
+    "mtime": 1784287651.7742372,
+    "ast_hash": "6c541882c8e0fe8fe24af4785c5fbc55",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Rendimiento.jsx": {
+    "mtime": 1785262529.2398272,
+    "ast_hash": "fc545084c79c591cf743838f5e7a7545",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/api/academico.service.js": {
+    "mtime": 1785262550.554588,
+    "ast_hash": "a7f386d4ad6557ee370a5822f1fc4be7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/api/comunicacion.service.js": {
+    "mtime": 1785205303.001537,
+    "ast_hash": "bc95460ad3386b7c792af4fadb220d28",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/rendimiento/GraficaPorMateria.jsx": {
+    "mtime": 1785949619.3042054,
+    "ast_hash": "5d8dd1aeb08f42cc05ca6bc01c441052",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/rendimiento/GraficaPromedioLapsos.jsx": {
+    "mtime": 1785949619.3062053,
+    "ast_hash": "18fa1c19bbe3a5f034c14c47ab26ed5c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/rendimiento/IndicadorAsistencia.jsx": {
+    "mtime": 1785949619.308727,
+    "ast_hash": "76388482a2843dc09a3165408a5520d9",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/hooks/usePortalMensajes.js": {
+    "mtime": 1785205388.2605393,
+    "ast_hash": "bf236e3c1c947194168942a3f58e5227",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/hooks/useRendimientoPortal.js": {
+    "mtime": 1787847542.772505,
+    "ast_hash": "46f7200cf0d53905b4e774c7f13ace93",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalComunicaciones.jsx": {
+    "mtime": 1785949619.3137577,
+    "ast_hash": "66c4cc3f8ef0c2ead4bcb48f513f2d57",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalMensajes.jsx": {
+    "mtime": 1787847594.0154133,
+    "ast_hash": "42d5a03a4ca265b7a695d09f4f06891c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalRendimiento.jsx": {
+    "mtime": 1785262632.5744238,
+    "ast_hash": "029771b06482fb39302f49827cd6d04d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/cedulaEscolar.js": {
+    "mtime": 1784056175.79604,
+    "ast_hash": "7e3e2b057d14296d39fdafbb3f5bbb56",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/inscripcionValidacion.js": {
+    "mtime": 1784147202.1753378,
+    "ast_hash": "ee726a3e0cf9fc6ff503cc150a0dfa15",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/logosInstitucionales.js": {
+    "mtime": 1784400744.654162,
+    "ast_hash": "a91e97491a7889a12ee9b4132afcb7fd",
+    "semantic_hash": ""
+  },
+  "docs/PLAN_EXPANSION_V2.md": {
+    "mtime": 1785189446.297338,
+    "ast_hash": "f977c8782b63fc547f47dce36d79a806",
+    "semantic_hash": ""
+  },
+  "octopus-api/NOTAS_TECNICAS.md": {
+    "mtime": 1787931153.4249814,
+    "ast_hash": "7c7041cede670171ecc8c68229990ab2",
+    "semantic_hash": ""
+  },
+  "octopus-api/RESTAURACION_EMERGENCIA.md": {
+    "mtime": 1784773940.756448,
+    "ast_hash": "4bd7d0d3ae8b3eef0c9ad6bd6820151e",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/templates/notificaciones/circular_nueva.html": {
+    "mtime": 1785194231.2338345,
+    "ast_hash": "0c10b0e3e8ff5373bad3768ebdfc4523",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/templates/notificaciones/comprobante_inscripcion.html": {
+    "mtime": 1784567713.8983877,
+    "ast_hash": "167cbc6be472e9115bf9ab7cdc41beff",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/templates/notificaciones/mensaje_nuevo.html": {
+    "mtime": 1785203933.4783754,
+    "ast_hash": "43125428304afad32b527fe25948a89b",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_1pkfxni.png": {
+    "mtime": 1783787309.7875967,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_8GRvv8U.png": {
+    "mtime": 1784729808.5777836,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_Dlp7US7.png": {
+    "mtime": 1784729819.949225,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_EJTp4RZ.png": {
+    "mtime": 1784771091.989989,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_FukTLcs.png": {
+    "mtime": 1784773603.0426402,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_G1DFkim.png": {
+    "mtime": 1784730110.6084585,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_GJ7lRBi.png": {
+    "mtime": 1784770616.268349,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_GiS3i6U.png": {
+    "mtime": 1784770993.8208516,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_Ksq4DXg.png": {
+    "mtime": 1784729816.2897196,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_LX8hmyE.png": {
+    "mtime": 1784773612.8570843,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_OVjxMN5.png": {
+    "mtime": 1784730105.7454865,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_OcqfRJE.png": {
+    "mtime": 1784773904.8383596,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_PDTgojt.png": {
+    "mtime": 1784730100.516595,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_PlNejLR.png": {
+    "mtime": 1785195761.8126805,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_PqoxmUS.png": {
+    "mtime": 1784730116.666483,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_QBCfy2E.png": {
+    "mtime": 1785195772.6629062,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_Qe6AdZy.png": {
+    "mtime": 1784729812.5815518,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_Tb3PPkS.png": {
+    "mtime": 1784730025.6989737,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_Tdlpvwn.png": {
+    "mtime": 1784771006.89272,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_ThruSDw.png": {
+    "mtime": 1784730016.0733604,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_TvRdym3.png": {
+    "mtime": 1784770622.072991,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_aj7ugvF.png": {
+    "mtime": 1784773909.2710412,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_drF5sno.png": {
+    "mtime": 1784770627.9791782,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_hQeH3na.png": {
+    "mtime": 1784770610.0854442,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_hZaR6KF.png": {
+    "mtime": 1784771082.1446514,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_jC9CRGj.png": {
+    "mtime": 1785195769.0785315,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_jCz7d5K.png": {
+    "mtime": 1784773913.3100858,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_jhGvREZ.png": {
+    "mtime": 1784773608.1742396,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_ltEerFA.png": {
+    "mtime": 1783787313.315412,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_m8LgaJg.png": {
+    "mtime": 1784771096.8140495,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_rJe9GbB.png": {
+    "mtime": 1784730011.603943,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_ss0Q0tG.png": {
+    "mtime": 1784771087.1480682,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_vA8DYMq.png": {
+    "mtime": 1785195765.5953126,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_vANmGUk.png": {
+    "mtime": 1783787306.284767,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_wChuQ8i.png": {
+    "mtime": 1784771000.548653,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_wqIdkfy.png": {
+    "mtime": 1784773917.1981308,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_x8VEQnx.png": {
+    "mtime": 1784771012.9200308,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_yfaStkY.png": {
+    "mtime": 1784730020.6737823,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_z2hlfiY.png": {
+    "mtime": 1783787316.7473383,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/comprobantes/pago_zTBiqbS.png": {
+    "mtime": 1784773595.7418113,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/configuracion/logos/logo_avec.png": {
+    "mtime": 1784551646.9328353,
+    "ast_hash": "fada8d6457f251869cc446f826282480",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/configuracion/logos/logo_colegio.png": {
+    "mtime": 1784551646.926896,
+    "ast_hash": "93c1dbe9268189dea1c291458e73e429",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/incidentes/foto.png": {
+    "mtime": 1785195877.2313242,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/incidentes/foto_cm8lJVo.png": {
+    "mtime": 1785205324.9890893,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/incidentes/foto_gDlySLG.png": {
+    "mtime": 1785262297.382706,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  "octopus-api/media/incidentes/foto_nJL3AW8.png": {
+    "mtime": 1785204016.8689158,
+    "ast_hash": "93ca32a536da1698ea979f183679af29",
+    "semantic_hash": ""
+  },
+  ".impeccable/hook.cache.json": {
+    "mtime": 1787982227.965297,
+    "ast_hash": "e0f725797c8bea5b27c2d4c15d41db83",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0010_eventocalendario.py": {
+    "mtime": 1785798516.5822804,
+    "ast_hash": "c6a35d500801b3f1bdbed09c2eedfa27",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0011_bloqueevaluacion_materia_aporta_a_todas_las_materias_and_more.py": {
+    "mtime": 1785803736.7364304,
+    "ast_hash": "c36de5f3255f8d29cdab1880e93b6d18",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0012_historicalnotaitemevaluacion.py": {
+    "mtime": 1785816206.3910785,
+    "ast_hash": "c787b55cda8619145b32ca01fd65d922",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/urls_portal_docente.py": {
+    "mtime": 1787174071.6723385,
+    "ast_hash": "e60a65a868d3c23a18db99ccdcfd1e5f",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/migrations/0006_perfilusuario_foto.py": {
+    "mtime": 1785801012.191301,
+    "ast_hash": "945967bb64f2a2a112a698828d7ee85c",
+    "semantic_hash": ""
+  },
+  "octopus-api/authentication/tests.py": {
+    "mtime": 1787930903.3919132,
+    "ast_hash": "9521e10e2d2377c5e463f356eba7c3f7",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/__init__.py": {
+    "mtime": 1786820616.9152832,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/admin.py": {
+    "mtime": 1787848291.7721925,
+    "ast_hash": "c2285d34e68010da8f12cef2b330d4f9",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/apps.py": {
+    "mtime": 1786820616.9226215,
+    "ast_hash": "0c484492d58a38c3a0fe27bd334503ec",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/0001_initial.py": {
+    "mtime": 1786820616.9251523,
+    "ast_hash": "4ce6d65f8587f0dbc4067e8881ca0f7c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/0002_alter_cierrecajacantina_unique_together_and_more.py": {
+    "mtime": 1787847966.23569,
+    "ast_hash": "738e441ea96eebd35f8f631939d825f3",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/__init__.py": {
+    "mtime": 1786820616.9261544,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/models.py": {
+    "mtime": 1787847935.8491247,
+    "ast_hash": "64821621c39efc120f336d85dd8143be",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/mora_cantina.py": {
+    "mtime": 1786820616.9306653,
+    "ast_hash": "b3e7f253dcdfe6e56b8696fdbb86cb23",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/notificaciones_cantina.py": {
+    "mtime": 1786820616.9319298,
+    "ast_hash": "789ba91e370160896de9a7758f2fdfdc",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/permissions.py": {
+    "mtime": 1786820616.9340897,
+    "ast_hash": "3c46d4828f174d4f58ac041a908e16c7",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/serializers.py": {
+    "mtime": 1787929788.896344,
+    "ast_hash": "eeab082c7af1c0f822f08af928c03e81",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/services_inventario.py": {
+    "mtime": 1786820616.9395137,
+    "ast_hash": "4f96f5d4e5380e10181f501cbeb173b0",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/services_tarjeta.py": {
+    "mtime": 1786820616.9435163,
+    "ast_hash": "654e171bdcd58b329d9274f31ed72959",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tasks.py": {
+    "mtime": 1786820616.944517,
+    "ast_hash": "16088a8f94c37cf16d9ecec77eb140c3",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests.py": {
+    "mtime": 1787174172.455534,
+    "ast_hash": "169ec435c6fa9519aae94e68a92a861f",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_apertura_caja.py": {
+    "mtime": 1787848678.6655748,
+    "ast_hash": "735bc13a2a45c91d0053468dde9983b3",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_cierre_caja.py": {
+    "mtime": 1787848605.6716735,
+    "ast_hash": "7c7115b0128eb1220acb2ba4795c1e9a",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_credito_morosidad.py": {
+    "mtime": 1786820616.9510448,
+    "ast_hash": "d17af5b014addc4986b09bca12c1f574",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_notificaciones.py": {
+    "mtime": 1786820616.9530454,
+    "ast_hash": "62b3b9b3eedf52adc192beb5e804838f",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_recargas.py": {
+    "mtime": 1786820616.9692483,
+    "ast_hash": "1c664b00fc141c4727b71d3457088e5d",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_reportes.py": {
+    "mtime": 1786820616.9874332,
+    "ast_hash": "6ce9ffdd1c5a47b1b69ac7568e3045b6",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_services_inventario.py": {
+    "mtime": 1786820616.9957664,
+    "ast_hash": "31866fc5cc4001db13a75e54421a95a5",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_services_tarjeta.py": {
+    "mtime": 1786820616.998273,
+    "ast_hash": "a0d3a47c2692d21082c158c1463629ad",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_tarjetas.py": {
+    "mtime": 1786820617.0010328,
+    "ast_hash": "90afe57121dfcf54fa17d46e73ddb334",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_ventas.py": {
+    "mtime": 1787848392.482434,
+    "ast_hash": "f9aef763a49f63a9bac5d142f5af8ad5",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/urls.py": {
+    "mtime": 1787848244.1968963,
+    "ast_hash": "1e30938d8a0f10c9a52fd20f10fcf9e8",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/utils.py": {
+    "mtime": 1786820617.012347,
+    "ast_hash": "4345384f3b641634f3075eb2dff7d669",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/views.py": {
+    "mtime": 1787848202.2913716,
+    "ast_hash": "ef9dc32f5026b9a10f8362cb22f5577a",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/correcciones.py": {
+    "mtime": 1787236884.3453739,
+    "ast_hash": "858567ef47308cc7f79aec7c27925073",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0028_clasificacionpagomanual.py": {
+    "mtime": 1785963277.993135,
+    "ast_hash": "e64f335e557d632cb31e809f92cd05b8",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0029_alter_historicalpago_fecha_pago_and_more.py": {
+    "mtime": 1786046283.3081243,
+    "ast_hash": "093d9cfd589a1214c5db7794aac29740",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0030_quitar_metodo_stripe.py": {
+    "mtime": 1787234947.2941787,
+    "ast_hash": "264a0b25a225b65f68243811219d2b81",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0031_indexar_representante_documento.py": {
+    "mtime": 1787235244.0131967,
+    "ast_hash": "5468d0e2c7e771a302f6e571d03ceda0",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0032_agregar_anulacion_pago.py": {
+    "mtime": 1787236990.0353746,
+    "ast_hash": "5dc055bedbe8cdc5e56a0b80c35a5073",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/permissions.py": {
+    "mtime": 1787164220.4347599,
+    "ast_hash": "0b66c7d93be0f01b873f348784a6b212",
+    "semantic_hash": ""
+  },
+  "octopus-api/loadtest/k6_baseline.js": {
+    "mtime": 1787238290.8823051,
+    "ast_hash": "f862f46f03e75b8876f4269e3cbd4d75",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/migrations/0003_empleado_empleado_rrhh.py": {
+    "mtime": 1787164302.2305615,
+    "ast_hash": "abd3575ce6ab85c457cbfb12d3d43955",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/migrations/0004_parametrolegalnomina_and_more.py": {
+    "mtime": 1787850174.582562,
+    "ast_hash": "e206aff991a32914c641195fcf0b379e",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/migrations/0005_alter_registronomina_porcentaje_lph_aplicado_and_more.py": {
+    "mtime": 1787850524.9778283,
+    "ast_hash": "f12e7c67de258b73785a2d08bff92b74",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/migrations/0006_parametro_legal_inicial.py": {
+    "mtime": 1787850704.9944994,
+    "ast_hash": "5753e567517b64b9699642d4a1b00b63",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/crypto_fields.py": {
+    "mtime": 1787164259.37892,
+    "ast_hash": "5a1b3b0964d65a2f0711bfb4894db00e",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/migrations/0004_alter_notificacionlog_canal_suscripcionpush.py": {
+    "mtime": 1785265347.1245134,
+    "ast_hash": "8b6cce86a0a4cbd3819f69dc70a4181c",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/migrations/0005_encriptar_credenciales_configuracion.py": {
+    "mtime": 1787164320.5401566,
+    "ast_hash": "8d617847e60ef04945ff98585b00c4aa",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/migrations/0006_cifrar_credenciales_existentes.py": {
+    "mtime": 1787164335.3392384,
+    "ast_hash": "62bd4aeeda5470a3568c2ab71f71b183",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/migrations/0008_configuracionnotificaciones_dias_alerta_director_and_more.py": {
+    "mtime": 1787843299.3626604,
+    "ast_hash": "09c50b81c8c5efd1a9e3d2a8b28b900d",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/tests.py": {
+    "mtime": 1785266185.8009336,
+    "ast_hash": "2cb47af90c8bb88bdf30b4738338ce33",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/urls_portal.py": {
+    "mtime": 1785265556.1314757,
+    "ast_hash": "2b26bd03c1a4727aac51a0d4eb968b3e",
+    "semantic_hash": ""
+  },
+  "octopus-api/pagos_comunes/__init__.py": {
+    "mtime": 1786820617.129311,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/pagos_comunes/comprobantes.py": {
+    "mtime": 1787164494.6567047,
+    "ast_hash": "fdce94aba54f4e5f94bc388d777dfc65",
+    "semantic_hash": ""
+  },
+  "octopus-api/pagos_comunes/media_views.py": {
+    "mtime": 1787164674.6539009,
+    "ast_hash": "7a52edaa95fabc186f2aa62ec4e0a0bd",
+    "semantic_hash": ""
+  },
+  "octopus-api/pagos_comunes/referencias.py": {
+    "mtime": 1786820617.1303103,
+    "ast_hash": "a63186cded0289f6abc5e2c0c99bfa45",
+    "semantic_hash": ""
+  },
+  "octopus-api/portal/tests_cantina.py": {
+    "mtime": 1786820617.1323156,
+    "ast_hash": "6c907c3ec92ede9fc8778e4795ee5391",
+    "semantic_hash": ""
+  },
+  "octopus-api/rrhh/migrations/0008_alter_empleado_tipo_personal.py": {
+    "mtime": 1787850250.7279193,
+    "ast_hash": "02d661352ca807e57cd751909a93bdfc",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/__init__.py": {
+    "mtime": 1786820617.1333115,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/apps.py": {
+    "mtime": 1786820617.134318,
+    "ast_hash": "d5735d08a5e459ddccd40d3ab0d9c2a2",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/image_pipeline.py": {
+    "mtime": 1786820617.1353297,
+    "ast_hash": "56dd1eab4beb760cf1a7f9db8f07d7c2",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/migrations/0001_initial.py": {
+    "mtime": 1786820617.1373305,
+    "ast_hash": "438c9a4f65c57ebfb5b3048fe0d45e6a",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/migrations/0002_itemmenu_articulo.py": {
+    "mtime": 1786824164.586889,
+    "ast_hash": "aaa489321341d857ff4db6ead464c58b",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/migrations/0003_previewsesion.py": {
+    "mtime": 1787086180.4236743,
+    "ast_hash": "30e81908ea8496196ec8ba0e871ef648",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/migrations/0004_configuracionsitio_alineacion_menu_and_more.py": {
+    "mtime": 1787089175.3414204,
+    "ast_hash": "bfffe30ed44f2bc990c39299c133900f",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/migrations/0005_pagina_actualizado_por_pagina_eliminado_en_and_more.py": {
+    "mtime": 1787202816.9349053,
+    "ast_hash": "440f172123e7ef25daed951535b0cc9c",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/migrations/__init__.py": {
+    "mtime": 1786820617.1383367,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/models.py": {
+    "mtime": 1787202799.1304362,
+    "ast_hash": "22b17e7a240155db0c9ddb6ddfab8732",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/permissions.py": {
+    "mtime": 1786820617.1423306,
+    "ast_hash": "628b3955018ac74937a9e3ba9737d614",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/serializers.py": {
+    "mtime": 1787202881.4527702,
+    "ast_hash": "8706d6727d88325c7d937e7aa091ee4f",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/urls_admin.py": {
+    "mtime": 1787203078.210433,
+    "ast_hash": "e358cdc2d36860154da685f9896b9c35",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/urls_public.py": {
+    "mtime": 1787086311.2114148,
+    "ast_hash": "367b9f5768859bf9d6a7b8492a69a19f",
+    "semantic_hash": ""
+  },
+  "octopus-api/sitio/views.py": {
+    "mtime": 1787204528.5920908,
+    "ast_hash": "450cba08c47dd87f23976090b34dc13e",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/backup.py": {
+    "mtime": 1787237929.7659724,
+    "ast_hash": "52e5ace7436d47918f8371952f9a66fa",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/tasks.py": {
+    "mtime": 1787238011.769005,
+    "ast_hash": "3b9135e222554404195ab54dd49132a1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/cantina.service.js": {
+    "mtime": 1787848844.8883228,
+    "ast_hash": "f5686da6435cfee4842390493b77f243",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/api/sitio.service.js": {
+    "mtime": 1787204961.0933523,
+    "ast_hash": "964ff9b4f7d81a5c4da47564a4898edc",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/api/cantinaApiClient.js": {
+    "mtime": 1787175157.0747087,
+    "ast_hash": "91dd2285db0c971c7a1a18c598e54d34",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/components/CantinaLayout.jsx": {
+    "mtime": 1787930395.5322132,
+    "ast_hash": "ac4a6c7cb5e882815d1ef78d2f61d18c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/pages/CantinaCierreCaja.jsx": {
+    "mtime": 1787930489.7825806,
+    "ast_hash": "1e527e6a04e4b397f970c3aedb5d7e60",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/pages/CantinaInventario.jsx": {
+    "mtime": 1786820617.1672103,
+    "ast_hash": "dfd1887c5d6921eb9e69afc54d2a4b4b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/pages/CantinaMorosos.jsx": {
+    "mtime": 1786820617.1702094,
+    "ast_hash": "37a0e01d4884d699be7332cf1844db7d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/pages/CantinaPOS.jsx": {
+    "mtime": 1787930421.1518228,
+    "ast_hash": "e76f30709dee045d6e4abaa32e5f56e1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/pages/CantinaReportes.jsx": {
+    "mtime": 1786820617.1752076,
+    "ast_hash": "4cc3a6231b7b229723240b9c7d4922d8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/pages/CantinaTarjetas.jsx": {
+    "mtime": 1786820617.1772108,
+    "ast_hash": "16514045be1eab0009fd40242c612c0d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/cierre/ResumenCierreCaja.jsx": {
+    "mtime": 1786820617.1812239,
+    "ast_hash": "1d2f9eb010ae6a9e2fa7f90f12b3ccf3",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/inventario/AlertaStockBajo.jsx": {
+    "mtime": 1786820617.184208,
+    "ast_hash": "81412ba8c7525d5f468fd30924920e7a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/inventario/MovimientoStockModal.jsx": {
+    "mtime": 1787934452.3824897,
+    "ast_hash": "80b7dadd56842d990d8664b0d1aa7901",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/inventario/ProductoFormModal.jsx": {
+    "mtime": 1787947563.4702947,
+    "ast_hash": "b96bb4b785019b75e2fae72c1fcfe353",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/inventario/ProductosTable.jsx": {
+    "mtime": 1786820617.1902244,
+    "ast_hash": "87285e4a1c0a43b9045085efdea6bb20",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/AperturaCajaModal.jsx": {
+    "mtime": 1787848934.6297169,
+    "ast_hash": "a8dd1e49038d82ddda0dc38a9e25eceb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/BuscadorAlumnoManual.jsx": {
+    "mtime": 1786820617.1932278,
+    "ast_hash": "9fd11b805bc038a621dc9637f0e4af62",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/BuscadorProductoManual.jsx": {
+    "mtime": 1786820617.1952293,
+    "ast_hash": "83fed4fc0f704aac68d110978f108809",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/CarritoVenta.jsx": {
+    "mtime": 1786820617.1972225,
+    "ast_hash": "536bc34eec48559cc13ef22e09070d73",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/ResumenCobro.jsx": {
+    "mtime": 1787947563.6073172,
+    "ast_hash": "b548e74b61b6bcf477616ac0ee0153b9",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/ScannerProducto.jsx": {
+    "mtime": 1786820617.2007365,
+    "ast_hash": "f0fe288b09e56c48aa959a84f75f44af",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/ScannerTarjeta.jsx": {
+    "mtime": 1786820617.2027726,
+    "ast_hash": "b9cb54ca24012759a186fb487896db2f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/TicketVenta.jsx": {
+    "mtime": 1787934572.0954273,
+    "ast_hash": "2713b9d35f4340f4f483b07faf90218f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/reportes/HistorialVentasTable.jsx": {
+    "mtime": 1786820617.2087643,
+    "ast_hash": "a2387aeddcbee2d1de7de51801654da7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/reportes/MorosidadTable.jsx": {
+    "mtime": 1786820617.21077,
+    "ast_hash": "2b7641115a3d83b0bf35782f08f3966b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/reportes/ProductosMasVendidos.jsx": {
+    "mtime": 1786820617.2127674,
+    "ast_hash": "f8c7bc13de6dd2dbf999643d3f033da5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/reportes/VentasChart.jsx": {
+    "mtime": 1786820617.2147672,
+    "ast_hash": "96658e08a4ffdfeeef045747fd049867",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/AjustarCreditoModal.jsx": {
+    "mtime": 1787934608.397974,
+    "ast_hash": "2e9f134c0f7849c6d3a4af34addb9db2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/AsignarTarjetaModal.jsx": {
+    "mtime": 1787934687.03255,
+    "ast_hash": "6d3d5ca406d54d88e0e5d74f090fdefc",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/GenerarLoteModal.jsx": {
+    "mtime": 1787934722.9886985,
+    "ast_hash": "8c1a5cc4cfe8fb9ff5f28e3678a9607b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/ParametrosCreditoModal.jsx": {
+    "mtime": 1787934767.4395645,
+    "ast_hash": "3f7dfe07a0e055979948db8301dd7992",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/RecargaCajeroModal.jsx": {
+    "mtime": 1787947563.7347035,
+    "ast_hash": "29b6f147cbdaa0600dc96af2c2c41a43",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/RecargasPendientesList.jsx": {
+    "mtime": 1786820617.2283156,
+    "ast_hash": "ab88e548ecbfb3a031533b5ea0197a7e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/ReponerTarjetaModal.jsx": {
+    "mtime": 1787934924.323817,
+    "ast_hash": "7a323d797ee8837da054bcb53087ed54",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/TarjetasTable.jsx": {
+    "mtime": 1786820617.2312686,
+    "ast_hash": "a323f3f4b193b0f78d1fa2bf9f66ecbe",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/GenerarNominaModal.jsx": {
+    "mtime": 1787947564.537309,
+    "ast_hash": "de775dd371d2fadf7ffa541c998e7c49",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/nomina/HistorialRecibos.jsx": {
+    "mtime": 1787885792.077631,
+    "ast_hash": "435c7d4475397e8bd7191b295a26bd6a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/AnularPagoModal.jsx": {
+    "mtime": 1787935375.4502041,
+    "ast_hash": "272b150ed99ecab8bf7e4b5798602372",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/BancoSelect.jsx": {
+    "mtime": 1785979189.5668871,
+    "ast_hash": "88b6ae0828cb25cca6538827f43402e8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/BusinessIntelligenceTab.jsx": {
+    "mtime": 1787980405.0576415,
+    "ast_hash": "c315f3164db9f7aef5f7134b54cfacac",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/CargarPagoRetroactivoModal.jsx": {
+    "mtime": 1787947565.404895,
+    "ast_hash": "5859d8953dd81011c17f46406ecf764d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/CierreCajaTab.jsx": {
+    "mtime": 1787969715.617462,
+    "ast_hash": "56d9eb3f9be949e70908a9596262eb60",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/ClasificacionBatchModal.jsx": {
+    "mtime": 1787935520.1311145,
+    "ast_hash": "2d69af166a182da2623b3c5790c5a195",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/ClasificacionPagoModal.jsx": {
+    "mtime": 1787935639.5486214,
+    "ast_hash": "74d79ce2c2730f582b5211a24634da83",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/ClasificacionPagosTab.jsx": {
+    "mtime": 1787980730.451139,
+    "ast_hash": "d85d5b587e75f70849f15ffba198b826",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/ConciliacionTab.jsx": {
+    "mtime": 1787980544.9683354,
+    "ast_hash": "22592e7bab25a0cc784a165a7f3c9d5a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/CorreccionPagosTab.jsx": {
+    "mtime": 1787970104.1178784,
+    "ast_hash": "f10dd3ad9f728e1b54e028479f30fc6b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/CorregirPagoModal.jsx": {
+    "mtime": 1787947565.5366843,
+    "ast_hash": "96d2e95511ab3b05be340a2864f30505",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/HistoricoMensualTab.jsx": {
+    "mtime": 1787969835.5923526,
+    "ast_hash": "dbc9a6ee1b363614aaa2414d1eedb2b5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/PuntualidadTab.jsx": {
+    "mtime": 1787969975.1162884,
+    "ast_hash": "917b8b459e8a48eb8da271701236d526",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/reportes/TrendBadge.jsx": {
+    "mtime": 1785979185.12799,
+    "ast_hash": "bfae5f3cc3d0ec95b49fbbfc59ab0825",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/shared/Skeleton.jsx": {
+    "mtime": 1785977821.0913415,
+    "ast_hash": "66a4d9127831f15666ec8a7e48692c72",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/shared/Stepper.jsx": {
+    "mtime": 1785979805.7256074,
+    "ast_hash": "c35f91f7e903c3d083d3169aa61fb213",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/BibliotecaMedia.jsx": {
+    "mtime": 1787944591.668352,
+    "ast_hash": "a5669a4016486046d0ac71f1e6e71979",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/CrearPaginaModal.jsx": {
+    "mtime": 1787944734.753698,
+    "ast_hash": "4c38e3e2683d867157a280d47799e548",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditarPaginaModal.jsx": {
+    "mtime": 1787944834.3915558,
+    "ast_hash": "be889505d7c2ed9739cc81109d3efbeb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorArticulo.jsx": {
+    "mtime": 1787944631.9999979,
+    "ast_hash": "a43befed550409a4fef8571307524518",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/ConstructorPaginas.jsx": {
+    "mtime": 1787205399.164286,
+    "ast_hash": "25411f817502f61b0e2d0baef729a269",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/PanelPropiedadesBloque.jsx": {
+    "mtime": 1787947565.951592,
+    "ast_hash": "07f22b643be2e36cd2e48a6b0245d199",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/PreviewBloque.jsx": {
+    "mtime": 1786824493.5764375,
+    "ast_hash": "18df20e60f624e69d25f8e08ec8d9280",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/Cards.jsx": {
+    "mtime": 1786824469.3247366,
+    "ast_hash": "3c89318b5300173767a209a52dced51f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/Carrusel.jsx": {
+    "mtime": 1786824485.0620248,
+    "ast_hash": "6e36ac38884928f505aab72e9ea61285",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/Cta.jsx": {
+    "mtime": 1786824472.8066905,
+    "ast_hash": "cb1385f498e814fbd142a90bdc0635ac",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/Galeria.jsx": {
+    "mtime": 1786824462.5513134,
+    "ast_hash": "e305b99ef2040bb57043ae51b9d5c844",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/Hero.jsx": {
+    "mtime": 1786824452.369352,
+    "ast_hash": "868ed88c0f78089ccb84c5994f8d9e77",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/Testimonios.jsx": {
+    "mtime": 1786824478.5868378,
+    "ast_hash": "9c8cd8ee449adb5c23eaab6b3c7145ad",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/TextoImagen.jsx": {
+    "mtime": 1786824457.8092537,
+    "ast_hash": "7912b8c4b30ccc3adc2aba356c5dc96c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/EditorVisual/bloques/utils.js": {
+    "mtime": 1787088348.1278274,
+    "ast_hash": "cdd62a8602b142032ceb48123c99c45c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/GuardarComoModal.jsx": {
+    "mtime": 1787944659.2553551,
+    "ast_hash": "68b033d51a8c2f1f0ec7268b889ec851",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/TabPapelera.jsx": {
+    "mtime": 1787203443.168519,
+    "ast_hash": "c4516a01da838b74e155b95c23056a83",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/TablaArticulos.jsx": {
+    "mtime": 1786820629.4492738,
+    "ast_hash": "00fc979aea565ed91fffc646b89a5dc3",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/TablaPaginas.jsx": {
+    "mtime": 1787204024.7500122,
+    "ast_hash": "896f21c8828580a23ae1e9ac104a5d9a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/sitio/plantillas.js": {
+    "mtime": 1787088324.445925,
+    "ast_hash": "d9b4f93536de5509f25b94512ad343e3",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/constants/reportes.js": {
+    "mtime": 1786025387.3445084,
+    "ast_hash": "329ed2e81f9847f50f73bf454adaeebb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useDocentes.js": {
+    "mtime": 1787928163.1938317,
+    "ast_hash": "158cdb783f21029a1d3260159b2b978d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useMaterias.js": {
+    "mtime": 1787884649.0077069,
+    "ast_hash": "fff5241d202068f608aa16b51ce1c6dc",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/GestionSitio.jsx": {
+    "mtime": 1787960469.216653,
+    "ast_hash": "92d460d4ebc30f75626842f4b5489023",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Materias.jsx": {
+    "mtime": 1787930464.5291247,
+    "ast_hash": "614be07777a8b802ef583a9113d9140e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/MetricasSitio.jsx": {
+    "mtime": 1786820617.2531753,
+    "ast_hash": "53b139af56739991d9a307e91359e137",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/api/academico.service.js": {
+    "mtime": 1787174895.5280046,
+    "ast_hash": "b07eddf2a3ef465395c860ef08d02dcc",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/api/colegio.service.js": {
+    "mtime": 1787174953.413723,
+    "ast_hash": "7d7fcc974e54dcc7efe2bae2a1b15625",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/api/comunicacion.service.js": {
+    "mtime": 1787174926.8134646,
+    "ast_hash": "55160f0aa0697e37c619e8863e156ee1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/api/perfil.service.js": {
+    "mtime": 1787175008.8947206,
+    "ast_hash": "718c3fc40aa1b9b8fe6bd750e120bb49",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/api/planEvaluacion.service.js": {
+    "mtime": 1787174979.098601,
+    "ast_hash": "c28daf4cce47d82c54d8a2698e9dd231",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/DesktopRail.jsx": {
+    "mtime": 1785857429.7506504,
+    "ast_hash": "50002aaa84c2d276e51f5a851b29526b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/DocenteLayout.jsx": {
+    "mtime": 1787174733.0774474,
+    "ast_hash": "0c1b7facf7c8becd79ef11064059ad35",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/ModalNuevoEvento.jsx": {
+    "mtime": 1787947569.6056213,
+    "ast_hash": "09d87535f6c3d383a47408cef130fea8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/planEvaluacion/PlanEvaluacionPanel.jsx": {
+    "mtime": 1787947569.730064,
+    "ast_hash": "dceb9460d566e4bcfabe86096e7dbdd5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/ModalEvolucionAlumno.jsx": {
+    "mtime": 1785819016.173936,
+    "ast_hash": "2f7f7eb78b83f4ced7f37f521599cabe",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetAccionesRapidas.jsx": {
+    "mtime": 1787947569.8819993,
+    "ast_hash": "3e7abbda07b4d60f9d4d0ae12f23c24f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetActividadSemana.jsx": {
+    "mtime": 1785801081.98832,
+    "ast_hash": "137280b9b1ef2ecc81af78cbd2192a12",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetCalendario.jsx": {
+    "mtime": 1785857371.9794946,
+    "ast_hash": "6661ef4e827f80f91bb4182a25775f3e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetHero.jsx": {
+    "mtime": 1787947570.0116084,
+    "ast_hash": "16ea2bf5241647999edc0d92ce132a3b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetIncidentes.jsx": {
+    "mtime": 1785801034.8019235,
+    "ast_hash": "90ae2ffc72cfa9f9164e6796352aa68e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetMateriasTabla.jsx": {
+    "mtime": 1785818210.4828296,
+    "ast_hash": "2659f15cfa49127959adceb324e87361",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetMensajes.jsx": {
+    "mtime": 1785801024.5959504,
+    "ast_hash": "2c479b0ad54225daf9db7a22b54e7d89",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetPerfilDocente.jsx": {
+    "mtime": 1787947570.1435695,
+    "ast_hash": "6998cd61b70e0b8b228a8014005328bf",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetProgresoNotas.jsx": {
+    "mtime": 1785801070.5456996,
+    "ast_hash": "25cbfea7a9f569a75ae78bb009d9e127",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/WidgetProximasClases.jsx": {
+    "mtime": 1785818364.2754915,
+    "ast_hash": "73485379fbf76235f34e529f645013dc",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/components/widgets/shared.jsx": {
+    "mtime": 1785800993.9375453,
+    "ast_hash": "285bb9f10e3add65ea27f0b7b1ecc318",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useAlumnosSeccion.js": {
+    "mtime": 1785792248.7134755,
+    "ast_hash": "aed51cc461cf651d18698bd8c36e5a6f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useConfigColegio.js": {
+    "mtime": 1787175033.481923,
+    "ast_hash": "98aaabc84d3e3bd0cb22a12a9f470150",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteAlertasRiesgo.js": {
+    "mtime": 1785818265.7509634,
+    "ast_hash": "d7bd965f72a88c92cd01910027c96e4d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteComparacionMateria.js": {
+    "mtime": 1785818197.7655678,
+    "ast_hash": "f9e98c6d2b4c79f877d7f03318159d8e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteConversaciones.js": {
+    "mtime": 1785797886.1402738,
+    "ast_hash": "65150782a81eb6db14d52bb2a253354f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteEventosCalendario.js": {
+    "mtime": 1785798945.2626572,
+    "ast_hash": "bce8717f1435c6cb2af4fc1f5921f0e4",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteHorarioSemana.js": {
+    "mtime": 1785797777.7945468,
+    "ast_hash": "400ea3811fa76326925563fa6eca0f4a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteIncidentes.js": {
+    "mtime": 1785818977.9893613,
+    "ast_hash": "70bf4da52e7f85e0858dfe8da484abd5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteMateriales.js": {
+    "mtime": 1785792239.9401848,
+    "ast_hash": "ee45993863b41efdd89aac6e4829f61a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteMensajes.js": {
+    "mtime": 1785792280.6350894,
+    "ast_hash": "3bbb4a1d51d84105fa4480784195fef0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteMisMaterias.js": {
+    "mtime": 1785792231.5474274,
+    "ast_hash": "4901edccffddde58f133411a7e739491",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocentePerfil.js": {
+    "mtime": 1785800965.3890915,
+    "ast_hash": "5ce0dd9ae48a2f5f5bd905bd3784ba34",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocentePlanEvaluacion.js": {
+    "mtime": 1785816435.653491,
+    "ast_hash": "7e7efe510a70903f9188ca9f71f97298",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteProgresoNotas.js": {
+    "mtime": 1785799783.981715,
+    "ast_hash": "9a4cbc96097d9748d586ef7ae01db684",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteProximasEvaluaciones.js": {
+    "mtime": 1785813648.2069812,
+    "ast_hash": "43e6954cc8cb3c6dd08574ef4a1c6dd8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/hooks/useDocenteRadarCierreLapso.js": {
+    "mtime": 1785818271.8936255,
+    "ast_hash": "ee9453ee5d84e155841d8fbb5dc8729f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocenteCambiarContrasena.jsx": {
+    "mtime": 1785800946.4723043,
+    "ast_hash": "f24ec7e4d77cf60f1b22811b8c45b6ee",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocenteDashboard.jsx": {
+    "mtime": 1787947570.3987992,
+    "ast_hash": "e3413fcad722adc744dc893171cea389",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocenteIncidentes.jsx": {
+    "mtime": 1785818992.8270538,
+    "ast_hash": "0dfb9f50def3770ed22948202cad774b",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocenteMateriaDetalle.jsx": {
+    "mtime": 1787947570.528079,
+    "ast_hash": "3d06047ac8f2df8435564eb92d87d1b0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocenteMaterias.jsx": {
+    "mtime": 1785800946.1990736,
+    "ast_hash": "a0299791ed811bf8603954b6f8692cf0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocenteMensajes.jsx": {
+    "mtime": 1785818932.5619526,
+    "ast_hash": "f3004807ab80dcf2ea972ae68f436820",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/pages/DocentePerfil.jsx": {
+    "mtime": 1785801332.282015,
+    "ast_hash": "cd02b54039d149afaa4c020c8e8848c5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/api/notificaciones.service.js": {
+    "mtime": 1785266179.9726276,
+    "ast_hash": "222ad448317f4ebc7c93337beee6e857",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/api/perfil.service.js": {
+    "mtime": 1785941748.4274511,
+    "ast_hash": "75ae35d42dc6c35c9e3e364ae8c83a5f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/HistorialConsumoList.jsx": {
+    "mtime": 1786820617.256417,
+    "ast_hash": "b3c4b66167af9afee78f65cfdef745d3",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/NotificacionesModal.jsx": {
+    "mtime": 1785266134.2290044,
+    "ast_hash": "e47686b10e14327b86bba7e1a94e54fa",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/RecargarTarjetaModal.jsx": {
+    "mtime": 1787947569.3369753,
+    "ast_hash": "684acaa5e7c92319b625a60b3316ed65",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/RepresentanteRail.jsx": {
+    "mtime": 1786910607.2690158,
+    "ast_hash": "e47ff5be19cd4ed3e01c8f40988430d5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/SaldoTarjetaCard.jsx": {
+    "mtime": 1786820617.260417,
+    "ast_hash": "e5d461ba232b40ff16cab03063ae3d3f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetAccionesRapidas.jsx": {
+    "mtime": 1787947569.4817889,
+    "ast_hash": "2da8380736536fb2f3cf4c702d3f52f7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetHeroPortal.jsx": {
+    "mtime": 1785941822.2462306,
+    "ast_hash": "8794e63dcb236f3809c03acbe2b36663",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetProximosVencimientos.jsx": {
+    "mtime": 1785941816.508309,
+    "ast_hash": "04e10de625e9d81d2e33e43b2b0324f2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetResumenFinanciero.jsx": {
+    "mtime": 1785941811.7824137,
+    "ast_hash": "c5f701180051debe634b250f2832034d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetUltimosPagos.jsx": {
+    "mtime": 1785941823.7814038,
+    "ast_hash": "c3d27e10ec31b04f02dfc46b93ebc565",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/context/AlumnoActivoContext.jsx": {
+    "mtime": 1787847211.6916287,
+    "ast_hash": "2df2e86a84981616fbfd692289eef9ed",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/hooks/usePortalHeroExtra.js": {
+    "mtime": 1785941851.2597313,
+    "ast_hash": "21e13d1813f264e4d9b846aec216e18e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/hooks/usePortalPerfil.js": {
+    "mtime": 1785941751.7806225,
+    "ast_hash": "bed83bfd60157f7778b36a08a5f0ff28",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/hooks/useWebPush.js": {
+    "mtime": 1785266043.5239217,
+    "ast_hash": "df84debaac5380b2775b2ae488ca95f2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalCantina.jsx": {
+    "mtime": 1787847650.0643854,
+    "ast_hash": "dbbec89b69b0179d9e33247306275084",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalOlvideContrasena.jsx": {
+    "mtime": 1787236113.045832,
+    "ast_hash": "77d9888bda72baff25a54dbe9841eadb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalPerfil.jsx": {
+    "mtime": 1785941780.5249748,
+    "ast_hash": "c40681ec773b7a6d5978ab2dae59fcea",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/pages/PortalRestablecerContrasena.jsx": {
+    "mtime": 1787236156.2283335,
+    "ast_hash": "7a21b1a59b6e3b3d186d1a974cc16cca",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/.impeccable/hook.cache.json": {
+    "mtime": 1786906009.708335,
+    "ast_hash": "78aebf3cdb135bd38824bf62e91fd6a0",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/eslint.config.js": {
+    "mtime": 1786820617.2674224,
+    "ast_hash": "fa91453358b56681481f75f81d1bfccd",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/package.json": {
+    "mtime": 1786905758.9523888,
+    "ast_hash": "7cfc8971a768b7db13112d5b12614f3e",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/postcss.config.js": {
+    "mtime": 1786820617.2797728,
+    "ast_hash": "f76ebbe853096bd5c029b754dad8eab8",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/App.jsx": {
+    "mtime": 1787086411.575352,
+    "ast_hash": "420f915e7f92628979e8bc7fa5493659",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/api/mocks.js": {
+    "mtime": 1786820617.2897885,
+    "ast_hash": "de34087bb935eed071e9b724bc4a740f",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/api/sitio.service.js": {
+    "mtime": 1787086356.9593,
+    "ast_hash": "550787df46d71de661a2df8db372ad07",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/api/sitioClient.js": {
+    "mtime": 1786820617.293251,
+    "ast_hash": "921155f2bd3822b4efcd972103dbb8e6",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/components/bloques/RenderSeccion.jsx": {
+    "mtime": 1786905858.3732169,
+    "ast_hash": "d35670dcc47cf8434f37746a5367d8b5",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/components/ui/SeccionesSkeleton.jsx": {
+    "mtime": 1786820617.318496,
+    "ast_hash": "c6cd6bb0f3421844ac744e6e3632a047",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/components/ui/Skeleton.jsx": {
+    "mtime": 1786820617.319515,
+    "ast_hash": "e6655f96340dce8d6486b0a5c7c0d424",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/context/ConfiguracionContext.jsx": {
+    "mtime": 1786906008.794281,
+    "ast_hash": "e911c43ab42ca74d3c636297242fff3f",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/context/ConfiguracionContextValue.jsx": {
+    "mtime": 1786820617.331075,
+    "ast_hash": "3b8ee8c43767b5336975efbf954fe238",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/hooks/useConfiguracion.js": {
+    "mtime": 1786820617.3340726,
+    "ast_hash": "675ee9314d2bc16462a96acb63c13d11",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/hooks/useSeo.js": {
+    "mtime": 1786820617.3360732,
+    "ast_hash": "81ecf5c50c05398ab9c28b2dc494845d",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/layouts/LayoutPublico.jsx": {
+    "mtime": 1787089363.843353,
+    "ast_hash": "77fb1341e4aba670dddd25a85c8df982",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/lib/itemMenuUrl.js": {
+    "mtime": 1786824222.7491393,
+    "ast_hash": "f0b490823bb86a8dbe93369e2fec263c",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/lib/media.js": {
+    "mtime": 1787088371.9162698,
+    "ast_hash": "98820b7ca2b9df0c6c8aeb369119bcf7",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/main.jsx": {
+    "mtime": 1786820617.3532999,
+    "ast_hash": "d667f2a54978de42e5310b02f1ade3e8",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/pages/ArticuloDetalle.jsx": {
+    "mtime": 1786823800.1728847,
+    "ast_hash": "05ac8b309033d46d64cea3648f08f5da",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/pages/Articulos.jsx": {
+    "mtime": 1786910474.6369803,
+    "ast_hash": "d4956c3a0936962f7b4e2a365833b65b",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/pages/Home.jsx": {
+    "mtime": 1786910535.9411123,
+    "ast_hash": "edab365e689e628dbc21bf8edcaf2b2d",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/pages/NotFound.jsx": {
+    "mtime": 1786910482.0986643,
+    "ast_hash": "f29285d56015fce4fb0af0291aa1e1cb",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/pages/PaginaDinamica.jsx": {
+    "mtime": 1786910525.2928135,
+    "ast_hash": "aa6afe4d7b287538b9efbcaf9f71aa9e",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/pages/PaginaPreview.jsx": {
+    "mtime": 1787205266.3338327,
+    "ast_hash": "104fac0e86ab0981033a9cdb855cca37",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/ArticuloLectura.jsx": {
+    "mtime": 1786820617.375169,
+    "ast_hash": "ffadbd7b7406ed93e9363b3c9b8a9c34",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/GaleriaPlantillas.jsx": {
+    "mtime": 1786820617.377413,
+    "ast_hash": "dfa0bc79ce8411dff6d5d357ace7db42",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/HomePatio.jsx": {
+    "mtime": 1786820617.3804152,
+    "ast_hash": "dea8859571d886640e3a14ae1fcc1779",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/HomeUmbral.jsx": {
+    "mtime": 1786820617.381415,
+    "ast_hash": "074deadea2f129606a9a2e1f1c160b77",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/_kit/animaciones.js": {
+    "mtime": 1786820617.3844316,
+    "ast_hash": "d52dd5e4fea3d6c2e7c9367e9599ebc9",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/_kit/bloques.jsx": {
+    "mtime": 1787199180.7165985,
+    "ast_hash": "b5ec1cd96b1eb1b359ad974ac37cd126",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/_kit/chrome.jsx": {
+    "mtime": 1786820617.3904338,
+    "ast_hash": "e48732b82bf87dca247f0e51c34ccb81",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/_kit/primitivos.jsx": {
+    "mtime": 1786906372.410899,
+    "ast_hash": "baf2bcd5164d07c4ca9d93ab90ae3211",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/_kit/tema.js": {
+    "mtime": 1787089284.9542563,
+    "ast_hash": "f31dd66976716967fbb405932b23391d",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/datosDemo.js": {
+    "mtime": 1786820617.3979673,
+    "ast_hash": "afefa42f5d5b65e9c901dc4522573a3c",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/src/templates/index.js": {
+    "mtime": 1786820617.4000814,
+    "ast_hash": "a8d4255cb450149952ad75e946c57ad9",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/vite.config.js": {
+    "mtime": 1787086485.2791543,
+    "ast_hash": "cf62a5abc9a26a6dd307905ad30446ae",
+    "semantic_hash": ""
+  },
+  ".github/dependabot.yml": {
+    "mtime": 1787235177.9179811,
+    "ast_hash": "92fe6ed6a969585933cbe5e600572f9a",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1787236402.2489164,
+    "ast_hash": "3cc7f55c40911851269db6b504e9588b",
+    "semantic_hash": ""
+  },
+  "PLAN_SITIO_INSTITUCIONAL.md": {
+    "mtime": 1786911487.7171257,
+    "ast_hash": "e1465ea461873166d4658134c74029d3",
+    "semantic_hash": ""
+  },
+  "PLAN_UPGRADE_PORTAL_REPRESENTANTES.md": {
+    "mtime": 1785899867.8803675,
+    "ast_hash": "47e277262f8d67b1eddae3e35489e42f",
+    "semantic_hash": ""
+  },
+  "PRIVACIDAD_BORRADOR.md": {
+    "mtime": 1787238248.1367464,
+    "ast_hash": "120c47bcde9d6cff2c5ff9e9e4f4329b",
+    "semantic_hash": ""
+  },
+  "SITIO_CONTRATO_API.md": {
+    "mtime": 1786905416.462788,
+    "ast_hash": "a79e2c79d0fc0b2122936ed89175633a",
+    "semantic_hash": ""
+  },
+  "STAGING.md": {
+    "mtime": 1787238199.384475,
+    "ast_hash": "2dc58fc46c080a4bb85c8f5c1eb18363",
+    "semantic_hash": ""
+  },
+  "cantina.md": {
+    "mtime": 1786820616.9017277,
+    "ast_hash": "b30539668d9ae630453a2275deba5ba6",
+    "semantic_hash": ""
+  },
+  "deploy/nginx/README.md": {
+    "mtime": 1786907958.0695927,
+    "ast_hash": "6a3985726715fc8e9b578cdb836e754b",
+    "semantic_hash": ""
+  },
+  "octopus-api/EMAIL_SPF_DKIM_DMARC.md": {
+    "mtime": 1787238118.146223,
+    "ast_hash": "db377ab2b46f5a805115dccea9798730",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/templates/notificaciones/cantina_recarga_aprobada.html": {
+    "mtime": 1786820617.1260214,
+    "ast_hash": "19b29337e8719eb84944a2dbabbaab8e",
+    "semantic_hash": ""
+  },
+  "octopus-api/notificaciones/templates/notificaciones/cantina_saldo_negativo.html": {
+    "mtime": 1786820617.1283123,
+    "ast_hash": "9030957b2bca9e621d46daa52873b0cb",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/DESIGN_SYSTEM.md": {
+    "mtime": 1786820779.2783103,
+    "ast_hash": "387245ffb9d85b8888519a6e44570cbd",
+    "semantic_hash": ""
+  },
+  "octopus-sitio/index.html": {
+    "mtime": 1786820617.2697759,
+    "ast_hash": "7120aa2514175ce2ee082b6b111f3119",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/public/icons/icon-192.png": {
+    "mtime": 1785265844.1792135,
+    "ast_hash": "44b877b70aa73ef15a83723098462d03",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/public/icons/icon-512.png": {
+    "mtime": 1785265845.096849,
+    "ast_hash": "9796f93db3ed87dead54c7eeeb80718c",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/management/__init__.py": {
+    "mtime": 1787927840.2692935,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/management/commands/__init__.py": {
+    "mtime": 1787927843.199884,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/management/commands/sincronizar_docentes.py": {
+    "mtime": 1787927867.7248607,
+    "ast_hash": "47d5eb11395a2233464a3de705bdb525",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0013_docente_historicaldocente.py": {
+    "mtime": 1787927785.0245006,
+    "ast_hash": "50afc8be2ac00b4a29135f4810fbfad3",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0033_parametroglobal_valor_textfield.py": {
+    "mtime": 1787885412.5031216,
+    "ast_hash": "421c5906291d5d9e91a7c563ee7de984",
+    "semantic_hash": ""
+  },
+  "octopus-api/nomina/migrations/0007_arreglos_auditoria.py": {
+    "mtime": 1787885652.714647,
+    "ast_hash": "33b941abfb44f4abd9e8320dfe81e7bd",
+    "semantic_hash": ""
+  },
+  "octopus-api/rrhh/migrations/0009_arreglos_auditoria.py": {
+    "mtime": 1787885652.7176852,
+    "ast_hash": "4ba1835334c62f0e652b0569d10f9ea6",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/.impeccable/hook.cache.json": {
+    "mtime": 1787982023.5861976,
+    "ast_hash": "44c02d6e6faabeac8b21613692aa736c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/docentes/ModalAsignarMaterias.jsx": {
+    "mtime": 1787935027.8496435,
+    "ast_hash": "ef9cc2ee7e791d3fb5e00bbbc9325e39",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/docentes/ModalDocente.jsx": {
+    "mtime": 1787935079.680493,
+    "ast_hash": "13ad16ce184b726d71e1c8a3480fbd10",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useDocentesAdmin.js": {
+    "mtime": 1787928218.5504441,
+    "ast_hash": "1eb7982c6be7970da3945a7d19c56783",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/Docentes.jsx": {
+    "mtime": 1787928417.6267598,
+    "ast_hash": "02027f001294d9b5de2db5747b3dfbdb",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/management/__init__.py": {
+    "mtime": 1787929841.2555761,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/management/commands/__init__.py": {
+    "mtime": 1787929845.7037652,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "octopus-api/usuarios/management/commands/completar_nombres.py": {
+    "mtime": 1787929878.6347184,
+    "ast_hash": "a25bee51d91f11d1b516e5787aea3535",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/utils/nombreUsuario.js": {
+    "mtime": 1787929948.951118,
+    "ast_hash": "c7656d6633deebf28c9d61220d63144e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/Modal.jsx": {
+    "mtime": 1787935333.2958581,
+    "ast_hash": "3261936419a65561b919e79274a7fa72",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/TablaScroll.jsx": {
+    "mtime": 1787931806.236996,
+    "ast_hash": "b9602c38205558380625bea1a8f49f76",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/Card.jsx": {
+    "mtime": 1787966217.1357207,
+    "ast_hash": "860f77d5fb1270acd585631d0760feb0",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/PageHeader.jsx": {
+    "mtime": 1787966234.1580412,
+    "ast_hash": "94541f3423dfb71b9ba8f832e1899560",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/ui/Tabla.jsx": {
+    "mtime": 1787966284.2853956,
+    "ast_hash": "8c28def7f73d72462d008a2e7a6ab519",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/hooks/useSidebarPrefs.js": {
+    "mtime": 1787967968.2460072,
+    "ast_hash": "d48ce19388354a192b0a49bdfa2f35ee",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/assets/octopus-symbol.png": {
+    "mtime": 1787968797.580324,
+    "ast_hash": "bcc3842737d34400dcab606ec24d191c",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/assets/octopus-symbol.svg": {
+    "mtime": 1787968797.4942715,
+    "ast_hash": "af4debdfa065e545439b8279cf9541be",
+    "semantic_hash": ""
+  }
+}

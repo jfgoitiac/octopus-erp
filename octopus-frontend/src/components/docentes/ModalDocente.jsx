@@ -37,12 +37,12 @@ export const ModalDocente = ({ docente, docentesDisponibles = [], saving, onClos
   const footer = (
     <>
       <button type="button" onClick={onClose}
-        className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm"
+        className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm"
         style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
         Cancelar
       </button>
       <button type="submit" form="form-docente" disabled={saving}
-        className="w-full sm:w-auto py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
+        className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
         style={{ background: 'var(--pb)' }}>
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         {form.id ? 'Actualizar' : 'Agregar'}

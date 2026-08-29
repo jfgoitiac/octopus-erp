@@ -90,7 +90,7 @@ export default function ParametrosCreditoModal({ onClose }) {
       <button
         onClick={handleClose}
         disabled={guardando}
-        className="w-full sm:w-auto rounded-xl py-2.5 text-sm min-h-[44px] disabled:opacity-40"
+        className="w-full sm:w-auto px-4 rounded-xl py-2.5 text-sm min-h-[44px] disabled:opacity-40"
         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
       >
         Cancelar
@@ -98,7 +98,7 @@ export default function ParametrosCreditoModal({ onClose }) {
       <button
         onClick={handleGuardar}
         disabled={guardando || cargando}
-        className="w-full sm:w-auto text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+        className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
         style={{ background: 'var(--pb)' }}
       >
         {guardando ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : 'Guardar'}

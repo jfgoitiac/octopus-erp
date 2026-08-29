@@ -65,12 +65,12 @@ const CrearUsuarioModal = ({ onClose, onCreate }) => {
     const footer = (
         <>
             <button type="button" onClick={onClose} disabled={loading}
-                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium transition-all"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium transition-all"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                 Cancelar
             </button>
             <button type="submit" form="form-crear-usuario" disabled={loading || (Object.keys(touched).length > 0 && !canSubmit)}
-                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: 'var(--pb)' }}>
                 {loading ? <Loader2 className="animate-spin" size={15} /> : <UserPlus size={15} />}
                 {loading ? 'Creando...' : 'Crear usuario'}

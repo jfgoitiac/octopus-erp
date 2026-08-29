@@ -23,12 +23,12 @@ export function EmpleadoModal({
     const footer = (
         <>
             <button type="button" onClick={onClose}
-                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                 Cancelar
             </button>
             <button type="submit" form="form-empleado" disabled={isBusy}
-                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: 'var(--pb)' }}>
                 {isBusy
                     ? <><Loader2 className="animate-spin" size={15} /> Guardando...</>

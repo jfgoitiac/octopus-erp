@@ -420,9 +420,9 @@ const CobranzaStep1 = ({
     );
 
     return (
-        <Card padding="none" className={`max-w-2xl mx-auto anim-fade-up ${!representanteNombre ? 'py-16' : 'py-4'}`}>
+        <Card className="max-w-2xl mx-auto anim-fade-up">
             {/* Search box */}
-            <div className="rounded-xl p-5 mb-5" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+            <div className="mb-5">
                 <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
                     Cédula del representante
                 </label>

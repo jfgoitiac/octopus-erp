@@ -1,5 +1,5 @@
 import { useContext, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
 import { useSede } from '../context/SedeContext';
@@ -7,10 +7,9 @@ import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
 import SedeSwitcher from './SedeSwitcher';
 import logoColegio from '../assets/logo-colegio.png';
-import { nombreUsuario, inicialesUsuario } from '../utils/nombreUsuario';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
-  BarChart3, Wrench, LogOut, ShieldCheck,
+  BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
   Pin, PinOff, ChevronDown
@@ -140,15 +139,13 @@ const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFa
 };
 
 const Sidebar = ({ open = false, onClose = () => {} }) => {
-  const { user, logout, loading } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
   const { sedes, sedeActiva, cambiarSede } = useSede();
   const { config } = useConfiguracion();
-  const navigate = useNavigate();
   const location = useLocation();
   const { favoritos, gruposColapsados, toggleFavorito, toggleGrupo, esFavorito } = useSidebarPrefs(user?.username);
 
   const userRole = (user?.rol || '').toLowerCase().trim();
-  const initials = inicialesUsuario(user);
 
   const handleToggleFavorito = (item) => {
     const yaEraFavorito = esFavorito(item.path);
@@ -173,11 +170,9 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, userRole]);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
-
   if (loading) return (
     <div
-      className={`w-[var(--sidebar-w)] fixed left-0 z-40 flex items-center justify-center ${SIDEBAR_POS}`}
+      className={`w-[var(--sidebar-w)] fixed left-0 z-40 flex items-center justify-center rounded-tl-[calc(var(--shell-radius)/2)] md:rounded-tl-[var(--shell-radius)] rounded-bl-[calc(var(--shell-radius)/2)] md:rounded-bl-[var(--shell-radius)] ${SIDEBAR_POS}`}
       style={{ background: 'var(--bg)' }}
     >
       <Loader2 className="animate-spin" size={24} style={{ color: 'var(--pb)' }} />
@@ -196,7 +191,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
       />
 
     <div
-      className={`w-[var(--sidebar-w)] flex flex-col fixed left-0 z-40 transition-transform duration-300 ease-in-out ${SIDEBAR_POS} ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      className={`w-[var(--sidebar-w)] flex flex-col fixed left-0 z-40 transition-transform duration-300 ease-in-out rounded-tl-[calc(var(--shell-radius)/2)] md:rounded-tl-[var(--shell-radius)] rounded-bl-[calc(var(--shell-radius)/2)] md:rounded-bl-[var(--shell-radius)] ${SIDEBAR_POS} ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       style={{ background: 'var(--bg)', borderRight: '1px solid var(--border)' }}
     >
       {/* Logo */}
@@ -212,11 +207,10 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
         <img
           src={logoColegio}
           alt="Logo del colegio"
-          className="w-9 h-9 object-contain flex-shrink-0"
+          className="w-11 h-11 object-contain flex-shrink-0"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-none text-gradient">Octopus</p>
-          <p className="text-[10px] font-medium leading-tight mt-0.5 break-words" style={{ color: 'var(--jet)' }}>
+          <p className="text-sm font-semibold leading-tight break-words" style={{ color: 'var(--jet)' }}>
             {config.nombre_colegio || sedeActiva?.nombre || 'ERP v2'}
           </p>
         </div>
@@ -324,40 +318,6 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
         })()}
       </nav>
 
-      {/* Usuario + logout — anclados abajo, siempre alcanzables */}
-      <div className="flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
-        <div className="mx-2.5 my-2.5 p-3 rounded-xl flex items-center gap-2.5" style={{ background: 'var(--surface)' }}>
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)', boxShadow: '0 2px 8px rgba(15,163,177,0.35)' }}
-          >
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
-              {nombreUsuario(user)}
-            </p>
-            <span
-              className="text-[10px] px-2 py-0.5 rounded-full mt-0.5 inline-block capitalize"
-              style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
-            >
-              {userRole || 'Sin rol'}
-            </span>
-          </div>
-        </div>
-        <div className="px-2.5 pb-2.5">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-[var(--red-light)]"
-            style={{ color: 'var(--ash)' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; }}
-          >
-            <LogOut size={15} />
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-      </div>
     </div>
     </>
   );

@@ -1174,12 +1174,12 @@ const Pagos = () => {
                         <>
                             <button type="button"
                                 onClick={() => { setShowConceptoModal(false); setConceptoPago(''); }}
-                                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium"
                                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleConfirmarGeneracion}
-                                className="w-full sm:w-auto flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white"
+                                className="w-full sm:w-auto px-4 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-white"
                                 style={{
                                     background: conceptoFor === 'incentivo' ? '#004FA3'
                                               : conceptoFor === 'nomina'    ? '#6d28d9'

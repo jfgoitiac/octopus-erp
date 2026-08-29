@@ -43,7 +43,7 @@ const SedeCard = ({ sede, onVerDetalle }) => {
 
   return (
     <article
-      className="rounded-xl p-4 card-lift"
+      className="rounded-[var(--radius-card)] p-4 card-lift"
       style={{
         background:    'var(--porcelain)',
         border:        '0.5px solid var(--border-md)',

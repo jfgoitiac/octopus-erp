@@ -5,12 +5,12 @@ const ConfirmDeleteModal = ({ titulo, nombre, mensaje, labelBoton = 'Eliminar', 
     const footer = (
         <>
             <button type="button" onClick={onCancel}
-                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                 Cancelar
             </button>
             <button type="button" onClick={onConfirm}
-                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
                 style={{ background: 'var(--red)' }}>
                 <Trash2 size={16} /> {labelBoton}
             </button>

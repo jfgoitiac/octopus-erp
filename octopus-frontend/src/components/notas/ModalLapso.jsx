@@ -21,7 +21,7 @@ export function ModalLapso({
     <>
       <button
         onClick={onClose}
-        className="w-full sm:w-auto rounded-xl py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
+        className="w-full sm:w-auto rounded-xl px-4 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
       >
         Cancelar
@@ -29,7 +29,7 @@ export function ModalLapso({
       <button
         onClick={onGuardar}
         disabled={guardando}
-        className="w-full sm:w-auto text-white rounded-xl py-2 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:enabled:bg-[var(--pb-mid)]"
+        className="w-full sm:w-auto text-white rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:enabled:bg-[var(--pb-mid)]"
         style={{ background: 'var(--pb)' }}
       >
         {guardando

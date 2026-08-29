@@ -40,12 +40,12 @@ const SelectorCamposPreinscripcion = ({ modo, generando, onCerrar, onGenerar }) 
     const footer = (
         <>
             <button onClick={handleClose} disabled={generando}
-                className="w-full sm:w-auto py-3 rounded-xl font-bold disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-3 rounded-xl font-bold disabled:opacity-50"
                 style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
                 Cancelar
             </button>
             <button onClick={handleGenerar} disabled={generando}
-                className="w-full sm:w-auto py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-white disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-white disabled:opacity-50"
                 style={{ background: 'var(--pb)' }}>
                 {generando ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
                 {generando ? 'Generando...' : 'Generar'}

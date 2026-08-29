@@ -23,12 +23,12 @@ const GuardarComoModal = ({
   const footer = (
     <>
       <button type="button" onClick={handleClose} disabled={guardando}
-        className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
+        className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
         style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
         Cancelar
       </button>
       <button type="submit" form="form-guardar-plantilla" disabled={guardando || !nombre.trim()}
-        className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+        className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
         style={{ background: 'var(--pb)' }}>
         {guardando ? <Loader2 className="animate-spin" size={16} /> : <LayoutTemplate size={16} />}
         Guardar

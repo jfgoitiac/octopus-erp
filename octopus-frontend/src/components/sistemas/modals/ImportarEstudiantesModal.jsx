@@ -28,13 +28,13 @@ const ImportarEstudiantesModal = ({ onClose, onPreview, onConfirm, loadingPrevie
     const footer = (
         <>
             <button type="button" onClick={onClose} disabled={loadingConfirm}
-                className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium transition-all"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium transition-all"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}>
                 Cancelar
             </button>
             {resumen && (
                 <button onClick={handleConfirmar} disabled={loadingConfirm}
-                    className="w-full sm:w-auto py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                     style={{ background: 'var(--pb)' }}>
                     {loadingConfirm ? <Loader2 className="animate-spin" size={15} /> : <Upload size={15} />}
                     {loadingConfirm ? 'Importando...' : `Confirmar (${resumen.total - resumen.con_errores})`}

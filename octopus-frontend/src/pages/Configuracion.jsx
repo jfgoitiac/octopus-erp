@@ -1088,12 +1088,12 @@ const Configuracion = () => {
                     footer={(
                         <>
                             <button type="button" onClick={() => setShowLogosModal(false)} disabled={savingLogos}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveLogos} disabled={savingLogos}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
                                 style={{ background: 'var(--pb)' }}>
                                 {savingLogos ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar logos
@@ -1154,12 +1154,12 @@ const Configuracion = () => {
                     footer={(
                         <>
                             <button type="button" onClick={() => setShowGradoModal(false)}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveGrado} disabled={gradoSaving}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {gradoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
@@ -1201,12 +1201,12 @@ const Configuracion = () => {
                     footer={(
                         <>
                             <button type="button" onClick={() => setShowTipoCargoModal(false)}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveTipoCargo} disabled={tipoCargoSaving}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {tipoCargoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
@@ -1260,12 +1260,12 @@ const Configuracion = () => {
                     footer={(
                         <>
                             <button type="button" onClick={() => setShowBancoModal(false)}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveBanco} disabled={bancoSaving}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {bancoSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
@@ -1338,12 +1338,12 @@ const Configuracion = () => {
                     footer={(
                         <>
                             <button type="button" onClick={() => setShowBancoNominaModal(false)}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button" onClick={handleSaveBancoNomina} disabled={bancoNominaSaving}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50"
                                 style={{ background: 'var(--pb)' }}>
                                 {bancoNominaSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar
@@ -1428,13 +1428,13 @@ const Configuracion = () => {
                     footer={(
                         <>
                             <button type="button" onClick={() => setShowQuitarGradosModal(false)}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ background: 'var(--bg)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
                                 Cancelar
                             </button>
                             <button type="button"
                                 onClick={async () => { setShowQuitarGradosModal(false); await handleQuitarGradosAlumnos(); }}
-                                className="w-full sm:w-auto py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
                                 style={{ background: 'var(--red)' }}>
                                 <GraduationCap size={16} /> Quitar Grados
                             </button>

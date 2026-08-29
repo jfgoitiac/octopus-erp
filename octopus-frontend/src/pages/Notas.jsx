@@ -208,14 +208,14 @@ const Notas = () => {
             <>
               <button
                 onClick={cancelarDescartarCambios}
-                className="w-full sm:w-auto rounded-xl py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
+                className="w-full sm:w-auto px-4 rounded-xl py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 transition-colors hover:bg-[var(--ash-light)]"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
               >
                 Seguir editando
               </button>
               <button
                 onClick={confirmarDescartarCambios}
-                className="w-full sm:w-auto text-white rounded-xl py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]/40 transition-colors hover:brightness-90"
+                className="w-full sm:w-auto px-4 text-white rounded-xl py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)]/40 transition-colors hover:brightness-90"
                 style={{ background: 'var(--red)' }}
               >
                 Descartar cambios y continuar

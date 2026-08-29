@@ -378,6 +378,55 @@
   local al navegador: si el usuario cambia de dispositivo o borra datos del
   sitio, pierde sus preferencias. Migrar a un endpoint de perfil de usuario
   (`GET/PATCH secretaria/mi-perfil/preferencias-sidebar/` o similar) para que
+
+## MainLayout — Branding y shell con redondeo — 2026-08-29
+
+- [DEUDA BAJA] `MainLayout.jsx` usa `height: '100vh'` en el flex-col que contiene
+  el header y main. Según el estándar responsive obligatorio (CLAUDE.md D10),
+  debe ser `dvh` (dynamic viewport height) para evitar corte en móviles donde la
+  barra del navegador reduce la altura de `vh`. Cambiar a `style={{ height: '100dvh', overflow: 'hidden' }}`.
+  Nota: esto es código preexistente (anterior al cambio de branding), solo se
+  anota para corregir cuando se audite responsive.
+
+- [DEUDA BAJA] El botón BCV en estado normal (background `rgba(255,255,255,0.10)`
+  sobre un gradiente dinámico) puede no cumplir WCAG AA (4.5:1) en puntos claros
+  del degradado. En el peor caso (sobre #0c828d más claro) el contraste es ~3.54:1.
+  No es un cambio nuevo (código preexistente), pero se anotó para auditar. Si se
+  requiere cumplimiento AA estricto, oscurecer el fondo del botón a
+  `rgba(255,255,255,0.15)` o `rgba(255,255,255,0.20)` y verificar de nuevo.
+
+- [RESUELTO 2026-08-29] El estado de error del botón BCV (texto `#dc2626` sobre
+  fondo `#fef2f2`) tenía contraste ~4.42:1, por debajo de 4.5:1 WCAG AA. Se
+  cambió el color del texto a `#991b1b` (~7.6:1), oscureciendo el texto en vez
+  de aclarar el fondo, consistente con el resto de la barra.
+
+- [RESUELTO 2026-08-29] El chip de BCV en estado normal pasó de fondo blanco
+  10% (`rgba(255,255,255,0.10)`) a fondo negro 18% (`rgba(0,0,0,0.18)`) sobre
+  el degradado, siguiendo la referencia visual de marca (chips oscuros tipo
+  "Schools"). Esto también resuelve el riesgo de contraste anotado antes:
+  con negro 18% el peor caso (sobre `#0c828d`, el extremo más claro) da
+  ~6.27:1 para texto blanco, muy por encima de 4.5:1.
+
+- [DEUDA BAJA] El fondo de los chips (fecha, BCV, avatar) usa
+  `rgba(0,0,0,0.18)` fijo, no la variable `--topbar-hover` definida en
+  `index.css` (que quedó en `rgba(255,255,255,0.10)` según la especificación
+  original del PASO 2). Es una divergencia intencional para igualar la
+  referencia visual de marca, pero deja el token `--topbar-hover` sin uso real
+  en el código. Si el diseño de chips oscuros se confirma como definitivo,
+  evaluar renombrar o redefinir el token para que refleje el valor realmente
+  usado.
+
+- [DEUDA BAJA] El avatar del header ahora usa fondo `rgba(0,0,0,0.18)` con
+  texto `var(--topbar-fg)` (blanco), en vez de "fondo blanco con iniciales en
+  var(--pb)" como pedía la especificación escrita original. Cambio hecho para
+  igualar la captura de referencia que el usuario proporcionó como objetivo
+  visual definitivo.
+
+- [DEUDA BAJA] `useEffect(() => { setSidebarOpen(false); }, [location.pathname])`
+  en `MainLayout.jsx` (línea preexistente, no tocada en la sesión de branding)
+  genera un error del linter `react-hooks/set-state-in-effect` (setState
+  síncrono dentro de un efecto). Es deuda previa a este cambio — no se
+  corrigió por estar fuera de alcance (solo tokens/branding de la barra).
   las preferencias sigan al usuario entre dispositivos. El campo `version: 1`
   en el objeto guardado ya está pensado para permitir esa migración de
   formato sin romper a los usuarios existentes.

@@ -29,7 +29,7 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
             <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto py-2 rounded-lg text-xs font-medium"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-medium"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
             >
                 Cancelar
@@ -38,7 +38,7 @@ const ModalRepresentante = ({ editando, form, setForm, formErrors, saving, onSav
                 type="submit"
                 form="form-representante"
                 disabled={saving}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium text-white"
+                className="w-full sm:w-auto px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium text-white"
                 style={{ background: 'var(--pb)', opacity: saving ? 0.7 : 1 }}
             >
                 {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}

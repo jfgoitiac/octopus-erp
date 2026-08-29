@@ -4,6 +4,16 @@ import {
 } from 'lucide-react';
 import { useMatriculaGrado, nombreGradoCompleto } from '../hooks/useMatriculaGrado';
 import { mostrarCedula } from '../utils/cedulaEscolar';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Tabla } from '../components/ui/Tabla';
+
+const COLUMNAS_ALUMNOS = [
+  { key: 'num', label: '#' },
+  { key: 'cedula', label: 'Cédula Escolar' },
+  { key: 'nombres', label: 'Nombres' },
+  { key: 'apellidos', label: 'Apellidos' },
+];
 
 const ORDEN_OPTS = [
   { value: 'apellido', label: 'Alfabético' },
@@ -90,43 +100,32 @@ function GradoCard({ grado, activo, onSelect }) {
 
 function PanelGrados({ gradosOrdenados, loadingGrados, gradoSeleccionado, onSelect }) {
   return (
-    <nav
-      aria-label="Lista de grados"
-      className="flex flex-col gap-2 rounded-xl p-3 w-full lg:w-60 lg:flex-shrink-0"
-      style={{
-        background: 'var(--porcelain)',
-        border:     '0.5px solid var(--border-md)',
-        boxShadow:  'var(--shadow-sm)',
-      }}
-    >
-      <p
-        className="text-xs font-semibold uppercase tracking-widest px-1 mb-1"
-        style={{ color: 'var(--ash)' }}
-      >
-        Seleccionar Grado
-      </p>
-
-      {loadingGrados ? (
-        <SkeletonGrados />
-      ) : gradosOrdenados.length === 0 ? (
-        <div
-          className="text-center py-8 rounded-xl"
-          style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
-        >
-          <GraduationCap size={28} className="mx-auto mb-2 opacity-40" />
-          <p className="text-sm">Sin grados activos</p>
-        </div>
-      ) : (
-        gradosOrdenados.map(g => (
-          <GradoCard
-            key={g.grado_seccion}
-            grado={g}
-            activo={gradoSeleccionado === g.grado_seccion}
-            onSelect={onSelect}
-          />
-        ))
-      )}
-    </nav>
+    <div className="w-full lg:w-60 lg:flex-shrink-0">
+      <Card titulo="Seleccionar Grado">
+        <nav aria-label="Lista de grados" className="flex flex-col gap-2">
+          {loadingGrados ? (
+            <SkeletonGrados />
+          ) : gradosOrdenados.length === 0 ? (
+            <div
+              className="text-center py-8 rounded-xl"
+              style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
+            >
+              <GraduationCap size={28} className="mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Sin grados activos</p>
+            </div>
+          ) : (
+            gradosOrdenados.map(g => (
+              <GradoCard
+                key={g.grado_seccion}
+                grado={g}
+                activo={gradoSeleccionado === g.grado_seccion}
+                onSelect={onSelect}
+              />
+            ))
+          )}
+        </nav>
+      </Card>
+    </div>
   );
 }
 
@@ -228,43 +227,26 @@ function TablaAlumnos({ alumnos, buscar }) {
   }
 
   return (
-    <div
-      className="rounded-xl overflow-x-auto"
-      style={{ border: '0.5px solid var(--border-md)' }}
-    >
-      <table className="w-full text-sm border-collapse min-w-[480px]">
-        <thead>
-          <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-            {['#', 'Cédula Escolar', 'Nombres', 'Apellidos'].map(h => (
-              <th
-                key={h}
-                scope="col"
-                className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--ash)', whiteSpace: 'nowrap' }}
-              >
-                {h}
-              </th>
-            ))}
+    <Card padding="none">
+      <Tabla columnas={COLUMNAS_ALUMNOS} minWidth={480}>
+        {alumnos.map((alumno, idx) => (
+          <tr key={alumno.id}>
+            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle text-xs w-9" style={{ color: 'var(--ash)' }}>
+              {idx + 1}
+            </td>
+            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle font-mono text-xs" style={{ color: 'var(--ash)' }}>
+              {mostrarCedula(alumno.cedula_escolar)}
+            </td>
+            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle" style={{ color: 'var(--jet)' }}>
+              {alumno.nombre}
+            </td>
+            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle font-medium" style={{ color: 'var(--jet)' }}>
+              {alumno.apellido}
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {alumnos.map((alumno, idx) => (
-            <tr
-              key={alumno.id}
-              className="bg-transparent hover:bg-[var(--ash-light)] transition-colors"
-              style={{ borderBottom: idx < alumnos.length - 1 ? '0.5px solid var(--border-md)' : 'none' }}
-            >
-              <td className="px-4 py-3 text-xs w-9" style={{ color: 'var(--ash)' }}>{idx + 1}</td>
-              <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>
-                {mostrarCedula(alumno.cedula_escolar)}
-              </td>
-              <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>{alumno.nombre}</td>
-              <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{alumno.apellido}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </Tabla>
+    </Card>
   );
 }
 
@@ -289,18 +271,15 @@ export default function Grados() {
   } = useMatriculaGrado();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--jet)' }}>
-          Matrículas por Grado
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-          {loadingGrados
+    <div>
+      <PageHeader
+        titulo="Matrículas por Grado"
+        descripcion={
+          loadingGrados
             ? 'Cargando grados...'
             : `${grados.length} grado${grados.length !== 1 ? 's' : ''} activo${grados.length !== 1 ? 's' : ''} · ${totalAlumnos} alumnos en total`
-          }
-        </p>
-      </div>
+        }
+      />
 
       <div className="flex flex-col lg:flex-row gap-5 items-start">
         <PanelGrados

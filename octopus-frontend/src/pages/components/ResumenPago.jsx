@@ -229,14 +229,11 @@ const ResumenPago = ({
                 {/* Botón confirmar */}
                 {confirming ? (
                     <div className="space-y-2">
-                        <p className="text-xs text-center font-medium pt-1.5 px-3 rounded-t-lg"
-                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24', borderBottom: 'none' }}>
-                            ¿Confirmar el registro de este pago?
-                        </p>
-                        <p className="text-[10px] text-center pb-1.5 px-3 rounded-b-lg"
-                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24', borderTop: 'none' }}>
-                            Se generará e imprimirá el recibo automáticamente. Esta acción no se puede deshacer desde esta pantalla.
-                        </p>
+                        <div className="text-center py-2 px-3 rounded-lg space-y-0.5"
+                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                            <p className="text-xs font-medium">¿Confirmar el registro de este pago?</p>
+                            <p className="text-[10px]">Se generará e imprimirá el recibo automáticamente. Esta acción no se puede deshacer desde esta pantalla.</p>
+                        </div>
                         <div className="flex gap-2">
                             <button
                                 type="button"
