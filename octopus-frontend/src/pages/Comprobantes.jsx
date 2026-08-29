@@ -11,6 +11,8 @@ import apiClient from '../api/apiClient';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
 import { printComprobanteCompacto } from '../utils/printComprobanteCompacto';
 import { mostrarCedula } from '../utils/cedulaEscolar';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
 
 const METODOS = [
   { value: '', label: 'Todos los métodos' },
@@ -372,29 +374,10 @@ export default function Comprobantes() {
   return (
     <div className="space-y-5" style={{ color: 'var(--jet)' }}>
 
-      {/* ── Encabezado ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
-              boxShadow: 'var(--glow-pb)',
-            }}
-          >
-            <ReceiptText size={20} color="#fff" />
-          </div>
-          <div>
-            <h1 className="text-[18px] font-bold tracking-tight" style={{ color: 'var(--jet)' }}>
-              Consulta de Comprobantes
-            </h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
-              Busca y descarga comprobantes de pago
-            </p>
-          </div>
-        </div>
-
-        {data && data.total > 0 && (
+      <PageHeader
+        titulo="Consulta de Comprobantes"
+        descripcion="Busca y descarga comprobantes de pago"
+        acciones={data && data.total > 0 && (
           <div
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold"
             style={{
@@ -407,10 +390,10 @@ export default function Comprobantes() {
             {data.total.toLocaleString()} resultado{data.total !== 1 ? 's' : ''}
           </div>
         )}
-      </div>
+      />
 
       {/* ── Panel de filtros ── */}
-      <div className="glass rounded-2xl p-5 space-y-4">
+      <Card className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Filter size={14} style={{ color: 'var(--pb)' }} />
@@ -532,11 +515,11 @@ export default function Comprobantes() {
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
-      </div>
+      </Card>
 
       {/* ── Resultados ── */}
       {(searched || loading) && (
-        <div className="glass rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-sm)' }}>
+        <Card padding="none" className="overflow-hidden">
 
           {/* Header de resultados */}
           <div
@@ -871,7 +854,7 @@ export default function Comprobantes() {
               )}
             </>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );
