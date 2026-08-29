@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { buscarRepresentante } from '../../api/inscripciones.service';
 import ModalCompletarRepresentante from './ModalCompletarRepresentante';
 import { camposFaltantesRepresentante, PARENTESCO_OPTIONS } from '../../utils/inscripcionValidacion';
+import { Card } from '../ui/Card';
 
 const LABELS = {
     nombre:   'Nombre',
@@ -157,10 +158,7 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
             {repBuscado && !loading && (
                 <div className="max-w-2xl mx-auto">
                     {datos.esRepresentanteNuevo ? (
-                        <div
-                            className="p-8 rounded-2xl space-y-6"
-                            style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-                        >
+                        <Card className="space-y-6">
                             <div className="flex justify-between items-center">
                                 <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                                     Registrar Nuevo Representante
@@ -297,13 +295,10 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Card>
                     ) : (
                         <div className="space-y-4">
-                            <div
-                                className="p-8 rounded-2xl flex items-center justify-between"
-                                style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-                            >
+                            <Card className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <div
                                         className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -326,7 +321,7 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
                                 >
                                     Registrado
                                 </span>
-                            </div>
+                            </Card>
 
                             {camposFaltantesRepresentante(datos.representante).length > 0 && (
                                 <div
