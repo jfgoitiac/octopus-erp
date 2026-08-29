@@ -19,6 +19,8 @@ import ModalRetirar from '../components/alumnos/ModalRetirar';
 import ModalConfirmarReactivar from '../components/alumnos/ModalConfirmarReactivar';
 import ModalConfirmarQuitarGrado from '../components/alumnos/ModalConfirmarQuitarGrado';
 import Pagination from '../components/shared/Pagination';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
 
 const ListaAlumnos = () => {
     const { user } = useContext(AuthContext);
@@ -114,15 +116,10 @@ const ListaAlumnos = () => {
 
     return (
         <div className="animate-fadeIn">
-            {/* ── Barra superior ── */}
-            <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Control de Matrícula</h2>
-                    <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-                        Listado general de Primaria y Media General
-                    </p>
-                </div>
-
+            <PageHeader
+                titulo="Control de Matrícula"
+                descripcion="Listado general de Primaria y Media General"
+                acciones={
                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     {isSecretaria && (
                         <button
@@ -248,10 +245,11 @@ const ListaAlumnos = () => {
                         />
                     </div>
                 </div>
-            </div>
+                }
+            />
 
             {/* ── Tabla ── */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+            <Card padding="none">
                 {/* UX-2 fix: skeleton en lugar de texto plano */}
                 {alumnos.loading ? (
                     <TablaAlumnosSkeleton />
@@ -282,7 +280,7 @@ const ListaAlumnos = () => {
                         pageSize={alumnos.pageSize}
                     />
                 )}
-            </div>
+            </Card>
 
             {/* ── Modales ── */}
             {mensualidades.showModal && alumnos.selectedAlumno && (

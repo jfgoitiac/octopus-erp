@@ -1,5 +1,14 @@
 import { User, FileText, Edit2, GraduationCap, XCircle, UserMinus, RefreshCcw, DollarSign, Receipt, ExternalLink, Loader2 } from 'lucide-react';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
+import { Tabla } from '../ui/Tabla';
+
+const COLUMNAS = [
+    { key: 'estudiante', label: 'Estudiante' },
+    { key: 'grado',      label: 'Grado / Año' },
+    { key: 'estado',     label: 'Estado' },
+    { key: 'finanzas',   label: 'Finanzas' },
+    { key: 'acciones',   label: 'Acciones' },
+];
 
 const EstadoBadge = ({ alumno }) => {
     const estado = !alumno.activo ? 'Retirado' : (alumno.grado_seccion ? 'Inscrito' : 'Sin inscribir');
@@ -41,32 +50,14 @@ const TablaAlumnos = ({
     onAjustarInscripcion,
     onIrCobranza,
 }) => {
-    if (alumnos.length === 0) {
-        return (
-            <div className="p-20 text-center" style={{ color: 'var(--ash)' }}>
-                No se encontraron estudiantes con esos datos.
-            </div>
-        );
-    }
-
     return (
-        // UX-1: overflow-x-auto + min-w para evitar layout roto en móvil
-        <div className="overflow-x-auto">
-            <table className="min-w-[700px] w-full text-left border-collapse">
-                <thead>
-                    <tr>
-                        {['Estudiante', 'Grado / Año', 'Estado', 'Finanzas', 'Acciones'].map(h => (
-                            <th key={h}
-                                className="px-4 py-3 text-[11px] uppercase tracking-widest"
-                                style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                                {h}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {alumnos.map((alumno) => (
-                        <tr key={alumno.id} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
+        <Tabla
+            columnas={COLUMNAS}
+            minWidth={700}
+            vacio="No se encontraron estudiantes con esos datos."
+        >
+            {alumnos.map((alumno) => (
+                        <tr key={alumno.id}>
                             <td className="px-4 py-3">
                                 <div className="flex items-center space-x-3">
                                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
@@ -200,10 +191,8 @@ const TablaAlumnos = ({
                                 </div>
                             </td>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+            ))}
+        </Tabla>
     );
 };
 
