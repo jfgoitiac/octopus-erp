@@ -1,7 +1,7 @@
 import { Users, Pencil, Trash2 } from 'lucide-react';
 
 export const TablaRepresentantesSkeleton = () => (
-    <tbody>
+    <>
         {Array.from({ length: 6 }).map((_, i) => (
             <tr key={i} style={{ borderBottom: '0.5px solid var(--border)' }}>
                 <td className="px-4 py-3"><div className="h-3 w-20 rounded animate-pulse" style={{ background: 'var(--ash-light)' }} /></td>
@@ -12,24 +12,22 @@ export const TablaRepresentantesSkeleton = () => (
                 <td className="px-4 py-3" />
             </tr>
         ))}
-    </tbody>
+    </>
 );
 
 const TablaRepresentantes = ({ representantes, selectedRep, canWrite, onOpenFicha, onEditar, onConfirmDelete }) => {
     if (representantes.length === 0) {
         return (
-            <tbody>
-                <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-xs" style={{ color: 'var(--ash)' }}>
-                        No se encontraron representantes.
-                    </td>
-                </tr>
-            </tbody>
+            <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-xs" style={{ color: 'var(--ash)' }}>
+                    No se encontraron representantes.
+                </td>
+            </tr>
         );
     }
 
     return (
-        <tbody>
+        <>
             {representantes.map(rep => (
                 <tr
                     key={rep.id}
@@ -83,7 +81,7 @@ const TablaRepresentantes = ({ representantes, selectedRep, canWrite, onOpenFich
                     </td>
                 </tr>
             ))}
-        </tbody>
+        </>
     );
 };
 

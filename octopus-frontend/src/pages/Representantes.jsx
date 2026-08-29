@@ -7,7 +7,18 @@ import RepresentanteFicha from '../components/representantes/RepresentanteFicha'
 import ModalRepresentante from '../components/representantes/ModalRepresentante';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/shared/Pagination';
-import { TablaScroll } from '../components/ui/TablaScroll';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Tabla } from '../components/ui/Tabla';
+
+const REPRESENTANTES_COLUMNAS = [
+    { key: 'cedula', label: 'Cédula' },
+    { key: 'nombre', label: 'Nombre' },
+    { key: 'telefono', label: 'Teléfono' },
+    { key: 'correo', label: 'Correo' },
+    { key: 'alumnos', label: 'Alumnos activos' },
+    { key: 'acciones', label: '' },
+];
 
 const INPUT_STYLE = {
     background: 'var(--bg)', border: '0.5px solid var(--border-md)',
@@ -30,7 +41,9 @@ const Representantes = () => {
     }, [rep.confirmDelete, rep.setConfirmDelete]);
 
     return (
-        <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <div className="flex flex-col gap-4">
+            <PageHeader titulo="Representantes" />
+            <div className="flex flex-col lg:flex-row gap-4 items-start">
             {/* Panel principal */}
             <div className="flex-1 min-w-0 w-full flex flex-col gap-4">
 
@@ -87,30 +100,21 @@ const Representantes = () => {
                 </div>
 
                 {/* Tabla */}
-                <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-                    <TablaScroll>
-                        <table className="w-full text-sm min-w-[640px]">
-                            <thead>
-                                <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                                    {['Cédula', 'Nombre', 'Teléfono', 'Correo', 'Alumnos activos', ''].map(h => (
-                                        <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--ash)' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            {rep.loading ? (
-                                <TablaRepresentantesSkeleton />
-                            ) : (
-                                <TablaRepresentantes
-                                    representantes={rep.representantes}
-                                    selectedRep={rep.selectedRep}
-                                    canWrite={canWrite}
-                                    onOpenFicha={rep.openFicha}
-                                    onEditar={rep.openEditar}
-                                    onConfirmDelete={rep.setConfirmDelete}
-                                />
-                            )}
-                        </table>
-                    </TablaScroll>
+                <Card padding="none">
+                    <Tabla columnas={REPRESENTANTES_COLUMNAS} minWidth={640}>
+                        {rep.loading ? (
+                            <TablaRepresentantesSkeleton />
+                        ) : (
+                            <TablaRepresentantes
+                                representantes={rep.representantes}
+                                selectedRep={rep.selectedRep}
+                                canWrite={canWrite}
+                                onOpenFicha={rep.openFicha}
+                                onEditar={rep.openEditar}
+                                onConfirmDelete={rep.setConfirmDelete}
+                            />
+                        )}
+                    </Tabla>
                     {!rep.loading && (
                         <Pagination
                             page={rep.page}
@@ -120,7 +124,7 @@ const Representantes = () => {
                             pageSize={rep.pageSize}
                         />
                     )}
-                </div>
+                </Card>
             </div>
 
             {/* Ficha lateral */}
@@ -141,6 +145,7 @@ const Representantes = () => {
                     onCargarProyectoInversion={rep.handleCargarProyectoInversion}
                 />
             )}
+            </div>
 
             {/* Modal crear / editar */}
             {rep.showModal && (
