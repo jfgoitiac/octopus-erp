@@ -1,10 +1,23 @@
 import { useRef, useEffect } from 'react';
-import { FileText, Download, Eye, Search, User, Loader2, GraduationCap } from 'lucide-react';
+import { Download, Eye, Search, User, Loader2, GraduationCap } from 'lucide-react';
 import { useBoletin } from '../hooks/useBoletin';
 import { generarBoletinPDF } from '../utils/boletinPdf';
 import { mostrarCedula } from '../utils/cedulaEscolar';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Tabla } from '../components/ui/Tabla';
 
 const NOTA_MINIMA = 10;
+
+const BOLETIN_COLUMNAS = [
+  { key: 'materia', label: 'Materia' },
+  { key: 'eval1', label: 'Eval 1', align: 'center' },
+  { key: 'eval2', label: 'Eval 2', align: 'center' },
+  { key: 'eval3', label: 'Eval 3', align: 'center' },
+  { key: 'eval4', label: 'Eval 4', align: 'center' },
+  { key: 'definitiva', label: 'Definitiva', align: 'center' },
+  { key: 'aprobado', label: 'Aprobado', align: 'center' },
+];
 
 const inputStyle = {
   border: '0.5px solid var(--border-md)',
@@ -94,16 +107,10 @@ const Boletin = () => {
 
   return (
     <div className="animate-fadeIn">
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-lg font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-          <FileText size={20} style={{ color: 'var(--pb)' }} />
-          Boletines de Calificaciones
-        </h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-          Genera y descarga el boletín académico de cada alumno
-        </p>
-      </div>
+      <PageHeader
+        titulo="Boletines de Calificaciones"
+        descripcion="Genera y descarga el boletín académico de cada alumno"
+      />
 
       {/* Filtros */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -210,7 +217,7 @@ const Boletin = () => {
       {loading && <SkeletonBoletin />}
 
       {!loading && boletin && (
-        <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+        <Card padding="none" className="overflow-hidden">
           {/* Header del colegio */}
           <div className="px-6 py-5 text-white text-center" style={{ background: 'var(--pb)' }}>
             <p className="font-bold text-lg">{boletin.colegio?.nombre_colegio || 'Institución Educativa'}</p>
@@ -241,75 +248,59 @@ const Boletin = () => {
           </div>
 
           {/* Tabla de materias */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr>
-                  {['Materia', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado'].map(h => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-[11px] uppercase tracking-widest"
-                      style={{ color: 'var(--ash)', background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}
-                    >
-                      {h}
-                    </th>
+          <Tabla columnas={BOLETIN_COLUMNAS}>
+            {[
+              ...(boletin.materias || []).map(m => (
+                <tr key={m.materia_nombre}>
+                  <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                    {m.materia_nombre}
+                  </td>
+                  {[m.evaluacion_1, m.evaluacion_2, m.evaluacion_3, m.evaluacion_4].map((v, j) => (
+                    <td key={j} className="px-4 py-3 text-sm text-center" style={{ color: 'var(--ash)' }}>
+                      {v ?? '—'}
+                    </td>
                   ))}
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className="text-sm font-bold"
+                      style={{
+                        color: m.definitiva_letra
+                          ? 'var(--jet)'
+                          : m.definitiva != null
+                          ? (parseFloat(m.definitiva) >= NOTA_MINIMA ? '#16a34a' : 'var(--red)')
+                          : 'var(--ash)',
+                      }}
+                    >
+                      {m.definitiva_letra ?? m.definitiva ?? '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {m.aprobado === true && (
+                      <span className="text-xs font-bold text-green-600" aria-label="Aprobado">Aprobado</span>
+                    )}
+                    {m.aprobado === false && (
+                      <span className="text-xs font-bold" style={{ color: 'var(--red)' }} aria-label="Reprobado">Reprobado</span>
+                    )}
+                    {m.aprobado == null && (
+                      <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {(boletin.materias || []).map(m => (
-                  <tr key={m.materia_nombre} style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
-                    <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>
-                      {m.materia_nombre}
-                    </td>
-                    {[m.evaluacion_1, m.evaluacion_2, m.evaluacion_3, m.evaluacion_4].map((v, j) => (
-                      <td key={j} className="px-4 py-3 text-sm text-center" style={{ color: 'var(--ash)' }}>
-                        {v ?? '—'}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className="text-sm font-bold"
-                        style={{
-                          color: m.definitiva_letra
-                            ? 'var(--jet)'
-                            : m.definitiva != null
-                            ? (parseFloat(m.definitiva) >= NOTA_MINIMA ? '#16a34a' : 'var(--red)')
-                            : 'var(--ash)',
-                        }}
-                      >
-                        {m.definitiva_letra ?? m.definitiva ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {m.aprobado === true && (
-                        <span className="text-xs font-bold text-green-600" aria-label="Aprobado">Aprobado</span>
-                      )}
-                      {m.aprobado === false && (
-                        <span className="text-xs font-bold" style={{ color: 'var(--red)' }} aria-label="Reprobado">Reprobado</span>
-                      )}
-                      {m.aprobado == null && (
-                        <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-
-                {promedioGeneral && (
-                  <tr style={{ background: 'var(--pb-light)' }}>
-                    <td className="px-4 py-3 text-sm font-bold" style={{ color: 'var(--pb)' }}>
-                      Promedio General
-                    </td>
-                    <td colSpan={4} />
-                    <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: 'var(--pb)' }}>
-                      {promedioGeneral}
-                    </td>
-                    <td />
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              )),
+              ...(promedioGeneral ? [(
+                <tr key="promedio-general" style={{ background: 'var(--pb-light)' }}>
+                  <td className="px-4 py-3 text-sm font-bold" style={{ color: 'var(--pb)' }}>
+                    Promedio General
+                  </td>
+                  <td colSpan={4} />
+                  <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: 'var(--pb)' }}>
+                    {promedioGeneral}
+                  </td>
+                  <td />
+                </tr>
+              )] : []),
+            ]}
+          </Tabla>
 
           {/* Asistencia */}
           {boletin.asistencia && (
@@ -346,17 +337,16 @@ const Boletin = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {!loading && !boletin && (
-        <div
-          className="rounded-xl p-16 text-center"
-          style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}
-        >
-          <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Busca un alumno y selecciona un lapso para generar el boletín.</p>
-        </div>
+        <Card>
+          <div className="py-16 text-center" style={{ color: 'var(--ash)' }}>
+            <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Busca un alumno y selecciona un lapso para generar el boletín.</p>
+          </div>
+        </Card>
       )}
     </div>
   );
