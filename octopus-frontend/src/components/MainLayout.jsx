@@ -29,6 +29,17 @@ const PAGE_TITLES = {
   '/representantes':     'Representantes',
   '/morosos':            'Alumnos en mora',
   '/gestion-sitio':      'Sitio Institucional',
+  '/notas':              'Registro de Notas',
+  '/boletin':            'Boletines',
+  '/asistencia':         'Asistencia',
+  '/horarios':           'Horarios',
+  '/materias':           'Materias',
+  '/docentes':           'Docentes',
+  '/incidentes':         'Incidentes',
+  '/rendimiento':        'Rendimiento Académico',
+  '/comunicacion':       'Comunicación',
+  '/multisede':          'Multi-sede',
+  '/multisede/sedes':    'Sedes',
 };
 
 const FULL_HEIGHT_PAGES = ['/recibos'];
