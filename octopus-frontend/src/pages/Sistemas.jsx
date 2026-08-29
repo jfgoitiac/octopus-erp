@@ -7,6 +7,7 @@ import UsuariosTab      from '../components/sistemas/UsuariosTab';
 import NotificacionesTab from '../components/sistemas/NotificacionesTab';
 import LogsTab          from '../components/sistemas/LogsTab';
 import LimpiezaDatosTab  from '../components/sistemas/LimpiezaDatosTab';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const TABS = [
     { id: 'usuarios',       label: 'Usuarios',       icon: User },
@@ -34,15 +35,10 @@ const SistemasInner = () => {
 
     return (
         <div>
-            {/* Cabecera */}
-            <div className="mb-6">
-                <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>
-                    Panel de Sistemas
-                </h2>
-                <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-                    Gestión de identidades, permisos y configuración del sistema.
-                </p>
-            </div>
+            <PageHeader
+                titulo="Panel de Sistemas"
+                descripcion="Gestión de identidades, permisos y configuración del sistema."
+            />
 
             {/* Navegación de tabs */}
             <div className="w-full overflow-x-auto mb-5 -mx-4 px-4 sm:mx-0 sm:px-0">
