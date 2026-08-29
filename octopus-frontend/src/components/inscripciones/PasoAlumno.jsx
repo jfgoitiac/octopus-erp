@@ -8,6 +8,7 @@ import { SkeletonCard } from './SkeletonCard';
 import ModalCompletarAlumno from './ModalCompletarAlumno';
 import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
+import { Card } from '../ui/Card';
 
 const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES_FOTO = 5 * 1024 * 1024; // 5 MB
@@ -257,10 +258,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
             )}
 
             {showFormNuevo && (
-                <div
-                    className="p-8 rounded-2xl space-y-6 animate-fadeIn"
-                    style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-                >
+                <Card className="space-y-6 animate-fadeIn">
                     <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                         Datos del Nuevo Estudiante
                     </h3>
@@ -511,7 +509,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </Card>
             )}
 
             <div className="flex justify-between items-center pt-6">
