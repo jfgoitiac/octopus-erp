@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { BarChart3, GraduationCap } from 'lucide-react';
+import { GraduationCap } from 'lucide-react';
 import { useRendimiento } from '../hooks/useRendimiento';
 import GradoSelect from '../components/GradoSelect';
 import MapaCalorSeccion from '../components/rendimiento/MapaCalorSeccion';
 import AlertasRiesgoList from '../components/rendimiento/AlertasRiesgoList';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
 
 const TABS = [
   { key: 'mapa', label: 'Mapa de Calor' },
@@ -23,15 +25,10 @@ const Rendimiento = () => {
 
   return (
     <div className="animate-fadeIn pb-24 sm:pb-0">
-      <div className="mb-6">
-        <h2 className="text-lg font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-          <BarChart3 size={20} style={{ color: 'var(--pb)' }} />
-          Seguimiento de Rendimiento
-        </h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-          Desempeño académico por sección y alumnos en riesgo
-        </p>
-      </div>
+      <PageHeader
+        titulo="Seguimiento de Rendimiento"
+        descripcion="Desempeño académico por sección y alumnos en riesgo"
+      />
 
       {/* Tabs */}
       <div className="flex gap-2 mb-5 border-b" style={{ borderColor: 'var(--border-md)' }}>
@@ -103,13 +100,12 @@ const Rendimiento = () => {
           </div>
 
           {!grado ? (
-            <div
-              className="rounded-xl p-16 text-center"
-              style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}
-            >
-              <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Selecciona un grado y sección para ver el mapa de calor.</p>
-            </div>
+            <Card>
+              <div className="py-16 text-center" style={{ color: 'var(--ash)' }}>
+                <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
+                <p className="text-sm">Selecciona un grado y sección para ver el mapa de calor.</p>
+              </div>
+            </Card>
           ) : (
             <MapaCalorSeccion seccion={seccion} loading={loadingSeccion} />
           )}
