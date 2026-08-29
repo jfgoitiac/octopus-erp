@@ -6,9 +6,9 @@ import MorososSummary from '../components/morosos/MorososSummary';
 import MorososSkeleton from '../components/morosos/MorososSkeleton';
 import MorososRow from '../components/morosos/MorososRow';
 import Pagination from '../components/shared/Pagination';
-import { TablaScroll } from '../components/ui/TablaScroll';
-
-const COL_HEADERS = ['Alumno', 'Cédula escolar', 'Grado', 'Representante', 'Teléfono', 'Deuda (USD)', 'Solvencia (USD)', 'Días de atraso', ''];
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Tabla } from '../components/ui/Tabla';
 
 const Morosos = () => {
     const [busqueda, setBusqueda] = useState('');
@@ -40,8 +40,39 @@ const Morosos = () => {
     const toggleOrdenDiasAtraso = () =>
         setOrdenDiasAtraso(prev => (prev === 'desc' ? 'asc' : 'desc'));
 
+    const columnas = [
+        { key: 'alumno',      label: 'Alumno' },
+        { key: 'cedula',      label: 'Cédula escolar' },
+        { key: 'grado',       label: 'Grado' },
+        { key: 'representante', label: 'Representante' },
+        { key: 'telefono',    label: 'Teléfono' },
+        { key: 'deuda',       label: 'Deuda (USD)' },
+        { key: 'solvencia',   label: 'Solvencia (USD)' },
+        {
+            key: 'dias_atraso',
+            label: (
+                <button
+                    onClick={toggleOrdenDiasAtraso}
+                    aria-label="Ordenar por días de atraso"
+                    className="inline-flex items-center gap-1 uppercase tracking-wider"
+                >
+                    Días de atraso
+                    {ordenDiasAtraso === 'desc'
+                        ? <ArrowDown size={11} />
+                        : ordenDiasAtraso === 'asc'
+                            ? <ArrowUp size={11} />
+                            : <ArrowUpDown size={11} />}
+                </button>
+            ),
+        },
+        { key: 'accion', label: '' },
+    ];
+
     return (
-        <div className="flex flex-col gap-5 anim-fade-up">
+        <div>
+            <PageHeader titulo="Alumnos en mora" />
+
+            <div className="flex flex-col gap-5 anim-fade-up">
 
             <MorososSummary
                 count={total}
@@ -107,67 +138,31 @@ const Morosos = () => {
             </div>
 
             {/* Tabla con scroll horizontal en móvil */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-                <TablaScroll>
-                    <table className="w-full text-sm min-w-[700px]">
-                        <thead>
-                            <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                                {COL_HEADERS.map(h => h === 'Días de atraso' ? (
-                                    <th
-                                        key={h}
-                                        className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                                        style={{ color: 'var(--ash)' }}
-                                    >
-                                        <button
-                                            onClick={toggleOrdenDiasAtraso}
-                                            aria-label="Ordenar por días de atraso"
-                                            className="inline-flex items-center gap-1 uppercase tracking-wide"
-                                        >
-                                            {h}
-                                            {ordenDiasAtraso === 'desc'
-                                                ? <ArrowDown size={11} />
-                                                : ordenDiasAtraso === 'asc'
-                                                    ? <ArrowUp size={11} />
-                                                    : <ArrowUpDown size={11} />}
-                                        </button>
-                                    </th>
-                                ) : (
-                                    <th
-                                        key={h}
-                                        className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide"
-                                        style={{ color: 'var(--ash)' }}
-                                    >
-                                        {h}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <MorososSkeleton rows={6} />
-                            ) : alumnosOrdenados.length === 0 ? (
-                                <tr>
-                                    <td colSpan={9} className="px-4 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <AlertTriangle size={28} style={{ color: 'var(--ash)' }} />
-                                            <p className="text-xs" style={{ color: 'var(--ash)' }}>
-                                                {busqueda
-                                                    ? 'No se encontraron resultados.'
-                                                    : 'No hay alumnos en mora. ¡Buenas noticias!'}
-                                            </p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : alumnosOrdenados.map((alu, idx) => (
-                                <MorososRow
-                                    key={alu.id}
-                                    alu={alu}
-                                    animDelay={idx * 30}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </TablaScroll>
+            <Card padding="none">
+                <Tabla columnas={columnas} minWidth={700}>
+                    {loading ? (
+                        <MorososSkeleton rows={6} />
+                    ) : alumnosOrdenados.length === 0 ? (
+                        <tr>
+                            <td colSpan={9} className="px-4 py-12 text-center">
+                                <div className="flex flex-col items-center gap-2">
+                                    <AlertTriangle size={28} style={{ color: 'var(--ash)' }} />
+                                    <p className="text-xs" style={{ color: 'var(--ash)' }}>
+                                        {busqueda
+                                            ? 'No se encontraron resultados.'
+                                            : 'No hay alumnos en mora. ¡Buenas noticias!'}
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                    ) : alumnosOrdenados.map((alu, idx) => (
+                        <MorososRow
+                            key={alu.id}
+                            alu={alu}
+                            animDelay={idx * 30}
+                        />
+                    ))}
+                </Tabla>
                 {!loading && (
                     <Pagination
                         page={page}
@@ -177,6 +172,7 @@ const Morosos = () => {
                         pageSize={pageSize}
                     />
                 )}
+            </Card>
             </div>
         </div>
     );
