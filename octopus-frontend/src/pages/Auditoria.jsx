@@ -10,6 +10,9 @@ import { parse, format, isValid } from 'date-fns';
 import { useAuditoria } from '../hooks/useAuditoria';
 import { fmt, formatLogDate, badgeClass } from '../utils/auditoria.utils';
 import { nombreUsuario, inicialesUsuario } from '../utils/nombreUsuario';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Card } from '../components/ui/Card';
+import { Tabla } from '../components/ui/Tabla';
 
 function parseISODate(str) {
     if (!str) return null;
@@ -18,6 +21,13 @@ function parseISODate(str) {
 }
 
 const ITEMS_PER_PAGE = 25;
+
+const AUDITORIA_COLUMNAS = [
+    { key: 'fecha_hora', label: 'Fecha y hora' },
+    { key: 'usuario', label: 'Usuario' },
+    { key: 'accion', label: 'Acción' },
+    { key: 'detalles', label: 'Detalles' },
+];
 
 // ─── DetallesLog ──────────────────────────────────────────────────────────────
 
@@ -82,7 +92,7 @@ const KPI_CONFIG = [
 const AuditoriaKPIs = ({ reporte }) => (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {KPI_CONFIG.map(({ key, label, cur, icon: Icon, color, bg }) => (
-            <div key={key} className="p-4 rounded-xl" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+            <Card key={key}>
                 <div className="flex justify-between items-start mb-3">
                     <div className="p-1.5 rounded-lg" style={{ background: bg, color }}><Icon size={16} /></div>
                     <p className="text-[10px] uppercase tracking-widest text-right" style={{ color: 'var(--ash)' }}>{label}</p>
@@ -90,7 +100,7 @@ const AuditoriaKPIs = ({ reporte }) => (
                 <p className="text-xl font-bold" style={{ color }}>
                     {cur ? fmt(reporte?.[key], cur) : (reporte?.[key] ?? 0)}
                 </p>
-            </div>
+            </Card>
         ))}
     </div>
 );
@@ -132,7 +142,7 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
     );
 
     return (
-        <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
+        <Card padding="none">
 
             {/* Filters header */}
             <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-3"
@@ -177,61 +187,45 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
                 </div>
             </div>
 
-            {/* Scrollable table — overflow-x-auto fixes mobile overflow */}
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[600px]">
-                    <thead>
-                        <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                            {['Fecha y hora', 'Usuario', 'Acción', 'Detalles'].map(h => (
-                                <th key={h} className="text-left px-4 py-2.5 text-[10px] font-medium uppercase tracking-wide"
-                                    style={{ color: 'var(--ash)' }}>{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {paginated.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="px-4 py-10 text-center text-sm italic"
-                                    style={{ color: 'var(--ash)' }}>
-                                    No hay registros que coincidan.
-                                </td>
-                            </tr>
-                        ) : paginated.map(log => (
-                            <tr
-                                key={log.id}
-                                className="bg-[var(--porcelain)] hover:bg-[var(--ash-light)] transition-colors"
-                                style={{ borderBottom: '0.5px solid var(--border)' }}
-                            >
-                                <td className="px-4 py-3 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>
-                                    <div className="flex items-center gap-1.5">
-                                        <Clock size={12} />
-                                        {formatLogDate(log.fecha_hora || log.fecha)}
-                                    </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                                            style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                            {log.usuario ? inicialesUsuario(log.usuario) : 'S'}
-                                        </div>
-                                        <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
-                                            {log.usuario ? nombreUsuario(log.usuario) : 'SISTEMA'}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                    <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase ${badgeClass(log.accion)}`}>
-                                        {log.accion}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 max-w-xs">
-                                    <DetallesLog detalles={log.detalles} />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            {/* Tabla */}
+            <Tabla columnas={AUDITORIA_COLUMNAS} minWidth={600}>
+                {paginated.length === 0 ? (
+                    <tr>
+                        <td colSpan={4} className="px-4 py-10 text-center text-sm italic"
+                            style={{ color: 'var(--ash)' }}>
+                            No hay registros que coincidan.
+                        </td>
+                    </tr>
+                ) : paginated.map(log => (
+                    <tr key={log.id}>
+                        <td className="px-4 py-3 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>
+                            <div className="flex items-center gap-1.5">
+                                <Clock size={12} />
+                                {formatLogDate(log.fecha_hora || log.fecha)}
+                            </div>
+                        </td>
+                        <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                    style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                    {log.usuario ? inicialesUsuario(log.usuario) : 'S'}
+                                </div>
+                                <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
+                                    {log.usuario ? nombreUsuario(log.usuario) : 'SISTEMA'}
+                                </span>
+                            </div>
+                        </td>
+                        <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase ${badgeClass(log.accion)}`}>
+                                {log.accion}
+                            </span>
+                        </td>
+                        <td className="px-4 py-3 max-w-xs">
+                            <DetallesLog detalles={log.detalles} />
+                        </td>
+                    </tr>
+                ))}
+            </Tabla>
 
             {/* Pagination */}
             {totalPages > 1 && (
@@ -262,7 +256,7 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
                     </div>
                 </div>
             )}
-        </div>
+        </Card>
     );
 };
 
@@ -303,63 +297,61 @@ const Auditoria = () => {
     return (
         <div className="anim-fade-up">
 
-            {/* Header */}
-            <div className="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-lg font-medium" style={{ color: 'var(--jet)' }}>Auditoría</h2>
-                    <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>Control de ingresos y actividad del sistema.</p>
-                </div>
-
-                <div className="flex flex-wrap items-end gap-2">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
-                        <SmartDateInput
-                            value={fechaInicioDate}
-                            onChange={date => setFechaInicio(date ? format(date, 'yyyy-MM-dd') : '')}
-                            className="px-2 py-1.5 rounded-lg text-xs outline-none"
-                            style={inputStyle}
-                            aria-label="Fecha de inicio"
-                        />
+            <PageHeader
+                titulo="Auditoría"
+                descripcion="Control de ingresos y actividad del sistema."
+                acciones={
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
+                            <SmartDateInput
+                                value={fechaInicioDate}
+                                onChange={date => setFechaInicio(date ? format(date, 'yyyy-MM-dd') : '')}
+                                className="px-2 py-1.5 rounded-lg text-xs outline-none"
+                                style={inputStyle}
+                                aria-label="Fecha de inicio"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
+                            <SmartDateInput
+                                value={fechaFinDate}
+                                onChange={date => setFechaFin(date ? format(date, 'yyyy-MM-dd') : '')}
+                                className="px-2 py-1.5 rounded-lg text-xs outline-none"
+                                style={inputStyle}
+                                aria-label="Fecha de fin"
+                            />
+                        </div>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
+                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                        >
+                            <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
+                            {refreshing ? 'Actualizando...' : 'Recargar datos'}
+                        </button>
+                        <button
+                            onClick={exportarExcel}
+                            disabled={exporting}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
+                            style={{ background: 'var(--jet)' }}
+                        >
+                            {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                            Exportar Excel
+                        </button>
+                        <button
+                            onClick={exportarPagosExcel}
+                            disabled={exportingPagos}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 min-h-[44px]"
+                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                        >
+                            {exportingPagos ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                            Exportar Pagos
+                        </button>
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
-                        <SmartDateInput
-                            value={fechaFinDate}
-                            onChange={date => setFechaFin(date ? format(date, 'yyyy-MM-dd') : '')}
-                            className="px-2 py-1.5 rounded-lg text-xs outline-none"
-                            style={inputStyle}
-                            aria-label="Fecha de fin"
-                        />
-                    </div>
-                    <button
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
-                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                    >
-                        <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
-                        {refreshing ? 'Actualizando...' : 'Recargar datos'}
-                    </button>
-                    <button
-                        onClick={exportarExcel}
-                        disabled={exporting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
-                        style={{ background: 'var(--jet)' }}
-                    >
-                        {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                        Exportar Excel
-                    </button>
-                    <button
-                        onClick={exportarPagosExcel}
-                        disabled={exportingPagos}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 min-h-[44px]"
-                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                    >
-                        {exportingPagos ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                        Exportar Pagos
-                    </button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Error banner */}
             {error && (
