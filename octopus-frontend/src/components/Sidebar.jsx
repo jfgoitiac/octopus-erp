@@ -80,6 +80,34 @@ const navSections = [
   },
 ];
 
+const SIDEBAR_POS = 'top-[var(--topbar-h)] lg:top-[var(--topbar-h-lg)] h-[calc(100dvh-var(--topbar-h))] lg:h-[calc(100dvh-var(--topbar-h-lg))]';
+
+// Ítem de navegación único — usado tanto en los grupos como en la sección de Favoritos.
+const SidebarNavItem = ({ item, isActive, animationDelay }) => {
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.path}
+      className={`anim-fade-up flex items-center gap-2.5 px-3 py-2.5 text-sm relative overflow-hidden transition-colors ${isActive ? '' : 'hover:bg-[var(--ash-light)]'}`}
+      style={{
+        animationDelay,
+        borderRadius: 'var(--radius-card)',
+        ...(isActive
+          ? {
+              background: 'var(--surface)',
+              color: 'var(--jet)',
+              fontWeight: 500,
+              boxShadow: 'var(--shadow-sm)',
+            }
+          : { color: 'var(--jet-mid)' })
+      }}
+    >
+      <Icon size={15} style={{ color: isActive ? 'var(--pb)' : 'var(--ash)', flexShrink: 0 }} />
+      <span className="truncate">{item.name}</span>
+    </Link>
+  );
+};
+
 const Sidebar = ({ open = false, onClose = () => {} }) => {
   const { user, logout, loading } = useContext(AuthContext);
   const { sedes, sedeActiva, cambiarSede } = useSede();
@@ -93,7 +121,10 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   if (loading) return (
-    <div className="w-52 h-screen flex items-center justify-center fixed left-0 top-0 z-40" style={{ background: 'var(--porcelain)' }}>
+    <div
+      className={`w-[var(--sidebar-w)] fixed left-0 z-40 flex items-center justify-center ${SIDEBAR_POS}`}
+      style={{ background: 'var(--bg)' }}
+    >
       <Loader2 className="animate-spin" size={24} style={{ color: 'var(--pb)' }} />
     </div>
   );
@@ -110,13 +141,13 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
       />
 
     <div
-      className={`w-52 h-screen flex flex-col fixed left-0 top-0 z-40 transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-      style={{ background: 'var(--porcelain)', borderRight: '0.5px solid var(--border-md)' }}
+      className={`w-[var(--sidebar-w)] flex flex-col fixed left-0 z-40 transition-transform duration-300 ease-in-out ${SIDEBAR_POS} ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      style={{ background: 'var(--bg)', borderRight: '1px solid var(--border)' }}
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-4 py-[18px] relative overflow-hidden"
-        style={{ borderBottom: '0.5px solid var(--border)' }}
+        className="flex items-center gap-3 px-4 py-[18px] relative overflow-hidden flex-shrink-0"
+        style={{ borderBottom: '1px solid var(--border)' }}
       >
         {/* Fondo decorativo sutil */}
         <div
@@ -145,119 +176,42 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
         </button>
       </div>
 
-      {/* Usuario */}
-      <div
-        className="mx-2.5 my-2.5 p-3 rounded-xl flex items-center gap-2.5 glass"
-      >
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)', boxShadow: '0 2px 8px rgba(15,163,177,0.35)' }}
-        >
-          {initials}
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
-            {nombreUsuario(user)}
-          </p>
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full mt-0.5 inline-block capitalize"
-            style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
-          >
-            {userRole || 'Sin rol'}
-          </span>
-        </div>
-      </div>
-
       {/* Selector de sede (solo si hay más de 1) */}
       {sedes.length > 1 && (
-        <SedeSwitcher sedes={sedes} sedeActiva={sedeActiva} onCambiar={cambiarSede} />
+        <div className="flex-shrink-0">
+          <SedeSwitcher sedes={sedes} sedeActiva={sedeActiva} onCambiar={cambiarSede} />
+        </div>
       )}
 
-      {/* Navegación */}
-      <nav className="flex-1 overflow-y-auto px-2 pb-2 custom-scrollbar">
+      {/* Navegación — única zona que scrollea */}
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-2 custom-scrollbar">
         {navSections.map((section, sIdx) => {
           const visible = section.items.filter(item => item.roles.includes(userRole));
           if (!visible.length) return null;
           return (
             <div
               key={section.label}
-              className="mb-1 anim-slide-in"
+              className={`anim-slide-in ${sIdx === 0 ? 'mt-2' : 'mt-5'}`}
               style={{ animationDelay: `${sIdx * 60}ms` }}
             >
               <label
-                className="block text-[11px] uppercase tracking-widest px-4 py-2"
+                className="block text-xs uppercase tracking-widest px-3 py-2 font-medium"
                 style={{ color: 'var(--ash)' }}
               >
                 {section.label}
               </label>
               <div className="space-y-0.5">
                 {visible.map((item, iIdx) => {
-                  const Icon = item.icon;
                   const isActive =
                     location.pathname === item.path ||
                     (item.path === '/dashboard' && location.pathname === '/');
                   return (
-                    <Link
+                    <SidebarNavItem
                       key={item.name}
-                      to={item.path}
-                      className="anim-fade-up flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm relative overflow-hidden"
-                      style={{
-                        animationDelay: `${sIdx * 60 + iIdx * 35}ms`,
-                        transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease',
-                        ...(isActive
-                          ? {
-                              background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
-                              color: '#fff',
-                              fontWeight: 500,
-                              transform: 'translateX(3px)',
-                              boxShadow: '0 4px 14px rgba(15,163,177,0.35), 0 1px 4px rgba(15,163,177,0.2)',
-                            }
-                          : { color: 'var(--ash)', transform: 'translateX(0)' })
-                      }}
-                      onMouseEnter={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'var(--ash-light)';
-                          e.currentTarget.style.color = 'var(--jet)';
-                          e.currentTarget.style.transform = 'translateX(4px)';
-                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-                        }
-                      }}
-                      onMouseLeave={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = 'var(--ash)';
-                          e.currentTarget.style.transform = 'translateX(0)';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }
-                      }}
-                      onMouseDown={e => {
-                        e.currentTarget.style.transform = 'translateX(2px) scale(0.96)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      onMouseUp={e => {
-                        if (!isActive) {
-                          e.currentTarget.style.transform = 'translateX(4px)';
-                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-                        } else {
-                          e.currentTarget.style.transform = 'translateX(3px)';
-                          e.currentTarget.style.boxShadow = '0 3px 10px rgba(0,0,0,0.18)';
-                        }
-                      }}
-                    >
-                      {isActive && (
-                        <span
-                          className="absolute left-0 top-1/2 rounded-r-full"
-                          style={{
-                            width: 3,
-                            height: '60%',
-                            background: 'rgba(255,255,255,0.7)',
-                            transform: 'translateY(-50%)',
-                          }}
-                        />
-                      )}
-                      <Icon size={15} />
-                      <span>{item.name}</span>
-                    </Link>
+                      item={item}
+                      isActive={isActive}
+                      animationDelay={`${sIdx * 60 + iIdx * 35}ms`}
+                    />
                   );
                 })}
               </div>
@@ -266,20 +220,39 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="p-2" style={{ borderTop: '0.5px solid var(--border)' }}>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2.5 w-full px-4 py-2 rounded-lg text-sm"
-          style={{ color: 'var(--ash)', transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-light)'; e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; e.currentTarget.style.transform = 'translateX(0)'; }}
-          onMouseDown={e => { e.currentTarget.style.transform = 'translateX(2px) scale(0.96)'; }}
-          onMouseUp={e => { e.currentTarget.style.transform = 'translateX(4px)'; }}
-        >
-          <LogOut size={15} />
-          <span>Cerrar sesión</span>
-        </button>
+      {/* Usuario + logout — anclados abajo, siempre alcanzables */}
+      <div className="flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="mx-2.5 my-2.5 p-3 rounded-xl flex items-center gap-2.5" style={{ background: 'var(--surface)' }}>
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)', boxShadow: '0 2px 8px rgba(15,163,177,0.35)' }}
+          >
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium truncate" style={{ color: 'var(--jet)' }}>
+              {nombreUsuario(user)}
+            </p>
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full mt-0.5 inline-block capitalize"
+              style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
+            >
+              {userRole || 'Sin rol'}
+            </span>
+          </div>
+        </div>
+        <div className="px-2.5 pb-2.5">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-[var(--red-light)]"
+            style={{ color: 'var(--ash)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; }}
+          >
+            <LogOut size={15} />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
       </div>
     </div>
     </>
