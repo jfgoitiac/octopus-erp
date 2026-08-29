@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useCallback } from 'react';
-import { Calendar, Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
+import { Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { es } from 'date-fns/locale';
@@ -8,6 +8,7 @@ import { useAsistencia } from '../hooks/useAsistencia';
 import GradoSelect from '../components/GradoSelect';
 import FilaAlumno from '../components/asistencia/FilaAlumno';
 import SkeletonFila from '../components/asistencia/SkeletonFila';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 // Sin `background` inline (a diferencia de INPUT_STYLE): así la clase
@@ -65,29 +66,21 @@ const Asistencia = () => {
 
   return (
     <div className="animate-fadeIn pb-24 sm:pb-0">
-      {/* Header */}
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-lg font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <Calendar size={20} style={{ color: 'var(--pb)' }} />
-            Control de Asistencia
-          </h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--ash)' }}>
-            Registro diario de presencia por grado
-          </p>
-        </div>
-
-        {/* Botón guardar — visible en desktop */}
-        <button
-          onClick={guardar}
-          disabled={saving || !dirty || !registros.length}
-          className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
-          style={{ background: 'var(--pb)' }}
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {saving ? 'Guardando...' : 'Guardar asistencia'}
-        </button>
-      </div>
+      <PageHeader
+        titulo="Control de Asistencia"
+        descripcion="Registro diario de presencia por grado"
+        acciones={
+          <button
+            onClick={guardar}
+            disabled={saving || !dirty || !registros.length}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
+            style={{ background: 'var(--pb)' }}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? 'Guardando...' : 'Guardar asistencia'}
+          </button>
+        }
+      />
 
       {/* Filtros */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
