@@ -2,6 +2,7 @@ import { User, Loader2, CheckCircle2, DollarSign, ArrowRight } from 'lucide-reac
 import DecimalInput from '../../components/DecimalInput';
 import { fmt } from '../../utils/formato';
 import { Bone } from '../../components/shared/Skeleton.jsx';
+import { Card } from '../../components/ui/Card';
 
 /** Alterna la selección de todos los ids de una lista contra un array `selected*`,
  * invocando el toggle existente solo para los ids que falten (o sobren). */
@@ -419,7 +420,7 @@ const CobranzaStep1 = ({
     );
 
     return (
-        <div className={`max-w-2xl mx-auto anim-fade-up ${!representanteNombre ? 'py-16' : 'py-4'}`}>
+        <Card padding="none" className={`max-w-2xl mx-auto anim-fade-up ${!representanteNombre ? 'py-16' : 'py-4'}`}>
             {/* Search box */}
             <div className="rounded-xl p-5 mb-5" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                 <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
@@ -622,7 +623,7 @@ const CobranzaStep1 = ({
                     )}
                 </div>
             )}
-        </div>
+        </Card>
     );
 };
 

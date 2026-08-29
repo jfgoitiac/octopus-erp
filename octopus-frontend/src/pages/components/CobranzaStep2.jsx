@@ -3,6 +3,7 @@ import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
 import { fmt } from '../../utils/formato';
 import { useConfiguracion } from '../../hooks/useConfiguracion';
+import { Card } from '../../components/ui/Card';
 
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
@@ -81,7 +82,7 @@ const CobranzaStep2 = ({
     });
 
     return (
-        <div className="max-w-4xl mx-auto anim-fade-up">
+        <Card padding="none" className="max-w-4xl mx-auto anim-fade-up">
             {/* Header */}
             <div className="flex items-center gap-3 mb-6 pb-4" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
                 <button
@@ -404,7 +405,7 @@ const CobranzaStep2 = ({
                 {/* ── Resumen (2/5) ── */}
                 {children}
             </div>
-        </div>
+        </Card>
     );
 };
 
