@@ -10,6 +10,8 @@ import {
     sumPagos, countUniqAlumnos, mesConMayorRecaudacion,
 } from '../../constants/reportes';
 import TrendBadge from './TrendBadge';
+import { Card } from '../ui/Card';
+import { Tabla } from '../ui/Tabla';
 
 const BusinessIntelligenceTab = () => {
     const [biStats, setBiStats] = useState(null);
@@ -78,7 +80,7 @@ const BusinessIntelligenceTab = () => {
             </div>
 
             {/* ── BI 1: Proyección de ingresos mensuales ── */}
-            <div className="rounded-xl overflow-hidden mb-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+            <Card padding="none" className="overflow-hidden mb-6">
                 <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
                     <div className="p-1.5 rounded-lg" style={{ background: '#dcfce7' }}>
                         <Target size={15} style={{ color: '#16a34a' }} />
@@ -178,10 +180,10 @@ const BusinessIntelligenceTab = () => {
                         );
                     })()}
                 </div>
-            </div>
+            </Card>
 
             {/* ── BI 2: Tasa de morosidad por grado ── */}
-            <div className="rounded-xl overflow-hidden mb-6" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+            <Card padding="none" className="overflow-hidden mb-6">
                 <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
                     <div className="p-1.5 rounded-lg" style={{ background: 'var(--red-light)' }}>
                         <TrendingDown size={15} style={{ color: 'var(--red)' }} />
@@ -240,10 +242,10 @@ const BusinessIntelligenceTab = () => {
                         </div>
                     )}
                 </div>
-            </div>
+            </Card>
 
             {/* ── BI 3: Comparativa de períodos escolares ── */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+            <Card padding="none" className="overflow-hidden">
                 <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
                     <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
                         <BarChart2 size={15} style={{ color: 'var(--pb)' }} />
@@ -306,46 +308,30 @@ const BusinessIntelligenceTab = () => {
                             },
                         ];
 
+                        const columnasComparativa = [
+                            { key: 'metrica', label: 'Métrica' },
+                            { key: 'ant', label: `${biAnioFiltro - 1}-${biAnioFiltro}`, align: 'center' },
+                            { key: 'act', label: `${biAnioFiltro}-${biAnioFiltro + 1}`, align: 'center' },
+                            { key: 'variacion', label: 'Variación', align: 'center' },
+                        ];
+
                         return (
-                            <div className="overflow-x-auto rounded-xl" style={{ border: '0.5px solid var(--border-md)' }}>
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
-                                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
-                                                Métrica
-                                            </th>
-                                            <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
-                                                {biAnioFiltro - 1}-{biAnioFiltro}
-                                            </th>
-                                            <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
-                                                {biAnioFiltro}-{biAnioFiltro + 1}
-                                            </th>
-                                            <th className="text-center px-4 py-3 text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
-                                                Variación
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {rows.map((row, idx) => (
-                                            <tr key={row.label} style={{
-                                                background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
-                                                borderBottom: '0.5px solid var(--border-md)',
-                                            }}>
-                                                <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{row.label}</td>
-                                                <td className="px-4 py-3 text-center font-mono text-xs" style={{ color: 'var(--ash)' }}>{row.ant}</td>
-                                                <td className="px-4 py-3 text-center font-mono text-xs font-semibold" style={{ color: 'var(--jet)' }}>{row.act}</td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <TrendBadge val={row.trend} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <Tabla columnas={columnasComparativa} minWidth={480}>
+                                {rows.map((row) => (
+                                    <tr key={row.label}>
+                                        <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{row.label}</td>
+                                        <td className="px-4 py-3 text-center font-mono text-xs" style={{ color: 'var(--ash)' }}>{row.ant}</td>
+                                        <td className="px-4 py-3 text-center font-mono text-xs font-semibold" style={{ color: 'var(--jet)' }}>{row.act}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <TrendBadge val={row.trend} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </Tabla>
                         );
                     })()}
                 </div>
-            </div>
+            </Card>
         </section>
     );
 };
