@@ -34,7 +34,7 @@ lapso para ver las notas."**.
 Al elegirlos aparece la tabla de alumnos con cuatro columnas de evaluación y la
 nota definitiva.
 
-[CAPTURA: pantalla "Registro de Notas" con grado, materia y lapso elegidos y la tabla de calificaciones]
+[CAPTURA: pantalla "Registro de Notas" con los selectores de grado, materia y lapso, y el botón "Guardar notas"]
 
 ---
 

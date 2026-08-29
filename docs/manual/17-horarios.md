@@ -30,7 +30,7 @@ y **"Haz clic en cualquier celda para agregar la primera clase."**.
 A un lado hay un panel de materias del grado, para tenerlas a la vista mientras
 armas la grilla.
 
-[CAPTURA: grilla horaria de un grado con las clases distribuidas de lunes a viernes]
+[CAPTURA: pantalla "Horarios de Clases" con el selector de grado, el botón "Generar automático" y la grilla de la semana]
 
 ---
 

@@ -27,7 +27,7 @@ Debajo hay dos pestañas:
 - **"Alertas de Riesgo"** — la lista de alumnos con problemas. Si hay alguno,
   aparece un número rojo al lado del nombre de la pestaña.
 
-[CAPTURA: pestaña "Mapa de Calor" con una sección seleccionada y la tabla de colores por materia y alumno]
+[CAPTURA: pantalla "Seguimiento de Rendimiento" con las pestañas "Mapa de Calor" y "Alertas de Riesgo" y los selectores de grado y lapso]
 
 ---
 

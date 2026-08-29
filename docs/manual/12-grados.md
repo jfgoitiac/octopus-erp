@@ -33,7 +33,7 @@ A la derecha, mientras no elijas nada, verás **"Selecciona un grado"** y
 Al elegir un grado aparece la tabla con las columnas **"#"**, **"Cédula
 Escolar"**, **"Nombres"** y **"Apellidos"**.
 
-[CAPTURA: pantalla "Matrículas por Grado" con el panel de grados a la izquierda y el listado de alumnos a la derecha]
+[CAPTURA: pantalla "Matrículas por Grado" con el panel "Seleccionar Grado" a la izquierda y el área del listado a la derecha]
 
 ---
 

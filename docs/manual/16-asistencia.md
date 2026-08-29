@@ -31,7 +31,7 @@ lista."**.
 Al elegir grado y fecha aparece la lista de alumnos. Cada fila tiene cuatro
 botones de estado y, cuando corresponde, un campo de observación.
 
-[CAPTURA: pantalla "Control de Asistencia" con el grado y la fecha seleccionados y la lista de alumnos con sus botones de estado]
+[CAPTURA: pantalla "Control de Asistencia" con el selector de grado, el calendario de fecha y los botones "Día anterior" y "Día siguiente"]
 
 ---
 
