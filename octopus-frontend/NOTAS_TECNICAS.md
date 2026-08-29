@@ -370,3 +370,23 @@
   evaluación (`solo_lectura`), ya que esa sí es una distinción de categoría
   legítima (evaluación vs. evento personal), consistente con otras alertas
   ámbar del sistema.
+
+## Sidebar dinámico — Favoritos y grupos colapsables — 2026-08-28
+
+- [DEUDA] `useSidebarPrefs.js` persiste favoritos y grupos colapsados en
+  `localStorage` bajo la clave `octopus_sidebar_prefs_<username>`. Esto es
+  local al navegador: si el usuario cambia de dispositivo o borra datos del
+  sitio, pierde sus preferencias. Migrar a un endpoint de perfil de usuario
+  (`GET/PATCH secretaria/mi-perfil/preferencias-sidebar/` o similar) para que
+  las preferencias sigan al usuario entre dispositivos. El campo `version: 1`
+  en el objeto guardado ya está pensado para permitir esa migración de
+  formato sin romper a los usuarios existentes.
+
+- [DEUDA] La clave de persistencia usa `username` en vez de un `id` numérico
+  estable, porque `AuthContext.extractUserData()` no expone `user.id` (el
+  JWT decodificado solo se lee para `username`, `rol` y `nombre` — ver
+  `AuthContext.jsx:11-26`). Si en el futuro se permite renombrar el
+  `username` de un usuario, sus preferencias de sidebar quedarían huérfanas
+  bajo la clave vieja. Si se agrega `user.id` al JWT/AuthContext más
+  adelante, migrar la clave de `octopus_sidebar_prefs_<username>` a
+  `octopus_sidebar_prefs_<id>`.
