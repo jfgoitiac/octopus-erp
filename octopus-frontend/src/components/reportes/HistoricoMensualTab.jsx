@@ -4,6 +4,16 @@ import { toast } from 'react-toastify';
 import axiosInstance from '../../api/apiClient';
 import { TableRowSkeleton } from '../shared/Skeleton';
 import { currentYearMonth, fmt, getErrorMessage, MONTH_NAMES, inputStyle } from '../../constants/reportes';
+import { Card } from '../ui/Card';
+import { Tabla } from '../ui/Tabla';
+
+const HISTORICO_COLUMNAS = [
+    { key: 'fecha', label: 'Fecha' },
+    { key: 'pagos', label: 'Pagos', align: 'right' },
+    { key: 'total_usd', label: 'Total USD', align: 'right' },
+    { key: 'efectivo_usd', label: 'Efectivo USD', align: 'right' },
+    { key: 'transferencia_ves', label: 'Transf. VES', align: 'right' },
+];
 
 const HistoricoMensualTab = () => {
     const [mesAno, setMesAno] = useState(currentYearMonth);
@@ -66,53 +76,23 @@ const HistoricoMensualTab = () => {
             </div>
 
             {/* Tabla */}
-            <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
-                <table className="w-full text-sm min-w-[500px]">
-                    <thead>
-                        <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-                            <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest font-medium"
-                                style={{ color: 'var(--ash)' }}>
-                                Fecha
-                            </th>
-                            <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium"
-                                style={{ color: 'var(--ash)' }}>
-                                Pagos
-                            </th>
-                            <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium"
-                                style={{ color: 'var(--ash)' }}>
-                                Total USD
-                            </th>
-                            <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium"
-                                style={{ color: 'var(--ash)' }}>
-                                Efectivo USD
-                            </th>
-                            <th className="text-right px-4 py-3 text-[11px] uppercase tracking-widest font-medium"
-                                style={{ color: 'var(--ash)' }}>
-                                Transf. VES
-                            </th>
+            <Card padding="none">
+                <Tabla columnas={HISTORICO_COLUMNAS} minWidth={500}>
+                    {loadingHist ? (
+                        <TableRowSkeleton cols={5} rows={6} />
+                    ) : histDias.length === 0 ? (
+                        <tr>
+                            <td colSpan={5} className="text-center py-10 text-sm" style={{ color: 'var(--ash)' }}>
+                                Sin registros para {MONTH_NAMES[parseInt(mesAno.split('-')[1], 10) - 1]} {mesAno.split('-')[0]}. Prueba con otro mes.
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {loadingHist ? (
-                            <TableRowSkeleton cols={5} rows={6} />
-                        ) : histDias.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="text-center py-10 text-sm" style={{ color: 'var(--ash)' }}>
-                                    Sin registros para {MONTH_NAMES[parseInt(mesAno.split('-')[1], 10) - 1]} {mesAno.split('-')[0]}. Prueba con otro mes.
-                                </td>
-                            </tr>
-                        ) : (
-                            histDias.map((row, idx) => {
+                    ) : (
+                        [
+                            ...histDias.map((row) => {
                                 const d = new Date(row.fecha + 'T12:00:00');
                                 const label = d.toLocaleDateString('es-VE', { weekday: 'short', day: '2-digit', month: 'short' });
                                 return (
-                                    <tr
-                                        key={row.fecha}
-                                        style={{
-                                            background: idx % 2 === 0 ? '#fff' : 'var(--porcelain)',
-                                            borderBottom: '0.5px solid var(--border-md)',
-                                        }}
-                                    >
+                                    <tr key={row.fecha}>
                                         <td className="px-4 py-3 font-medium capitalize" style={{ color: 'var(--jet)' }}>
                                             {label}
                                         </td>
@@ -130,12 +110,8 @@ const HistoricoMensualTab = () => {
                                         </td>
                                     </tr>
                                 );
-                            })
-                        )}
-                    </tbody>
-                    {histDias.length > 0 && !loadingHist && (
-                        <tfoot>
-                            <tr style={{ background: 'var(--porcelain)', borderTop: '1px solid var(--border-md)' }}>
+                            }),
+                            <tr key="total-mes" style={{ background: 'var(--porcelain)', borderTop: '1px solid var(--border-md)' }}>
                                 <td className="px-4 py-3 text-[11px] uppercase tracking-widest font-semibold"
                                     style={{ color: 'var(--ash)' }}>
                                     Total del mes
@@ -152,11 +128,11 @@ const HistoricoMensualTab = () => {
                                 <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: 'var(--jet)' }}>
                                     Bs. {totalesMes.transferencia_ves.toFixed(2)}
                                 </td>
-                            </tr>
-                        </tfoot>
+                            </tr>,
+                        ]
                     )}
-                </table>
-            </div>
+                </Tabla>
+            </Card>
         </section>
     );
 };
