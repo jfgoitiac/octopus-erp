@@ -33,7 +33,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
 
 from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
-from cobranza.services import monto_proyecto_inversion_defecto
+from cobranza.services import monto_proyecto_inversion_defecto, tipo_cargo_proyecto_inversion
 from secretaria.models import Alumno, ConfiguracionSistema
 
 
@@ -130,10 +130,13 @@ class Command(BaseCommand):
         ]
         CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
 
+        tipo_proyecto = tipo_cargo_proyecto_inversion()
         proyectos_nuevos = [
             CuotaProyectoInversion(
                 representante_id=representante_id,
                 periodo_escolar=periodo,
+                tipo_concepto=tipo_proyecto,
+                numero_cuota=1,
                 monto_usd=monto_proyecto,
                 pagado=False,
             )

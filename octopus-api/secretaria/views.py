@@ -167,7 +167,7 @@ class ConfiguracionSistemaView(APIView):
         proyectos_generados = 0
         if config.inscripciones_abiertas and not estaba_abierto:
             from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
-            from cobranza.services import monto_proyecto_inversion_defecto
+            from cobranza.services import monto_proyecto_inversion_defecto, tipo_cargo_proyecto_inversion
             from decimal import Decimal
 
             param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
@@ -188,11 +188,14 @@ class ConfiguracionSistemaView(APIView):
             cuotas_generadas = len(cuotas_nuevas)
 
             monto_proyecto = monto_proyecto_inversion_defecto()
+            tipo_proyecto = tipo_cargo_proyecto_inversion()
             representantes_ids = {alumno.representante_id for alumno in alumnos_activos}
             proyectos_nuevos = [
                 CuotaProyectoInversion(
                     representante_id=representante_id,
                     periodo_escolar=periodo,
+                    tipo_concepto=tipo_proyecto,
+                    numero_cuota=1,
                     monto_usd=monto_proyecto,
                     pagado=False,
                 )
@@ -240,7 +243,7 @@ class CargarCuotasInscripcionView(APIView):
     def post(self, request):
         from decimal import Decimal
         from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
-        from cobranza.services import monto_proyecto_inversion_defecto
+        from cobranza.services import monto_proyecto_inversion_defecto, tipo_cargo_proyecto_inversion
 
         config = ConfiguracionSistema.objects.first()
         periodo = config.periodo_escolar_activo if config else None
@@ -269,6 +272,7 @@ class CargarCuotasInscripcionView(APIView):
 
         # CuotaProyectoInversion: una por representante (no por alumno), mismo criterio idempotente
         monto_proyecto = monto_proyecto_inversion_defecto()
+        tipo_proyecto = tipo_cargo_proyecto_inversion()
         representantes_ids = {a.representante_id for a in alumnos_activos}
         representantes_existentes = set(
             CuotaProyectoInversion.objects
@@ -280,6 +284,8 @@ class CargarCuotasInscripcionView(APIView):
             CuotaProyectoInversion(
                 representante_id=representante_id,
                 periodo_escolar=periodo,
+                tipo_concepto=tipo_proyecto,
+                numero_cuota=1,
                 monto_usd=monto_proyecto,
                 pagado=False,
             )
@@ -411,7 +417,7 @@ class PromocionAlumnosView(APIView):
         # Generar CuotaInscripcion del nuevo período para los alumnos promovidos
         # (los no_mapeados, ej. egresados, no continúan y no deben generar cuota)
         from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, ParametroGlobal
-        from cobranza.services import monto_proyecto_inversion_defecto
+        from cobranza.services import monto_proyecto_inversion_defecto, tipo_cargo_proyecto_inversion
         from decimal import Decimal
 
         param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
@@ -437,6 +443,7 @@ class PromocionAlumnosView(APIView):
         # promovían por esta vía nunca quedaban con la cuota de proyecto de
         # inversión del nuevo período en ningún lado del sistema.
         monto_proyecto = monto_proyecto_inversion_defecto()
+        tipo_proyecto = tipo_cargo_proyecto_inversion()
         representantes_ids = {alumno.representante_id for alumno in alumnos_a_promover}
         representantes_existentes = set(
             CuotaProyectoInversion.objects
@@ -448,6 +455,8 @@ class PromocionAlumnosView(APIView):
             CuotaProyectoInversion(
                 representante_id=representante_id,
                 periodo_escolar=periodo_destino,
+                tipo_concepto=tipo_proyecto,
+                numero_cuota=1,
                 monto_usd=monto_proyecto,
                 pagado=False,
             )
@@ -1817,7 +1826,7 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         lugar sobre cuentas ya al día.
         """
         from cobranza.models import CuotaInscripcion, CuotaProyectoInversion
-        from cobranza.services import monto_proyecto_inversion_defecto
+        from cobranza.services import monto_proyecto_inversion_defecto, tipo_cargo_proyecto_inversion
 
         rep = self.get_object()
         config = ConfiguracionSistema.objects.first()
@@ -1841,10 +1850,12 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # unique_together=('representante', 'periodo_escolar') respeta el "un
-        # solo cargo por período" incluso si esto se llama más de una vez.
+        # unique_together=('representante', 'periodo_escolar', 'tipo_concepto',
+        # 'numero_cuota') respeta el "un solo cargo por período" incluso si
+        # esto se llama más de una vez.
         cuota, creada = CuotaProyectoInversion.objects.get_or_create(
             representante=rep, periodo_escolar=periodo,
+            tipo_concepto=tipo_cargo_proyecto_inversion(), numero_cuota=1,
             defaults={'monto_usd': monto_proyecto_inversion_defecto()},
         )
 

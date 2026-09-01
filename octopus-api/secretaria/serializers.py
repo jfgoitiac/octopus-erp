@@ -148,6 +148,7 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
         if monto_proyecto_inversion is not None:
             from cobranza.models import CuotaProyectoInversion
+            from cobranza.services import tipo_cargo_proyecto_inversion
             from .models import ConfiguracionSistema
             config = ConfiguracionSistema.objects.first()
             periodo = config.periodo_escolar_activo if config else None
@@ -157,6 +158,7 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
                 })
             cuota, _ = CuotaProyectoInversion.objects.update_or_create(
                 representante=instance, periodo_escolar=periodo,
+                tipo_concepto=tipo_cargo_proyecto_inversion(), numero_cuota=1,
                 defaults={'monto_usd': monto_proyecto_inversion}
             )
             instance._cuota_proyecto_periodo_activo = [cuota]
@@ -560,20 +562,23 @@ class InscripcionSerializer(serializers.ModelSerializer):
                         ]
                     })
 
-                # 2c-bis. Validar que el REPRESENTANTE no tenga Proyecto de Inversión impago.
-                # A diferencia de las cuotas anteriores (por alumno), esta es por
-                # representante: si está impaga, bloquea a TODOS sus hijos, no solo
-                # al que se está inscribiendo.
-                proyecto_impago = CuotaProyectoInversion.objects.filter(
-                    representante=representante, pagado=False
-                ).first()
-                if proyecto_impago:
+                # 2c-bis. Validar que el REPRESENTANTE no tenga cargos especiales
+                # bloqueantes impagos (tipo_concepto__bloquea_inscripcion=True;
+                # antes solo existía "Proyecto de Inversión", ahora puede haber
+                # varios TipoCargoEspecial). A diferencia de las cuotas anteriores
+                # (por alumno), esto es por representante: si está impago, bloquea
+                # a TODOS sus hijos, no solo al que se está inscribiendo.
+                cargo_impago = CuotaProyectoInversion.objects.filter(
+                    representante=representante, pagado=False,
+                    tipo_concepto__bloquea_inscripcion=True,
+                ).select_related('tipo_concepto').first()
+                if cargo_impago:
                     raise serializers.ValidationError({
                         "non_field_errors": [
                             f"El representante {representante.nombre} {representante.apellido} tiene el "
-                            f"Proyecto de Inversión pendiente del período {proyecto_impago.periodo_escolar} "
-                            f"(${proyecto_impago.monto_usd}). Debe realizar el pago antes de inscribir a "
-                            "cualquiera de sus representados."
+                            f"cargo '{cargo_impago.tipo_concepto.nombre}' pendiente del período "
+                            f"{cargo_impago.periodo_escolar} (${cargo_impago.monto_usd}). Debe realizar el "
+                            "pago antes de inscribir a cualquiera de sus representados."
                         ]
                     })
 
@@ -653,10 +658,11 @@ class InscripcionSerializer(serializers.ModelSerializer):
                 # 4b. Red de seguridad: si el representante es nuevo y no pasó por la
                 # generación bulk (apertura de inscripciones / carga manual), se crea
                 # aquí su Proyecto de Inversión del período con el monto por defecto.
-                from cobranza.services import monto_proyecto_inversion_defecto
+                from cobranza.services import monto_proyecto_inversion_defecto, tipo_cargo_proyecto_inversion
                 CuotaProyectoInversion.objects.get_or_create(
                     representante=representante,
                     periodo_escolar=inscripcion.periodo_escolar,
+                    tipo_concepto=tipo_cargo_proyecto_inversion(), numero_cuota=1,
                     defaults={'monto_usd': monto_proyecto_inversion_defecto()}
                 )
 

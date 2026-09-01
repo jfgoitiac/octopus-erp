@@ -94,6 +94,28 @@ def monto_proyecto_inversion_defecto():
         return Decimal('0.00')
 
 
+def tipo_cargo_proyecto_inversion():
+    """
+    TipoCargoEspecial semilla "Proyecto de Inversión" (creada por la migración
+    de backfill cobranza/migrations/0035). get_or_create como red de
+    seguridad (ej. entornos de test que corren migraciones desde cero) —
+    nunca debería tener que crearlo en producción, ya migrado.
+    """
+    from .models import TipoCargoEspecial
+    tipo, _ = TipoCargoEspecial.objects.get_or_create(
+        nombre="Proyecto de Inversión",
+        defaults={
+            'monto_defecto_usd': monto_proyecto_inversion_defecto(),
+            'periodicidad': 'unico',
+            'numero_cuotas': 1,
+            'bloquea_inscripcion': True,
+            'alcance': 'todos',
+            'activo': True,
+        },
+    )
+    return tipo
+
+
 def configuracion_activa():
     """Instancia única de ConfiguracionSistema, o None si aún no existe."""
     from secretaria.models import ConfiguracionSistema

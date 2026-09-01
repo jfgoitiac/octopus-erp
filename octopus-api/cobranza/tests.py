@@ -416,19 +416,23 @@ class CuotaProyectoInversionDeudaDerivadaTest(TestCase):
     """
 
     def setUp(self):
+        from cobranza.services import tipo_cargo_proyecto_inversion
         self.representante = Representante.objects.create(
             cedula='V20000003', nombre='Marta', apellido='Diaz', correo='marta@example.com'
         )
+        self.tipo_proyecto = tipo_cargo_proyecto_inversion()
 
     def test_monto_cero_queda_pagado_automaticamente(self):
         cuota = CuotaProyectoInversion.objects.create(
-            representante=self.representante, periodo_escolar='2025-2026', monto_usd=Decimal('0.00')
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=self.tipo_proyecto, monto_usd=Decimal('0.00')
         )
         self.assertTrue(cuota.pagado)
 
     def test_monto_pagado_igual_a_monto_usd_marca_pagado(self):
         cuota = CuotaProyectoInversion.objects.create(
-            representante=self.representante, periodo_escolar='2025-2026', monto_usd=Decimal('50.00')
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=self.tipo_proyecto, monto_usd=Decimal('50.00')
         )
         self.assertFalse(cuota.pagado)
 
@@ -444,6 +448,7 @@ class CuotaProyectoInversionDeudaDerivadaTest(TestCase):
         de Representantes — debe volver a pagado=False."""
         cuota = CuotaProyectoInversion.objects.create(
             representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=self.tipo_proyecto,
             monto_usd=Decimal('50.00'), monto_pagado=Decimal('50.00'),
         )
         self.assertTrue(cuota.pagado)
@@ -461,10 +466,12 @@ class CuotaProyectoInversionDeudaDerivadaTest(TestCase):
         columna `pagado` no se hubiera escrito en el UPDATE de SQL."""
         CuotaProyectoInversion.objects.create(
             representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=self.tipo_proyecto,
             monto_usd=Decimal('50.00'), monto_pagado=Decimal('50.00'),
         )
         CuotaProyectoInversion.objects.update_or_create(
             representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=self.tipo_proyecto, numero_cuota=1,
             defaults={'monto_usd': Decimal('80.00')},
         )
         cuota = CuotaProyectoInversion.objects.get(

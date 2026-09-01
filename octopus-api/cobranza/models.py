@@ -399,28 +399,112 @@ class CuotaSolvencia(models.Model):
         super().save(*args, **kwargs)
 
 
+class TipoCargoEspecial(models.Model):
+    """
+    Definición reutilizable de un "cargo especial" (generalización del antiguo
+    concepto fijo "Proyecto de Inversión"): un cobro por representante que se
+    genera automáticamente para un subconjunto de representantes según
+    `alcance`, con periodicidad configurable.
+
+    REGLA DE ALCANCE — el cargo es por REPRESENTANTE pero `grado` y `sede` se
+    evalúan sobre sus ALUMNOS: se genera UN cargo por representante que tenga
+    AL MENOS UN alumno activo que matchee el alcance, sin importar cuántos
+    hijos matcheen (mismo criterio histórico de "una sola vez por período, no
+    una vez por hijo" que tenía Proyecto de Inversión).
+      - 'todos' → representantes con al menos un alumno activo en el período.
+      - 'grado' → el alumno activo debe estar en alguno de los `grados`
+        (M2M a secretaria.ConfiguracionGrado, comparado por
+        Alumno.grado_seccion).
+      - 'sede'  → el alumno activo debe pertenecer a alguna de las `sedes`
+        (M2M a multisede.Sede, comparado por Alumno.sede).
+
+    REGLA DE PERIODICIDAD:
+      - 'unico': un solo cargo (numero_cuotas=1 obligatorio).
+      - 'mensual'/'trimestral': `numero_cuotas` cargos, con fecha_cobro de
+        cada uno = fecha_primera_cuota + (numero_cuota-1) meses ('mensual')
+        o + 3 meses por cuota ('trimestral'). No se deriva del CharField
+        `periodo_escolar` (ej. '2026-2027'): es ambiguo, así que
+        `fecha_primera_cuota` es explícita y obligatoria para estos casos.
+        `dia_cobro`, si viene seteado, sobrescribe el día del mes calculado.
+    """
+    PERIODICIDADES = (
+        ('unico', 'Único'),
+        ('mensual', 'Mensual'),
+        ('trimestral', 'Trimestral'),
+    )
+    ALCANCES = (
+        ('todos', 'Todos los representantes'),
+        ('grado', 'Por grado'),
+        ('sede', 'Por sede'),
+    )
+
+    nombre = models.CharField(max_length=100)
+    monto_defecto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    periodicidad = models.CharField(max_length=15, choices=PERIODICIDADES, default='unico')
+    numero_cuotas = models.PositiveSmallIntegerField(default=1)
+    fecha_primera_cuota = models.DateField(null=True, blank=True)
+    dia_cobro = models.PositiveSmallIntegerField(null=True, blank=True)
+    bloquea_inscripcion = models.BooleanField(default=True)
+    alcance = models.CharField(max_length=10, choices=ALCANCES, default='todos')
+    grados = models.ManyToManyField('secretaria.ConfiguracionGrado', blank=True, related_name='tipos_cargo_especial')
+    sedes = models.ManyToManyField('multisede.Sede', blank=True, related_name='tipos_cargo_especial')
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = 'Tipo de Cargo Especial'
+        verbose_name_plural = 'Tipos de Cargo Especial'
+
+    def __str__(self):
+        return self.nombre
+
+    def clean(self):
+        super().clean()
+        if self.periodicidad == 'unico' and self.numero_cuotas != 1:
+            raise ValidationError({
+                'numero_cuotas': "Un cargo de periodicidad 'único' debe tener numero_cuotas=1."
+            })
+        if self.periodicidad != 'unico' and not self.fecha_primera_cuota:
+            raise ValidationError({
+                'fecha_primera_cuota': (
+                    "Obligatorio cuando la periodicidad no es 'único'."
+                )
+            })
+
+
 class CuotaProyectoInversion(models.Model):
     """
-    Cargo por período escolar del "Proyecto de Inversión", a nivel de
+    Cargo especial por período escolar (generalización del antiguo concepto
+    fijo "Proyecto de Inversión", ver `TipoCargoEspecial`), a nivel de
     REPRESENTANTE (no de alumno): si un representante tiene varios hijos
     inscritos, se cobra una sola vez por período, no una vez por hijo.
 
     Se genera junto con CuotaInscripcion (al abrir inscripciones o al cargar
     cuotas manualmente) usando el monto por defecto de ParametroGlobal
-    (MONTO_PROYECTO_INVERSION_DEFECTO). El monto es ajustable por
-    representante (ver secretaria.serializers.RepresentanteSerializer /
-    módulo de Representantes) sin afectar a otros representantes. No es
-    editable desde la ficha del alumno (Lista de Alumnos).
+    (MONTO_PROYECTO_INVERSION_DEFECTO) para la semilla histórica "Proyecto de
+    Inversión", o `TipoCargoEspecial.monto_defecto_usd` para cualquier otro
+    tipo (ver cobranza/services.py: generar_cargos_especiales_pendientes()).
+    El monto es ajustable por representante (ver
+    secretaria.serializers.RepresentanteSerializer / módulo de
+    Representantes) sin afectar a otros representantes. No es editable desde
+    la ficha del alumno (Lista de Alumnos).
 
-    Si está impaga, bloquea la inscripción de CUALQUIER alumno de ese
-    representante (ver InscripcionSerializer), igual que una mensualidad o
-    cuota de inscripción vencida.
+    Si `tipo_concepto.bloquea_inscripcion` es True y está impaga, bloquea la
+    inscripción de CUALQUIER alumno de ese representante (ver
+    InscripcionSerializer), igual que una mensualidad o cuota de inscripción
+    vencida.
     """
     representante = models.ForeignKey(
         'secretaria.Representante', on_delete=models.CASCADE,
         related_name='cuotas_proyecto_inversion'
     )
     periodo_escolar = models.CharField(max_length=20)
+    tipo_concepto = models.ForeignKey(
+        TipoCargoEspecial, on_delete=models.PROTECT,
+        related_name='cuotas'
+    )
+    numero_cuota = models.PositiveSmallIntegerField(default=1)
+    fecha_cobro = models.DateField(null=True, blank=True)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     pagado = models.BooleanField(default=False)
@@ -430,7 +514,7 @@ class CuotaProyectoInversion(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        unique_together = ('representante', 'periodo_escolar')
+        unique_together = ('representante', 'periodo_escolar', 'tipo_concepto', 'numero_cuota')
         ordering = ['-periodo_escolar']
 
     def __str__(self):
