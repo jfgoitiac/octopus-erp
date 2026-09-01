@@ -2222,8 +2222,18 @@ class DesgloseContableView(APIView):
                     'banco_receptor': principal.banco_receptor.nombre if principal.banco_receptor else None,
                 }
                 for linea in lineas_auto:
-                    mes = linea.get('mes') if linea.get('clasificacion_temporal') == 'atrasado' else None
-                    anio = linea.get('anio') if linea.get('clasificacion_temporal') == 'atrasado' else None
+                    # mes/anio son el período REAL de la mensualidad cubierta
+                    # (no la fecha de cobro): deben viajar sin importar si la
+                    # mensualidad quedó 'atrasado', 'al_dia' o 'anticipado',
+                    # porque el desglose mensual en pantalla agrupa por este
+                    # período. Restringir esto a solo 'atrasado' hacía que una
+                    # mensualidad pagada a tiempo (ej. la de agosto, pagada en
+                    # agosto) perdiera mes/anio y cayera en un grupo por tipo
+                    # que no reconoce 'mensualidad' (ORDEN_CATEGORIA_TIPO_DESGLOSE
+                    # en ClasificacionPagosTab.jsx) — el monto desaparecía del
+                    # cuadro en vez de sumar en su mes correspondiente.
+                    mes = linea.get('mes')
+                    anio = linea.get('anio')
                     # `linea['alumno']`/`linea['descripcion']` vienen del cuota real
                     # (mensualidad/cuota_inscripcion/cuota_solvencia/proyecto_inversion)
                     # detrás de esta línea, no del pago principal — una operación
