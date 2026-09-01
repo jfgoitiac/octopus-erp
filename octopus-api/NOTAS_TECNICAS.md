@@ -687,3 +687,19 @@ intermedia con el monto exacto), no solo el acumulado en la cuota.
   `andrilugo`, `beatrizleal`, `director`, `ednysm`, `lilianalopez`, `mariamendez`, `mayerlincuauro`,
   `mmolina`, `nelidaguanipa`, `pruebadiag01`, `secprimaria`. Mientras no se completen a mano (vía
   `python manage.py completar_nombres --aplicar <csv>`), `nombreUsuario()` cae al `username` para ellos.
+
+## Cargos Especiales Dinámicos (generalización de CuotaProyectoInversion) — alcance de PASO 1/2
+
+- `cobranza/mora.py::annotate_mora_detalle` (`monto_proyecto_inversion_adeudado`) sigue filtrando SOLO por
+  la semilla histórica "Proyecto de Inversión" (vía `services.tipo_cargo_proyecto_inversion()`), no por
+  `bloquea_inscripcion=True` como sí hace `_condicion_mora` (que si detecta correctamente cualquier
+  `TipoCargoEspecial` bloqueante en mora). Es deliberado: esa columna alimenta un renglón con la etiqueta
+  fija "Proyecto de Inversión Adeudado (USD)" en morosos/Excel (`ExportarMorososExcelView`,
+  `constants/reportes.js:49-51`, `ClasificacionPagosTab.jsx`) y en `sincronizar_solvencias`. Si se crean
+  otros `TipoCargoEspecial` desde el PASO 3 (API) en adelante, su deuda SÍ cuenta para `en_mora`/bloqueo de
+  inscripción, pero NO aparece en esa columna específica ni en el choice
+  `('proyecto_inversion', 'PROYECTO DE INVERSIÓN')` de `cobranza/serializers.py:102` — haría falta una
+  columna/desglose por tipo en un trabajo aparte (PASO 4 lo señala como pendiente explícito).
+- `anular_pago` (`cobranza/correcciones.py`) generalizó solo el mensaje de error a "cargo especial"; la
+  limitación funcional de fondo (no soporta pagos vinculados a NINGÚN `CuotaProyectoInversion`, sin importar
+  el `tipo_concepto`) sigue igual — ver sección anterior sobre `anular_pago` y Proyecto de Inversión.

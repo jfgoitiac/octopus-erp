@@ -23,7 +23,10 @@ def periodo_activo():
 def representante_es_elegible(representante, periodo):
     """
     True si, para el período dado, el representante:
-      - tiene el proyecto de inversión de ese período pagado,
+      - tiene TODOS los cargos especiales bloqueantes de ese período pagados
+        (tipo_concepto__bloquea_inscripcion=True; puede haber más de un
+        TipoCargoEspecial además del histórico "Proyecto de Inversión", y
+        cada uno puede tener varias cuotas si su periodicidad no es 'unico'),
       - tiene la inscripción pagada para todos sus alumnos activos que
         tengan cuota de inscripción generada en ese período,
       - y ninguno de sus alumnos activos está en mora.
@@ -31,10 +34,13 @@ def representante_es_elegible(representante, periodo):
     if not periodo:
         return False
 
-    proyecto = CuotaProyectoInversion.objects.filter(
-        representante=representante, periodo_escolar=periodo
-    ).first()
-    if not proyecto or not proyecto.pagado:
+    cargos_bloqueantes = CuotaProyectoInversion.objects.filter(
+        representante=representante, periodo_escolar=periodo,
+        tipo_concepto__bloquea_inscripcion=True,
+    )
+    if not cargos_bloqueantes.exists():
+        return False
+    if cargos_bloqueantes.filter(pagado=False).exists():
         return False
 
     alumnos = representante.alumnos.filter(activo=True)

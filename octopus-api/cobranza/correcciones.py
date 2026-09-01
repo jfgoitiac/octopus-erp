@@ -219,8 +219,8 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
     if pago.proyectos_inversion_pagados.exists():
         raise ValidationError({
             'proyecto_inversion': (
-                'No se puede anular automáticamente un pago vinculado a un Proyecto '
-                'de Inversión (los abonos son parciales y no se puede determinar con '
+                'No se puede anular automáticamente un pago vinculado a un cargo '
+                'especial (los abonos son parciales y no se puede determinar con '
                 'certeza cuánto restarle a la cuota). Contactar a Sistemas para un '
                 'ajuste manual.'
             )

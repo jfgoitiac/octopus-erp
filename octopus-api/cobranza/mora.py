@@ -94,6 +94,7 @@ def _condicion_mora(hoy):
         CuotaProyectoInversion.objects.filter(
             representante=OuterRef('representante'),
             pagado=False,
+            tipo_concepto__bloquea_inscripcion=True,
         )
     )
 
@@ -168,8 +169,18 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
         CuotaSolvencia.objects.filter(alumno=OuterRef('pk'), pagado=False, monto_usd__gt=0)
         .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
     )
+    # Filtrado por la semilla histórica "Proyecto de Inversión" (no por
+    # bloquea_inscripcion como en `_condicion_mora`): esta columna alimenta un
+    # renglón con esa etiqueta específica en morosos/Excel/sincronizar_solvencias,
+    # así que solo debe sumar cargos de ESE tipo. Otros TipoCargoEspecial no
+    # aparecen aquí todavía — fuera de alcance de esta generalización (ver
+    # NOTAS_TECNICAS.md); en_mora sí los considera (_condicion_mora arriba).
+    from .services import tipo_cargo_proyecto_inversion
     proyecto_inversion_subq = (
-        CuotaProyectoInversion.objects.filter(representante=OuterRef('representante'), pagado=False)
+        CuotaProyectoInversion.objects.filter(
+            representante=OuterRef('representante'), pagado=False,
+            tipo_concepto=tipo_cargo_proyecto_inversion(),
+        )
         .annotate(saldo=F('monto_usd') - F('monto_pagado'))
         .values('representante').annotate(t=Sum('saldo')).values('t')[:1]
     )
