@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -207,6 +208,61 @@ class InscripcionPeriodoCerradoTest(TestCase):
         payload = _payload_inscripcion('V20000002', 'E20000002', 'Grado Test Periodo')
         serializer = InscripcionSerializer(data=payload, context={'request': _FakeRequest(self.user)})
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class CargoEspecialBloqueoInscripcionTest(TestCase):
+    """
+    PASO 2 de la generalización de CuotaProyectoInversion (ver
+    cobranza/mora.py, cobranza/models.py::TipoCargoEspecial): el bloqueo de
+    inscripción ahora depende de tipo_concepto.bloquea_inscripcion, no de
+    "cualquier CuotaProyectoInversion impaga".
+    """
+
+    def setUp(self):
+        from cobranza.models import CuotaProyectoInversion, TipoCargoEspecial
+
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='sistemas_cargo', password='clave123456')
+        ConfiguracionGrado.objects.update_or_create(
+            grado_seccion='Grado Test Cargo Especial', defaults={'cupos_maximos': 10, 'cupos_utilizados': 0}
+        )
+        self.representante = Representante.objects.create(
+            cedula='V30000001', nombre='Rep', apellido='Bloqueo', correo='v30000001@example.com',
+        )
+        self.TipoCargoEspecial = TipoCargoEspecial
+        self.CuotaProyectoInversion = CuotaProyectoInversion
+
+    def test_cargo_bloqueante_impago_bloquea_inscripcion(self):
+        tipo = self.TipoCargoEspecial.objects.create(
+            nombre='Cargo Bloqueante Test', monto_defecto_usd=Decimal('30.00'),
+            bloquea_inscripcion=True,
+        )
+        self.CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=tipo, monto_usd=Decimal('30.00'),
+        )
+
+        payload = _payload_inscripcion('V30000001', 'E30000001', 'Grado Test Cargo Especial')
+        serializer = InscripcionSerializer(data=payload, context={'request': _FakeRequest(self.user)})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        with self.assertRaises(drf_serializers.ValidationError) as ctx:
+            serializer.save()
+        self.assertIn('Cargo Bloqueante Test', str(ctx.exception))
+
+    def test_cargo_no_bloqueante_impago_no_bloquea_inscripcion(self):
+        tipo = self.TipoCargoEspecial.objects.create(
+            nombre='Cargo No Bloqueante Test', monto_defecto_usd=Decimal('15.00'),
+            bloquea_inscripcion=False,
+        )
+        self.CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=tipo, monto_usd=Decimal('15.00'),
+        )
+
+        payload = _payload_inscripcion('V30000001', 'E30000002', 'Grado Test Cargo Especial')
+        serializer = InscripcionSerializer(data=payload, context={'request': _FakeRequest(self.user)})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        serializer.save()  # no debe lanzar ValidationError
 
 
 class AlumnoUpdateSerializerReasignarRepresentanteTest(TestCase):

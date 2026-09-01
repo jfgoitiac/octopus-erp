@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.db import connection
 from django.core.cache import cache
@@ -900,3 +900,169 @@ class AnularPagoTests(TestCase):
         _, pago = self._registrar_pago_mensualidad()
         resp = self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {'motivo': 'corto'}, format='json')
         self.assertEqual(resp.status_code, 400)
+
+    def test_anular_pago_vinculado_a_cargo_especial_sigue_rechazado(self):
+        """Límite conocido documentado en NOTAS_TECNICAS.md: no cambia con la
+        generalización a TipoCargoEspecial — sigue sin poder anularse
+        automáticamente un pago vinculado a CUALQUIER CuotaProyectoInversion."""
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from cobranza.correcciones import anular_pago
+        from cobranza.services import tipo_cargo_proyecto_inversion
+
+        tipo = tipo_cargo_proyecto_inversion()
+        cuota = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=tipo, monto_usd=Decimal('30.00'), monto_pagado=Decimal('30.00'),
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.user, metodo_pago='transferencia',
+            concepto='proyecto_inversion', monto_usd=Decimal('30.00'), tasa_aplicada=Decimal('40.00'),
+            estatus='completado', referencia='TRF-PROYECTO-1',
+        )
+        cuota.pagos.add(pago)
+
+        with self.assertRaises(DjangoValidationError):
+            anular_pago(pago, self.user, 'Reverso bancario confirmado por el banco')
+
+
+class CargosEspecialesAntiDuplicadosTest(TestCase):
+    """
+    PASO 5: correr dos veces cada punto de escritura que genera
+    CuotaProyectoInversion no debe crear filas repetidas — el
+    unique_together=(representante, periodo_escolar, tipo_concepto,
+    numero_cuota) solo protege de verdad si los 7 puntos incluyen
+    tipo_concepto/numero_cuota en su clave (ver commit de PASO 1).
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='sistemas_dup', password='password123', email='dup@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.representante = Representante.objects.create(
+            cedula='V40000001', nombre='Dup', apellido='Test', correo='dup@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Hijo', apellido='Dup', cedula_escolar='E40000001',
+            fecha_nacimiento=date(2016, 1, 1), representante=self.representante,
+        )
+        ConfiguracionSistema.objects.create(
+            periodo_escolar_activo='2025-2026',
+            fecha_inicio_inscripciones=date(2025, 6, 1),
+            fecha_fin_inscripciones=date(2025, 8, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+        )
+
+    def test_cargar_proyecto_inversion_llamado_dos_veces_no_duplica(self):
+        from cobranza.models import CuotaInscripcion
+        CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('50.00'), pagado=False,
+        )
+        url = f'/api/secretaria/representantes/{self.representante.id}/cargar_proyecto_inversion/'
+        primera = self.client.post(url, {}, format='json')
+        self.assertEqual(primera.status_code, 200, primera.content)
+        segunda = self.client.post(url, {}, format='json')
+        self.assertEqual(segunda.status_code, 200, segunda.content)
+
+        self.assertEqual(
+            CuotaProyectoInversion.objects.filter(
+                representante=self.representante, periodo_escolar='2025-2026'
+            ).count(),
+            1,
+        )
+
+    def test_cargar_cuotas_inscripcion_llamado_dos_veces_no_duplica(self):
+        url = '/api/secretaria/cargar-cuotas-inscripcion/'
+        primera = self.client.post(url, {}, format='json')
+        self.assertEqual(primera.status_code, 200, primera.content)
+        segunda = self.client.post(url, {}, format='json')
+        self.assertEqual(segunda.status_code, 200, segunda.content)
+
+        self.assertEqual(
+            CuotaProyectoInversion.objects.filter(
+                representante=self.representante, periodo_escolar='2025-2026'
+            ).count(),
+            1,
+        )
+
+
+class BackfillTipoConceptoMigracionTest(TransactionTestCase):
+    """
+    Test de integridad del backfill de cobranza/migrations/0035 (PASO 5): en
+    vez de comparar contra un dump de producción restaurado (imposible desde
+    un TestCase, cuya BD nace vacía), retrocede el estado de migraciones de
+    'cobranza' a ANTES de 0034 (esquema viejo, sin tipo_concepto), siembra
+    filas ahí, migra hacia adelante hasta 0036 y verifica que el conteo de
+    filas, la suma de monto_usd/monto_pagado y el estado `pagado` por fila
+    quedan idénticos, y que todas las filas terminan con tipo_concepto
+    asignado a la semilla "Proyecto de Inversión".
+    """
+
+    def test_backfill_preserva_conteo_sumas_y_estado_pagado(self):
+        from decimal import Decimal as D
+
+        from django.db.models import Sum
+        from django.db.migrations.executor import MigrationExecutor
+        from django.db import connection
+        from secretaria.models import Representante as RealRepresentante
+
+        # Representante no se toca por el rollback (es otra app, no depende
+        # de los campos que 0034/0035/0036 modifican), así que se puede usar
+        # el modelo real tal cual.
+        rep1 = RealRepresentante.objects.create(cedula='V50000001', nombre='Ana', apellido='Vieja', correo='a@example.com')
+        rep2 = RealRepresentante.objects.create(cedula='V50000002', nombre='Beto', apellido='Vieja', correo='b@example.com')
+
+        executor = MigrationExecutor(connection)
+        # Retrocede 'cobranza' al estado justo antes de 0034 (esquema viejo,
+        # sin tipo_concepto/numero_cuota/fecha_cobro ni TipoCargoEspecial).
+        executor.migrate([('cobranza', '0033_parametroglobal_valor_textfield')])
+
+        # Siembra con SQL crudo (el esquema real de la tabla en este punto no
+        # tiene las columnas nuevas; usar el ORM con un modelo actual
+        # rompería por columnas inexistentes).
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO cobranza_cuotaproyectoinversion "
+                "(representante_id, periodo_escolar, monto_usd, monto_pagado, pagado) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                [rep1.id, '2024-2025', D('100.00'), D('100.00'), True],
+            )
+            cursor.execute(
+                "INSERT INTO cobranza_cuotaproyectoinversion "
+                "(representante_id, periodo_escolar, monto_usd, monto_pagado, pagado) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                [rep2.id, '2024-2025', D('80.00'), D('30.00'), False],
+            )
+            cursor.execute(
+                "SELECT id, monto_usd, monto_pagado, pagado FROM cobranza_cuotaproyectoinversion "
+                "WHERE representante_id IN (%s, %s)",
+                [rep1.id, rep2.id],
+            )
+            filas_antes = cursor.fetchall()
+
+        conteo_antes = len(filas_antes)
+        suma_monto_antes = sum((D(str(f[1])) for f in filas_antes), D('0.00'))
+        suma_pagado_antes = sum((D(str(f[2])) for f in filas_antes), D('0.00'))
+        estados_antes = sorted((f[0], bool(f[3])) for f in filas_antes)
+
+        # Migra hacia adelante hasta el estado final de la app (0034 backfillea
+        # y aplica el AlterField/AlterUniqueTogether de 0036).
+        executor.loader.build_graph()
+        destino = [(app, name) for app, name in executor.loader.graph.leaf_nodes() if app == 'cobranza']
+        executor.migrate(destino)
+
+        self.assertEqual(CuotaProyectoInversion.objects.count(), conteo_antes)
+        agregados = CuotaProyectoInversion.objects.aggregate(m=Sum('monto_usd'), p=Sum('monto_pagado'))
+        self.assertEqual(agregados['m'], suma_monto_antes)
+        self.assertEqual(agregados['p'], suma_pagado_antes)
+
+        estados_despues = sorted(CuotaProyectoInversion.objects.values_list('id', 'pagado'))
+        self.assertEqual(estados_despues, estados_antes)
+
+        self.assertFalse(CuotaProyectoInversion.objects.filter(tipo_concepto__isnull=True).exists())
+        self.assertEqual(
+            CuotaProyectoInversion.objects.filter(tipo_concepto__nombre='Proyecto de Inversión').count(),
+            conteo_antes,
+        )
