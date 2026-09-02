@@ -35,6 +35,7 @@ from .views import (
     PagosListView,
     ReciboView,
     RegistrarPagoView,
+    ReglaRecargoPagoViewSet,
     ReporteCostoBecasView,
     RepresentantesResumenFinancieroView,
     ResumenConciliacionView,
@@ -42,6 +43,11 @@ from .views import (
     TipoCargoEspecialDetailView,
     TipoCargoEspecialListCreateView,
 )
+
+_reglas_recargo_list = ReglaRecargoPagoViewSet.as_view({'get': 'list', 'post': 'create'})
+_reglas_recargo_detail = ReglaRecargoPagoViewSet.as_view({
+    'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy',
+})
 
 urlpatterns = [
     path('sincronizar-tasa/',              SincronizarTasaView.as_view(),          name='sincronizar-tasa'),
@@ -85,4 +91,6 @@ urlpatterns = [
     path('tipos-cargo-especial/',          TipoCargoEspecialListCreateView.as_view(), name='tipos-cargo-especial'),
     path('tipos-cargo-especial/<int:pk>/', TipoCargoEspecialDetailView.as_view(),  name='tipo-cargo-especial-detalle'),
     path('reporte-becas/',                 ReporteCostoBecasView.as_view(),        name='reporte-costo-becas'),
+    path('reglas-recargo-pago/',           _reglas_recargo_list,                   name='reglas-recargo-pago-list'),
+    path('reglas-recargo-pago/<int:pk>/',  _reglas_recargo_detail,                 name='reglas-recargo-pago-detail'),
 ]
