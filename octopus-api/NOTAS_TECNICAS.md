@@ -713,3 +713,40 @@ intermedia con el monto exacto), no solo el acumulado en la cuota.
 - `anular_pago` (`cobranza/correcciones.py`) generalizó solo el mensaje de error a "cargo especial"; la
   limitación funcional de fondo (no soporta pagos vinculados a NINGÚN `CuotaProyectoInversion`, sin importar
   el `tipo_concepto`) sigue igual — ver sección anterior sobre `anular_pago` y Proyecto de Inversión.
+
+## Recargo por Pago Tardío (`ReglaRecargoPago`/`resolver_recargo`) — no cubre `CuotaInscripcion`/`CuotaSolvencia`
+
+- Solo se implementó para `Mensualidad`. Extenderlo a `CuotaInscripcion`/`CuotaSolvencia` no está hecho porque
+  esos modelos no tienen mes/fecha de vencimiento propia — `cobranza/mora.py` las da por vencidas desde que se
+  CREAN (no existe un "día límite" configurable como `dia_limite_pago`/`dia_aplicacion`), así que un recargo
+  "a partir del día N del mes" no está definido para ellas sin antes decidir qué fecha usar como ancla
+  (¿fecha de creación de la cuota? ¿inicio del período escolar?). Eso es una decisión de negocio nueva, fuera
+  de alcance de esta entrega.
+- El modelo actual no requeriría una migración destructiva para extenderlo si se decide hacerlo después:
+  `LineaRecargoPago.mensualidad` (FK directa a `Mensualidad`) tendría que generalizarse a una FK genérica
+  (`ContentType` + `object_id`) o agregar FKs opcionales paralelas (`cuota_inscripcion`, `cuota_solvencia`),
+  y `ReglaRecargoPago` necesitaría un campo que indique a qué tipo de cargo aplica cada regla.
+- `tipo='descuento'` existe como choice en `ReglaRecargoPago` (reservado a propósito, ver el enunciado de la
+  feature) pero no tiene NINGUNA lógica en `cobranza/recargos.py::resolver_recargo` — una regla creada con
+  `tipo='descuento'` queda guardada pero nunca se evalúa ni se aplica en ningún flujo (cobro, portal, morosos).
+  Si se implementa, hay que decidir además cómo interactúa con `porcentaje_beca_aplicado` (¿se puede
+  descontar sobre una mensualidad ya becada? ¿en qué orden se aplican beca y descuento?).
+- `cobranza/utils_pdf.py::generar_recibo_pdf` no tenía desglose línea por línea para NINGÚN concepto antes de
+  este cambio — solo mostraba el `monto_usd`/`tasa_aplicada`/`monto_ves` agregado del `Pago` completo (una
+  sola celda "Monto en Divisas"). Es una limitación preexistente, no algo introducido por esta feature: se
+  agregó desglose únicamente para mensualidad+recargo (el caso que pedía esta entrega); inscripción, solvencia
+  y proyecto de inversión siguen sin desglosarse en el PDF, aunque `calcular_desglose_automatico`
+  (`cobranza/serializers.py`, consumido por `ComprobanteSerializer` en la API de reimpresión) sí los desglosa
+  desde antes — solo el PDF generado por `generar_recibo_pdf` se quedó atrás.
+- `RegistrarPagoView.post` no valida hoy (ni antes ni después de este cambio) que la suma de `pagos` cubra
+  exactamente el monto esperado de las mensualidades/cuotas seleccionadas — no existía esa validación en el
+  código antes de esta feature, así que no se agregó una nueva para el recargo tampoco (se mantuvo el mismo
+  nivel de confianza en el monto que envía el frontend). Si se decide agregar esa validación en el futuro,
+  debe sumar `monto_usd + recargo` por mensualidad, no solo `monto_usd`.
+- Cuando una operación de pago se divide en varios "pagos hermanos" (métodos mixtos, mismo `operacion_uuid`),
+  el M2M `mensualidades_pagadas` ya se enlaza igual a TODOS los pagos de la operación (patrón preexistente,
+  no introducido aquí). Para no duplicar el monto del recargo en el desglose contable, `LineaRecargoPago` se
+  asocia únicamente al PRIMER pago creado de la operación (`pagos_creados[0]`) — el mismo criterio que usa
+  `ComprobanteSerializer._get_principal_con_conceptos` (ordenado por `id`) para elegir el "pago principal" de
+  la operación al desglosar. Si en el futuro se necesita saber cuánto de CADA método cubrió el recargo
+  específicamente, haría falta un cambio de modelo (hoy no se rastrea esa relación para ningún concepto).
