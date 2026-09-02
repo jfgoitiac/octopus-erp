@@ -17,6 +17,7 @@ import { useGrados } from '../hooks/useGrados';
 import { useBancosCobranza } from '../hooks/useBancosCobranza';
 import { useBancosNomina } from '../hooks/useBancosNomina';
 import { useTiposCargo } from '../hooks/useTiposCargo';
+import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecialTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
 
@@ -812,6 +813,9 @@ const Configuracion = () => {
                     )}
                 </div>
             </div>
+
+            {/* Cargos Especiales — sección propia (tabla ancha, no cabe cómoda dentro del grid de 3 columnas de arriba) */}
+            <TiposCargoEspecialTab />
 
             {/* Panel de Notificaciones — carga diferida: no pide datos hasta abrirse, para no sobrecargar esta página */}
             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
