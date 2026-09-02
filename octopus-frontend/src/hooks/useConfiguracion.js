@@ -55,10 +55,10 @@ export function useConfiguracion() {
         setSaving(true);
         try {
             const DATE_FIELDS = ['fecha_inicio_inscripciones', 'fecha_fin_inscripciones', 'fecha_inicio_ano_escolar', 'fecha_fin_ano_escolar'];
-            // logo_colegio/logo_avec son ImageField: el GET los devuelve como URL de texto,
+            // logo_colegio/logo_avec/favicon son ImageField: el GET los devuelve como URL de texto,
             // y ese texto no es un archivo válido para el ImageField del serializer.
-            // Se gestionan aparte (vía FormData) en handleSaveLogos/useLogosRecibo.
-            const FILE_FIELDS = ['logo_colegio', 'logo_avec'];
+            // Se gestionan aparte (vía FormData) en handleSaveLogos/useLogosRecibo/useFaviconSitio.
+            const FILE_FIELDS = ['logo_colegio', 'logo_avec', 'favicon'];
             const payload = { ...config };
             DATE_FIELDS.forEach(f => { if (!payload[f]) delete payload[f]; });
             FILE_FIELDS.forEach(f => { delete payload[f]; });
