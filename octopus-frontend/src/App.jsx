@@ -208,7 +208,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="consulta-inscripcion" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.TODOS.filter(r => r !== ROLES.SISTEMAS)}>
                   <ConsultaInscripcion />
                 </ProtectedRoute>
               } />
@@ -245,7 +245,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="cobranza/solvencia" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.TODOS}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.TODOS.filter(r => r !== ROLES.SISTEMAS)}>
                   <ConsultaSolvencia />
                 </ProtectedRoute>
               } />
