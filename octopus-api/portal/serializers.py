@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes, force_str
@@ -160,15 +161,25 @@ class MensualidadSerializer(serializers.ModelSerializer):
     """
     Mensualidad con cálculo de días de mora.
     dias_mora > 0 indica que la mensualidad está vencida y sin pagar.
+
+    monto_recargo/nombre_recargo/monto_total son PROSPECTIVOS: se calculan
+    con resolver_recargo() evaluado HOY, solo si la mensualidad sigue sin
+    pagar (una ya pagada no debe mostrar un recargo hipotético — su recargo
+    REAL, si aplicó, ya quedó guardado como LineaRecargoPago inmutable en
+    el momento del cobro, y no se confunde con este cálculo de cotización).
     """
     mes_nombre = serializers.SerializerMethodField()
     dias_mora = serializers.SerializerMethodField()
+    monto_recargo = serializers.SerializerMethodField()
+    nombre_recargo = serializers.SerializerMethodField()
+    monto_total = serializers.SerializerMethodField()
 
     class Meta:
         model = Mensualidad
         fields = [
             'id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'pagado', 'fecha_pago', 'dias_mora',
             'monto_original_usd', 'porcentaje_beca_aplicado',
+            'monto_recargo', 'nombre_recargo', 'monto_total',
         ]
 
     def get_mes_nombre(self, obj):
@@ -186,6 +197,33 @@ class MensualidadSerializer(serializers.ModelSerializer):
         if hoy > fecha_vencimiento:
             return (hoy - fecha_vencimiento).days
         return 0
+
+    def _resultado_recargo(self, obj):
+        """Cachea el resultado en el propio objeto (atributo transitorio, no
+        persistido) para no repetir la resolución 3 veces por mensualidad
+        (una por cada campo monto_recargo/nombre_recargo/monto_total)."""
+        if hasattr(obj, '_recargo_resuelto_cache'):
+            return obj._recargo_resuelto_cache
+        if obj.pagado:
+            resultado = None
+        else:
+            from cobranza.recargos import resolver_recargo
+            resultado = resolver_recargo(obj, date.today())
+        obj._recargo_resuelto_cache = resultado
+        return resultado
+
+    def get_monto_recargo(self, obj):
+        resultado = self._resultado_recargo(obj)
+        return str(resultado['monto_usd']) if resultado else '0.00'
+
+    def get_nombre_recargo(self, obj):
+        resultado = self._resultado_recargo(obj)
+        return resultado['nombre'] if resultado else None
+
+    def get_monto_total(self, obj):
+        resultado = self._resultado_recargo(obj)
+        recargo = resultado['monto_usd'] if resultado else Decimal('0.00')
+        return str(obj.monto_usd + recargo)
 
 
 class PagoHistorialSerializer(serializers.ModelSerializer):

@@ -318,7 +318,11 @@ class PortalDashboardView(APIView):
             for item in vencidas_data:
                 item['alumno_nombre'] = alumno_nombre
                 item['alumno_id'] = alumno.id
-                total_deuda_usd += float(item['monto_usd'])
+                # monto_total ya incluye el recargo prospectivo (ver
+                # MensualidadSerializer.get_monto_total) — se usa en vez de
+                # monto_usd para que el resumen financiero del portal
+                # coincida con lo que realmente se cobraría en caja.
+                total_deuda_usd += float(item['monto_total'])
             for item in futuras_data:
                 item['alumno_nombre'] = alumno_nombre
                 item['alumno_id'] = alumno.id
