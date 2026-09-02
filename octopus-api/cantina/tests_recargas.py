@@ -55,6 +55,7 @@ class RecargaTarjetaTestsBase(TestCase):
         )
 
         TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Cantina Test', activo=True)
 
 
 class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
@@ -165,6 +166,7 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
             'metodo_pago': 'pago_movil',
             'monto_usd': '10.00',
             'referencia': '123456',
+            'banco_receptor': self.banco.id,
         }, format='json')
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
 
@@ -174,6 +176,7 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
             'metodo_pago': 'transferencia',
             'monto_usd': '10.00',
             'referencia': '654321',
+            'banco_receptor': self.banco.id,
         }, format='json')
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
 
@@ -187,6 +190,7 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
             'metodo_pago': 'pago_movil',
             'monto_usd': '10.00',
             'referencia': '111111',
+            'banco_receptor': self.banco.id,
         }, format='json')
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
 
@@ -196,6 +200,7 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
             'metodo_pago': 'pago_movil',
             'monto_usd': '5.00',
             'referencia': '111111',
+            'banco_receptor': self.banco.id,
         }, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('referencia', resp.data)
@@ -204,10 +209,13 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
         self.assertEqual(self.otra_tarjeta.saldo, Decimal('0.00'))
 
     def test_referencia_duplicada_cruzada_cobranza_a_cantina(self):
-        """Una referencia ya usada en cobranza.Pago no se puede reutilizar en cantina."""
+        """Una referencia ya usada en cobranza.Pago no se puede reutilizar en
+        cantina — comparten método y banco receptor, que es lo que hace que
+        la clave compuesta (referencia, metodo_pago, banco_receptor) coincida."""
         usuario_cobranza = User.objects.create_user(username='cajero_cobranza', password='password123')
         Pago.objects.create(
             alumno=self.alumno, usuario_receptor=usuario_cobranza, metodo_pago='pago_movil',
+            banco_receptor=self.banco,
             monto_usd=Decimal('20.00'), tasa_aplicada=Decimal('40.00'),
             referencia='222222', estatus='completado',
         )
@@ -218,6 +226,7 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
             'metodo_pago': 'pago_movil',
             'monto_usd': '10.00',
             'referencia': '222222',
+            'banco_receptor': self.banco.id,
         }, format='json')
 
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
@@ -243,9 +252,13 @@ class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
             'metodo_pago': 'pago_movil',
             'monto_usd': '10.00',
             'referencia': '333333',
+            'banco_receptor': self.banco.id,
         }, format='json')
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
 
+        # Llamada de un solo argumento (sin metodo_pago/banco_receptor_id):
+        # requisito de compatibilidad — debe seguir devolviendo el duplicado
+        # global aunque no se pase la clave compuesta.
         duplicado = buscar_referencia_duplicada(normalizar_referencia('333333'))
         self.assertIsNotNone(duplicado)
         self.assertEqual(duplicado['origen'], 'cantina.RecargaTarjeta')

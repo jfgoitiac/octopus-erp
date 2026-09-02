@@ -245,6 +245,7 @@ class PortalRecargarTarjetaTests(PortalCantinaTestBase):
         admin = User.objects.create_user(username='cobranza_admin', password='x')
         Pago.objects.create(
             alumno=self.alumno, usuario_receptor=admin, metodo_pago='transferencia',
+            banco_receptor=self.banco,
             monto_usd=Decimal('35.00'), tasa_aplicada=Decimal('40.0000'),
             monto_ves=Decimal('1400.00'), referencia='REF-CRUZADA-1', estatus='completado',
         )
@@ -261,6 +262,7 @@ class PortalRecargarTarjetaTests(PortalCantinaTestBase):
         """Una referencia ya usada en una RecargaTarjeta pendiente/aprobada bloquea un nuevo intento."""
         RecargaTarjeta.objects.create(
             tarjeta=self.tarjeta2, metodo_pago='transferencia', monto_usd=Decimal('5.00'),
+            banco_receptor=self.banco,
             tasa_aplicada=Decimal('40.0000'), monto_ves=Decimal('200.00'),
             referencia='REF-CRUZADA-2', estatus='pendiente', registrado_por_portal=True,
         )

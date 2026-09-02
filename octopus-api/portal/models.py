@@ -89,6 +89,21 @@ class ComprobantePago(models.Model):
         verbose_name='Referencia / N° de transacción',
         help_text='Número de confirmación, referencia de pago móvil o N° de transferencia'
     )
+    metodo_pago = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name='Método de pago',
+    )
+    banco_receptor = models.ForeignKey(
+        'cobranza.BancoInstitucional',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='comprobantes',
+        verbose_name='Banco receptor',
+        help_text='Opcional: el portal nunca bloquea el envío por falta de banco.',
+    )
     hash_archivo = models.CharField(
         max_length=64,
         blank=True,
@@ -125,7 +140,7 @@ class ComprobantePago(models.Model):
             # (pendiente o aprobado). Los rechazados quedan fuera del constraint
             # para no bloquear reintentos legítimos con corrección de datos.
             models.UniqueConstraint(
-                fields=['referencia_bancaria'],
+                fields=['referencia_bancaria', 'metodo_pago', 'banco_receptor'],
                 condition=models.Q(estatus__in=['pendiente', 'aprobado']),
                 name='unique_referencia_comprobante_activo',
             ),

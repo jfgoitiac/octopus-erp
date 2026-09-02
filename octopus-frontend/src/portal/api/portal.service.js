@@ -28,13 +28,16 @@ export const getHistorial = (alumnoId, page = 1, signal) => {
  * @param {string} referenciaBancaria  Nº de referencia/confirmación de la transacción
  * @param {string} metodoPago          transferencia | pago_movil | zelle | punto_de_venta
  */
-export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = '', metodoPago = 'transferencia') => {
+export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = '', metodoPago = 'transferencia', bancoReceptorId = '') => {
   const formData = new FormData();
   formData.append('mensualidad_id', mensualidadId);
   formData.append('archivo', archivo);
   formData.append('metodo_pago', metodoPago);
   if (referenciaBancaria) {
     formData.append('referencia_bancaria', referenciaBancaria);
+  }
+  if (bancoReceptorId) {
+    formData.append('banco_receptor_id', bancoReceptorId);
   }
 
   return portalClient.post('comprobante/', formData, {
@@ -74,9 +77,15 @@ export const confirmarResetPassword = (uid, token, contrasenaNueva, confirmar) =
  * Verifica si una referencia bancaria ya existe en el sistema.
  * Solo para uso del panel administrativo.
  * @param {string} ref  Número de referencia a consultar
+ * @param {string} [metodo]  Método de pago (opcional, acota la búsqueda)
+ * @param {string|number} [bancoId]  ID del banco receptor (opcional, acota la búsqueda)
  */
-export const verificarReferencia = (ref) =>
-  portalClient.get('verificar-referencia/', { params: { ref } });
+export const verificarReferencia = (ref, metodo, bancoId) => {
+  const params = { ref };
+  if (metodo !== undefined) params.metodo = metodo;
+  if (bancoId !== undefined) params.banco_id = bancoId;
+  return portalClient.get('verificar-referencia/', { params });
+};
 
 /**
  * Obtiene la lista de bancos activos del colegio para transferencias.

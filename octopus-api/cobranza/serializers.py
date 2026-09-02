@@ -566,6 +566,10 @@ class PagoCreateSerializer(serializers.Serializer):
                     BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
                 except BancoInstitucional.DoesNotExist:
                     raise serializers.ValidationError(f"Pago {i}: Banco receptor no encontrado.")
+            elif pago_item['metodo_pago'] not in ('efectivo', 'efectivo_ves'):
+                raise serializers.ValidationError(
+                    f"Pago {i}: Este método de pago requiere indicar el banco receptor."
+                )
 
             # --- Punto de Venta: referencia y lote son de 4 dígitos ---
             if pago_item['metodo_pago'] == 'punto_de_venta':
@@ -590,17 +594,22 @@ class PagoCreateSerializer(serializers.Serializer):
                 continue
 
             ref_normalizada = normalizar_referencia(ref_raw)
+            metodo_item = pago_item['metodo_pago']
+            banco_item_id = pago_item.get('banco_receptor_id')
+            clave_item = (ref_normalizada, metodo_item, banco_item_id)
 
-            # 1. Duplicate dentro de la misma solicitud (dos lineas con misma ref)
-            if ref_normalizada in referencias_en_esta_solicitud:
+            # 1. Duplicate dentro de la misma solicitud (misma referencia + método + banco)
+            if clave_item in referencias_en_esta_solicitud:
                 raise serializers.ValidationError(
                     f"Pago {i}: La referencia '{ref_normalizada}' aparece más de una vez "
                     "en esta transacción. Cada línea de pago debe tener una referencia única."
                 )
-            referencias_en_esta_solicitud.append(ref_normalizada)
+            referencias_en_esta_solicitud.append(clave_item)
 
             # 2. Duplicate contra cobranza.Pago, portal.ComprobantePago o cantina.RecargaTarjeta
-            duplicado = buscar_referencia_duplicada(ref_normalizada)
+            duplicado = buscar_referencia_duplicada(
+                ref_normalizada, metodo_pago=metodo_item, banco_receptor_id=banco_item_id,
+            )
             if duplicado:
                 raise serializers.ValidationError(
                     f"Pago {i}: La referencia '{ref_normalizada}' ya está en uso en "

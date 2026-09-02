@@ -198,6 +198,7 @@ class RegistrarPagoOperacionUuidTest(TestCase):
             nombre="Pedro", apellido="Perez", cedula_escolar="E84000003",
             fecha_nacimiento=date(2015, 3, 10), representante=self.representante
         )
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Multi Metodo Test', activo=True)
 
     def test_pago_multi_metodo_comparte_operacion_uuid(self):
         payload = {
@@ -205,9 +206,9 @@ class RegistrarPagoOperacionUuidTest(TestCase):
             "concepto": "otro",
             "pagos": [
                 {"metodo_pago": "efectivo", "monto_usd": "10.00", "referencia": "EFEC-001"},
-                {"metodo_pago": "zelle", "monto_usd": "5.00", "referencia": "ZELLE-001"},
-                {"metodo_pago": "pago_movil", "monto_ves": "100.00", "referencia": "PM-001"},
-                {"metodo_pago": "punto_de_venta", "monto_ves": "50.00", "referencia": "1234", "numero_lote": "5678"},
+                {"metodo_pago": "zelle", "monto_usd": "5.00", "referencia": "ZELLE-001", "banco_receptor_id": self.banco.id},
+                {"metodo_pago": "pago_movil", "monto_ves": "100.00", "referencia": "PM-001", "banco_receptor_id": self.banco.id},
+                {"metodo_pago": "punto_de_venta", "monto_ves": "50.00", "referencia": "1234", "numero_lote": "5678", "banco_receptor_id": self.banco.id},
             ],
         }
         response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
@@ -839,8 +840,9 @@ class AnularPagoTests(TestCase):
             nombre='Tomas', apellido='Lugo', cedula_escolar='E95000001',
             fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
         )
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Anular Test', activo=True)
 
-    def _registrar_pago_mensualidad(self, referencia='TRF-ANULAR-1', mes_offset=0):
+    def _registrar_pago_mensualidad(self, referencia='TRF-ANULAR-1', mes_offset=0, banco_receptor_id=None):
         from .models import Mensualidad
         hoy = date.today()
         mes = ((hoy.month - 1 + mes_offset) % 12) + 1
@@ -852,7 +854,10 @@ class AnularPagoTests(TestCase):
             "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
             "concepto": "mensualidad",
             "pagos": [
-                {"metodo_pago": "transferencia", "monto_usd": "60.00", "referencia": referencia},
+                {
+                    "metodo_pago": "transferencia", "monto_usd": "60.00", "referencia": referencia,
+                    "banco_receptor_id": banco_receptor_id or self.banco.id,
+                },
             ],
         }
         resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
@@ -923,6 +928,125 @@ class AnularPagoTests(TestCase):
 
         with self.assertRaises(DjangoValidationError):
             anular_pago(pago, self.user, 'Reverso bancario confirmado por el banco')
+
+
+class ReferenciaBancariaCompuestaTests(TestCase):
+    """
+    La unicidad de referencia bancaria dejó de ser global: pasa a ser por la
+    clave compuesta (referencia, metodo_pago, banco_receptor). Ver
+    pagos_comunes/referencias.py, cobranza/models.py::Pago.Meta.constraints
+    y cobranza/serializers.py.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='sistemas_refcompuesta', password='password123', email='rc@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula='V30000099', nombre='Elena', apellido='Ruiz', correo='elena@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Marco', apellido='Ruiz', cedula_escolar='E95000099',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+        self.banesco = BancoInstitucional.objects.create(nombre='Banesco', activo=True)
+        self.mercantil = BancoInstitucional.objects.create(nombre='Mercantil', activo=True)
+
+    def _mensualidad(self, mes_offset=0):
+        from .models import Mensualidad
+        hoy = date.today()
+        mes = ((hoy.month - 1 + mes_offset) % 12) + 1
+        anio = hoy.year + ((hoy.month - 1 + mes_offset) // 12)
+        return Mensualidad.objects.create(
+            alumno=self.alumno, mes=mes, anio=anio, monto_usd=Decimal('34.00')
+        )
+
+    def _registrar(self, referencia, metodo_pago, banco_receptor_id, monto_usd='34.00', mes_offset=0):
+        mensualidad = self._mensualidad(mes_offset=mes_offset)
+        pago_item = {"metodo_pago": metodo_pago, "monto_usd": monto_usd, "referencia": referencia}
+        if banco_receptor_id is not None:
+            pago_item["banco_receptor_id"] = banco_receptor_id
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
+            "concepto": "mensualidad",
+            "pagos": [pago_item],
+        }
+        return self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+
+    def test_misma_referencia_mismo_metodo_bancos_distintos_es_valido(self):
+        """Caso del enunciado: pago móvil 34 Bs '0001' a Banesco y pago móvil
+        87 Bs '0001' a Mercantil son transacciones distintas — el monto es
+        irrelevante, lo que importa es que el banco receptor difiere."""
+        resp1 = self._registrar('0001', 'pago_movil', self.banesco.id, monto_usd='34.00', mes_offset=0)
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        resp2 = self._registrar('0001', 'pago_movil', self.mercantil.id, monto_usd='87.00', mes_offset=1)
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+
+    def test_misma_referencia_mismo_metodo_mismo_banco_sigue_rechazado(self):
+        resp1 = self._registrar('0002', 'pago_movil', self.banesco.id, mes_offset=0)
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        resp2 = self._registrar('0002', 'pago_movil', self.banesco.id, mes_offset=1)
+        self.assertEqual(resp2.status_code, 400, resp2.content)
+
+    def test_misma_referencia_mismo_banco_metodos_distintos_es_valido(self):
+        resp1 = self._registrar('0003', 'pago_movil', self.banesco.id, mes_offset=0)
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        resp2 = self._registrar('0003', 'transferencia', self.banesco.id, mes_offset=1)
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+
+    def test_registrar_pago_sin_banco_receptor_es_rechazado_para_metodos_no_efectivo(self):
+        for offset, metodo in enumerate(('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')):
+            with self.subTest(metodo=metodo):
+                referencia = '1234' if metodo == 'punto_de_venta' else f'REF-{metodo}'
+                mensualidad = self._mensualidad(mes_offset=offset)
+                pago_item = {
+                    "metodo_pago": metodo, "monto_usd": "34.00", "referencia": referencia,
+                }
+                if metodo == 'punto_de_venta':
+                    pago_item["numero_lote"] = "5678"
+                payload = {
+                    "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
+                    "concepto": "mensualidad",
+                    "pagos": [pago_item],
+                }
+                resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+                self.assertEqual(resp.status_code, 400, resp.content)
+                self.assertIn('Pago 0:', str(resp.data))
+
+    def test_efectivo_y_efectivo_ves_siguen_guardando_sin_banco(self):
+        for offset, metodo in enumerate(('efectivo', 'efectivo_ves')):
+            with self.subTest(metodo=metodo):
+                mensualidad = self._mensualidad(mes_offset=offset)
+                payload = {
+                    "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
+                    "concepto": "mensualidad",
+                    "pagos": [{"metodo_pago": metodo, "monto_usd": "34.00"}],
+                }
+                resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+                self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_corregir_pago_historico_sin_banco_no_explota(self):
+        """La obligatoriedad de banco vive en el serializer de registro, no en
+        Pago.clean() — corregir un pago histórico creado sin banco_receptor
+        (dato legado, previo a esta regla) no debe romper full_clean()."""
+        from cobranza.correcciones import corregir_pago
+
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.user, metodo_pago='transferencia',
+            concepto='mensualidad', monto_usd=Decimal('34.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='HIST-SIN-BANCO', estatus='completado',
+        )
+        self.assertIsNone(pago.banco_receptor_id)
+
+        corregido = corregir_pago(pago, {'observaciones': 'Ajuste de monto revisado'}, self.user, 'Corrección de auditoría')
+        self.assertEqual(corregido.pk, pago.pk)
+        self.assertIsNone(corregido.banco_receptor_id)
 
 
 class CargosEspecialesAntiDuplicadosTest(TestCase):

@@ -170,9 +170,9 @@ class Pago(models.Model):
             # Los anulados quedan fuera para no bloquear reutilización de refs
             # en casos de reverso bancario legítimo.
             models.UniqueConstraint(
-                fields=['referencia'],
+                fields=['referencia', 'metodo_pago', 'banco_receptor'],
                 condition=models.Q(estatus__in=['completado', 'en_revision']),
-                name='unique_referencia_pago_activo'
+                name='unique_referencia_metodo_banco_pago_activo'
             )
         ]
 
@@ -212,15 +212,27 @@ class Pago(models.Model):
         if ref_limpia:
             duplicado_qs = Pago.objects.filter(
                 referencia=ref_limpia,
+                metodo_pago=self.metodo_pago,
                 estatus__in=['completado', 'en_revision'],
             ).exclude(pk=self.pk)
+            # banco_receptor puede ser None (métodos sin banco, ej. efectivo).
+            # Dos NULL no colisionan a nivel de BD (ni en SQLite ni en Postgres),
+            # así que acá se compara explícitamente NULL contra NULL para que
+            # esta validación en Python cubra ese caso que el UniqueConstraint
+            # de la Meta no puede atrapar por sí solo.
+            if self.banco_receptor_id is None:
+                duplicado_qs = duplicado_qs.filter(banco_receptor__isnull=True)
+            else:
+                duplicado_qs = duplicado_qs.filter(banco_receptor_id=self.banco_receptor_id)
 
             if duplicado_qs.exists():
                 dup = duplicado_qs.first()
+                banco_nombre = dup.banco_receptor.nombre if dup.banco_receptor_id else 'sin banco'
                 raise ValidationError({
                     'referencia': (
                         f"Referencia duplicada: '{ref_limpia}' ya existe en el pago "
                         f"#{dup.pk} (factura {dup.factura_id or 'N/A'}, "
+                        f"método: {dup.get_metodo_pago_display()}, banco: {banco_nombre}, "
                         f"estatus: {dup.estatus}). "
                         "Verifique el número de transacción antes de continuar."
                     )

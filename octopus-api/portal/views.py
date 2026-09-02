@@ -512,10 +512,11 @@ class PortalComprobantePagoView(APIView):
     def post(self, request):
         representante = _get_representante(request)
 
-        mensualidad_id  = request.data.get('mensualidad_id')
-        archivo         = request.FILES.get('archivo')
-        referencia_raw  = (request.data.get('referencia_bancaria') or '').strip()
-        metodo_pago     = (request.data.get('metodo_pago') or 'transferencia').strip().lower()
+        mensualidad_id     = request.data.get('mensualidad_id')
+        archivo            = request.FILES.get('archivo')
+        referencia_raw     = (request.data.get('referencia_bancaria') or '').strip()
+        metodo_pago        = (request.data.get('metodo_pago') or 'transferencia').strip().lower()
+        banco_receptor_id  = request.data.get('banco_receptor_id')
 
         if not mensualidad_id:
             return Response(
@@ -550,6 +551,19 @@ class PortalComprobantePagoView(APIView):
                 {'error': 'Mensualidad no encontrada, ya pagada, o no pertenece a sus alumnos.'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        # --- Banco receptor: OPCIONAL, nunca bloquea el envío. Solo se valida
+        # que exista y esté activo si el representante sí eligió uno. ---
+        banco_receptor = None
+        if banco_receptor_id:
+            from cobranza.models import BancoInstitucional
+            try:
+                banco_receptor = BancoInstitucional.objects.get(id=banco_receptor_id, activo=True)
+            except (BancoInstitucional.DoesNotExist, ValueError, TypeError):
+                return Response(
+                    {'error': 'Banco receptor no encontrado.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         # --- ANTIFRAUDE 1: referencia obligatoria para métodos bancarios ---
         if metodo_pago in _METODOS_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
@@ -608,11 +622,22 @@ class PortalComprobantePagoView(APIView):
             )
 
         # --- ANTIFRAUDE 4: referencia ya usada en otro comprobante o pago registrado ---
+        # Clave compuesta (referencia, metodo_pago, banco_receptor): la misma
+        # referencia con otro método o banco receptor no es duplicado. Cuando
+        # este comprobante no trae banco, se compara solo contra otros
+        # comprobantes/pagos que TAMPOCO tienen banco (isnull=True), porque
+        # NULL no colisiona con NULL a nivel de columna.
         if referencia:
-            dup_comprobante = ComprobantePago.objects.filter(
+            dup_comprobante_qs = ComprobantePago.objects.filter(
                 referencia_bancaria=referencia,
+                metodo_pago=metodo_pago,
                 estatus__in=['pendiente', 'aprobado'],
-            ).exclude(mensualidad=mensualidad).first()
+            ).exclude(mensualidad=mensualidad)
+            if banco_receptor_id:
+                dup_comprobante_qs = dup_comprobante_qs.filter(banco_receptor_id=banco_receptor.id)
+            else:
+                dup_comprobante_qs = dup_comprobante_qs.filter(banco_receptor__isnull=True)
+            dup_comprobante = dup_comprobante_qs.first()
             if dup_comprobante:
                 return Response(
                     {
@@ -625,10 +650,16 @@ class PortalComprobantePagoView(APIView):
                     status=status.HTTP_409_CONFLICT
                 )
 
-            dup_pago = Pago.objects.filter(
+            dup_pago_qs = Pago.objects.filter(
                 referencia=referencia,
+                metodo_pago=metodo_pago,
                 estatus__in=['completado', 'en_revision'],
-            ).first()
+            )
+            if banco_receptor_id:
+                dup_pago_qs = dup_pago_qs.filter(banco_receptor_id=banco_receptor.id)
+            else:
+                dup_pago_qs = dup_pago_qs.filter(banco_receptor__isnull=True)
+            dup_pago = dup_pago_qs.first()
             if dup_pago:
                 return Response(
                     {
@@ -648,7 +679,10 @@ class PortalComprobantePagoView(APIView):
             # mensualidad, porque este endpoint solo miraba sus propias
             # tablas (ComprobantePago/Pago) y no sabía que `cantina` existe.
             from pagos_comunes.referencias import buscar_referencia_duplicada
-            duplicado_cantina = buscar_referencia_duplicada(referencia)
+            duplicado_cantina = buscar_referencia_duplicada(
+                referencia, metodo_pago=metodo_pago,
+                banco_receptor_id=(banco_receptor.id if banco_receptor_id else None),
+            )
             if duplicado_cantina and duplicado_cantina['origen'] == 'cantina.RecargaTarjeta':
                 return Response(
                     {
@@ -671,6 +705,8 @@ class PortalComprobantePagoView(APIView):
             mensualidad=mensualidad,
             archivo=archivo,
             referencia_bancaria=referencia,
+            metodo_pago=metodo_pago,
+            banco_receptor=banco_receptor,
             hash_archivo=hash_sha256,
             subido_por_ip=ip_cliente,
         )
@@ -1037,7 +1073,10 @@ class PortalRecargarTarjetaView(APIView):
 
         # --- Antifraude: referencia duplicada CRUZADA entre cobranza/portal/cantina ---
         if referencia:
-            duplicado = buscar_referencia_duplicada(referencia)
+            duplicado = buscar_referencia_duplicada(
+                referencia, metodo_pago=metodo_pago,
+                banco_receptor_id=(banco_receptor.id if banco_receptor else None),
+            )
             if duplicado:
                 return Response(
                     {
@@ -1306,31 +1345,68 @@ class AdminComprobantesView(APIView):
                     alumno = mensualidad.alumno
 
                     # --- ANTIFRAUDE: verificar referencia antes de aprobar ---
+                    # Filtra por la misma clave compuesta (referencia, metodo_pago,
+                    # banco_receptor) que el resto del sistema: método/banco distinto
+                    # ya no es la misma transacción. Cuando este comprobante no
+                    # trae banco, la alerta queda redactada como sospecha a
+                    # verificar (no como certeza) y compara contra otros registros
+                    # que tampoco tienen banco.
                     referencia = comprobante.referencia_bancaria
                     if referencia:
-                        dup_pago = Pago.objects.filter(
+                        dup_pago_qs = Pago.objects.filter(
                             referencia=referencia,
+                            metodo_pago=comprobante.metodo_pago,
                             estatus__in=['completado', 'en_revision'],
-                        ).first()
+                        )
+                        dup_pago_qs = (
+                            dup_pago_qs.filter(banco_receptor_id=comprobante.banco_receptor_id)
+                            if comprobante.banco_receptor_id
+                            else dup_pago_qs.filter(banco_receptor__isnull=True)
+                        )
+                        dup_pago = dup_pago_qs.first()
                         if dup_pago:
-                            advertencias.append(
-                                f"ALERTA DE FRAUDE: La referencia '{referencia}' ya existe "
-                                f"en el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
-                                f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
-                                "Verifique la autenticidad antes de completar la aprobación."
-                            )
+                            if comprobante.banco_receptor_id:
+                                advertencias.append(
+                                    f"ALERTA DE FRAUDE: La referencia '{referencia}' ya existe "
+                                    f"en el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
+                                    f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
+                                    "Verifique la autenticidad antes de completar la aprobación."
+                                )
+                            else:
+                                advertencias.append(
+                                    f"AVISO: La referencia '{referencia}' (sin banco receptor indicado) "
+                                    f"coincide con el pago #{dup_pago.pk} (factura {dup_pago.factura_id or 'N/A'}, "
+                                    f"alumno: {dup_pago.alumno.nombre} {dup_pago.alumno.apellido}). "
+                                    "Verifique manualmente antes de completar la aprobación: sin banco "
+                                    "confirmado, esta coincidencia es solo una sospecha a revisar."
+                                )
 
-                        dup_comp = ComprobantePago.objects.filter(
+                        dup_comp_qs = ComprobantePago.objects.filter(
                             referencia_bancaria=referencia,
+                            metodo_pago=comprobante.metodo_pago,
                             estatus='aprobado',
-                        ).exclude(pk=comprobante.pk).first()
+                        ).exclude(pk=comprobante.pk)
+                        dup_comp_qs = (
+                            dup_comp_qs.filter(banco_receptor_id=comprobante.banco_receptor_id)
+                            if comprobante.banco_receptor_id
+                            else dup_comp_qs.filter(banco_receptor__isnull=True)
+                        )
+                        dup_comp = dup_comp_qs.first()
                         if dup_comp:
-                            advertencias.append(
-                                f"ALERTA: La referencia '{referencia}' ya fue aprobada en el "
-                                f"comprobante #{dup_comp.pk} "
-                                f"({dup_comp.mensualidad.get_mes_display()} {dup_comp.mensualidad.anio}). "
-                                "Posible intento de doble cobro."
-                            )
+                            if comprobante.banco_receptor_id:
+                                advertencias.append(
+                                    f"ALERTA: La referencia '{referencia}' ya fue aprobada en el "
+                                    f"comprobante #{dup_comp.pk} "
+                                    f"({dup_comp.mensualidad.get_mes_display()} {dup_comp.mensualidad.anio}). "
+                                    "Posible intento de doble cobro."
+                                )
+                            else:
+                                advertencias.append(
+                                    f"AVISO: La referencia '{referencia}' (sin banco receptor indicado) "
+                                    f"coincide con el comprobante ya aprobado #{dup_comp.pk} "
+                                    f"({dup_comp.mensualidad.get_mes_display()} {dup_comp.mensualidad.anio}). "
+                                    "Verifique manualmente: sin banco confirmado, es solo una sospecha a revisar."
+                                )
 
                     # Hash duplicado (mismo archivo aprobado antes)
                     if comprobante.hash_archivo:
@@ -1362,7 +1438,8 @@ class AdminComprobantesView(APIView):
                     pago_creado = Pago.objects.create(
                         alumno=alumno,
                         usuario_receptor=request.user,
-                        metodo_pago='transferencia',
+                        metodo_pago=comprobante.metodo_pago or 'transferencia',
+                        banco_receptor=comprobante.banco_receptor,
                         concepto='mensualidad',
                         monto_usd=mensualidad.monto_usd,
                         tasa_aplicada=tasa_valor,
@@ -1438,6 +1515,8 @@ class VerificarReferenciaView(APIView):
             )
 
         ref = ' '.join(ref_raw.upper().split())
+        metodo_raw = (request.query_params.get('metodo') or '').strip().lower()
+        banco_id_raw = (request.query_params.get('banco_id') or '').strip()
 
         resultado = {
             'referencia': ref,
@@ -1449,6 +1528,10 @@ class VerificarReferenciaView(APIView):
             referencia=ref,
             estatus__in=['completado', 'en_revision'],
         ).select_related('alumno')
+        if metodo_raw:
+            pagos = pagos.filter(metodo_pago=metodo_raw)
+        if banco_id_raw:
+            pagos = pagos.filter(banco_receptor_id=banco_id_raw)
         for p in pagos:
             resultado['coincidencias'].append({
                 'fuente': 'pago_registrado',
@@ -1464,6 +1547,10 @@ class VerificarReferenciaView(APIView):
             referencia_bancaria=ref,
             estatus__in=['pendiente', 'aprobado'],
         ).select_related('mensualidad__alumno')
+        if metodo_raw:
+            comprobantes = comprobantes.filter(metodo_pago=metodo_raw)
+        if banco_id_raw:
+            comprobantes = comprobantes.filter(banco_receptor_id=banco_id_raw)
         for c in comprobantes:
             alumno = c.mensualidad.alumno
             resultado['coincidencias'].append({

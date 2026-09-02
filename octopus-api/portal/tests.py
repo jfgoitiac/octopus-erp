@@ -442,6 +442,38 @@ class PortalComprobanteTests(PortalTestBase):
         self.assertEqual(comprobante.estatus, 'pendiente')
         self.assertEqual(comprobante.mensualidad_id, self.mensualidad.id)
 
+    def test_subida_sin_banco_receptor_es_valida(self):
+        """El banco receptor es opcional en el portal — nunca bloquea el
+        envío del comprobante, sin importar el método de pago."""
+        self.auth_portal()
+        archivo = SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png')
+        resp = self._subir(archivo)
+        self.assertEqual(resp.status_code, 201, resp.content)
+        comprobante = ComprobantePago.objects.get()
+        self.assertIsNone(comprobante.banco_receptor_id)
+
+    def test_dos_comprobantes_sin_banco_misma_referencia_y_metodo_el_segundo_se_rechaza(self):
+        """Sin banco, dos comprobantes activos con la misma referencia y
+        método NO chocan en el UniqueConstraint de BD (NULL != NULL), así
+        que debe atraparlo la validación de la vista (antifraude 4)."""
+        self.auth_portal()
+        archivo1 = SimpleUploadedFile('pago1.png', PNG_BYTES, content_type='image/png')
+        resp1 = self._subir(archivo1)
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        hoy = date.today()
+        mes_siguiente = crear_mensualidad(
+            self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0)
+        )
+        archivo2 = SimpleUploadedFile('pago2.png', PNG_BYTES, content_type='image/png')
+        resp2 = self.client.post('/api/portal/comprobante/', {
+            'mensualidad_id': mes_siguiente.id,
+            'archivo': archivo2,
+            'referencia_bancaria': '123456',
+        }, format='multipart')
+        self.assertEqual(resp2.status_code, 409, resp2.content)
+        self.assertEqual(ComprobantePago.objects.count(), 1)
+
     def test_rechaza_extension_invalida(self):
         self.auth_portal()
         archivo = SimpleUploadedFile('script.exe', b'MZ...', content_type='application/pdf')
@@ -496,6 +528,10 @@ class PortalComprobanteTests(PortalTestBase):
             alumno=self.alumno, serial='L001-0001', codigo='CANT-TTTTTTTTTT',
             estado='activa', saldo=Decimal('0.00'), limite_credito=Decimal('5.00'),
         )
+        # Comparten método ('transferencia', el default del endpoint de
+        # comprobante cuando no se envía metodo_pago) y banco (ninguno de los
+        # dos indica uno) para que la clave compuesta coincida y el caso
+        # cruzado siga detectándose.
         RecargaTarjeta.objects.create(
             tarjeta=tarjeta, metodo_pago='transferencia', monto_usd=Decimal('10.00'),
             tasa_aplicada=Decimal('40.0000'), monto_ves=Decimal('400.00'),
@@ -508,6 +544,7 @@ class PortalComprobanteTests(PortalTestBase):
             'mensualidad_id': self.mensualidad.id,
             'archivo': archivo,
             'referencia_bancaria': 'REF-YA-USADA',
+            'metodo_pago': 'transferencia',
         }, format='multipart')
 
         self.assertEqual(resp.status_code, 409, resp.content)
@@ -547,6 +584,29 @@ class AdminComprobantesTests(PortalTestBase):
         self.assertEqual(resp.status_code, 200)
         self.mensualidad.refresh_from_db()
         self.assertTrue(self.mensualidad.pagado)
+
+    def test_aprobar_comprobante_sin_banco_no_revienta(self):
+        """Regresión más probable del cambio a unicidad compuesta: el
+        comprobante que llega del portal casi nunca trae banco_receptor
+        (es opcional), y Pago.full_clean() ahora compara también método y
+        banco — si esa comparación no maneja bien banco_receptor=None,
+        aprobar CUALQUIER comprobante del portal revienta con un 500
+        (ver portal/views.py:1362 y el comentario en Pago.clean())."""
+        self.assertIsNone(self.comprobante.banco_receptor_id)
+        self.assertIsNone(self.comprobante.metodo_pago)
+
+        self._auth_admin()
+        resp = self.client.patch(
+            f'/api/portal/admin/comprobantes/{self.comprobante.id}/',
+            {'estatus': 'aprobado'},
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        self.mensualidad.refresh_from_db()
+        self.assertTrue(self.mensualidad.pagado)
+        pago_creado = self.mensualidad.pagos.get()
+        self.assertEqual(pago_creado.estatus, 'completado')
+        self.assertIsNone(pago_creado.banco_receptor_id)
 
     def test_rechazar_no_marca_pagada(self):
         self._auth_admin()

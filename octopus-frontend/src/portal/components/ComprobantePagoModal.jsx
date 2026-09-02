@@ -10,6 +10,9 @@ const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 // Métodos de pago que requieren número de referencia obligatorio
 const METODOS_CON_REFERENCIA = ['transferencia', 'pago_movil', 'punto_de_venta', 'zelle'];
 
+// Métodos para los que se ofrece elegir banco receptor (siempre opcional en el portal)
+const METODOS_CON_BANCO_OPCIONAL = ['transferencia', 'pago_movil'];
+
 /**
  * ComprobantePagoModal
  * Props:
@@ -26,6 +29,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
   const [bancos, setBancos] = useState([]);
   const [referencia, setReferencia] = useState('');
   const [metodoPago, setMetodoPago] = useState('transferencia');
+  const [bancoReceptorId, setBancoReceptorId] = useState('');
   const inputRef = useRef(null);
   const containerRef = useRef(null);
   const timerRef = useRef(null);
@@ -40,6 +44,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
     setEstado('idle');
     setReferencia('');
     setMetodoPago('transferencia');
+    setBancoReceptorId('');
     onClose();
   }, [onClose]);
 
@@ -103,7 +108,7 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
 
     setEstado('uploading');
     try {
-      await subirComprobante(mensualidad.id, archivo, referencia.trim(), metodoPago);
+      await subirComprobante(mensualidad.id, archivo, referencia.trim(), metodoPago, bancoReceptorId);
       setEstado('success');
       toast.success('Comprobante enviado correctamente. Pendiente de revisión.');
       onSuccess?.();
@@ -212,7 +217,11 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
           <label className="text-xs font-semibold text-gray-600 block">Método de pago</label>
           <select
             value={metodoPago}
-            onChange={(e) => setMetodoPago(e.target.value)}
+            onChange={(e) => {
+              const nuevoMetodo = e.target.value;
+              setMetodoPago(nuevoMetodo);
+              if (!METODOS_CON_BANCO_OPCIONAL.includes(nuevoMetodo)) setBancoReceptorId('');
+            }}
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-white"
           >
             <option value="transferencia">Transferencia Bancaria</option>
@@ -221,6 +230,25 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess }) => {
             <option value="punto_de_venta">Punto de Venta</option>
           </select>
         </div>
+
+        {/* Banco receptor — opcional, solo transferencia/pago_movil. Nunca bloquea el envío. */}
+        {METODOS_CON_BANCO_OPCIONAL.includes(metodoPago) && bancos.length > 0 && (
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-gray-600 block">
+              Banco receptor <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <select
+              value={bancoReceptorId}
+              onChange={(e) => setBancoReceptorId(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-white"
+            >
+              <option value="">Seleccionar (opcional)</option>
+              {bancos.map((b) => (
+                <option key={b.id} value={b.id}>{b.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Número de referencia — requerido para métodos bancarios */}
         <div className="space-y-1">

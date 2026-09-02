@@ -33,6 +33,10 @@ _METODOS_CON_REFERENCIA_OBLIGATORIA = {'transferencia', 'pago_movil', 'punto_de_
 # exige esto para esos métodos — no se toca su validación existente.
 _METODOS_REFERENCIA_6_DIGITOS = {'pago_movil', 'transferencia'}
 
+# Métodos que requieren banco receptor obligatorio (mismo criterio que
+# RecargaCajeroModal.jsx:29 en el frontend — no uniforme con cobranza).
+_METODOS_CON_BANCO_OBLIGATORIO = {'transferencia', 'pago_movil'}
+
 
 class CategoriaProductoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -222,10 +226,21 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
                 {'referencia': 'Este método de pago requiere número de referencia.'}
             )
 
+        if metodo in _METODOS_CON_BANCO_OBLIGATORIO and not data.get('banco_receptor'):
+            raise serializers.ValidationError(
+                {'banco_receptor': 'Este método de pago requiere indicar el banco receptor.'}
+            )
+
         if referencia_raw:
             ref_normalizada = normalizar_referencia(referencia_raw)
             excluir_recarga_id = self.instance.pk if self.instance else None
-            duplicado = buscar_referencia_duplicada(ref_normalizada, excluir_recarga_id=excluir_recarga_id)
+            banco_receptor = data.get('banco_receptor')
+            duplicado = buscar_referencia_duplicada(
+                ref_normalizada,
+                excluir_recarga_id=excluir_recarga_id,
+                metodo_pago=metodo,
+                banco_receptor_id=(banco_receptor.id if banco_receptor else None),
+            )
             if duplicado:
                 raise serializers.ValidationError({
                     'referencia': (

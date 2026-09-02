@@ -466,10 +466,13 @@ class RegistrarPagoView(APIView):
 
             banco = None
             if pago_item.get('banco_receptor_id'):
-                try:
-                    banco = BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
-                except BancoInstitucional.DoesNotExist:
-                    pass
+                # El serializer ya validó que este id existe (ver
+                # RegistrarPagoSerializer.validate) — si llega hasta acá y no
+                # existe, es un bug de validación, no un caso silencioso a
+                # ignorar: con el banco ahora obligatorio para métodos no
+                # efectivo, guardar el Pago sin banco por error de por medio
+                # rompería la unicidad compuesta (referencia, método, banco).
+                banco = BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
 
             es_primer_pago = len(pagos_creados) == 0
             pago = Pago(
