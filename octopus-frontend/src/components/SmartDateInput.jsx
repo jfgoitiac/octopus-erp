@@ -4,6 +4,7 @@ import DatePicker, { registerLocale } from "react-datepicker";
 import { es } from "date-fns/locale/es";
 import { CalendarDays } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
+import { datepickerPopperContainer } from "../utils/datepickerPortal";
 
 registerLocale("es", es);
 
@@ -267,11 +268,9 @@ const SmartDateInput = ({
                         showYearDropdown
                         dropdownMode="scroll"
                         popperPlacement="bottom-end"
-                        portalId="datepicker-portal"
-                        popperProps={{ strategy: "fixed" }}
+                        popperContainer={datepickerPopperContainer}
                         popperModifiers={[
                             { name: "offset", options: { offset: [0, 6] } },
-                            { name: "preventOverflow", options: { padding: 8, boundary: "viewport" } },
                         ]}
                         customInput={
                             <input

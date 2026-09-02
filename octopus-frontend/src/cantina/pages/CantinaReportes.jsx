@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { es } from 'date-fns/locale/es';
 import 'react-datepicker/dist/react-datepicker.css';
+import { datepickerPopperContainer } from '../../utils/datepickerPortal';
 import { BarChart3, Download, Loader2 } from 'lucide-react';
 import { getReporteVentas, exportarVentasExcel } from '../../api/cantina.service';
 import VentasChart from '../../components/cantina/reportes/VentasChart';
@@ -169,11 +170,7 @@ export default function CantinaReportes() {
             dateFormat="dd/MM/yyyy"
             maxDate={parseLocalDate(fechaFin) || new Date()}
             wrapperClassName="w-36"
-            portalId="datepicker-portal"
-            popperProps={{ strategy: 'fixed' }}
-            popperModifiers={[
-              { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
-            ]}
+            popperContainer={datepickerPopperContainer}
             customInput={<input className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>
@@ -189,11 +186,7 @@ export default function CantinaReportes() {
             minDate={parseLocalDate(fechaInicio)}
             maxDate={new Date()}
             wrapperClassName="w-36"
-            portalId="datepicker-portal"
-            popperProps={{ strategy: 'fixed' }}
-            popperModifiers={[
-              { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
-            ]}
+            popperContainer={datepickerPopperContainer}
             customInput={<input className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>

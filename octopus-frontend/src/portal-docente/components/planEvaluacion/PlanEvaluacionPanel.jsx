@@ -4,6 +4,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { datepickerPopperContainer } from '../../../utils/datepickerPortal';
 import {
   ClipboardList, Plus, Trash2, Save, Loader2, Pencil, X, Layers,
 } from 'lucide-react';
@@ -398,11 +399,7 @@ function BuilderPlan({
                       locale={es}
                       dateFormat="dd/MM/yyyy"
                       wrapperClassName="flex-1"
-                      portalId="datepicker-portal"
-                      popperProps={{ strategy: 'fixed' }}
-                      popperModifiers={[
-                        { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
-                      ]}
+                      popperContainer={datepickerPopperContainer}
                       customInput={
                         <input className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30" />
                       }

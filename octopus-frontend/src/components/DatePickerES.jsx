@@ -1,6 +1,7 @@
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { es } from 'date-fns/locale/es';
 import 'react-datepicker/dist/react-datepicker.css';
+import { datepickerPopperContainer } from '../utils/datepickerPortal';
 
 registerLocale('es', es);
 
@@ -55,11 +56,7 @@ export default function DatePickerES({ value, onChange, className, style, name, 
             showMonthDropdown
             showYearDropdown
             dropdownMode="scroll"
-            portalId="datepicker-portal"
-            popperProps={{ strategy: 'fixed' }}
-            popperModifiers={[
-                { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
-            ]}
+            popperContainer={datepickerPopperContainer}
         />
     );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useCallback } from 'react';
 import { Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { datepickerPopperContainer } from '../utils/datepickerPortal';
 import { es } from 'date-fns/locale';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { useAsistencia } from '../hooks/useAsistencia';
@@ -111,11 +112,7 @@ const Asistencia = () => {
               dateFormat="dd/MM/yyyy"
               maxDate={new Date()}
               wrapperClassName="w-full"
-              portalId="datepicker-portal"
-              popperProps={{ strategy: 'fixed' }}
-              popperModifiers={[
-                { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
-              ]}
+              popperContainer={datepickerPopperContainer}
               customInput={
                 <input
                   className="w-full px-3 py-2.5 sm:py-2 rounded-lg text-sm outline-none cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"

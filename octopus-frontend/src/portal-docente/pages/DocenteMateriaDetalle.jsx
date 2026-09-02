@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { datepickerPopperContainer } from '../../utils/datepickerPortal';
 import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown } from 'lucide-react';
 
 import { getMateria, getLapsos, getNotasGrado, saveNotas, getAsistencia, saveAsistencia } from '../api/academico.service';
@@ -343,11 +344,7 @@ const DocenteMateriaDetalle = () => {
               dateFormat="dd/MM/yyyy"
               maxDate={new Date()}
               wrapperClassName="w-full"
-              portalId="datepicker-portal"
-              popperProps={{ strategy: 'fixed' }}
-              popperModifiers={[
-                { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
-              ]}
+              popperContainer={datepickerPopperContainer}
               customInput={
                 <input
                   id="docente-fecha-asistencia"
