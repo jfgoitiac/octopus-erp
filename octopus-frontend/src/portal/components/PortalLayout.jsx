@@ -1,34 +1,15 @@
-import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
-import { getConfigColegio } from '../api/portal.service';
+import { useBranding } from '../../context/BrandingContext';
 import NotificacionesModal from './NotificacionesModal';
 import RepresentanteRail from './RepresentanteRail';
 
 const PortalLayout = () => {
   const { user, logout } = usePortalAuth();
   const navigate = useNavigate();
-  const [configColegio, setConfigColegio] = useState({
-    nombre_colegio: '',
-    color_primario: '#0fa3b1',
-    color_secundario: '#1f3864',
-    logo_url: '',
-  });
-
-  useEffect(() => {
-    getConfigColegio()
-      .then(res => {
-        const cfg = res.data;
-        setConfigColegio(cfg);
-        // Aplicar colores como CSS variables en el root del portal
-        const root = document.documentElement;
-        if (cfg.color_primario) root.style.setProperty('--portal-primary', cfg.color_primario);
-        if (cfg.color_secundario) root.style.setProperty('--portal-secondary', cfg.color_secundario);
-      })
-      .catch(() => {}); // Si falla, usar colores por defecto
-  }, []);
+  const { nombreColegio, logoUrl } = useBranding();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,10 +19,10 @@ const PortalLayout = () => {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-[480px] md:max-w-7xl mx-auto px-4 h-14 flex items-center justify-between md:pl-20">
           <div className="flex items-center gap-2">
-            {configColegio.logo_url ? (
+            {logoUrl ? (
               <img
-                src={configColegio.logo_url}
-                alt={configColegio.nombre_colegio || 'Logo del colegio'}
+                src={logoUrl}
+                alt={nombreColegio || 'Logo del colegio'}
                 className="h-8 w-auto object-contain"
                 onError={e => { e.target.style.display = 'none'; }}
               />
@@ -49,7 +30,7 @@ const PortalLayout = () => {
               <GraduationCap size={22} style={{ color: 'var(--portal-primary, #0fa3b1)' }} />
             )}
             <span className="font-semibold text-gray-800 text-sm">
-              {configColegio.nombre_colegio || 'Portal Escolar'}
+              {nombreColegio || 'Portal Escolar'}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -76,7 +57,7 @@ const PortalLayout = () => {
       {/* Contenido principal — pb-32 para que el botón flotante y la bottom nav no tapen contenido */}
       <main className="max-w-[480px] md:max-w-7xl mx-auto px-4 py-5 pb-32 sm:pb-10 md:pl-20">
         <AlumnoActivoProvider>
-          <Outlet context={{ logoColegio: configColegio.logo_url }} />
+          <Outlet context={{ logoColegio: logoUrl }} />
         </AlumnoActivoProvider>
       </main>
 

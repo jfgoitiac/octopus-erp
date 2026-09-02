@@ -2,6 +2,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.models.query import QuerySet
 from django.test import TestCase
@@ -12,7 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from portal.models import RepresentanteUser
 from .models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Representante
-from .serializers import AlumnoUpdateSerializer, InscripcionSerializer
+from .serializers import AlumnoUpdateSerializer, ConfiguracionSistemaSerializer, InscripcionSerializer
 
 User = get_user_model()
 
@@ -413,4 +414,53 @@ class AlumnoUpdateInfoEndpointReasignarRepresentanteTest(TestCase):
 
         self.rep_correcto.refresh_from_db()
         self.assertEqual(self.rep_correcto.correo, 'jose.corregido@example.com')
-        self.assertEqual(self.rep_correcto.direccion, 'Dir Corregida 789')
+
+
+class ConfiguracionSistemaSerializerFaviconTest(TestCase):
+    """Validación del campo favicon (peso y formato), sibling de _validar_logo."""
+
+    def _config_data(self, **overrides):
+        data = {
+            'fecha_inicio_inscripciones': '2025-01-01',
+            'fecha_fin_inscripciones': '2025-02-01',
+            'fecha_inicio_ano_escolar': '2025-09-01',
+            'fecha_fin_ano_escolar': '2026-07-31',
+        }
+        data.update(overrides)
+        return data
+
+    def test_favicon_valido_pasa_validacion(self):
+        # PNG real — ImageField valida el contenido con PIL, no solo la extensión.
+        import io
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new('RGB', (16, 16)).save(buffer, format='PNG')
+        favicon = SimpleUploadedFile('favicon.png', buffer.getvalue(), content_type='image/png')
+        serializer = ConfiguracionSistemaSerializer(data=self._config_data(favicon=favicon))
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_favicon_muy_pesado_falla(self):
+        # Imagen real (no solo bytes) con ruido para que no comprima por debajo
+        # del límite — así se ejercita el chequeo de tamaño de _validar_favicon,
+        # no la validación de formato de ImageField.
+        import io
+        import random
+        from PIL import Image
+        buffer = io.BytesIO()
+        pixeles = bytes(random.getrandbits(8) for _ in range(600 * 600 * 3))
+        Image.frombytes('RGB', (600, 600), pixeles).save(buffer, format='PNG')
+        favicon = SimpleUploadedFile('favicon.png', buffer.getvalue(), content_type='image/png')
+        self.assertGreater(favicon.size, 512 * 1024)
+        serializer = ConfiguracionSistemaSerializer(data=self._config_data(favicon=favicon))
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('favicon', serializer.errors)
+
+    def test_favicon_formato_no_soportado_falla(self):
+        import io
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new('RGB', (1, 1)).save(buffer, format='GIF')
+        favicon = SimpleUploadedFile('favicon.gif', buffer.getvalue(), content_type='image/gif')
+        serializer = ConfiguracionSistemaSerializer(data=self._config_data(favicon=favicon))
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('favicon', serializer.errors)

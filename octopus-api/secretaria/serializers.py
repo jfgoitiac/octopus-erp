@@ -34,6 +34,19 @@ class ConfiguracionSistemaSerializer(serializers.ModelSerializer):  # NUEVO
     def validate_logo_avec(self, imagen):
         return self._validar_logo(imagen)
 
+    def _validar_favicon(self, imagen):
+        if not imagen:
+            return imagen
+        if imagen.size > 512 * 1024:
+            raise serializers.ValidationError("El favicon no debe superar 512KB.")
+        content_type = getattr(imagen, 'content_type', '')
+        if content_type not in ('image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/svg+xml', 'image/webp'):
+            raise serializers.ValidationError("Formato de favicon no soportado. Use PNG, ICO, SVG o WEBP.")
+        return imagen
+
+    def validate_favicon(self, imagen):
+        return self._validar_favicon(imagen)
+
 
 class BienNacionalSerializer(serializers.ModelSerializer):
     nombre_responsable = serializers.ReadOnlyField(source='responsable_asignado.username')

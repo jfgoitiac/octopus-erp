@@ -3,7 +3,8 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getLandingRoute } from '../constants/roles';
 import { Lock, User, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
-import logoColegio from '../assets/logo-colegio.png';
+import logoColegioFallback from '../assets/logo-colegio.png';
+import { useBranding } from '../context/BrandingContext';
 import { toast } from 'react-toastify';
 
 const classifyAuthError = (err) => {
@@ -20,6 +21,7 @@ const Login = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { login, user, isAuthenticated, loading } = useContext(AuthContext);
+    const { nombreColegio, logoUrl } = useBranding();
     const navigate = useNavigate();
 
     if (loading) return null;
@@ -43,9 +45,14 @@ const Login = () => {
             <div className="max-w-md w-full rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
                 <div className="p-8 text-center" style={{ background: 'var(--jet)' }}>
                     <div className="inline-flex p-2 rounded-xl backdrop-blur-sm mb-4" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                        <img src={logoColegio} alt="Logo del colegio" className="w-16 h-16 object-contain" />
+                        <img
+                            src={logoUrl || logoColegioFallback}
+                            alt={nombreColegio || 'Logo del colegio'}
+                            className="w-16 h-16 object-contain"
+                            onError={e => { e.target.src = logoColegioFallback; }}
+                        />
                     </div>
-                    <h1 className="text-xl font-medium text-white">Octopus ERP</h1>
+                    <h1 className="text-xl font-medium text-white">{nombreColegio || 'Mi Colegio'}</h1>
                     <p className="text-xs uppercase tracking-widest mt-1" style={{ color: 'var(--ash)' }}>Gestión Escolar</p>
                 </div>
 

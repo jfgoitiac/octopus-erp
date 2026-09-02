@@ -1,12 +1,14 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
-import logoColegio from '../../assets/logo-colegio.png';
+import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/PortalAuthContext';
+import { useBranding } from '../../context/BrandingContext';
 
 const PortalLogin = () => {
   const { login, isAuthenticated, loading } = useContext(PortalAuthContext);
+  const { nombreColegio, logoUrl } = useBranding();
   const navigate = useNavigate();
 
   const [cedulaOEmail, setCedulaOEmail] = useState('');
@@ -47,7 +49,12 @@ const PortalLogin = () => {
       <div className="w-full max-w-[420px]">
         {/* Logo / branding */}
         <div className="flex flex-col items-center mb-8 gap-3">
-          <img src={logoColegio} alt="Logo del colegio" className="w-20 h-20 object-contain" />
+          <img
+            src={logoUrl || logoColegioFallback}
+            alt={nombreColegio || 'Logo del colegio'}
+            className="w-20 h-20 object-contain"
+            onError={e => { e.target.src = logoColegioFallback; }}
+          />
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-800">Portal de Familias</h1>
             <p className="text-sm text-gray-500 mt-1">Accede a la información de tu representado</p>

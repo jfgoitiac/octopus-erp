@@ -85,12 +85,6 @@ export const verificarReferencia = (ref) =>
 export const getBancos = () => portalClient.get('bancos/');
 
 /**
- * Obtiene la configuración visual pública del colegio (nombre, colores, logo).
- * No requiere autenticación — se llama al montar el portal.
- */
-export const getConfigColegio = () => portalClient.get('config-colegio/');
-
-/**
  * Cambia la contraseña del representante autenticado.
  * @param {{ contrasena_actual: string, contrasena_nueva: string, confirmar: string }} data
  */

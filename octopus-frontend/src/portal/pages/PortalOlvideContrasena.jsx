@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, MailCheck } from 'lucide-react';
-import logoColegio from '../../assets/logo-colegio.png';
+import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { solicitarResetPassword } from '../api/portal.service';
+import { useBranding } from '../../context/BrandingContext';
 
 const PortalOlvideContrasena = () => {
+  const { nombreColegio, logoUrl } = useBranding();
   const [cedulaOEmail, setCedulaOEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [enviado, setEnviado] = useState(false);
@@ -35,7 +37,12 @@ const PortalOlvideContrasena = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-[420px]">
         <div className="flex flex-col items-center mb-8 gap-3">
-          <img src={logoColegio} alt="Logo del colegio" className="w-20 h-20 object-contain" />
+          <img
+            src={logoUrl || logoColegioFallback}
+            alt={nombreColegio || 'Logo del colegio'}
+            className="w-20 h-20 object-contain"
+            onError={e => { e.target.src = logoColegioFallback; }}
+          />
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-800">Recuperar contraseña</h1>
             <p className="text-sm text-gray-500 mt-1">

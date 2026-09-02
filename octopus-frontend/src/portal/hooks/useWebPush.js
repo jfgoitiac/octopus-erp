@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { getConfigColegio } from '../api/portal.service';
 import { suscribirPush, desuscribirPush } from '../api/notificaciones.service';
+import { useBranding } from '../../context/BrandingContext';
 
 const isPushSupported = () =>
   typeof window !== 'undefined' &&
@@ -43,6 +43,7 @@ export default function useWebPush() {
   const supported = isPushSupported();
   const [permission, setPermission] = useState(supported ? Notification.permission : 'unsupported');
   const [loading, setLoading] = useState(false);
+  const { vapidPublicKey } = useBranding();
 
   const subscribe = useCallback(async (tipos) => {
     if (!supported) throw new Error('Este navegador no soporta notificaciones push.');
@@ -59,8 +60,7 @@ export default function useWebPush() {
         throw new Error('No se pudo registrar el Service Worker.');
       }
 
-      const { data: config } = await getConfigColegio();
-      if (!config.vapid_public_key) {
+      if (!vapidPublicKey) {
         throw new Error('El servidor no tiene configurado Web Push.');
       }
 
@@ -68,7 +68,7 @@ export default function useWebPush() {
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key),
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
       }
       await suscribirPush(subscription, tipos);
@@ -76,7 +76,7 @@ export default function useWebPush() {
     } finally {
       setLoading(false);
     }
-  }, [supported]);
+  }, [supported, vapidPublicKey]);
 
   const unsubscribe = useCallback(async () => {
     if (!supported) return;

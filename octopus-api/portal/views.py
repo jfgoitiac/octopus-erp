@@ -1506,6 +1506,9 @@ class ConfiguracionColegioPublicaView(APIView):
                     'color_primario': '#0fa3b1',
                     'color_secundario': '#1f3864',
                     'logo_url': '',
+                    'titulo_web': '',
+                    'descripcion_web': '',
+                    'favicon_url': '',
                 }
             else:
                 # logo_url (URL externa) tiene prioridad si está configurada;
@@ -1515,11 +1518,15 @@ class ConfiguracionColegioPublicaView(APIView):
                 # logo_url vacío, así que sin este fallback esta vista nunca
                 # devolvía el logo real de esos colegios).
                 logo = config.logo_url or (config.logo_colegio.url if config.logo_colegio else '')
+                favicon = config.favicon_url or (config.favicon.url if config.favicon else '')
                 data = {
                     'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
                     'color_primario': config.color_primario or '#0fa3b1',
                     'color_secundario': config.color_secundario or '#1f3864',
                     'logo_url': logo,
+                    'titulo_web': config.titulo_web or '',
+                    'descripcion_web': config.descripcion_web or '',
+                    'favicon_url': favicon,
                 }
             # TTL de 5 min como red de seguridad además de la invalidación por
             # señal (secretaria/signals.py), por si corre con varios workers.

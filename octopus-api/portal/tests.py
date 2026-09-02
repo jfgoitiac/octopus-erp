@@ -652,3 +652,36 @@ class ConfiguracionColegioPublicaCacheTest(TestCase):
 
         resp2 = self.client.get('/api/portal/config-colegio/')
         self.assertEqual(resp2.data['nombre_colegio'], 'Nombre Nuevo')
+
+    def test_payload_incluye_titulo_descripcion_y_favicon(self):
+        from secretaria.models import ConfiguracionSistema
+        ConfiguracionSistema.objects.create(
+            nombre_colegio='Colegio Test', color_primario='#111111',
+            titulo_web='Mi Colegio Web', descripcion_web='Descripción de prueba',
+            favicon_url='https://ejemplo.com/favicon.png',
+            fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+            fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(),
+        )
+        resp = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp.data['titulo_web'], 'Mi Colegio Web')
+        self.assertEqual(resp.data['descripcion_web'], 'Descripción de prueba')
+        self.assertEqual(resp.data['favicon_url'], 'https://ejemplo.com/favicon.png')
+
+    def test_guardar_titulo_o_favicon_invalida_el_cache(self):
+        from secretaria.models import ConfiguracionSistema
+        config = ConfiguracionSistema.objects.create(
+            nombre_colegio='Colegio Test', color_primario='#111111',
+            titulo_web='Título Viejo',
+            fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+            fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(),
+        )
+        resp1 = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp1.data['titulo_web'], 'Título Viejo')
+
+        config.titulo_web = 'Título Nuevo'
+        config.favicon_url = 'https://ejemplo.com/nuevo-favicon.png'
+        config.save(update_fields=['titulo_web', 'favicon_url'])
+
+        resp2 = self.client.get('/api/portal/config-colegio/')
+        self.assertEqual(resp2.data['titulo_web'], 'Título Nuevo')
+        self.assertEqual(resp2.data['favicon_url'], 'https://ejemplo.com/nuevo-favicon.png')

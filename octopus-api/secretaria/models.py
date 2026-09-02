@@ -34,6 +34,12 @@ class ConfiguracionSistema(models.Model):  # NUEVO
     logo_colegio     = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo del colegio para recibos de pago')
     logo_avec        = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo de AVEC para recibos de pago')
 
+    # Branding dinámico: título del navegador, meta descripción y favicon
+    titulo_web       = models.CharField(max_length=200, blank=True, default='', help_text='Título mostrado en la pestaña del navegador. Si está vacío, se usa nombre_colegio.')
+    descripcion_web  = models.CharField(max_length=300, blank=True, default='', help_text='Meta descripción del sitio (SEO).')
+    favicon_url      = models.URLField(blank=True, default='', help_text='URL del favicon (externo)')
+    favicon          = models.ImageField(upload_to='configuracion/favicons/', null=True, blank=True, help_text='Favicon del colegio')
+
     class Meta:
         verbose_name = "Configuración del Sistema"
 

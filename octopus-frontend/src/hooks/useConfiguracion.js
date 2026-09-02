@@ -22,6 +22,8 @@ export function useConfiguracion() {
         color_primario: '#0fa3b1',
         color_secundario: '#1f3864',
         logo_url: '',
+        titulo_web: '',
+        descripcion_web: '',
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
-import logoColegio from '../../assets/logo-colegio.png';
+import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { confirmarResetPassword } from '../api/portal.service';
+import { useBranding } from '../../context/BrandingContext';
 
 const PortalRestablecerContrasena = () => {
+  const { nombreColegio, logoUrl } = useBranding();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const uid = searchParams.get('uid') || '';
@@ -49,7 +51,12 @@ const PortalRestablecerContrasena = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-[420px]">
         <div className="flex flex-col items-center mb-8 gap-3">
-          <img src={logoColegio} alt="Logo del colegio" className="w-20 h-20 object-contain" />
+          <img
+            src={logoUrl || logoColegioFallback}
+            alt={nombreColegio || 'Logo del colegio'}
+            className="w-20 h-20 object-contain"
+            onError={e => { e.target.src = logoColegioFallback; }}
+          />
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-800">Restablecer contraseña</h1>
             <p className="text-sm text-gray-500 mt-1">Elige tu nueva contraseña de acceso</p>

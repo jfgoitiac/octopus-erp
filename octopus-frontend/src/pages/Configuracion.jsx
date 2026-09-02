@@ -20,6 +20,8 @@ import { useTiposCargo } from '../hooks/useTiposCargo';
 import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecialTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
+import { useFaviconSitio } from '../hooks/useFaviconSitio';
+import { useBranding } from '../context/BrandingContext';
 
 const TIPO_LABELS = {
     transferencia:  'Transferencia',
@@ -85,6 +87,17 @@ const Configuracion = () => {
         logosRecibo, showLogosModal, setShowLogosModal, logosForm,
         openLogosModal, handleLogosUpload, handleRemoveLogo, handleSaveLogos, savingLogos,
     } = useLogosRecibo(config, fetchConfig);
+
+    const { refreshBranding } = useBranding();
+    const {
+        faviconPreview, handleFaviconUpload, handleRemoveFavicon, handleSaveFavicon, savingFavicon,
+    } = useFaviconSitio(config, fetchConfig, refreshBranding);
+
+    const handleGuardarConfiguracion = async (e) => {
+        e.preventDefault();
+        await handleSaveConfig(e);
+        refreshBranding();
+    };
 
     const handleRefreshAll = () => {
         fetchConfig();
@@ -166,7 +179,7 @@ const Configuracion = () => {
             </div>
 
             {/* Main Form Grid */}
-            <form onSubmit={handleSaveConfig} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <form onSubmit={handleGuardarConfiguracion} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Left Column */}
                 <div className="lg:col-span-2 space-y-5">
@@ -286,6 +299,51 @@ const Configuracion = () => {
                                                     <span className="text-xs" style={{ color: 'var(--ash)' }}>Vista previa del logo</span>
                                                 </div>
                                             )}
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Título del sitio</label>
+                                            <input type="text" name="titulo_web" value={config?.titulo_web || ''} onChange={handleConfigChange}
+                                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                                placeholder="Ej. Mi Colegio (si vacío, usa el Nombre del Colegio)" maxLength={200} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Descripción del sitio (SEO)</label>
+                                            <input type="text" name="descripcion_web" value={config?.descripcion_web || ''} onChange={handleConfigChange}
+                                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                                placeholder="Ej. Sistema de gestión escolar de Mi Colegio" maxLength={300} />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Favicon (ícono de pestaña)</label>
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                                {faviconPreview && (
+                                                    <img src={faviconPreview} alt="Preview favicon"
+                                                        className="h-10 w-10 object-contain rounded border shrink-0"
+                                                        style={{ border: '0.5px solid var(--border-md)' }} />
+                                                )}
+                                                <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer w-full sm:w-auto"
+                                                    style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
+                                                    <Upload size={14} />
+                                                    Subir favicon
+                                                    <input type="file" accept="image/png,image/x-icon,image/svg+xml,image/webp" className="hidden" onChange={handleFaviconUpload} />
+                                                </label>
+                                                {faviconPreview && (
+                                                    <button type="button" onClick={handleRemoveFavicon}
+                                                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto"
+                                                        style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                                                        <Trash size={14} />
+                                                        Quitar
+                                                    </button>
+                                                )}
+                                                <button type="button" onClick={handleSaveFavicon} disabled={savingFavicon}
+                                                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 w-full sm:w-auto"
+                                                    style={{ background: 'var(--pb)' }}>
+                                                    {savingFavicon ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                                                    Guardar favicon
+                                                </button>
+                                            </div>
+                                            <p className="text-xs mt-1.5" style={{ color: 'var(--ash)' }}>PNG, ICO, SVG o WEBP — máx 512KB.</p>
                                         </div>
                                         <div className="sm:col-span-2 flex flex-wrap gap-3">
                                             <button type="button"

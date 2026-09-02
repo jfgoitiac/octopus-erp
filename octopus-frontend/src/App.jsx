@@ -10,6 +10,7 @@ import PortalLayout from './portal/components/PortalLayout';
 import DocenteLayout from './portal-docente/components/DocenteLayout';
 import CantinaLayout from './cantina/components/CantinaLayout';
 import MainLayout from './components/MainLayout';
+import BrandingHead from './components/BrandingHead';
 
 // ── Portal de Representantes ──────────────────────────────────────────────────
 const PortalLogin              = lazy(() => import('./portal/pages/PortalLogin'));
@@ -105,6 +106,7 @@ function App() {
   return (
     <AppProviders>
       <Router>
+        <BrandingHead />
         <Suspense fallback={<SuspenseFallback />}>
           <Routes>
 
