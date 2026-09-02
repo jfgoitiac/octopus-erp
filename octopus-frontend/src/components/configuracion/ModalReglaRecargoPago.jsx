@@ -35,7 +35,6 @@ const calcularEjemplo = (form) => {
 export default function ModalReglaRecargoPago({
     open, onClose, editando,
     form, setForm, saving, onSave,
-    sedesDisponibles,
 }) {
     const ejemplo = calcularEjemplo(form);
 
@@ -112,18 +111,6 @@ export default function ModalReglaRecargoPago({
                             onChange={e => setForm(p => ({ ...p, dia_aplicacion: e.target.value === '' ? '' : parseInt(e.target.value) }))}
                             className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                         <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>El recargo aplica desde este día, inclusive.</p>
-                    </div>
-
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Sede</label>
-                        <select value={form.sede}
-                            onChange={e => setForm(p => ({ ...p, sede: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                            <option value="">Global (todas las sedes)</option>
-                            {sedesDisponibles.map(s => (
-                                <option key={s.id} value={s.id}>{s.nombre}</option>
-                            ))}
-                        </select>
                     </div>
                 </div>
 

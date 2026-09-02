@@ -17,7 +17,6 @@ const formatearValor = (regla) =>
 export default function ReglasRecargoPagoTab() {
     const {
         reglasRecargoPago, reglasRecargoPagoLoading,
-        sedesDisponibles,
         showReglaRecargoPagoModal, setShowReglaRecargoPagoModal, reglaRecargoPagoEditando,
         reglaRecargoPagoForm, setReglaRecargoPagoForm, reglaRecargoPagoSaving,
         showDeleteReglaRecargoPagoModal, setShowDeleteReglaRecargoPagoModal,
@@ -59,7 +58,7 @@ export default function ReglasRecargoPagoTab() {
                     <table className="w-full text-left min-w-[720px]">
                         <thead>
                             <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                                {['Nombre', 'Valor', 'Día de aplicación', 'Sede', 'Estado', ''].map(h => (
+                                {['Nombre', 'Valor', 'Día de aplicación', 'Estado', ''].map(h => (
                                     <th key={h} className="px-5 py-3 text-[11px] uppercase tracking-widest"
                                         style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
                                 ))}
@@ -71,9 +70,6 @@ export default function ReglasRecargoPagoTab() {
                                     <td className="px-5 py-3.5 text-sm font-medium" style={{ color: 'var(--jet)' }}>{regla.nombre}</td>
                                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--jet)' }}>{formatearValor(regla)}</td>
                                     <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>Día {regla.dia_aplicacion}</td>
-                                    <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>
-                                        {sedesDisponibles.find(s => s.id === regla.sede)?.nombre || (regla.sede ? `Sede #${regla.sede}` : 'Global')}
-                                    </td>
                                     <td className="px-5 py-3.5">
                                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                                             style={regla.activa
@@ -114,7 +110,6 @@ export default function ReglasRecargoPagoTab() {
                     setForm={setReglaRecargoPagoForm}
                     saving={reglaRecargoPagoSaving}
                     onSave={handleSaveReglaRecargoPago}
-                    sedesDisponibles={sedesDisponibles}
                 />
             )}
 
