@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 
-// TODO-TEMPORAL: quitar junto con LimpiezaDatosTab tras limpieza de datos de prueba.
-// Borrado físico real (no soft-delete) — exige escribir la cédula exacta para confirmar.
+// Borrado físico real (no soft-delete) — exige escribir la cédula exacta
+// para confirmar. Usado por Sistemas → Limpieza de Datos (sin restricciones,
+// para arrasar datos de prueba) y por el módulo Representantes (solo para
+// representantes sin alumnos vinculados, ver eliminar_definitivo_manual).
 const ModalEliminarDefinitivo = ({ tipo, registro, saving, onClose, onConfirmar }) => {
     const [confirmacion, setConfirmacion] = useState('');
 

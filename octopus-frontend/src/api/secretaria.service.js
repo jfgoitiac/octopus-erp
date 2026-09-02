@@ -20,6 +20,13 @@ export const secretariaService = {
     await apiClient.delete(`secretaria/representantes/${id}/eliminar_definitivo/`);
   },
 
+  // Eliminación definitiva manual desde el módulo Representantes (no
+  // Limpieza de Datos): solo para representantes sin ningún alumno
+  // vinculado, ver secretaria/views.py::RepresentanteViewSet.eliminar_definitivo_manual.
+  async eliminarRepresentanteDefinitivoManual(id) {
+    await apiClient.delete(`secretaria/representantes/${id}/eliminar_definitivo_manual/`);
+  },
+
   async eliminarTodosLosAlumnos() {
     const response = await apiClient.delete('secretaria/alumnos/eliminar_todos/');
     return response.data;

@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from portal.models import RepresentanteUser
+from usuarios.models import LogAuditoria
 from .models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Representante
 from .serializers import AlumnoUpdateSerializer, ConfiguracionSistemaSerializer, InscripcionSerializer
 
@@ -464,3 +465,201 @@ class ConfiguracionSistemaSerializerFaviconTest(TestCase):
         serializer = ConfiguracionSistemaSerializer(data=self._config_data(favicon=favicon))
         self.assertFalse(serializer.is_valid())
         self.assertIn('favicon', serializer.errors)
+
+
+class EliminacionRepresentanteTest(TestCase):
+    """
+    Alineación de permisos backend/frontend para eliminar representantes:
+    - destroy (soft-delete) y eliminar_definitivo_manual (borrado físico
+      manual desde el módulo Representantes) exigen IsFinanzasOrAbove
+      (director, administrador, cobranza) — no IsSystemAdminOrDirector
+      (que incluía 'sistemas' y excluía 'cobranza').
+    - eliminar_definitivo_manual solo procede con 0 alumnos (ni activos ni
+      retirados); si tiene alguno, 400 y no borra nada.
+    - eliminar_definitivo (histórico, usado por Limpieza de Datos) sigue sin
+      esa restricción.
+    """
+    _contador_cedula = 0
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def _crear_usuario(self, rol):
+        EliminacionRepresentanteTest._contador_cedula += 1
+        user = User.objects.create_user(
+            username=f'user_{rol}_{EliminacionRepresentanteTest._contador_cedula}',
+            password='clave123456',
+        )
+        user.perfil.rol = rol
+        user.perfil.esta_activo = True
+        user.perfil.save()
+        return user
+
+    def _client_como(self, rol):
+        user = self._crear_usuario(rol)
+        client = APIClient()
+        token = str(RefreshToken.for_user(user).access_token)
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        return client
+
+    def _crear_representante(self):
+        EliminacionRepresentanteTest._contador_cedula += 1
+        n = EliminacionRepresentanteTest._contador_cedula
+        return Representante.objects.create(
+            cedula=f'V30{n:06d}', nombre='Rep', apellido=f'Test{n}',
+            correo=f'rep{n}@example.com',
+        )
+
+    # ── destroy (soft-delete) ────────────────────────────────────────────
+
+    def test_soft_delete_permitido_director_administrador_cobranza(self):
+        for rol in ['director', 'administrador', 'cobranza']:
+            rep = self._crear_representante()
+            client = self._client_como(rol)
+            resp = client.delete(f'/api/secretaria/representantes/{rep.id}/')
+            self.assertEqual(resp.status_code, 204, (rol, resp.data))
+            rep.refresh_from_db()
+            self.assertFalse(rep.activo)
+
+    def test_soft_delete_denegado_cajero_docente(self):
+        for rol in ['cajero', 'docente']:
+            rep = self._crear_representante()
+            client = self._client_como(rol)
+            resp = client.delete(f'/api/secretaria/representantes/{rep.id}/')
+            self.assertEqual(resp.status_code, 403, (rol, resp.data))
+            rep.refresh_from_db()
+            self.assertTrue(rep.activo)
+
+    def test_soft_delete_denegado_secretaria(self):
+        # Explícitamente definido: secretaria puede ver/atender representantes
+        # (ROLE_GROUPS.ATENCION_FAMILIAS en el frontend) pero NO eliminar
+        # (IsFinanzasOrAbove no la incluye) — no debe ver el botón, y si de
+        # todas formas llega la petición, el backend la rechaza.
+        rep = self._crear_representante()
+        client = self._client_como('secretaria')
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/')
+        self.assertEqual(resp.status_code, 403, resp.data)
+        rep.refresh_from_db()
+        self.assertTrue(rep.activo)
+
+    def test_soft_delete_retira_alumnos_y_preserva_historial_financiero(self):
+        from cobranza.models import CuotaInscripcion
+
+        rep = self._crear_representante()
+        alumno = Alumno.objects.create(nombre='Hijo', apellido='Uno', representante=rep)
+        cuota = CuotaInscripcion.objects.create(
+            alumno=alumno, periodo_escolar='2025-2026', monto_usd=Decimal('50.00'), pagado=True,
+        )
+
+        client = self._client_como('director')
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/')
+        self.assertEqual(resp.status_code, 204, resp.data)
+
+        rep.refresh_from_db()
+        alumno.refresh_from_db()
+        self.assertFalse(rep.activo)
+        self.assertFalse(alumno.activo)
+        self.assertTrue(CuotaInscripcion.objects.filter(pk=cuota.pk).exists())
+
+    def test_soft_delete_queda_auditado(self):
+        rep = self._crear_representante()
+        client = self._client_como('director')
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/')
+        self.assertEqual(resp.status_code, 204, resp.data)
+        self.assertTrue(
+            LogAuditoria.objects.filter(accion="ELIMINACION_REPRESENTANTE", detalles__representante_id=rep.id).exists()
+        )
+
+    # ── eliminar_definitivo_manual ───────────────────────────────────────
+
+    def test_eliminacion_definitiva_0_alumnos_borra_y_libera_cedula(self):
+        rep = self._crear_representante()
+        cedula = rep.cedula
+        client = self._client_como('director')
+
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo_manual/')
+        self.assertEqual(resp.status_code, 204, resp.data)
+        self.assertFalse(Representante.objects.filter(pk=rep.pk).exists())
+
+        nuevo = Representante.objects.create(cedula=cedula, nombre='Reusa', apellido='Cedula')
+        self.assertTrue(Representante.objects.filter(pk=nuevo.pk).exists())
+
+    def test_eliminacion_definitiva_roles_permitidos_y_denegados(self):
+        for rol in ['director', 'administrador', 'cobranza']:
+            rep = self._crear_representante()
+            client = self._client_como(rol)
+            resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo_manual/')
+            self.assertEqual(resp.status_code, 204, (rol, resp.data))
+
+        for rol in ['cajero', 'docente']:
+            rep = self._crear_representante()
+            client = self._client_como(rol)
+            resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo_manual/')
+            self.assertEqual(resp.status_code, 403, (rol, resp.data))
+            self.assertTrue(Representante.objects.filter(pk=rep.pk).exists())
+
+    def test_eliminacion_definitiva_con_alumnos_retirados_rechaza_y_preserva(self):
+        rep = self._crear_representante()
+        alumno = Alumno.objects.create(nombre='Retirado', apellido='Uno', representante=rep, activo=False)
+        client = self._client_como('director')
+
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo_manual/')
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertTrue(Representante.objects.filter(pk=rep.pk).exists())
+        self.assertTrue(Alumno.todos.filter(pk=alumno.pk).exists())
+
+    def test_eliminacion_definitiva_borra_fks_protegidas_y_cuenta_de_portal(self):
+        from cobranza.models import CuotaProyectoInversion, SolvenciaRepresentante, TipoCargoEspecial
+
+        rep = self._crear_representante()
+        tipo = TipoCargoEspecial.objects.create(nombre='Proyecto Test', monto_defecto_usd=Decimal('100.00'))
+        CuotaProyectoInversion.objects.create(
+            representante=rep, periodo_escolar='2025-2026', tipo_concepto=tipo,
+            numero_cuota=1, monto_usd=Decimal('100.00'),
+        )
+        SolvenciaRepresentante.objects.create(
+            representante=rep, numero='SOLV-TEST-0001', periodo_escolar='2025-2026',
+        )
+        portal_django_user = User.objects.create_user(username=f'portal_{rep.cedula}', password='x')
+        RepresentanteUser.objects.create(representante=rep, user=portal_django_user, esta_activo=True)
+
+        client = self._client_como('administrador')
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo_manual/')
+        self.assertEqual(resp.status_code, 204, resp.data)
+
+        self.assertFalse(Representante.objects.filter(pk=rep.pk).exists())
+        self.assertFalse(CuotaProyectoInversion.objects.filter(representante_id=rep.pk).exists())
+        self.assertFalse(SolvenciaRepresentante.objects.filter(representante_id=rep.pk).exists())
+        self.assertFalse(User.objects.filter(pk=portal_django_user.pk).exists())
+
+    def test_eliminacion_definitiva_manual_queda_auditada(self):
+        rep = self._crear_representante()
+        client = self._client_como('cobranza')
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo_manual/')
+        self.assertEqual(resp.status_code, 204, resp.data)
+        self.assertTrue(
+            LogAuditoria.objects.filter(
+                accion="ELIMINACION_DEFINITIVA_REPRESENTANTE", detalles__representante_id=rep.id,
+            ).exists()
+        )
+
+    # ── eliminar_definitivo (histórico, Limpieza de Datos) sigue igual ──
+
+    def test_eliminar_definitivo_historico_sigue_sin_restriccion_de_alumnos(self):
+        rep = self._crear_representante()
+        Alumno.objects.create(nombre='Activo', apellido='Uno', representante=rep)
+        client = self._client_como('director')
+
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo/')
+        self.assertEqual(resp.status_code, 204, resp.data)
+        self.assertFalse(Representante.objects.filter(pk=rep.pk).exists())
+
+    def test_eliminar_definitivo_historico_denegado_a_cobranza(self):
+        # eliminar_definitivo (Limpieza de Datos) sigue exigiendo
+        # IsSystemAdminOrDirector — cobranza NO debe poder invocarlo, a
+        # diferencia de eliminar_definitivo_manual.
+        rep = self._crear_representante()
+        client = self._client_como('cobranza')
+        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo/')
+        self.assertEqual(resp.status_code, 403, resp.data)
+        self.assertTrue(Representante.objects.filter(pk=rep.pk).exists())

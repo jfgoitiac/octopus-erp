@@ -1,11 +1,13 @@
 import { useEffect, useContext } from 'react';
 import { Search, UserPlus, Download, Loader2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { ROLE_GROUPS } from '../constants/roles';
 import { useRepresentantes } from '../hooks/useRepresentantes';
 import TablaRepresentantes, { TablaRepresentantesSkeleton } from '../components/representantes/TablaRepresentantes';
 import RepresentanteFicha from '../components/representantes/RepresentanteFicha';
 import ModalRepresentante from '../components/representantes/ModalRepresentante';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ModalEliminarDefinitivo from '../components/shared/ModalEliminarDefinitivo';
 import Pagination from '../components/shared/Pagination';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -28,7 +30,9 @@ const INPUT_STYLE = {
 
 const Representantes = () => {
     const { user } = useContext(AuthContext);
-    const canWrite = ['director', 'administrador', 'secretaria'].includes((user?.rol || '').toLowerCase().trim());
+    const rol = (user?.rol || '').toLowerCase().trim();
+    const canEditar   = ROLE_GROUPS.REPRESENTANTES_EDITAR.includes(rol);
+    const canEliminar = ROLE_GROUPS.REPRESENTANTES_ELIMINAR.includes(rol);
 
     const rep = useRepresentantes();
 
@@ -39,6 +43,14 @@ const Representantes = () => {
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, [rep.confirmDelete, rep.setConfirmDelete]);
+
+    // Cerrar modal de eliminación definitiva con Escape
+    useEffect(() => {
+        if (!rep.confirmDeleteDefinitivo) return;
+        const handler = (e) => { if (e.key === 'Escape') rep.setConfirmDeleteDefinitivo(null); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [rep.confirmDeleteDefinitivo, rep.setConfirmDeleteDefinitivo]);
 
     return (
         <div className="flex flex-col gap-4">
@@ -74,7 +86,7 @@ const Representantes = () => {
                         />
                     </div>
                     <div className="flex gap-2">
-                    {canWrite && (
+                    {canEditar && (
                         <button
                             onClick={rep.openCrear}
                             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-medium text-white min-h-[44px]"
@@ -84,7 +96,7 @@ const Representantes = () => {
                             Agregar
                         </button>
                     )}
-                    {canWrite && (
+                    {canEditar && (
                         <button
                             onClick={rep.handleExportExcel}
                             disabled={rep.exportingExcel || rep.loading}
@@ -108,7 +120,8 @@ const Representantes = () => {
                             <TablaRepresentantes
                                 representantes={rep.representantes}
                                 selectedRep={rep.selectedRep}
-                                canWrite={canWrite}
+                                canEditar={canEditar}
+                                canEliminar={canEliminar}
                                 onOpenFicha={rep.openFicha}
                                 onEditar={rep.openEditar}
                                 onConfirmDelete={rep.setConfirmDelete}
@@ -133,10 +146,12 @@ const Representantes = () => {
                     rep={rep.selectedRep}
                     alumnos={rep.fichaAlumnos}
                     fichaLoading={rep.fichaLoading}
-                    canWrite={canWrite}
+                    canEditar={canEditar}
+                    canEliminar={canEliminar}
                     onClose={rep.closeFicha}
                     onEditar={rep.openEditar}
                     onConfirmDelete={rep.setConfirmDelete}
+                    onConfirmDeleteDefinitivo={rep.setConfirmDeleteDefinitivo}
                     portalLoading={rep.portalLoading}
                     onActivarPortal={rep.handleActivarPortal}
                     onDesactivarPortal={rep.handleDesactivarPortal}
@@ -174,6 +189,17 @@ const Representantes = () => {
                     labelBoton={rep.deleting ? 'Eliminando…' : 'Eliminar'}
                     onConfirm={rep.handleDelete}
                     onCancel={() => rep.setConfirmDelete(null)}
+                />
+            )}
+
+            {/* Modal confirmar eliminación DEFINITIVA (solo representantes sin alumnos) */}
+            {rep.confirmDeleteDefinitivo && (
+                <ModalEliminarDefinitivo
+                    tipo="representante"
+                    registro={rep.confirmDeleteDefinitivo}
+                    saving={rep.deletingDefinitivo}
+                    onClose={() => rep.setConfirmDeleteDefinitivo(null)}
+                    onConfirmar={rep.handleDeleteDefinitivo}
                 />
             )}
         </div>

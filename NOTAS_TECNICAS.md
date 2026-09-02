@@ -2741,3 +2741,42 @@ impagas vía señal (`secretaria/signals.py`).
   se haya generado bajo la beca anterior — desajuste menor, aceptable para
   un reporte agregado de costo, no para auditoría fila por fila (para eso
   está el propio modelo `Beca` con su historial).
+
+## ELIMINACIÓN DEFINITIVA MANUAL DE REPRESENTANTES (2026-09-02)
+
+- **Bug preexistente encontrado y corregido de paso**: `RepresentanteViewSet.destroy`
+  (soft-delete, `secretaria/views.py`) usaba `timezone.now()` sin importar
+  `timezone` en ningún lado del método ni del módulo — el botón "Eliminar" de
+  representantes (panel Representantes) crasheaba con 500 para **cualquier**
+  rol, siempre, desde que se agregó el campo `fecha_eliminacion`. No hay forma
+  de saber hace cuánto está roto porque no había ningún test que ejercitara
+  ese endpoint end-to-end (`RepresentanteViewSetNPlusOneTest` solo cubre el
+  listado). Se agregó un `from django.utils import timezone` local dentro de
+  `destroy()`, mismo patrón que ya usan otros métodos del archivo. Cubierto
+  ahora por `EliminacionRepresentanteTest` en `secretaria/tests.py`.
+- **"Acceso al Portal" y "Cargar Proyecto de Inversión" en `RepresentanteFicha.jsx`
+  quedaron gateadas por `canEditar`** (mismo grupo que create/update:
+  director/administrador/sistemas) al separar el antiguo `canWrite` único en
+  `canEditar`/`canEliminar`. Ninguno de esos dos flujos de portal
+  (`portal/views.py`: activar/desactivar/restablecer contraseña) está
+  restringido por rol en el backend (`permission_classes = [IsAuthenticated]`
+  a secas) — la restricción por `canEditar` es solo de UI, no hay riesgo de
+  403 sorpresa, pero tampoco hay alineación real backend/frontend ahí como sí
+  la hay ahora en destroy/eliminar_definitivo_manual. Si se quiere cerrar esa
+  brecha, decidir primero qué roles deberían poder gestionar el portal de un
+  representante (¿los mismos que editan? ¿los mismos que atienden familias,
+  `ATENCION_FAMILIAS`?) y reflejarlo también en el backend.
+- **`ListaAlumnos.jsx` tiene sus propios arrays de roles hardcodeados**
+  (`isSecretaria`, `isCajero`, `puedeEditarSolvencia`, línea ~31-33) con el
+  mismo patrón que tenía `Representantes.jsx` antes de este cambio — no se
+  tocaron por estar fuera del alcance de esta tarea, pero valdría la pena
+  auditarlos contra los permisos reales del backend con el mismo criterio
+  (`ROLE_GROUPS` en `constants/roles.js`) en una tarea futura.
+- **`eliminar_definitivo` (histórico, Sistemas → Limpieza de Datos) y
+  `eliminar_definitivo_manual` (nuevo, módulo Representantes) comparten toda
+  la lógica de borrado físico** vía el helper `_eliminar_representante_fisicamente`,
+  pero registran el mismo `accion="ELIMINACION_DEFINITIVA_REPRESENTANTE"` en
+  `LogAuditoria` — no hay forma de distinguir en el log de auditoría cuál de
+  los dos flujos disparó un borrado específico (solo el `usuario` y que no
+  tenía alumnos, indirectamente). Si en algún momento se audita ese log, sería
+  útil agregar de qué acción vino.

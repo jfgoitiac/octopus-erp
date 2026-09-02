@@ -3,7 +3,7 @@ import { Search, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axiosInstance from '../../api/apiClient';
 import { buscarAlumnos, secretariaService } from '../../api/secretaria.service';
-import ModalEliminarDefinitivo from './ModalEliminarDefinitivo';
+import ModalEliminarDefinitivo from '../shared/ModalEliminarDefinitivo';
 import ModalEliminarTodosAlumnos from './ModalEliminarTodosAlumnos';
 
 // TODO-TEMPORAL: quitar este tab (y su entrada en Sistemas.jsx) tras la

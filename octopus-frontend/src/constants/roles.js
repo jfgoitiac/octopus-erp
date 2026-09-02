@@ -104,6 +104,16 @@ export const ROLE_GROUPS = {
   // Acceso a representantes (secretaría + caja + cobranza)
   ATENCION_FAMILIAS: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.COBRANZA],
 
+  // Crear/editar representantes — debe coincidir exactamente con
+  // authentication/views.py::IsSystemAdminOrDirector (secretaria/views.py
+  // RepresentanteViewSet.get_permissions: create/update/partial_update).
+  REPRESENTANTES_EDITAR: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SISTEMAS],
+
+  // Eliminar representantes (soft-delete) y eliminación definitiva manual —
+  // debe coincidir exactamente con secretaria/views.py::IsFinanzasOrAbove
+  // (RepresentanteViewSet.get_permissions: destroy/eliminar_definitivo_manual).
+  REPRESENTANTES_ELIMINAR: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA],
+
   // Morosos: todos excepto directivo_red y sistemas (gestión local de sede)
   MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.COBRANZA],
 

@@ -6,6 +6,7 @@ import {
     desactivarPortalRepresentante,
     restablecerContrasenaPortal,
 } from '../api/portalAdmin.service';
+import { secretariaService } from '../api/secretaria.service';
 
 const FORM_EMPTY = { nombre: '', apellido: '', cedula: '', telefono: '', correo: '', direccion: '', monto_proyecto_inversion: '0.00' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,6 +57,10 @@ export function useRepresentantes() {
     // --- Confirmar eliminar ---
     const [confirmDelete, setConfirmDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
+
+    // --- Eliminación definitiva manual (representante sin alumnos) ---
+    const [confirmDeleteDefinitivo, setConfirmDeleteDefinitivo] = useState(null);
+    const [deletingDefinitivo, setDeletingDefinitivo] = useState(false);
 
     // --- Portal de representantes ---
     const [portalLoading, setPortalLoading] = useState(false);
@@ -199,9 +204,25 @@ export function useRepresentantes() {
             if (selectedRep?.id === confirmDelete.id) closeFicha();
             fetchRepresentantes();
         } catch (err) {
-            toast.error(err.response?.data?.error || 'No se pudo eliminar el representante.');
+            toast.error(err.response?.data?.error || err.response?.data?.detail || 'No se pudo eliminar el representante.');
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleDeleteDefinitivo = async () => {
+        if (!confirmDeleteDefinitivo) return;
+        setDeletingDefinitivo(true);
+        try {
+            await secretariaService.eliminarRepresentanteDefinitivoManual(confirmDeleteDefinitivo.id);
+            toast.success('Representante eliminado definitivamente. La cédula quedó libre.');
+            setConfirmDeleteDefinitivo(null);
+            if (selectedRep?.id === confirmDeleteDefinitivo.id) closeFicha();
+            fetchRepresentantes();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.response?.data?.detail || 'No se pudo eliminar definitivamente al representante.');
+        } finally {
+            setDeletingDefinitivo(false);
         }
     };
 
@@ -306,6 +327,8 @@ export function useRepresentantes() {
         openCrear, openEditar, closeModal, handleSave,
         // Delete
         confirmDelete, setConfirmDelete, deleting, handleDelete,
+        // Delete definitivo (manual, solo sin alumnos)
+        confirmDeleteDefinitivo, setConfirmDeleteDefinitivo, deletingDefinitivo, handleDeleteDefinitivo,
         // Portal
         portalLoading, handleActivarPortal, handleDesactivarPortal, handleRestablecerContrasena,
         // Proyecto de Inversión (carga manual)

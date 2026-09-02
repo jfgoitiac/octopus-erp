@@ -16,10 +16,13 @@ const FichaAlumnosSkeleton = () => (
 );
 
 const RepresentanteFicha = ({
-    rep, alumnos, fichaLoading, canWrite, onClose, onEditar, onConfirmDelete,
+    rep, alumnos, fichaLoading, canEditar, canEliminar, onClose, onEditar, onConfirmDelete, onConfirmDeleteDefinitivo,
     portalLoading, onActivarPortal, onDesactivarPortal, onRestablecerContrasena,
     cargandoProyectoId, onCargarProyectoInversion,
-}) => (
+}) => {
+    const sinAlumnos = (rep.cantidad_alumnos ?? 0) === 0 && (rep.cantidad_alumnos_retirados ?? 0) === 0;
+
+    return (
     <div
         className="w-full lg:w-72 flex-shrink-0 rounded-xl flex flex-col"
         style={{
@@ -105,7 +108,7 @@ const RepresentanteFicha = ({
         {/* Proyecto de Inversión: carga manual puntual, solo mientras el
             representante siga debiendo inscripción (ver secretaria/views.py::
             RepresentanteViewSet.cargar_proyecto_inversion) */}
-        {canWrite && rep.tiene_inscripcion_impaga && (
+        {canEditar && rep.tiene_inscripcion_impaga && (
             <div className="px-4 py-3" style={{ borderTop: '0.5px solid var(--border)' }}>
                 <button
                     onClick={() => onCargarProyectoInversion(rep)}
@@ -120,7 +123,7 @@ const RepresentanteFicha = ({
         )}
 
         {/* Acceso al Portal */}
-        {canWrite && (
+        {canEditar && (
             <div className="px-4 py-3 flex flex-col gap-2" style={{ borderTop: '0.5px solid var(--border)' }}>
                 <div className="flex items-center justify-between">
                     <p className="text-[11px] uppercase tracking-widest font-medium flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
@@ -199,29 +202,52 @@ const RepresentanteFicha = ({
         )}
 
         {/* Acciones rápidas */}
-        {canWrite && (
+        {(canEditar || canEliminar) && (
             <div className="px-4 pb-4 flex gap-2 mt-auto pt-3" style={{ borderTop: '0.5px solid var(--border)' }}>
+                {canEditar && (
+                    <button
+                        onClick={() => onEditar(rep)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium"
+                        style={{ background: 'var(--pb)', color: '#fff' }}
+                    >
+                        <Pencil size={12} />
+                        Editar
+                    </button>
+                )}
+                {canEliminar && (
+                    <button
+                        onClick={() => onConfirmDelete(rep)}
+                        aria-label={`Eliminar a ${rep.nombre} ${rep.apellido}`}
+                        className="flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs transition-colors"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'var(--red)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; e.currentTarget.style.borderColor = 'var(--border-md)'; }}
+                    >
+                        <Trash2 size={12} />
+                    </button>
+                )}
+            </div>
+        )}
+
+        {/* Eliminación definitiva manual: solo si no tiene NINGÚN alumno
+            (ni activo ni retirado) — ver secretaria/views.py::
+            RepresentanteViewSet.eliminar_definitivo_manual. Separada de
+            "Eliminar" (soft-delete) porque es irreversible y libera la
+            cédula, exige confirmación reforzada. */}
+        {canEliminar && sinAlumnos && (
+            <div className="px-4 pb-4" style={{ borderTop: '0.5px solid var(--border)', paddingTop: '12px' }}>
                 <button
-                    onClick={() => onEditar(rep)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium"
-                    style={{ background: 'var(--pb)', color: '#fff' }}
-                >
-                    <Pencil size={12} />
-                    Editar
-                </button>
-                <button
-                    onClick={() => onConfirmDelete(rep)}
-                    aria-label={`Eliminar a ${rep.nombre} ${rep.apellido}`}
-                    className="flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs transition-colors"
-                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'var(--red)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; e.currentTarget.style.borderColor = 'var(--border-md)'; }}
+                    onClick={() => onConfirmDeleteDefinitivo(rep)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors"
+                    style={{ border: '0.5px solid var(--red)', color: 'var(--red)', background: 'var(--red-light)' }}
                 >
                     <Trash2 size={12} />
+                    Eliminar definitivamente
                 </button>
             </div>
         )}
     </div>
-);
+    );
+};
 
 export default RepresentanteFicha;

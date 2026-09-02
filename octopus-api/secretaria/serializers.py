@@ -157,6 +157,10 @@ class RepresentanteUpdateSerializer(serializers.ModelSerializer):
 class RepresentanteCRUDSerializer(serializers.ModelSerializer):
     """Serializer para gestión CRUD directa de representantes (valida unicidad de cédula)."""
     cantidad_alumnos  = serializers.IntegerField(read_only=True)
+    # Alumnos retirados (no activos) vinculados — junto con cantidad_alumnos
+    # le permite al frontend saber si el representante tiene 0 alumnos en
+    # total (ni activos ni retirados) para ofrecer "Eliminar definitivamente".
+    cantidad_alumnos_retirados = serializers.IntegerField(read_only=True)
     portal_creado     = serializers.SerializerMethodField()
     portal_activo     = serializers.SerializerMethodField()
     # No es campo del modelo Representante: se persiste en CuotaProyectoInversion
@@ -177,7 +181,7 @@ class RepresentanteCRUDSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'cedula', 'nombre', 'apellido', 'telefono', 'correo', 'direccion',
             'nacionalidad', 'nivel_estudio',
-            'cantidad_alumnos', 'portal_creado', 'portal_activo',
+            'cantidad_alumnos', 'cantidad_alumnos_retirados', 'portal_creado', 'portal_activo',
             'monto_proyecto_inversion', 'tiene_inscripcion_impaga',
         ]
 

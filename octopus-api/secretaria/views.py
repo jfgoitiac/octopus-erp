@@ -1744,6 +1744,43 @@ class ExportarMatriculaGradoPDFView(APIView):
 # ─────────────────────────────────────────────
 # REPRESENTANTES — CRUD COMPLETO
 # ─────────────────────────────────────────────
+def _eliminar_representante_fisicamente(rep, usuario):
+    """
+    Borrado físico real (no soft-delete) de un representante, todos sus
+    alumnos (activos y retirados, con su historial financiero/académico) y
+    su cuenta de acceso al portal si la tiene. Irreversible. Compartido por
+    `eliminar_definitivo` (Limpieza de Datos, sin restricciones) y
+    `eliminar_definitivo_manual` (módulo Representantes, exige 0 alumnos).
+    """
+    from cobranza.models import SolvenciaRepresentante
+
+    LogAuditoria.objects.create(
+        usuario=usuario,
+        accion="ELIMINACION_DEFINITIVA_REPRESENTANTE",
+        modulo="SECRETARIA",
+        detalles={
+            "representante_id": rep.id,
+            "nombre":           f"{rep.nombre} {rep.apellido}",
+            "cedula":           rep.cedula,
+        }
+    )
+
+    for alumno in Alumno.todos.filter(representante=rep):
+        _eliminar_alumno_definitivo(alumno, usuario)
+
+    # PROTECT: debe borrarse antes que el representante
+    SolvenciaRepresentante.objects.filter(representante=rep).delete()
+
+    # Cuenta de acceso al portal (Django User + PerfilUsuario): no cae por
+    # CASCADE del lado de RepresentanteUser.representante, hay que borrarla
+    # explícitamente para no dejar credenciales huérfanas.
+    portal_user = getattr(rep, 'portal_user', None)
+    if portal_user is not None:
+        portal_user.user.delete()
+
+    rep.delete()  # cascada: CuotaProyectoInversion restante y RepresentanteUser
+
+
 class RepresentanteViewSet(viewsets.ModelViewSet):
     """CRUD completo de representantes con búsqueda y conteo de alumnos vinculados."""
     serializer_class   = RepresentanteCRUDSerializer
@@ -1764,6 +1801,10 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         )
         qs = Representante.objects.filter(activo=True).select_related('portal_user').annotate(
             cantidad_alumnos=Count('alumnos', filter=models.Q(alumnos__activo=True)),
+            # Alumnos retirados vinculados — el frontend lo necesita para
+            # decidir si mostrar "Eliminar definitivamente" (exige 0 alumnos,
+            # ni activos ni retirados) sin disparar una query extra por fila.
+            cantidad_alumnos_retirados=Count('alumnos', filter=models.Q(alumnos__activo=False)),
             _tiene_inscripcion_impaga=models.Exists(inscripcion_impaga_qs),
         )
         # Prefetch de la cuota de Proyecto de Inversión del período activo (a lo
@@ -1798,12 +1839,23 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         return qs.order_by('apellido', 'nombre')
 
     def get_permissions(self):
-        if self.action in ['destroy', 'create', 'update', 'partial_update', 'eliminar_definitivo', 'cargar_proyecto_inversion']:
+        # destroy (soft-delete) y la eliminación definitiva manual comparten
+        # permiso con el resto de acciones de cobranza/finanzas sobre
+        # representantes (IsFinanzasOrAbove: director, administrador,
+        # cobranza) — 'sistemas' queda fuera a propósito, igual que en el
+        # resto de finanzas. create/update/partial_update y el
+        # eliminar_definitivo histórico (usado por Sistemas → Limpieza de
+        # Datos) siguen exigiendo IsSystemAdminOrDirector, sin cambios.
+        if self.action in ['destroy', 'eliminar_definitivo_manual']:
+            return [permissions.IsAuthenticated(), IsFinanzasOrAbove()]
+        if self.action in ['create', 'update', 'partial_update', 'eliminar_definitivo', 'cargar_proyecto_inversion']:
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
         return [permissions.IsAuthenticated()]
 
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
+        from django.utils import timezone
+
         rep = self.get_object()
 
         # Soft delete en cascada: se retiran (no se borran) los alumnos activos
@@ -1817,6 +1869,17 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         rep.activo = False
         rep.fecha_eliminacion = timezone.now()
         rep.save(update_fields=['activo', 'fecha_eliminacion'])
+
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="ELIMINACION_REPRESENTANTE",
+            modulo="SECRETARIA",
+            detalles={
+                "representante_id": rep.id,
+                "nombre":           f"{rep.nombre} {rep.apellido}",
+                "cedula":           rep.cedula,
+            }
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])
@@ -1900,36 +1963,40 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         Borrado físico real (no soft-delete) del representante, de todos sus
         alumnos (con su historial financiero/académico) y de su cuenta de
         acceso al portal si la tiene. Irreversible.
-        """
-        from cobranza.models import SolvenciaRepresentante
 
+        Usado hoy solo por Sistemas → Limpieza de Datos, sin restricción de
+        "0 alumnos" a propósito: ahí sirve para arrasar datos de prueba con
+        alumnos y todo. Para el borrado manual de un representante duplicado
+        sin alumnos desde el módulo Representantes, ver `eliminar_definitivo_manual`.
+        """
+        rep = get_object_or_404(Representante, pk=pk)
+        _eliminar_representante_fisicamente(rep, request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['delete'])
+    @transaction.atomic
+    def eliminar_definitivo_manual(self, request, pk=None):
+        """
+        Borrado físico real invocado a propósito desde el módulo
+        Representantes (no Sistemas → Limpieza de Datos), para casos como un
+        representante duplicado por un error de carga de datos: exige que no
+        tenga NINGÚN alumno vinculado (ni activo ni retirado) — si tiene
+        alguno, se rechaza y debe usarse el retiro/eliminación normal
+        (soft-delete, `destroy`) en su lugar. Libera la cédula para reuso.
+        """
         rep = get_object_or_404(Representante, pk=pk)
 
-        LogAuditoria.objects.create(
-            usuario=request.user,
-            accion="ELIMINACION_DEFINITIVA_REPRESENTANTE",
-            modulo="SECRETARIA",
-            detalles={
-                "representante_id": rep.id,
-                "nombre":           f"{rep.nombre} {rep.apellido}",
-                "cedula":           rep.cedula,
-            }
-        )
+        if Alumno.todos.filter(representante=rep).exists():
+            return Response(
+                {"error": (
+                    "Este representante tiene alumnos vinculados (activos o "
+                    "retirados) y no puede eliminarse definitivamente. Use la "
+                    "eliminación normal (retira alumnos y preserva el historial)."
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        for alumno in Alumno.todos.filter(representante=rep):
-            _eliminar_alumno_definitivo(alumno, request.user)
-
-        # PROTECT: debe borrarse antes que el representante
-        SolvenciaRepresentante.objects.filter(representante=rep).delete()
-
-        # Cuenta de acceso al portal (Django User + PerfilUsuario): no cae por
-        # CASCADE del lado de RepresentanteUser.representante, hay que borrarla
-        # explícitamente para no dejar credenciales huérfanas.
-        portal_user = getattr(rep, 'portal_user', None)
-        if portal_user is not None:
-            portal_user.user.delete()
-
-        rep.delete()  # cascada: CuotaProyectoInversion restante y RepresentanteUser
+        _eliminar_representante_fisicamente(rep, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

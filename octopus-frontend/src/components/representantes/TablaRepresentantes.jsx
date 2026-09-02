@@ -15,7 +15,7 @@ export const TablaRepresentantesSkeleton = () => (
     </>
 );
 
-const TablaRepresentantes = ({ representantes, selectedRep, canWrite, onOpenFicha, onEditar, onConfirmDelete }) => {
+const TablaRepresentantes = ({ representantes, selectedRep, canEditar, canEliminar, onOpenFicha, onEditar, onConfirmDelete }) => {
     if (representantes.length === 0) {
         return (
             <tr>
@@ -54,28 +54,32 @@ const TablaRepresentantes = ({ representantes, selectedRep, canWrite, onOpenFich
                         </span>
                     </td>
                     <td className="px-4 py-3">
-                        {canWrite && (
+                        {(canEditar || canEliminar) && (
                             <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                                <button
-                                    onClick={() => onEditar(rep)}
-                                    aria-label={`Editar a ${rep.nombre} ${rep.apellido}`}
-                                    className="p-1.5 rounded-lg transition-colors"
-                                    style={{ color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}
-                                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--pb)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; }}
-                                >
-                                    <Pencil size={13} />
-                                </button>
-                                <button
-                                    onClick={() => onConfirmDelete(rep)}
-                                    aria-label={`Eliminar a ${rep.nombre} ${rep.apellido}`}
-                                    className="p-1.5 rounded-lg transition-colors"
-                                    style={{ color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}
-                                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; }}
-                                >
-                                    <Trash2 size={13} />
-                                </button>
+                                {canEditar && (
+                                    <button
+                                        onClick={() => onEditar(rep)}
+                                        aria-label={`Editar a ${rep.nombre} ${rep.apellido}`}
+                                        className="p-1.5 rounded-lg transition-colors"
+                                        style={{ color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}
+                                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--pb)'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; }}
+                                    >
+                                        <Pencil size={13} />
+                                    </button>
+                                )}
+                                {canEliminar && (
+                                    <button
+                                        onClick={() => onConfirmDelete(rep)}
+                                        aria-label={`Eliminar a ${rep.nombre} ${rep.apellido}`}
+                                        className="p-1.5 rounded-lg transition-colors"
+                                        style={{ color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}
+                                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--ash)'; }}
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
+                                )}
                             </div>
                         )}
                     </td>
