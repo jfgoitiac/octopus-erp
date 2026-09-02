@@ -4,7 +4,7 @@ from rest_framework import serializers
 from .models import (
     BancoInstitucional, CierreCaja, ClasificacionPagoManual, CuotaInscripcion,
     CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, Pago,
-    SolvenciaRepresentante, TasaCambio,
+    SolvenciaRepresentante, TasaCambio, TipoCargoEspecial,
 )
 from secretaria.models import Alumno
 from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
@@ -106,6 +106,41 @@ def calcular_desglose_automatico(principal_pago):
         ))
 
     return lineas
+
+class TipoCargoEspecialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoCargoEspecial
+        fields = '__all__'
+
+    def validate(self, attrs):
+        """
+        Replica las reglas de TipoCargoEspecial.clean() (no se ejecuta solo,
+        DRF no llama full_clean() por default): 'unico' exige
+        numero_cuotas=1; toda otra periodicidad exige fecha_primera_cuota.
+        Usa el valor ya guardado en updates parciales cuando el campo no
+        viene en el payload.
+        """
+        def valor(campo, default=None):
+            if campo in attrs:
+                return attrs[campo]
+            if self.instance is not None:
+                return getattr(self.instance, campo)
+            return default
+
+        periodicidad = valor('periodicidad', 'unico')
+        numero_cuotas = valor('numero_cuotas', 1)
+        fecha_primera_cuota = valor('fecha_primera_cuota')
+
+        if periodicidad == 'unico' and numero_cuotas != 1:
+            raise serializers.ValidationError({
+                'numero_cuotas': "Un cargo de periodicidad 'único' debe tener numero_cuotas=1."
+            })
+        if periodicidad != 'unico' and not fecha_primera_cuota:
+            raise serializers.ValidationError({
+                'fecha_primera_cuota': "Obligatorio cuando la periodicidad no es 'único'."
+            })
+        return attrs
+
 
 class BancoInstitucionalSerializer(serializers.ModelSerializer):
     tipos = serializers.ListField(

@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 from rest_framework.parsers import MultiPartParser
 from rest_framework import viewsets
 from django.db import transaction
@@ -12,8 +12,9 @@ import uuid
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Min, Q, Sum
-from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TransferenciaInterna
-from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, calcular_desglose_automatico
+from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
+from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
+from .services import tipo_cargo_proyecto_inversion
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
@@ -910,10 +911,32 @@ class ConfiguracionCobranzaView(APIView):
             )
             response_data['monto_proyecto_inversion'] = monto_proyecto
             if periodo_activo:
+                # Acotado a la semilla "Proyecto de Inversión": desde la
+                # generalización a TipoCargoEspecial, sin este filtro este
+                # UPDATE le pisaría el monto a CUALQUIER otro cargo especial
+                # del período (ej. "Uniformes", "Materiales") solo porque
+                # comparten periodo_escolar y pagado=False.
                 CuotaProyectoInversion.objects.filter(
-                    periodo_escolar=periodo_activo, pagado=False
+                    periodo_escolar=periodo_activo, pagado=False,
+                    tipo_concepto=tipo_cargo_proyecto_inversion(),
                 ).update(monto_usd=Decimal(str(monto_proyecto)))
         return Response(response_data)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TIPOS DE CARGO ESPECIAL (generalización dinámica de "Proyecto de Inversión")
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TipoCargoEspecialListCreateView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TipoCargoEspecialSerializer
+    queryset = TipoCargoEspecial.objects.all()
+
+
+class TipoCargoEspecialDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TipoCargoEspecialSerializer
+    queryset = TipoCargoEspecial.objects.all()
 
 
 # ──────────────────────────────────────────────────────────────────────────────

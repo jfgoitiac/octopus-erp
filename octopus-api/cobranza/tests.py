@@ -1066,3 +1066,134 @@ class BackfillTipoConceptoMigracionTest(TransactionTestCase):
             CuotaProyectoInversion.objects.filter(tipo_concepto__nombre='Proyecto de Inversión').count(),
             conteo_antes,
         )
+
+
+class TipoCargoEspecialAPITest(TestCase):
+    """PASO 3: CRUD de TipoCargoEspecial."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='sistemas_tipo', password='clave123456')
+        self.client = APIClient()
+        token = str(RefreshToken.for_user(self.user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+
+    def test_crear_tipo_unico_sin_fecha_primera_cuota_ok(self):
+        resp = self.client.post('/api/cobranza/tipos-cargo-especial/', {
+            'nombre': 'Uniformes', 'monto_defecto_usd': '25.00',
+            'periodicidad': 'unico', 'numero_cuotas': 1,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_crear_tipo_mensual_sin_fecha_primera_cuota_es_rechazado(self):
+        resp = self.client.post('/api/cobranza/tipos-cargo-especial/', {
+            'nombre': 'Materiales', 'monto_defecto_usd': '10.00',
+            'periodicidad': 'mensual', 'numero_cuotas': 3,
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('fecha_primera_cuota', resp.data)
+
+    def test_crear_tipo_unico_con_numero_cuotas_distinto_de_uno_es_rechazado(self):
+        resp = self.client.post('/api/cobranza/tipos-cargo-especial/', {
+            'nombre': 'Otro', 'monto_defecto_usd': '10.00',
+            'periodicidad': 'unico', 'numero_cuotas': 2,
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('numero_cuotas', resp.data)
+
+    def test_listar_y_editar_tipo(self):
+        from .models import TipoCargoEspecial
+        tipo = TipoCargoEspecial.objects.create(nombre='Excursión', monto_defecto_usd=Decimal('40.00'))
+
+        listado = self.client.get('/api/cobranza/tipos-cargo-especial/')
+        self.assertEqual(listado.status_code, 200)
+
+        detalle_url = f'/api/cobranza/tipos-cargo-especial/{tipo.id}/'
+        edicion = self.client.patch(detalle_url, {'monto_defecto_usd': '45.00'}, format='json')
+        self.assertEqual(edicion.status_code, 200, edicion.content)
+        tipo.refresh_from_db()
+        self.assertEqual(tipo.monto_defecto_usd, Decimal('45.00'))
+
+
+class GenerarCargosEspecialesPendientesTest(TestCase):
+    """PASO 3: cobranza/services.py::generar_cargos_especiales_pendientes."""
+
+    def setUp(self):
+        from .models import TipoCargoEspecial
+        self.TipoCargoEspecial = TipoCargoEspecial
+        # La semilla histórica "Proyecto de Inversión" (creada por la
+        # migración 0035) también es alcance='todos'/activo=True: se
+        # desactiva acá para que estos tests midan solo los tipos que crean,
+        # no la suma con la semilla.
+        TipoCargoEspecial.objects.filter(nombre='Proyecto de Inversión').update(activo=False)
+        self.rep_a = Representante.objects.create(
+            cedula='V60000001', nombre='RepA', apellido='Test', correo='repa@example.com'
+        )
+        self.rep_b = Representante.objects.create(
+            cedula='V60000002', nombre='RepB', apellido='Test', correo='repb@example.com'
+        )
+        ConfiguracionGrado.objects.update_or_create(
+            grado_seccion='1er Grado A', defaults={'cupos_maximos': 30, 'cupos_utilizados': 0}
+        )
+        ConfiguracionGrado.objects.update_or_create(
+            grado_seccion='2do Grado A', defaults={'cupos_maximos': 30, 'cupos_utilizados': 0}
+        )
+        self.alumno_a = Alumno.objects.create(
+            nombre='HijoA', apellido='Test', cedula_escolar='E60000001',
+            fecha_nacimiento=date(2016, 1, 1), representante=self.rep_a,
+            grado_seccion='1er Grado A', activo=True,
+        )
+        self.alumno_b = Alumno.objects.create(
+            nombre='HijoB', apellido='Test', cedula_escolar='E60000002',
+            fecha_nacimiento=date(2016, 1, 1), representante=self.rep_b,
+            grado_seccion='2do Grado A', activo=True,
+        )
+
+    def test_alcance_todos_genera_para_ambos_representantes(self):
+        from .services import generar_cargos_especiales_pendientes
+        tipo = self.TipoCargoEspecial.objects.create(
+            nombre='Cargo Todos', monto_defecto_usd=Decimal('20.00'), alcance='todos',
+        )
+        creadas = generar_cargos_especiales_pendientes(periodo_escolar='2025-2026')
+        self.assertEqual(creadas, 2)
+        self.assertEqual(
+            CuotaProyectoInversion.objects.filter(tipo_concepto=tipo, periodo_escolar='2025-2026').count(), 2
+        )
+
+    def test_alcance_grado_solo_genera_para_representante_con_hijo_en_ese_grado(self):
+        from .services import generar_cargos_especiales_pendientes
+        grado = ConfiguracionGrado.objects.get(grado_seccion='1er Grado A')
+        tipo = self.TipoCargoEspecial.objects.create(
+            nombre='Cargo Grado', monto_defecto_usd=Decimal('15.00'), alcance='grado',
+        )
+        tipo.grados.add(grado)
+
+        creadas = generar_cargos_especiales_pendientes(periodo_escolar='2025-2026')
+        self.assertEqual(creadas, 1)
+        cuota = CuotaProyectoInversion.objects.get(tipo_concepto=tipo, periodo_escolar='2025-2026')
+        self.assertEqual(cuota.representante_id, self.rep_a.id)
+
+    def test_periodicidad_mensual_genera_numero_cuotas_con_fecha_cobro_incremental(self):
+        from .services import generar_cargos_especiales_pendientes
+        tipo = self.TipoCargoEspecial.objects.create(
+            nombre='Cargo Mensual', monto_defecto_usd=Decimal('5.00'), alcance='todos',
+            periodicidad='mensual', numero_cuotas=3, fecha_primera_cuota=date(2025, 9, 5),
+        )
+        generar_cargos_especiales_pendientes(periodo_escolar='2025-2026')
+        cuotas = list(
+            CuotaProyectoInversion.objects.filter(
+                tipo_concepto=tipo, representante=self.rep_a
+            ).order_by('numero_cuota')
+        )
+        self.assertEqual(len(cuotas), 3)
+        self.assertEqual([c.numero_cuota for c in cuotas], [1, 2, 3])
+        self.assertEqual([c.fecha_cobro for c in cuotas], [date(2025, 9, 5), date(2025, 10, 5), date(2025, 11, 5)])
+
+    def test_es_idempotente(self):
+        from .services import generar_cargos_especiales_pendientes
+        self.TipoCargoEspecial.objects.create(
+            nombre='Cargo Idempotente', monto_defecto_usd=Decimal('20.00'), alcance='todos',
+        )
+        primera = generar_cargos_especiales_pendientes(periodo_escolar='2025-2026')
+        segunda = generar_cargos_especiales_pendientes(periodo_escolar='2025-2026')
+        self.assertEqual(primera, 2)
+        self.assertEqual(segunda, 0)

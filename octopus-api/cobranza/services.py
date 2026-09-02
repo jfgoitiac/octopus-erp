@@ -25,6 +25,7 @@ notificaciones de cobranza siguen saliendo por la tarea diaria
 notificaciones.tasks.revisar_y_programar_notificaciones_pendientes, que se
 basa en la fecha de vencimiento real de cada mensualidad.
 """
+import calendar
 from decimal import Decimal
 
 from .models import Mensualidad, ParametroGlobal
@@ -312,3 +313,94 @@ def calcular_datos_administrativos_inscripcion(inscripcion):
 
     datos['fecha_pago'] = ultima_fecha_pago
     return datos
+
+
+def _cuotas_de_tipo(tipo):
+    """
+    [(numero_cuota, fecha_cobro), ...] para un TipoCargoEspecial, según su
+    periodicidad (ver TipoCargoEspecial.clean() para las reglas de validación
+    que garantizan que estos campos vienen consistentes).
+    """
+    if tipo.periodicidad == 'unico':
+        return [(1, None)]
+
+    from dateutil.relativedelta import relativedelta
+    paso_meses = 1 if tipo.periodicidad == 'mensual' else 3
+    cuotas = []
+    for n in range(1, tipo.numero_cuotas + 1):
+        fecha = tipo.fecha_primera_cuota + relativedelta(months=paso_meses * (n - 1))
+        if tipo.dia_cobro:
+            ultimo_dia_del_mes = calendar.monthrange(fecha.year, fecha.month)[1]
+            fecha = fecha.replace(day=min(tipo.dia_cobro, ultimo_dia_del_mes))
+        cuotas.append((n, fecha))
+    return cuotas
+
+
+def generar_cargos_especiales_pendientes(periodo_escolar=None):
+    """
+    Genera (idempotente) las CuotaProyectoInversion faltantes de todos los
+    TipoCargoEspecial activos, para el período escolar dado (por defecto el
+    activo en ConfiguracionSistema.periodo_escolar_activo).
+
+    Alcance (ver TipoCargoEspecial): se evalúa sobre los ALUMNOS ACTIVOS del
+    representante — un representante entra si tiene AL MENOS UN alumno
+    activo que matchee 'todos'/'grado'/'sede', sin importar cuántos hijos
+    matcheen (una sola cuota por representante, no una por hijo).
+
+    Idempotente vía la clave completa (representante, periodo_escolar,
+    tipo_concepto, numero_cuota) — igual que los 7 puntos de escritura de
+    CuotaProyectoInversion (ver PASO 1). Devuelve la cantidad de filas creadas.
+    """
+    from .models import CuotaProyectoInversion, TipoCargoEspecial
+    from secretaria.models import Alumno
+
+    if periodo_escolar is None:
+        config = configuracion_activa()
+        periodo_escolar = config.periodo_escolar_activo if config else None
+    if not periodo_escolar:
+        return 0
+
+    total_creadas = 0
+    for tipo in TipoCargoEspecial.objects.filter(activo=True).prefetch_related('grados', 'sedes'):
+        alumnos_activos = Alumno.objects.filter(activo=True)
+        if tipo.alcance == 'grado':
+            grados = list(tipo.grados.values_list('grado_seccion', flat=True))
+            if not grados:
+                continue
+            alumnos_activos = alumnos_activos.filter(grado_seccion__in=grados)
+        elif tipo.alcance == 'sede':
+            sedes_ids = list(tipo.sedes.values_list('id', flat=True))
+            if not sedes_ids:
+                continue
+            alumnos_activos = alumnos_activos.filter(sede_id__in=sedes_ids)
+
+        representantes_ids = set(alumnos_activos.values_list('representante_id', flat=True))
+        if not representantes_ids:
+            continue
+
+        existentes = set(
+            CuotaProyectoInversion.objects
+            .filter(periodo_escolar=periodo_escolar, tipo_concepto=tipo, representante_id__in=representantes_ids)
+            .values_list('representante_id', 'numero_cuota')
+        )
+
+        cuotas_del_tipo = _cuotas_de_tipo(tipo)
+        nuevas = [
+            CuotaProyectoInversion(
+                representante_id=representante_id,
+                periodo_escolar=periodo_escolar,
+                tipo_concepto=tipo,
+                numero_cuota=numero_cuota,
+                fecha_cobro=fecha_cobro,
+                monto_usd=tipo.monto_defecto_usd,
+                pagado=False,
+            )
+            for representante_id in representantes_ids
+            for (numero_cuota, fecha_cobro) in cuotas_del_tipo
+            if (representante_id, numero_cuota) not in existentes
+        ]
+        if nuevas:
+            CuotaProyectoInversion.objects.bulk_create(nuevas, batch_size=500, ignore_conflicts=True)
+            total_creadas += len(nuevas)
+
+    return total_creadas
