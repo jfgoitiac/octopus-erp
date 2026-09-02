@@ -431,7 +431,7 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
         model = ReglaRecargoPago
         fields = [
             'id', 'nombre', 'descripcion', 'tipo', 'modo_calculo', 'valor',
-            'dia_aplicacion', 'activa', 'sede', 'creada_por', 'creada_en',
+            'dia_aplicacion', 'activa', 'creada_por', 'creada_en',
             'modificada_en',
         ]
         read_only_fields = ['creada_por', 'creada_en', 'modificada_en']
@@ -452,8 +452,8 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        # Reutiliza la validación de unicidad activa por (sede, tipo) del
-        # modelo (ReglaRecargoPago.clean()) para no duplicar la regla acá.
+        # Reutiliza la validación de unicidad activa por tipo del modelo
+        # (ReglaRecargoPago.clean()) para no duplicar la regla acá.
         instancia = ReglaRecargoPago(
             id=self.instance.id if self.instance else None,
             nombre=data.get('nombre', getattr(self.instance, 'nombre', '')),
@@ -462,7 +462,6 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
             valor=data.get('valor', getattr(self.instance, 'valor', None)),
             dia_aplicacion=data.get('dia_aplicacion', getattr(self.instance, 'dia_aplicacion', None)),
             activa=data.get('activa', getattr(self.instance, 'activa', True)),
-            sede=data.get('sede', getattr(self.instance, 'sede', None)),
         )
         try:
             instancia.clean()

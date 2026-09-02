@@ -23,28 +23,20 @@ from django.db.models import Q
 from .models import Mensualidad, ReglaRecargoPago
 
 
-def _regla_activa_para_sede(sede_id, cache=None):
+def _regla_activa(cache=None):
     """
-    Regla activa de tipo='recargo' para `sede_id`, o la global (sede=None)
-    si no hay una específica de esa sede. `cache` (dict opcional, compartido
-    entre llamadas) evita repetir la query para la misma sede dentro de una
-    corrida bulk (ver calcular_recargos_para_alumnos).
+    Única regla activa de tipo='recargo' (configuración global, sin
+    variación por sede). `cache` (dict opcional, compartido entre llamadas)
+    evita repetir la query dentro de una corrida bulk (ver
+    calcular_recargos_para_alumnos) — usa la clave fija `'_regla'`.
     """
-    if cache is not None and sede_id in cache:
-        return cache[sede_id]
+    if cache is not None and '_regla' in cache:
+        return cache['_regla']
 
-    regla = None
-    if sede_id is not None:
-        regla = ReglaRecargoPago.objects.filter(
-            activa=True, tipo='recargo', sede_id=sede_id,
-        ).first()
-    if regla is None:
-        regla = ReglaRecargoPago.objects.filter(
-            activa=True, tipo='recargo', sede_id=None,
-        ).first()
+    regla = ReglaRecargoPago.objects.filter(activa=True, tipo='recargo').first()
 
     if cache is not None:
-        cache[sede_id] = regla
+        cache['_regla'] = regla
     return regla
 
 
@@ -60,11 +52,10 @@ def resolver_recargo(mensualidad, fecha_referencia, _cache_reglas=None):
     cobrar (autoridad real — el frontend puede replicar esta lógica en JS
     solo para preview, sin round-trip).
 
-    `_cache_reglas` es un detalle interno para uso bulk (dict compartido
-    sede_id -> regla); los callers normales lo dejan en None.
+    `_cache_reglas` es un detalle interno para uso bulk (dict compartido);
+    los callers normales lo dejan en None.
     """
-    sede_id = mensualidad.alumno.sede_id
-    regla = _regla_activa_para_sede(sede_id, cache=_cache_reglas)
+    regla = _regla_activa(cache=_cache_reglas)
     if regla is None:
         return None
 
@@ -96,8 +87,8 @@ def calcular_recargos_para_alumnos(alumno_ids, hoy):
     Usa UNA query para las mensualidades impagas vencidas (meses anteriores,
     o el mes actual si ya alcanzó/pasó su fin — mismo universo "vencido"
     que cobranza/mora.py::annotate_mora_detalle, overdue_q) de esos alumnos,
-    cachea las reglas por sede (a lo sumo 1 query por sede distinta
-    encontrada) y resuelve cada mensualidad con resolver_recargo() en Python.
+    cachea la única regla activa (a lo sumo 1 query total, no por alumno) y
+    resuelve cada mensualidad con resolver_recargo() en Python.
     """
     alumno_ids = list(alumno_ids)
     totales = defaultdict(lambda: Decimal('0.00'))
@@ -105,11 +96,9 @@ def calcular_recargos_para_alumnos(alumno_ids, hoy):
         return dict(totales)
 
     overdue_q = Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month)
-    mensualidades = (
-        Mensualidad.objects.filter(alumno_id__in=alumno_ids, pagado=False)
-        .filter(overdue_q)
-        .select_related('alumno')
-    )
+    mensualidades = Mensualidad.objects.filter(
+        alumno_id__in=alumno_ids, pagado=False,
+    ).filter(overdue_q)
 
     cache_reglas = {}
     for m in mensualidades:

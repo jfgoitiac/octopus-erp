@@ -738,9 +738,8 @@ class ReglaRecargoPago(models.Model):
     mora sin tener aún recargo (ej. dia_limite_pago=5, dia_aplicacion=19 →
     moroso desde el día 6, con recargo recién desde el día 19).
 
-    `sede=None` es el "slot" global: aplica a cualquier alumno cuya sede no
-    tenga una regla propia activa. Ver resolver_recargo() para el criterio
-    de resolución sede específica > global.
+    Sin alcance por sede: es una sola configuración global por `tipo`, igual
+    para todos los alumnos sin importar la sede a la que pertenezcan.
     """
     MODOS = [
         ('monto_fijo_usd', 'Monto fijo (USD)'),
@@ -766,13 +765,6 @@ class ReglaRecargoPago(models.Model):
         ),
     )
     activa = models.BooleanField(default=True)
-    sede = models.ForeignKey(
-        'multisede.Sede',
-        null=True, blank=True,
-        on_delete=models.SET_NULL,
-        related_name='reglas_recargo_pago',
-        help_text="Vacío = regla global (aplica a alumnos sin regla propia de sede).",
-    )
     creada_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='+',
@@ -796,17 +788,15 @@ class ReglaRecargoPago(models.Model):
         if self.dia_aplicacion is not None and not (1 <= self.dia_aplicacion <= 31):
             raise ValidationError({'dia_aplicacion': "Debe estar entre 1 y 31."})
 
-        # Solo una regla ACTIVA por (sede, tipo): sede=None es su propio
-        # "slot" global, independiente de las reglas de sede específica.
+        # Solo una regla ACTIVA por tipo — es global, no hay variación por sede.
         if self.activa:
             duplicada = ReglaRecargoPago.objects.filter(
-                sede=self.sede, tipo=self.tipo, activa=True,
+                tipo=self.tipo, activa=True,
             ).exclude(pk=self.pk)
             if duplicada.exists():
-                sede_desc = self.sede.nombre if self.sede_id else 'global'
                 raise ValidationError(
-                    f"Ya existe una regla activa de tipo '{self.get_tipo_display()}' "
-                    f"para la sede '{sede_desc}'. Desactívela antes de crear otra."
+                    f"Ya existe una regla activa de tipo '{self.get_tipo_display()}'. "
+                    f"Desactívela antes de crear otra."
                 )
 
 
