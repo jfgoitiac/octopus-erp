@@ -1,10 +1,12 @@
 from decimal import Decimal
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import F, Sum
 from rest_framework import serializers
 from .models import (
     BancoInstitucional, CierreCaja, ClasificacionPagoManual, CuotaInscripcion,
-    CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, Pago,
-    SolvenciaRepresentante, TasaCambio, TipoCargoEspecial,
+    CuotaProyectoInversion, CuotaSolvencia, LineaRecargoPago, LoteRevisionCaja,
+    Mensualidad, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio,
+    TipoCargoEspecial,
 )
 from secretaria.models import Alumno
 from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
@@ -54,6 +56,14 @@ def calcular_desglose_automatico(principal_pago):
 
     lineas = []
 
+    # Recargo por pago tardío: snapshot inmutable (LineaRecargoPago) enlazado
+    # a ESTE pago principal. Se indexa por mensualidad_id para insertar cada
+    # línea de recargo inmediatamente después de su mensualidad, sin N+1
+    # (una sola query para todas).
+    recargos_por_mensualidad = {
+        r.mensualidad_id: r for r in principal_pago.lineas_recargo.all()
+    }
+
     for m in principal_pago.mensualidades_pagadas.all():
         extra = None
         if fecha_pago:
@@ -80,6 +90,15 @@ def calcular_desglose_automatico(principal_pago):
             f"{m.alumno.nombre} {m.alumno.apellido}",
             m.monto_usd, extra,
         ))
+
+        recargo = recargos_por_mensualidad.get(m.id)
+        if recargo:
+            lineas.append(_linea(
+                'recargo_pago_tardio', 'RECARGO POR PAGO TARDÍO',
+                recargo.nombre,
+                f"{m.alumno.nombre} {m.alumno.apellido}",
+                recargo.monto_usd,
+            ))
 
     for c in principal_pago.cuotas_inscripcion_pagadas.all():
         lineas.append(_linea(
@@ -322,6 +341,7 @@ class ComprobanteSerializer(serializers.ModelSerializer):
                     'cuotas_inscripcion_pagadas__alumno',
                     'cuotas_solvencia_pagadas__alumno',
                     'proyectos_inversion_pagados__representante',
+                    'lineas_recargo',
                 )
                 .order_by('id')
                 .first()
@@ -399,6 +419,56 @@ class SolvenciaRepresentanteSerializer(serializers.ModelSerializer):
             'periodo_escolar', 'origen', 'origen_display', 'fecha_generacion',
             'pago_generador', 'emitida_por_nombre', 'observaciones',
         ]
+
+
+class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
+    """
+    CRUD de la configuración de recargo por pago tardío. La lógica de
+    cálculo/aplicación vive en cobranza/recargos.py::resolver_recargo — este
+    serializer solo valida y persiste la configuración.
+    """
+    class Meta:
+        model = ReglaRecargoPago
+        fields = [
+            'id', 'nombre', 'descripcion', 'tipo', 'modo_calculo', 'valor',
+            'dia_aplicacion', 'activa', 'sede', 'creada_por', 'creada_en',
+            'modificada_en',
+        ]
+        read_only_fields = ['creada_por', 'creada_en', 'modificada_en']
+
+    def validate_nombre(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("El nombre no puede estar vacío.")
+        return value
+
+    def validate_dia_aplicacion(self, value):
+        if not (1 <= value <= 31):
+            raise serializers.ValidationError("Debe estar entre 1 y 31.")
+        return value
+
+    def validate_valor(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Debe ser mayor a 0.")
+        return value
+
+    def validate(self, data):
+        # Reutiliza la validación de unicidad activa por (sede, tipo) del
+        # modelo (ReglaRecargoPago.clean()) para no duplicar la regla acá.
+        instancia = ReglaRecargoPago(
+            id=self.instance.id if self.instance else None,
+            nombre=data.get('nombre', getattr(self.instance, 'nombre', '')),
+            tipo=data.get('tipo', getattr(self.instance, 'tipo', 'recargo')),
+            modo_calculo=data.get('modo_calculo', getattr(self.instance, 'modo_calculo', 'monto_fijo_usd')),
+            valor=data.get('valor', getattr(self.instance, 'valor', None)),
+            dia_aplicacion=data.get('dia_aplicacion', getattr(self.instance, 'dia_aplicacion', None)),
+            activa=data.get('activa', getattr(self.instance, 'activa', True)),
+            sede=data.get('sede', getattr(self.instance, 'sede', None)),
+        )
+        try:
+            instancia.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, 'message_dict') else exc.messages)
+        return data
 
 
 class PagoItemSerializer(serializers.Serializer):

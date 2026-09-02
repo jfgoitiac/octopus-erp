@@ -1,6 +1,9 @@
 from fpdf import FPDF
 from io import BytesIO
 
+MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
 class ReciboPDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 15)
@@ -32,10 +35,37 @@ def generar_recibo_pdf(pago):
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "DETALLES DEL PAGO", 0, 1)
     pdf.set_font("Arial", size=12)
-    
-    pdf.cell(90, 10, f"Monto en Divisas:", 1)
-    pdf.cell(0, 10, f"{pago.monto_usd} USD", 1, 1)
-    
+
+    mensualidades = list(pago.mensualidades_pagadas.all().order_by('anio', 'mes'))
+    if mensualidades:
+        # Desglose línea por línea: mensualidad, seguida inmediatamente de
+        # su recargo por pago tardío si aplicó (LineaRecargoPago, snapshot
+        # inmutable). Si el pago está a tiempo, no hay línea de recargo —
+        # se ve igual que la única línea agregada que se mostraba antes.
+        recargos_por_mensualidad = {
+            r.mensualidad_id: r for r in pago.lineas_recargo.all()
+        }
+        total_mensualidades = 0
+        for m in mensualidades:
+            pdf.cell(140, 8, f"Mensualidad {MESES_ES[m.mes - 1]} {m.anio}", 1)
+            pdf.cell(0, 8, f"{m.monto_usd} $", 1, 1)
+            total_mensualidades += m.monto_usd
+
+            recargo = recargos_por_mensualidad.get(m.id)
+            if recargo:
+                pdf.cell(140, 8, "Recargo por pago tardio", 1)
+                pdf.cell(0, 8, f"{recargo.monto_usd} $", 1, 1)
+                total_mensualidades += recargo.monto_usd
+
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(140, 8, "Total", 1)
+        pdf.cell(0, 8, f"{total_mensualidades} $", 1, 1)
+        pdf.set_font("Arial", size=12)
+        pdf.ln(2)
+    else:
+        pdf.cell(90, 10, f"Monto en Divisas:", 1)
+        pdf.cell(0, 10, f"{pago.monto_usd} USD", 1, 1)
+
     pdf.cell(90, 10, f"Tasa Aplicada:", 1)
     pdf.cell(0, 10, f"{pago.tasa_aplicada} VES", 1, 1)
     
