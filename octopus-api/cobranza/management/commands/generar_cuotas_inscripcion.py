@@ -1,8 +1,13 @@
 """
 Comando de corrección/backfill de cuotas de inscripción.
 
-Uso típico (período ya promovido antes del fix, sin cuotas de inscripción
-generadas para ese período):
+Equivalente por consola del botón "Cargar Cuotas de Inscripción y Proyecto de
+Inversión" del panel (Configuración → Cobranza / CargarCuotasInscripcionView
+en secretaria/views.py): genera la cuota de inscripción y la de Proyecto de
+Inversión únicamente para alumnos activos SIN grado_seccion asignado (no
+inscritos). Útil para correr el mismo backfill fuera del panel — por ejemplo,
+en un script de mantenimiento o para corregir un período específico con
+--periodo sin depender de la UI.
 
     python manage.py generar_cuotas_inscripcion              # período activo
     python manage.py generar_cuotas_inscripcion --dry-run    # solo muestra qué haría
@@ -10,23 +15,26 @@ generadas para ese período):
     python manage.py generar_cuotas_inscripcion --solo-mora  # solo alumnos/representantes en mora
 
 Genera las CuotaInscripcion faltantes del período escolar indicado (por
-defecto, ConfiguracionSistema.periodo_escolar_activo) para todos los
-alumnos activos, usando el monto del ParametroGlobal
-MONTO_INSCRIPCION_DEFECTO (o $50.00 si no está configurado). Es idempotente:
-gracias a unique_together=('alumno', 'periodo_escolar') en el modelo, los
-alumnos que ya tienen cuota para ese período no se tocan.
+defecto, ConfiguracionSistema.periodo_escolar_activo) para los alumnos
+activos que aún NO tienen grado_seccion asignado (no inscritos), usando el
+monto del ParametroGlobal MONTO_INSCRIPCION_DEFECTO (o $50.00 si no está
+configurado). Mismo criterio que CargarCuotasInscripcionView (secretaria/views.py).
+Es idempotente: gracias a unique_together=('alumno', 'periodo_escolar') en el
+modelo, los alumnos que ya tienen cuota para ese período no se tocan.
 
 También genera la CuotaProyectoInversion faltante por REPRESENTANTE (una
-sola vez aunque tenga varios hijos), igual que hacen ConfiguracionSistemaView
+sola vez aunque tenga varios hijos), solo para los representantes cuyos hijos
+activos estén TODOS sin grado asignado — igual que hacen ConfiguracionSistemaView
 y CargarCuotasInscripcionView al abrir inscripciones o cargar cuotas
 manualmente. Antes este comando solo generaba CuotaInscripcion, dejando a los
 representantes backfileados con esta herramienta sin la deuda de proyecto de
 inversión en ningún lado del sistema (portal, cobranza, morosos).
 
-Con --solo-mora, el backfill se limita a los alumnos que están EN MORA según
-el criterio canónico (cobranza/mora.py::annotate_en_mora): no se le crea la
-cuota a un representante solvente que nunca debió tenerla generada. Útil para
-el "push" de corrección en producción sin afectar a nadie que esté al día.
+Con --solo-mora, el backfill se limita a los alumnos sin grado que además
+están EN MORA según el criterio canónico (cobranza/mora.py::annotate_en_mora):
+no se le crea la cuota a un representante solvente que nunca debió tenerla
+generada. Útil para el "push" de corrección en producción sin afectar a nadie
+que esté al día.
 """
 from decimal import Decimal
 
@@ -40,7 +48,7 @@ from secretaria.models import Alumno, ConfiguracionSistema
 class Command(BaseCommand):
     help = (
         "Genera las CuotaInscripcion faltantes de un período escolar "
-        "para todos los alumnos activos (idempotente)."
+        "para los alumnos activos sin grado_seccion asignado (idempotente)."
     )
 
     def add_arguments(self, parser):
@@ -74,11 +82,24 @@ class Command(BaseCommand):
         param = ParametroGlobal.objects.filter(clave="MONTO_INSCRIPCION_DEFECTO").first()
         monto = Decimal(param.valor) if param and param.valor else Decimal('50.00')
 
-        alumnos = Alumno.objects.filter(activo=True)
+        alumnos_activos = list(Alumno.objects.filter(activo=True))
+        alumnos_sin_grado = [a for a in alumnos_activos if not (a.grado_seccion or '').strip()]
+        # Representantes con al menos un hijo activo ya inscrito (con grado) no
+        # son elegibles para la CuotaProyectoInversion, sin importar --solo-mora:
+        # es un criterio de inscripción, no de morosidad.
+        representantes_con_hijo_inscrito_ids = {
+            a.representante_id for a in alumnos_activos if (a.grado_seccion or '').strip()
+        }
+
+        alumnos = alumnos_sin_grado
         if options['solo_mora']:
             from cobranza.mora import annotate_en_mora
-            alumnos = annotate_en_mora(alumnos).filter(en_mora=True)
-        alumnos = list(alumnos)
+            ids_en_mora = set(
+                annotate_en_mora(
+                    Alumno.objects.filter(id__in=[a.id for a in alumnos_sin_grado])
+                ).filter(en_mora=True).values_list('id', flat=True)
+            )
+            alumnos = [a for a in alumnos_sin_grado if a.id in ids_en_mora]
         total_alumnos = len(alumnos)
 
         existentes = set(
@@ -94,7 +115,9 @@ class Command(BaseCommand):
         # así faltarle la de proyecto de inversión (p.ej. si se generaron por
         # separado), así que no basta con mirar si `faltantes` está vacío.
         monto_proyecto = monto_proyecto_inversion_defecto()
-        representantes_ids = {alumno.representante_id for alumno in alumnos}
+        representantes_ids = {
+            alumno.representante_id for alumno in alumnos
+        } - representantes_con_hijo_inscrito_ids
         representantes_existentes = set(
             CuotaProyectoInversion.objects
             .filter(periodo_escolar=periodo, representante_id__in=representantes_ids)
@@ -103,7 +126,7 @@ class Command(BaseCommand):
         representantes_faltantes = representantes_ids - representantes_existentes
 
         self.stdout.write(
-            f"Período: {periodo} | Alumnos activos: {total_alumnos} | "
+            f"Período: {periodo} | Alumnos sin grado asignado: {total_alumnos} | "
             f"Ya tienen cuota inscripción: {len(existentes)} | Faltantes inscripción: {len(faltantes)} | "
             f"Faltantes proyecto de inversión (representantes): {len(representantes_faltantes)} | Monto: ${monto}"
         )

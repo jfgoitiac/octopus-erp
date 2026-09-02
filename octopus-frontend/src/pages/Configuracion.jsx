@@ -566,7 +566,7 @@ const Configuracion = () => {
                         </div>
                         <div className="p-5 space-y-3">
                             <p className="text-xs leading-relaxed" style={{ color: 'var(--ash)' }}>
-                                Genera la cuota de inscripción y la cuota de Proyecto de Inversión del período activo para los alumnos/representantes que aún no las tienen (por ejemplo, alumnos que venían de un período anterior). Es seguro repetir esta acción: a quien ya se le cargó, no se le vuelve a cobrar.
+                                Genera la cuota de inscripción y la cuota de Proyecto de Inversión del período activo, pero <strong>solo</strong> para los alumnos que aún no tienen grado asignado (no inscritos) — los alumnos ya inscritos no reciben ninguna cuota nueva. Es seguro repetir esta acción: a quien ya se le cargó, no se le vuelve a cobrar.
                             </p>
                             <button type="button" onClick={handleCargarCuotasInscripcion} disabled={cargandoCuotas}
                                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"

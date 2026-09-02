@@ -234,9 +234,12 @@ class ConfiguracionSistemaView(APIView):
 # ─────────────────────────────────────────────
 class CargarCuotasInscripcionView(APIView):
     """Genera las CuotaInscripcion faltantes del período activo para los
-    alumnos activos. Idempotente: bulk_create(ignore_conflicts=True) más el
-    unique_together (alumno, periodo_escolar) del modelo impiden la doble
-    carga sin importar cuántas veces se ejecute."""
+    alumnos activos que aún NO tienen grado_seccion asignado (no inscritos).
+    La CuotaProyectoInversion (por representante) solo se genera para los
+    representantes cuyos hijos activos estén TODOS sin grado asignado.
+    Idempotente: bulk_create(ignore_conflicts=True) más el unique_together
+    (alumno, periodo_escolar) del modelo impiden la doble carga sin importar
+    cuántas veces se ejecute."""
     permission_classes = [IsSystemAdminOrDirector]
 
     @transaction.atomic
@@ -257,12 +260,14 @@ class CargarCuotasInscripcionView(APIView):
         monto = Decimal(param.valor) if param and param.valor else Decimal('50.00')
 
         alumnos_activos = list(Alumno.objects.filter(activo=True))
+        alumnos_sin_grado = [a for a in alumnos_activos if not (a.grado_seccion or '').strip()]
+
         existentes = set(
             CuotaInscripcion.objects
-            .filter(periodo_escolar=periodo, alumno_id__in=[a.id for a in alumnos_activos])
+            .filter(periodo_escolar=periodo, alumno_id__in=[a.id for a in alumnos_sin_grado])
             .values_list('alumno_id', flat=True)
         )
-        faltantes = [a for a in alumnos_activos if a.id not in existentes]
+        faltantes = [a for a in alumnos_sin_grado if a.id not in existentes]
 
         cuotas_nuevas = [
             CuotaInscripcion(alumno=a, periodo_escolar=periodo, monto_usd=monto, pagado=False)
@@ -270,10 +275,15 @@ class CargarCuotasInscripcionView(APIView):
         ]
         CuotaInscripcion.objects.bulk_create(cuotas_nuevas, ignore_conflicts=True)
 
-        # CuotaProyectoInversion: una por representante (no por alumno), mismo criterio idempotente
+        # CuotaProyectoInversion: una por representante (no por alumno), solo para
+        # representantes cuyos hijos activos estén TODOS sin grado asignado.
         monto_proyecto = monto_proyecto_inversion_defecto()
         tipo_proyecto = tipo_cargo_proyecto_inversion()
-        representantes_ids = {a.representante_id for a in alumnos_activos}
+        representantes_sin_grado_ids = {a.representante_id for a in alumnos_sin_grado}
+        representantes_con_hijo_inscrito_ids = {
+            a.representante_id for a in alumnos_activos if (a.grado_seccion or '').strip()
+        }
+        representantes_ids = representantes_sin_grado_ids - representantes_con_hijo_inscrito_ids
         representantes_existentes = set(
             CuotaProyectoInversion.objects
             .filter(periodo_escolar=periodo, representante_id__in=representantes_ids)
@@ -300,7 +310,7 @@ class CargarCuotasInscripcionView(APIView):
             detalles={
                 "periodo_escolar": periodo,
                 "monto_usd": str(monto),
-                "alumnos_activos": len(alumnos_activos),
+                "alumnos_sin_grado": len(alumnos_sin_grado),
                 "ya_tenian_cuota": len(existentes),
                 "cuotas_generadas": len(cuotas_nuevas),
                 "monto_proyecto_inversion": str(monto_proyecto),
@@ -312,10 +322,10 @@ class CargarCuotasInscripcionView(APIView):
             "mensaje": (
                 f"{len(cuotas_nuevas)} cuota(s) de inscripción y "
                 f"{len(proyectos_nuevos)} cuota(s) de Proyecto de Inversión generada(s) "
-                f"para el período {periodo}."
+                f"para alumnos sin grado asignado del período {periodo}."
             ),
             "periodo_escolar": periodo,
-            "alumnos_activos": len(alumnos_activos),
+            "alumnos_sin_grado": len(alumnos_sin_grado),
             "ya_tenian_cuota": len(existentes),
             "cuotas_generadas": len(cuotas_nuevas),
             "proyectos_inversion_generados": len(proyectos_nuevos),

@@ -57,6 +57,16 @@ solo se dispara para pagos vinculados a una `Mensualidad`. Pagos de inscripción
 inversión no generan correo de confirmación al representante — no existe plantilla/función equivalente para esos
 conceptos.
 
+## Ya no existe una herramienta para backfillear `CuotaInscripcion` de alumnos YA promovidos (con grado)
+
+`CargarCuotasInscripcionView` (secretaria/views.py, botón del panel) y el comando `generar_cuotas_inscripcion`
+(cobranza/management/commands/) ahora comparten el mismo criterio: solo alumnos activos SIN `grado_seccion` (no
+inscritos). Antes del cambio, el comando servía específicamente para el caso contrario — alumnos YA promovidos por
+`PromocionAlumnosView` (que sí tienen `grado_seccion` del nuevo período) a quienes por algún error se les había
+promovido sin generarles la `CuotaInscripcion`/`CuotaProyectoInversion` correspondiente. Ese caso de uso quedó sin
+cobertura automática: si vuelve a ocurrir, hay que crear las cuotas a mano (Django admin/shell) o escribir un
+comando puntual, ya que ninguno de los dos puntos de entrada actuales las genera para alumnos con grado asignado.
+
 ## `CuotaInscripcion.pagado` sigue siendo un booleano no derivado (a diferencia de `CuotaSolvencia`)
 
 Se agregó `CuotaSolvencia.monto_pagado` y `save()` deriva `pagado`/`fecha_pago` automáticamente a partir de

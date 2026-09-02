@@ -987,6 +987,67 @@ class CargosEspecialesAntiDuplicadosTest(TestCase):
             1,
         )
 
+    def test_cargar_cuotas_inscripcion_alumno_con_grado_no_recibe_cuota(self):
+        from cobranza.models import CuotaInscripcion
+        self.alumno.grado_seccion = '1er Grado - A'
+        self.alumno.save(update_fields=['grado_seccion'])
+
+        url = '/api/secretaria/cargar-cuotas-inscripcion/'
+        resp = self.client.post(url, {}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        self.assertFalse(
+            CuotaInscripcion.objects.filter(
+                alumno=self.alumno, periodo_escolar='2025-2026'
+            ).exists()
+        )
+
+    def test_cargar_cuotas_inscripcion_alumno_sin_grado_recibe_cuota(self):
+        from cobranza.models import CuotaInscripcion
+        # self.alumno ya se crea sin grado_seccion (no inscrito) en setUp
+        url = '/api/secretaria/cargar-cuotas-inscripcion/'
+        resp = self.client.post(url, {}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        self.assertTrue(
+            CuotaInscripcion.objects.filter(
+                alumno=self.alumno, periodo_escolar='2025-2026'
+            ).exists()
+        )
+
+    def test_cargar_cuotas_inscripcion_representante_con_todos_hijos_sin_grado_recibe_proyecto(self):
+        Alumno.objects.create(
+            nombre='Hijo2', apellido='Dup', cedula_escolar='E40000002',
+            fecha_nacimiento=date(2017, 1, 1), representante=self.representante,
+        )
+
+        url = '/api/secretaria/cargar-cuotas-inscripcion/'
+        resp = self.client.post(url, {}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        self.assertTrue(
+            CuotaProyectoInversion.objects.filter(
+                representante=self.representante, periodo_escolar='2025-2026'
+            ).exists()
+        )
+
+    def test_cargar_cuotas_inscripcion_representante_con_hijo_inscrito_no_recibe_proyecto(self):
+        Alumno.objects.create(
+            nombre='Hijo2', apellido='Dup', cedula_escolar='E40000002',
+            fecha_nacimiento=date(2017, 1, 1), representante=self.representante,
+            grado_seccion='1er Grado - A',
+        )
+
+        url = '/api/secretaria/cargar-cuotas-inscripcion/'
+        resp = self.client.post(url, {}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        self.assertFalse(
+            CuotaProyectoInversion.objects.filter(
+                representante=self.representante, periodo_escolar='2025-2026'
+            ).exists()
+        )
+
 
 class BackfillTipoConceptoMigracionTest(TransactionTestCase):
     """
