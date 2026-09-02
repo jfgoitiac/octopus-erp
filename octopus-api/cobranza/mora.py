@@ -209,6 +209,39 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
     )
 
 
+def enriquecer_monto_adeudado_con_recargo(alumnos, hoy=None):
+    """
+    Suma el recargo por pago tardío (cobranza/recargos.py) a `monto_adeudado`
+    de una lista/queryset YA MATERIALIZADA de alumnos anotados con
+    `annotate_mora_detalle`. Mutación en memoria del atributo anotado, NO se
+    persiste en BD — `monto_adeudado` no es un campo real del modelo, es una
+    anotación de queryset que muere con la request.
+
+    DECISIÓN DELIBERADA (no un bug): el criterio de MORA (`en_mora`,
+    `dias_atraso`) es independiente del recargo — no se toca aquí. Un
+    alumno puede estar en mora sin tener aún recargo (ver docstring de
+    cobranza/recargos.py::resolver_recargo). El recargo solo afecta el
+    MONTO adeudado, nunca si el alumno está o no en mora.
+
+    Agrega también `monto_adeudado_capital` (el monto_adeudado original,
+    antes de sumarle el recargo) para quien necesite mostrar el desglose
+    capital/recargo por separado.
+    """
+    from .recargos import calcular_recargos_para_alumnos
+
+    hoy = _hoy(hoy)
+    alumnos = list(alumnos)
+    if not alumnos:
+        return alumnos
+
+    recargos_por_alumno = calcular_recargos_para_alumnos([a.id for a in alumnos], hoy)
+    for a in alumnos:
+        capital = a.monto_adeudado
+        a.monto_adeudado_capital = capital
+        a.monto_adeudado = capital + recargos_por_alumno.get(a.id, Decimal('0.00'))
+    return alumnos
+
+
 def calcular_dias_atraso(alumno, hoy=None):
     """
     Días transcurridos desde el vencimiento de la mensualidad impaga más
