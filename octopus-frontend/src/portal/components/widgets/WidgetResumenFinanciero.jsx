@@ -33,8 +33,16 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar }) => {
                   {m.mes_nombre} {m.anio}
                 </p>
                 <p className="text-xs text-red-500">{m.dias_mora} días de mora</p>
+                {m.porcentaje_beca_aplicado > 0 && (
+                  <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-primary,#0fa3b1)]/10 text-[var(--portal-primary,#0fa3b1)]">
+                    Beca -{m.porcentaje_beca_aplicado}%
+                  </span>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1.5">
+                {m.porcentaje_beca_aplicado > 0 && m.monto_original_usd && (
+                  <p className="text-xs text-gray-400 line-through">${Number(m.monto_original_usd).toFixed(2)}</p>
+                )}
                 <p className="text-sm font-semibold text-gray-800">${Number(m.monto_usd).toFixed(2)}</p>
                 <button
                   onClick={() => onPagar(m)}

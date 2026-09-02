@@ -166,7 +166,10 @@ class MensualidadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Mensualidad
-        fields = ['id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'pagado', 'fecha_pago', 'dias_mora']
+        fields = [
+            'id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'pagado', 'fecha_pago', 'dias_mora',
+            'monto_original_usd', 'porcentaje_beca_aplicado',
+        ]
 
     def get_mes_nombre(self, obj):
         return obj.get_mes_display()
