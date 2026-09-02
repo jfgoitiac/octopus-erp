@@ -309,6 +309,13 @@ class Mensualidad(models.Model):
     mes = models.PositiveSmallIntegerField(choices=MESES)
     anio = models.PositiveSmallIntegerField(default=date.today().year)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    # Monto ANTES de aplicar el descuento de beca (ver cobranza/services.py::
+    # porcentaje_beca_vigente). Null en filas anteriores a este campo, donde
+    # no se puede reconstruir con certeza si ya traían un descuento aplicado
+    # (ver NOTAS_TECNICAS.md). Se guarda en cada fila para que el reporte de
+    # costo de becas no dependa de recalcular contra el estado actual de Beca.
+    monto_original_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    porcentaje_beca_aplicado = models.PositiveIntegerField(default=0)
     pagado = models.BooleanField(default=False, db_index=True)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='mensualidades_pagadas')

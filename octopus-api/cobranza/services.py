@@ -159,6 +159,72 @@ def mes_en_periodo_lectivo(mes, anio, config=None):
     return inicio <= (anio, mes) <= fin
 
 
+def porcentaje_beca_vigente(alumno, periodo_escolar=None):
+    """
+    Única función que resuelve qué % de beca aplica a las mensualidades de
+    `alumno` en `periodo_escolar` (por defecto, el período activo). Fuente de
+    verdad: secretaria.models.Beca — busca la beca 'activa' cuya vigencia
+    (fecha_desde..fecha_hasta) cubre hoy. Devuelve 0 si no hay ninguna.
+
+    La beca SOLO afecta mensualidades (ver secretaria/models.py::Beca,
+    docstring). Nunca se usa para inscripción ni cargos especiales.
+    """
+    from django.utils import timezone
+    from secretaria.models import Beca
+
+    if periodo_escolar is None:
+        config = configuracion_activa()
+        periodo_escolar = config.periodo_escolar_activo if config else None
+    if not periodo_escolar:
+        return 0
+
+    hoy = timezone.now().date()
+    beca = (
+        Beca.objects
+        .filter(
+            alumno=alumno, periodo_escolar=periodo_escolar, estado='activa',
+            fecha_desde__lte=hoy, fecha_hasta__gte=hoy,
+        )
+        .order_by('-fecha_desde')
+        .first()
+    )
+    return beca.porcentaje if beca else 0
+
+
+def recalcular_mensualidades_impagas(alumno, periodo_escolar=None):
+    """
+    Ajusta las mensualidades IMPAGAS de `alumno` al % de beca vigente
+    (porcentaje_beca_vigente), sin tocar las ya pagadas. Se llama al crear,
+    modificar o revocar una Beca (ver secretaria/signals.py).
+
+    Si el % vigente es 100 (becado total), las mensualidades impagas se
+    ELIMINAN en vez de dejarlas en $0.00 — un becado total no debe tener
+    mensualidades, igual que generar_mensualidades() nunca se las crea
+    (ver exclusión por estatus_financiero='becado' en los distintos puntos
+    de generación).
+
+    Devuelve la cantidad de filas afectadas (actualizadas o eliminadas).
+    """
+    porcentaje = porcentaje_beca_vigente(alumno, periodo_escolar)
+    impagas = Mensualidad.objects.filter(alumno=alumno, pagado=False)
+
+    if porcentaje >= 100:
+        total, _ = impagas.delete()
+        return total
+
+    actualizadas = 0
+    for m in impagas:
+        base = m.monto_original_usd if m.monto_original_usd is not None else m.monto_usd
+        nuevo_monto = monto_con_beca(base, porcentaje)
+        if m.monto_usd != nuevo_monto or m.monto_original_usd != base or m.porcentaje_beca_aplicado != porcentaje:
+            m.monto_original_usd = base
+            m.monto_usd = nuevo_monto
+            m.porcentaje_beca_aplicado = porcentaje
+            m.save(update_fields=['monto_usd', 'monto_original_usd', 'porcentaje_beca_aplicado'])
+            actualizadas += 1
+    return actualizadas
+
+
 def monto_con_beca(monto_base, porcentaje_beca):
     """Aplica el descuento de `porcentaje_beca` (0-100) sobre `monto_base`.
 
@@ -207,8 +273,9 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
     if not alumno_ids:
         return 0
 
+    porcentajes_por_alumno = {a.pk: porcentaje_beca_vigente(a) for a in alumnos}
     montos_por_alumno = {
-        a.pk: monto_con_beca(monto_base, getattr(a, 'porcentaje_beca', 0))
+        a.pk: monto_con_beca(monto_base, porcentajes_por_alumno[a.pk])
         for a in alumnos
     }
 
@@ -225,6 +292,8 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
         Mensualidad(
             alumno_id=alumno_id, mes=mes, anio=anio,
             monto_usd=montos_por_alumno[alumno_id], pagado=False,
+            monto_original_usd=monto_base,
+            porcentaje_beca_aplicado=porcentajes_por_alumno[alumno_id],
         )
         for alumno_id in alumno_ids
         for (mes, anio) in meses
