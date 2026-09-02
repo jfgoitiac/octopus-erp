@@ -14,6 +14,8 @@ import openpyxl
 # a persistir. Las salas de preescolar se nombran por edad, igual que
 # secretaria/seeds.py y PromocionAlumnosView.MAPA_GRADOS.
 MAPA_SECCIONES = {
+    'MATERNAL A':    'MATERNAL A',
+    'MATERNAL B':    'MATERNAL B',
     'SALA A':        'Sala 3',
     'SALA B':        'Sala 4',
     'SALA C':        'Sala 5',
