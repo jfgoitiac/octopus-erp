@@ -43,7 +43,17 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar }) => {
                 {m.porcentaje_beca_aplicado > 0 && m.monto_original_usd && (
                   <p className="text-xs text-gray-400 line-through">${Number(m.monto_original_usd).toFixed(2)}</p>
                 )}
-                <p className="text-sm font-semibold text-gray-800">${Number(m.monto_usd).toFixed(2)}</p>
+                {m.monto_recargo > 0 ? (
+                  <>
+                    <p className="text-xs text-gray-400 line-through">${Number(m.monto_usd).toFixed(2)}</p>
+                    <p className="text-sm font-semibold text-red-600">${Number(m.monto_total).toFixed(2)}</p>
+                    <p className="text-[10px] text-red-500 font-medium">
+                      + ${Number(m.monto_recargo).toFixed(2)} {m.nombre_recargo}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-800">${Number(m.monto_usd).toFixed(2)}</p>
+                )}
                 <button
                   onClick={() => onPagar(m)}
                   className="px-3 py-1.5 rounded-lg bg-[var(--portal-primary,#0fa3b1)]/10 text-[var(--portal-primary,#0fa3b1)] text-sm font-medium min-h-[44px] flex items-center hover:bg-[var(--portal-primary,#0fa3b1)]/20 transition-colors"
