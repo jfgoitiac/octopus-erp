@@ -4,6 +4,7 @@ from django.db.models import Sum
 from secretaria.models import Alumno
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils import timezone
 from decimal import Decimal
 import uuid
@@ -721,3 +722,114 @@ class ClasificacionPagoManual(models.Model):
         else:
             self.mes = None
             self.anio = None
+
+
+class ReglaRecargoPago(models.Model):
+    """
+    Configuración de recargo (o descuento — campo `tipo` reservado, sin
+    lógica implementada todavía, ver NOTAS_TECNICAS.md) por pago tardío de
+    UNA mensualidad. La única fuente de verdad para decidir SI aplica y de
+    CUÁNTO es `cobranza/recargos.py::resolver_recargo()` — este modelo solo
+    guarda la configuración.
+
+    `dia_aplicacion` es completamente independiente de `Alumno.dia_limite_pago`
+    y de `ConfiguracionSistema.dia_limite_pago` (que solo definen cuándo un
+    alumno entra en MORA, ver cobranza/mora.py): un alumno puede estar en
+    mora sin tener aún recargo (ej. dia_limite_pago=5, dia_aplicacion=19 →
+    moroso desde el día 6, con recargo recién desde el día 19).
+
+    `sede=None` es el "slot" global: aplica a cualquier alumno cuya sede no
+    tenga una regla propia activa. Ver resolver_recargo() para el criterio
+    de resolución sede específica > global.
+    """
+    MODOS = [
+        ('monto_fijo_usd', 'Monto fijo (USD)'),
+        ('porcentaje', 'Porcentaje'),
+    ]
+    TIPOS = [
+        ('recargo', 'Recargo'),
+        ('descuento', 'Descuento'),
+    ]
+
+    nombre = models.CharField(max_length=100)
+    # Texto libre que ve el representante en el portal al cotizar/pagar.
+    descripcion = models.CharField(max_length=255, blank=True, default='')
+    tipo = models.CharField(max_length=20, choices=TIPOS, default='recargo')
+    modo_calculo = models.CharField(max_length=20, choices=MODOS, default='monto_fijo_usd')
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    dia_aplicacion = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        help_text=(
+            "Día del mes de la mensualidad a partir del cual (inclusive) se "
+            "considera tardía. En meses cortos se topa al último día real "
+            "del mes (igual criterio que cobranza/mora.py::calcular_dias_atraso)."
+        ),
+    )
+    activa = models.BooleanField(default=True)
+    sede = models.ForeignKey(
+        'multisede.Sede',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reglas_recargo_pago',
+        help_text="Vacío = regla global (aplica a alumnos sin regla propia de sede).",
+    )
+    creada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    creada_en = models.DateTimeField(auto_now_add=True)
+    modificada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-creada_en']
+        verbose_name = 'Regla de Recargo por Pago Tardío'
+        verbose_name_plural = 'Reglas de Recargo por Pago Tardío'
+
+    def __str__(self):
+        return f"{self.nombre} ({self.get_tipo_display()})"
+
+    def clean(self):
+        super().clean()
+        if not (self.nombre or '').strip():
+            raise ValidationError({'nombre': "El nombre no puede estar vacío."})
+
+        if self.dia_aplicacion is not None and not (1 <= self.dia_aplicacion <= 31):
+            raise ValidationError({'dia_aplicacion': "Debe estar entre 1 y 31."})
+
+        # Solo una regla ACTIVA por (sede, tipo): sede=None es su propio
+        # "slot" global, independiente de las reglas de sede específica.
+        if self.activa:
+            duplicada = ReglaRecargoPago.objects.filter(
+                sede=self.sede, tipo=self.tipo, activa=True,
+            ).exclude(pk=self.pk)
+            if duplicada.exists():
+                sede_desc = self.sede.nombre if self.sede_id else 'global'
+                raise ValidationError(
+                    f"Ya existe una regla activa de tipo '{self.get_tipo_display()}' "
+                    f"para la sede '{sede_desc}'. Desactívela antes de crear otra."
+                )
+
+
+class LineaRecargoPago(models.Model):
+    """
+    Snapshot INMUTABLE de un recargo cobrado al pagar una Mensualidad
+    vencida. Se crea una vez, en RegistrarPagoView, y nunca se edita
+    después — así, si alguien luego edita o desactiva la ReglaRecargoPago
+    que lo originó, un recibo ya emitido no cambia con el tiempo.
+
+    Al anular el Pago (ver cobranza/correcciones.py::anular_pago), estas
+    líneas se BORRAN (no se conservan como deuda fija): cuando la
+    mensualidad se vuelva a pagar, resolver_recargo() decide de nuevo con
+    la fecha real del nuevo pago, que puede diferir del recargo original.
+    """
+    pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='lineas_recargo')
+    mensualidad = models.ForeignKey(Mensualidad, on_delete=models.CASCADE, related_name='lineas_recargo')
+    nombre = models.CharField(max_length=100)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada_en']
+
+    def __str__(self):
+        return f"Recargo '{self.nombre}' - Pago {self.pago_id} - Mensualidad {self.mensualidad_id}"
