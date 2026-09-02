@@ -55,6 +55,11 @@ export default function DatePickerES({ value, onChange, className, style, name, 
             showMonthDropdown
             showYearDropdown
             dropdownMode="scroll"
+            portalId="datepicker-portal"
+            popperProps={{ strategy: 'fixed' }}
+            popperModifiers={[
+                { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
+            ]}
         />
     );
 }

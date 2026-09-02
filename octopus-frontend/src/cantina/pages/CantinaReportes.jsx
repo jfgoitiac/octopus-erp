@@ -169,6 +169,11 @@ export default function CantinaReportes() {
             dateFormat="dd/MM/yyyy"
             maxDate={parseLocalDate(fechaFin) || new Date()}
             wrapperClassName="w-36"
+            portalId="datepicker-portal"
+            popperProps={{ strategy: 'fixed' }}
+            popperModifiers={[
+              { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
+            ]}
             customInput={<input className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>
@@ -184,6 +189,11 @@ export default function CantinaReportes() {
             minDate={parseLocalDate(fechaInicio)}
             maxDate={new Date()}
             wrapperClassName="w-36"
+            portalId="datepicker-portal"
+            popperProps={{ strategy: 'fixed' }}
+            popperModifiers={[
+              { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
+            ]}
             customInput={<input className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>

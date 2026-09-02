@@ -267,8 +267,11 @@ const SmartDateInput = ({
                         showYearDropdown
                         dropdownMode="scroll"
                         popperPlacement="bottom-end"
+                        portalId="datepicker-portal"
+                        popperProps={{ strategy: "fixed" }}
                         popperModifiers={[
                             { name: "offset", options: { offset: [0, 6] } },
+                            { name: "preventOverflow", options: { padding: 8, boundary: "viewport" } },
                         ]}
                         customInput={
                             <input

@@ -398,6 +398,11 @@ function BuilderPlan({
                       locale={es}
                       dateFormat="dd/MM/yyyy"
                       wrapperClassName="flex-1"
+                      portalId="datepicker-portal"
+                      popperProps={{ strategy: 'fixed' }}
+                      popperModifiers={[
+                        { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
+                      ]}
                       customInput={
                         <input className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30" />
                       }

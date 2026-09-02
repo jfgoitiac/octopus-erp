@@ -343,6 +343,11 @@ const DocenteMateriaDetalle = () => {
               dateFormat="dd/MM/yyyy"
               maxDate={new Date()}
               wrapperClassName="w-full"
+              portalId="datepicker-portal"
+              popperProps={{ strategy: 'fixed' }}
+              popperModifiers={[
+                { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
+              ]}
               customInput={
                 <input
                   id="docente-fecha-asistencia"

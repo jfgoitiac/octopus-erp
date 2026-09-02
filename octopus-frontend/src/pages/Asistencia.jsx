@@ -111,6 +111,11 @@ const Asistencia = () => {
               dateFormat="dd/MM/yyyy"
               maxDate={new Date()}
               wrapperClassName="w-full"
+              portalId="datepicker-portal"
+              popperProps={{ strategy: 'fixed' }}
+              popperModifiers={[
+                { name: 'preventOverflow', options: { padding: 8, boundary: 'viewport' } },
+              ]}
               customInput={
                 <input
                   className="w-full px-3 py-2.5 sm:py-2 rounded-lg text-sm outline-none cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"

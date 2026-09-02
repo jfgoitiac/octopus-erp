@@ -286,7 +286,15 @@ html, body { overflow-x: hidden; }
 
 /* Popover — sin triángulo */
 .react-datepicker__triangle { display: none; }
-.react-datepicker-popper { z-index: 60; }
+.react-datepicker-popper { z-index: 9999; }
+
+/* El portal (#datepicker-portal) cuelga directo de <body>, fuera de cualquier
+   contenedor con overflow:hidden/auto (p.ej. Modal.jsx) que recortaría el
+   popover del calendario — ver DatePickerES.jsx / SmartDateInput.jsx. */
+#datepicker-portal {
+    position: relative;
+    z-index: 9999;
+}
 
 body {
   background-color: var(--bg);
