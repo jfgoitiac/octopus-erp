@@ -19,6 +19,7 @@ import { useBancosNomina } from '../hooks/useBancosNomina';
 import { useTiposCargo } from '../hooks/useTiposCargo';
 import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecialTab';
 import BecasTab from '../components/configuracion/BecasTab';
+import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
 import { useFaviconSitio } from '../hooks/useFaviconSitio';
@@ -878,6 +879,9 @@ const Configuracion = () => {
 
             {/* Becas — sección propia, mismo motivo que Cargos Especiales */}
             <BecasTab />
+
+            {/* Recargos por Pago Tardío — sección propia, mismo motivo que Cargos Especiales */}
+            <ReglasRecargoPagoTab />
 
             {/* Panel de Notificaciones — carga diferida: no pide datos hasta abrirse, para no sobrecargar esta página */}
             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
