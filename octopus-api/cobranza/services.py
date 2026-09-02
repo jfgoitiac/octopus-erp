@@ -473,3 +473,113 @@ def generar_cargos_especiales_pendientes(periodo_escolar=None):
             total_creadas += len(nuevas)
 
     return total_creadas
+
+
+def reporte_costo_becas(periodo_escolar=None):
+    """
+    Costo total exonerado por becas en `periodo_escolar` (por defecto, el
+    período activo), agregado por tipo de beca y por grado, más el detalle
+    fila a fila (para el export a Excel del frontend).
+
+    Fuente: Mensualidad.monto_original_usd - monto_usd de cada mensualidad
+    con porcentaje_beca_aplicado > 0 dentro del rango de fechas del período
+    (mismo criterio de "mes/año dentro del año escolar" que
+    generar_mensualidades). No depende del estado ACTUAL de Beca — si ya se
+    pagó con descuento, ese costo quedó fijado en la mensualidad aunque la
+    beca se haya revocado después.
+
+    `tipo` se resuelve buscando la Beca (activa o no) del alumno para ese
+    período — best-effort, ya que Mensualidad no guarda una FK a Beca
+    directamente. Si no se encuentra ninguna (caso backfill sin Beca
+    correspondiente), se agrupa bajo 'otra'.
+    """
+    from collections import defaultdict
+    from secretaria.models import Beca
+
+    config = configuracion_activa()
+    periodo = periodo_escolar or (config.periodo_escolar_activo if config else None)
+    rango = rango_ano_escolar(config)
+
+    vacio = {
+        'periodo_escolar': periodo,
+        'total_exonerado_usd': '0.00',
+        'por_tipo': [],
+        'por_grado': [],
+        'detalle': [],
+    }
+    if not periodo or not rango:
+        return vacio
+
+    fecha_inicio, fecha_fin = rango
+    inicio = (fecha_inicio.year, fecha_inicio.month)
+    fin = (fecha_fin.year, fecha_fin.month)
+
+    candidatas = (
+        Mensualidad.objects
+        .filter(porcentaje_beca_aplicado__gt=0)
+        .select_related('alumno')
+    )
+    mensualidades = [m for m in candidatas if inicio <= (m.anio, m.mes) <= fin]
+    if not mensualidades:
+        return vacio
+
+    alumno_ids = {m.alumno_id for m in mensualidades}
+    becas_por_alumno = {}
+    for b in Beca.objects.filter(periodo_escolar=periodo, alumno_id__in=alumno_ids).order_by('-fecha_desde'):
+        becas_por_alumno.setdefault(b.alumno_id, b)
+
+    tipos_display = dict(Beca.TIPOS)
+    total = Decimal('0.00')
+    por_tipo = defaultdict(lambda: {'cantidad': 0, 'total': Decimal('0.00')})
+    por_grado = defaultdict(lambda: {'cantidad': 0, 'total': Decimal('0.00')})
+    detalle = []
+
+    for m in mensualidades:
+        original = m.monto_original_usd if m.monto_original_usd is not None else m.monto_usd
+        exonerado = (original - m.monto_usd).quantize(Decimal('0.01'))
+        if exonerado <= 0:
+            continue
+
+        beca = becas_por_alumno.get(m.alumno_id)
+        tipo = beca.tipo if beca else 'otra'
+        grado = m.alumno.grado_seccion or 'Sin grado'
+
+        total += exonerado
+        por_tipo[tipo]['cantidad'] += 1
+        por_tipo[tipo]['total'] += exonerado
+        por_grado[grado]['cantidad'] += 1
+        por_grado[grado]['total'] += exonerado
+
+        detalle.append({
+            'alumno_id': m.alumno_id,
+            'alumno_nombre': f"{m.alumno.nombre} {m.alumno.apellido}",
+            'grado_seccion': grado,
+            'tipo_beca': tipo,
+            'tipo_beca_display': tipos_display.get(tipo, tipo),
+            'mes': m.get_mes_display(),
+            'anio': m.anio,
+            'monto_original_usd': str(original),
+            'monto_usd': str(m.monto_usd),
+            'exonerado_usd': str(exonerado),
+            'pagado': m.pagado,
+        })
+
+    return {
+        'periodo_escolar': periodo,
+        'total_exonerado_usd': str(total.quantize(Decimal('0.01'))),
+        'por_tipo': [
+            {
+                'tipo': k, 'tipo_display': tipos_display.get(k, k),
+                'cantidad': v['cantidad'], 'total_exonerado_usd': str(v['total'].quantize(Decimal('0.01'))),
+            }
+            for k, v in sorted(por_tipo.items(), key=lambda kv: kv[1]['total'], reverse=True)
+        ],
+        'por_grado': [
+            {
+                'grado_seccion': k, 'cantidad': v['cantidad'],
+                'total_exonerado_usd': str(v['total'].quantize(Decimal('0.01'))),
+            }
+            for k, v in sorted(por_grado.items(), key=lambda kv: kv[1]['total'], reverse=True)
+        ],
+        'detalle': detalle,
+    }

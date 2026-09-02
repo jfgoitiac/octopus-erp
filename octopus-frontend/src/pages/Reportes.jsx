@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wallet, ListChecks, Layers, TrendingUp, BarChart2, Clock, FileEdit } from 'lucide-react';
+import { Wallet, ListChecks, Layers, TrendingUp, BarChart2, Clock, FileEdit, GraduationCap } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getEstadoClasificacionPagos, getBancos } from '../api/cobranza.service';
 import ClasificacionPagoModal from '../components/reportes/ClasificacionPagoModal';
@@ -10,6 +10,7 @@ import CorreccionPagosTab from '../components/reportes/CorreccionPagosTab';
 import HistoricoMensualTab from '../components/reportes/HistoricoMensualTab';
 import BusinessIntelligenceTab from '../components/reportes/BusinessIntelligenceTab';
 import PuntualidadTab from '../components/reportes/PuntualidadTab';
+import ReporteBecasTab from '../components/reportes/ReporteBecasTab';
 import { PageHeader } from '../components/ui/PageHeader';
 
 const TABS = [
@@ -20,6 +21,7 @@ const TABS = [
     { id: 'historico',     label: 'Histórico Mensual',      icon: TrendingUp, group: 'analisis' },
     { id: 'bi',            label: 'Business Intelligence',  icon: BarChart2,  group: 'analisis' },
     { id: 'puntualidad',   label: 'Puntualidad',            icon: Clock,      group: 'analisis' },
+    { id: 'becas',         label: 'Costo de Becas',         icon: GraduationCap, group: 'analisis' },
 ];
 
 const TAB_GROUPS = [
@@ -179,6 +181,7 @@ const Reportes = () => {
             {activeTab === 'historico'     && <HistoricoMensualTab />}
             {activeTab === 'bi'            && <BusinessIntelligenceTab />}
             {activeTab === 'puntualidad'   && <PuntualidadTab />}
+            {activeTab === 'becas'         && <ReporteBecasTab />}
 
             {pagoSeleccionado && (
                 <ClasificacionPagoModal

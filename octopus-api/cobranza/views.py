@@ -14,7 +14,7 @@ from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Min, Q, Sum
 from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
 from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
-from .services import tipo_cargo_proyecto_inversion
+from .services import reporte_costo_becas, tipo_cargo_proyecto_inversion
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
@@ -3051,3 +3051,21 @@ class EmitirSolvenciaManualView(APIView):
         data = SolvenciaRepresentanteSerializer(solvencia).data
         data["ya_existia"] = not creada
         return Response(data, status=status.HTTP_200_OK if not creada else status.HTTP_201_CREATED)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# REPORTE DE COSTO DE BECAS
+# ──────────────────────────────────────────────────────────────────────────────
+class ReporteCostoBecasView(APIView):
+    """
+    Costo total exonerado por becas del período escolar activo (o el
+    indicado por ?periodo_escolar=), agregado por tipo y por grado, con
+    detalle fila a fila para el export a Excel del frontend (ver
+    cobranza/services.py::reporte_costo_becas). Mismo criterio de acceso
+    que otorgar/revocar becas: solo director/administrador/sistemas.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def get(self, request):
+        periodo_escolar = request.query_params.get('periodo_escolar')
+        return Response(reporte_costo_becas(periodo_escolar))
