@@ -288,6 +288,12 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
         .values_list('alumno_id', 'mes', 'anio')
     )
 
+    # Becado total (100%): no se le crea NINGUNA mensualidad, ni siquiera en
+    # $0.00 — igual que un alumno con estatus_financiero='becado' (ambos
+    # casos son, en la práctica, el mismo alumno: la señal de Beca sincroniza
+    # ese campo). No basta con que el llamador filtre por estatus_financiero
+    # antes de llamar: se aplica aquí también para que la función sea segura
+    # por sí misma sin importar quién la invoque.
     nuevas = [
         Mensualidad(
             alumno_id=alumno_id, mes=mes, anio=anio,
@@ -296,6 +302,7 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
             porcentaje_beca_aplicado=porcentajes_por_alumno[alumno_id],
         )
         for alumno_id in alumno_ids
+        if porcentajes_por_alumno[alumno_id] < 100
         for (mes, anio) in meses
         if (alumno_id, mes, anio) not in existentes
     ]

@@ -2688,3 +2688,56 @@ no se tocó sin pedirlo explícitamente; si se quiere una única fuente de
 verdad para el radio en todo el proyecto, esos 31 archivos son candidatos a
 migrar a `var(--radius-card)` (o a un token de radio propio del portal) en un
 batch dedicado.
+
+## MÓDULO DE BECAS (2026-09-02)
+
+Convertido de dos campos sueltos (`Alumno.porcentaje_beca` /
+`estatus_financiero='becado'`) a un modelo `Beca` auditable
+(`secretaria/models.py`), con `cobranza/services.py::porcentaje_beca_vigente`
+como única función de resolución y recálculo automático de mensualidades
+impagas vía señal (`secretaria/signals.py`).
+
+- **La beca solo afecta mensualidades** — decisión de producto explícita del
+  encargo, no una limitación técnica: inscripción (`CuotaInscripcion`) y
+  cargos especiales/proyecto de inversión (`CuotaProyectoInversion`) se
+  cobran siempre a monto completo, sin importar el % de beca del alumno.
+  Motivo de fondo: `CuotaProyectoInversion` se genera **una sola vez por
+  representante** (no por alumno) aunque tenga varios hijos, así que una beca
+  por alumno no tiene una fila individual a la que aplicarse sin prorratear
+  el monto entre hermanos — se decidió no abrir esa complejidad ahora. Si en
+  el futuro se pide beca sobre cargos especiales, hay que decidir primero si
+  `CuotaProyectoInversion` pasa a generarse por alumno para los casos con
+  beca mixta entre hermanos, o si se prorratea el monto del representante.
+- **Histórico previo a este cambio sin `monto_original_usd` confiable**: las
+  mensualidades creadas antes de este cambio no tienen forma de saber si ya
+  traían un descuento de beca aplicado (el código viejo aplicaba el % sin
+  dejar rastro del monto base). La migración de backfill
+  (`cobranza/migrations/0038`) asume `monto_original_usd = monto_usd` para
+  esas filas y `porcentaje_beca_aplicado = 0` — el reporte de costo de becas
+  (`ReporteCostoBecasView`) solo es preciso para mensualidades generadas
+  DESPUÉS de este cambio. No hay forma de reconstruir el histórico real sin
+  una fuente externa (recibos, planillas) que no existe en la BD.
+  Consecuencia práctica: en el arranque, `reporte_costo_becas()` puede
+  mostrar $0 exonerado aunque haya alumnos becados, si sus mensualidades
+  vigentes se generaron antes del backfill — es esperado, no un bug.
+- **Volumen de `HistoricalRecords`**: `Mensualidad` tiene auditoría
+  automática (`simple_history`); un recálculo masivo (ej. revocar la beca de
+  un alumno con muchas mensualidades impagas acumuladas, o el backfill
+  inicial en una BD con muchos becados) genera una fila histórica por cada
+  mensualidad tocada. No se acotó ni se paginó — para una BD pequeña/mediana
+  (uso típico de un colegio) no es un problema real, pero si el volumen de
+  alumnos becados crece mucho podría valer la pena revisar el costo de esa
+  tabla histórica.
+- **Sin flujo de aprobación**: la asignación de una beca es directa
+  (`director`/`administrador`/`sistemas` la otorgan sin pasos intermedios) —
+  decisión de producto confirmada explícitamente en el encargo, no deuda
+  pendiente.
+- **`Beca.tipo` en el reporte de costo es best-effort**: `Mensualidad` no
+  tiene FK a `Beca` (solo copia `porcentaje_beca_aplicado`), así que
+  `reporte_costo_becas()` busca la `Beca` del alumno para ese período
+  (activa o no) para mostrar su tipo agregado. Si un alumno tuvo dos becas
+  distintas en el mismo período (una revocada y otra nueva), el reporte le
+  asigna el tipo de la más reciente por `fecha_desde`, aunque la mensualidad
+  se haya generado bajo la beca anterior — desajuste menor, aceptable para
+  un reporte agregado de costo, no para auditoría fila por fila (para eso
+  está el propio modelo `Beca` con su historial).
