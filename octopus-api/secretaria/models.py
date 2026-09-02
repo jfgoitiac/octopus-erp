@@ -367,3 +367,89 @@ class Inscripcion(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - {self.grado_seccion} ({self.periodo_escolar})"
+
+
+# ─────────────────────────────────────────────
+# BECA
+# ─────────────────────────────────────────────
+class Beca(models.Model):
+    """
+    Otorgamiento auditable de una beca a un alumno, vigente para un período
+    escolar. Es la fuente de verdad; `Alumno.porcentaje_beca` y
+    `Alumno.estatus_financiero='becado'` se mantienen como caché derivada
+    (ver secretaria/signals.py), porque ~20 puntos del código ya los
+    consultan directamente y no se pueden retirar sin romperlos.
+
+    Alcance: SOLO afecta mensualidades (ver cobranza/services.py::
+    porcentaje_beca_vigente y generar_mensualidades). Inscripción y cargos
+    especiales (CuotaInscripcion, CuotaProyectoInversion) nunca se
+    descuentan por beca — decisión de producto, no bug pendiente.
+
+    Solo un director/administrador/sistemas puede otorgar, modificar o
+    revocar (ver authentication.views.IsSystemAdminOrDirector en el
+    ViewSet). No hay flujo de solicitud/aprobación: la asignación es directa.
+    """
+    TIPOS = (
+        ('academica',      'Académica'),
+        ('deportiva',      'Deportiva'),
+        ('socioeconomica', 'Socioeconómica'),
+        ('hermanos',       'Hermanos'),
+        ('empleado',       'Hijo de Empleado'),
+        ('otra',           'Otra'),
+    )
+    ESTADOS = (
+        ('activa',    'Activa'),
+        ('revocada',  'Revocada'),
+    )
+
+    alumno           = models.ForeignKey(Alumno, on_delete=models.CASCADE, related_name='becas')
+    periodo_escolar  = models.CharField(max_length=20)
+    tipo             = models.CharField(max_length=20, choices=TIPOS, default='academica')
+    porcentaje       = models.PositiveIntegerField()
+    fecha_desde      = models.DateField()
+    fecha_hasta      = models.DateField()
+    motivo           = models.TextField(blank=True, default='')
+    documento_adjunto = models.FileField(
+        upload_to='becas/documentos/', null=True, blank=True,
+        help_text='Documento de respaldo opcional (ej. constancia, solicitud firmada).'
+    )
+    estado           = models.CharField(max_length=10, choices=ESTADOS, default='activa')
+
+    otorgada_por     = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='becas_otorgadas',
+    )
+    fecha_otorgamiento = models.DateTimeField(auto_now_add=True)
+
+    revocada_por     = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='becas_revocadas',
+    )
+    fecha_revocacion = models.DateTimeField(null=True, blank=True)
+    motivo_revocacion = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-fecha_desde']
+        constraints = [
+            # A lo sumo una beca activa por alumno y período — evita becas
+            # activas simultáneas que dejarían ambiguo qué % aplicar.
+            models.UniqueConstraint(
+                fields=['alumno', 'periodo_escolar'],
+                condition=models.Q(estado='activa'),
+                name='unica_beca_activa_por_alumno_periodo',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.alumno.nombre} {self.alumno.apellido} - {self.porcentaje}% ({self.periodo_escolar}) [{self.estado}]"
+
+    def clean(self):
+        if self.porcentaje is not None and not (1 <= self.porcentaje <= 100):
+            raise ValidationError({'porcentaje': 'El porcentaje de beca debe estar entre 1 y 100.'})
+        if self.fecha_desde and self.fecha_hasta and self.fecha_desde > self.fecha_hasta:
+            raise ValidationError({'fecha_hasta': 'La fecha de fin no puede ser anterior a la fecha de inicio.'})
+
+    @property
+    def vigente_hoy(self):
+        hoy = timezone.now().date()
+        return self.estado == 'activa' and self.fecha_desde <= hoy <= self.fecha_hasta
