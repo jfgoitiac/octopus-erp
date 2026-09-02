@@ -302,7 +302,7 @@ function App() {
 
               {/* Módulo Académico */}
               <Route path="notas" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA]}>
                   <Notas />
                 </ProtectedRoute>
               } />
@@ -312,27 +312,27 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="asistencia" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA]}>
                   <Asistencia />
                 </ProtectedRoute>
               } />
               <Route path="horarios" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
                   <Horarios />
                 </ProtectedRoute>
               } />
               <Route path="materias" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
                   <Materias />
                 </ProtectedRoute>
               } />
               <Route path="docentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
                   <Docentes />
                 </ProtectedRoute>
               } />
               <Route path="incidentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA]}>
                   <Incidentes />
                 </ProtectedRoute>
               } />
@@ -344,7 +344,7 @@ function App() {
 
               {/* Módulo Comunicación */}
               <Route path="comunicacion" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
                   <Comunicacion />
                 </ProtectedRoute>
               } />

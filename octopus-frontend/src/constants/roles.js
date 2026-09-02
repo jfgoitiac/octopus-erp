@@ -34,7 +34,10 @@ export const FIRST_ACCESSIBLE_ROUTE = {
   'director': '/dashboard',
   'cobranza': '/dashboard',
   'administrador': '/dashboard',
-  'sistemas': '/cobranza/dashboard',
+  // 'sistemas' quedó restringido a los módulos de administración del
+  // sistema (Sistemas, Configuración, Sitio Institucional, Notificaciones)
+  // — ya no tiene acceso a /cobranza/dashboard.
+  'sistemas': '/sistemas',
   'secretaria': '/inscripciones',
   'cajero': '/cobranza',
   'directivo_red': '/multisede',
@@ -68,22 +71,29 @@ export const getRolStyle = (rol) => {
 };
 
 // Grupos semánticos — usar estos en las rutas, no strings sueltos
+//
+// 'sistemas' NO participa de estos grupos: quedó restringido a los 4
+// módulos de administración del sistema (Sistemas, Configuración, Sitio
+// Institucional, Notificaciones — ver la sección 'Sistema' de Sidebar.jsx
+// y las rutas explícitas en App.jsx). Antes estaba mezclado en casi todos
+// los grupos y terminaba viendo alumnos, pagos, nómina, etc. — tanto en el
+// menú como al navegar directo a la ruta.
 export const ROLE_GROUPS = {
   // Solo administración central
-  ADMIN_CENTRAL: [ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR],
+  ADMIN_CENTRAL: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR],
 
   // Admin + roles operativos que necesitan ver finanzas
-  FINANZAS: [ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.COBRANZA],
+  FINANZAS: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA],
 
   // Finanzas + cajero (acceso a caja pero no a configuración)
-  CAJA: [ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO],
+  CAJA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO],
 
   // Secretaría + administración (gestión de alumnos/inscripciones)
-  SECRETARIA_ADMIN: [ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.SECRETARIA],
+  SECRETARIA_ADMIN: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA],
 
   // Todos los roles operativos (cualquier staff de la sede)
   STAFF_SEDE: [
-    ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR,
+    ROLES.DIRECTOR, ROLES.ADMINISTRADOR,
     ROLES.SECRETARIA, ROLES.COBRANZA, ROLES.CAJERO,
   ],
 
@@ -94,8 +104,8 @@ export const ROLE_GROUPS = {
   // Acceso a representantes (secretaría + caja + cobranza)
   ATENCION_FAMILIAS: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.COBRANZA],
 
-  // Morosos: todos excepto directivo_red (gestión local de sede)
-  MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.SISTEMAS, ROLES.COBRANZA],
+  // Morosos: todos excepto directivo_red y sistemas (gestión local de sede)
+  MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.COBRANZA],
 
   // Docente: solo banco de estudiantes, representantes e inscripciones
   DOCENTE: [ROLES.DOCENTE],

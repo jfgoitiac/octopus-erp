@@ -6,7 +6,7 @@ import { useSede } from '../context/SedeContext';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
 import SedeSwitcher from './SedeSwitcher';
-import logoColegio from '../assets/logo-colegio.png';
+import logoColegioFallback from '../assets/logo-colegio.png';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, ShieldCheck,
@@ -22,45 +22,45 @@ const navSections = [
     label: 'Principal',
     items: [
       { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['director','cobranza','administrador'] },
-      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','sistemas','administrador','cobranza'] },
-      { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','sistemas','cobranza'] },
+      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','administrador','cobranza'] },
+      { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','cobranza'] },
       { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza'] },
-      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','sistemas','administrador','secretaria'] },
-      { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','sistemas','administrador','secretaria'] },
+      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','administrador','secretaria'] },
+      { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','administrador','secretaria'] },
       { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_LOS_ROLES },
-      { name: 'Pre-Inscripción', path: '/preinscripcion', icon: FileText, roles: ['director','sistemas','administrador','secretaria'] },
+      { name: 'Pre-Inscripción', path: '/preinscripcion', icon: FileText, roles: ['director','administrador','secretaria'] },
     ],
   },
   {
     label: 'Finanzas',
     items: [
       { name: 'Cobranza',      path: '/cobranza',      icon: Calculator,   roles: ['director','cobranza','administrador','cajero'] },
-      { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero','sistemas'] },
+      { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero'] },
       { name: 'Solvencia',     path: '/cobranza/solvencia', icon: BadgeCheck, roles: TODOS_LOS_ROLES },
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
       { name: 'Nómina',        path: '/nomina',        icon: Banknote,          roles: ['director','administrador'] },
       { name: 'Pagos',         path: '/pagos',         icon: CreditCard,        roles: ['director','administrador'] },
-      { name: 'Recibos',       path: '/recibos',       icon: FileText,          roles: ['director','sistemas','administrador'] },
-      { name: 'Conciliador',  path: '/conciliador',   icon: GitCompareArrows,  roles: ['director','sistemas','administrador','cobranza'] },
+      { name: 'Recibos',       path: '/recibos',       icon: FileText,          roles: ['director','administrador'] },
+      { name: 'Conciliador',  path: '/conciliador',   icon: GitCompareArrows,  roles: ['director','administrador','cobranza'] },
     ],
   },
   {
     label: 'Académico',
     items: [
-      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'sistemas', 'secretaria'] },
+      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'secretaria'] },
       { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director'] },
-      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'sistemas', 'secretaria'] },
-      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'sistemas', 'secretaria'] },
-      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'sistemas'] },
-      { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director', 'sistemas'] },
-      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,     roles: ['director', 'sistemas'] },
-      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'sistemas', 'administrador'] },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'secretaria'] },
+      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'secretaria'] },
+      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director'] },
+      { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director'] },
+      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,     roles: ['director'] },
+      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'administrador'] },
     ],
   },
   {
     label: 'Comunicación',
     items: [
-      { name: 'Circulares', path: '/comunicacion', icon: Megaphone, roles: ['director', 'sistemas', 'administrador'] },
+      { name: 'Circulares', path: '/comunicacion', icon: Megaphone, roles: ['director', 'administrador'] },
     ],
   },
   {
@@ -205,9 +205,10 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
           style={{ background: 'radial-gradient(ellipse 120% 100% at -10% 50%, var(--pb) 0%, transparent 65%)' }}
         />
         <img
-          src={logoColegio}
+          src={config.logo_colegio || config.logo_url || logoColegioFallback}
           alt="Logo del colegio"
           className="w-11 h-11 object-contain flex-shrink-0"
+          onError={e => { e.target.src = logoColegioFallback; }}
         />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-tight break-words" style={{ color: 'var(--jet)' }}>
