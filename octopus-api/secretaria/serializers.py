@@ -5,9 +5,78 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from .services import generate_temporary_cedula_escolar
 from usuarios.models import LogAuditoria
 from .models import (
-    BienNacional, ConfiguracionGrado, Inscripcion,
+    Beca, BienNacional, ConfiguracionGrado, Inscripcion,
     Alumno, Representante, ConfiguracionSistema
 )
+
+
+class BecaSerializer(serializers.ModelSerializer):
+    alumno_nombre = serializers.SerializerMethodField()
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+    vigente_hoy = serializers.ReadOnlyField()
+    otorgada_por_nombre = serializers.SerializerMethodField()
+    revocada_por_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Beca
+        fields = [
+            'id', 'alumno', 'alumno_nombre', 'periodo_escolar', 'tipo', 'tipo_display',
+            'porcentaje', 'fecha_desde', 'fecha_hasta', 'motivo', 'documento_adjunto',
+            'estado', 'estado_display', 'vigente_hoy',
+            'otorgada_por', 'otorgada_por_nombre', 'fecha_otorgamiento',
+            'revocada_por', 'revocada_por_nombre', 'fecha_revocacion', 'motivo_revocacion',
+        ]
+        read_only_fields = [
+            'estado', 'otorgada_por', 'fecha_otorgamiento',
+            'revocada_por', 'fecha_revocacion', 'motivo_revocacion',
+        ]
+
+    def get_alumno_nombre(self, obj):
+        return f"{obj.alumno.nombre} {obj.alumno.apellido}"
+
+    def _nombre_usuario(self, user):
+        if not user:
+            return None
+        return user.get_full_name() or user.username
+
+    def get_otorgada_por_nombre(self, obj):
+        return self._nombre_usuario(obj.otorgada_por)
+
+    def get_revocada_por_nombre(self, obj):
+        return self._nombre_usuario(obj.revocada_por)
+
+    def validate_documento_adjunto(self, archivo):
+        if not archivo:
+            return archivo
+        if archivo.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("El documento no debe superar 5MB.")
+        return archivo
+
+    def validate(self, attrs):
+        porcentaje = attrs.get('porcentaje', getattr(self.instance, 'porcentaje', None))
+        if porcentaje is not None and not (1 <= porcentaje <= 100):
+            raise serializers.ValidationError({'porcentaje': 'Debe estar entre 1 y 100.'})
+
+        fecha_desde = attrs.get('fecha_desde', getattr(self.instance, 'fecha_desde', None))
+        fecha_hasta = attrs.get('fecha_hasta', getattr(self.instance, 'fecha_hasta', None))
+        if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+            raise serializers.ValidationError(
+                {'fecha_hasta': 'No puede ser anterior a fecha_desde.'}
+            )
+
+        alumno = attrs.get('alumno', getattr(self.instance, 'alumno', None))
+        periodo_escolar = attrs.get('periodo_escolar', getattr(self.instance, 'periodo_escolar', None))
+        if alumno and periodo_escolar:
+            qs = Beca.objects.filter(alumno=alumno, periodo_escolar=periodo_escolar, estado='activa')
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    f"{alumno.nombre} {alumno.apellido} ya tiene una beca activa para el período {periodo_escolar}. "
+                    "Revoque la existente antes de crear una nueva."
+                )
+        return attrs
 
 
 class ConfiguracionSistemaSerializer(serializers.ModelSerializer):  # NUEVO

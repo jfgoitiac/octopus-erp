@@ -11,11 +11,11 @@ from django.db import transaction
 from django.db import models
 from django.db.models import F
 from rest_framework.response import Response
-from rest_framework import viewsets, status, permissions, generics
+from rest_framework import viewsets, status, permissions, generics, mixins
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.views import APIView
 from .models import (
-    Alumno, BienNacional, ConfiguracionGrado, ConfiguracionSistema,
+    Alumno, Beca, BienNacional, ConfiguracionGrado, ConfiguracionSistema,
     Inscripcion, Representante
 )
 from .services import generate_temporary_cedula_escolar, dia_limite_pago_global
@@ -26,7 +26,7 @@ from django.db.models import Count
 from config.pagination import StandardResultsPagination
 from .serializers import (
     AlumnoRetirarSerializer, AlumnoSerializer, AlumnoUpdateSerializer,
-    AsignarGradoSerializer, BienNacionalSerializer, ConfiguracionGradoSerializer,
+    AsignarGradoSerializer, BecaSerializer, BienNacionalSerializer, ConfiguracionGradoSerializer,
     ConfiguracionSistemaSerializer, InscripcionListSerializer, InscripcionSerializer,
     RepresentanteSerializer, RepresentanteCRUDSerializer, LogAuditoriaSerializer,
 )
@@ -1921,3 +1921,78 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
 
         rep.delete()  # cascada: CuotaProyectoInversion restante y RepresentanteUser
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ─────────────────────────────────────────────
+# BECAS
+# ─────────────────────────────────────────────
+class BecaViewSet(
+    mixins.ListModelMixin, mixins.CreateModelMixin, mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin, viewsets.GenericViewSet,
+):
+    """
+    CRUD de becas, sin destroy físico (ver acción `revocar` — una beca nunca
+    se borra, se revoca, para no perder el registro auditable). Solo
+    director/administrador/sistemas pueden crear, editar o revocar; el resto
+    del staff autenticado puede listar/consultar.
+    """
+    serializer_class = BecaSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsPagination
+
+    def get_queryset(self):
+        qs = Beca.objects.select_related('alumno', 'otorgada_por', 'revocada_por').all()
+
+        alumno_id = self.request.query_params.get('alumno_id')
+        if alumno_id:
+            qs = qs.filter(alumno_id=alumno_id)
+
+        periodo = self.request.query_params.get('periodo_escolar')
+        if periodo:
+            qs = qs.filter(periodo_escolar=periodo)
+
+        estado = self.request.query_params.get('estado')
+        if estado:
+            qs = qs.filter(estado=estado)
+
+        buscar = self.request.query_params.get('buscar', '').strip()
+        if buscar:
+            qs = qs.filter(
+                models.Q(alumno__nombre__icontains=buscar) |
+                models.Q(alumno__apellido__icontains=buscar) |
+                models.Q(alumno__cedula_escolar__icontains=buscar)
+            )
+
+        return qs
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'revocar']:
+            return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
+        return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        serializer.save(otorgada_por=self.request.user, estado='activa')
+
+    def perform_update(self, serializer):
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        # Editar una beca revocada la "reviviría" fuera del flujo de
+        # revocar()/motivo_revocacion — para volver a becar a un alumno se
+        # crea una beca nueva, dejando intacto el historial de la revocada.
+        if serializer.instance.estado != 'activa':
+            raise DRFValidationError('No se puede editar una beca revocada. Cree una nueva.')
+        serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def revocar(self, request, pk=None):
+        from django.utils import timezone
+
+        beca = self.get_object()
+        if beca.estado != 'activa':
+            return Response({'error': 'La beca ya está revocada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        beca.estado = 'revocada'
+        beca.revocada_por = request.user
+        beca.fecha_revocacion = timezone.now()
+        beca.motivo_revocacion = request.data.get('motivo', '')
+        beca.save(update_fields=['estado', 'revocada_por', 'fecha_revocacion', 'motivo_revocacion'])
+        return Response(BecaSerializer(beca).data)

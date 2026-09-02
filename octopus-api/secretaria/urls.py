@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    AlumnoListView, BienNacionalViewSet, CargarCuotasInscripcionView, ConfiguracionGradoViewSet,
+    AlumnoListView, BecaViewSet, BienNacionalViewSet, CargarCuotasInscripcionView, ConfiguracionGradoViewSet,
     ConfiguracionSistemaView, ComprobanteInscripcionView,
     ExportarAlumnosExcelView, ExportarRepresentantesExcelView,
     GradosListView, InscripcionListView, MatriculaGradoView,
@@ -16,6 +16,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'alumnos',               AlumnoListView,          basename='alumno')
+router.register(r'becas',                 BecaViewSet,             basename='beca')
 router.register(r'bienes',                BienNacionalViewSet,     basename='bien')
 router.register(r'configuracion-grados',  ConfiguracionGradoViewSet, basename='config-grado')
 router.register(r'representantes',        RepresentanteViewSet,    basename='representante')

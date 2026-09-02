@@ -18,6 +18,7 @@ import { useBancosCobranza } from '../hooks/useBancosCobranza';
 import { useBancosNomina } from '../hooks/useBancosNomina';
 import { useTiposCargo } from '../hooks/useTiposCargo';
 import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecialTab';
+import BecasTab from '../components/configuracion/BecasTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
 import { useFaviconSitio } from '../hooks/useFaviconSitio';
@@ -874,6 +875,9 @@ const Configuracion = () => {
 
             {/* Cargos Especiales — sección propia (tabla ancha, no cabe cómoda dentro del grid de 3 columnas de arriba) */}
             <TiposCargoEspecialTab />
+
+            {/* Becas — sección propia, mismo motivo que Cargos Especiales */}
+            <BecasTab />
 
             {/* Panel de Notificaciones — carga diferida: no pide datos hasta abrirse, para no sobrecargar esta página */}
             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
