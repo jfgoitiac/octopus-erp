@@ -238,6 +238,13 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         pago.mensualidades_pagadas.all().update(pagado=False, fecha_pago=None)
         pago.cuotas_inscripcion_pagadas.all().update(pagado=False, fecha_pago=None)
 
+        # Recargo por pago tardío: las líneas (snapshot inmutable, ver
+        # LineaRecargoPago) se BORRAN, no se restauran como deuda fija. La
+        # próxima vez que se pague esa mensualidad, resolver_recargo() decide
+        # de nuevo con la fecha real del nuevo pago (puede diferir del
+        # recargo original si cambiaron las condiciones).
+        pago.lineas_recargo.all().delete()
+
         # CuotaSolvencia deriva pagado/fecha_pago en save() a partir de
         # monto_pagado — no se puede tocar con un .update() masivo (ver
         # CuotaSolvencia.save()). Siempre se enlaza con monto_pagado ==

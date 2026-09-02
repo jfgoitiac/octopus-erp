@@ -12,8 +12,8 @@ import uuid
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Min, Q, Sum
-from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
-from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
+from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
+from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, ReglaRecargoPagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
 from .services import reporte_costo_becas, tipo_cargo_proyecto_inversion
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
@@ -506,19 +506,52 @@ class RegistrarPagoView(APIView):
         # comparten el mismo tratamiento: ambas son filas de Mensualidad que hay
         # que marcar como pagadas. Se procesa alumno por alumno (cada hermano
         # incluido en la operación) para no filtrar por un único `alumno`.
+        from .recargos import resolver_recargo
+        from .models import LineaRecargoPago
+
+        fecha_cobro = timezone.now()
         todas_mensualidades_qs = Mensualidad.objects.none()
+        recargos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_usd':...}}
         for a in alumnos_resueltos:
             ids = list(set(a['mensualidad_ids']) | set(a['mensualidad_adelanto_ids']))
             if not ids:
                 continue
+            # Se resuelve el recargo ANTES del update masivo, con la fecha
+            # real de esta transacción (fecha_cobro) — nunca se recalcula
+            # después ni depende de cuándo se generó la mensualidad.
+            for m in Mensualidad.objects.filter(id__in=ids, alumno=a['alumno']).select_related('alumno'):
+                resultado = resolver_recargo(m, fecha_cobro)
+                if resultado:
+                    recargos_por_mensualidad[m.id] = resultado
+
             Mensualidad.objects.filter(
                 id__in=ids, alumno=a['alumno']
-            ).update(pagado=True, fecha_pago=timezone.now())
+            ).update(pagado=True, fecha_pago=fecha_cobro)
             todas_mensualidades_qs |= Mensualidad.objects.filter(id__in=ids, alumno=a['alumno'])
 
         if todas_mensualidades_qs.exists():
             for pago in pagos_creados:
                 pago.mensualidades_pagadas.set(todas_mensualidades_qs)
+
+            # Snapshot inmutable del recargo cobrado (LineaRecargoPago), uno
+            # por mensualidad que aplicó. DECISIÓN: cuando la operación se
+            # divide en varios "pagos hermanos" (métodos mixtos, mismo
+            # operacion_uuid), el M2M mensualidades_pagadas ya se enlaza
+            # IGUAL a todos ellos (ver arriba) — para no duplicar el monto
+            # del recargo en el desglose contable, la línea se asocia solo
+            # al PRIMER pago creado de la operación (pagos_creados[0]), el
+            # mismo que usa calcular_desglose_automatico/ComprobanteSerializer
+            # como "pago principal" de la operación (ordenado por id).
+            pago_principal = pagos_creados[0]
+            LineaRecargoPago.objects.bulk_create([
+                LineaRecargoPago(
+                    pago=pago_principal,
+                    mensualidad_id=mensualidad_id,
+                    nombre=info['nombre'],
+                    monto_usd=info['monto_usd'],
+                )
+                for mensualidad_id, info in recargos_por_mensualidad.items()
+            ])
 
             # Recalcular con el criterio canónico: pagar un mes no implica
             # solvencia si quedan meses anteriores impagos. Se recalcula por
@@ -940,6 +973,21 @@ class TipoCargoEspecialDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = TipoCargoEspecialSerializer
     queryset = TipoCargoEspecial.objects.all()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CRUD de reglas de recargo por pago tardío (cobranza/recargos.py)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ReglaRecargoPagoViewSet(viewsets.ModelViewSet):
+    """CRUD de ReglaRecargoPago. Solo director/administrador/sistemas
+    configuran esta regla — el cálculo real lo hace resolver_recargo()."""
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+    serializer_class = ReglaRecargoPagoSerializer
+    queryset = ReglaRecargoPago.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(creada_por=self.request.user)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -2881,8 +2929,10 @@ class ListaMorososView(APIView):
 
     def get(self, request):
         from datetime import date as _date
+        from decimal import Decimal
         from django.db.models import Sum
-        from .mora import calcular_dias_atraso
+        from .mora import calcular_dias_atraso, enriquecer_monto_adeudado_con_recargo
+        from .recargos import calcular_recargos_para_alumnos
         hoy    = _date.today()
         buscar = request.query_params.get('buscar', '').strip()
         qs     = self._build_qs(hoy, buscar, user=request.user)
@@ -2894,9 +2944,16 @@ class ListaMorososView(APIView):
             total_solvencia_usd=Sum('monto_solvencia_adeudado'),
             total_proyecto_inversion_usd=Sum('monto_proyecto_inversion_adeudado'),
         )
+        # El total agregado se calcula sobre SQL puro (Sum), así que el
+        # recargo (calculado en Python) se suma aparte sobre TODOS los
+        # alumno_id filtrados, no solo los de la página actual.
+        todos_los_ids = list(qs.values_list('id', flat=True))
+        recargos_totales = calcular_recargos_para_alumnos(todos_los_ids, hoy)
+        total_recargo_usd = sum(recargos_totales.values(), Decimal('0.00'))
 
         paginator = StandardResultsPagination()
         pagina = paginator.paginate_queryset(qs, request, view=self)
+        pagina = enriquecer_monto_adeudado_con_recargo(pagina, hoy)
 
         results = [
             {
@@ -2913,6 +2970,7 @@ class ListaMorososView(APIView):
                     'telefono': a.representante.telefono,
                 } if a.representante else None,
                 'monto_adeudado':            str(a.monto_adeudado),
+                'monto_adeudado_capital':    str(a.monto_adeudado_capital),
                 'meses_adeudados':            a.meses_adeudados,
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
                 'monto_proyecto_inversion_adeudado': str(a.monto_proyecto_inversion_adeudado),
@@ -2921,7 +2979,7 @@ class ListaMorososView(APIView):
             for a in pagina
         ]
         response = paginator.get_paginated_response(results)
-        response.data['total_deuda_usd'] = str(agregados['total_deuda_usd'] or 0)
+        response.data['total_deuda_usd'] = str((agregados['total_deuda_usd'] or Decimal('0.00')) + total_recargo_usd)
         response.data['total_solvencia_usd'] = str(agregados['total_solvencia_usd'] or 0)
         response.data['total_proyecto_inversion_usd'] = str(agregados['total_proyecto_inversion_usd'] or 0)
         return response
@@ -2937,10 +2995,14 @@ class ExportarMorososExcelView(APIView):
     def get(self, request):
         from datetime import date as _date
         from cobranza.exports import ExcelExporter
+        from .mora import enriquecer_monto_adeudado_con_recargo
 
         hoy    = _date.today()
         buscar = request.query_params.get('buscar', '').strip()
         qs     = ListaMorososView._build_qs(hoy, buscar, user=request.user)
+        # ExcelExporter itera el queryset directamente (no pagina), así que
+        # se materializa completo para poder enriquecerlo con el recargo.
+        qs = enriquecer_monto_adeudado_con_recargo(list(qs), hoy)
 
         columns = [
             ('Nombre',              'nombre'),
