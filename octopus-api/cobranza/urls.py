@@ -40,6 +40,7 @@ from .views import (
     RepresentantesResumenFinancieroView,
     ResumenConciliacionView,
     SincronizarTasaView,
+    TasaPorFechaView,
     TipoCargoEspecialDetailView,
     TipoCargoEspecialListCreateView,
 )
@@ -88,6 +89,7 @@ urlpatterns = [
     path('pagos/<int:pago_id>/corregir/',  CorregirPagoView.as_view(),             name='corregir-pago'),
     path('pagos/<int:pago_id>/anular/',    AnularPagoView.as_view(),               name='anular-pago'),
     path('pagos/retroactivo/',             CargarPagoRetroactivoView.as_view(),    name='cargar-pago-retroactivo'),
+    path('tasa/por-fecha/',                TasaPorFechaView.as_view(),             name='tasa-por-fecha'),
     path('tipos-cargo-especial/',          TipoCargoEspecialListCreateView.as_view(), name='tipos-cargo-especial'),
     path('tipos-cargo-especial/<int:pk>/', TipoCargoEspecialDetailView.as_view(),  name='tipo-cargo-especial-detalle'),
     path('reporte-becas/',                 ReporteCostoBecasView.as_view(),        name='reporte-costo-becas'),

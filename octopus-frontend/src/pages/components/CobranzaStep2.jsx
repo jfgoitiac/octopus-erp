@@ -1,9 +1,14 @@
 import { useState } from 'react';
-import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw, History, AlertTriangle, Loader2 } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
+import DatePickerES from '../../components/DatePickerES';
 import { fmt } from '../../utils/formato';
 import { useConfiguracion } from '../../hooks/useConfiguracion';
 import { Card } from '../../components/ui/Card';
+import { esDivisa, esBolivares, esCash, requiereBanco } from '../../utils/metodosPago';
+import { today } from '../../constants/reportes';
+
+const MOTIVO_MIN_LEN = 10;
 
 const METODOS_PAGO = [
     { value: 'transferencia',  label: 'Transferencia Bancaria' },
@@ -22,11 +27,6 @@ const CONCEPTOS = [
     { value: 'multa',        label: 'Multa' },
     { value: 'otro',         label: 'Otro' },
 ];
-
-const esDivisa    = (m) => ['zelle', 'efectivo'].includes(m);
-const esBolivares = (m) => ['transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves'].includes(m);
-const esCash      = (m) => ['efectivo', 'efectivo_ves'].includes(m);
-const requiereBanco = (m) => m && !['efectivo', 'efectivo_ves'].includes(m);
 
 const CobranzaStep2 = ({
     nombreAlumno,
@@ -56,10 +56,31 @@ const CobranzaStep2 = ({
     deudaVES,
     maxForLine,
     metodoPagoIcons,
+    // Modo retroactivo — el dinero ya se recibió en una fecha pasada. Cuando
+    // está activo, `tasa` (arriba) YA viene sobrescrita por el valor manual
+    // que el operador cargó aquí (ver Cobranza.jsx), así que todos los
+    // cálculos en vivo de esta pantalla quedan consistentes sin tocarlos.
+    retroActivo,
+    setRetroActivo,
+    fechaPagoRetro,
+    setFechaPagoRetro,
+    tasaManual,
+    setTasaManual,
+    motivoRetro,
+    setMotivoRetro,
+    tasaSugerida,
+    tasaSugerenciaExacta,
+    tasaSugerenciaFechaReal,
+    tasaSugerenciaLoading,
     children,
 }) => {
     const { config: configColegio, loading: loadingConfig } = useConfiguracion();
     const [touched, setTouched] = useState({});
+
+    const tasaManualNum = parseFloat(tasaManual);
+    const tasaInvalida  = retroActivo && (isNaN(tasaManualNum) || tasaManualNum <= 0);
+    const desviacionAlta = retroActivo && tasaSugerida > 0 && !isNaN(tasaManualNum) && tasaManualNum > 0
+        && Math.abs(tasaManualNum - tasaSugerida) / tasaSugerida > 0.2;
 
     const marcarTocado = (i, campo) => setTouched(p => ({ ...p, [`${i}_${campo}`]: true }));
     const esTocado = (i, campo) => !!touched[`${i}_${campo}`];
@@ -105,17 +126,28 @@ const CobranzaStep2 = ({
                         Período {configColegio.periodo_escolar_activo}
                     </span>
                 )}
-                <button
-                    type="button"
-                    onClick={refetchTasa}
-                    title={ultimaActualizacion ? `Actualizado: ${ultimaActualizacion.toLocaleTimeString('es-VE')}` : 'Actualizar tasa'}
-                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
-                    style={{ background: tasaError ? 'var(--red)' : 'var(--jet)', color: '#fff' }}
-                    aria-label="Actualizar tasa BCV"
-                >
-                    {tasaError ? <RefreshCw size={12} /> : <DollarSign size={12} />}
-                    BCV: Bs. {tasa}
-                </button>
+                {retroActivo ? (
+                    <span
+                        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                        style={{ background: '#f59e0b', color: '#fff' }}
+                        title="Modo retroactivo: se usa la tasa manual, no el BCV de hoy"
+                    >
+                        <History size={12} />
+                        Tasa manual: Bs. {tasaManual || '—'}
+                    </span>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={refetchTasa}
+                        title={ultimaActualizacion ? `Actualizado: ${ultimaActualizacion.toLocaleTimeString('es-VE')}` : 'Actualizar tasa'}
+                        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80"
+                        style={{ background: tasaError ? 'var(--red)' : 'var(--jet)', color: '#fff' }}
+                        aria-label="Actualizar tasa BCV"
+                    >
+                        {tasaError ? <RefreshCw size={12} /> : <DollarSign size={12} />}
+                        BCV: Bs. {tasa}
+                    </button>
+                )}
             </div>
 
             {/* Banner divisas requeridas */}
@@ -218,6 +250,122 @@ const CobranzaStep2 = ({
                             </div>
                         );
                     })()}
+
+                    {/* Modo retroactivo — el dinero ya se recibió en el pasado */}
+                    <div className="rounded-xl p-4 space-y-3"
+                        style={{ border: `0.5px solid ${retroActivo ? '#f59e0b' : 'var(--border-md)'}`, background: retroActivo ? '#fffbeb' : 'var(--porcelain)' }}>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <History size={15} style={{ color: retroActivo ? '#b45309' : 'var(--ash)' }} />
+                                <div>
+                                    <p className="text-xs font-semibold" style={{ color: retroActivo ? '#b45309' : 'var(--jet)' }}>
+                                        Pago retroactivo
+                                    </p>
+                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                                        El dinero ya se recibió en una fecha pasada
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={retroActivo}
+                                aria-label="Activar pago retroactivo"
+                                onClick={() => setRetroActivo(v => !v)}
+                                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                                style={{ background: retroActivo ? '#f59e0b' : 'var(--border-md)' }}
+                            >
+                                <span
+                                    className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                                    style={{ transform: retroActivo ? 'translateX(22px)' : 'translateX(4px)' }}
+                                />
+                            </button>
+                        </div>
+
+                        {retroActivo && (
+                            <div className="space-y-3 pt-3" style={{ borderTop: '0.5px solid #fcd34d' }}>
+                                <div className="flex items-start gap-2 p-2.5 rounded-lg" style={{ background: '#fef3c7' }}>
+                                    <AlertTriangle size={14} style={{ color: '#b45309', flexShrink: 0, marginTop: '1px' }} />
+                                    <p className="text-[10px]" style={{ color: '#92400e' }}>
+                                        Esta operación se registrará con fecha pasada. La tasa que definas aquí
+                                        reemplaza al badge BCV en todos los cálculos de esta pantalla.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                            Fecha real del pago
+                                        </label>
+                                        <DatePickerES
+                                            value={fechaPagoRetro}
+                                            onChange={e => setFechaPagoRetro(e.target.value)}
+                                            maxDate={today()}
+                                            className="px-3 py-2 rounded-lg text-sm outline-none w-full"
+                                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                            Tasa aplicada (Bs./$)
+                                        </label>
+                                        <div className="relative">
+                                            <DecimalInput
+                                                className="w-full px-3 py-2 rounded-lg text-sm font-semibold outline-none"
+                                                style={{ border: `1px solid ${tasaInvalida ? '#ef4444' : 'var(--border-md)'}`, background: '#fff', color: 'var(--jet)' }}
+                                                value={tasaManual}
+                                                onChange={setTasaManual}
+                                                aria-label="Tasa aplicada al pago retroactivo"
+                                            />
+                                            {tasaSugerenciaLoading && (
+                                                <Loader2 size={13} className="animate-spin absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--pb)' }} />
+                                            )}
+                                        </div>
+                                        {tasaInvalida && (
+                                            <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>La tasa debe ser mayor a 0.</p>
+                                        )}
+                                        {!tasaInvalida && !tasaSugerenciaExacta && tasaSugerenciaFechaReal && (
+                                            <p className="text-[10px] mt-1" style={{ color: '#b45309' }}>
+                                                No hay tasa registrada para esa fecha; se cargó la del {tasaSugerenciaFechaReal}. Verifíquela.
+                                            </p>
+                                        )}
+                                        {!tasaSugerenciaLoading && !tasaSugerida && (
+                                            <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>
+                                                No se encontró tasa histórica para esa fecha. Ingresa la tasa manualmente.
+                                            </p>
+                                        )}
+                                        {desviacionAlta && (
+                                            <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: '#ef4444' }}>
+                                                <AlertTriangle size={11} /> Se desvía más de 20% de la tasa sugerida (Bs. {fmt(tasaSugerida)}). Verifica que sea correcta.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                                        Motivo <span style={{ color: 'var(--red)' }}>*</span>
+                                    </label>
+                                    <textarea
+                                        value={motivoRetro}
+                                        onChange={e => setMotivoRetro(e.target.value)}
+                                        rows={2}
+                                        placeholder="Explica por qué se registra este pago con fecha pasada (mínimo 10 caracteres)…"
+                                        className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                                        style={{
+                                            border: `0.5px solid ${motivoRetro && motivoRetro.trim().length < MOTIVO_MIN_LEN ? '#ef4444' : 'var(--border-md)'}`,
+                                            background: '#fff', color: 'var(--jet)',
+                                        }}
+                                    />
+                                    {motivoRetro && motivoRetro.trim().length < MOTIVO_MIN_LEN && (
+                                        <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>
+                                            Escribe al menos {MOTIVO_MIN_LEN} caracteres.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Líneas de pago */}
                     <div className="rounded-xl p-4 space-y-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>

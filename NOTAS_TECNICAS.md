@@ -2780,3 +2780,57 @@ impagas vía señal (`secretaria/signals.py`).
   los dos flujos disparó un borrado específico (solo el `usuario` y que no
   tenía alumnos, indirectamente). Si en algún momento se audita ese log, sería
   útil agregar de qué acción vino.
+
+## PAGO RETROACTIVO CON TASA HISTÓRICA — MERGE BACKEND + FRONTEND (2026-09-03)
+
+Se combinó el trabajo de dos agentes en paralelo (backend en `cobranza/`:
+`PagoRetroactivoSerializer`, `TasaPorFechaView`, `fecha_pago`/`tasa_aplicada`/
+`motivo` en `PagoCreateSerializer`; frontend: `useTasaPorFecha.js`,
+`metodosPago.js`, interruptor "Pago retroactivo" en `CobranzaStep2.jsx` y
+`CargarPagoRetroactivoModal.jsx`). 123 tests de `cobranza` en verde tras el
+merge. Verificación de contrato campo por campo: sin descalces — nombres,
+tipos y obligatoriedad coinciden en los tres endpoints
+(`cobranza/pagos/retroactivo/`, `cobranza/registrar-pago/`,
+`cobranza/tasa/por-fecha/`). En particular, `useTasaPorFecha.js` YA lee
+correctamente `response.data.fecha` del backend y lo expone como su propio
+`fechaReal` — no había el bug de nombres que se sospechaba antes de revisar
+el código real.
+
+Hallazgos de `/code-review` sobre el estado combinado (no aplicados, solo
+anotados):
+
+- **Bug real de negocio — recargo por pago tardío usa la fecha de HOY, no la
+  fecha retroactiva** (`cobranza/views.py`, `RegistrarPagoView.post`,
+  alrededor de la línea 524): `fecha_cobro = timezone.now()` se usa tanto
+  para `resolver_recargo(m, fecha_cobro)` como para actualizar
+  `Mensualidad.fecha_pago`, incluso cuando la operación viene con
+  `fecha_pago` retroactiva explícita. Solo el objeto `Pago.fecha_pago` recibe
+  la fecha real (línea ~507, `pago.fecha_pago = fecha_pago_retroactiva`, y
+  ojo que se asigna DESPUÉS de construir el objeto `Pago(...)`, no antes de
+  `.save()` — funciona porque se asigna antes del `.save()` de esa misma
+  línea, pero queda como un campo "corregido a mano" fuera del constructor).
+  Consecuencia: un pago retroactivo de una mensualidad puede cobrar (o
+  escaparse de) el recargo por pago tardío según la fecha en que se **carga**
+  el pago en el sistema, no la fecha en que el dinero **se recibió** — exactamente
+  el bug que esta feature buscaba evitar para la tasa de cambio, pero que
+  sigue vivo para el recargo. Ningún test nuevo
+  (`RegistrarPagoFechaRetroactivaTest`) ejercita esta combinación
+  (fecha_pago retroactiva + mensualidad con recargo aplicable). Pendiente:
+  decidir si `resolver_recargo` y el `Mensualidad.fecha_pago` deben usar
+  `fecha_pago_retroactiva` cuando está presente (fallback a `timezone.now()`
+  si no), y agregar el test que lo cubra.
+- **Duplicación de extracción de mensaje de error de Axios**:
+  `CargarPagoRetroactivoModal.jsx` repite inline el mismo patrón
+  `data?.error || data?.detail || Object.values(data).flat().join(' ')` que
+  ya existe en el catch de `Cobranza.jsx`, en vez de extender el helper
+  compartido `getErrorMessage` (`constants/reportes.js`), que hoy solo lee
+  `err.response.data.error` y no cubre errores con claves de campo (p. ej.
+  `{tasa_aplicada: [...]}`). Vale la pena generalizar `getErrorMessage` una
+  sola vez y que ambos call sites lo reutilicen, para no tener que actualizar
+  dos copias cada vez que cambie la forma de los errores del backend.
+- **Falta de tests de frontend**: ni `useTasaPorFecha.js` ni el interruptor
+  "Pago retroactivo" de `CobranzaStep2.jsx`/`Cobranza.jsx` tienen tests
+  (unitarios de hook o de componente) — toda la cobertura de esta feature es
+  backend (123 tests de `cobranza`). Si se agrega una suite de frontend en el
+  futuro, este es un buen candidato inicial: el hook tiene lógica de
+  abort/404/mapeo de campos no trivial.

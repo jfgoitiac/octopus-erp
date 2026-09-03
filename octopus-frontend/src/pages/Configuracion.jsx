@@ -550,6 +550,15 @@ const Configuracion = () => {
                                         style={{ background: config?.notificaciones_activas ? 'var(--pb)' : 'var(--ash-light)' }}></div>
                                 </label>
                             </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Adelantos solo en USD</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="adelantos_requieren_usd" className="sr-only peer"
+                                        checked={config?.adelantos_requieren_usd || false} onChange={handleConfigChange} />
+                                    <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                        style={{ background: config?.adelantos_requieren_usd ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                </label>
+                            </div>
                             <button type="submit" disabled={saving}
                                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 min-h-[44px]"
                                 style={{ background: 'var(--pb)' }}>

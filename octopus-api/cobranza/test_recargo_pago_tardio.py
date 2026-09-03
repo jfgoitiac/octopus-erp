@@ -322,3 +322,83 @@ class SnapshotInmutableTest(RecargoPagoTardioBase):
         # se recalculó fresco con la fecha del nuevo pago, no se restauró
         # el recargo original como deuda fija.
         self.assertFalse(LineaRecargoPago.objects.filter(pago=nuevo_pago).exists())
+
+
+class RecargoConFechaPagoRetroactivaTest(RecargoPagoTardioBase):
+    """El recargo (y Mensualidad.fecha_pago) deben evaluarse con la fecha
+    REAL del pago retroactivo, no con la fecha en que se cargó la operación
+    — de lo contrario se cobra/exime el recargo según cuándo tipeó el
+    cajero, no según cuándo pagó el representante (bug detectado en
+    integración, ver NOTAS_TECNICAS.md)."""
+
+    def setUp(self):
+        super().setUp()
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Retro Recargo', activo=True)
+        TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_superuser(
+            username='cajero_retro_recargo', password='clave123456', email='rr2@test.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_fecha_retroactiva_anterior_al_dia_de_aplicacion_no_carga_recargo(self):
+        # Regla aplica desde el día 15. Mensualidad de julio 2026. El pago
+        # se CARGA hoy (mucho después del día de aplicación), pero el
+        # dinero se RECIBIÓ el 10/07/2026 — antes del día 15 — así que no
+        # debe generarse recargo ni marcarse la mensualidad como pagada en
+        # esa fecha. Con el bug (fecha_cobro = timezone.now() siempre),
+        # este test fallaría: se cobraría recargo igual porque "hoy" ya
+        # pasó el día 15 de julio.
+        self._regla(dia_aplicacion=15, valor=Decimal('2.00'))
+        m = self._mensualidad(7, 2026)
+
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [m.id]}],
+            "concepto": "mensualidad",
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "30.00", "referencia": "EFEC-RETRO-RECARGO"},
+            ],
+            "fecha_pago": "2026-07-10T10:00:00Z",
+            "tasa_aplicada": "40.0000",
+            "motivo": "Pago recibido en efectivo el 10/07, cargado hoy en el sistema",
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        self.assertFalse(LineaRecargoPago.objects.filter(pago=pago, mensualidad=m).exists())
+
+        m.refresh_from_db()
+        self.assertTrue(m.pagado)
+        self.assertEqual(m.fecha_pago.date(), date(2026, 7, 10))
+
+    def test_fecha_retroactiva_posterior_al_dia_de_aplicacion_si_carga_recargo(self):
+        # Caso simétrico: el pago se recibió el 20/07/2026 — después del
+        # día 15 — así que el recargo SÍ debe aplicar, evaluado con la
+        # fecha real del pago, no con "hoy".
+        self._regla(dia_aplicacion=15, valor=Decimal('2.00'))
+        m = self._mensualidad(7, 2026)
+
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [m.id]}],
+            "concepto": "mensualidad",
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "32.00", "referencia": "EFEC-RETRO-RECARGO-2"},
+            ],
+            "fecha_pago": "2026-07-20T10:00:00Z",
+            "tasa_aplicada": "40.0000",
+            "motivo": "Pago recibido en efectivo el 20/07, cargado hoy en el sistema",
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        linea = LineaRecargoPago.objects.filter(pago=pago, mensualidad=m).first()
+        self.assertIsNotNone(linea)
+        self.assertEqual(linea.monto_usd, Decimal('2.00'))
+
+        m.refresh_from_db()
+        self.assertEqual(m.fecha_pago.date(), date(2026, 7, 20))

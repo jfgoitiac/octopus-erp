@@ -10,13 +10,18 @@ import { getBancos } from '../api/cobranza.service';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
+import { useTasaPorFecha } from '../hooks/useTasaPorFecha';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
 import { construirItemsRecibo } from '../utils/construirItemsRecibo';
 import { fmt } from '../utils/formato';
+import { esDivisa, esBolivares, requiereBanco } from '../utils/metodosPago';
+import { today } from '../constants/reportes';
 import CobranzaStep1 from './components/CobranzaStep1';
 import CobranzaStep2 from './components/CobranzaStep2';
 import ResumenPago from './components/ResumenPago';
 import Stepper from '../components/shared/Stepper';
+
+const MOTIVO_MIN_LEN = 10;
 
 const COBRANZA_STEPS = ['Buscar y seleccionar deuda', 'Registrar pago'];
 
@@ -38,10 +43,6 @@ const CONCEPTOS = [
     { value: 'multa',        label: 'Multa' },
     { value: 'otro',         label: 'Otro' },
 ];
-
-const esDivisa    = (m) => ['zelle', 'efectivo'].includes(m);
-const esBolivares = (m) => ['transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves'].includes(m);
-const requiereBanco = (m) => m && !['efectivo', 'efectivo_ves'].includes(m);
 
 const crearLinea = () => ({
     id: Date.now() + Math.random(),
@@ -74,7 +75,36 @@ const Cobranza = () => {
     const { user } = useContext(AuthContext);
     const location = useLocation();
     const navigate = useNavigate();
-    const { tasa, error: tasaError, ultimaActualizacion, refetch: refetchTasa } = useTasaBCV();
+    const { tasa: tasaBCV, error: tasaError, ultimaActualizacion, refetch: refetchTasa } = useTasaBCV();
+
+    // ── Modo retroactivo: el dinero ya se recibió en una fecha pasada. Cuando
+    // está activo, la tasa manual del operador reemplaza a la del BCV de hoy
+    // en TODOS los cálculos en vivo de esta pantalla (ver `tasa` más abajo).
+    const [retroActivo, setRetroActivo]       = useState(false);
+    const [fechaPagoRetro, setFechaPagoRetro] = useState(() => today());
+    const [tasaManual, setTasaManual]         = useState('');
+    const [motivoRetro, setMotivoRetro]       = useState('');
+
+    const {
+        valor: tasaSugerida,
+        exacta: tasaSugerenciaExacta,
+        fechaReal: tasaSugerenciaFechaReal,
+        loading: tasaSugerenciaLoading,
+    } = useTasaPorFecha(retroActivo ? fechaPagoRetro : null);
+
+    // Se precarga/reemplaza el campo con la sugerencia cada vez que cambia la
+    // fecha consultada — el operador puede seguir editándolo a mano después;
+    // lo que escriba manda sobre la sugerencia (no se vuelve a sobreescribir
+    // hasta el próximo cambio de fecha).
+    useEffect(() => {
+        if (retroActivo) setTasaManual(tasaSugerida != null ? String(tasaSugerida) : '');
+    }, [tasaSugerida, retroActivo, fechaPagoRetro]);
+
+    // Tasa efectiva usada en TODOS los cálculos en vivo de esta pantalla
+    // (equivalentes Bs/USD, vuelto, totales, máximos por línea). Apagado el
+    // modo retroactivo, es idéntica a la del badge BCV — comportamiento actual.
+    const tasa = retroActivo ? (parseFloat(tasaManual) || 0) : tasaBCV;
+
     const [step, setStep]           = useState(1);
     const [cedula, setCedula]       = useState('');
     const [representanteNombre, setRepresentanteNombre] = useState('');
@@ -96,6 +126,7 @@ const Cobranza = () => {
     const [selectedProyectos, setSelectedProyectos] = useState([]);
     const [montosParcialesProyectos, setMontosParcialesProyectos] = useState({});
 
+    const [adelantosRequierenUSD, setAdelantosRequierenUSD] = useState(true);
     const [concepto, setConcepto]                 = useState('mensualidad');
     const [lineas, setLineas]                     = useState([crearLinea()]);
     const [bancos, setBancos]                     = useState([]);
@@ -182,15 +213,16 @@ const Cobranza = () => {
 
     const todosDivisas    = lineas.length > 0 && lineas.every(l => esDivisa(l.metodo_pago));
     const hayAdelantos    = alumnosSeleccionados.some(id => seleccion[id]?.selectedFuturas.length > 0);
+    const restriccionAdelantoActiva = adelantosRequierenUSD && hayAdelantos;
 
     // Auto-convertir líneas a dólares cuando se seleccionan adelantos
     useEffect(() => {
-        if (hayAdelantos) {
+        if (restriccionAdelantoActiva) {
             setLineas(p => p.map(l =>
                 esDivisa(l.metodo_pago) ? l : { ...l, metodo_pago: 'efectivo', banco_receptor_id: '', monto_ves: '' }
             ));
         }
-    }, [hayAdelantos]);
+    }, [restriccionAdelantoActiva]);
 
     // Solo el abono de mensualidades (pendientes o adelantos) exige divisas
     // (Efectivo USD / Zelle). Inscripción, solvencia y proyecto de inversión
@@ -208,12 +240,13 @@ const Cobranza = () => {
                parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas);
     }), [alumnosSeleccionados, datosAlumnos, seleccion]);
 
-    const requiereDivisas = hayAdelantos || hayParciales;
+    const requiereDivisas = restriccionAdelantoActiva || hayParciales;
 
     const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
         setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
         setCuotasProyectoInversion([]); setSelectedProyectos([]); setMontosParcialesProyectos({});
+        setRetroActivo(false); setFechaPagoRetro(today()); setTasaManual(''); setMotivoRetro('');
     }, []);
 
     // Pre-rellena banco y método de pago de la primera línea con el más usado
@@ -323,6 +356,12 @@ const Cobranza = () => {
         };
     }, [location.search, buscarAlumno]);
 
+    useEffect(() => {
+        axiosInstance.get('secretaria/configuracion/')
+            .then(res => setAdelantosRequierenUSD(res.data?.adelantos_requieren_usd ?? true))
+            .catch(() => {});
+    }, []);
+
     // Alterna la inclusión de un alumno en la operación de pago (checkbox).
     const toggleAlumno = (alu) => {
         setAlumnosSeleccionados(prev => {
@@ -381,6 +420,15 @@ const Cobranza = () => {
         const posInvalido = lineas.some(l => l.metodo_pago === 'punto_de_venta' &&
             (!/^\d{4}$/.test(l.referencia || '') || !/^\d{4}$/.test(l.numero_lote || '')));
         if (posInvalido) { toast.error('Punto de Venta requiere referencia y número de lote de 4 dígitos.'); return; }
+        if (retroActivo) {
+            if (!fechaPagoRetro) { toast.error('Indica la fecha real en que se recibió el pago.'); return; }
+            const tasaRetroNum = parseFloat(tasaManual);
+            if (isNaN(tasaRetroNum) || tasaRetroNum <= 0) { toast.error('La tasa debe ser mayor a 0.'); return; }
+            if (motivoRetro.trim().length < MOTIVO_MIN_LEN) {
+                toast.error(`Explica el motivo del pago retroactivo (mínimo ${MOTIVO_MIN_LEN} caracteres).`);
+                return;
+            }
+        }
         if (enviandoPagoRef.current) return;
         enviandoPagoRef.current = true;
         setLoading(true);
@@ -419,12 +467,23 @@ const Cobranza = () => {
                     numero_lote: l.numero_lote || '',
                     observaciones: '',
                 })),
+                // Solo se agregan cuando el modo retroactivo está encendido; con el
+                // modo apagado el backend se comporta idéntico a hoy (sin estos campos).
+                ...(retroActivo ? {
+                    fecha_pago: fechaPagoRetro,
+                    tasa_aplicada: parseFloat(tasaManual),
+                    motivo: motivoRetro.trim(),
+                } : {}),
             });
 
             if (res.status === 201) {
                 toast.success('¡Pago registrado correctamente!');
                 const pagosCreados = res.data.pagos;
-                const ahora = new Date();
+                // Con pago retroactivo, el recibo impreso debe reflejar la fecha real
+                // en que se recibió el dinero, no la fecha de hoy en que se digitó.
+                const ahora = retroActivo && fechaPagoRetro
+                    ? (() => { const [y, m, d] = fechaPagoRetro.split('-').map(Number); return new Date(y, m - 1, d); })()
+                    : new Date();
 
                 const bloques = alumnosSeleccionados.map(id => {
                     const datos = datosAlumnos[id];
@@ -493,6 +552,7 @@ const Cobranza = () => {
                 setLineas([crearLinea()]);
                 setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
                 setCuotasProyectoInversion([]); setSelectedProyectos([]); setMontosParcialesProyectos({});
+                setRetroActivo(false); setFechaPagoRetro(today()); setTasaManual(''); setMotivoRetro('');
                 setConfirming(false);
                 setStep(1);
             }
@@ -556,6 +616,7 @@ const Cobranza = () => {
             totalGenUSD={totalGenUSD}
             setStep={setStep}
             haySeleccion={haySeleccion}
+            adelantosRequierenUSD={adelantosRequierenUSD}
         />
         </>
     );
@@ -592,6 +653,18 @@ const Cobranza = () => {
             deudaVES={deudaVES}
             maxForLine={maxForLine}
             metodoPagoIcons={metodoPagoIcons}
+            retroActivo={retroActivo}
+            setRetroActivo={setRetroActivo}
+            fechaPagoRetro={fechaPagoRetro}
+            setFechaPagoRetro={setFechaPagoRetro}
+            tasaManual={tasaManual}
+            setTasaManual={setTasaManual}
+            motivoRetro={motivoRetro}
+            setMotivoRetro={setMotivoRetro}
+            tasaSugerida={tasaSugerida}
+            tasaSugerenciaExacta={tasaSugerenciaExacta}
+            tasaSugerenciaFechaReal={tasaSugerenciaFechaReal}
+            tasaSugerenciaLoading={tasaSugerenciaLoading}
         >
             <ResumenPago
                 nombreAlumno={nombresSeleccionados}

@@ -8,8 +8,9 @@ from .models import (
     Mensualidad, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio,
     TipoCargoEspecial,
 )
-from secretaria.models import Alumno
+from secretaria.models import Alumno, ConfiguracionSistema
 from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
+from .correcciones import fecha_dentro_periodo_activo, fecha_en_cierre_validado
 
 MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -524,6 +525,15 @@ class PagoCreateSerializer(serializers.Serializer):
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
+    # --- Carga retroactiva desde Cobranza (multi-alumno/multi-línea) ---
+    # Si `fecha_pago` se omite, el comportamiento es exactamente el actual
+    # (tasa de hoy, sin exigir motivo). Si viene, exige tasa_aplicada y
+    # motivo explícitos: no se adivina una tasa histórica.
+    fecha_pago = serializers.DateTimeField(required=False)
+    tasa_aplicada = serializers.DecimalField(
+        max_digits=12, decimal_places=4, min_value=Decimal('0.0001'), required=False
+    )
+    motivo = serializers.CharField(min_length=10, required=False, allow_blank=False)
 
     def validate(self, data):
         alumnos_resueltos = []
@@ -689,7 +699,10 @@ class PagoCreateSerializer(serializers.Serializer):
         # Adelantos de mensualidades futuras: solo se aceptan en Zelle o
         # Efectivo Divisas (USD), para evitar descuadres de tasa/cambio entre
         # el momento del adelanto y el mes en que realmente se factura.
-        if any(a['mensualidad_adelanto_ids'] for a in alumnos_resueltos):
+        # Restricción activable/desactivable desde Configuraciones.
+        config = ConfiguracionSistema.objects.first()
+        restriccion_usd_activa = not config or config.adelantos_requieren_usd
+        if restriccion_usd_activa and any(a['mensualidad_adelanto_ids'] for a in alumnos_resueltos):
             metodos_no_permitidos = {
                 p['metodo_pago'] for p in data['pagos']
                 if p['metodo_pago'] not in ('zelle', 'efectivo')
@@ -699,6 +712,44 @@ class PagoCreateSerializer(serializers.Serializer):
                     "Los adelantos de mensualidades solo se pueden pagar con Zelle o "
                     "Efectivo Divisas (USD)."
                 )
+
+        # --- Carga retroactiva (fecha_pago explícita) ---
+        # Reutiliza los mismos guardas que cargar_pago_retroactivo()
+        # (cobranza/correcciones.py) para que ambos caminos de carga
+        # retroactiva se comporten igual frente a períodos cerrados/inactivos.
+        fecha_pago = data.get('fecha_pago')
+        tasa_aplicada = data.get('tasa_aplicada')
+        motivo = data.get('motivo')
+
+        if fecha_pago:
+            if not motivo:
+                raise serializers.ValidationError(
+                    {'motivo': "El motivo es obligatorio (mínimo 10 caracteres) al registrar "
+                               "un pago con fecha retroactiva."}
+                )
+            if tasa_aplicada is None:
+                raise serializers.ValidationError(
+                    {'tasa_aplicada': "Debe indicar la tasa de cambio aplicada para un pago con "
+                                      "fecha retroactiva; no se adivina una tasa histórica."}
+                )
+
+            dentro_periodo, error_periodo = fecha_dentro_periodo_activo(fecha_pago)
+            if not dentro_periodo:
+                raise serializers.ValidationError({'fecha_pago': error_periodo})
+
+            request = self.context.get('request')
+            usuario = getattr(request, 'user', None)
+            if usuario is not None and fecha_en_cierre_validado(usuario, fecha_pago):
+                raise serializers.ValidationError({
+                    'fecha_pago': (
+                        "No se puede cargar este pago: la fecha cae dentro de un cierre "
+                        "de caja ya validado por el director."
+                    )
+                })
+
+        # Valor de tasa EFECTIVO de la operación, resuelto en un solo lugar:
+        # la tasa manual (si vino) siempre gana sobre el fallback de hoy.
+        data['tasa_valor'] = tasa_aplicada if tasa_aplicada is not None else data['tasa'].valor_bs
 
         return data
 
@@ -732,14 +783,28 @@ class PagoRetroactivoSerializer(serializers.Serializer):
     (un alumno, un concepto) cuyo dinero se recibió en una fecha pasada.
     No soporta pagos mixtos/multi-alumno — para eso sigue existiendo
     RegistrarPagoView.
+
+    Tasa histórica: para métodos en divisas (zelle, efectivo) basta con
+    `monto_usd`; `tasa_aplicada` es opcional y, si se envía, reemplaza el
+    fallback de TasaCambio.objects.latest('fecha') al calcular el
+    equivalente en bolívares. Para métodos en bolívares (transferencia,
+    pago_movil, punto_de_venta, efectivo_ves) se exige `monto_ves` +
+    `tasa_aplicada` explícitos: no se adivina una tasa histórica para
+    convertir a USD.
     """
     METODOS = [m[0] for m in Pago.METODOS]
     CONCEPTOS = [c[0] for c in Pago.CONCEPTOS]
+    METODOS_DIVISA = ('zelle', 'efectivo')
+    METODOS_BOLIVARES = ('transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves')
 
     alumno = serializers.PrimaryKeyRelatedField(queryset=Alumno.objects.all())
     concepto = serializers.ChoiceField(choices=CONCEPTOS, default='mensualidad', required=False)
     metodo_pago = serializers.ChoiceField(choices=METODOS)
-    monto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+    monto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False)
+    monto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, min_value=Decimal('0.01'), required=False)
+    tasa_aplicada = serializers.DecimalField(
+        max_digits=12, decimal_places=4, min_value=Decimal('0.0001'), required=False
+    )
     banco_receptor = serializers.PrimaryKeyRelatedField(
         queryset=BancoInstitucional.objects.all(), required=False, allow_null=True
     )
@@ -767,6 +832,37 @@ class PagoRetroactivoSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {'numero_lote': "Punto de Venta requiere un número de lote de 4 dígitos."}
                 )
+
+        # --- Tasa histórica: monto según si el método es divisa o bolívares ---
+        metodo = data['metodo_pago']
+        monto_usd = data.get('monto_usd')
+        monto_ves = data.get('monto_ves')
+        tasa_aplicada = data.get('tasa_aplicada')
+
+        if metodo in self.METODOS_DIVISA:
+            if not monto_usd:
+                raise serializers.ValidationError(
+                    {'monto_usd': "monto_usd es obligatorio para métodos en divisas (zelle, efectivo)."}
+                )
+            if monto_ves is not None:
+                raise serializers.ValidationError(
+                    {'monto_ves': "monto_ves no aplica para métodos en divisas (zelle, efectivo)."}
+                )
+        elif metodo in self.METODOS_BOLIVARES:
+            if monto_ves is None:
+                raise serializers.ValidationError(
+                    {'monto_ves': "monto_ves es obligatorio para métodos en bolívares."}
+                )
+            if tasa_aplicada is None:
+                raise serializers.ValidationError(
+                    {'tasa_aplicada': "tasa_aplicada es obligatoria para métodos en bolívares "
+                                      "(no se adivina una tasa histórica)."}
+                )
+            if monto_usd is not None:
+                raise serializers.ValidationError(
+                    {'monto_usd': "monto_usd no aplica para métodos en bolívares; use monto_ves."}
+                )
+
         return data
 
 

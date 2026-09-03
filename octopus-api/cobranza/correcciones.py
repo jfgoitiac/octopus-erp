@@ -149,9 +149,16 @@ def cargar_pago_retroactivo(datos: dict, usuario, motivo: str) -> Pago:
     `fecha_pago` igual a la fecha real de recepción (no la fecha de hoy).
 
     `datos` ya viene validado/resuelto por PagoRetroactivoSerializer:
-    alumno (instancia), metodo_pago, concepto, monto_usd, banco_receptor
-    (instancia u None), referencia, numero_lote, observaciones,
-    representante_documento, representante_nombre, fecha_pago (datetime).
+    alumno (instancia), metodo_pago, concepto, monto_usd y/o monto_ves,
+    tasa_aplicada (opcional — ver más abajo), banco_receptor (instancia u
+    None), referencia, numero_lote, observaciones, representante_documento,
+    representante_nombre, fecha_pago (datetime).
+
+    Tasa: si `datos['tasa_aplicada']` viene (tasa manual/histórica), SIEMPRE
+    gana sobre el fallback. Si no viene, se mantiene el comportamiento
+    original: TasaCambio.objects.latest('fecha') (tasa de hoy) — solo válido
+    para métodos en divisas, ya que PagoRetroactivoSerializer exige la tasa
+    explícita para métodos en bolívares.
     """
     fecha_pago = datos['fecha_pago']
 
@@ -167,17 +174,31 @@ def cargar_pago_retroactivo(datos: dict, usuario, motivo: str) -> Pago:
             )
         })
 
-    try:
-        tasa = TasaCambio.objects.latest('fecha')
-    except TasaCambio.DoesNotExist:
-        raise ValidationError({'tasa': "No se ha registrado ninguna tasa de cambio."})
+    tasa_manual = datos.get('tasa_aplicada')
+    if tasa_manual is not None:
+        tasa_valor = tasa_manual
+    else:
+        try:
+            tasa_valor = TasaCambio.objects.latest('fecha').valor_bs
+        except TasaCambio.DoesNotExist:
+            raise ValidationError({'tasa': "No se ha registrado ninguna tasa de cambio."})
 
-    # monto_ves se calcula ANTES de construir el Pago (igual que en
-    # RegistrarPagoView): Pago.save() llama full_clean() -> clean() antes de
-    # recalcular monto_ves/monto_usd, así que si se dejara en 0 la
+    # monto_ves/monto_usd se calculan ANTES de construir el Pago (igual que
+    # en RegistrarPagoView): Pago.save() llama full_clean() -> clean() antes
+    # de recalcular monto_ves/monto_usd, así que si se dejara en 0 la
     # validación de integridad de clean() lo rechazaría.
-    monto_usd_final = datos['monto_usd']
-    monto_ves_final = (monto_usd_final * tasa.valor_bs).quantize(Decimal('0.01'))
+    monto_ves_dato = datos.get('monto_ves')
+    if monto_ves_dato is not None:
+        # Método en bolívares: el monto recibido YA es el de VES; se deriva
+        # el equivalente USD con la tasa (manual, siempre presente en este
+        # camino — ver PagoRetroactivoSerializer.validate).
+        monto_ves_final = monto_ves_dato
+        monto_usd_final = (monto_ves_dato / tasa_valor).quantize(Decimal('0.01'))
+    else:
+        # Método en divisas: el monto recibido es USD; se deriva el
+        # equivalente VES con la tasa (manual si vino, si no la de hoy).
+        monto_usd_final = datos['monto_usd']
+        monto_ves_final = (monto_usd_final * tasa_valor).quantize(Decimal('0.01'))
 
     observaciones = f"[CARGA RETROACTIVA] {motivo}\n{datos.get('observaciones') or ''}"
 
@@ -188,7 +209,7 @@ def cargar_pago_retroactivo(datos: dict, usuario, motivo: str) -> Pago:
         metodo_pago=datos['metodo_pago'],
         concepto=datos.get('concepto') or 'mensualidad',
         monto_usd=monto_usd_final,
-        tasa_aplicada=tasa.valor_bs,
+        tasa_aplicada=tasa_valor,
         monto_ves=monto_ves_final,
         fecha_pago=fecha_pago,
         referencia=datos.get('referencia') or '',

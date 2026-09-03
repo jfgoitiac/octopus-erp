@@ -26,6 +26,10 @@ class ConfiguracionSistema(models.Model):  # NUEVO
     periodo_escolar_activo     = models.CharField(max_length=20, default="2025-2026")
     dia_limite_pago            = models.PositiveSmallIntegerField(default=5)
     notificaciones_activas     = models.BooleanField(default=True)
+    adelantos_requieren_usd    = models.BooleanField(
+        default=True,
+        help_text='Si está activo, los adelantos de mensualidades futuras solo se aceptan en Zelle o Efectivo Divisas (USD).'
+    )
 
     # Personalización visual del portal de representantes
     color_primario   = models.CharField(max_length=7, default='#0fa3b1', help_text='Color hex, ej: #0fa3b1')

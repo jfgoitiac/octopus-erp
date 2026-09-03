@@ -1382,3 +1382,346 @@ class GenerarCargosEspecialesPendientesTest(TestCase):
         segunda = generar_cargos_especiales_pendientes(periodo_escolar='2025-2026')
         self.assertEqual(primera, 2)
         self.assertEqual(segunda, 0)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TASA HISTÓRICA EN PAGOS RETROACTIVOS (cobranza/pagos/retroactivo/,
+# cobranza/registrar-pago/, cobranza/tasa/por-fecha/)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PagoRetroactivoTasaHistoricaTest(TestCase):
+    """Endpoint A (PagoRetroactivoSerializer / cargar_pago_retroactivo):
+    tasa manual/histórica y validación de la combinación monto_usd/monto_ves
+    según el método de pago."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='cajero_tasa_hist', password='password123', email='th@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2025, 1, 1),
+            fecha_fin_inscripciones=date(2025, 12, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+            periodo_escolar_activo='2025-2026',
+        )
+        # Tasa "de hoy" — debe quedar completamente ignorada cuando se envía
+        # tasa_aplicada explícita.
+        self.tasa_hoy = TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        self.representante = Representante.objects.create(
+            cedula='V40000001', nombre='Elena', apellido='Rios', correo='elena@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Luis', apellido='Rios', cedula_escolar='E96000001',
+            fecha_nacimiento=date(2016, 1, 15), representante=self.representante,
+        )
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Tasa Historica Test', activo=True)
+        self.fecha_pago_historica = '2025-10-15T10:00:00Z'
+
+    def _payload_base(self, **overrides):
+        payload = {
+            "alumno": self.alumno.id,
+            "metodo_pago": "efectivo",
+            "monto_usd": "50.00",
+            "fecha_pago": self.fecha_pago_historica,
+            "motivo": "Pago recibido en efectivo el 15/10, cargado hoy",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_tasa_aplicada_explicita_gana_sobre_la_de_hoy(self):
+        payload = self._payload_base(tasa_aplicada="100.0000")
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        self.assertEqual(pago.tasa_aplicada, Decimal('100.0000'))
+        self.assertEqual(pago.monto_usd, Decimal('50.00'))
+        self.assertEqual(pago.monto_ves, Decimal('5000.00'))
+        self.assertNotEqual(pago.tasa_aplicada, self.tasa_hoy.valor_bs)
+
+    def test_usd_sin_tasa_aplicada_mantiene_fallback_de_hoy(self):
+        payload = self._payload_base()  # sin tasa_aplicada
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        self.assertEqual(pago.tasa_aplicada, self.tasa_hoy.valor_bs)
+        self.assertEqual(pago.monto_ves, (Decimal('50.00') * self.tasa_hoy.valor_bs).quantize(Decimal('0.01')))
+
+    def test_bolivares_con_monto_ves_y_tasa_aplicada(self):
+        payload = self._payload_base(
+            metodo_pago='transferencia', monto_usd=None, monto_ves='4000.00', tasa_aplicada='80.0000',
+            banco_receptor=self.banco.id,
+        )
+        del payload['monto_usd']
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        self.assertEqual(pago.tasa_aplicada, Decimal('80.0000'))
+        self.assertEqual(pago.monto_ves, Decimal('4000.00'))
+        self.assertEqual(pago.monto_usd, Decimal('50.00'))
+
+    def test_combinacion_invalida_monto_ves_con_metodo_divisa(self):
+        payload = self._payload_base(monto_ves='1000.00')
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('monto_ves', resp.data)
+
+    def test_metodo_bolivares_sin_monto_ves_es_rechazado(self):
+        payload = self._payload_base(metodo_pago='transferencia', banco_receptor=self.banco.id)
+        del payload['monto_usd']
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('monto_ves', resp.data)
+
+    def test_metodo_bolivares_sin_tasa_aplicada_es_rechazado(self):
+        payload = self._payload_base(
+            metodo_pago='transferencia', monto_ves='1000.00', banco_receptor=self.banco.id
+        )
+        del payload['monto_usd']
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('tasa_aplicada', resp.data)
+
+    def test_tasa_aplicada_cero_es_rechazada_sin_division_by_zero(self):
+        payload = self._payload_base(tasa_aplicada='0')
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('tasa_aplicada', resp.data)
+
+    def test_tasa_aplicada_negativa_es_rechazada(self):
+        payload = self._payload_base(tasa_aplicada='-10.0000')
+        resp = self.client.post('/api/cobranza/pagos/retroactivo/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('tasa_aplicada', resp.data)
+
+
+class RegistrarPagoFechaRetroactivaTest(TestCase):
+    """Endpoint B (PagoCreateSerializer / RegistrarPagoView): modo
+    retroactivo multi-alumno/multi-línea vía fecha_pago + tasa_aplicada +
+    motivo, y regresión del camino sin fecha_pago."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='cajero_registrar_retro', password='password123', email='rr@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2025, 1, 1),
+            fecha_fin_inscripciones=date(2025, 12, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+            periodo_escolar_activo='2025-2026',
+        )
+        self.tasa_hoy = TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        self.representante = Representante.objects.create(
+            cedula='V40000002', nombre='Marco', apellido='Diaz', correo='marco@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Ana', apellido='Diaz', cedula_escolar='E96000002',
+            fecha_nacimiento=date(2016, 2, 20), representante=self.representante,
+        )
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Registrar Retro Test', activo=True)
+
+    def _payload_base(self, **overrides):
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id}],
+            "concepto": "otro",
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "30.00", "referencia": "EFEC-RETRO-1"},
+                {
+                    "metodo_pago": "transferencia", "monto_ves": "1200.00", "referencia": "TRF-RETRO-1",
+                    "banco_receptor_id": self.banco.id,
+                },
+            ],
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_pago_con_fecha_tasa_y_motivo_queda_auditado_en_todas_las_lineas(self):
+        payload = self._payload_base(
+            fecha_pago='2025-10-15T10:00:00Z',
+            tasa_aplicada='90.0000',
+            motivo='Pago recibido por transferencia el 15/10, cargado hoy',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        pagos = Pago.objects.filter(alumno=self.alumno).order_by('id')
+        self.assertEqual(pagos.count(), 2)
+        for pago in pagos:
+            self.assertEqual(pago.tasa_aplicada, Decimal('90.0000'))
+            self.assertEqual(pago.fecha_pago.year, 2025)
+            self.assertEqual(pago.fecha_pago.month, 10)
+            self.assertEqual(pago.fecha_pago.day, 15)
+            self.assertIn('[CARGA RETROACTIVA]', pago.observaciones)
+            self.assertNotEqual(pago.tasa_aplicada, self.tasa_hoy.valor_bs)
+
+    def test_fecha_retroactiva_en_cierre_validado_es_rechazada(self):
+        cierre = CierreCaja.objects.create(
+            usuario_cierre=self.user, monto_declarado_ves=Decimal('0.00'), validado_por_director=True,
+        )
+        fecha_cierre_forzada = timezone.make_aware(datetime(2025, 10, 15, 20, 0, 0))
+        CierreCaja.objects.filter(id=cierre.id).update(fecha_cierre=fecha_cierre_forzada)
+
+        payload = self._payload_base(
+            fecha_pago='2025-10-15T10:00:00Z',  # dentro del cierre ya validado
+            tasa_aplicada='90.0000',
+            motivo='Pago recibido por transferencia el 15/10, cargado hoy',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('fecha_pago', resp.data)
+        self.assertEqual(Pago.objects.filter(alumno=self.alumno).count(), 0)
+
+    def test_fecha_retroactiva_sin_motivo_es_rechazada(self):
+        payload = self._payload_base(fecha_pago='2025-10-15T10:00:00Z', tasa_aplicada='90.0000')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('motivo', resp.data)
+
+    def test_fecha_retroactiva_sin_tasa_aplicada_es_rechazada(self):
+        payload = self._payload_base(
+            fecha_pago='2025-10-15T10:00:00Z', motivo='Pago recibido el 15/10, cargado hoy',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('tasa_aplicada', resp.data)
+
+    def test_regresion_sin_fecha_pago_comportamiento_identico_al_actual(self):
+        """Sin fecha_pago, el resultado debe ser bit a bit igual al flujo
+        actual: tasa de hoy, sin exigir motivo, sin prefijo en observaciones."""
+        payload = self._payload_base()
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        pagos = Pago.objects.filter(alumno=self.alumno).order_by('id')
+        self.assertEqual(pagos.count(), 2)
+        for pago in pagos:
+            self.assertEqual(pago.tasa_aplicada, self.tasa_hoy.valor_bs)
+            self.assertNotIn('[CARGA RETROACTIVA]', pago.observaciones or '')
+            # fecha_pago debe ser "ahora" (no la fecha explícita de otros tests)
+            self.assertEqual(pago.fecha_pago.date(), timezone.now().date())
+
+
+class AdelantoRequiereUSDFlagTest(TestCase):
+    """Restricción de método de pago para adelantos de mensualidades
+    (PagoCreateSerializer.validate): gateada por
+    ConfiguracionSistema.adelantos_requieren_usd."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='cajero_adelanto_usd', password='password123', email='au@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.config = ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2025, 1, 1),
+            fecha_fin_inscripciones=date(2025, 12, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+            periodo_escolar_activo='2025-2026',
+        )
+        TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        self.representante = Representante.objects.create(
+            cedula='V40000003', nombre='Luisa', apellido='Rojas', correo='luisa@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Pedro', apellido='Rojas', cedula_escolar='E96000003',
+            fecha_nacimiento=date(2016, 2, 20), representante=self.representante,
+        )
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Adelanto USD Test', activo=True)
+        from .models import Mensualidad
+        self.mensualidad_futura = Mensualidad.objects.create(
+            alumno=self.alumno, mes=12, anio=2026, monto_usd=Decimal('30.00'),
+        )
+
+    def _payload(self, metodo_pago, **pago_overrides):
+        pago = {"metodo_pago": metodo_pago, "monto_usd": "30.00", "referencia": "ADEL-1"}
+        if metodo_pago not in ('efectivo', 'efectivo_ves'):
+            pago["banco_receptor_id"] = self.banco.id
+        if metodo_pago == 'transferencia':
+            pago["monto_ves"] = "1200.00"
+            del pago["monto_usd"]
+        pago.update(pago_overrides)
+        return {
+            "alumnos": [{
+                "alumno_id": self.alumno.id,
+                "mensualidad_adelanto_ids": [self.mensualidad_futura.id],
+            }],
+            "concepto": "mensualidad",
+            "pagos": [pago],
+        }
+
+    def test_flag_activo_por_defecto_rechaza_metodo_no_usd(self):
+        self.assertTrue(self.config.adelantos_requieren_usd)
+        payload = self._payload('transferencia')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('Los adelantos de mensualidades solo se pueden pagar con Zelle o', str(resp.data))
+        self.assertEqual(Pago.objects.filter(alumno=self.alumno).count(), 0)
+
+    def test_flag_activo_acepta_zelle(self):
+        payload = self._payload('zelle')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(Pago.objects.filter(alumno=self.alumno).count(), 1)
+
+    def test_flag_desactivado_permite_metodo_no_usd(self):
+        ConfiguracionSistema.objects.filter(id=self.config.id).update(adelantos_requieren_usd=False)
+        payload = self._payload('transferencia')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(Pago.objects.filter(alumno=self.alumno).count(), 1)
+
+
+class TasaPorFechaViewTest(TestCase):
+    """Endpoint C: GET cobranza/tasa/por-fecha/?fecha=YYYY-MM-DD."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username='cajero_tasa_fecha', password='password123', email='tf@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def _crear_tasa(self, valor, fecha_dt):
+        tasa = TasaCambio.objects.create(valor_bs=Decimal(valor))
+        TasaCambio.objects.filter(id=tasa.id).update(fecha=fecha_dt)
+        return tasa
+
+    def test_dia_con_tasa_exacta_y_varios_registros_devuelve_el_ultimo(self):
+        self._crear_tasa('80.0000', timezone.make_aware(datetime(2025, 10, 15, 8, 0, 0)))
+        self._crear_tasa('85.0000', timezone.make_aware(datetime(2025, 10, 15, 16, 0, 0)))
+
+        resp = self.client.get('/api/cobranza/tasa/por-fecha/', {'fecha': '2025-10-15'})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['valor'], '85.0000')
+        self.assertEqual(resp.data['fecha'], '2025-10-15')
+        self.assertTrue(resp.data['exacta'])
+
+    def test_dia_sin_tasa_devuelve_la_anterior_con_exacta_false(self):
+        self._crear_tasa('70.0000', timezone.make_aware(datetime(2025, 10, 10, 12, 0, 0)))
+
+        resp = self.client.get('/api/cobranza/tasa/por-fecha/', {'fecha': '2025-10-15'})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['valor'], '70.0000')
+        self.assertEqual(resp.data['fecha'], '2025-10-10')
+        self.assertFalse(resp.data['exacta'])
+
+    def test_sin_ninguna_tasa_registrada_devuelve_404(self):
+        resp = self.client.get('/api/cobranza/tasa/por-fecha/', {'fecha': '2025-10-15'})
+        self.assertEqual(resp.status_code, 404)
+
+    def test_fecha_ausente_devuelve_400(self):
+        resp = self.client.get('/api/cobranza/tasa/por-fecha/')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_fecha_mal_formada_devuelve_400(self):
+        resp = self.client.get('/api/cobranza/tasa/por-fecha/', {'fecha': '15-10-2025'})
+        self.assertEqual(resp.status_code, 400)

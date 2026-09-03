@@ -41,6 +41,7 @@ const BloqueDeudaAlumno = ({
     setMontoParcial,
     toggleFutura,
     tasa,
+    adelantosRequierenUSD,
 }) => {
     const mensualidades           = datos.mensualidades_pendientes || [];
     const mensualidadesFuturas    = datos.mensualidades_futuras || [];
@@ -312,24 +313,30 @@ const BloqueDeudaAlumno = ({
                 {mensualidadesFuturas.length > 0 && (
                     <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--border)' }}>
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#7c3aed', color: '#fff' }}>ADELANTO</span>
-                            <p className="text-[11px] uppercase tracking-widest" style={{ color: '#7c3aed' }}>Mensualidades futuras</p>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)', color: '#fff' }}>ADELANTO</span>
+                            <p className="text-[11px] uppercase tracking-widest" style={{ color: adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)' }}>Mensualidades futuras</p>
                         </div>
-                        <p className="text-[10px] mb-2 px-2 py-1.5 rounded-md flex items-center gap-1" style={{ background: '#ede9fe', color: '#7c3aed' }}>
-                            <DollarSign size={10} /> Solo disponible pagando con Efectivo USD o Zelle
-                        </p>
+                        {adelantosRequierenUSD && (
+                            <p className="text-[10px] mb-2 px-2 py-1.5 rounded-md flex items-center gap-1" style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                                <DollarSign size={10} /> Solo disponible pagando con Efectivo USD o Zelle
+                            </p>
+                        )}
                         <div className="space-y-2">
                             {mensualidadesFuturas.map(m => {
                                 const isSel   = selectedFuturas.includes(m.id);
                                 const ov      = montosParciales[`futura_${m.id}`];
                                 const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                const acento    = adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)';
+                                const acentoBg  = adelantosRequierenUSD ? '#ede9fe' : 'var(--pb-light)';
+                                const borderSuave = adelantosRequierenUSD ? '#d8b4fe' : 'var(--border)';
+                                const bgSuave      = adelantosRequierenUSD ? '#faf5ff' : 'var(--bg)';
                                 return (
                                     <div key={m.id}>
                                         <label
                                             className="flex items-center justify-between p-3 cursor-pointer transition-all"
                                             style={{
-                                                border: isSel ? '1.5px solid #7c3aed' : '0.5px solid #d8b4fe',
-                                                background: isSel ? '#ede9fe' : '#faf5ff',
+                                                border: isSel ? `1.5px solid ${acento}` : `0.5px solid ${borderSuave}`,
+                                                background: isSel ? acentoBg : bgSuave,
                                                 borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
                                             }}
                                         >
@@ -338,7 +345,7 @@ const BloqueDeudaAlumno = ({
                                                     type="checkbox"
                                                     checked={isSel}
                                                     onChange={() => toggleFutura(alu.id, m.id)}
-                                                    style={{ accentColor: '#7c3aed', width: 15, height: 15 }}
+                                                    style={{ accentColor: acento, width: 15, height: 15 }}
                                                     aria-label={`Adelanto ${m.mes} ${m.anio}`}
                                                 />
                                                 <div>
@@ -353,13 +360,13 @@ const BloqueDeudaAlumno = ({
                                         </label>
                                         {isSel && (
                                             <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
-                                                style={{ background: '#ede9fe', borderLeft: '1.5px solid #7c3aed', borderRight: '1.5px solid #7c3aed', borderBottom: '1.5px solid #7c3aed' }}>
-                                                <span className="text-[10px] font-medium flex-1" style={{ color: '#7c3aed' }}>Monto a abonar (USD):</span>
+                                                style={{ background: acentoBg, borderLeft: `1.5px solid ${acento}`, borderRight: `1.5px solid ${acento}`, borderBottom: `1.5px solid ${acento}` }}>
+                                                <span className="text-[10px] font-medium flex-1" style={{ color: acento }}>Monto a abonar (USD):</span>
                                                 <div className="relative">
                                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
                                                     <DecimalInput
                                                         className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
-                                                        style={{ border: '1px solid #7c3aed', background: '#fff', color: 'var(--jet)' }}
+                                                        style={{ border: `1px solid ${acento}`, background: '#fff', color: 'var(--jet)' }}
                                                         value={ov !== undefined ? ov : m.monto_usd}
                                                         onChange={v => setMontoParcial(alu.id, 'futura', m.id, v)}
                                                         max={parseFloat(m.monto_usd)}
@@ -370,7 +377,7 @@ const BloqueDeudaAlumno = ({
                                                     <button type="button"
                                                         onClick={() => setMontoParcial(alu.id, 'futura', m.id, m.monto_usd)}
                                                         className="text-[10px] px-2 py-1 rounded-md"
-                                                        style={{ background: '#7c3aed', color: '#fff' }}>
+                                                        style={{ background: acento, color: '#fff' }}>
                                                         Completo
                                                     </button>
                                                 )}
@@ -412,6 +419,7 @@ const CobranzaStep1 = ({
     totalGenUSD,
     setStep,
     haySeleccion,
+    adelantosRequierenUSD,
 }) => {
     const hayDeudaEnAlgunAlumno = alumnosRep.some(a =>
         (a.mensualidades_pendientes?.length || 0) +
@@ -599,6 +607,7 @@ const CobranzaStep1 = ({
                             setMontoParcial={setMontoParcial}
                             toggleFutura={toggleFutura}
                             tasa={tasa}
+                            adelantosRequierenUSD={adelantosRequierenUSD}
                         />
                     ))}
 

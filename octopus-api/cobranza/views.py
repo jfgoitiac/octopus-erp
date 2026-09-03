@@ -396,7 +396,7 @@ class RegistrarPagoView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        serializer = PagoCreateSerializer(data=request.data)
+        serializer = PagoCreateSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -418,6 +418,12 @@ class RegistrarPagoView(APIView):
                 )
 
         tasa   = data['tasa']
+        # Tasa efectiva de la operación: manual (histórica) si vino, si no
+        # la de hoy — resuelta en un solo lugar por el serializer (ver
+        # PagoCreateSerializer.validate) para no repetir la decisión aquí.
+        tasa_valor = data['tasa_valor']
+        fecha_pago_retroactiva = data.get('fecha_pago')
+        motivo_retroactivo = data.get('motivo')
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
 
@@ -457,10 +463,10 @@ class RegistrarPagoView(APIView):
 
             if monto_usd > 0:
                 monto_usd_final = monto_usd
-                monto_ves_final = (monto_usd * tasa.valor_bs).quantize(Decimal('0.01'))
+                monto_ves_final = (monto_usd * tasa_valor).quantize(Decimal('0.01'))
             elif monto_ves > 0:
                 monto_ves_final = monto_ves
-                monto_usd_final = (monto_ves / tasa.valor_bs).quantize(Decimal('0.01'))
+                monto_usd_final = (monto_ves / tasa_valor).quantize(Decimal('0.01'))
             else:
                 continue
 
@@ -474,6 +480,10 @@ class RegistrarPagoView(APIView):
                 # rompería la unicidad compuesta (referencia, método, banco).
                 banco = BancoInstitucional.objects.get(id=pago_item['banco_receptor_id'])
 
+            observaciones_item = pago_item.get('observaciones', '') or ''
+            if motivo_retroactivo:
+                observaciones_item = f"[CARGA RETROACTIVA] {motivo_retroactivo}\n{observaciones_item}"
+
             es_primer_pago = len(pagos_creados) == 0
             pago = Pago(
                 alumno=alumno_titular,
@@ -483,16 +493,18 @@ class RegistrarPagoView(APIView):
                 metodo_pago=metodo,
                 concepto=concepto,
                 monto_usd=monto_usd_final,
-                tasa_aplicada=tasa.valor_bs,
+                tasa_aplicada=tasa_valor,
                 monto_ves=monto_ves_final,
                 referencia=pago_item.get('referencia', '') or '',
                 numero_lote=pago_item.get('numero_lote', '') or '',
-                observaciones=pago_item.get('observaciones', '') or '',
+                observaciones=observaciones_item,
                 representante_documento=data.get('representante_documento', '') or '',
                 representante_nombre=data.get('representante_nombre', '') or '',
                 vuelto_usd=vuelto_usd if es_primer_pago else Decimal('0.00'),
                 vuelto_ves=vuelto_ves if es_primer_pago else Decimal('0.00'),
             )
+            if fecha_pago_retroactiva:
+                pago.fecha_pago = fecha_pago_retroactiva
             pago.save()
             pagos_creados.append(pago)
 
@@ -509,7 +521,12 @@ class RegistrarPagoView(APIView):
         from .recargos import resolver_recargo
         from .models import LineaRecargoPago
 
-        fecha_cobro = timezone.now()
+        # Con carga retroactiva, el recargo por mora y el fecha_pago de la
+        # Mensualidad deben reflejar la fecha REAL en que se recibió el
+        # dinero, no la fecha en que se cargó la operación en el sistema —
+        # de lo contrario se cobra o se exime el recargo según cuándo el
+        # cajero tipeó el pago, no según cuándo el representante pagó.
+        fecha_cobro = fecha_pago_retroactiva if fecha_pago_retroactiva else timezone.now()
         todas_mensualidades_qs = Mensualidad.objects.none()
         recargos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_usd':...}}
         for a in alumnos_resueltos:
@@ -1970,6 +1987,62 @@ class CargarPagoRetroactivoView(APIView):
             return Response(detail, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(PagoSerializer(pago).data, status=status.HTTP_201_CREATED)
+
+
+class TasaPorFechaView(APIView):
+    """
+    Consulta la tasa de cambio vigente para una fecha específica, para que
+    el operador pueda pre-cargar el campo `tasa_aplicada` de un pago
+    retroactivo (Cobranza o `pagos/retroactivo/`) con un valor sugerido en
+    vez de tener que buscarlo a mano.
+
+    GET ?fecha=YYYY-MM-DD
+
+    Resolución: el último TasaCambio con fecha__date == fecha (puede haber
+    varios registros ese mismo día, ordering=['-fecha'] en el modelo así
+    que .first() ya devuelve el más reciente) -> exacta=True. Si no hay
+    ninguno ese día, el más reciente ANTERIOR a esa fecha -> exacta=False,
+    con su fecha real. Si no existe ninguno -> 404.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request):
+        from datetime import datetime as _datetime
+
+        fecha_str = request.query_params.get('fecha')
+        if not fecha_str:
+            return Response(
+                {"error": "El parámetro 'fecha' es obligatorio (formato YYYY-MM-DD)."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            fecha = _datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"error": "Formato de fecha inválido. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        tasa_del_dia = TasaCambio.objects.filter(fecha__date=fecha).order_by('-fecha').first()
+        if tasa_del_dia:
+            return Response({
+                'valor': str(tasa_del_dia.valor_bs),
+                'fecha': str(fecha),
+                'exacta': True,
+            })
+
+        tasa_anterior = TasaCambio.objects.filter(fecha__date__lt=fecha).order_by('-fecha').first()
+        if tasa_anterior:
+            return Response({
+                'valor': str(tasa_anterior.valor_bs),
+                'fecha': str(timezone.localtime(tasa_anterior.fecha).date()),
+                'exacta': False,
+            })
+
+        return Response(
+            {"error": f"No hay ninguna tasa de cambio registrada en o antes de {fecha}."},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
 
 class ClasificacionPagoBatchCreateView(APIView):
