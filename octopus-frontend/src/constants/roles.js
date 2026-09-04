@@ -122,4 +122,10 @@ export const ROLE_GROUPS = {
 
   // Todos los roles del sistema
   TODOS: Object.values(ROLES),
+
+  // Dashboard: bloque "Solvencia por grado" — director, administrador,
+  // cobranza y sistemas. Nota: 'sistemas' normalmente NO participa de estos
+  // grupos (ver comentario arriba), pero el requerimiento de este bloque lo
+  // pide explícitamente en la lista de roles con acceso.
+  SOLVENCIA_DASHBOARD: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.SISTEMAS],
 };

@@ -781,3 +781,22 @@ nuevo `common/periodo.py::periodo_escolar_activo()`, para que `secretaria` pudie
 crear un ciclo de imports `secretaria → academico → secretaria`. `academico/services.py::_periodo_escolar_activo`
 se dejó como alias que delega en el helper nuevo (mismo comportamiento y mismo fallback), porque otros módulos de
 `academico` siguen importándolo por ese nombre.
+
+## Frontend — "Ocupación por grado" no es una Row propia de `Dashboard.jsx`
+
+El documento de tarea del módulo de Solvencia asumía que `pages/Dashboard.jsx` tenía un bloque "Ocupación por
+grado" como una Row independiente (Row 4) donde montar el nuevo bloque "Solvencia por grado" justo debajo. En
+el código real, "Ocupación por grado" es una `Card` colapsable (`ocupacionAbierta`) que vive DENTRO de
+`components/dashboard/InscripcionesBlock.jsx` (Row 2 de `Dashboard.jsx`), no una Row propia de `Dashboard.jsx`.
+Se montó `SolvenciaGradoBlock` inmediatamente después de `<InscripcionesBlock />` (que es donde vive
+"Ocupación por grado") para cumplir la intención del requerimiento sin inventar una Row que no existe. Anotado
+para que se revise si la ubicación visual final es la esperada.
+
+## Frontend — `ROLE_GROUPS.SOLVENCIA_DASHBOARD` rompe el patrón de exclusión de `sistemas`
+
+`constants/roles.js` documenta explícitamente que el rol `sistemas` NO participa de ningún `ROLE_GROUPS`
+existente ("quedó restringido a los 4 módulos de administración del sistema"). El requerimiento del bloque
+"Solvencia por grado" pide expresamente que `sistemas` vea ese bloque del Dashboard administrativo, así que se
+creó `ROLE_GROUPS.SOLVENCIA_DASHBOARD = [director, administrador, cobranza, sistemas]` rompiendo ese patrón a
+propósito. Queda anotado por si esto no era intencional a nivel de arquitectura de permisos — de ser un error,
+basta con quitar `ROLES.SISTEMAS` de ese array.

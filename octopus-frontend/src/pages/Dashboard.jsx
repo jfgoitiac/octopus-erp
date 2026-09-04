@@ -10,6 +10,7 @@ import KpiCard from '../components/dashboard/KpiCard';
 import DonutChart from '../components/dashboard/DonutChart';
 import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
 import InscripcionesBlock from '../components/dashboard/InscripcionesBlock';
+import SolvenciaGradoBlock from '../components/dashboard/SolvenciaGradoBlock';
 import { fmt } from '../utils/format';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -137,6 +138,13 @@ const Dashboard = () => {
 
             {/* ── Row 2: inscripciones (independiente del resto de este dashboard) ── */}
             <InscripcionesBlock />
+
+            {/* ── Solvencia por grado: inmediatamente debajo de "Ocupación por
+                 grado" (Card colapsable dentro de InscripcionesBlock, no una
+                 Row propia de este archivo — ver NOTAS_TECNICAS.md). Bloque
+                 autoabastecido, visible solo para
+                 director/administrador/cobranza/sistemas. ── */}
+            <SolvenciaGradoBlock />
 
             {/* ── Row 3: gráficas + cobranza ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
