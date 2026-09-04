@@ -825,3 +825,21 @@ mensualidades/inscripción/solvencia de alumnos retirados (`activo=False`) si ex
 El documento de tarea (PROMPT_MODULO_SOLVENCIA.md) no pide ese filtro para este endpoint en particular — es
 plausible que sea intencional (reporte de cobranza histórico completo, no solo alumnos activos), pero queda
 anotado por si el frontend espera ver solo alumnos activos aquí también, igual que en los otros dos reportes.
+
+## Infra — falta aplicar el fix de cache-control en el nginx de `app.clhma.com`
+
+El panel (`octopus-frontend`) usa `vite-plugin-pwa` con Service Worker (`vite.config.js`), y el Service Worker
+ahora se registra al arrancar la app (antes solo se registraba al activar push, ver `src/pwaUpdate.jsx` /
+`src/main.jsx`). Para que la detección de versión nueva sea rápida y pareja en todos los dispositivos, el nginx
+de cada colegio necesita cabeceras `Cache-Control` explícitas — sin eso, cada navegador decide por su cuenta
+cuánto cachear `index.html`/`sw.js`, lo que causa que algunos dispositivos no vean actualizaciones nuevas por
+mucho tiempo (o nunca hasta un cierre completo del navegador).
+
+Ya se aplicó en `app.clhmacoro.com` (2026-09-04): assets con hash de Vite → cache larga e inmutable;
+`sw.js`/`manifest.webmanifest`/`registerSW.js` → `no-cache`; `index.html` → `no-cache`. Config de referencia en
+`deploy/nginx/app.clhmacoro.com.conf` (este repo).
+
+**Falta aplicar el mismo parche en `app.clhma.com`** (el otro colegio) — ese nginx tampoco vive en este repo
+(ver `deploy/nginx/app.clhma.com.snippet.conf`), así que hay que pedirle el archivo real al servidor primero y
+adaptar el parche igual que se hizo acá, no copiar `app.clhmacoro.com.conf` a ciegas (los puertos/rutas pueden
+diferir).
