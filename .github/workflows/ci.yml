@@ -26,6 +26,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Migraciones (SQLite, solo para validar que no falten)
+        env:
+          DJANGO_SECRET_KEY: ci-only-key-no-es-secreto-real
+          DJANGO_DEBUG: 'True'
         run: python manage.py makemigrations --check --dry-run
 
       - name: Tests
