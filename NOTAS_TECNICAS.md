@@ -2,20 +2,26 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
-## ROADMAP — PARAMETRIZACIÓN MULTI-COLEGIO (venta fuera de AVEC/Venezuela)
+## ROADMAP — PARAMETRIZACIÓN MULTI-COLEGIO (venta a colegios de Venezuela no
+## afiliados a AVEC — alcance corregido 2026-09-04)
 
-Plan acordado con el usuario (2026-09-03) para dejar de asumir "colegio AVEC en
-Venezuela" en todo el sistema. Solo planificación — nada de esto está implementado
-todavía, se ejecuta fase por fase con aprobación previa.
+Plan acordado con el usuario (2026-09-03) para dejar de asumir "colegio afiliado
+a AVEC" en todo el sistema. **Corrección del usuario (2026-09-04): el software
+es solo para Venezuela** — no hace falta soportar otros países. Esto elimina de
+alcance todo lo que fuera multi-país/multi-moneda; el único eje de genericidad
+real es "afiliado a AVEC" vs. "no afiliado a AVEC", ambos dentro de Venezuela.
+Solo planificación — nada de esto está implementado todavía, se ejecuta fase
+por fase con aprobación previa.
 
 ### Fase A — Identidad y encabezado del colegio (bajo riesgo)
-- `ConfiguracionSistema`: agregar `pais`, `tipo_documento_identidad`,
-  `moneda_local`, `nombre_fuente_tasa_cambio` (genérico, no "BCV" fijo).
+- ~~`ConfiguracionSistema`: agregar `pais`, `tipo_documento_identidad`,
+  `moneda_local`, `nombre_fuente_tasa_cambio`~~ — **descartado**: el software
+  es solo para Venezuela, no hace falta parametrizar país/moneda/documento de
+  identidad. `validarCedula` (formato `V/E-######`) y el USD/Bs con tasa BCV
+  se mantienen como están, no son deuda a resolver.
 - Sacar el texto/logo de afiliación AVEC de los recibos: campos opcionales
   `afiliacion_nombre` / `afiliacion_logo` en `ConfiguracionSistema`, vacíos por
-  defecto (no todos los colegios están afiliados a nada).
-- `validarCedula` (`constants/avec.js`): dejar de exigir formato `V/E-######`
-  por defecto; validar solo si `pais === 'VE'`, texto libre en otro caso.
+  defecto (no todos los colegios venezolanos están afiliados a AVEC).
 - **Encabezado de recibos — decisión tomada: opción de imagen, no extracción
   de PDF/Word.** Se descartó parsear/extraer el encabezado de un documento
   subido (frágil: cada colegio maqueta su membrete distinto, logos como
@@ -131,23 +137,24 @@ confirma que en realidad son **tres capas**, no dos:
   "categoría D-III", tiene su propia escala salarial (o ninguna).
 - **Capa 3 — Deducciones legales de Venezuela**: SSO/SPF/FAOV (frontend) o
   SSO/LPH (backend, `ParametroLegalNomina`) — son ley venezolana, no de
-  AVEC. Un colegio venezolano no afiliado a AVEC *igual* las paga; un
-  colegio fuera de Venezuela no debería verlas en absoluto.
+  AVEC. Un colegio venezolano no afiliado a AVEC *igual* las paga.
+  **Corrección (2026-09-04): el software es solo para Venezuela**, así que
+  esta capa no necesita ningún flag de país — se calcula siempre, para todo
+  colegio, afiliado o no a AVEC. No es deuda a resolver, ya funciona como
+  debe (queda descrito aquí solo para que quede claro que no es parte del
+  plugin AVEC, es universal dentro de este software).
 
 **Implicación para el plan**: el interruptor `convenio_nomina` solo debe
-activar/desactivar la Capa 2 (la escala AVEC). Las Capas 1 y 3 necesitan
-sus propios interruptores/configuración independientes:
+activar/desactivar la Capa 2 (la escala AVEC). La Capa 1 necesita su propia
+configuración independiente; la Capa 3 no necesita ningún cambio (ya aplica
+siempre, correctamente):
 - Capa 1 → conectar `ConceptoNomina` como el motor genérico de
   antigüedad/hijos/postgrado, editable por cualquier colegio (no requiere
   ser AVEC para tener prima por hijos).
-- Capa 3 → un flag de "aplica legislación venezolana (SSO/SPF/FAOV)" o
-  directamente delegarlo a `pais` (Fase A) — si `pais !== 'VE'`, no se
-  calculan ni se muestran.
-Esto agranda la Fase B/C (ya no es un solo interruptor sino tres piezas
-independientes que pueden combinarse), pero evita el error de asumir que
-"colegio no-AVEC" implica "sin antigüedad ni prima por hijos" — eso rompería
-la propuesta de valor para colegios no afiliados que sí quieren esos
-beneficios, solo que con sus propios montos/porcentajes.
+- Capa 3 → sin cambios, sigue calculándose siempre para todo colegio.
+Esto evita el error de asumir que "colegio no-AVEC" implica "sin antigüedad
+ni prima por hijos" — eso rompería la propuesta de valor para colegios no
+afiliados que sí quieren esos beneficios, solo que con sus propios montos.
 
 **Contenido real del plugin AVEC** (`constants/convenios/avec_ve.js` —
 solo Capa 2, exclusivo de colegios afiliados; todo lo demás se saca de aquí
@@ -3058,3 +3065,54 @@ anotados):
   una cuarta clave propagable (con su propio criterio de "vencida", si
   aplica, ya que hoy `CuotaSolvencia` no tiene fecha límite propia — ver
   `cobranza/mora.py::_condicion_mora`).
+
+## DIAGNÓSTICO — TOGGLE "ADELANTOS REQUIEREN USD" SIN EFECTO EN COBRANZA (2026-09-04)
+
+Bug reportado: al desactivar `ConfiguracionSistema.adelantos_requieren_usd`
+desde Configuración, Cobranza seguía comportándose como si el toggle
+estuviera activo. Diagnóstico de punta a punta con evidencia (no por
+inspección a ojo):
+
+- **Backend verificado correcto en las 3 capas**: `useConfiguracion.js`
+  (`handleSaveConfig`) arma el payload con `{...config}` sin filtrar
+  falsy/spread condicional, así que `adelantos_requieren_usd: false` sí
+  viaja en el POST. `ConfiguracionSistemaView.post` + `ConfiguracionSistemaSerializer`
+  (`fields = '__all__'`, sin overrides del campo) lo persisten normalmente.
+  `PagoCreateSerializer.validate` (`cobranza/serializers.py:703-714`) lee
+  `config.adelantos_requieren_usd` correctamente (`not config or
+  config.adelantos_requieren_usd`, sin tratar `False` como "ausente").
+  Confirmado con un script que ejecuta el flujo real GET→toggle
+  false→POST→refresh_from_db()→GET, y con el nuevo test
+  `AdelantoRequiereUSDFlagTest.test_desactivar_flag_desde_endpoint_de_configuracion_surte_efecto`
+  (`cobranza/tests.py`) — a diferencia del test preexistente
+  `test_flag_desactivado_permite_metodo_no_usd`, que hacía
+  `ConfiguracionSistema.objects.filter(id=...).update(adelantos_requieren_usd=False)`
+  directo en BD, **sin pasar nunca por el endpoint real de guardado** — por
+  eso la suite existente pasaba en verde aunque el guardado real desde el
+  frontend estuviera roto (no lo estaba, pero el test no lo habría detectado
+  de estarlo).
+- **Causa raíz real — hipótesis (c), lectura cacheada en el componente**:
+  `Cobranza.jsx` leía `adelantos_requieren_usd` con un `useEffect(() => {...},
+  [])` que corre **una sola vez, al montar el componente**. Como esta
+  pantalla suele quedar abierta toda la jornada de cobranza (el cajero no
+  necesariamente navega fuera y vuelve a entrar), si un admin desactivaba el
+  toggle en otra pestaña/sesión mientras el cajero ya tenía Cobranza montada,
+  la validación cliente seguía usando el `true` leído al abrir la pantalla —
+  el backend sí habría aceptado el pago igual (es la fuente de verdad real),
+  pero el frontend bloqueaba antes de llegar a enviarlo.
+- **Fix aplicado** (mínimo, sin tocar comportamiento ajeno al flag):
+  `fetchAdelantosRequierenUSD` se extrajo a función reutilizable y ahora se
+  vuelve a invocar al inicio de `handleSubmit`, justo antes de validar
+  `requiereDivisas`/`todosDivisas` — así la validación del envío usa siempre
+  el valor vigente en BD, sin necesidad de recargar la página. El fetch de
+  montaje (para el badge visual "ADELANTO" en `CobranzaStep1.jsx`) se dejó
+  igual, ya que ahí el costo de un dato ligeramente desactualizado es solo
+  cosmético.
+- **Deuda adyacente anotada, no implementada**: el mismo patrón ("fetch de
+  configuración una sola vez al montar, sin invalidación") existe en otros
+  hooks que leen `ConfiguracionSistema` u otras configuraciones globales
+  (ej. `useConfiguracion.js` mismo, `useConfiguracionNotificaciones.js`). No
+  se auditaron todos por estar fuera del alcance de este bug puntual; si se
+  reporta un síntoma similar en otro módulo, revisar primero si el dato se
+  relee en el momento de la acción crítica (como se hizo aquí) en vez de
+  solo al montar.

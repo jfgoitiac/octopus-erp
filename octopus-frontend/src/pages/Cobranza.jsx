@@ -356,11 +356,22 @@ const Cobranza = () => {
         };
     }, [location.search, buscarAlumno]);
 
-    useEffect(() => {
-        axiosInstance.get('secretaria/configuracion/')
-            .then(res => setAdelantosRequierenUSD(res.data?.adelantos_requieren_usd ?? true))
-            .catch(() => {});
+    // Se relee en cada envío (ver handleSubmit) además de al montar: el
+    // toggle vive en Configuración y esta pantalla suele quedar abierta toda
+    // la jornada, así que un fetch único al montar podía validar contra un
+    // valor ya desactualizado si el admin cambiaba el flag en otra pestaña.
+    const fetchAdelantosRequierenUSD = useCallback(async () => {
+        try {
+            const res = await axiosInstance.get('secretaria/configuracion/');
+            const valor = res.data?.adelantos_requieren_usd ?? true;
+            setAdelantosRequierenUSD(valor);
+            return valor;
+        } catch {
+            return null; // fetch falló: handleSubmit conserva el último valor conocido
+        }
     }, []);
+
+    useEffect(() => { fetchAdelantosRequierenUSD(); }, [fetchAdelantosRequierenUSD]);
 
     // Alterna la inclusión de un alumno en la operación de pago (checkbox).
     const toggleAlumno = (alu) => {
@@ -407,7 +418,12 @@ const Cobranza = () => {
     const handleSubmit = async (e) => {
         e?.preventDefault();
         if (alumnosSeleccionados.length === 0) { toast.error('Selecciona al menos un alumno.'); return; }
-        if (requiereDivisas && !todosDivisas) {
+        // Relee el flag justo antes de validar: si el admin lo desactivó en
+        // Configuración mientras esta pantalla estaba abierta, el valor en
+        // estado puede estar desactualizado (ver fetchAdelantosRequierenUSD).
+        const flagVigente = await fetchAdelantosRequierenUSD();
+        const restriccionVigente = (flagVigente ?? adelantosRequierenUSD) && hayAdelantos;
+        if ((restriccionVigente || hayParciales) && !todosDivisas) {
             toast.error('Los adelantos y pagos parciales requieren Efectivo USD o Zelle como método de pago.');
             return;
         }

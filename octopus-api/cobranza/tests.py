@@ -1679,6 +1679,31 @@ class AdelantoRequiereUSDFlagTest(TestCase):
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertEqual(Pago.objects.filter(alumno=self.alumno).count(), 1)
 
+    def test_desactivar_flag_desde_endpoint_de_configuracion_surte_efecto(self):
+        """Regresión: apagar el toggle vía el endpoint real que usa el
+        frontend (POST secretaria/configuracion/, no un .update() directo en
+        BD) debe persistir `false` y que cobranza lo respete de inmediato."""
+        self.assertTrue(self.config.adelantos_requieren_usd)
+
+        # Simula el payload que arma useConfiguracion.handleSaveConfig(): el
+        # objeto de configuración completo, con el booleano en false.
+        get_resp = self.client.get('/api/secretaria/configuracion/')
+        self.assertEqual(get_resp.status_code, 200, get_resp.content)
+        payload_config = dict(get_resp.data)
+        payload_config['adelantos_requieren_usd'] = False
+
+        post_resp = self.client.post('/api/secretaria/configuracion/', payload_config, format='json')
+        self.assertEqual(post_resp.status_code, 200, post_resp.content)
+        self.assertFalse(post_resp.data.get('adelantos_requieren_usd'))
+
+        self.config.refresh_from_db()
+        self.assertFalse(self.config.adelantos_requieren_usd)
+
+        payload_pago = self._payload('transferencia')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload_pago, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(Pago.objects.filter(alumno=self.alumno).count(), 1)
+
 
 class TasaPorFechaViewTest(TestCase):
     """Endpoint C: GET cobranza/tasa/por-fecha/?fecha=YYYY-MM-DD."""
