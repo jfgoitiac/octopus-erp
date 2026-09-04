@@ -58,3 +58,27 @@ export const cargarPagoRetroactivo = (payload, signal) =>
 
 export const anularPago = (pagoId, motivo, signal) =>
     apiClient.post(`cobranza/pagos/${pagoId}/anular/`, { motivo }, { signal });
+
+/* ── Módulo de Solvencia (dashboard, reportes por concepto, estado de cuenta) ── */
+
+export const getConceptosCobrables = (signal) =>
+    apiClient.get('cobranza/conceptos-cobrables/', { signal });
+
+export const getSolvenciaMensual = (params, signal) =>
+    apiClient.get('cobranza/solvencia-mensual/', { params, signal });
+
+export const getResumenPorConcepto = (params, signal) =>
+    apiClient.get('cobranza/estado-por-concepto/resumen/', { params, signal });
+
+export const getEstadoPorConcepto = (params, signal) =>
+    apiClient.get('cobranza/estado-por-concepto/', { params, signal });
+
+export const exportarEstadoPorConceptoExcel = (params, signal) =>
+    apiClient.get('cobranza/estado-por-concepto/exportar-excel/', {
+        params,
+        responseType: 'blob',
+        signal,
+    });
+
+export const getEstadoCuentaRepresentante = (representanteId, params, signal) =>
+    apiClient.get(`cobranza/representantes/${representanteId}/estado-cuenta/`, { params, signal });
