@@ -295,6 +295,12 @@ class PortalDashboardView(APIView):
         proximos_vencimientos = []
         otros_conceptos_pendientes = []
 
+        # Compartida entre todas las mensualidades de todos los alumnos para
+        # que MensualidadSerializer resuelva la regla de recargo una sola vez
+        # por request (a lo sumo 1 query), no una por mensualidad (N+1, ver
+        # PortalDashboardNPlusOneTest).
+        cache_reglas_recargo = {}
+
         for alumno in alumnos:
             pendientes = pendientes_por_alumno.get(alumno.id, [])
 
@@ -310,8 +316,9 @@ class PortalDashboardView(APIView):
                 if m.anio > hoy.year or (m.anio == hoy.year and m.mes > hoy.month)
             ][:2]
 
-            vencidas_data = MensualidadSerializer(vencidas, many=True).data
-            futuras_data = MensualidadSerializer(futuras, many=True).data
+            serializer_context = {'cache_reglas': cache_reglas_recargo}
+            vencidas_data = MensualidadSerializer(vencidas, many=True, context=serializer_context).data
+            futuras_data = MensualidadSerializer(futuras, many=True, context=serializer_context).data
 
             # Acumular datos enriquecidos con nombre del alumno
             alumno_nombre = f"{alumno.nombre} {alumno.apellido}"

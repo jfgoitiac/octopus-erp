@@ -201,14 +201,22 @@ class MensualidadSerializer(serializers.ModelSerializer):
     def _resultado_recargo(self, obj):
         """Cachea el resultado en el propio objeto (atributo transitorio, no
         persistido) para no repetir la resolución 3 veces por mensualidad
-        (una por cada campo monto_recargo/nombre_recargo/monto_total)."""
+        (una por cada campo monto_recargo/nombre_recargo/monto_total).
+
+        `context['cache_reglas']` (dict opcional, compartido entre instancias
+        de la misma llamada many=True) evita además repetir la query de la
+        regla activa por cada mensualidad de la lista -- sin esto, serializar
+        N mensualidades disparaba N queries a ReglaRecargoPago (N+1, ver
+        PortalDashboardNPlusOneTest). Mismo patrón que ya usa la versión bulk
+        en cobranza/recargos.py::calcular_recargos_para_alumnos."""
         if hasattr(obj, '_recargo_resuelto_cache'):
             return obj._recargo_resuelto_cache
         if obj.pagado:
             resultado = None
         else:
             from cobranza.recargos import resolver_recargo
-            resultado = resolver_recargo(obj, date.today())
+            cache_reglas = self.context.get('cache_reglas')
+            resultado = resolver_recargo(obj, date.today(), _cache_reglas=cache_reglas)
         obj._recargo_resuelto_cache = resultado
         return resultado
 
