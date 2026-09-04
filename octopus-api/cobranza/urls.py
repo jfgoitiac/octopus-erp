@@ -44,6 +44,14 @@ from .views import (
     TipoCargoEspecialDetailView,
     TipoCargoEspecialListCreateView,
 )
+from .solvencia_reportes import (
+    ConceptosCobrablesView,
+    EstadoCuentaRepresentanteView,
+    EstadoPorConceptoView,
+    ExportarEstadoPorConceptoExcelView,
+    ResumenPorConceptoView,
+    SolvenciaMensualView,
+)
 
 _reglas_recargo_list = ReglaRecargoPagoViewSet.as_view({'get': 'list', 'post': 'create'})
 _reglas_recargo_detail = ReglaRecargoPagoViewSet.as_view({
@@ -95,4 +103,10 @@ urlpatterns = [
     path('reporte-becas/',                 ReporteCostoBecasView.as_view(),        name='reporte-costo-becas'),
     path('reglas-recargo-pago/',           _reglas_recargo_list,                   name='reglas-recargo-pago-list'),
     path('reglas-recargo-pago/<int:pk>/',  _reglas_recargo_detail,                 name='reglas-recargo-pago-detail'),
+    path('conceptos-cobrables/',           ConceptosCobrablesView.as_view(),       name='conceptos-cobrables'),
+    path('solvencia-mensual/',             SolvenciaMensualView.as_view(),         name='solvencia-mensual'),
+    path('estado-por-concepto/resumen/',   ResumenPorConceptoView.as_view(),       name='estado-por-concepto-resumen'),
+    path('estado-por-concepto/exportar-excel/', ExportarEstadoPorConceptoExcelView.as_view(), name='estado-por-concepto-exportar-excel'),
+    path('estado-por-concepto/',           EstadoPorConceptoView.as_view(),        name='estado-por-concepto'),
+    path('representantes/<int:representante_id>/estado-cuenta/', EstadoCuentaRepresentanteView.as_view(), name='representante-estado-cuenta'),
 ]
