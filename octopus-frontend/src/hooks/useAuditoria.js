@@ -1,6 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+
+const LOGS_PAGE_SIZE = 25;
 
 async function descargarExcel(url, params, filename) {
     const res = await axiosInstance.get(url, { params, responseType: 'blob' });
@@ -14,13 +16,15 @@ async function descargarExcel(url, params, filename) {
     URL.revokeObjectURL(blobUrl);
 }
 
-export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS') {
+export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS', page = 1, busqueda = '') {
     const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting]   = useState(false);
     const [exportingPagos, setExportingPagos] = useState(false);
     const [reporte, setReporte]       = useState(null);
     const [logs, setLogs]             = useState([]);
+    const [totalLogs, setTotalLogs]   = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
     const [error, setError]           = useState(null);
 
     const fetchAuditoria = useCallback(async (isRefresh = false) => {
@@ -32,8 +36,18 @@ export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS') {
             axiosInstance.get('cobranza/auditoria-diaria/', {
                 params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin },
             }),
+            // El log de auditoría siempre viene paginado desde el backend:
+            // el total de registros disponibles nunca se limita, solo se
+            // trae de a "page_size" por vez para no saturar la página.
             axiosInstance.get('secretaria/auditoria/', {
-                params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin, page_size: 200 },
+                params: {
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin,
+                    modulo: modulo !== 'TODOS' ? modulo : undefined,
+                    q: busqueda || undefined,
+                    page,
+                    page_size: LOGS_PAGE_SIZE,
+                },
             }),
         ]);
 
@@ -48,12 +62,10 @@ export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS') {
         }
 
         if (resLogs.status === 'fulfilled') {
-            const data = resLogs.value.data?.results ?? resLogs.value.data ?? [];
-            setLogs(
-                data.slice().sort((a, b) =>
-                    new Date(b.fecha_hora || b.fecha) - new Date(a.fecha_hora || a.fecha)
-                )
-            );
+            const data = resLogs.value.data ?? {};
+            setLogs(data.results ?? []);
+            setTotalLogs(data.total ?? 0);
+            setTotalPages(data.total_pages ?? 1);
         } else {
             const msg = resLogs.reason?.response?.status === 403
                 ? 'Sin permisos para ver el historial de operaciones.'
@@ -63,9 +75,13 @@ export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS') {
 
         setLoading(false);
         setRefreshing(false);
-    }, [fechaInicio, fechaFin]);
+    }, [fechaInicio, fechaFin, modulo, page, busqueda]);
 
-    useEffect(() => { fetchAuditoria(); }, [fetchAuditoria]);
+    const hasLoadedOnce = useRef(false);
+    useEffect(() => {
+        fetchAuditoria(hasLoadedOnce.current);
+        hasLoadedOnce.current = true;
+    }, [fetchAuditoria]);
 
     const exportarExcel = useCallback(async () => {
         setExporting(true);
@@ -100,7 +116,8 @@ export function useAuditoria(fechaInicio, fechaFin, modulo = 'TODOS') {
     }, [fechaInicio, fechaFin]);
 
     return {
-        loading, refreshing, exporting, exportingPagos, reporte, logs, error,
+        loading, refreshing, exporting, exportingPagos, reporte, logs,
+        totalLogs, totalPages, error,
         refetch: fetchAuditoria, exportarExcel, exportarPagosExcel,
     };
 }

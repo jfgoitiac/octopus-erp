@@ -79,9 +79,13 @@ def fecha_en_cierre_validado(usuario, fecha):
 
 def fecha_dentro_periodo_activo(fecha):
     """
-    Verifica que `fecha` caiga dentro del período escolar activo
-    (ConfiguracionSistema.periodo_escolar_activo, ej. "2025-2026" -> del
-    1-sept-2025 al 31-ago-2026). Devuelve (bool, mensaje_error|None).
+    Verifica que `fecha` no sea posterior al fin del período escolar activo
+    (ConfiguracionSistema.periodo_escolar_activo, ej. "2025-2026" -> hasta el
+    31-ago-2026). Devuelve (bool, mensaje_error|None).
+
+    Sin límite inferior a propósito: los representantes suelen transferir
+    por adelantado, antes de que arranque el período (ej. pagan en julio lo
+    que corresponde a septiembre), y esos pagos deben poder cargarse igual.
     """
     periodo = periodo_activo()
     if not periodo:
@@ -95,15 +99,14 @@ def fecha_dentro_periodo_activo(fecha):
     if not match:
         return False, f"El período escolar activo ('{periodo}') tiene un formato inválido."
 
-    anio_inicio, anio_fin = int(match.group(1)), int(match.group(2))
-    inicio = timezone.datetime(anio_inicio, 9, 1).date()
+    anio_fin = int(match.group(2))
     fin = timezone.datetime(anio_fin, 8, 31).date()
 
     fecha_cmp = fecha.date() if hasattr(fecha, 'date') else fecha
-    if not (inicio <= fecha_cmp <= fin):
+    if fecha_cmp > fin:
         return False, (
-            f"La fecha del pago retroactivo ({fecha_cmp}) está fuera del período "
-            f"escolar activo vigente ({inicio} al {fin})."
+            f"La fecha del pago retroactivo ({fecha_cmp}) es posterior al fin del período "
+            f"escolar activo vigente ({fin})."
         )
 
     return True, None

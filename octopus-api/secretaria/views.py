@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -1439,26 +1439,39 @@ class LogAuditoriaListView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
 
     def get(self, request):
+        from django.db.models import Q
         from django.utils.dateparse import parse_date
         logs = LogAuditoria.objects.select_related('usuario').all().order_by('-id')
 
         fecha_inicio = request.query_params.get('fecha_inicio')
         fecha_fin = request.query_params.get('fecha_fin')
         modulo = request.query_params.get('modulo')
+        busqueda = request.query_params.get('q')
         if fecha_inicio:
             logs = logs.filter(fecha_hora__date__gte=parse_date(fecha_inicio))
         if fecha_fin:
             logs = logs.filter(fecha_hora__date__lte=parse_date(fecha_fin))
         if modulo and modulo.upper() != 'TODOS':
             logs = logs.filter(modulo__iexact=modulo)
-
-        try:
-            page = max(1, int(request.query_params.get('page', 1)))
-            page_size = min(200, max(1, int(request.query_params.get('page_size', 200))))
-        except (ValueError, TypeError):
-            page, page_size = 1, 200
+        if busqueda:
+            logs = logs.filter(
+                Q(accion__icontains=busqueda) |
+                Q(usuario__username__icontains=busqueda) |
+                Q(usuario__first_name__icontains=busqueda) |
+                Q(usuario__last_name__icontains=busqueda)
+            )
 
         total = logs.count()
+
+        # page_size solo limita cuántos registros viajan por página (para no
+        # saturar el navegador); el total de registros disponibles (arriba)
+        # y la cantidad de páginas nunca se limitan artificialmente.
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(200, max(1, int(request.query_params.get('page_size', 25))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 25
+
         offset = (page - 1) * page_size
         logs_pagina = logs[offset:offset + page_size]
 
@@ -2074,3 +2087,193 @@ class BecaViewSet(
         beca.motivo_revocacion = request.data.get('motivo', '')
         beca.save(update_fields=['estado', 'revocada_por', 'fecha_revocacion', 'motivo_revocacion'])
         return Response(BecaSerializer(beca).data)
+
+
+# ─────────────────────────────────────────────
+# INDICADOR DE INSCRIPCIONES (Dashboard administrativo)
+# ─────────────────────────────────────────────
+class InscripcionStatsView(APIView):
+    """Indicador de inscripciones para el Dashboard administrativo — mismo
+    estilo que cobranza.views.DashboardStatsView (aggregate/annotate a mano,
+    sin serializer ni paginación).
+
+    Ver NOTAS_TECNICAS.md: `ConfiguracionGrado` no está sedeada, así que
+    `ocupacion.por_grado` queda global aunque el resto del indicador se
+    filtre por la sede del usuario, y queda duplicada con la ocupación por
+    grado que ya expone `cobranza/stats/` (DashboardStatsView).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Count, Min, Max
+        from django.db.models.functions import TruncMonth
+        from cobranza.permissions import filtrar_por_sede
+        from common.periodo import periodo_escolar_activo
+
+        config = ConfiguracionSistema.objects.first()
+        periodo_query = request.query_params.get('periodo')
+
+        # Criterio del 400: no hay NINGUNA ConfiguracionSistema cargada Y
+        # tampoco se pasó ?periodo= explícito. El fallback hardcodeado del
+        # helper compartido (common.periodo.periodo_escolar_activo, usado por
+        # otros consumidores como `academico`) no se usa aquí a propósito:
+        # este indicador nuevo prefiere fallar con un mensaje claro antes que
+        # mostrar cifras de un período inventado ("2025-2026" a ciegas).
+        if not periodo_query and config is None:
+            return Response(
+                {"error": "No hay configuración de período escolar activo. Configure el sistema antes de consultar este indicador."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        periodo = periodo_query or periodo_escolar_activo()
+
+        qs = filtrar_por_sede(
+            request.user,
+            Inscripcion.objects.filter(periodo_escolar=periodo),
+            campo='alumno__sede',
+        )
+
+        total_inscritos = qs.count()
+
+        # --- por_tipo_ingreso ---
+        conteos_tipo = {
+            row['tipo_ingreso']: row['total']
+            for row in qs.values('tipo_ingreso').annotate(total=Count('id'))
+        }
+        por_tipo_ingreso = {
+            'nuevo_ingreso': conteos_tipo.get('nuevo', 0),
+            'regular':       conteos_tipo.get('regular', 0),
+        }
+
+        # --- mes_actual: mes en curso vs mes anterior ---
+        ahora = timezone.now()
+        anio_actual, mes_actual_num = ahora.year, ahora.month
+        if mes_actual_num == 1:
+            anio_anterior, mes_anterior_num = anio_actual - 1, 12
+        else:
+            anio_anterior, mes_anterior_num = anio_actual, mes_actual_num - 1
+
+        cantidad_mes_actual = qs.filter(
+            fecha_inscripcion__year=anio_actual, fecha_inscripcion__month=mes_actual_num,
+        ).count()
+        cantidad_mes_anterior = qs.filter(
+            fecha_inscripcion__year=anio_anterior, fecha_inscripcion__month=mes_anterior_num,
+        ).count()
+
+        if cantidad_mes_anterior == 0:
+            # División por cero indefinida: se reporta `null` (None) en vez de
+            # inventar un 0.0 o un 100% — sea porque no hubo inscripciones el
+            # mes anterior ni tampoco este (sin variación real que mostrar), o
+            # porque hubo inscripciones nuevas partiendo de una base de 0 (el
+            # porcentaje de crecimiento no es un número finito). El frontend
+            # decide cómo representar `null` (ej. "N/A").
+            variacion_pct = None
+        else:
+            variacion_pct = round(
+                (cantidad_mes_actual - cantidad_mes_anterior) / cantidad_mes_anterior * 100, 2
+            )
+
+        mes_actual = {
+            'mes':           f"{anio_actual:04d}-{mes_actual_num:02d}",
+            'cantidad':      cantidad_mes_actual,
+            'variacion_pct': variacion_pct,
+        }
+
+        # --- documentos_pendientes ---
+        documentos_pendientes = qs.filter(documentos_completos=False).count()
+
+        # --- ocupacion ---
+        inscritos_por_grado = {
+            row['grado_seccion']: row['total']
+            for row in qs.values('grado_seccion').annotate(total=Count('id'))
+        }
+        # ConfiguracionGrado no está sedeada (deuda técnica ya conocida, ver
+        # NOTAS_TECNICAS.md): se listan TODAS las configuraciones existentes,
+        # cruzadas contra los inscritos del queryset ya filtrado por sede y
+        # período. El cruce en sí es correcto; el catálogo de grados que se
+        # cruza es global.
+        configs_grado = list(ConfiguracionGrado.objects.order_by('grado_seccion'))
+        por_grado = []
+        for cfg in configs_grado:
+            inscritos = inscritos_por_grado.get(cfg.grado_seccion, 0)
+            pct = round(inscritos / cfg.cupos_maximos * 100, 2) if cfg.cupos_maximos else 0.0
+            por_grado.append({
+                'grado_seccion':     cfg.grado_seccion,
+                'inscritos':         inscritos,
+                'cupos_maximos':     cfg.cupos_maximos,
+                'cupos_disponibles': cfg.cupos_disponibles,
+                'pct':               pct,
+                'sin_cupos':         cfg.cupos_disponibles == 0,
+            })
+
+        # global_pct: se decidió como inscritos totales del período / suma de
+        # cupos_maximos de TODOS los grados existentes (no solo los que
+        # tienen alguna inscripción este período), para que sea consistente
+        # con `por_grado` (que también lista todos los grados existentes) y
+        # no varíe según qué grados resulten con inscripciones.
+        total_cupos_maximos = sum(cfg.cupos_maximos for cfg in configs_grado)
+        global_pct = round(total_inscritos / total_cupos_maximos * 100, 2) if total_cupos_maximos else 0.0
+
+        ocupacion = {
+            'global_pct': global_pct,
+            'por_grado':  por_grado,
+        }
+
+        # --- serie_mensual ---
+        if config and config.fecha_inicio_ano_escolar and config.fecha_fin_ano_escolar:
+            fecha_inicio_rango = config.fecha_inicio_ano_escolar
+            fecha_fin_rango = config.fecha_fin_ano_escolar
+        else:
+            # Solo puede pasar si se pasó ?periodo= a mano sin ninguna
+            # ConfiguracionSistema cargada (si no, ya se respondió 400 arriba):
+            # no hay fecha_inicio/fin de año escolar de dónde generar el
+            # rango. Se usa el rango real de fechas de inscripción del propio
+            # queryset filtrado como mejor aproximación disponible; si no hay
+            # ninguna inscripción, la serie queda vacía.
+            rango = qs.aggregate(inicio=Min('fecha_inscripcion'), fin=Max('fecha_inscripcion'))
+            fecha_inicio_rango = rango['inicio'].date() if rango['inicio'] else None
+            fecha_fin_rango = rango['fin'].date() if rango['fin'] else None
+
+        serie_mensual = []
+        if fecha_inicio_rango and fecha_fin_rango:
+            conteos_mes = {
+                (row['mes'].year, row['mes'].month): row['cantidad']
+                for row in qs.annotate(mes=TruncMonth('fecha_inscripcion')).values('mes').annotate(cantidad=Count('id'))
+            }
+            y, m = fecha_inicio_rango.year, fecha_inicio_rango.month
+            while (y, m) <= (fecha_fin_rango.year, fecha_fin_rango.month):
+                serie_mensual.append({
+                    'mes':      f"{y:04d}-{m:02d}",
+                    'cantidad': conteos_mes.get((y, m), 0),
+                })
+                m += 1
+                if m > 12:
+                    m = 1
+                    y += 1
+
+        # --- visible: si el bloque de indicadores de inscripciones debe
+        # mostrarse HOY en el Dashboard administrativo. Ventana ampliada
+        # (-5 días antes de apertura / +15 días después de cierre) respecto
+        # a la ventana exacta que usa `ConfiguracionSistema.inscripciones_abiertas`.
+        # Si el caller pidió explícitamente un `periodo` por query param
+        # (típicamente uno histórico distinto al activo), se ignora la fecha
+        # de hoy y siempre se responde visible=True: un admin consultando un
+        # período pasado a propósito no debe quedar bloqueado por la ventana.
+        if periodo_query:
+            visible = True
+        else:
+            hoy = timezone.now().date()
+            ventana_inicio = config.fecha_inicio_inscripciones - timedelta(days=5)
+            ventana_fin = config.fecha_fin_inscripciones + timedelta(days=15)
+            visible = ventana_inicio <= hoy <= ventana_fin
+
+        return Response({
+            'periodo_escolar':       periodo,
+            'total_inscritos':       total_inscritos,
+            'por_tipo_ingreso':      por_tipo_ingreso,
+            'mes_actual':            mes_actual,
+            'documentos_pendientes': documentos_pendientes,
+            'ocupacion':             ocupacion,
+            'serie_mensual':         serie_mensual,
+            'visible':               visible,
+        })

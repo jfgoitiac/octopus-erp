@@ -8,8 +8,8 @@ import {
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import KpiCard from '../components/dashboard/KpiCard';
 import DonutChart from '../components/dashboard/DonutChart';
-import StackedBar from '../components/dashboard/StackedBar';
 import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
+import InscripcionesBlock from '../components/dashboard/InscripcionesBlock';
 import { fmt } from '../utils/format';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -71,25 +71,13 @@ CobranzaFila.displayName = 'CobranzaFila';
 // ─── componente principal ─────────────────────────────────────────────────────
 
 const Dashboard = () => {
-    const { raw: s, loading, error, retry, financialData, genderData, gradeData, totalGender, kpi } =
+    const { raw: s, loading, error, retry, financialData, genderData, totalGender, kpi } =
         useDashboardStats();
 
     // date-fns format with locale is non-trivial; compute once per mount, not every render
     const today = useMemo(
         () => format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es }),
         []
-    );
-
-    // Pre-compute pct + color for grade bars so StackedBar receives stable primitives
-    const processedGradeData = useMemo(() =>
-        gradeData.map(g => {
-            const pct   = g.cupos_maximos > 0
-                ? Math.round((g.cupos_utilizados / g.cupos_maximos) * 100)
-                : 0;
-            const color = pct >= 90 ? '#dc2626' : pct >= 70 ? '#d97706' : '#4f6ef7';
-            return { ...g, pct, color };
-        }),
-        [gradeData]
     );
 
     if (loading) return <DashboardSkeleton />;
@@ -147,7 +135,10 @@ const Dashboard = () => {
                     accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={300} />
             </div>
 
-            {/* ── Row 2: gráficas + cobranza ── */}
+            {/* ── Row 2: inscripciones (independiente del resto de este dashboard) ── */}
+            <InscripcionesBlock />
+
+            {/* ── Row 3: gráficas + cobranza ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                 {/* Estado financiero */}
@@ -189,32 +180,6 @@ const Dashboard = () => {
                     )}
                 </Card>
             </div>
-
-            {/* ── Row 3: ocupación por grado ── */}
-            <Card titulo="Ocupación por grado" className="anim-scale-in card-lift">
-                {processedGradeData.length === 0 ? (
-                    <p className="text-sm text-center py-4" style={{ color: 'var(--ash)' }}>
-                        Sin grados configurados
-                    </p>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-3">
-                        {processedGradeData.map((g) => (
-                            <div key={g.grado_seccion}>
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
-                                        {g.grado_seccion}
-                                    </span>
-                                    <span className="text-[11px] tabular-nums" style={{ color: g.color }}>
-                                        {g.cupos_utilizados}/{g.cupos_maximos}
-                                        <span className="ml-1" style={{ color: 'var(--ash)' }}>({g.pct}%)</span>
-                                    </span>
-                                </div>
-                                <StackedBar used={g.cupos_utilizados} max={g.cupos_maximos} height={8} />
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Card>
             </div>
         </div>
     );

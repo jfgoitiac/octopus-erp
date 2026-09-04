@@ -20,8 +20,6 @@ function parseISODate(str) {
     return isValid(parsed) ? parsed : null;
 }
 
-const ITEMS_PER_PAGE = 25;
-
 const AUDITORIA_COLUMNAS = [
     { key: 'fecha_hora', label: 'Fecha y hora' },
     { key: 'usuario', label: 'Usuario' },
@@ -31,30 +29,80 @@ const AUDITORIA_COLUMNAS = [
 
 // ─── DetallesLog ──────────────────────────────────────────────────────────────
 
+// Un array "plano" (ids, strings) se listea con join(); un array de objetos
+// (p.ej. `alumnos: [{alumno_id, nombre, ...}]`) necesita su propio bloque
+// anidado — join() en un array de objetos produce "[object Object]".
+const esArrayDeObjetos = (v) => Array.isArray(v) && v.length > 0 && typeof v[0] === 'object' && v[0] !== null;
+const esArrayPlano = (v) => Array.isArray(v) && !esArrayDeObjetos(v);
+const esObjetoAnidado = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+const CampoDetalle = ({ label, value }) => (
+    <div className="flex items-baseline gap-1.5 flex-wrap">
+        <span className="font-medium capitalize shrink-0" style={{ color: 'var(--ash)' }}>
+            {label.replace(/_/g, ' ')}:
+        </span>
+        {esArrayPlano(value) ? (
+            <span style={{ color: 'var(--jet)' }}>{value.length > 0 ? value.join(', ') : '—'}</span>
+        ) : (
+            <span style={{ color: 'var(--jet)' }}>{String(value)}</span>
+        )}
+    </div>
+);
+
+const BloqueObjeto = ({ obj }) => {
+    const campos = Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    return (
+        <div className="space-y-0.5">
+            {campos.map(([k, v]) => (
+                esObjetoAnidado(v) || esArrayDeObjetos(v)
+                    ? (
+                        <div key={k}>
+                            <span className="font-medium capitalize" style={{ color: 'var(--ash)' }}>
+                                {k.replace(/_/g, ' ')}:
+                            </span>
+                            <div className="mt-0.5 pl-2 space-y-1" style={{ borderLeft: '2px solid var(--border-md)' }}>
+                                {esArrayDeObjetos(v)
+                                    ? v.map((item, i) => <BloqueObjeto key={i} obj={item} />)
+                                    : <BloqueObjeto obj={v} />}
+                            </div>
+                        </div>
+                    )
+                    : <CampoDetalle key={k} label={k} value={v} />
+            ))}
+        </div>
+    );
+};
+
 const DetallesLog = ({ detalles }) => {
     if (!detalles) return <span className="italic" style={{ color: 'var(--ash)' }}>Sin detalles</span>;
     if (typeof detalles === 'string') return <span style={{ color: 'var(--jet)' }}>{detalles}</span>;
     if (typeof detalles !== 'object') return <span style={{ color: 'var(--jet)' }}>{String(detalles)}</span>;
 
-    const entries = Object.entries(detalles).filter(([, v]) => v !== null && v !== '' && !Array.isArray(v));
-    const arrays  = Object.entries(detalles).filter(([, v]) => Array.isArray(v));
+    const entradas = Object.entries(detalles).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    const simples  = entradas.filter(([, v]) => !esObjetoAnidado(v) && !esArrayDeObjetos(v));
+    const anidados = entradas.filter(([, v]) => esObjetoAnidado(v) || esArrayDeObjetos(v));
 
     return (
-        <div className="space-y-1">
-            {entries.map(([k, v]) => (
-                <div key={k} className="flex items-baseline gap-1.5 text-xs">
-                    <span className="font-medium capitalize shrink-0" style={{ color: 'var(--ash)' }}>
+        <div className="space-y-1.5 text-xs">
+            {simples.map(([k, v]) => <CampoDetalle key={k} label={k} value={v} />)}
+            {anidados.map(([k, v]) => (
+                <div key={k}>
+                    <span className="font-medium capitalize" style={{ color: 'var(--ash)' }}>
                         {k.replace(/_/g, ' ')}:
                     </span>
-                    <span style={{ color: 'var(--jet)' }}>{String(v)}</span>
-                </div>
-            ))}
-            {arrays.map(([k, v]) => (
-                <div key={k} className="text-xs">
-                    <span className="font-medium capitalize" style={{ color: 'var(--ash)' }}>
-                        {k.replace(/_/g, ' ')}:{' '}
-                    </span>
-                    <span style={{ color: 'var(--jet)' }}>{v.length > 0 ? v.join(', ') : '—'}</span>
+                    <div
+                        className="mt-1 pl-2 space-y-1.5"
+                        style={{ borderLeft: '2px solid var(--border-md)' }}
+                    >
+                        {esArrayDeObjetos(v)
+                            ? v.map((item, i) => (
+                                <div key={i} className={i < v.length - 1 ? 'pb-1.5' : ''}
+                                    style={{ borderBottom: i < v.length - 1 ? '0.5px dashed var(--border-md)' : 'none' }}>
+                                    <BloqueObjeto obj={item} />
+                                </div>
+                            ))
+                            : <BloqueObjeto obj={v} />}
+                    </div>
                 </div>
             ))}
         </div>
@@ -107,39 +155,13 @@ const AuditoriaKPIs = ({ reporte }) => (
 
 // ─── Tabla con filtros y paginación ───────────────────────────────────────────
 
-const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
-    const [searchTerm, setSearchTerm]     = useState('');
-    const [currentPage, setCurrentPage]   = useState(1);
-
+const AuditoriaTabla = ({
+    logs, totalLogs, totalPages, currentPage, setCurrentPage,
+    searchInput, setSearchInput, filtroModulo, setFiltroModulo,
+}) => {
     const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
-    const logsFiltrados = useMemo(() => (
-        logs.filter(log => {
-            const username    = log.usuario?.username || '';
-            const nombre      = nombreUsuario(log.usuario) || 'SISTEMA';
-            const accion      = log.accion || '';
-            const detallesStr = typeof log.detalles === 'string'
-                ? log.detalles
-                : log.detalles ? JSON.stringify(log.detalles) : '';
-            const term = searchTerm.toLowerCase();
-            const cumpleBusqueda =
-                detallesStr.toLowerCase().includes(term) ||
-                username.toLowerCase().includes(term) ||
-                nombre.toLowerCase().includes(term) ||
-                accion.toLowerCase().includes(term);
-            const cumpleModulo = filtroModulo === 'TODOS' || log.modulo === filtroModulo;
-            return cumpleBusqueda && cumpleModulo;
-        })
-    ), [logs, searchTerm, filtroModulo]);
-
-    // Reset to page 1 whenever the filtered result set changes
-    useEffect(() => { setCurrentPage(1); }, [logsFiltrados]);
-
-    const totalPages = Math.max(1, Math.ceil(logsFiltrados.length / ITEMS_PER_PAGE));
-    const paginated  = logsFiltrados.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    const paginated = logs;
 
     return (
         <Card padding="none">
@@ -152,7 +174,7 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
                     <h3 className="text-sm font-medium" style={{ color: 'var(--jet)' }}>Historial de Operaciones</h3>
                     <span className="text-xs px-2 py-0.5 rounded-full"
                         style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
-                        {logsFiltrados.length}
+                        {totalLogs}
                     </span>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
@@ -161,8 +183,8 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
                         <input
                             type="text"
                             placeholder="Buscar..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
+                            value={searchInput}
+                            onChange={e => setSearchInput(e.target.value)}
                             aria-label="Buscar en el historial de operaciones"
                             className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none"
                             style={inputStyle}
@@ -232,7 +254,7 @@ const AuditoriaTabla = ({ logs, filtroModulo, setFiltroModulo }) => {
                 <div className="flex items-center justify-between px-4 py-3"
                     style={{ borderTop: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                     <span className="text-xs" style={{ color: 'var(--ash)' }}>
-                        Página {currentPage} de {totalPages} · {logsFiltrados.length} registros
+                        Página {currentPage} de {totalPages} · {totalLogs} registros
                     </span>
                     <div className="flex items-center gap-1">
                         <button
@@ -273,14 +295,29 @@ const Auditoria = () => {
     const [fechaInicio, setFechaInicio] = useState(today);
     const [fechaFin, setFechaFin]       = useState(today);
     const [filtroModulo, setFiltroModulo] = useState('TODOS');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [searchInput, setSearchInput] = useState('');
+    const [busqueda, setBusqueda]       = useState('');
 
     const fechaInicioDate = useMemo(() => parseISODate(fechaInicio), [fechaInicio]);
     const fechaFinDate    = useMemo(() => parseISODate(fechaFin), [fechaFin]);
 
+    // Debounce del texto de búsqueda antes de pedirlo al backend
+    useEffect(() => {
+        const id = setTimeout(() => setBusqueda(searchInput.trim()), 350);
+        return () => clearTimeout(id);
+    }, [searchInput]);
+
+    // Volver a la página 1 cuando cambian los filtros que afectan el resultado
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [fechaInicio, fechaFin, filtroModulo, busqueda]);
+
     const {
-        loading, refreshing, exporting, exportingPagos, reporte, logs, error,
+        loading, refreshing, exporting, exportingPagos, reporte, logs,
+        totalLogs, totalPages, error,
         refetch, exportarExcel, exportarPagosExcel,
-    } = useAuditoria(fechaInicio, fechaFin, filtroModulo);
+    } = useAuditoria(fechaInicio, fechaFin, filtroModulo, currentPage, busqueda);
 
     const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
@@ -301,54 +338,58 @@ const Auditoria = () => {
                 titulo="Auditoría"
                 descripcion="Control de ingresos y actividad del sistema."
                 acciones={
-                    <div className="flex flex-wrap items-end gap-2">
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
-                            <SmartDateInput
-                                value={fechaInicioDate}
-                                onChange={date => setFechaInicio(date ? format(date, 'yyyy-MM-dd') : '')}
-                                className="px-2 py-1.5 rounded-lg text-xs outline-none"
-                                style={inputStyle}
-                                aria-label="Fecha de inicio"
-                            />
+                    <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+                            <div className="flex flex-col gap-1 min-w-0">
+                                <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Desde</label>
+                                <SmartDateInput
+                                    value={fechaInicioDate}
+                                    onChange={date => setFechaInicio(date ? format(date, 'yyyy-MM-dd') : '')}
+                                    className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                                    style={inputStyle}
+                                    aria-label="Fecha de inicio"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1 min-w-0">
+                                <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
+                                <SmartDateInput
+                                    value={fechaFinDate}
+                                    onChange={date => setFechaFin(date ? format(date, 'yyyy-MM-dd') : '')}
+                                    className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                                    style={inputStyle}
+                                    aria-label="Fecha de fin"
+                                />
+                            </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Hasta</label>
-                            <SmartDateInput
-                                value={fechaFinDate}
-                                onChange={date => setFechaFin(date ? format(date, 'yyyy-MM-dd') : '')}
-                                className="px-2 py-1.5 rounded-lg text-xs outline-none"
-                                style={inputStyle}
-                                aria-label="Fecha de fin"
-                            />
+                        <div className="grid grid-cols-1 gap-2 w-full sm:flex sm:w-auto">
+                            <button
+                                onClick={handleRefresh}
+                                disabled={refreshing}
+                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px] w-full sm:w-auto"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                            >
+                                <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
+                                {refreshing ? 'Actualizando...' : 'Recargar datos'}
+                            </button>
+                            <button
+                                onClick={exportarExcel}
+                                disabled={exporting}
+                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50 min-h-[44px] w-full sm:w-auto"
+                                style={{ background: 'var(--jet)' }}
+                            >
+                                {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                                Exportar Excel
+                            </button>
+                            <button
+                                onClick={exportarPagosExcel}
+                                disabled={exportingPagos}
+                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 min-h-[44px] w-full sm:w-auto"
+                                style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+                            >
+                                {exportingPagos ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                                Exportar Pagos
+                            </button>
                         </div>
-                        <button
-                            onClick={handleRefresh}
-                            disabled={refreshing}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
-                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                        >
-                            <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
-                            {refreshing ? 'Actualizando...' : 'Recargar datos'}
-                        </button>
-                        <button
-                            onClick={exportarExcel}
-                            disabled={exporting}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
-                            style={{ background: 'var(--jet)' }}
-                        >
-                            {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                            Exportar Excel
-                        </button>
-                        <button
-                            onClick={exportarPagosExcel}
-                            disabled={exportingPagos}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 min-h-[44px]"
-                            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
-                        >
-                            {exportingPagos ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                            Exportar Pagos
-                        </button>
                     </div>
                 }
             />
@@ -363,7 +404,17 @@ const Auditoria = () => {
             )}
 
             <AuditoriaKPIs reporte={reporte} />
-            <AuditoriaTabla logs={logs} filtroModulo={filtroModulo} setFiltroModulo={setFiltroModulo} />
+            <AuditoriaTabla
+                logs={logs}
+                totalLogs={totalLogs}
+                totalPages={totalPages}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                searchInput={searchInput}
+                setSearchInput={setSearchInput}
+                filtroModulo={filtroModulo}
+                setFiltroModulo={setFiltroModulo}
+            />
         </div>
     );
 };

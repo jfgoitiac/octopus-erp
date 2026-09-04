@@ -48,25 +48,6 @@ const DashboardSkeleton = () => (
                 </div>
             ))}
         </div>
-
-        {/* Row 3: grade occupancy */}
-        <div
-            className="rounded-xl p-4"
-            style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
-        >
-            <Bone className="h-2.5 w-36 mb-4" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="flex flex-col gap-2">
-                        <div className="flex justify-between">
-                            <Bone className="h-3 w-24" />
-                            <Bone className="h-3 w-16" />
-                        </div>
-                        <Bone className="h-2 w-full rounded-full" />
-                    </div>
-                ))}
-            </div>
-        </div>
     </div>
 );
 

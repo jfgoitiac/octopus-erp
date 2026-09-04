@@ -4,7 +4,7 @@ from .views import (
     AlumnoListView, BecaViewSet, BienNacionalViewSet, CargarCuotasInscripcionView, ConfiguracionGradoViewSet,
     ConfiguracionSistemaView, ComprobanteInscripcionView,
     ExportarAlumnosExcelView, ExportarRepresentantesExcelView,
-    GradosListView, InscripcionListView, MatriculaGradoView,
+    GradosListView, InscripcionListView, InscripcionStatsView, MatriculaGradoView,
     ExportarMatriculaGradoExcelView, ExportarMatriculaGradoPDFView,
     ExportarAuditoriaLogExcelView,
     ImportarEstudiantesView,
@@ -27,6 +27,7 @@ urlpatterns = [
     # Inscripción
     path('inscripcion-nueva/',                    InscripcionNuevaView.as_view(),         name='inscripcion-nueva'),
     path('inscripciones/',                        InscripcionListView.as_view(),          name='inscripciones-lista'),
+    path('inscripciones/stats/',                  InscripcionStatsView.as_view(),         name='inscripciones-stats'),
     path('inscripciones/<int:pk>/comprobante/',   ComprobanteInscripcionView.as_view(),   name='comprobante-inscripcion'),
 
     # Pre-Inscripción — por Alumno, no por Inscripcion (el estudiante puede

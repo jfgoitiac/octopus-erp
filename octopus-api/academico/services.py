@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from secretaria.models import Alumno, ConfiguracionSistema
+from secretaria.models import Alumno
 
 from .models import (
     AlertaRendimiento,
@@ -26,18 +26,12 @@ UMBRAL_APROBATORIO = Decimal('10')
 
 
 def _periodo_escolar_activo():
-    """Determina el período escolar a mostrar: la configuración del sistema
-    si existe, o el período más reciente con notas cargadas, o el default
-    del modelo Lapso como último recurso."""
-    config = ConfiguracionSistema.objects.first()
-    if config and config.periodo_escolar_activo:
-        return config.periodo_escolar_activo
-
-    ultima_nota = Nota.objects.select_related('lapso').order_by('-lapso__periodo_escolar').first()
-    if ultima_nota:
-        return ultima_nota.lapso.periodo_escolar
-
-    return '2025-2026'
+    """Alias de compatibilidad: la lógica real vive en `common.periodo.periodo_escolar_activo`
+    (helper neutral, sin depender de `secretaria` ni `academico`, para evitar un ciclo de
+    imports entre ambos apps). Se conserva este nombre porque otros módulos de `academico`
+    lo importan así — mismo comportamiento, sin duplicar la lógica."""
+    from common.periodo import periodo_escolar_activo
+    return periodo_escolar_activo()
 
 
 def calcular_rendimiento_alumno(alumno):

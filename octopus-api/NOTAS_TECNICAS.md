@@ -750,3 +750,34 @@ intermedia con el monto exacto), no solo el acumulado en la cuota.
   `ComprobanteSerializer._get_principal_con_conceptos` (ordenado por `id`) para elegir el "pago principal" de
   la operación al desglosar. Si en el futuro se necesita saber cuánto de CADA método cubrió el recargo
   específicamente, haría falta un cambio de modelo (hoy no se rastrea esa relación para ningún concepto).
+
+## `InscripcionStatsView` (indicador de inscripciones del Dashboard) duplica la ocupación por grado de `cobranza/stats/`
+
+Al implementar `GET /api/secretaria/inscripciones/stats/` (`secretaria/views.py::InscripcionStatsView`) para el
+nuevo indicador de inscripciones del Dashboard administrativo, dos puntos quedan anotados sin corregir (fuera de
+alcance de esa tarea):
+
+1. **`ConfiguracionGrado` no está sedeada.** El modelo (`secretaria/models.py`) no tiene campo `sede` — es global
+   para todo el sistema, deuda técnica ya conocida de antes. Como resultado, `ocupacion.por_grado` de este nuevo
+   endpoint (y su `global_pct`) se calcula cruzando TODAS las configuraciones de grado existentes contra los
+   inscritos ya filtrados por sede/período del usuario — el conteo de inscritos por grado sí respeta la sede,
+   pero el catálogo de grados contra el que se cruza (y por lo tanto qué grados aparecen y sus `cupos_maximos`)
+   es global, no de la sede del usuario. El resto del indicador (`total_inscritos`, `por_tipo_ingreso`,
+   `mes_actual`, `documentos_pendientes`, `serie_mensual`) sí queda correctamente filtrado por sede porque no
+   depende de `ConfiguracionGrado`.
+2. **Ocupación por grado duplicada entre dos bloques del Dashboard.** `cobranza/views.py::DashboardStatsView`
+   (bloque financiero/cobranza existente, `GET /api/cobranza/dashboard-stats/` o ruta equivalente) ya calcula y
+   expone su propia ocupación por grado (`grados: [{grado, cupos_maximos, cupos_utilizados, total_alumnos,
+   morosos}]`), basada en `Alumno.objects.filter(activo=True)` por grado — no en `Inscripcion` del período activo.
+   Ahora el Dashboard tiene DOS indicadores de "ocupación por grado" con semántica ligeramente distinta (alumnos
+   activos por grado vs. inscripciones del período activo por grado) y ninguno delega en el otro. Queda pendiente
+   decidir si unificarlos (un solo cálculo de ocupación reutilizado por ambos bloques) o mantenerlos separados
+   porque miden cosas distintas a propósito — no se tomó esa decisión en esta tarea para no tocar el bloque
+   financiero/cobranza existente.
+
+De paso, se movió `_periodo_escolar_activo()` (antes vivía solo en `academico/services.py`, con
+`ConfiguracionSistema`/`Nota` importados a nivel de módulo desde `secretaria`/`academico`) a un helper neutral
+nuevo `common/periodo.py::periodo_escolar_activo()`, para que `secretaria` pudiera consultar el período activo sin
+crear un ciclo de imports `secretaria → academico → secretaria`. `academico/services.py::_periodo_escolar_activo`
+se dejó como alias que delega en el helper nuevo (mismo comportamiento y mismo fallback), porque otros módulos de
+`academico` siguen importándolo por ese nombre.

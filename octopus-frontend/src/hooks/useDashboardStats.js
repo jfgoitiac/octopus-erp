@@ -56,7 +56,6 @@ export function useDashboardStats() {
                 { label: 'Masculino', value: s.masculino ?? 0, color: '#2563eb' },
                 { label: 'Femenino',  value: s.femenino  ?? 0, color: '#db2777' },
             ],
-            gradeData: s.grados ?? [],
             totalGender,
             kpi: {
                 totalActivos:  fmt(s.total_activos   ?? 0),

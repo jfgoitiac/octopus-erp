@@ -13,7 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from portal.models import RepresentanteUser
 from usuarios.models import LogAuditoria
-from .models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Representante
+from .models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Representante
 from .serializers import AlumnoUpdateSerializer, ConfiguracionSistemaSerializer, InscripcionSerializer
 
 User = get_user_model()
@@ -663,3 +663,263 @@ class EliminacionRepresentanteTest(TestCase):
         resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo/')
         self.assertEqual(resp.status_code, 403, resp.data)
         self.assertTrue(Representante.objects.filter(pk=rep.pk).exists())
+
+
+class InscripcionStatsViewTest(TestCase):
+    """
+    Indicador de inscripciones para el Dashboard administrativo
+    (InscripcionStatsView, GET /api/secretaria/inscripciones/stats/).
+
+    Se usa un período arbitrario ("2030-2031") distinto del default de campo
+    de Inscripcion/ConfiguracionSistema ("2025-2026") a propósito: si alguien
+    reintroduce un literal de período en el endpoint, estos tests deben
+    fallar en vez de pasar "por casualidad" con el mismo valor que el default.
+    """
+
+    PERIODO = '2030-2031'
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='sistemas_stats', password='clave123456')
+        token = str(RefreshToken.for_user(self.user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        self.url = '/api/secretaria/inscripciones/stats/'
+
+    def _crear_config(self, **overrides):
+        from datetime import date
+        defaults = dict(
+            fecha_inicio_inscripciones=date(2030, 6, 1),
+            fecha_fin_inscripciones=date(2030, 8, 31),
+            fecha_inicio_ano_escolar=date(2030, 9, 1),
+            fecha_fin_ano_escolar=date(2031, 7, 31),
+            periodo_escolar_activo=self.PERIODO,
+        )
+        defaults.update(overrides)
+        return ConfiguracionSistema.objects.create(**defaults)
+
+    def _crear_inscripcion(self, cedula_alumno, grado_seccion, tipo_ingreso='nuevo',
+                            documentos_completos=True, periodo=None, fecha_inscripcion=None):
+        # Inscripcion.clean() exige que el grado ya esté configurado
+        # (ConfiguracionGrado) y con cupos disponibles. Se crea con capacidad
+        # amplia por defecto si el test no lo configuró explícitamente antes
+        # (ej. para probar "sin_cupos" con una capacidad reducida a propósito).
+        ConfiguracionGrado.objects.get_or_create(
+            grado_seccion=grado_seccion, defaults={'cupos_maximos': 1000}
+        )
+        rep = Representante.objects.create(
+            cedula=f'V{cedula_alumno}', nombre='Rep', apellido=cedula_alumno,
+            correo=f'{cedula_alumno}@example.com',
+        )
+        alumno = Alumno.objects.create(
+            cedula_escolar=cedula_alumno, nombre='Alumno', apellido=cedula_alumno,
+            representante=rep,
+        )
+        insc = Inscripcion.objects.create(
+            alumno=alumno,
+            periodo_escolar=periodo or self.PERIODO,
+            grado_seccion=grado_seccion,
+            tipo_ingreso=tipo_ingreso,
+            documentos_completos=documentos_completos,
+            usuario_registro=self.user,
+        )
+        if fecha_inscripcion is not None:
+            # fecha_inscripcion es auto_now_add: no se puede fijar en el
+            # create(), se sobrescribe después con un update() directo.
+            Inscripcion.objects.filter(pk=insc.pk).update(fecha_inscripcion=fecha_inscripcion)
+            insc.refresh_from_db()
+        return insc
+
+    # ── 400 sin configuración ────────────────────────────────────────────
+
+    def test_400_sin_configuracionsistema_y_sin_periodo_override(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertIn('error', resp.data)
+
+    # ── período ───────────────────────────────────────────────────────────
+
+    def test_usa_periodo_de_configuracionsistema_no_hardcodeado(self):
+        self._crear_config()
+        self._crear_inscripcion('E1000001', 'Grado A')
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data['periodo_escolar'], self.PERIODO)
+        self.assertNotEqual(resp.data['periodo_escolar'], '2025-2026')
+
+    def test_periodo_override_por_query_param(self):
+        self._crear_config()  # periodo_escolar_activo = self.PERIODO
+        self._crear_inscripcion('E1000002', 'Grado A', periodo='2099-2100')
+
+        resp = self.client.get(self.url, {'periodo': '2099-2100'})
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data['periodo_escolar'], '2099-2100')
+        self.assertEqual(resp.data['total_inscritos'], 1)
+
+    # ── por_tipo_ingreso / documentos_pendientes ────────────────────────
+
+    def test_por_tipo_ingreso_y_documentos_pendientes(self):
+        self._crear_config()
+        self._crear_inscripcion('E1000003', 'Grado A', tipo_ingreso='nuevo', documentos_completos=False)
+        self._crear_inscripcion('E1000004', 'Grado A', tipo_ingreso='nuevo', documentos_completos=True)
+        self._crear_inscripcion('E1000005', 'Grado B', tipo_ingreso='regular', documentos_completos=True)
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data['total_inscritos'], 3)
+        self.assertEqual(resp.data['por_tipo_ingreso'], {'nuevo_ingreso': 2, 'regular': 1})
+        self.assertEqual(resp.data['documentos_pendientes'], 1)
+
+    # ── ocupacion.por_grado (incluyendo sin_cupos) ──────────────────────
+
+    def test_ocupacion_por_grado_incluye_sin_cupos(self):
+        # cupos_utilizados arranca en 0: Inscripcion.save() lo incrementa
+        # atómicamente en cada creación (ver secretaria/models.py), así que
+        # "Grado Lleno" llega a cupos_disponibles=0 tras las 2 inscripciones
+        # de más abajo, sin necesidad (ni permiso, por clean()) de precargarlo.
+        ConfiguracionGrado.objects.update_or_create(
+            grado_seccion='Grado Lleno', defaults={'cupos_maximos': 2, 'cupos_utilizados': 0}
+        )
+        ConfiguracionGrado.objects.update_or_create(
+            grado_seccion='Grado Libre', defaults={'cupos_maximos': 10, 'cupos_utilizados': 0}
+        )
+        self._crear_config()
+        self._crear_inscripcion('E1000006', 'Grado Lleno')
+        self._crear_inscripcion('E1000007', 'Grado Lleno')
+        self._crear_inscripcion('E1000008', 'Grado Libre')
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        por_grado = {row['grado_seccion']: row for row in resp.data['ocupacion']['por_grado']}
+
+        self.assertEqual(por_grado['Grado Lleno']['inscritos'], 2)
+        self.assertEqual(por_grado['Grado Lleno']['cupos_disponibles'], 0)
+        self.assertTrue(por_grado['Grado Lleno']['sin_cupos'])
+        self.assertEqual(por_grado['Grado Lleno']['pct'], 100.0)
+
+        self.assertEqual(por_grado['Grado Libre']['inscritos'], 1)
+        self.assertFalse(por_grado['Grado Libre']['sin_cupos'])
+        self.assertEqual(por_grado['Grado Libre']['cupos_disponibles'], 9)
+        self.assertEqual(por_grado['Grado Libre']['pct'], 10.0)
+
+        # global_pct = total_inscritos (3) / suma de cupos_maximos de TODOS
+        # los grados existentes (decisión documentada en la vista).
+        total_cupos = sum(cfg.cupos_maximos for cfg in ConfiguracionGrado.objects.all())
+        esperado = round(3 / total_cupos * 100, 2)
+        self.assertEqual(resp.data['ocupacion']['global_pct'], esperado)
+
+    # ── serie_mensual (incluyendo mes sin inscripciones) ────────────────
+
+    def test_serie_mensual_incluye_meses_sin_inscripciones(self):
+        from datetime import datetime, timezone as dt_timezone
+
+        self._crear_config()  # año escolar 2030-09-01..2031-07-31 (11 meses)
+        self._crear_inscripcion(
+            'E1000009', 'Grado A',
+            fecha_inscripcion=datetime(2030, 9, 15, tzinfo=dt_timezone.utc),
+        )
+        self._crear_inscripcion(
+            'E1000010', 'Grado A',
+            fecha_inscripcion=datetime(2030, 9, 20, tzinfo=dt_timezone.utc),
+        )
+        self._crear_inscripcion(
+            'E1000011', 'Grado A',
+            fecha_inscripcion=datetime(2031, 1, 5, tzinfo=dt_timezone.utc),
+        )
+        # Octubre 2030 no tiene ninguna inscripción — debe aparecer con cantidad 0.
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        serie = {row['mes']: row['cantidad'] for row in resp.data['serie_mensual']}
+
+        self.assertEqual(serie.get('2030-09'), 2)
+        self.assertEqual(serie.get('2030-10'), 0)
+        self.assertEqual(serie.get('2031-01'), 1)
+        # Rango completo 2030-09..2031-07 = 11 meses.
+        self.assertEqual(len(serie), 11)
+
+    # Nota: no se encontró un patrón de test reutilizable para
+    # filtrado por sede/PermisoSede en secretaria/tests.py ni en
+    # cobranza/tests.py (ningún test existente crea Sede/PermisoSede), así
+    # que se omitió el caso "usuario con acceso a una sola sede no debe ver
+    # inscripciones de otra sede" en vez de inventar un fixture nuevo sin
+    # precedente en el proyecto — queda pendiente si se define ese patrón.
+
+    # ── visible: ventana ampliada (-5 días antes / +15 días después) ───
+
+    def test_visible_true_dentro_de_ventana_antes_de_apertura(self):
+        # fecha_inicio_inscripciones = hoy + 3 días: todavía no abrió, pero
+        # cae dentro de la ventana de -5 días antes de la apertura.
+        from datetime import timedelta
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        self._crear_config(
+            fecha_inicio_inscripciones=hoy + timedelta(days=3),
+            fecha_fin_inscripciones=hoy + timedelta(days=60),
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertTrue(resp.data['visible'])
+
+    def test_visible_false_fuera_de_ventana_antes_de_apertura(self):
+        # fecha_inicio_inscripciones = hoy + 10 días: fuera de la ventana de
+        # -5 días antes de la apertura, todavía no debe mostrarse.
+        from datetime import timedelta
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        self._crear_config(
+            fecha_inicio_inscripciones=hoy + timedelta(days=10),
+            fecha_fin_inscripciones=hoy + timedelta(days=60),
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertFalse(resp.data['visible'])
+
+    def test_visible_true_dentro_de_ventana_despues_de_cierre(self):
+        # fecha_fin_inscripciones = hoy - 10 días: ya cerró, pero cae dentro
+        # de la ventana de +15 días después del cierre.
+        from datetime import timedelta
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        self._crear_config(
+            fecha_inicio_inscripciones=hoy - timedelta(days=90),
+            fecha_fin_inscripciones=hoy - timedelta(days=10),
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertTrue(resp.data['visible'])
+
+    def test_visible_false_fuera_de_ventana_despues_de_cierre(self):
+        # fecha_fin_inscripciones = hoy - 20 días: ya pasaron los 15 días de
+        # margen tras el cierre, no debe mostrarse.
+        from datetime import timedelta
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        self._crear_config(
+            fecha_inicio_inscripciones=hoy - timedelta(days=90),
+            fecha_fin_inscripciones=hoy - timedelta(days=20),
+        )
+
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertFalse(resp.data['visible'])
+
+    def test_visible_true_con_periodo_override_ignora_ventana_de_fechas(self):
+        # ?periodo= explícito apuntando a un período distinto al activo: el
+        # bypass debe forzar visible=True aunque las fechas de
+        # ConfiguracionSistema estén muy fuera de cualquier ventana razonable.
+        from datetime import timedelta
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        self._crear_config(
+            fecha_inicio_inscripciones=hoy - timedelta(days=1000),
+            fecha_fin_inscripciones=hoy - timedelta(days=900),
+        )
+        self._crear_inscripcion('E1000012', 'Grado A', periodo='2099-2100')
+
+        resp = self.client.get(self.url, {'periodo': '2099-2100'})
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertTrue(resp.data['visible'])
