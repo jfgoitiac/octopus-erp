@@ -55,8 +55,23 @@ const PagosPorConceptoTab = ({ deepLink, onDeepLinkConsumido }) => {
         vista,
     });
 
+    // Una línea periódica (mes/anio no nulos) de un mes futuro que todavía
+    // nadie empezó a pagar (pagados === 0 && parciales === 0) no aporta nada
+    // útil: nadie puede deber un mes que aún no se factura ni vence. Se
+    // oculta salvo que "mostrarAlDia" esté activo (el usuario pidió ver
+    // explícitamente todo, incluido lo que aún no arrancó).
+    const esFuturoSinIniciar = (linea) => {
+        if (linea.mes == null || linea.anio == null) return false;
+        const hoy = new Date();
+        const esFuturo = linea.anio > hoy.getFullYear()
+            || (linea.anio === hoy.getFullYear() && linea.mes > hoy.getMonth() + 1);
+        return esFuturo && linea.pagados === 0 && linea.parciales === 0;
+    };
+
     const lineasVisibles = useMemo(
-        () => mostrarAlDia ? lineas : lineas.filter(l => l.pendientes > 0 || l.parciales > 0),
+        () => mostrarAlDia
+            ? lineas
+            : lineas.filter(l => (l.pendientes > 0 || l.parciales > 0) && !esFuturoSinIniciar(l)),
         [lineas, mostrarAlDia]
     );
 
