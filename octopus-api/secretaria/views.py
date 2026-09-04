@@ -1,5 +1,6 @@
 from datetime import date
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 
 def _cedula_visible(cedula):

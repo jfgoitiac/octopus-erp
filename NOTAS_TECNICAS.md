@@ -2,6 +2,52 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## ROADMAP — PARAMETRIZACIÓN MULTI-COLEGIO (venta fuera de AVEC/Venezuela)
+
+Plan acordado con el usuario (2026-09-03) para dejar de asumir "colegio AVEC en
+Venezuela" en todo el sistema. Solo planificación — nada de esto está implementado
+todavía, se ejecuta fase por fase con aprobación previa.
+
+### Fase A — Identidad y encabezado del colegio (bajo riesgo)
+- `ConfiguracionSistema`: agregar `pais`, `tipo_documento_identidad`,
+  `moneda_local`, `nombre_fuente_tasa_cambio` (genérico, no "BCV" fijo).
+- Sacar el texto/logo de afiliación AVEC de los recibos: campos opcionales
+  `afiliacion_nombre` / `afiliacion_logo` en `ConfiguracionSistema`, vacíos por
+  defecto (no todos los colegios están afiliados a nada).
+- `validarCedula` (`constants/avec.js`): dejar de exigir formato `V/E-######`
+  por defecto; validar solo si `pais === 'VE'`, texto libre en otro caso.
+- **Encabezado de recibos — decisión tomada: opción de imagen, no extracción
+  de PDF/Word.** Se descartó parsear/extraer el encabezado de un documento
+  subido (frágil: cada colegio maqueta su membrete distinto, logos como
+  imagen, tablas, PDFs escaneados). En su lugar:
+  - Campo nuevo en `ConfiguracionSistema`: `encabezado_personalizado`
+    (`ImageField`, igual patrón que `logo_colegio`/`logo_avec`) — el colegio
+    sube una imagen ya recortada de su membrete oficial y el sistema la pega
+    tal cual arriba del recibo, sin reconstruirla en código.
+  - Si el campo está vacío, se sigue armando el encabezado con los campos
+    estructurados existentes (nombre, RIF/documento fiscal, dirección,
+    teléfono, logo) — ese sigue siendo el default recomendado.
+  - Afecta: `nominaPDF.js`, `ReceiptPreview.jsx`, `printReciboCobranza.jsx`,
+    `useInstitucionPDF.js`, `useLogosRecibo.js`, `Configuracion.jsx` (nuevo
+    uploader) — mismo patrón que los logos ya existentes.
+
+### Fase B — Aislar el convenio de nómina AVEC como plugin opt-in
+- Mover `constants/avec.js` a algo tipo `constants/convenios/avec_ve.js`.
+- `ConfiguracionSistema.convenio_nomina` (`'generico' | 'avec_ve'`): si no es
+  AVEC, la UI de nómina no muestra categorías D-I...D-VI ni calcula
+  SSO/SPF/FAOV — usa el motor genérico del backend (`ParametroLegalNomina`).
+- Alto riesgo por tocar cálculos de dinero real — requiere regresión sobre
+  los 141 tests existentes antes de tocar.
+
+### Fase C — Unificar el doble motor de nómina (frontend AVEC vs. backend genérico)
+- Deuda ya anotada más abajo (sección AUDITORÍA NÓMINA/RRHH). Migrar a que el
+  frontend solo pinte lo que devuelve `ParametroLegalNomina`, sin recalcular.
+
+### Fuera de alcance de este roadmap
+- Multi-sede (Fase 3 del CLAUDE.md del proyecto) es un problema distinto
+  (tenancy dentro de un mismo cliente) — no se mezcla con esta genericidad
+  (un colegio, un solo cliente, sin AVEC/Venezuela hardcodeado).
+
 ## ASSETS — BARRA SUPERIOR (acabado visual + símbolo de marca)
 
 - **Solo se copió la variante "paper" (clara) del símbolo Octopus**
