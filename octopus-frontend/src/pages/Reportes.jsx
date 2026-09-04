@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wallet, ListChecks, Layers, TrendingUp, BarChart2, Clock, FileEdit, GraduationCap } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Wallet, ListChecks, Layers, TrendingUp, BarChart2, Clock, FileEdit, GraduationCap, Receipt } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getEstadoClasificacionPagos, getBancos } from '../api/cobranza.service';
 import ClasificacionPagoModal from '../components/reportes/ClasificacionPagoModal';
@@ -11,6 +12,7 @@ import HistoricoMensualTab from '../components/reportes/HistoricoMensualTab';
 import BusinessIntelligenceTab from '../components/reportes/BusinessIntelligenceTab';
 import PuntualidadTab from '../components/reportes/PuntualidadTab';
 import ReporteBecasTab from '../components/reportes/ReporteBecasTab';
+import PagosPorConceptoTab from '../components/reportes/PagosPorConceptoTab';
 import { PageHeader } from '../components/ui/PageHeader';
 
 const TABS = [
@@ -22,6 +24,7 @@ const TABS = [
     { id: 'bi',            label: 'Business Intelligence',  icon: BarChart2,  group: 'analisis' },
     { id: 'puntualidad',   label: 'Puntualidad',            icon: Clock,      group: 'analisis' },
     { id: 'becas',         label: 'Costo de Becas',         icon: GraduationCap, group: 'analisis' },
+    { id: 'concepto',      label: 'Pagos por concepto',     icon: Receipt,    group: 'analisis' },
 ];
 
 const TAB_GROUPS = [
@@ -31,6 +34,31 @@ const TAB_GROUPS = [
 
 const Reportes = () => {
     const [activeTab, setActiveTab] = useState('caja');
+
+    /* ── Deep-link desde la tarjeta de "Solvencia por grado" del dashboard:
+       ?tab=concepto&concepto=…&mes=…&anio=…&grado=… — activa la pestaña y
+       precarga esos filtros, abriendo directamente el modal de detalle. Se
+       lee una sola vez al montar. ── */
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [deepLinkConcepto, setDeepLinkConcepto] = useState(() => {
+        if (searchParams.get('tab') !== 'concepto') return null;
+        const concepto = searchParams.get('concepto');
+        if (!concepto) return null;
+        return {
+            concepto,
+            mes: searchParams.get('mes'),
+            anio: searchParams.get('anio'),
+            grado: searchParams.get('grado'),
+        };
+    });
+    useEffect(() => {
+        if (deepLinkConcepto) setActiveTab('concepto');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const limpiarDeepLink = useCallback(() => {
+        setDeepLinkConcepto(null);
+        setSearchParams({}, { replace: true });
+    }, [setSearchParams]);
 
     /* ── Bancos: usado por los filtros "Banco" de Conciliación y Clasificación
        de Pagos — se carga una sola vez aquí para no duplicar la llamada. ── */
@@ -182,6 +210,12 @@ const Reportes = () => {
             {activeTab === 'bi'            && <BusinessIntelligenceTab />}
             {activeTab === 'puntualidad'   && <PuntualidadTab />}
             {activeTab === 'becas'         && <ReporteBecasTab />}
+            {activeTab === 'concepto'      && (
+                <PagosPorConceptoTab
+                    deepLink={deepLinkConcepto}
+                    onDeepLinkConsumido={limpiarDeepLink}
+                />
+            )}
 
             {pagoSeleccionado && (
                 <ClasificacionPagoModal
