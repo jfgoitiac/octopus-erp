@@ -1,5 +1,9 @@
-import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2, Monitor, ShieldOff, KeyRound, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { X, Phone, Mail, MapPin, GraduationCap, Pencil, Trash2, Loader2, Monitor, ShieldOff, KeyRound, DollarSign, Wallet } from 'lucide-react';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
+import { fmt } from '../../utils/format';
+import { useEstadoCuentaRepresentante } from '../../hooks/useEstadoCuentaRepresentante';
+import EstadoCuentaModal from './EstadoCuentaModal';
 
 const CONTACTO_FIELDS = [
     { icon: Phone,  field: 'telefono' },
@@ -15,6 +19,14 @@ const FichaAlumnosSkeleton = () => (
     </div>
 );
 
+const EstadoCuentaSkeleton = () => (
+    <div className="flex flex-col gap-2">
+        <div className="h-6 w-24 rounded animate-pulse" style={{ background: 'var(--ash-light)' }} />
+        <div className="h-3 w-full rounded animate-pulse" style={{ background: 'var(--ash-light)' }} />
+        <div className="h-3 w-4/5 rounded animate-pulse" style={{ background: 'var(--ash-light)' }} />
+    </div>
+);
+
 const RepresentanteFicha = ({
     rep, alumnos, fichaLoading, canEditar, canEliminar, onClose, onEditar, onConfirmDelete, onConfirmDeleteDefinitivo,
     portalLoading, onActivarPortal, onDesactivarPortal, onRestablecerContrasena,
@@ -22,7 +34,13 @@ const RepresentanteFicha = ({
 }) => {
     const sinAlumnos = (rep.cantidad_alumnos ?? 0) === 0 && (rep.cantidad_alumnos_retirados ?? 0) === 0;
 
+    const [modalEstadoCuentaAbierto, setModalEstadoCuentaAbierto] = useState(false);
+    const { totales, cargos, loading: estadoCuentaLoading, error: estadoCuentaError } = useEstadoCuentaRepresentante(rep.id);
+    const deudaTotal = Number(totales?.deuda_total_usd ?? 0);
+    const conceptosPendientes = cargos.filter(c => (c.pendientes ?? 0) > 0);
+
     return (
+    <>
     <div
         className="w-full lg:w-72 flex-shrink-0 rounded-xl flex flex-col"
         style={{
@@ -246,7 +264,53 @@ const RepresentanteFicha = ({
                 </button>
             </div>
         )}
+
+        {/* Estado de cuenta: falla aislada — un error acá (ya notificado por
+            react-toastify dentro del hook) no debe impedir que el resto de
+            la ficha siga funcionando. */}
+        <div className="px-4 py-3 flex flex-col gap-2" style={{ borderTop: '0.5px solid var(--border)' }}>
+            <p className="text-[11px] uppercase tracking-widest font-medium flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
+                <Wallet size={12} />
+                Estado de cuenta
+            </p>
+            {estadoCuentaLoading ? (
+                <EstadoCuentaSkeleton />
+            ) : estadoCuentaError ? (
+                <p className="text-xs py-2" style={{ color: 'var(--ash)' }}>No se pudo cargar el estado de cuenta.</p>
+            ) : (
+                <>
+                    <p className="text-lg font-bold" style={{ color: deudaTotal > 0 ? 'var(--red)' : 'var(--jet)' }}>
+                        ${fmt(deudaTotal, 2)}
+                    </p>
+                    {conceptosPendientes.length === 0 ? (
+                        <p className="text-xs" style={{ color: 'var(--ash)' }}>Sin pendientes.</p>
+                    ) : (
+                        <ul className="flex flex-col gap-1">
+                            {conceptosPendientes.map(c => (
+                                <li key={c.concepto} className="text-xs" style={{ color: 'var(--ash)' }}>
+                                    {c.concepto_nombre} · {c.pendientes} pendiente{c.pendientes === 1 ? '' : 's'} · ${fmt(c.saldo_usd, 2)}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </>
+            )}
+            <button
+                onClick={() => setModalEstadoCuentaAbierto(true)}
+                className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-medium mt-1"
+                style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
+            >
+                Ver estado de cuenta completo
+            </button>
+        </div>
     </div>
+
+    <EstadoCuentaModal
+        open={modalEstadoCuentaAbierto}
+        onClose={() => setModalEstadoCuentaAbierto(false)}
+        representanteId={rep.id}
+    />
+    </>
     );
 };
 
