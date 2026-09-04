@@ -26,7 +26,11 @@ notificaciones.tasks.revisar_y_programar_notificaciones_pendientes, que se
 basa en la fecha de vencimiento real de cada mensualidad.
 """
 import calendar
+from datetime import date
 from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import Q
 
 from .models import Mensualidad, ParametroGlobal
 
@@ -311,6 +315,150 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
 
     Mensualidad.objects.bulk_create(nuevas, batch_size=500, ignore_conflicts=True)
     return len(nuevas)
+
+
+CLAVES_PROPAGABLES = (
+    'MONTO_MENSUALIDAD_DEFECTO',
+    'MONTO_INSCRIPCION_DEFECTO',
+    'MONTO_PROYECTO_INVERSION_DEFECTO',
+)
+
+
+def _condicion_vencida_mensualidad(hoy):
+    """
+    Mismo criterio de "vencida" que cobranza/mora.py::_condicion_mora, pero
+    expresado sobre un queryset de Mensualidad (no de Alumno): mes/año ya
+    pasado, o mes actual con el `dia_limite_pago` del alumno ya alcanzado.
+
+    No se reutiliza _condicion_mora directamente porque esa función anota
+    Alumno vía OuterRef — aquí se necesita filtrar Mensualidad en sí, así
+    que se traduce el mismo criterio a `alumno__dia_limite_pago` sin tocar
+    la API pública de mora.py.
+    """
+    return (
+        Q(anio__lt=hoy.year)
+        | Q(anio=hoy.year, mes__lt=hoy.month)
+        | Q(anio=hoy.year, mes=hoy.month, alumno__dia_limite_pago__lte=hoy.day)
+    )
+
+
+def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
+    """
+    Único punto de verdad para propagar un cambio de ParametroGlobal (montos
+    por defecto de mensualidad/inscripción/proyecto de inversión) a las
+    cuotas YA GENERADAS que todavía dependen de ese valor por defecto.
+
+    Antes de esto, ConfiguracionCobranzaView.post guardaba el ParametroGlobal
+    pero (para mensualidad) no tocaba ninguna Mensualidad existente — el
+    monto solo se copia una vez al generarse (ver generar_mensualidades) y
+    nunca se relee del ParametroGlobal, así que el cambio no llegaba a nadie
+    hasta la próxima mensualidad generada. Para inscripción/proyecto sí había
+    un `.update()` bulk, pero sin distinguir montos editados a mano.
+
+    Reglas de alcance, siempre `pagado=False` y `monto_personalizado=False`
+    (los overrides manuales — ver ActualizarMensualidadesView.patch y
+    Mensualidad.monto_personalizado — quedan intactos):
+      - MONTO_MENSUALIDAD_DEFECTO: además excluye las VENCIDAS, con el mismo
+        criterio que cobranza/mora.py::_condicion_mora (ver
+        _condicion_vencida_mensualidad arriba). Solo se propaga a meses
+        futuros, o al mes actual si el `dia_limite_pago` del alumno todavía
+        no se alcanzó.
+      - MONTO_INSCRIPCION_DEFECTO / MONTO_PROYECTO_INVERSION_DEFECTO: igual
+        que antes, acotado al `periodo_escolar` activo (ConfiguracionSistema)
+        y, para proyecto, al TipoCargoEspecial semilla "Proyecto de
+        Inversión" (tipo_cargo_proyecto_inversion) — nunca a otros cargos
+        especiales que compartan periodo_escolar. No existe concepto de
+        "vencida" para estas dos, así que `excluidas_por_vencidas` es
+        siempre 0.
+
+    dry_run=True: no escribe nada, solo cuenta.
+    dry_run=False: aplica el `.update()` dentro de una transacción y registra
+    auditoría con usuarios.models.crear_log.
+
+    Devuelve siempre {'actualizadas': N, 'respetadas_por_override': M,
+    'excluidas_por_vencidas': K}.
+
+    Idempotente: llamarla dos veces con el mismo `nuevo_monto` aplica el
+    mismo `.update()` sobre el mismo conjunto de filas (ya en ese valor) —
+    no hay creación de filas ni segundo efecto distinto.
+    """
+    if clave not in CLAVES_PROPAGABLES:
+        raise ValueError(f"Clave no propagable: {clave}")
+
+    nuevo_monto = Decimal(str(nuevo_monto))
+    hoy = hoy or date.today()
+
+    if clave == 'MONTO_MENSUALIDAD_DEFECTO':
+        base = Mensualidad.objects.filter(pagado=False)
+        vencida_q = _condicion_vencida_mensualidad(hoy)
+        respetadas_por_override = base.filter(monto_personalizado=True).count()
+        excluidas_por_vencidas = base.filter(monto_personalizado=False).filter(vencida_q).count()
+        propagables = base.filter(monto_personalizado=False).exclude(vencida_q)
+        actualizadas = propagables.count()
+
+        if not dry_run:
+            with transaction.atomic():
+                propagables.update(monto_usd=nuevo_monto)
+                from usuarios.models import crear_log
+                crear_log(
+                    usuario=usuario, accion='Propagación de monto global', modulo='cobranza',
+                    detalles={
+                        'clave': clave, 'monto_nuevo': str(nuevo_monto),
+                        'actualizadas': actualizadas,
+                        'respetadas_por_override': respetadas_por_override,
+                        'excluidas_por_vencidas': excluidas_por_vencidas,
+                    },
+                )
+        return {
+            'actualizadas': actualizadas,
+            'respetadas_por_override': respetadas_por_override,
+            'excluidas_por_vencidas': excluidas_por_vencidas,
+        }
+
+    from secretaria.models import ConfiguracionSistema
+    config = ConfiguracionSistema.objects.first()
+    periodo_activo = config.periodo_escolar_activo if config else None
+
+    if clave == 'MONTO_INSCRIPCION_DEFECTO':
+        from .models import CuotaInscripcion
+        base = CuotaInscripcion.objects.filter(pagado=False)
+        if periodo_activo:
+            base = base.filter(periodo_escolar=periodo_activo)
+        else:
+            base = base.none()
+    else:  # MONTO_PROYECTO_INVERSION_DEFECTO
+        from .models import CuotaProyectoInversion
+        base = CuotaProyectoInversion.objects.filter(
+            pagado=False, tipo_concepto=tipo_cargo_proyecto_inversion(),
+        )
+        if periodo_activo:
+            base = base.filter(periodo_escolar=periodo_activo)
+        else:
+            base = base.none()
+
+    respetadas_por_override = base.filter(monto_personalizado=True).count()
+    propagables = base.filter(monto_personalizado=False)
+    actualizadas = propagables.count()
+    excluidas_por_vencidas = 0
+
+    if not dry_run:
+        with transaction.atomic():
+            propagables.update(monto_usd=nuevo_monto)
+            from usuarios.models import crear_log
+            crear_log(
+                usuario=usuario, accion='Propagación de monto global', modulo='cobranza',
+                detalles={
+                    'clave': clave, 'monto_nuevo': str(nuevo_monto),
+                    'actualizadas': actualizadas,
+                    'respetadas_por_override': respetadas_por_override,
+                    'excluidas_por_vencidas': excluidas_por_vencidas,
+                },
+            )
+    return {
+        'actualizadas': actualizadas,
+        'respetadas_por_override': respetadas_por_override,
+        'excluidas_por_vencidas': excluidas_por_vencidas,
+    }
 
 
 def calcular_datos_administrativos_inscripcion(inscripcion):

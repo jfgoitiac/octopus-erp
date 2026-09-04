@@ -18,6 +18,7 @@ import ModalAsignarGrado from '../components/alumnos/ModalAsignarGrado';
 import ModalRetirar from '../components/alumnos/ModalRetirar';
 import ModalConfirmarReactivar from '../components/alumnos/ModalConfirmarReactivar';
 import ModalConfirmarQuitarGrado from '../components/alumnos/ModalConfirmarQuitarGrado';
+import ModalConfirmarPropagacionMontos from '../components/configuracion/ModalConfirmarPropagacionMontos';
 import Pagination from '../components/shared/Pagination';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -193,16 +194,17 @@ const ListaAlumnos = () => {
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                     value={alumnos.montoProyectoInversion}
                                     onChange={(e) => alumnos.setMontoProyectoInversion(e.target.value)} />
-                                {/* C-4 fix: disabled mientras guarda */}
+                                {/* Antes de aplicar, se muestra un preview (dry_run) de cuántas cuotas
+                                    se van a ver afectadas — ver ModalConfirmarPropagacionMontos */}
                                 <button
-                                    onClick={() => alumnos.handleSaveConfig().then(() => setShowConfig(false)).catch(() => {})}
-                                    disabled={alumnos.savingConfig}
+                                    onClick={() => alumnos.handlePreviewConfig()}
+                                    disabled={alumnos.cargandoPreview}
                                     className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}>
-                                    {alumnos.savingConfig
+                                    {alumnos.cargandoPreview
                                         ? <Loader2 size={14} className="animate-spin" />
                                         : <Save size={14} />}
-                                    {alumnos.savingConfig ? 'Guardando...' : 'Guardar'}
+                                    {alumnos.cargandoPreview ? 'Calculando...' : 'Guardar'}
                                 </button>
                             </div>
                         )}
@@ -384,6 +386,19 @@ const ListaAlumnos = () => {
                     onCancelar={alumnos.cancelarQuitarGrado}
                 />
             )}
+
+            <ModalConfirmarPropagacionMontos
+                open={alumnos.mostrandoConfirmacionPropagacion}
+                preview={alumnos.previewPropagacion}
+                confirmando={alumnos.savingConfig}
+                onClose={() => alumnos.setMostrandoConfirmacionPropagacion(false)}
+                onConfirmar={() => alumnos.handleSaveConfig()
+                    .then(() => {
+                        alumnos.setMostrandoConfirmacionPropagacion(false);
+                        setShowConfig(false);
+                    })
+                    .catch(() => {})}
+            />
         </div>
     );
 };

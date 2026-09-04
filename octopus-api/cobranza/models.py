@@ -331,6 +331,11 @@ class Mensualidad(models.Model):
     porcentaje_beca_aplicado = models.PositiveIntegerField(default=0)
     pagado = models.BooleanField(default=False, db_index=True)
     fecha_pago = models.DateTimeField(blank=True, null=True)
+    # True cuando el monto fue editado a mano (ActualizarMensualidadesView) en
+    # vez de heredado de ParametroGlobal.MONTO_MENSUALIDAD_DEFECTO. Marca la
+    # fila como "override": propagar_monto_global() (cobranza/services.py)
+    # nunca la toca, aunque cambie el monto por defecto del colegio.
+    monto_personalizado = models.BooleanField(default=False, db_index=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='mensualidades_pagadas')
     # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores
     history = HistoricalRecords()
@@ -349,6 +354,9 @@ class CuotaInscripcion(models.Model):
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
+    # True cuando el monto fue editado a mano en vez de heredado de
+    # ParametroGlobal.MONTO_INSCRIPCION_DEFECTO. Ver Mensualidad.monto_personalizado.
+    monto_personalizado = models.BooleanField(default=False, db_index=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='cuotas_inscripcion_pagadas')
     # Auditoría automática: registra cada cambio de monto con usuario, fecha y valores anteriores
     history = HistoricalRecords()
@@ -529,6 +537,10 @@ class CuotaProyectoInversion(models.Model):
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
+    # True cuando el monto fue editado a mano en vez de heredado de
+    # ParametroGlobal.MONTO_PROYECTO_INVERSION_DEFECTO. Ver
+    # Mensualidad.monto_personalizado.
+    monto_personalizado = models.BooleanField(default=False, db_index=True)
     pagos = models.ManyToManyField(Pago, blank=True, related_name='proyectos_inversion_pagados')
     # Auditoría automática: registra cada cambio de monto con usuario, fecha y valores anteriores
     history = HistoricalRecords()

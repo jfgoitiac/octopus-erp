@@ -50,6 +50,9 @@ export function useAlumnos() {
     const [montoInscripcion, setMontoInscripcion] = useState('50.00');
     const [montoProyectoInversion, setMontoProyectoInversion] = useState('0.00');
     const [savingConfig, setSavingConfig] = useState(false);
+    const [previewPropagacion, setPreviewPropagacion] = useState(null);
+    const [mostrandoConfirmacionPropagacion, setMostrandoConfirmacionPropagacion] = useState(false);
+    const [cargandoPreview, setCargandoPreview] = useState(false);
 
     // --- Export ---
     const [exportingExcel, setExportingExcel] = useState(false);
@@ -234,6 +237,27 @@ export function useAlumnos() {
     // Deriva si el aviso de reasignación debe mostrarse: si la cédula volvió a ser
     // la original, no hay reasignación en curso aunque repEditEncontrado tenga un valor viejo.
     const repEditEstado = (editForm.rep_cedula || '').trim() === repCedulaOriginal ? null : repEditEncontrado;
+
+    // Preview (dry_run) de la propagación de montos: se llama al presionar "Guardar"
+    // en Configuración, antes de aplicar el cambio real, para mostrarle al usuario
+    // cuántas cuotas se van a ver afectadas (ver ModalConfirmarPropagacionMontos).
+    const handlePreviewConfig = async () => {
+        setCargandoPreview(true);
+        try {
+            const res = await axiosInstance.post('cobranza/configuracion/', {
+                monto_defecto: montoDefecto,
+                monto_inscripcion: montoInscripcion,
+                monto_proyecto_inversion: montoProyectoInversion,
+                dry_run: true,
+            });
+            setPreviewPropagacion(res?.data?.preview || {});
+            setMostrandoConfirmacionPropagacion(true);
+        } catch (err) {
+            toast.error(parseApiError(err));
+        } finally {
+            setCargandoPreview(false);
+        }
+    };
 
     // C-4 fix: savingConfig previene doble envío
     const handleSaveConfig = async () => {
@@ -532,6 +556,8 @@ export function useAlumnos() {
         // Config
         montoDefecto, setMontoDefecto, montoInscripcion, setMontoInscripcion,
         montoProyectoInversion, setMontoProyectoInversion, savingConfig, handleSaveConfig,
+        previewPropagacion, mostrandoConfirmacionPropagacion, setMostrandoConfirmacionPropagacion,
+        cargandoPreview, handlePreviewConfig,
         // Export
         exportingExcel, handleExportExcel,
         // Selección

@@ -14,7 +14,7 @@ from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Min, Q, Sum
 from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
 from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, ReglaRecargoPagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
-from .services import reporte_costo_becas, tipo_cargo_proyecto_inversion
+from .services import propagar_monto_global, reporte_costo_becas
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
@@ -931,48 +931,59 @@ class ConfiguracionCobranzaView(APIView):
         monto = request.data.get('monto_defecto')
         monto_insc = request.data.get('monto_inscripcion')
         monto_proyecto = request.data.get('monto_proyecto_inversion')
+        dry_run = bool(request.data.get('dry_run', False))
         response_data = {}
+        preview = {}
+        resultado = {}
 
-        # Período escolar activo: las cuotas YA PAGADAS jamás se tocan (filtro
-        # pagado=False). Solo las pendientes del período activo se sincronizan
-        # con el nuevo monto por defecto, para que un cambio de configuración
-        # sí se refleje en los representantes que aún no han pagado.
-        from secretaria.models import ConfiguracionSistema
-        config = ConfiguracionSistema.objects.first()
-        periodo_activo = config.periodo_escolar_activo if config else None
-
+        # Guardar el ParametroGlobal es el mismo de siempre (incluso en
+        # dry_run: la vista solo previsualiza el efecto de la PROPAGACIÓN,
+        # no la del guardado del parámetro). La propagación a las cuotas YA
+        # GENERADAS (antes faltaba por completo para mensualidad, y era un
+        # .update() bulk sin distinguir overrides para inscripción/proyecto)
+        # ahora pasa por el único punto de verdad propagar_monto_global()
+        # (cobranza/services.py), que respeta monto_personalizado=True y,
+        # para mensualidad, excluye las vencidas.
         if monto is not None:
             ParametroGlobal.objects.update_or_create(
                 clave="MONTO_MENSUALIDAD_DEFECTO",
                 defaults={'valor': str(monto), 'descripcion': 'Monto base mensualidad por defecto'}
             )
             response_data['monto_defecto'] = monto
+            resultado_mensualidad = propagar_monto_global(
+                'MONTO_MENSUALIDAD_DEFECTO', monto, usuario=request.user, dry_run=dry_run,
+            )
+            preview['mensualidad'] = resultado_mensualidad
+            resultado['mensualidad'] = resultado_mensualidad
+
         if monto_insc is not None:
             ParametroGlobal.objects.update_or_create(
                 clave="MONTO_INSCRIPCION_DEFECTO",
                 defaults={'valor': str(monto_insc), 'descripcion': 'Monto base cuota de inscripción por defecto'}
             )
             response_data['monto_inscripcion'] = monto_insc
-            if periodo_activo:
-                CuotaInscripcion.objects.filter(
-                    periodo_escolar=periodo_activo, pagado=False
-                ).update(monto_usd=Decimal(str(monto_insc)))
+            resultado_inscripcion = propagar_monto_global(
+                'MONTO_INSCRIPCION_DEFECTO', monto_insc, usuario=request.user, dry_run=dry_run,
+            )
+            preview['inscripcion'] = resultado_inscripcion
+            resultado['inscripcion'] = resultado_inscripcion
+
         if monto_proyecto is not None:
             ParametroGlobal.objects.update_or_create(
                 clave="MONTO_PROYECTO_INVERSION_DEFECTO",
                 defaults={'valor': str(monto_proyecto), 'descripcion': 'Monto base Proyecto de Inversión por defecto (por representante)'}
             )
             response_data['monto_proyecto_inversion'] = monto_proyecto
-            if periodo_activo:
-                # Acotado a la semilla "Proyecto de Inversión": desde la
-                # generalización a TipoCargoEspecial, sin este filtro este
-                # UPDATE le pisaría el monto a CUALQUIER otro cargo especial
-                # del período (ej. "Uniformes", "Materiales") solo porque
-                # comparten periodo_escolar y pagado=False.
-                CuotaProyectoInversion.objects.filter(
-                    periodo_escolar=periodo_activo, pagado=False,
-                    tipo_concepto=tipo_cargo_proyecto_inversion(),
-                ).update(monto_usd=Decimal(str(monto_proyecto)))
+            resultado_proyecto = propagar_monto_global(
+                'MONTO_PROYECTO_INVERSION_DEFECTO', monto_proyecto, usuario=request.user, dry_run=dry_run,
+            )
+            preview['proyecto_inversion'] = resultado_proyecto
+            resultado['proyecto_inversion'] = resultado_proyecto
+
+        if dry_run:
+            return Response({'preview': preview})
+
+        response_data['resultado'] = resultado
         return Response(response_data)
 
 
@@ -1086,8 +1097,11 @@ class ActualizarMensualidadesView(APIView):
             mensualidad_id = item.get('id')
             monto = item.get('monto_usd')
             if mensualidad_id and monto is not None:
+                # monto_personalizado=True marca esta fila como override manual:
+                # propagar_monto_global() (cobranza/services.py) la excluye de
+                # cualquier sincronización futura con el monto por defecto.
                 actualizadas += mensualidades_permitidas.filter(id=mensualidad_id).update(
-                    monto_usd=Decimal(str(monto))
+                    monto_usd=Decimal(str(monto)), monto_personalizado=True
                 )
 
         return Response({'actualizadas': actualizadas})

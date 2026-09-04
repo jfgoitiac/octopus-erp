@@ -22,8 +22,47 @@ todavía, se ejecuta fase por fase con aprobación previa.
   imagen, tablas, PDFs escaneados). En su lugar:
   - Campo nuevo en `ConfiguracionSistema`: `encabezado_personalizado`
     (`ImageField`, igual patrón que `logo_colegio`/`logo_avec`) — el colegio
-    sube una imagen ya recortada de su membrete oficial y el sistema la pega
-    tal cual arriba del recibo, sin reconstruirla en código.
+    sube una imagen **PNG** ya recortada de su membrete oficial y el sistema
+    la pega tal cual arriba del recibo, sin reconstruirla en código.
+    Decisión confirmada por el usuario (2026-09-04): PNG específicamente
+    (permite fondo transparente, a diferencia de JPG) — validar
+    `content_type`/extensión en el serializer y rechazar otros formatos.
+  - **Dimensiones exactas** (verificado contra `nominaPDF.js`, no
+    estimado): los PDFs actuales usan `jsPDF({unit:'mm', format:'letter'})`
+    con `LM=14mm` de margen a cada lado → ancho útil real = 187.9mm. El
+    bloque de encabezado actual (logo colegio + logo AVEC + texto) ocupa
+    ~32-36mm de alto. Especificación recomendada para
+    `encabezado_personalizado`:
+    - Ancho: 187.9mm (7.4") — el ancho útil completo de la página carta.
+    - Alto: 35mm (1.38") — mismo espacio que ocupa hoy el bloque de logos.
+    - Resolución: 300 DPI → **2200 × 410 px** (PNG, fondo transparente
+      opcional). A esa resolución se imprime nítido; menos que eso se ve
+      pixelado en papel.
+    - Si la imagen subida no respeta esa proporción (~5.4:1), la app debe
+      recortarla/ajustarla sin deformarla (nunca estirar) — mostrar el
+      recuadro objetivo en el uploader para que el usuario vea el resultado
+      antes de guardar.
+    - En `nominaPDF.js`/`printReciboCobranza.jsx`: `doc.addImage(...)`
+      ocupando el ancho completo entre `LM` y `RM` a esa altura fija, en vez
+      del bloque logo+texto actual (solo cuando el campo está presente).
+  - **Herramienta de recorte dentro del programa** (pedido explícito del
+    usuario, 2026-09-04): en vez de exigir que el colegio entregue el PNG ya
+    del tamaño exacto, el uploader de `Configuracion.jsx` debe aceptar
+    también una imagen más grande o un **PDF** (ej. el membrete oficial del
+    colegio en cualquier formato que ya tengan) y dejar que el usuario
+    recorte visualmente dentro del navegador hasta el recuadro
+    2200×410px (proporción fija ~5.4:1, arrastrar/hacer zoom para elegir
+    el área) — la app solo exporta el recorte final como PNG a esa
+    resolución, no interpreta ni extrae contenido del documento (eso
+    seguiría siendo frágil e innecesario, como ya se descartó arriba).
+    - Si es PDF: renderizar la primera página como imagen dentro del
+      navegador (librería tipo `pdf.js`) para poder recortarla igual que una
+      imagen — no requiere backend ni parsing de texto/layout.
+    - Si es imagen (PNG/JPG) de mayor resolución: recorte directo con la
+      misma UI, sin paso de renderizado previo.
+    - Librería candidata para el recorte (a evaluar antes de implementar,
+      no instalar sin consultar por regla del proyecto): `react-easy-crop`
+      o `cropperjs`, con aspect ratio fijo 2200:410.
   - Si el campo está vacío, se sigue armando el encabezado con los campos
     estructurados existentes (nombre, RIF/documento fiscal, dirección,
     teléfono, logo) — ese sigue siendo el default recomendado.
@@ -32,12 +71,124 @@ todavía, se ejecuta fase por fase con aprobación previa.
     uploader) — mismo patrón que los logos ya existentes.
 
 ### Fase B — Aislar el convenio de nómina AVEC como plugin opt-in
-- Mover `constants/avec.js` a algo tipo `constants/convenios/avec_ve.js`.
-- `ConfiguracionSistema.convenio_nomina` (`'generico' | 'avec_ve'`): si no es
-  AVEC, la UI de nómina no muestra categorías D-I...D-VI ni calcula
-  SSO/SPF/FAOV — usa el motor genérico del backend (`ParametroLegalNomina`).
-- Alto riesgo por tocar cálculos de dinero real — requiere regresión sobre
-  los 141 tests existentes antes de tocar.
+
+**Qué haría**: sacar toda la lógica específica del convenio colectivo
+AVEC/MPPE (hoy hardcodeada y activa siempre para cualquier colegio) de la
+ruta por defecto del sistema, y dejarla como un módulo opcional que solo se
+activa para los colegios afiliados a AVEC. Un colegio no-AVEC no debe ver
+categorías docentes D-I...D-VI, ni que el sistema le calcule SSO/SPF/FAOV
+(ley venezolana), ni las tablas `PRIMA_DOCENTE_PCT`/`POSTGRADO_PCT` —  esos
+colegios usan el motor de nómina genérico que ya existe en el backend
+(`ParametroLegalNomina`), configurable libremente por el propio admin del
+colegio (sus propios porcentajes/conceptos, sin nombres venezolanos
+quemados).
+
+**Cómo funcionaría**:
+1. `ConfiguracionSistema.convenio_nomina` — campo nuevo (`'generico'` por
+   defecto, `'avec_ve'` para los colegios AVEC actuales). Es el interruptor
+   único que decide qué motor se usa; se setea una sola vez en Configuración,
+   no por empleado ni por recibo individual.
+2. `constants/avec.js` se mueve a `constants/convenios/avec_ve.js` — mismo
+   código (`calcAVEC`, tablas de porcentajes, `CATEGORIAS_DOCENTE`), solo
+   reubicado para que quede claro que es un módulo opcional y no el default.
+3. Los componentes de nómina (formulario de empleado, cálculo de recibo,
+   `nominaPDF.js`) leen `convenio_nomina` desde la config del colegio:
+   - Si es `'avec_ve'` → renderizan el selector de categoría docente D-I..D-VI,
+     usan `calcAVEC()` y muestran el desglose de primas/SSO/SPF/FAOV, igual
+     que hoy (cero cambio de comportamiento para los colegios AVEC actuales).
+   - Si es `'generico'` → esos campos/cálculos no se muestran; el sueldo y
+     las deducciones salen enteramente del motor `ParametroLegalNomina` del
+     backend (el mismo que ya usa `RegistroNominaViewSet.calcular_deducciones`),
+     sin ningún nombre ni porcentaje venezolano de por medio.
+4. El backend no necesita un motor nuevo — `ParametroLegalNomina` ya es
+   genérico. Este cambio es principalmente de **frontend + un campo de
+   configuración**: dejar de asumir AVEC siempre y consultar el interruptor
+   antes de mostrar/calcular.
+5. Migración de datos: al desplegar, el/los colegio(s) AVEC existentes deben
+   quedar con `convenio_nomina='avec_ve'` explícito (no puede quedar nulo ni
+   inferirse), para que su flujo actual no cambie ni un pixel.
+6. Alto riesgo por tocar cálculos de dinero real — requiere regresión sobre
+   los 141 tests existentes antes y después de cada cambio de esta fase, y
+   ojalá casos de prueba nuevos que cubran ambos valores de `convenio_nomina`.
+
+**Corrección (2026-09-04, observación del usuario)**: el plan de arriba
+mezclaba dos cosas distintas bajo "AVEC". Al revisar `nomina/models.py`
+(`ParametroLegalNomina`/`RegistroNomina`, el supuesto motor "genérico") se
+confirma que en realidad son **tres capas**, no dos:
+
+- **Capa 1 — Beneficios universales de RRHH** (deberían existir para
+  *cualquier* colegio, no son un privilegio de AVEC): prima por antigüedad
+  (% por año de servicio), asignación por hijos (monto fijo por hijo),
+  posiblemente prima por título/postgrado. Hoy solo existen hardcodeadas
+  dentro de `calcAVEC()` en `avec.js` — ningún colegio no-AVEC puede
+  configurarlas, aunque las necesite. El modelo `ConceptoNomina`
+  (asignación/deducción, porcentaje o monto fijo) ya existe para esto en el
+  backend pero está huérfano (sin conectar a `calcular_deducciones()`).
+- **Capa 2 — Escala/convenio específico de AVEC**: la tabla de categorías
+  docentes D-I...D-VI con los porcentajes exactos que negocia AVEC/MPPE, y
+  los porcentajes de postgrado tal como los define ese convenio. Esto sí es
+  exclusivo de colegios afiliados a AVEC — un colegio no afiliado no tiene
+  "categoría D-III", tiene su propia escala salarial (o ninguna).
+- **Capa 3 — Deducciones legales de Venezuela**: SSO/SPF/FAOV (frontend) o
+  SSO/LPH (backend, `ParametroLegalNomina`) — son ley venezolana, no de
+  AVEC. Un colegio venezolano no afiliado a AVEC *igual* las paga; un
+  colegio fuera de Venezuela no debería verlas en absoluto.
+
+**Implicación para el plan**: el interruptor `convenio_nomina` solo debe
+activar/desactivar la Capa 2 (la escala AVEC). Las Capas 1 y 3 necesitan
+sus propios interruptores/configuración independientes:
+- Capa 1 → conectar `ConceptoNomina` como el motor genérico de
+  antigüedad/hijos/postgrado, editable por cualquier colegio (no requiere
+  ser AVEC para tener prima por hijos).
+- Capa 3 → un flag de "aplica legislación venezolana (SSO/SPF/FAOV)" o
+  directamente delegarlo a `pais` (Fase A) — si `pais !== 'VE'`, no se
+  calculan ni se muestran.
+Esto agranda la Fase B/C (ya no es un solo interruptor sino tres piezas
+independientes que pueden combinarse), pero evita el error de asumir que
+"colegio no-AVEC" implica "sin antigüedad ni prima por hijos" — eso rompería
+la propuesta de valor para colegios no afiliados que sí quieren esos
+beneficios, solo que con sus propios montos/porcentajes.
+
+**Contenido real del plugin AVEC** (`constants/convenios/avec_ve.js` —
+solo Capa 2, exclusivo de colegios afiliados; todo lo demás se saca de aquí
+y pasa a configuración genérica):
+
+- `CATEGORIAS_DOCENTE` — la lista fija `['D-I S/C', 'D-I', 'D-II', 'D-III',
+  'D-IV', 'D-V', 'D-VI']`. Un colegio no-AVEC no tiene estas categorías.
+- `PRIMA_DOCENTE_PCT` — el % sobre sueldo base que corresponde a cada
+  categoría, según lo negocia AVEC/MPPE (de 0% en D-I S/C hasta 10% en D-VI).
+- El selector de categoría docente en el formulario de empleado (solo
+  visible si `convenio_nomina === 'avec_ve'`).
+- La parte de `calcAVEC()` que aplica `pctDoc`/`primaDoc`/`primaGeo` (el
+  `[DEUDA]` ya anotado de que `primaGeo` se asume igual a `primaDoc` —
+  pendiente verificar tabla MPPE por zona — viaja con el plugin, sigue
+  siendo deuda técnica exclusiva de AVEC).
+
+**Lo que se saca del plugin y pasa a ser configuración genérica** (para que
+cualquier colegio, AVEC o no, pueda tenerlo con sus propios valores):
+
+- Capa 1 → vía `ConceptoNomina` (conectar, hoy huérfano):
+  - `calcPrimaAntiguedad()` (hoy fijo: 1% del sueldo base por año, tope
+    100%) — pasa a ser un `ConceptoNomina` tipo asignación, % configurable
+    por colegio en vez de la fórmula fija de AVEC.
+  - `PRIMA_HIJO_FIJA` (hoy fijo: 12.50 USD por hijo) — `ConceptoNomina` tipo
+    asignación, monto fijo configurable por colegio.
+  - `PRIMA_ASISTENCIAL_FIJA` (hoy fijo: 17.50 USD) — mismo tratamiento,
+    monto configurable.
+  - `POSTGRADO_PCT`/`calcPrimaPostgrado()` (tabla DR/PHD/MSC/ESP/LEM/LIC/
+    PROF/TSU/BACH) — el *concepto* "prima por título" es universal, pero la
+    tabla de porcentajes es la que negoció AVEC. Se ofrece como plantilla
+    inicial sugerida al crear `ConceptoNomina` para un colegio AVEC (para no
+    perder el dato), pero editable/reemplazable libremente por cualquier
+    colegio.
+- Capa 3 → atado a `pais` (Fase A), no al convenio:
+  - `SSO_PCT`, `SSO_TOPE`, `SPF_PCT`, `FAOV_PCT` (frontend) y su equivalente
+    `porcentaje_sso`/`porcentaje_lph` ya existente en `ParametroLegalNomina`
+    (backend) — se calculan si `pais === 'VE'`, sin importar si el colegio
+    está afiliado a AVEC o no.
+- Fuera de la nómina, no es Capa 1/2/3, va a Fase A tal como ya estaba:
+  `validarCedula()` (formato de documento de identidad, no es un beneficio
+  de nómina).
 
 ### Fase C — Unificar el doble motor de nómina (frontend AVEC vs. backend genérico)
 - Deuda ya anotada más abajo (sección AUDITORÍA NÓMINA/RRHH). Migrar a que el
@@ -2880,3 +3031,30 @@ anotados):
   backend (123 tests de `cobranza`). Si se agrega una suite de frontend en el
   futuro, este es un buen candidato inicial: el hook tiene lógica de
   abort/404/mapeo de campos no trivial.
+
+## PROPAGACIÓN DE MONTOS GLOBALES (`monto_personalizado` + `propagar_monto_global`)
+
+- **Inconsistencia de auditoría entre ajuste manual y propagación masiva**:
+  el ajuste individual de una mensualidad (`ActualizarMensualidadesView.patch`,
+  `cobranza/views.py`) queda registrado en `HistoricalRecords` (vía
+  `django-simple-history`, automático en el modelo) pero NO en
+  `LogAuditoria` — a diferencia de la propagación masiva
+  (`propagar_monto_global`, `cobranza/services.py`), que sí llama a
+  `usuarios.models.crear_log` en cada corrida real (no en `dry_run`). Un
+  cambio manual de monto por mensualidad no deja ningún rastro visible en
+  el módulo de auditoría de usuarios, solo en el historial propio del
+  modelo — dos caminos de auditoría distintos para el mismo tipo de cambio
+  (monto de una cuota). Si se quiere trazabilidad uniforme, `patch` debería
+  llamar también a `crear_log` (o el historial de `simple_history` debería
+  consultarse desde la misma pantalla de auditoría que `LogAuditoria`).
+- **`CuotaSolvencia` sin `ParametroGlobal` propio ni propagación**: a
+  diferencia de mensualidad/inscripción/proyecto de inversión,
+  `CuotaSolvencia.monto_usd` se define por alumno (ver
+  `cobranza/models.py::CuotaSolvencia`, default 0, no exigible) y no tiene
+  ningún valor por defecto centralizado en `ParametroGlobal` ni mecanismo de
+  propagación equivalente a `propagar_monto_global`. Quedó fuera del
+  alcance de esta feature — si en el futuro se agrega un monto "por
+  defecto" de solvencia configurable globalmente, tendría que sumarse como
+  una cuarta clave propagable (con su propio criterio de "vencida", si
+  aplica, ya que hoy `CuotaSolvencia` no tiene fecha límite propia — ver
+  `cobranza/mora.py::_condicion_mora`).
