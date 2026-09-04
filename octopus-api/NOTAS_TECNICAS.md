@@ -800,3 +800,28 @@ existente ("quedó restringido a los 4 módulos de administración del sistema")
 creó `ROLE_GROUPS.SOLVENCIA_DASHBOARD = [director, administrador, cobranza, sistemas]` rompiendo ese patrón a
 propósito. Queda anotado por si esto no era intencional a nivel de arquitectura de permisos — de ser un error,
 basta con quitar `ROLES.SISTEMAS` de ese array.
+
+## `ResumenPorConceptoView` (cobranza/solvencia_reportes.py) puede sobre-contar en `vista=grado` para conceptos de nivel `representante`
+
+`_agregar_conteos` agrupa con `.values(*group_fields).annotate(...)`, y para `vista=grado` incluye
+`representante__alumnos__grado_seccion` en `group_fields`. Para conceptos de nivel `alumno` (mensualidad,
+inscripción, solvencia) esto es correcto: cada fila tiene un solo alumno y por lo tanto un solo grado. Pero para
+conceptos de nivel `representante` (cargos especiales), el join a `representante__alumnos__grado_seccion` hace
+fan-out: si un representante tiene hijos en dos grados distintos, su misma `CuotaProyectoInversion` se cuenta una
+vez bajo CADA grado en el desglose `grados` de la línea — el total de la suma de `grados` puede superar el
+`total` de la línea (que sí es correcto, viene de contar el queryset sin ese join). No se corrigió porque ningún
+caso de los bloques 1-4 ni del bloque 9 de tests lo ejercita (los tests de cargo especial existentes cubren la
+vista de detalle `EstadoPorConceptoView`, que sí deduplica con `.distinct()` vía `filtrar_por_sede`, no el
+resumen agregado con `vista=grado`). Si el frontend llega a mostrar `estado-por-concepto/resumen/?vista=grado`
+para un cargo especial, revisar si esta atribución "un representante cuenta en cada grado de sus hijos" es el
+comportamiento deseado o si hay que deduplicar (ej. contar el representante una sola vez, en su primer grado, o
+mostrar la fila sin desglose por grado para conceptos de nivel representante).
+
+## `EstadoPorConceptoView`/`ExportarEstadoPorConceptoExcelView` (cobranza/solvencia_reportes.py) no filtran por alumno activo
+
+A diferencia de `SolvenciaMensualView` (excluye alumnos con `activo=False` y becados) y de
+`EstadoCuentaRepresentanteView` (cargos solo de alumnos activos), el detalle "estado por concepto" incluye
+mensualidades/inscripción/solvencia de alumnos retirados (`activo=False`) si existen filas históricas para ellos.
+El documento de tarea (PROMPT_MODULO_SOLVENCIA.md) no pide ese filtro para este endpoint en particular — es
+plausible que sea intencional (reporte de cobranza histórico completo, no solo alumnos activos), pero queda
+anotado por si el frontend espera ver solo alumnos activos aquí también, igual que en los otros dos reportes.
