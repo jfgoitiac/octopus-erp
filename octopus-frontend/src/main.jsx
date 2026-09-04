@@ -5,6 +5,7 @@ import './index.css'
 import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider } from './context/AuthContext'
 import { BrandingProvider } from './context/BrandingContext'
+import { iniciarActualizacionAutomatica } from './pwaUpdate.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -15,3 +16,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrandingProvider>
   </React.StrictMode>,
 )
+
+iniciarActualizacionAutomatica()
