@@ -18,6 +18,17 @@ export async function iniciarActualizacionAutomatica() {
 
   const actualizar = registerSW({
     immediate: true,
+    onRegisteredSW(swUrl, registration) {
+      // El navegador solo revisa el sw.js por su cuenta cada ~24h y nada más
+      // en navegaciones completas — en una SPA sin recargas eso significa
+      // que una actualización puede tardar horas/días en notarse. Forzamos
+      // un chequeo cada 5 minutos para que el aviso de "nueva versión" salga
+      // casi apenas termina el deploy.
+      if (!registration) return;
+      setInterval(() => {
+        registration.update();
+      }, 5 * 60 * 1000);
+    },
     onNeedRefresh() {
       toast.info(
         ({ closeToast }) => (
