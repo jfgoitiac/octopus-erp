@@ -1,4 +1,5 @@
 import logging
+import os
 import requests
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
@@ -127,8 +128,24 @@ def sincronizar_tasa_bcv() -> Decimal:
 # GENERACIÓN DE DOCUMENTOS PDF (REPORTLAB)
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _safe_image_path(campo_imagen):
+    """Devuelve la ruta local del ImageField si el archivo existe en disco, o None."""
+    if not campo_imagen:
+        return None
+    try:
+        path = campo_imagen.path
+    except (ValueError, NotImplementedError):
+        return None
+    return path if os.path.exists(path) else None
+
+
 def _get_config_colegio():
-    """Retorna los datos del colegio desde ConfiguracionSistema o valores por defecto."""
+    """
+    Retorna los datos del colegio desde ConfiguracionSistema o valores por defecto,
+    junto con las rutas de los banners personalizados (encabezado/pie) si el colegio
+    los configuró — mismo criterio que useInstitucionPDF.js/logosInstitucionales.js
+    en el frontend, para que el recibo generado en backend luzca igual.
+    """
     from secretaria.models import ConfiguracionSistema
     cfg = ConfiguracionSistema.objects.order_by('id').first()
     if cfg:
@@ -142,8 +159,10 @@ def _get_config_colegio():
         elif cfg.municipio or cfg.estado_colegio:
             partes_dir.append(f"{cfg.municipio or cfg.estado_colegio}, Venezuela.")
         direccion = " | ".join(partes_dir) if partes_dir else ""
-        return nombre, rif, direccion
-    return "UNIDAD EDUCATIVA", "", ""
+        encabezado_path = _safe_image_path(cfg.encabezado_personalizado)
+        pie_path = _safe_image_path(cfg.pie_pagina_personalizado)
+        return nombre, rif, direccion, encabezado_path, pie_path
+    return "UNIDAD EDUCATIVA", "", "", None, None
 
 
 def _wrap_text(c, text, font, size, max_width):
@@ -164,7 +183,7 @@ def _wrap_text(c, text, font, size, max_width):
 
 
 def _draw_colegio_header(c, width, height, margin, nombre_colegio, rif_colegio, dir_colegio,
-                          titulo, subtitulo):
+                          titulo, subtitulo, encabezado_path=None):
     """
     Dibuja el encabezado común a los comprobantes: nombre del colegio a la
     izquierda, título del documento a la derecha. Cuando el nombre del
@@ -174,9 +193,45 @@ def _draw_colegio_header(c, width, height, margin, nombre_colegio, rif_colegio, 
     segunda línea, el resto de la página se desplaza hacia abajo con
     `c.translate` para no chocar con el divisor dorado ni las secciones
     siguientes, que siguen posicionándose con offsets relativos a `height`.
+
+    Si el colegio configuró un banner de encabezado (`encabezado_path`), ese
+    banner reemplaza el bloque logo+texto por completo — mismo criterio que
+    printReciboCobranza.jsx en el frontend — y el título/subtítulo se dibujan
+    debajo, alineados a la derecha. Igual que con nombres largos, el resto
+    del documento se desplaza hacia abajo con `c.translate` según lo que
+    ocupe el banner.
     """
     octopus_blue = HexColor("#1e293b")
     header_ash = HexColor("#64748b")
+
+    if encabezado_path:
+        default_bottom = height - 1.6 * inch  # posición original del divisor dorado
+        content_width = width - 2 * margin
+        try:
+            img = ImageReader(encabezado_path)
+            img_w, img_h = img.getSize()
+            banner_h = content_width * (img_h / img_w)
+            banner_top = height - 1 * inch
+            c.drawImage(img, margin, banner_top - banner_h, width=content_width, height=banner_h,
+                        mask='auto')
+
+            titulo_font, titulo_size = "Helvetica-Bold", 12
+            subtitulo_font, subtitulo_size = "Helvetica-Bold", 14
+            titulo_y = banner_top - banner_h - 0.3 * inch
+            c.setFillColor(octopus_blue)
+            c.setFont(titulo_font, titulo_size)
+            c.drawRightString(width - margin, titulo_y, titulo)
+            c.setFont(subtitulo_font, subtitulo_size)
+            c.drawRightString(width - margin, titulo_y - 0.22 * inch, subtitulo)
+
+            new_bottom = titulo_y - 0.22 * inch - 0.15 * inch
+            extra_offset = max(0, default_bottom - new_bottom)
+            if extra_offset:
+                c.translate(0, -extra_offset)
+            return
+        except Exception:
+            logger.warning("No se pudo dibujar el encabezado_personalizado, usando encabezado de texto.")
+            # Cae al encabezado de texto de siempre.
 
     titulo_font, titulo_size = "Helvetica-Bold", 12
     subtitulo_font, subtitulo_size = "Helvetica-Bold", 14
@@ -231,7 +286,7 @@ def generar_pdf_recibo(pagos):
     pagos = list(pagos)
     pago = pagos[0]
 
-    nombre_colegio, rif_colegio, dir_colegio = _get_config_colegio()
+    nombre_colegio, rif_colegio, dir_colegio, encabezado_path, pie_path = _get_config_colegio()
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -246,7 +301,7 @@ def generar_pdf_recibo(pagos):
     # ── Cabecera ──────────────────────────────────────────────────────────────
     factura_label = pago.factura_id if pago.factura_id else f"Nº {pago.id:06d}"
     _draw_colegio_header(c, width, height, 0.8 * inch, nombre_colegio, rif_colegio, dir_colegio,
-                          "RECIBO DE PAGO", factura_label)
+                          "RECIBO DE PAGO", factura_label, encabezado_path=encabezado_path)
 
     c.setStrokeColor(octopus_gold)
     c.setLineWidth(2)
@@ -415,6 +470,18 @@ def generar_pdf_recibo(pagos):
     c.setFillColor(ash)
     c.drawCentredString(2.5 * inch,         2.25 * inch, "Firma del Representante")
     c.drawCentredString(width - 2.5 * inch, 2.25 * inch, "Sello y Firma Autorizada")
+
+    # ── Banner de pie de página personalizado (opcional) ─────────────────────
+    if pie_path:
+        try:
+            pie_img = ImageReader(pie_path)
+            pie_w, pie_h_src = pie_img.getSize()
+            content_width = width - 1.6 * inch
+            pie_h = content_width * (pie_h_src / pie_w)
+            c.drawImage(pie_img, 0.8 * inch, 1.85 * inch - pie_h, width=content_width, height=pie_h,
+                        mask='auto')
+        except Exception:
+            logger.warning("No se pudo dibujar el pie_pagina_personalizado en el recibo de cobranza.")
 
     # ── Pie de página ─────────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 7)
