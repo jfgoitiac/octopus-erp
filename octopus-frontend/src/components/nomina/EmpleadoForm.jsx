@@ -38,7 +38,8 @@ function FieldError({ text }) {
     return <p className="text-[10px] mt-1" style={{ color: '#ef4444' }} role="alert">{text}</p>;
 }
 
-export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTipoSelect = false, autoFocusNombre = false }) {
+export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTipoSelect = false, autoFocusNombre = false, convenioNomina = 'avec_ve' }) {
+    const esAVEC = convenioNomina === 'avec_ve';
     const tipo = data.tipo_personal || 'docente';
     const isDocente        = tipo === 'docente';
     const isAdministrativo = tipo === 'administrativo';
@@ -118,25 +119,45 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                 </div>
             </div>
 
-            {/* ── DOCENTE: campos AVEC / MPPE ──────────────────────────────────── */}
+            {/* ── DOCENTE: convenio AVEC/MPPE o genérico ───────────────────────── */}
             {isDocente && (
                 <>
-                    <SectionLabel text="Datos AVEC / MPPE" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className={labelCls} style={labelStyle}>Categoría Docente</label>
-                            <select name="categoria_docente" value={data.categoria_docente}
-                                onChange={onChange} className={inputCls} style={inputStyle}>
-                                <option value="">— Seleccionar —</option>
-                                {CATEGORIAS_DOCENTE.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                    <SectionLabel text={esAVEC ? 'Datos AVEC / MPPE' : 'Datos salariales'} />
+                    {esAVEC ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className={labelCls} style={labelStyle}>Categoría Docente</label>
+                                <select name="categoria_docente" value={data.categoria_docente}
+                                    onChange={onChange} className={inputCls} style={inputStyle}>
+                                    <option value="">— Seleccionar —</option>
+                                    {CATEGORIAS_DOCENTE.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls} style={labelStyle}>Título Académico</label>
+                                <input name="titulo" value={data.titulo} onChange={onChange}
+                                    placeholder="LEM / TSU / Prof." className={inputCls} style={inputStyle} />
+                            </div>
                         </div>
-                        <div>
-                            <label className={labelCls} style={labelStyle}>Título Académico</label>
-                            <input name="titulo" value={data.titulo} onChange={onChange}
-                                placeholder="LEM / TSU / Prof." className={inputCls} style={inputStyle} />
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className={labelCls} style={labelStyle}>Sueldo Base Mensual (Bs) <Req /></label>
+                                <input type="number" name="sueldo_base" value={data.sueldo_base}
+                                    onChange={onChange} placeholder="0.00" min="0" step="0.01"
+                                    className={inputCls} style={inputStyle} />
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    Salario bruto mensual — base para primas, SSO, SPF y FAOV
+                                </p>
+                            </div>
+                            <div>
+                                <label className={labelCls} style={labelStyle}>Título Académico</label>
+                                <input name="titulo" value={data.titulo} onChange={onChange}
+                                    placeholder="Lic. / TSU / Prof." className={inputCls} style={inputStyle} />
+                            </div>
                         </div>
-                    </div>
+                    )}
+                    {esAVEC && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className={labelCls} style={labelStyle}>N° H/Sem <Req /></label>
@@ -160,6 +181,21 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                             />
                         </div>
                     </div>
+                    )}
+                    {!esAVEC && (
+                    <div>
+                        <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>
+                        <SmartDateInput
+                            id="fecha_ingreso"
+                            value={fechaIngresoDate}
+                            onChange={handleFechaIngresoChange}
+                            placeholder="15/09/1993"
+                            className={inputCls}
+                            style={inputStyle}
+                            aria-label="Fecha de ingreso"
+                        />
+                    </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label className={labelCls} style={labelStyle}>Años de Servicio</label>

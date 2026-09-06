@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Empleado, ParametroLegalNomina, RegistroNomina
+from .models import Empleado, ConceptoNomina, ParametroLegalNomina, RegistroNomina
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     """
@@ -28,6 +28,12 @@ class EmpleadoSerializer(serializers.ModelSerializer):
 class ParametroLegalNominaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParametroLegalNomina
+        fields = '__all__'
+
+
+class ConceptoNominaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConceptoNomina
         fields = '__all__'
 
 

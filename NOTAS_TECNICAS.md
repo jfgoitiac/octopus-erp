@@ -13,7 +13,44 @@ real es "afiliado a AVEC" vs. "no afiliado a AVEC", ambos dentro de Venezuela.
 Solo planificación — nada de esto está implementado todavía, se ejecuta fase
 por fase con aprobación previa.
 
-### Fase A — Identidad y encabezado del colegio (bajo riesgo)
+### Fase A — Identidad y encabezado del colegio (bajo riesgo) — ✅ IMPLEMENTADA (2026-09-04)
+
+Implementada, con un ajuste de alcance pedido por el usuario **después** de la
+primera pasada (2026-09-04): en vez de tener un logo de afiliación separado
+(`afiliacion_logo`), el sistema usa un único `logo_colegio` para todo — recibos,
+favicon/ícono de la app, páginas de login y el logo lateral junto al nombre del
+colegio (`Sidebar.jsx`, `BrandingContext`/`config-colegio` ya lo usaban como
+fallback de `logo_url`; ahora también reemplaza a `favicon`). Resumen final de
+lo que quedó en el código:
+- `ConfiguracionSistema` (migraciones `0021`/`0022`/`0023`): se agregó
+  `afiliacion_nombre` (solo texto, sin logo propio) y `encabezado_personalizado`;
+  se **eliminaron** `logo_avec`, `afiliacion_logo` y `favicon` (decisión
+  explícita del usuario, confirmada por pregunta directa). La migración `0022`
+  (data migration) setea `afiliacion_nombre = 'LA ASOCIACIÓN VENEZOLANA DE
+  EDUCACIÓN CATÓLICA'` para colegios que tenían `logo_avec` cargado (todos AVEC
+  hoy), preservando el texto visible exacto antes de que `0023` borre el campo.
+- El favicon público (`portal/views.py`, endpoint `config-colegio`) ahora cae a
+  `logo_colegio` cuando no hay `favicon_url` configurado — ya no hay upload de
+  favicon aparte. `useFaviconSitio.js` se borró (hook huérfano).
+- Los 5 puntos de renderizado (`nominaPDF.js` ×3, `printReciboCobranza.jsx`,
+  `ReceiptPreview.jsx`) ahora: si `encabezado_personalizado` está presente,
+  pintan el banner de ancho completo (35mm/proporción 2200:410); si no, arman
+  el encabezado estructurado de siempre con solo `logoColegio` (sin logo de
+  afiliación) y `AFILIADO A {afiliacion_nombre}` condicional en vez del texto
+  fijo.
+- Uploader con recorte: `RecortadorImagen.jsx` (nuevo, en `components/ui/`)
+  usa `react-easy-crop` (recomendado sobre `cropperjs` por bundle más chico y
+  mejor encaje con componentes React 19) + `pdfjs-dist` cargado con
+  **dynamic import** (confirmado en el build: quedó en un chunk separado
+  `pdf-*.js` de ~431KB, no infla el bundle principal — solo se paga si el
+  colegio sube un PDF en vez de una imagen).
+- Verificado: `makemigrations --check` sin cambios pendientes, y
+  `npm run build` del frontend sin errores tras todos los cambios.
+- **Nota pre-existente, no introducida por este cambio**: el hook de diseño
+  (`impeccable`) reporta un hallazgo `gray-on-color` en `Configuracion.jsx`
+  (línea ~956 tras estos edits) que ya existía antes de esta tarea — queda
+  sin tocar por estar fuera de alcance de la Fase A.
+
 - ~~`ConfiguracionSistema`: agregar `pais`, `tipo_documento_identidad`,
   `moneda_local`, `nombre_fuente_tasa_cambio`~~ — **descartado**: el software
   es solo para Venezuela, no hace falta parametrizar país/moneda/documento de
@@ -76,7 +113,135 @@ por fase con aprobación previa.
     `useInstitucionPDF.js`, `useLogosRecibo.js`, `Configuracion.jsx` (nuevo
     uploader) — mismo patrón que los logos ya existentes.
 
-### Fase B — Aislar el convenio de nómina AVEC como plugin opt-in
+### Fase B — Aislar el convenio de nómina AVEC como plugin opt-in — ✅ IMPLEMENTADA PARCIALMENTE (2026-09-04)
+
+**Estado real tras implementar** (léase antes del plan original de abajo, que
+describía la intención — esto es lo que quedó en el código):
+
+- `constants/avec.js` → dividido. `constants/convenios/avec_ve.js` (nuevo)
+  contiene solo Capa 2: `CATEGORIAS_DOCENTE`, `PRIMA_DOCENTE_PCT`,
+  `calcPrimaDocente()`, `calcSueldoBase()` (deriva el sueldo por categoría —
+  es Capa 2.5, ver más abajo) y `buildCategoriasDefault()`. `avec.js` queda
+  como motor genérico (Capa 1 + Capa 3) y re-exporta `CATEGORIAS_DOCENTE`/
+  `calcSueldoBase` desde el plugin para no romper a los 5 importadores reales
+  (`Pagos.jsx`, `EmpleadoForm.jsx`, `useNomina.js`, `useRecibo.js`,
+  `nominaPDF.js` — verificado por grep de todo `src/`, no son 6 como se
+  asumió en el plan original).
+- `calcAVEC(sueldoBase, categoria, anosServicio, numeroHijos, titulo,
+  convenioNomina = 'avec_ve')` — nuevo 6º parámetro opcional, default
+  `'avec_ve'` para que los 5 importadores que no lo pasan mantengan el
+  comportamiento exacto de antes (verificado con fixture, ver abajo). Con
+  `'generico'`, `primaDoc`/`primaGeo` dan 0 y el resto de Capa 1/3 se calcula
+  igual.
+- `ConfiguracionSistema.convenio_nomina` (migración `0025`, choices
+  `generico`/`avec_ve`, default `generico`) + migración de datos `0026` que
+  fija `'avec_ve'` en los colegios ya en producción. Se decidió que el campo
+  vive en `ConfiguracionSistema` y no en `Sede` (multisede): es el único eje
+  que el código realmente lee hoy (`.first()` en ~20 sitios); `Sede` tiene un
+  `OneToOneField` opcional hacia `ConfiguracionSistema`
+  (`multisede/models.py:19-24`) que **ningún** consumidor usa todavía — mismo
+  patrón de deuda ya anotado para `ConfiguracionGrado` más abajo. Retomar
+  cuando se aborde multi-sede real.
+- `EmpleadoForm.jsx` y `Pagos.jsx`: únicos dos puntos condicionados por
+  `convenio_nomina` (selector de categoría / tabla AVEC de sueldo por
+  categoría en la config de cesta ticket). `useNomina.js`, `useRecibo.js` y
+  `nominaPDF.js` no tocan Capa 2 (verificado) — no se modificaron.
+- **`ConceptoNomina` fue rediseñado pero NO conectado a ningún cálculo
+  todavía** — esto es menos de lo que sugería el plan original ("conectar
+  `ConceptoNomina` como motor genérico de antigüedad/hijos/postgrado"). Lo
+  que se hizo: el modelo ahora tiene los campos para representarlo
+  (`configuracion`, `convenio`, `base_calculo`, `concepto_referencia`,
+  `moneda`, `alcance_personal`, `orden_aplicacion`, `vigente_desde/hasta`,
+  `activo`), pero sigue sin UI para crear/editar filas ni sin que
+  `calcAVEC`/`Pagos.jsx` las lean — Capa 1 (antigüedad, hijos, asistencial,
+  postgrado) sigue siendo la fórmula fija de `avec.js`, ahora disponible para
+  cualquier convenio pero no configurable por colegio todavía. Verificado
+  antes del rediseño: el modelo no tenía ninguna FK entrante en todo el
+  proyecto (solo registrado en `admin.py`), así que el rediseño no requirió
+  migrar datos.
+- Sueldo base genérico (Capa 2.5): no hizo falta agregar un campo nuevo —
+  `rrhh.Empleado.sueldo_base` ya existía (`rrhh/models.py:65`). Con
+  `convenio_nomina='generico'`, `Pagos.jsx`/`EmpleadoForm.jsx` usan ese campo
+  directo en vez de derivarlo de la tabla de categorías.
+- Regresión numérica: `scripts/verificar-calcavec.mjs` + fixture congelado en
+  `src/constants/__fixtures__/calcAVEC.fixture.json` (7 casos, uno por
+  categoría AVEC) — confirma que `calcAVEC` con `convenio_nomina='avec_ve'`
+  da exactamente los mismos 14 campos que antes del refactor, y que
+  `'generico'` anula `primaDoc`/`primaGeo` sin tocar el resto. No se agregó
+  un test runner (vitest/jest) al frontend — sigue sin haber ninguno en el
+  proyecto — el script corre con `node` usando la API `ssrLoadModule` de
+  Vite (ya es devDependency) para no cambiar el stack sin consultar.
+- Backend: `rrhh` no tenía ningún test (confirmado) — se agregó
+  `rrhh/tests.py` cubriendo la sincronización `rrhh.Empleado` →
+  `nomina.Empleado` (sin cobertura previa) y que `categoria_docente` acepta
+  cualquier texto (ver bug de abajo). Regresión: 280 tests en baseline
+  (`nomina rrhh cobranza portal secretaria multisede`, antes de estos
+  cambios) → **286 tests tras el cambio (280 + 6 nuevos de `rrhh/tests.py`),
+  0 fallos** — mismo comando, ambas corridas con `OK`.
+- **Bugs encontrados durante la investigación (no corregidos, fuera de
+  alcance de esta fase)**:
+  - `nominaPDF.js` lee `calc.primaDiscapacidad` (en `_buildReciboAVECDoc`),
+    un campo que `calcAVEC()` **nunca retornó** — siempre da 0
+    (`parseFloat(undefined) || 0`). No es un bug introducido por esta fase,
+    ya existía.
+  - `rrhh.Empleado.categoria_docente` es `CharField` **sin `choices`**
+    (`rrhh/models.py:54`) — texto libre, desacoplado de la constante
+    `CATEGORIAS_DOCENTE` del frontend. Un valor mal escrito ahí no rompe nada
+    visualmente pero calcula `primaDoc=0` en `calcAVEC` (categoría no
+    encontrada en `PRIMA_DOCENTE_PCT`) sin ningún aviso.
+  - ~~`RegistroNomina` no tiene ningún campo de estado (`cerrado`/`emitido`)~~
+    — **resuelto (2026-09-04, ver abajo)**.
+
+**Continuación (2026-09-04) — estado de RegistroNomina + ConceptoNomina
+conectado a un cálculo real**:
+
+- `RegistroNomina.estado` (choices `abierto`/`cerrado`, default `abierto`,
+  migración `0009`). El signal `post_save` de `nomina.Empleado`
+  (`nomina/models.py:170-186`) ahora excluye `estado='cerrado'` de la
+  recalculación automática (`.exclude(estado='cerrado')`). Acciones nuevas en
+  `RegistroNominaViewSet`: `POST /api/nomina/registros/<id>/cerrar/` y
+  `.../reabrir/` — mismo patrón que `desactivar`/`reactivar` en
+  `rrhh.EmpleadoViewSet`. `reabrir` es una acción explícita de administrador
+  (no hay reapertura automática) porque vuelve a exponer el registro al
+  recálculo del signal.
+- `ConceptoNomina.codigo` (choices `ANTIGUEDAD_PCT_ANIO`, `HIJO_FIJO`,
+  `ASISTENCIAL_FIJO`, o vacío = concepto libre sin efecto en el cálculo,
+  migración `0009`). **Postgrado NO tiene código** — es una tabla por título
+  (DR/PHD/MSC/ESP/LEM/LIC/PROF/TSU/BACH), no un escalar, y forzarlo en
+  `ConceptoNomina` (una fila = un número) habría requerido remodelar el
+  campo o crear una fila por título; queda como deuda separada, no resuelta
+  aquí.
+- Backend: `ConceptoNominaViewSet` nuevo (`nomina/views.py`), CRUD completo,
+  filtrable por `?activo=1&convenio=` (convenio vacío = universal). Ruta:
+  `/api/nomina/conceptos/`. Permiso `IsSystemAdminOrDirector`, igual que el
+  resto de nómina.
+- Frontend: `calcAVEC(..., convenioNomina, conceptosUniversales = {})` — 7º
+  parámetro opcional. Si `conceptosUniversales[CODIGO]` existe, sustituye la
+  constante hardcodeada (`PRIMA_ASISTENCIAL_FIJA`, `PRIMA_HIJO_FIJA`, o el 1%
+  fijo de `calcPrimaAntiguedad`); si no, se comporta exactamente igual que
+  antes (verificado con el fixture — ver abajo). `loadConceptosUniversales()`
+  (nuevo en `avec.js`) trae los conceptos activos y universales del backend y
+  arma el lookup por `codigo`. `Pagos.jsx` lo carga una vez al montar y lo
+  pasa a los 3 puntos que llaman a `calcAVEC`.
+- **No se construyó una pantalla nueva para crear/editar `ConceptoNomina`** —
+  el modelo ya estaba registrado en el admin de Django
+  (`nomina/admin.py:5`), así que un administrador ya puede configurar estos
+  3 conceptos hoy mismo desde `/admin/`. Una UI dedicada en el panel (con el
+  estándar responsive del proyecto) queda pendiente si se decide que vale la
+  pena antes de tener colegios genéricos reales usándolo.
+- Regresión: `scripts/verificar-calcavec.mjs` ahora también verifica que un
+  `conceptosUniversales` con valores distintos a los defaults cambia
+  `primaAnt`/`primaAsis` exactamente como se espera (caso D-I S/C con 2%/año
+  y prima asistencial de 25 en vez de 17.50) — sigue en verde junto con los
+  otros dos checks (fixture AVEC intacto + genérico sin prima de convenio).
+- Tests backend nuevos en `nomina/tests.py`: `EstadoRegistroNominaTest` (4
+  casos: default abierto, el signal sí recalcula abierto, el signal NO
+  recalcula cerrado, acciones `cerrar`/`reabrir`) y
+  `ConceptoNominaViewSetTest` (autenticación requerida, creación, filtro por
+  `activo`/`convenio`). `nomina` pasó de 10 a 18 tests, todos en verde.
+
+**Plan original (para referencia — ver arriba lo que realmente se
+implementó)**:
 
 **Qué haría**: sacar toda la lógica específica del convenio colectivo
 AVEC/MPPE (hoy hardcodeada y activa siempre para cualquier colegio) de la

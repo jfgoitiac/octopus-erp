@@ -18,7 +18,9 @@ const initInfo = () => ({
   año:        String(getYear(new Date())),
   tipoRecibo: TIPO_RECIBO_DEFAULT,
   logoColegio: null,
-  logoAvec:    null,
+  afiliacionNombre: '',
+  encabezadoPersonalizado: null,
+  piePaginaPersonalizado: null,
 });
 
 export function useRecibo() {
@@ -31,8 +33,14 @@ export function useRecibo() {
   // Precarga los logos institucionales (colegio/AVEC) guardados en Configuración,
   // como punto de partida editable — el usuario puede seguir cambiándolos abajo.
   useEffect(() => {
-    getLogosInstitucionales().then(({ logoColegio, logoAvec }) => {
-      setInfo(p => ({ ...p, logoColegio: p.logoColegio ?? logoColegio, logoAvec: p.logoAvec ?? logoAvec }));
+    getLogosInstitucionales().then(({ logoColegio, afiliacionNombre, encabezadoPersonalizado, piePaginaPersonalizado }) => {
+      setInfo(p => ({
+        ...p,
+        logoColegio: p.logoColegio ?? logoColegio,
+        afiliacionNombre: p.afiliacionNombre || afiliacionNombre || '',
+        encabezadoPersonalizado: p.encabezadoPersonalizado ?? encabezadoPersonalizado,
+        piePaginaPersonalizado: p.piePaginaPersonalizado ?? piePaginaPersonalizado,
+      }));
     });
   }, []);
 

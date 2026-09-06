@@ -47,6 +47,16 @@ export const PortalAuthProvider = ({ children }) => {
         }
       }
 
+      // PortalAuthProvider envuelve toda la app (ver AppProviders.jsx), no
+      // solo /portal — sin este filtro, cada carga del panel admin dispara
+      // un refresh contra un endpoint del portal de representantes cuya
+      // cookie httpOnly no existe ahí, generando un 401 inevitable en cada
+      // ruta ajena al portal.
+      if (!window.location.pathname.startsWith('/portal')) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await axios.post(
           `${API_BASE}/api/portal/token/refresh/`,

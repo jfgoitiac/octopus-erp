@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -5,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import Empleado, ParametroLegalNomina, RegistroNomina
+from .models import ConceptoNomina, Empleado, ParametroLegalNomina, RegistroNomina
 
 Usuario = get_user_model()
 
@@ -175,3 +176,98 @@ class RegistroNominaEdicionDeshabilitadaTest(TestCase):
     def test_no_permite_borrar(self):
         resp = self.client.delete(f'/api/nomina/registros/{self.registro.id}/')
         self.assertEqual(resp.status_code, 405)
+
+
+class EstadoRegistroNominaTest(TestCase):
+    """Fase B: RegistroNomina.estado — un registro cerrado deja de recalcularse
+    automáticamente cuando cambian los datos maestros del empleado."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = Usuario.objects.create_user(username='admin_estado', password='x', is_superuser=True, is_staff=True)
+        self.client.force_authenticate(self.admin)
+        ParametroLegalNomina.objects.create(
+            vigente_desde='2020-01-01',
+            porcentaje_sso=Decimal('0.04'),
+            porcentaje_lph=Decimal('0.01'),
+        )
+        self.empleado = crear_empleado(sueldo='1000.00')
+        hoy = date.today()
+        self.registro = RegistroNomina.objects.create(
+            empleado=self.empleado,
+            mes_correspondiente=hoy.month,
+            anio_correspondiente=hoy.year,
+            monto_cestaticket=Decimal('0.00'),
+            tasa_pago_bono=Decimal('0.00'),
+        )
+
+    def test_registro_nuevo_queda_abierto_por_defecto(self):
+        self.assertEqual(self.registro.estado, 'abierto')
+
+    def test_signal_recalcula_registro_abierto(self):
+        total_antes = self.registro.total_pagar_ves
+        self.empleado.sueldo_base_ves = Decimal('2000.00')
+        self.empleado.save()
+        self.registro.refresh_from_db()
+        self.assertNotEqual(self.registro.total_pagar_ves, total_antes)
+
+    def test_signal_no_recalcula_registro_cerrado(self):
+        self.registro.estado = 'cerrado'
+        self.registro.save(update_fields=['estado'])
+        total_antes = self.registro.total_pagar_ves
+
+        self.empleado.sueldo_base_ves = Decimal('2000.00')
+        self.empleado.save()
+
+        self.registro.refresh_from_db()
+        self.assertEqual(self.registro.total_pagar_ves, total_antes)
+
+    def test_accion_cerrar(self):
+        resp = self.client.post(f'/api/nomina/registros/{self.registro.id}/cerrar/')
+        self.assertEqual(resp.status_code, 200)
+        self.registro.refresh_from_db()
+        self.assertEqual(self.registro.estado, 'cerrado')
+
+    def test_accion_reabrir(self):
+        self.registro.estado = 'cerrado'
+        self.registro.save(update_fields=['estado'])
+        resp = self.client.post(f'/api/nomina/registros/{self.registro.id}/reabrir/')
+        self.assertEqual(resp.status_code, 200)
+        self.registro.refresh_from_db()
+        self.assertEqual(self.registro.estado, 'abierto')
+
+
+class ConceptoNominaViewSetTest(TestCase):
+    """Fase B: CRUD de ConceptoNomina — parametrización que consume el frontend."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = Usuario.objects.create_user(username='admin_concepto', password='x', is_superuser=True, is_staff=True)
+        self.client.force_authenticate(self.admin)
+
+    def test_requiere_autenticacion(self):
+        client_anonimo = APIClient()
+        resp = client_anonimo.get('/api/nomina/conceptos/')
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_crear_concepto_universal_hijo_fijo(self):
+        resp = self.client.post('/api/nomina/conceptos/', {
+            'nombre': 'Prima por hijo (personalizada)',
+            'tipo': 'asignacion',
+            'base_calculo': 'monto_fijo',
+            'codigo': 'HIJO_FIJO',
+            'monto': '15.00',
+            'moneda': 'USD',
+            'activo': True,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(ConceptoNomina.objects.get(codigo='HIJO_FIJO').monto, Decimal('15.00'))
+
+    def test_filtro_activo_y_convenio(self):
+        ConceptoNomina.objects.create(nombre='Activo universal', tipo='asignacion', codigo='HIJO_FIJO', activo=True, convenio='')
+        ConceptoNomina.objects.create(nombre='Inactivo', tipo='asignacion', activo=False, convenio='')
+        ConceptoNomina.objects.create(nombre='Solo AVEC', tipo='asignacion', activo=True, convenio='avec_ve')
+
+        resp = self.client.get('/api/nomina/conceptos/?activo=1&convenio=')
+        nombres = [c['nombre'] for c in resp.json()]
+        self.assertEqual(nombres, ['Activo universal'])

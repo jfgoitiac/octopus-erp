@@ -1616,7 +1616,9 @@ class ConfiguracionColegioPublicaView(APIView):
                 # logo_url vacío, así que sin este fallback esta vista nunca
                 # devolvía el logo real de esos colegios).
                 logo = config.logo_url or (config.logo_colegio.url if config.logo_colegio else '')
-                favicon = config.favicon_url or (config.favicon.url if config.favicon else '')
+                # El favicon/ícono ya no tiene upload propio: sale del mismo logo_colegio,
+                # salvo que el colegio configure favicon_url para un ícono externo distinto.
+                favicon = config.favicon_url or logo
                 data = {
                     'nombre_colegio': config.nombre_colegio or 'Mi Colegio',
                     'color_primario': config.color_primario or '#0fa3b1',

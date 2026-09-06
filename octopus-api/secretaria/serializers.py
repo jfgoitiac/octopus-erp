@@ -100,21 +100,25 @@ class ConfiguracionSistemaSerializer(serializers.ModelSerializer):  # NUEVO
     def validate_logo_colegio(self, imagen):
         return self._validar_logo(imagen)
 
-    def validate_logo_avec(self, imagen):
-        return self._validar_logo(imagen)
-
-    def _validar_favicon(self, imagen):
+    def validate_encabezado_personalizado(self, imagen):
         if not imagen:
             return imagen
-        if imagen.size > 512 * 1024:
-            raise serializers.ValidationError("El favicon no debe superar 512KB.")
+        if imagen.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("La imagen no debe superar 2MB.")
         content_type = getattr(imagen, 'content_type', '')
-        if content_type not in ('image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/svg+xml', 'image/webp'):
-            raise serializers.ValidationError("Formato de favicon no soportado. Use PNG, ICO, SVG o WEBP.")
+        if content_type != 'image/png':
+            raise serializers.ValidationError("El encabezado personalizado debe ser una imagen PNG.")
         return imagen
 
-    def validate_favicon(self, imagen):
-        return self._validar_favicon(imagen)
+    def validate_pie_pagina_personalizado(self, imagen):
+        if not imagen:
+            return imagen
+        if imagen.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("La imagen no debe superar 2MB.")
+        content_type = getattr(imagen, 'content_type', '')
+        if content_type != 'image/png':
+            raise serializers.ValidationError("El pie de página personalizado debe ser una imagen PNG.")
+        return imagen
 
 
 class BienNacionalSerializer(serializers.ModelSerializer):

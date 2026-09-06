@@ -14,14 +14,16 @@ const INST_DEFAULT = {
     telefono:        '0259 938 1347  -  0426 563 1569',
     rif:             'RIF-J-085222910',
     logoColegio:     null,
-    logoAvec:        null,
+    afiliacionNombre: 'LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA',
+    encabezadoPersonalizado: null,
+    piePaginaPersonalizado: null,
 };
 
 export { fmtBs };
 
 // ── Lógica interna compartida para el recibo AVEC ────────────────────────────
 function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
-    const { nombre: nombreColegio, direccion, municipioEstado, telefono, rif, logoColegio, logoAvec } = { ...INST_DEFAULT, ...institucion };
+    const { nombre: nombreColegio, direccion, municipioEstado, telefono, rif, logoColegio, afiliacionNombre, encabezadoPersonalizado, piePaginaPersonalizado } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
@@ -50,37 +52,41 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
 
     // ── Cabecera institucional ──────────────────────────────────────────────
     const LOGO_SIZE  = 28;   // mm — alto/ancho del escudo del colegio
-    const AVEC_W     = 22;   // mm — ancho logo AVEC
-    const AVEC_H     = 22;   // mm — alto logo AVEC
     const HDR_TOP    = 8;    // mm — margen superior de la cabecera
+    const BANNER_H   = 35;   // mm — alto fijo del banner (mismo espacio que el bloque logo+texto)
 
-    // Logos (base64 provenientes de useInstitucionPDF — omitidos si null)
-    if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM,           HDR_TOP,     LOGO_SIZE, LOGO_SIZE); } catch (_) {}
-    if (logoAvec)    try { doc.addImage(logoAvec,    'PNG', RM - AVEC_W,  HDR_TOP + 2, AVEC_W,    AVEC_H);   } catch (_) {}
+    let y;
+    if (encabezadoPersonalizado) {
+        // Banner de ancho completo ya maquetado por el colegio — reemplaza el bloque logo+texto.
+        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, HDR_TOP, RM - LM, BANNER_H); } catch (_) {}
+        y = HDR_TOP + BANNER_H + 4;
+    } else {
+        // Logo del colegio (base64 proveniente de useInstitucionPDF — omitido si null)
+        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, HDR_TOP, LOGO_SIZE, LOGO_SIZE); } catch (_) {}
 
-    // Texto centrado entre logos
-    const txtX = LM + LOGO_SIZE + 2;
-    const txtW = RM - AVEC_W - 2 - txtX;
-    const cx   = txtX + txtW / 2;
+        // Texto centrado en el espacio restante a la derecha del logo
+        const txtX = LM + LOGO_SIZE + 2;
+        const cx   = txtX + (RM - txtX) / 2;
 
-    let y = HDR_TOP + 2;
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
+        y = HDR_TOP + 2;
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
 
-    doc.setFontSize(6.5);
-    doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', cx, y, { align: 'center' }); y += 3.2;
-    doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', cx, y, { align: 'center' }); y += 3.2;
+        doc.setFontSize(6.5);
+        doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', cx, y, { align: 'center' }); y += 3.2;
+        doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', cx, y, { align: 'center' }); y += 3.2;
 
-    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
-    doc.text(nombreColegio.toUpperCase(), cx, y, { align: 'center' }); y += 3.2;
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+        doc.text(nombreColegio.toUpperCase(), cx, y, { align: 'center' }); y += 3.2;
 
-    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-    doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', cx, y, { align: 'center' }); y += 3;
-    doc.text(municipioEstado, cx, y, { align: 'center' }); y += 3;
-    doc.text(`TELÉFONO ${telefono}`, cx, y, { align: 'center' }); y += 3;
-    doc.text(rif, cx, y, { align: 'center' });
+        doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+        if (afiliacionNombre) { doc.text(`AFILIADO A ${afiliacionNombre}`, cx, y, { align: 'center' }); y += 3; }
+        doc.text(municipioEstado, cx, y, { align: 'center' }); y += 3;
+        doc.text(`TELÉFONO ${telefono}`, cx, y, { align: 'center' }); y += 3;
+        doc.text(rif, cx, y, { align: 'center' });
 
-    // Separador debajo de logos
-    y = HDR_TOP + LOGO_SIZE + 4;
+        // Separador debajo de logos
+        y = HDR_TOP + LOGO_SIZE + 4;
+    }
     doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
     doc.line(LM, y, RM, y); y += 7;
 
@@ -213,10 +219,15 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
     doc.text('Firma del Empleado', W / 2, firmaY + 4, { align: 'center' });
 
     // ── Pie de página con dirección ─────────────────────────────────────────
-    doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
-    doc.line(LM, H - 14, RM, H - 14);
-    doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
-    doc.text(direccion, W / 2, H - 9, { align: 'center' });
+    if (piePaginaPersonalizado) {
+        const FOOTER_H = (RM - LM) / (2200 / 220);
+        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch (_) {}
+    } else {
+        doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
+        doc.line(LM, H - 14, RM, H - 14);
+        doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
+        doc.text(direccion, W / 2, H - 9, { align: 'center' });
+    }
 
     return doc;
 }
@@ -229,26 +240,32 @@ export function generarReciboAVECPDF(emp, data, calc, cesta, institucion = {}) {
 
 // ── Recibo simple (Administrativo / Apoyo) ────────────────────────────────────
 export function generarReciboSimplePDF(emp, data, institucion = {}) {
-    const { nombre: nombreColegio, municipioEstado, telefono, rif, logoColegio } = { ...INST_DEFAULT, ...institucion };
+    const { nombre: nombreColegio, municipioEstado, telefono, rif, logoColegio, afiliacionNombre, encabezadoPersonalizado, piePaginaPersonalizado } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
     const LM  = 14;
     const RM  = W - LM;
 
-    let y = 10;
-    if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
+    let y;
+    if (encabezadoPersonalizado) {
+        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, 8, RM - LM, 35); } catch (_) {}
+        y = 8 + 35 + 4;
+    } else {
+        y = 10;
+        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
 
-    y = 14;
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
-    doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.setFontSize(6.5);
-    doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' }); y += 3.5;
-    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-    doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.text(`${municipioEstado}  ·  TELÉFONOS ${telefono}  ·  ${rif}`, W / 2, y, { align: 'center' }); y += 5;
+        y = 14;
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
+        doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', W / 2, y, { align: 'center' }); y += 3.5;
+        doc.setFontSize(6.5);
+        doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', W / 2, y, { align: 'center' }); y += 3.5;
+        doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' }); y += 3.5;
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+        if (afiliacionNombre) { doc.text(`AFILIADO A ${afiliacionNombre}`, W / 2, y, { align: 'center' }); y += 3.5; }
+        doc.text(`${municipioEstado}  ·  TELÉFONOS ${telefono}  ·  ${rif}`, W / 2, y, { align: 'center' }); y += 5;
+    }
     doc.setDrawColor(204, 204, 204); doc.setLineWidth(0.3); doc.line(LM, y, W - LM, y); y += 4;
     doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(204, 0, 0);
     doc.text('RECIBO DE PAGO', W / 2, y, { align: 'center' });
@@ -308,8 +325,13 @@ export function generarReciboSimplePDF(emp, data, institucion = {}) {
     doc.line(W/2 - 30, y, W/2 + 30, y);
     doc.setFontSize(7); doc.setTextColor(80, 80, 80);
     doc.text('Firma del Empleado', W/2, y + 4, { align: 'center' });
-    doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
-    doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W/2, H - 8, { align: 'center' });
+    if (piePaginaPersonalizado) {
+        const FOOTER_H = (RM - LM) / (2200 / 220);
+        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch (_) {}
+    } else {
+        doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
+        doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W/2, H - 8, { align: 'center' });
+    }
 
     doc.save(`Recibo_${emp.apellido}_${(data.mes || 'SIN_MES').replace(/\s/g, '_').toUpperCase()}.pdf`);
 }
@@ -433,25 +455,32 @@ export function reciboAVECBytes(emp, data, calc, cesta, institucion = {}) {
  * Igual que generarReciboSimplePDF pero retorna Uint8Array en vez de auto-descargar.
  */
 export function reciboSimpleBytes(emp, data, institucion = {}) {
-    const { nombre: nombreColegio, municipioEstado, telefono, rif, logoColegio } = { ...INST_DEFAULT, ...institucion };
+    const { nombre: nombreColegio, municipioEstado, telefono, rif, logoColegio, afiliacionNombre, encabezadoPersonalizado, piePaginaPersonalizado } = { ...INST_DEFAULT, ...institucion };
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
     const W   = doc.internal.pageSize.getWidth();
     const H   = doc.internal.pageSize.getHeight();
     const LM  = 14;
+    const RM  = W - LM;
 
-    let y = 10;
-    if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
+    let y;
+    if (encabezadoPersonalizado) {
+        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, 8, RM - LM, 35); } catch (_) {}
+        y = 8 + 35 + 4;
+    } else {
+        y = 10;
+        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
 
-    y = 14;
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
-    doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.setFontSize(6.5);
-    doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' }); y += 3.5;
-    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-    doc.text('AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA', W / 2, y, { align: 'center' }); y += 3.5;
-    doc.text(`${municipioEstado}  ·  TELÉFONOS ${telefono}  ·  ${rif}`, W / 2, y, { align: 'center' }); y += 5;
+        y = 14;
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
+        doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', W / 2, y, { align: 'center' }); y += 3.5;
+        doc.setFontSize(6.5);
+        doc.text('MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN', W / 2, y, { align: 'center' }); y += 3.5;
+        doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text(nombreColegio.toUpperCase(), W / 2, y, { align: 'center' }); y += 3.5;
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+        if (afiliacionNombre) { doc.text(`AFILIADO A ${afiliacionNombre}`, W / 2, y, { align: 'center' }); y += 3.5; }
+        doc.text(`${municipioEstado}  ·  TELÉFONOS ${telefono}  ·  ${rif}`, W / 2, y, { align: 'center' }); y += 5;
+    }
     doc.setDrawColor(204, 204, 204); doc.setLineWidth(0.3); doc.line(LM, y, W - LM, y); y += 4;
     doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(204, 0, 0);
     doc.text('RECIBO DE PAGO', W / 2, y, { align: 'center' });
@@ -511,8 +540,13 @@ export function reciboSimpleBytes(emp, data, institucion = {}) {
     doc.line(W/2 - 30, y, W/2 + 30, y);
     doc.setFontSize(7); doc.setTextColor(80, 80, 80);
     doc.text('Firma del Empleado', W/2, y + 4, { align: 'center' });
-    doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
-    doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W/2, H - 8, { align: 'center' });
+    if (piePaginaPersonalizado) {
+        const FOOTER_H = (RM - LM) / (2200 / 220);
+        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch (_) {}
+    } else {
+        doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
+        doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W/2, H - 8, { align: 'center' });
+    }
 
     return doc.output('arraybuffer');
 }

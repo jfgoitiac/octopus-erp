@@ -80,21 +80,83 @@ class Empleado(models.Model):
 
 
 class ConceptoNomina(models.Model):
+    """
+    Parametrización de un concepto de nómina (asignación o deducción) para el
+    motor de cálculo que hoy vive en el frontend (constants/avec.js + convenios/).
+    Este modelo NO calcula nómina: solo almacena las tasas/montos que el
+    frontend lee para armar el `config` que pasa a calcAVEC/calcSueldoBase.
+    """
+    TIPO_CHOICES = (('asignacion', 'Asignación'), ('deduccion', 'Deducción'))
+    BASE_CALCULO_CHOICES = (
+        ('sueldo_base', 'Porcentaje del sueldo base'),
+        ('monto_fijo', 'Monto fijo'),
+        ('otro_concepto', 'Igual a otro concepto (ej. prima geográfica = prima docente)'),
+    )
+    MONEDA_CHOICES = (('USD', 'USD'), ('VES', 'VES'))
+    ALCANCE_CHOICES = (
+        ('todos', 'Todos'),
+        ('docente', 'Docente'),
+        ('administrativo', 'Administrativo'),
+    )
+    # Códigos reconocidos por el motor de cálculo del frontend (calcAVEC en
+    # avec.js) para los conceptos universales *escalares* (una sola tasa/monto).
+    # Postgrado NO está aquí: es una tabla por título (DR/PHD/MSC/...), no un
+    # escalar — sigue hardcodeada en avec.js hasta que se modele aparte.
+    CODIGO_CHOICES = (
+        ('', 'Sin código (concepto libre, no afecta cálculo automático)'),
+        ('ANTIGUEDAD_PCT_ANIO', 'Antigüedad — % del sueldo base por año de servicio'),
+        ('HIJO_FIJO', 'Prima por hijo — monto fijo por hijo'),
+        ('ASISTENCIAL_FIJO', 'Prima asistencial — monto fijo'),
+    )
+    codigo = models.CharField(
+        max_length=30, choices=CODIGO_CHOICES, blank=True, default='',
+        help_text='Si se selecciona, este concepto alimenta directamente el cálculo de nómina del frontend (calcAVEC) en vez de ser solo informativo.',
+    )
+
+    configuracion = models.ForeignKey(
+        'secretaria.ConfiguracionSistema', null=True, blank=True,
+        on_delete=models.CASCADE, related_name='conceptos_nomina',
+        help_text='Configuración del sistema a la que pertenece este concepto. Nulo = concepto universal de referencia.',
+    )
+    convenio = models.CharField(
+        max_length=20, blank=True, default='',
+        help_text="Vacío = universal (Capa 1, disponible en cualquier convenio). 'avec_ve' = exclusivo del convenio AVEC (Capa 2).",
+    )
     nombre = models.CharField(max_length=100)
-    tipo = models.CharField(max_length=15, choices=(('asignacion', 'Asignación'), ('deduccion', 'Deducción')))
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
+    base_calculo = models.CharField(max_length=20, choices=BASE_CALCULO_CHOICES, default='monto_fijo')
+    concepto_referencia = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='derivados',
+        help_text="Solo si base_calculo='otro_concepto': el concepto del que deriva su monto.",
+    )
     porcentaje = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    fijo = models.BooleanField(default=False) # Si es un monto fijo en lugar de porcentaje
+    monto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    moneda = models.CharField(max_length=3, choices=MONEDA_CHOICES, default='USD')
+    alcance_personal = models.CharField(max_length=20, choices=ALCANCE_CHOICES, default='todos')
+    orden_aplicacion = models.PositiveSmallIntegerField(default=0)
+    vigente_desde = models.DateField(null=True, blank=True)
+    vigente_hasta = models.DateField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['orden_aplicacion', 'nombre']
 
     def __str__(self):
         return self.nombre
 
 
 class RegistroNomina(models.Model):
+    ESTADO_CHOICES = (('abierto', 'Abierto'), ('cerrado', 'Cerrado'))
+
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
     fecha_proceso = models.DateField(auto_now_add=True)
     mes_correspondiente = models.PositiveSmallIntegerField()
     anio_correspondiente = models.PositiveSmallIntegerField()
-    
+    estado = models.CharField(
+        max_length=10, choices=ESTADO_CHOICES, default='abierto',
+        help_text='Un registro cerrado ya no se recalcula automáticamente si cambian los datos maestros del empleado.',
+    )
+
     # Montos calculados
     monto_sso = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Seguro Social (4%)
     monto_lph = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Ley Política Habitacional (1%)
@@ -178,9 +240,9 @@ def actualizar_nominas_por_cambio_maestro(sender, instance, created, **kwargs):
         nominas_activas = RegistroNomina.objects.filter(
             empleado=instance,
             mes_correspondiente=hoy.month,
-            anio_correspondiente=hoy.year
-        )
-        
+            anio_correspondiente=hoy.year,
+        ).exclude(estado='cerrado')
+
         for nomina in nominas_activas:
             # Al llamar a save(), se ejecuta la lógica de calcular_deducciones()
             nomina.save()

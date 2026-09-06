@@ -1,7 +1,12 @@
-// Tablas AVEC / MPPE — lógica financiera pura, sin dependencias de UI
-// Modificar solo si cambian los convenios colectivos vigentes.
+// Motor genérico de nómina docente venezolana — lógica financiera pura, sin
+// dependencias de UI. Capa 1 (universal, cualquier colegio venezolano) + Capa
+// 3 (deducciones legales VE). La Capa 2 (convenio AVEC) vive en
+// constants/convenios/avec_ve.js y se aplica solo cuando corresponde — ver
+// calcAVEC(..., convenioNomina).
+// Modificar solo si cambian los porcentajes/montos legales o de convenio vigentes.
 
 import axiosInstance from '../api/apiClient';
+import * as avecVe from './convenios/avec_ve';
 
 export const SSO_TOPE               = 26.00;
 // Compatibilidad con el flujo legacy de Pagos. Nómina nueva usa el backend.
@@ -11,18 +16,10 @@ export const FAOV_PCT               = 0.01;
 export const PRIMA_ASISTENCIAL_FIJA = 17.50;   // 4E — monto fijo
 export const PRIMA_HIJO_FIJA        = 12.50;   // 4F — por hijo
 
-export const CATEGORIAS_DOCENTE = ['D-I S/C', 'D-I', 'D-II', 'D-III', 'D-IV', 'D-V', 'D-VI'];
-
-// 4B Prima Docente — % sobre sueldo base por categoría AVEC
-export const PRIMA_DOCENTE_PCT = {
-    'D-I S/C': 0.00,
-    'D-I':     0.025,
-    'D-II':    0.04,
-    'D-III':   0.055,
-    'D-IV':    0.07,
-    'D-V':     0.085,
-    'D-VI':    0.10,
-};
+// Re-exportados desde el plugin AVEC para no romper a los importadores actuales
+// (EmpleadoForm.jsx, Pagos.jsx). Solo tienen sentido cuando convenio_nomina='avec_ve'.
+export const CATEGORIAS_DOCENTE = avecVe.CATEGORIAS_DOCENTE;
+export const calcSueldoBase     = avecVe.calcSueldoBase;
 
 // 4D Postgrado / Complemento Académico — % sobre sueldo base por título
 export const POSTGRADO_PCT = {
@@ -38,9 +35,10 @@ export const POSTGRADO_PCT = {
     'NONE': 0.00,
 };
 
-// 4A — 1% del sueldo base por año de servicio (tope: 100%)
-export function calcPrimaAntiguedad(sueldoBase, anosServicio) {
-    return sueldoBase * (Math.min(parseInt(anosServicio) || 0, 100) / 100);
+// 4A — % del sueldo base por año de servicio (tope: 100%). 1% por defecto,
+// configurable por colegio vía ConceptoNomina (codigo='ANTIGUEDAD_PCT_ANIO').
+export function calcPrimaAntiguedad(sueldoBase, anosServicio, pctPorAnio = 0.01) {
+    return sueldoBase * Math.min((parseInt(anosServicio) || 0) * pctPorAnio, 1);
 }
 
 export function calcPrimaPostgrado(sueldoBase, titulo) {
@@ -51,18 +49,27 @@ export function calcPrimaPostgrado(sueldoBase, titulo) {
     return sueldoBase * pct;
 }
 
-// Calcula el bloque completo de asignaciones + retenciones AVEC para un docente
-// [DEUDA] 4C (primaGeo) se asume igual a 4B — verificar tabla MPPE vigente por zona
-export function calcAVEC(sueldoBase, categoria, anosServicio, numeroHijos, titulo) {
+// Calcula el bloque completo de asignaciones + retenciones para un docente.
+// convenioNomina='avec_ve' (default, compatibilidad con el comportamiento actual)
+// agrega la prima docente/geográfica del convenio AVEC (constants/convenios/avec_ve.js).
+// convenioNomina='generico' solo aplica las asignaciones universales (Capa 1).
+// conceptosUniversales={} (default, compatibilidad): objeto opcional con las
+// tasas/montos configurados por el colegio vía ConceptoNomina (ver
+// loadConceptosUniversales), keyeado por `codigo`. Si un código no está
+// presente, se usa la constante hardcodeada de siempre.
+export function calcAVEC(sueldoBase, categoria, anosServicio, numeroHijos, titulo, convenioNomina = 'avec_ve', conceptosUniversales = {}) {
     const sb         = parseFloat(sueldoBase) || 0;
     const hijos      = parseInt(numeroHijos)  || 0;
-    const primaAnt   = calcPrimaAntiguedad(sb, anosServicio);
-    const pctDoc     = PRIMA_DOCENTE_PCT[categoria] ?? 0;
-    const primaDoc   = sb * pctDoc;
-    const primaGeo   = primaDoc;
+    const pctAntiguedad = parseFloat(conceptosUniversales.ANTIGUEDAD_PCT_ANIO?.porcentaje) || 0.01;
+    const primaAnt   = calcPrimaAntiguedad(sb, anosServicio, pctAntiguedad);
+    const { primaDoc, primaGeo } = convenioNomina === 'avec_ve'
+        ? avecVe.calcPrimaDocente(sb, categoria)
+        : { primaDoc: 0, primaGeo: 0 };
     const primaPos   = calcPrimaPostgrado(sb, titulo);
-    const primaAsis  = sb > 0 ? PRIMA_ASISTENCIAL_FIJA : 0;
-    const primaHijos = hijos * PRIMA_HIJO_FIJA;
+    const montoAsistencial = parseFloat(conceptosUniversales.ASISTENCIAL_FIJO?.monto) || PRIMA_ASISTENCIAL_FIJA;
+    const montoHijo         = parseFloat(conceptosUniversales.HIJO_FIJO?.monto) || PRIMA_HIJO_FIJA;
+    const primaAsis  = sb > 0 ? montoAsistencial : 0;
+    const primaHijos = hijos * montoHijo;
     const otrasAsig  = primaAnt + primaDoc + primaGeo + primaPos + primaAsis + primaHijos;
     const totalAsig  = sb + otrasAsig;
     const sso        = Math.min(totalAsig * SSO_PCT, SSO_TOPE);
@@ -73,20 +80,6 @@ export function calcAVEC(sueldoBase, categoria, anosServicio, numeroHijos, titul
     const quincena   = neto / 2;
     return { primaAnt, primaDoc, primaGeo, primaPos, primaAsis, primaHijos,
              otrasAsig, totalAsig, sso, spf, faov, totalRet, neto, quincena };
-}
-
-// Sueldo base docente. Acepta sueldo_mensual (nuevo) o costo_hora (legado).
-// sueldo_mensual ÷ horas_sem_referencia = costo_hora → × horas_semanales del empleado
-export function calcSueldoBase(config, categoriaDocente, horasSemanales) {
-    const catCfg = config.categorias?.[categoriaDocente] || {};
-    let costoHora;
-    if (parseFloat(catCfg.sueldo_mensual) > 0) {
-        const horasRef = parseFloat(config.horas_sem_referencia) || 44;
-        costoHora = parseFloat(catCfg.sueldo_mensual) / horasRef;
-    } else {
-        costoHora = parseFloat(catCfg.costo_hora) || 0;
-    }
-    return costoHora * (parseFloat(horasSemanales) || 0);
 }
 
 // Validación de cédula venezolana (V/E + 6–9 dígitos)
@@ -103,11 +96,8 @@ export function validarCedula(cedula) {
 // [DEUDA] Sin fecha de expiración — el usuario debe actualizarla manualmente cada período.
 // Considerar agregar un campo `fecha_config` y mostrar aviso si tiene más de 30 días.
 
-const buildCategoriasDefault = () =>
-    Object.fromEntries(CATEGORIAS_DOCENTE.map(c => [c, { sueldo_mensual: '' }]));
-
 export const CESTA_DEFAULT = {
-    categorias:           buildCategoriasDefault(),
+    categorias:           avecVe.buildCategoriasDefault(),
     tasa_bcv:             '',
     tarifa_hora:          '0.20',  // USD/hora — para descontar horas de inasistencia del cestaticket
     horas_sem_referencia: '44',    // h/semana de referencia para derivar costo/hora del sueldo mensual
@@ -120,7 +110,7 @@ export async function loadCestaConfig() {
     try {
         const { data } = await axiosInstance.get('cobranza/config-nomina/');
         if (data && Object.keys(data).length > 0) {
-            const categorias = { ...buildCategoriasDefault(), ...(data.categorias || {}) };
+            const categorias = { ...avecVe.buildCategoriasDefault(), ...(data.categorias || {}) };
             return { ...CESTA_DEFAULT, ...data, categorias };
         }
     } catch { /* sin configuración guardada aún o error de red — usar default */ }
@@ -129,6 +119,24 @@ export async function loadCestaConfig() {
 
 export async function saveCestaConfig(cfg) {
     await axiosInstance.put('cobranza/config-nomina/', cfg);
+}
+
+// ── Conceptos universales configurables (backend, ConceptoNomina) ──────────
+// Trae los conceptos activos y universales (convenio='') y arma el lookup
+// por `codigo` que consume calcAVEC(..., conceptosUniversales). Si un colegio
+// no configuró ninguno, devuelve {} y calcAVEC usa sus constantes de siempre.
+export async function loadConceptosUniversales() {
+    try {
+        const { data } = await axiosInstance.get('nomina/conceptos/', {
+            params: { activo: 1, convenio: '' },
+        });
+        const lista = Array.isArray(data) ? data : (data?.results || []);
+        return Object.fromEntries(
+            lista.filter(c => c.codigo).map(c => [c.codigo, c])
+        );
+    } catch {
+        return {}; // sin configuración guardada aún o error de red — usar defaults
+    }
 }
 
 // ── Valores iniciales de formularios ────────────────────────────────────────

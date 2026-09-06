@@ -11,8 +11,10 @@ from django.utils.dateparse import parse_date
 from decimal import Decimal, InvalidOperation
 import json
 from cobranza.models import ParametroGlobal, TasaCambio
-from .models import RegistroNomina, Empleado, ParametroLegalNomina
-from .serializers import EmpleadoSerializer, ParametroLegalNominaSerializer, RegistroNominaSerializer
+from .models import RegistroNomina, Empleado, ConceptoNomina, ParametroLegalNomina
+from .serializers import (
+    EmpleadoSerializer, ConceptoNominaSerializer, ParametroLegalNominaSerializer, RegistroNominaSerializer,
+)
 from .utils import GeneradorReciboNomina
 from authentication.views import IsSystemAdminOrDirector
 
@@ -21,6 +23,28 @@ class ParametroLegalNominaViewSet(viewsets.ModelViewSet):
     queryset = ParametroLegalNomina.objects.all()
     serializer_class = ParametroLegalNominaSerializer
     permission_classes = [IsSystemAdminOrDirector]
+
+
+class ConceptoNominaViewSet(viewsets.ModelViewSet):
+    """
+    Parametrización de conceptos de nómina (Fase B). El frontend consume esto
+    de forma read-only vía GET para alimentar calcAVEC (ver constants/avec.js)
+    cuando `codigo` coincide con uno de los conceptos escalares soportados —
+    el resto (postgrado, convenio AVEC) sigue viviendo en código.
+    """
+    queryset = ConceptoNomina.objects.all()
+    serializer_class = ConceptoNominaSerializer
+    permission_classes = [IsSystemAdminOrDirector]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        activo = self.request.query_params.get('activo')
+        convenio = self.request.query_params.get('convenio')
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() in ('1', 'true'))
+        if convenio is not None:
+            queryset = queryset.filter(convenio=convenio)
+        return queryset
 
 
 class RegistroNominaViewSet(viewsets.ModelViewSet):
@@ -50,6 +74,24 @@ class RegistroNominaViewSet(viewsets.ModelViewSet):
         if anio:
             queryset = queryset.filter(anio_correspondiente=anio)
         return queryset.order_by('-anio_correspondiente', '-mes_correspondiente', '-fecha_proceso')
+
+    @action(detail=True, methods=['post'])
+    def cerrar(self, request, pk=None):
+        """Marca el registro como cerrado: deja de recalcularse automáticamente
+        si cambian los datos maestros del empleado (sueldo, pensionado)."""
+        registro = self.get_object()
+        registro.estado = 'cerrado'
+        registro.save(update_fields=['estado'])
+        return Response(RegistroNominaSerializer(registro).data)
+
+    @action(detail=True, methods=['post'])
+    def reabrir(self, request, pk=None):
+        """Revierte cerrar(): vuelve a quedar sujeto a recálculo automático.
+        Acción explícita de un administrador — no se reabre solo."""
+        registro = self.get_object()
+        registro.estado = 'abierto'
+        registro.save(update_fields=['estado'])
+        return Response(RegistroNominaSerializer(registro).data)
 
     @action(detail=False, methods=['get'])
     def configuracion_generacion(self, request):

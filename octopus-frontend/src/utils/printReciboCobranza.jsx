@@ -48,7 +48,7 @@ const ReciboCobranzaDoc = ({ data }) => {
     nroControl, mes, año, fechaPago,
     nombreEstudiante, grado, representante, ciRepresentante,
     tasa, items = [], observaciones,
-    logoColegio, logoAvec, numeroSolvencia,
+    logoColegio, afiliacionNombre, encabezadoPersonalizado, piePaginaPersonalizado, numeroSolvencia,
   } = data;
 
   const tasaNum = parseFloat(tasa) || 0;
@@ -72,6 +72,11 @@ const ReciboCobranzaDoc = ({ data }) => {
     }}>
 
       {/* Encabezado institucional */}
+      {encabezadoPersonalizado ? (
+        <div style={{ width: '100%', marginBottom: '10px' }}>
+          <img src={encabezadoPersonalizado} alt="encabezado" style={{ width: '100%', display: 'block' }} />
+        </div>
+      ) : (
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
         <tbody>
           <tr>
@@ -88,24 +93,17 @@ const ReciboCobranzaDoc = ({ data }) => {
                 <span style={{ fontSize: '7.5px', color: TEXT }}>REPÚBLICA BOLIVARIANA DE VENEZUELA</span>
                 <span style={{ fontSize: '7.5px', color: TEXT }}>MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</span>
                 <span style={{ fontSize: '8px', fontWeight: '700', color: TEXT }}>U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA</span>
-                <span style={{ fontSize: '7px', color: TEXT }}>AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA</span>
+                {afiliacionNombre && <span style={{ fontSize: '7px', color: TEXT }}>AFILIADO A {afiliacionNombre}</span>}
                 <span style={{ fontSize: '7px', color: TEXT }}>YARACAL ESTADO FALCÓN</span>
                 <span style={{ fontSize: '7px', color: TEXT }}>TELÉFONO 0259 938 1347 - 0426 563 1569</span>
                 <span style={{ fontSize: '7px', color: TEXT }}>CÓDIGO DEA PD00131104</span>
                 <span style={{ fontSize: '7px', color: TEXT }}>RIF-J-085222910</span>
               </div>
             </td>
-            <td style={{ width: '12%', border: 'none', textAlign: 'center', verticalAlign: 'middle' }}>
-              {logoAvec
-                ? <img src={logoAvec} alt="avec" style={{ maxWidth: 64, maxHeight: 64 }} />
-                : <div style={{ width: 64, height: 64, border: `1.5px dashed ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: '7px', color: '#888', flexDirection: 'column', gap: 2, borderRadius: '4px' }}>
-                    <span>Logo</span><span>AVEC</span>
-                  </div>
-              }
-            </td>
           </tr>
         </tbody>
       </table>
+      )}
 
       {/* Título + N° Recibo */}
       <div style={{
@@ -240,6 +238,11 @@ const ReciboCobranzaDoc = ({ data }) => {
       </table>
 
       {/* Footer */}
+      {piePaginaPersonalizado ? (
+        <div style={{ marginTop: 'auto', width: '100%' }}>
+          <img src={piePaginaPersonalizado} alt="pie de página" style={{ width: '100%', display: 'block' }} />
+        </div>
+      ) : (
       <div style={{
         marginTop: 'auto',
         textAlign: 'center',
@@ -250,6 +253,7 @@ const ReciboCobranzaDoc = ({ data }) => {
       }}>
         Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcon.
       </div>
+      )}
 
     </div>
   );
@@ -260,8 +264,10 @@ export const printReciboCobranza = async (data) => {
 
   const fullData = {
     ...data,
-    logoColegio: storedLogos.logoColegio || null,
-    logoAvec:    storedLogos.logoAvec    || null,
+    logoColegio:             storedLogos.logoColegio             || null,
+    afiliacionNombre:        storedLogos.afiliacionNombre        || '',
+    encabezadoPersonalizado: storedLogos.encabezadoPersonalizado || null,
+    piePaginaPersonalizado:  storedLogos.piePaginaPersonalizado  || null,
   };
 
   try {

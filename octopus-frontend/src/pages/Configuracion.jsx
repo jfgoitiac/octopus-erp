@@ -11,6 +11,7 @@ import { es } from 'date-fns/locale';
 import { AuthContext } from '../context/AuthContext';
 import DatePickerES from '../components/DatePickerES';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import RecortadorImagen from '../components/ui/RecortadorImagen';
 import { Modal } from '../components/ui/Modal';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useGrados } from '../hooks/useGrados';
@@ -22,7 +23,6 @@ import BecasTab from '../components/configuracion/BecasTab';
 import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
-import { useFaviconSitio } from '../hooks/useFaviconSitio';
 import { useBranding } from '../context/BrandingContext';
 
 const TIPO_LABELS = {
@@ -85,15 +85,14 @@ const Configuracion = () => {
         aplicarFiltrosLogs, cambiarPaginaLogs,
     } = useNotificaciones(notifAbierto);
 
-    const {
-        logosRecibo, showLogosModal, setShowLogosModal, logosForm,
-        openLogosModal, handleLogosUpload, handleRemoveLogo, handleSaveLogos, savingLogos,
-    } = useLogosRecibo(config, fetchConfig);
-
     const { refreshBranding } = useBranding();
     const {
-        faviconPreview, handleFaviconUpload, handleRemoveFavicon, handleSaveFavicon, savingFavicon,
-    } = useFaviconSitio(config, fetchConfig, refreshBranding);
+        logosRecibo, showLogosModal, setShowLogosModal, logosForm,
+        afiliacionNombreForm, setAfiliacionNombreForm,
+        openLogosModal, handleLogosUpload, handleImagenRecortada, handleRemoveLogo, handleSaveLogos, savingLogos,
+    } = useLogosRecibo(config, fetchConfig, refreshBranding);
+    const [archivoParaRecortar, setArchivoParaRecortar] = useState(null);
+    const [campoParaRecortar, setCampoParaRecortar] = useState(null);
 
     const handleGuardarConfiguracion = async (e) => {
         e.preventDefault();
@@ -316,37 +315,6 @@ const Configuracion = () => {
                                                 style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
                                                 placeholder="Ej. Sistema de gestión escolar de Mi Colegio" maxLength={300} />
                                         </div>
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Favicon (ícono de pestaña)</label>
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                                {faviconPreview && (
-                                                    <img src={faviconPreview} alt="Preview favicon"
-                                                        className="h-10 w-10 object-contain rounded border shrink-0"
-                                                        style={{ border: '0.5px solid var(--border-md)' }} />
-                                                )}
-                                                <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer w-full sm:w-auto"
-                                                    style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                                    <Upload size={14} />
-                                                    Subir favicon
-                                                    <input type="file" accept="image/png,image/x-icon,image/svg+xml,image/webp" className="hidden" onChange={handleFaviconUpload} />
-                                                </label>
-                                                {faviconPreview && (
-                                                    <button type="button" onClick={handleRemoveFavicon}
-                                                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto"
-                                                        style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
-                                                        <Trash size={14} />
-                                                        Quitar
-                                                    </button>
-                                                )}
-                                                <button type="button" onClick={handleSaveFavicon} disabled={savingFavicon}
-                                                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 w-full sm:w-auto"
-                                                    style={{ background: 'var(--pb)' }}>
-                                                    {savingFavicon ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                                                    Guardar favicon
-                                                </button>
-                                            </div>
-                                            <p className="text-xs mt-1.5" style={{ color: 'var(--ash)' }}>PNG, ICO, SVG o WEBP — máx 512KB.</p>
-                                        </div>
                                         <div className="sm:col-span-2 flex flex-wrap gap-3">
                                             <button type="button"
                                                 onClick={() => window.open('/portal', '_blank')}
@@ -568,6 +536,30 @@ const Configuracion = () => {
                         </div>
                     </div>
 
+                    {/* Convenio de Nómina */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                        <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                                <GraduationCap size={15} style={{ color: 'var(--pb)' }} />
+                            </div>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Convenio de Nómina</h3>
+                        </div>
+                        <div className="p-5 space-y-3">
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Convenio docente</label>
+                                <select name="convenio_nomina" value={config?.convenio_nomina || 'generico'} onChange={handleConfigChange}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}>
+                                    <option value="generico">Genérico</option>
+                                    <option value="avec_ve">Convenio AVEC (Venezuela)</option>
+                                </select>
+                            </div>
+                            <p className="text-xs leading-relaxed" style={{ color: 'var(--ash)' }}>
+                                Con <strong>Convenio AVEC</strong> se activa la categoría docente (D-I a D-VI) y su prima docente/geográfica. Con <strong>Genérico</strong>, el sueldo del docente se ingresa directo y solo aplican las primas universales (antigüedad, hijos, asistencial, postgrado).
+                            </p>
+                        </div>
+                    </div>
+
                     {/* Cargar Monto de Inscripción */}
                     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                         <div className="px-5 py-3 flex items-center gap-2" style={{ background: 'var(--bg)', borderBottom: '0.5px solid var(--border-md)' }}>
@@ -616,8 +608,8 @@ const Configuracion = () => {
                             <Image size={15} style={{ color: 'var(--pb)' }} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Logos del Recibo de Pago</h3>
-                            <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Se mostrarán automáticamente en el encabezado del recibo</p>
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Logo del Colegio</h3>
+                            <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Se usa en recibos, favicon/ícono de la app, páginas de login y el logo lateral junto al nombre del colegio</p>
                         </div>
                     </div>
                     <button type="button" onClick={openLogosModal}
@@ -627,23 +619,97 @@ const Configuracion = () => {
                     </button>
                 </div>
                 <div className="p-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        {[
-                            { key: 'logoColegio', label: 'Logo Colegio' },
-                            { key: 'logoAvec', label: 'Logo AVEC' },
-                        ].map(({ key, label }) => (
-                            <div key={key} className="flex flex-col items-center gap-3">
-                                <p className="text-[11px] uppercase tracking-widest self-start" style={{ color: 'var(--ash)' }}>{label}</p>
-                                {logosRecibo[key]
-                                    ? <img src={logosRecibo[key]} alt={label} className="w-20 h-20 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
-                                    : <div className="w-20 h-20 rounded-lg flex flex-col items-center justify-center gap-1"
-                                        style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                        {/* Logo Colegio */}
+                        <div className="rounded-lg p-4 flex flex-col gap-3" style={{ border: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Logo Colegio</p>
+                                {logosRecibo.logoColegio ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: '#16a34a' }}>
+                                        <CheckCircle2 size={12} /> Configurado
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'var(--ash)' }}>
+                                        <XCircle size={12} /> Sin configurar
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-full h-24 rounded-lg flex items-center justify-center" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+                                {logosRecibo.logoColegio
+                                    ? <img src={logosRecibo.logoColegio} alt="Logo Colegio" className="max-w-[80%] max-h-[80%] object-contain" />
+                                    : <div className="flex flex-col items-center gap-1" style={{ color: 'var(--ash)' }}>
                                         <Image size={20} className="opacity-30" />
                                         <span className="text-[10px]">Sin logo</span>
                                     </div>
                                 }
                             </div>
-                        ))}
+                            {config?.afiliacion_nombre && (
+                                <p className="text-[11px] leading-snug" style={{ color: 'var(--ash)' }}>
+                                    Afiliado a: <span className="font-semibold" style={{ color: 'var(--jet)' }}>{config.afiliacion_nombre}</span>
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Encabezado personalizado */}
+                        <div className="rounded-lg p-4 flex flex-col gap-3" style={{ border: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Encabezado personalizado</p>
+                                {logosRecibo.encabezadoPersonalizado ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: '#16a34a' }}>
+                                        <CheckCircle2 size={12} /> Configurado
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'var(--ash)' }}>
+                                        <XCircle size={12} /> Sin configurar
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-full h-24 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+                                {logosRecibo.encabezadoPersonalizado
+                                    ? <img src={logosRecibo.encabezadoPersonalizado} alt="Encabezado personalizado" className="max-w-full max-h-full object-contain" />
+                                    : <div className="flex flex-col items-center gap-1 px-3 text-center" style={{ color: 'var(--ash)' }}>
+                                        <Image size={20} className="opacity-30" />
+                                        <span className="text-[10px]">Se usa el encabezado por defecto</span>
+                                    </div>
+                                }
+                            </div>
+                            <p className="text-[11px] leading-snug" style={{ color: 'var(--ash)' }}>
+                                {logosRecibo.encabezadoPersonalizado
+                                    ? 'Reemplaza el encabezado estructurado del recibo.'
+                                    : 'Por defecto se arma con nombre, RIF, dirección, teléfono y logo.'}
+                            </p>
+                        </div>
+
+                        {/* Pie de página personalizado */}
+                        <div className="rounded-lg p-4 flex flex-col gap-3" style={{ border: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>Pie de página personalizado</p>
+                                {logosRecibo.piePaginaPersonalizado ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: '#16a34a' }}>
+                                        <CheckCircle2 size={12} /> Configurado
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'var(--ash)' }}>
+                                        <XCircle size={12} /> Sin configurar
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-full h-24 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+                                {logosRecibo.piePaginaPersonalizado
+                                    ? <img src={logosRecibo.piePaginaPersonalizado} alt="Pie de página personalizado" className="max-w-full max-h-full object-contain" />
+                                    : <div className="flex flex-col items-center gap-1 px-3 text-center" style={{ color: 'var(--ash)' }}>
+                                        <Image size={20} className="opacity-30" />
+                                        <span className="text-[10px]">Se usa el pie de página por defecto</span>
+                                    </div>
+                                }
+                            </div>
+                            <p className="text-[11px] leading-snug" style={{ color: 'var(--ash)' }}>
+                                {logosRecibo.piePaginaPersonalizado
+                                    ? 'Reemplaza el pie de página estructurado del recibo.'
+                                    : 'Por defecto se arma con dirección y teléfono.'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1161,7 +1227,7 @@ const Configuracion = () => {
                     titulo={(
                         <>
                             <Image size={18} />
-                            Configurar Logos del Recibo
+                            Configurar Logo del Colegio
                         </>
                     )}
                     footer={(
@@ -1181,43 +1247,150 @@ const Configuracion = () => {
                     )}
                     size="md"
                 >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-4">
-                        {[
-                            { field: 'logoColegio', label: 'Logo Colegio' },
-                            { field: 'logoAvec', label: 'Logo AVEC' },
-                        ].map(({ field, label }) => (
-                            <div key={field} className="flex flex-col items-center gap-3">
-                                <p className="text-[11px] uppercase tracking-widest font-semibold self-start" style={{ color: 'var(--ash)' }}>{label}</p>
-                                <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
-                                    {logosForm[field]
-                                        ? <img src={logosForm[field]} alt={label} className="w-24 h-24 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
-                                        : <div className="w-24 h-24 rounded-lg flex flex-col items-center justify-center gap-2"
-                                            style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
-                                            <Image size={28} className="opacity-25" />
-                                            <span className="text-[10px]">Sin imagen</span>
-                                        </div>
-                                    }
-                                    <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
-                                        style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
-                                        <Upload size={13} />
-                                        {logosForm[field] ? 'Cambiar imagen' : 'Subir imagen'}
-                                        <input type="file" accept="image/*" className="hidden" onChange={e => handleLogosUpload(field, e)} />
-                                    </label>
-                                    {logosForm[field] && (
-                                        <button type="button" onClick={() => handleRemoveLogo(field)}
-                                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
-                                            style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
-                                            <Trash size={13} /> Eliminar
-                                        </button>
-                                    )}
+                    <div className="mb-4 max-w-xs">
+                        <p className="text-[11px] uppercase tracking-widest font-semibold self-start mb-1.5" style={{ color: 'var(--ash)' }}>Logo Colegio</p>
+                        <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            {logosForm.logoColegio
+                                ? <img src={logosForm.logoColegio} alt="Logo Colegio" className="w-24 h-24 object-contain rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                : <div className="w-24 h-24 rounded-lg flex flex-col items-center justify-center gap-2"
+                                    style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                    <Image size={28} className="opacity-25" />
+                                    <span className="text-[10px]">Sin imagen</span>
                                 </div>
-                            </div>
-                        ))}
+                            }
+                            <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
+                                style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
+                                <Upload size={13} />
+                                {logosForm.logoColegio ? 'Cambiar imagen' : 'Subir imagen'}
+                                <input type="file" accept="image/*" className="hidden" onChange={e => handleLogosUpload('logoColegio', e)} />
+                            </label>
+                            {logosForm.logoColegio && (
+                                <button type="button" onClick={() => handleRemoveLogo('logoColegio')}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
+                                    style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
+                                    <Trash size={13} /> Eliminar
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    <div className="mb-4">
+                        <label className="block text-[11px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Nombre de la afiliación (ej. AVEC)
+                        </label>
+                        <input
+                            type="text"
+                            value={afiliacionNombreForm}
+                            onChange={e => setAfiliacionNombreForm(e.target.value)}
+                            placeholder="Vacío si el colegio no está afiliado a nada"
+                            className="w-full px-3 py-2 rounded-lg text-sm"
+                            style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}
+                        />
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                            Se muestra como "AFILIADO A {'{'}valor{'}'}" en los recibos. Vacío = no se muestra nada de afiliación.
+                        </p>
+                    </div>
+
+                    <div className="mb-4">
+                        <p className="text-[11px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Encabezado personalizado del recibo
+                        </p>
+                        <p className="text-[10px] mb-2" style={{ color: 'var(--ash)' }}>
+                            Reemplaza el bloque de logos y texto por un banner propio. Subí una imagen o un PDF de tu membrete y recortalo a la proporción correcta (2200×410px). Vacío = se sigue usando el encabezado por defecto.
+                        </p>
+                        <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            {logosForm.encabezadoPersonalizado
+                                ? <img src={logosForm.encabezadoPersonalizado} alt="Encabezado personalizado" className="w-full rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                : <div className="w-full h-16 rounded-lg flex flex-col items-center justify-center gap-1"
+                                    style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                    <Image size={20} className="opacity-25" />
+                                    <span className="text-[10px]">Sin encabezado personalizado</span>
+                                </div>
+                            }
+                            <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
+                                style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
+                                <Upload size={13} />
+                                {logosForm.encabezadoPersonalizado ? 'Cambiar y recortar' : 'Subir imagen o PDF para recortar'}
+                                <input
+                                    type="file" accept="image/png,image/jpeg,application/pdf" className="hidden"
+                                    onChange={e => {
+                                        const archivo = e.target.files?.[0];
+                                        e.target.value = '';
+                                        if (archivo) { setCampoParaRecortar('encabezadoPersonalizado'); setArchivoParaRecortar(archivo); }
+                                    }}
+                                />
+                            </label>
+                            {logosForm.encabezadoPersonalizado && (
+                                <button type="button" onClick={() => handleRemoveLogo('encabezadoPersonalizado')}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
+                                    style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
+                                    <Trash size={13} /> Eliminar
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <p className="text-[11px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: 'var(--ash)' }}>
+                            Pie de página personalizado del recibo
+                        </p>
+                        <p className="text-[10px] mb-2" style={{ color: 'var(--ash)' }}>
+                            Reemplaza el bloque de dirección/contacto al final del recibo por un banner propio. Subí una imagen o un PDF y recortalo a la proporción correcta (2200×220px). Vacío = se sigue usando el pie de página por defecto.
+                        </p>
+                        <div className="w-full flex flex-col items-center gap-3 p-4 rounded-xl" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                            {logosForm.piePaginaPersonalizado
+                                ? <img src={logosForm.piePaginaPersonalizado} alt="Pie de página personalizado" className="w-full rounded-lg" style={{ border: '0.5px solid var(--border-md)' }} />
+                                : <div className="w-full h-16 rounded-lg flex flex-col items-center justify-center gap-1"
+                                    style={{ border: '1.5px dashed var(--border-md)', color: 'var(--ash)' }}>
+                                    <Image size={20} className="opacity-25" />
+                                    <span className="text-[10px]">Sin pie de página personalizado</span>
+                                </div>
+                            }
+                            <label className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg cursor-pointer w-full justify-center font-medium"
+                                style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '0.5px dashed var(--pb)' }}>
+                                <Upload size={13} />
+                                {logosForm.piePaginaPersonalizado ? 'Cambiar y recortar' : 'Subir imagen o PDF para recortar'}
+                                <input
+                                    type="file" accept="image/png,image/jpeg,application/pdf" className="hidden"
+                                    onChange={e => {
+                                        const archivo = e.target.files?.[0];
+                                        e.target.value = '';
+                                        if (archivo) { setCampoParaRecortar('piePaginaPersonalizado'); setArchivoParaRecortar(archivo); }
+                                    }}
+                                />
+                            </label>
+                            {logosForm.piePaginaPersonalizado && (
+                                <button type="button" onClick={() => handleRemoveLogo('piePaginaPersonalizado')}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg w-full justify-center font-medium"
+                                    style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
+                                    <Trash size={13} /> Eliminar
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     <p className="text-[11px] px-3 py-2 rounded-lg" style={{ color: 'var(--ash)', background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                        Los logos se guardan en el servidor y estarán disponibles desde cualquier dispositivo al generar recibos de pago.
+                        El logo se guarda en el servidor y estará disponible desde cualquier dispositivo — se usa en recibos, favicon/ícono de la app, páginas de login y el logo lateral junto al nombre del colegio.
                     </p>
                 </Modal>
+            )}
+
+            {archivoParaRecortar && (
+                <RecortadorImagen
+                    archivo={archivoParaRecortar}
+                    salidaW={campoParaRecortar === 'piePaginaPersonalizado' ? 2200 : 2200}
+                    salidaH={campoParaRecortar === 'piePaginaPersonalizado' ? 220 : 410}
+                    titulo={campoParaRecortar === 'piePaginaPersonalizado' ? 'Recortar pie de página personalizado' : 'Recortar encabezado personalizado'}
+                    ayuda={campoParaRecortar === 'piePaginaPersonalizado'
+                        ? 'Arrastrá y hacé zoom para encuadrar tu banner en la proporción del pie de página (2200×220px).'
+                        : 'Arrastrá y hacé zoom para encuadrar tu membrete en la proporción del encabezado (2200×410px).'}
+                    onCancelar={() => { setArchivoParaRecortar(null); setCampoParaRecortar(null); }}
+                    onRecortado={(blob) => {
+                        handleImagenRecortada(campoParaRecortar, blob);
+                        setArchivoParaRecortar(null);
+                        setCampoParaRecortar(null);
+                    }}
+                />
             )}
 
             {showGradoModal && (

@@ -1,0 +1,163 @@
+[
+  {
+    "categoria": "D-I S/C",
+    "sueldoBase": 300,
+    "anosServicio": 5,
+    "numeroHijos": 0,
+    "titulo": "NONE",
+    "resultado": {
+      "primaAnt": 15,
+      "primaDoc": 0,
+      "primaGeo": 0,
+      "primaPos": 0,
+      "primaAsis": 17.5,
+      "primaHijos": 0,
+      "otrasAsig": 32.5,
+      "totalAsig": 332.5,
+      "sso": 13.3,
+      "spf": 1.6625,
+      "faov": 3.325,
+      "totalRet": 18.2875,
+      "neto": 314.2125,
+      "quincena": 157.10625
+    }
+  },
+  {
+    "categoria": "D-I",
+    "sueldoBase": 350,
+    "anosServicio": 8,
+    "numeroHijos": 1,
+    "titulo": "TSU",
+    "resultado": {
+      "primaAnt": 28,
+      "primaDoc": 8.75,
+      "primaGeo": 8.75,
+      "primaPos": 35,
+      "primaAsis": 17.5,
+      "primaHijos": 12.5,
+      "otrasAsig": 110.5,
+      "totalAsig": 460.5,
+      "sso": 18.42,
+      "spf": 2.3025,
+      "faov": 4.605,
+      "totalRet": 25.327500000000004,
+      "neto": 435.1725,
+      "quincena": 217.58625
+    }
+  },
+  {
+    "categoria": "D-II",
+    "sueldoBase": 400,
+    "anosServicio": 11,
+    "numeroHijos": 2,
+    "titulo": "PROF",
+    "resultado": {
+      "primaAnt": 44,
+      "primaDoc": 16,
+      "primaGeo": 16,
+      "primaPos": 80,
+      "primaAsis": 17.5,
+      "primaHijos": 25,
+      "otrasAsig": 198.5,
+      "totalAsig": 598.5,
+      "sso": 23.94,
+      "spf": 2.9925,
+      "faov": 5.985,
+      "totalRet": 32.917500000000004,
+      "neto": 565.5825,
+      "quincena": 282.79125
+    }
+  },
+  {
+    "categoria": "D-III",
+    "sueldoBase": 450,
+    "anosServicio": 14,
+    "numeroHijos": 0,
+    "titulo": "LIC",
+    "resultado": {
+      "primaAnt": 63.00000000000001,
+      "primaDoc": 24.75,
+      "primaGeo": 24.75,
+      "primaPos": 112.5,
+      "primaAsis": 17.5,
+      "primaHijos": 0,
+      "otrasAsig": 242.5,
+      "totalAsig": 692.5,
+      "sso": 26,
+      "spf": 3.4625,
+      "faov": 6.925,
+      "totalRet": 36.387499999999996,
+      "neto": 656.1125,
+      "quincena": 328.05625
+    }
+  },
+  {
+    "categoria": "D-IV",
+    "sueldoBase": 500,
+    "anosServicio": 17,
+    "numeroHijos": 1,
+    "titulo": "LEM",
+    "resultado": {
+      "primaAnt": 85,
+      "primaDoc": 35,
+      "primaGeo": 35,
+      "primaPos": 150,
+      "primaAsis": 17.5,
+      "primaHijos": 12.5,
+      "otrasAsig": 335,
+      "totalAsig": 835,
+      "sso": 26,
+      "spf": 4.175,
+      "faov": 8.35,
+      "totalRet": 38.525,
+      "neto": 796.475,
+      "quincena": 398.2375
+    }
+  },
+  {
+    "categoria": "D-V",
+    "sueldoBase": 550,
+    "anosServicio": 20,
+    "numeroHijos": 2,
+    "titulo": "MSC",
+    "resultado": {
+      "primaAnt": 110,
+      "primaDoc": 46.75,
+      "primaGeo": 46.75,
+      "primaPos": 192.5,
+      "primaAsis": 17.5,
+      "primaHijos": 25,
+      "otrasAsig": 438.5,
+      "totalAsig": 988.5,
+      "sso": 26,
+      "spf": 4.9425,
+      "faov": 9.885,
+      "totalRet": 40.8275,
+      "neto": 947.6725,
+      "quincena": 473.83625
+    }
+  },
+  {
+    "categoria": "D-VI",
+    "sueldoBase": 600,
+    "anosServicio": 23,
+    "numeroHijos": 0,
+    "titulo": "PHD",
+    "resultado": {
+      "primaAnt": 138,
+      "primaDoc": 60,
+      "primaGeo": 60,
+      "primaPos": 240,
+      "primaAsis": 17.5,
+      "primaHijos": 0,
+      "otrasAsig": 515.5,
+      "totalAsig": 1115.5,
+      "sso": 26,
+      "spf": 5.5775,
+      "faov": 11.155,
+      "totalRet": 42.7325,
+      "neto": 1072.7675,
+      "quincena": 536.38375
+    }
+  }
+]

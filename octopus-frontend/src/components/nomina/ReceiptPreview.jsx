@@ -42,6 +42,9 @@ const ReceiptPreview = ({ info, institucion = {}, asignaciones, retenciones, ali
   }}>
 
     {/* Encabezado institucional */}
+    {info.encabezadoPersonalizado ? (
+      <img src={info.encabezadoPersonalizado} alt="encabezado" style={{ width: '100%', display: 'block', marginBottom: '8px' }} />
+    ) : (
     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
       <tbody>
         <tr>
@@ -56,21 +59,16 @@ const ReceiptPreview = ({ info, institucion = {}, asignaciones, retenciones, ali
               <span style={{ fontSize: '8px',   color: '#003366' }}>REPÚBLICA BOLIVARIANA DE VENEZUELA</span>
               <span style={{ fontSize: '7.5px', color: '#000000' }}>MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</span>
               <span style={{ fontSize: '7.5px', color: '#003366', fontWeight: '700' }}>{inst.nombre}</span>
-              <span style={{ fontSize: '7px',   color: '#000000' }}>AFILIADO A LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA</span>
+              {info.afiliacionNombre && <span style={{ fontSize: '7px', color: '#000000' }}>AFILIADO A {info.afiliacionNombre}</span>}
               <span style={{ fontSize: '7px',   color: '#000000' }}>{inst.municipioEstado}</span>
               <span style={{ fontSize: '7px',   color: '#000000' }}>TELÉFONOS {inst.telefono}</span>
               <span style={{ fontSize: '7px',   color: '#000000' }}>{inst.rif}</span>
             </div>
           </td>
-          <td style={{ width: '13%', border: 'none', textAlign: 'center', verticalAlign: 'middle' }}>
-            {info.logoAvec
-              ? <img src={info.logoAvec} alt="avec" style={{ maxWidth: 68, maxHeight: 68 }} />
-              : <LogoPlaceholder label="AVEC" />
-            }
-          </td>
         </tr>
       </tbody>
     </table>
+    )}
 
     {/* Título */}
     <div style={{ textAlign: 'center', marginBottom: '14px' }}>
@@ -235,6 +233,11 @@ const ReceiptPreview = ({ info, institucion = {}, asignaciones, retenciones, ali
     </table>
 
     {/* Footer */}
+    {info.piePaginaPersonalizado ? (
+      <div style={{ marginTop: 'auto', width: '100%' }}>
+        <img src={info.piePaginaPersonalizado} alt="pie de página" style={{ width: '100%', display: 'block' }} />
+      </div>
+    ) : (
     <div style={{
       marginTop: 'auto',
       textAlign: 'center',
@@ -247,6 +250,7 @@ const ReceiptPreview = ({ info, institucion = {}, asignaciones, retenciones, ali
       {inst.direccion}<br />
       Teléfonos de Contacto: {inst.telefono}
     </div>
+    )}
 
   </div>
   );

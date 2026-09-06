@@ -12,12 +12,14 @@ const RIF_FALLBACK       = 'RIF-J-085222910';
  * de nómina (nominaPDF.js, boletinPdf.js, etc.).
  *
  * Campos:
- *   nombre       — nombre_colegio de la configuración del sistema
- *   direccion    — direccion_colegio + municipio/estado (si están configurados)
- *   telefono     — telefono_colegio
- *   rif          — rif del colegio
- *   logoColegio  — base64 del escudo (subido en Configuración › Logos)
- *   logoAvec     — base64 del logo AVEC (subido en Configuración › Logos)
+ *   nombre         — nombre_colegio de la configuración del sistema
+ *   direccion      — direccion_colegio + municipio/estado (si están configurados)
+ *   telefono       — telefono_colegio
+ *   rif            — rif del colegio
+ *   logoColegio    — base64 del escudo (subido en Configuración › Logos)
+ *   afiliacionNombre — nombre de la afiliación institucional (ej. "AVEC"), vacío si no aplica (solo texto, sin logo propio)
+ *   encabezadoPersonalizado — base64 del banner que reemplaza el bloque logo+texto, si el colegio lo configuró
+ *   piePaginaPersonalizado — base64 del banner que reemplaza el pie de página de dirección/contacto, si el colegio lo configuró
  *
  * Los fallbacks solo se usan si el colegio no ha completado su ficha en
  * Configuración — evita que un PDF salga con campos vacíos, pero cualquier
@@ -25,7 +27,7 @@ const RIF_FALLBACK       = 'RIF-J-085222910';
  */
 export function useInstitucionPDF() {
     const { config } = useConfiguracion();
-    const [logos, setLogos] = useState({ logoColegio: null, logoAvec: null });
+    const [logos, setLogos] = useState({ logoColegio: null, encabezadoPersonalizado: null, piePaginaPersonalizado: null });
 
     useEffect(() => {
         getLogosInstitucionales().then(setLogos);
@@ -45,7 +47,9 @@ export function useInstitucionPDF() {
             telefono:      config?.telefono_colegio  || TELEFONO_FALLBACK,
             rif:           config?.rif               || RIF_FALLBACK,
             logoColegio:   logos.logoColegio,
-            logoAvec:      logos.logoAvec,
+            afiliacionNombre: config?.afiliacion_nombre || '',
+            encabezadoPersonalizado: logos.encabezadoPersonalizado,
+            piePaginaPersonalizado: logos.piePaginaPersonalizado,
         };
-    }, [config?.nombre_colegio, config?.direccion_colegio, config?.municipio, config?.estado_colegio, config?.telefono_colegio, config?.rif, logos]);
+    }, [config?.nombre_colegio, config?.direccion_colegio, config?.municipio, config?.estado_colegio, config?.telefono_colegio, config?.rif, config?.afiliacion_nombre, logos]);
 }

@@ -31,18 +31,41 @@ class ConfiguracionSistema(models.Model):  # NUEVO
         help_text='Si está activo, los adelantos de mensualidades futuras solo se aceptan en Zelle o Efectivo Divisas (USD).'
     )
 
+    # Convenio de nómina aplicable al cálculo de asignaciones docentes (frontend, USD).
+    # 'generico': el sueldo base viene directo de Empleado.sueldo_base, sin categorías.
+    # 'avec_ve': deriva el sueldo base de la tabla de categorías AVEC y aplica prima docente/geográfica.
+    CONVENIO_NOMINA_CHOICES = [
+        ('generico', 'Genérico'),
+        ('avec_ve', 'Convenio AVEC (Venezuela)'),
+    ]
+    convenio_nomina = models.CharField(
+        max_length=20, choices=CONVENIO_NOMINA_CHOICES, default='generico',
+        help_text='Convenio de nómina docente aplicable. Determina si el cálculo de asignaciones usa el plugin AVEC o el genérico.'
+    )
+
     # Personalización visual del portal de representantes
     color_primario   = models.CharField(max_length=7, default='#0fa3b1', help_text='Color hex, ej: #0fa3b1')
     color_secundario = models.CharField(max_length=7, default='#1f3864', help_text='Color hex secundario')
     logo_url         = models.URLField(blank=True, default='', help_text='URL del logo del colegio (externo)')
-    logo_colegio     = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo del colegio para recibos de pago')
-    logo_avec        = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo de AVEC para recibos de pago')
+    logo_colegio     = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Logo del colegio. Se usa para recibos, favicon/ícono de la app, páginas de login y el logo lateral junto al nombre del colegio.')
 
-    # Branding dinámico: título del navegador, meta descripción y favicon
+    # Afiliación institucional opcional (AVEC u otra) — reemplaza el texto/logo AVEC
+    # fijo en recibos. Vacío por defecto: no todos los colegios venezolanos están afiliados.
+    # Solo texto: no lleva logo propio, el recibo usa siempre logo_colegio.
+    afiliacion_nombre = models.CharField(max_length=150, blank=True, default='', help_text='Texto que se muestra como "AFILIADO A {valor}" en recibos (ej. "AVEC" o "LA ASOCIACIÓN VENEZOLANA DE EDUCACIÓN CATÓLICA"). Vacío si el colegio no está afiliado a nada.')
+
+    # Banner de encabezado ya maquetado por el colegio (reemplaza el bloque logo+texto en recibos/boletines)
+    encabezado_personalizado = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Banner PNG (2200x410px, fondo transparente opcional) que reemplaza el bloque logo+texto en recibos y boletines. Si está vacío, se usa el encabezado estructurado por defecto.')
+
+    # Banner de pie de página ya maquetado por el colegio (reemplaza el bloque de dirección/contacto al final de recibos/boletines)
+    pie_pagina_personalizado = models.ImageField(upload_to='configuracion/logos/', null=True, blank=True, help_text='Banner PNG (2200x220px, fondo transparente opcional) que reemplaza el pie de página de dirección/contacto en recibos y boletines. Si está vacío, se usa el pie de página estructurado por defecto.')
+
+    # Branding dinámico: título del navegador y meta descripción.
+    # El favicon/ícono de la app sale de logo_colegio (o favicon_url si se
+    # quiere un ícono externo distinto) — no hay upload de favicon aparte.
     titulo_web       = models.CharField(max_length=200, blank=True, default='', help_text='Título mostrado en la pestaña del navegador. Si está vacío, se usa nombre_colegio.')
     descripcion_web  = models.CharField(max_length=300, blank=True, default='', help_text='Meta descripción del sitio (SEO).')
-    favicon_url      = models.URLField(blank=True, default='', help_text='URL del favicon (externo)')
-    favicon          = models.ImageField(upload_to='configuracion/favicons/', null=True, blank=True, help_text='Favicon del colegio')
+    favicon_url      = models.URLField(blank=True, default='', help_text='URL de un ícono externo distinto al logo del colegio (opcional). Si está vacío, se usa logo_colegio.')
 
     class Meta:
         verbose_name = "Configuración del Sistema"

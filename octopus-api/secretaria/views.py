@@ -141,7 +141,7 @@ class ConfiguracionSistemaView(APIView):
         # DRF's FileField rechaza string vacío como "invalid" (no lo interpreta como
         # borrar), así que el frontend manda un flag aparte para eliminar un logo.
         hubo_borrado = False
-        for campo in ('logo_colegio', 'logo_avec', 'favicon'):
+        for campo in ('logo_colegio', 'encabezado_personalizado', 'pie_pagina_personalizado'):
             if str(request.data.get(f'{campo}_clear', '')).lower() in ('true', '1'):
                 archivo = getattr(config, campo)
                 if archivo:

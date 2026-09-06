@@ -8,6 +8,6 @@ admin.site.register(ParametroLegalNomina)
 
 @admin.register(RegistroNomina)
 class RegistroNominaAdmin(admin.ModelAdmin):
-	list_display = ('empleado', 'mes_correspondiente', 'anio_correspondiente', 'total_pagar_ves')
-	list_filter = ('anio_correspondiente', 'mes_correspondiente')
+	list_display = ('empleado', 'mes_correspondiente', 'anio_correspondiente', 'estado', 'total_pagar_ves')
+	list_filter = ('anio_correspondiente', 'mes_correspondiente', 'estado')
 	search_fields = ('empleado__cedula', 'empleado__nombre', 'empleado__apellido')

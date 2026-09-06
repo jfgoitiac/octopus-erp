@@ -19,6 +19,7 @@ export function EmpleadoModal({
     submitLabel,
     submitIcon: SubmitIcon,
     showTipoSelect = false,
+    convenioNomina = 'avec_ve',
 }) {
     const footer = (
         <>
@@ -54,6 +55,7 @@ export function EmpleadoModal({
                     bancosNomina={bancosNomina}
                     showTipoSelect={showTipoSelect}
                     autoFocusNombre
+                    convenioNomina={convenioNomina}
                 />
             </form>
         </Modal>

@@ -1,6 +1,6 @@
 import axiosInstance from '../api/apiClient';
 
-// Los logos del colegio y AVEC viven en el backend (ConfiguracionSistema).
+// Los logos e imágenes institucionales viven en el backend (ConfiguracionSistema).
 // Se cachean en memoria por sesión de pestaña para no repetir el GET/descarga en
 // cada recibo/impresión; se invalida al guardar cambios desde Configuración.
 let cache = null;
@@ -26,14 +26,20 @@ export async function getLogosInstitucionales() {
     if (inflight) return inflight;
     inflight = axiosInstance.get('secretaria/configuracion/')
         .then(async res => {
-            const [logoColegio, logoAvec] = await Promise.all([
+            const [logoColegio, encabezadoPersonalizado, piePaginaPersonalizado] = await Promise.all([
                 urlToDataUri(res.data?.logo_colegio),
-                urlToDataUri(res.data?.logo_avec),
+                urlToDataUri(res.data?.encabezado_personalizado),
+                urlToDataUri(res.data?.pie_pagina_personalizado),
             ]);
-            cache = { logoColegio, logoAvec };
+            cache = {
+                logoColegio,
+                afiliacionNombre: res.data?.afiliacion_nombre || '',
+                encabezadoPersonalizado,
+                piePaginaPersonalizado,
+            };
             return cache;
         })
-        .catch(() => ({ logoColegio: null, logoAvec: null }))
+        .catch(() => ({ logoColegio: null, afiliacionNombre: '', encabezadoPersonalizado: null, piePaginaPersonalizado: null }))
         .finally(() => { inflight = null; });
     return inflight;
 }

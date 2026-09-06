@@ -19,7 +19,7 @@ import { useInstitucionPDF } from '../hooks/useInstitucionPDF';
 import JSZip from 'jszip';
 import { es as esLocale } from 'date-fns/locale';
 import {
-    CESTA_DEFAULT, calcAVEC, calcSueldoBase,
+    CESTA_DEFAULT, calcAVEC, calcSueldoBase, loadConceptosUniversales,
     SSO_PCT, SPF_PCT, FAOV_PCT, SSO_TOPE, CATEGORIAS_DOCENTE,
 } from '../constants/avec';
 
@@ -82,18 +82,21 @@ const esBancaribe = (emp) => (emp.numero_cuenta || '').startsWith('0114');
 
 /**
  * Calcula el monto de nómina (neto o quincena) para un empleado.
- * Docentes y directivos: usa tablas AVEC + cestaConfig (costo_hora).
- * Administrativos / apoyo (obreros): usa emp.sueldo_base almacenado.
+ * Docentes y directivos, convenio AVEC: usa tablas AVEC + cestaConfig (costo_hora).
+ * Docentes y directivos, convenio genérico: usa emp.sueldo_base directo, sin categorías.
+ * Administrativos / apoyo (obreros): usa emp.sueldo_base almacenado (sin cambios).
  */
-function calcMontoNomina(emp, cestaConfig, periodo) {
+function calcMontoNomina(emp, cestaConfig, periodo, convenioNomina = 'avec_ve', conceptosUniversales = {}) {
     const esDocente = emp.tipo_personal === 'docente' || emp.tipo_personal === 'directivo';
     let neto = 0;
     let ok   = false;
 
     if (esDocente) {
-        const sb = calcSueldoBase(cestaConfig, emp.categoria_docente, emp.horas_semanales);
+        const sb = convenioNomina === 'avec_ve'
+            ? calcSueldoBase(cestaConfig, emp.categoria_docente, emp.horas_semanales)
+            : (parseFloat(emp.sueldo_base) || 0);
         if (sb > 0) {
-            const avec = calcAVEC(sb, emp.categoria_docente, emp.anos_servicio, emp.numero_hijos, emp.titulo);
+            const avec = calcAVEC(sb, emp.categoria_docente, emp.anos_servicio, emp.numero_hijos, emp.titulo, convenioNomina, conceptosUniversales);
             neto = avec.neto;
             ok   = true;
         }
@@ -216,6 +219,20 @@ const Pagos = () => {
     const cestaConfigModalRef = useRef(null);
     const conceptoModalRef    = useRef(null);
 
+    // ── Convenio de nómina del colegio (determina si aplica el plugin AVEC) ──
+    const [convenioNomina, setConvenioNomina] = useState('avec_ve');
+    useEffect(() => {
+        axiosInstance.get('secretaria/configuracion/')
+            .then(res => setConvenioNomina(res.data?.convenio_nomina || 'avec_ve'))
+            .catch(() => {}); // se conserva el default (comportamiento actual) si falla
+    }, []);
+
+    // ── Conceptos universales configurables (antigüedad/hijo/asistencial) ───
+    const [conceptosUniversales, setConceptosUniversales] = useState({});
+    useEffect(() => {
+        loadConceptosUniversales().then(setConceptosUniversales);
+    }, []);
+
     // ── Carga inicial de config desde el backend (no localStorage) ──────────
     useEffect(() => {
         axiosInstance.get('cobranza/config-nomina/')
@@ -293,7 +310,7 @@ const Pagos = () => {
             const cfg  = cestaConfigLocal;
             const emps = await fetchEmpleados(); // Q-2: usa cache compartido
             const rows = emps.map(emp => {
-                const { monto, ok } = calcMontoNomina(emp, cfg, nominaPeriodo);
+                const { monto, ok } = calcMontoNomina(emp, cfg, nominaPeriodo, convenioNomina, conceptosUniversales);
                 return { ...emp, monto_bs: ok ? String(monto) : '', calculado: ok };
             });
             setNominaRows(rows);
@@ -310,7 +327,7 @@ const Pagos = () => {
         setNominaPeriodo(periodo);
         const cfg = cestaConfigLocal;
         setNominaRows(prev => prev.map(emp => {
-            const { monto, ok } = calcMontoNomina(emp, cfg, periodo);
+            const { monto, ok } = calcMontoNomina(emp, cfg, periodo, convenioNomina, conceptosUniversales);
             // Si el usuario ya editó el monto manualmente (!emp.calculado), no sobreescribir
             if (!ok && !emp.calculado) return emp;
             return { ...emp, monto_bs: ok ? String(monto) : '', calculado: ok };
@@ -485,9 +502,11 @@ const Pagos = () => {
                 const esDocente     = !row.tipo_personal || row.tipo_personal === 'docente' || row.tipo_personal === 'directivo';
 
                 if (esDocente) {
-                    const sb   = calcSueldoBase(cfg, row.categoria_docente, row.horas_semanales);
+                    const sb = convenioNomina === 'avec_ve'
+                        ? calcSueldoBase(cfg, row.categoria_docente, row.horas_semanales)
+                        : (parseFloat(row.sueldo_base) || 0);
                     if (sb > 0) {
-                        const avec = calcAVEC(sb, row.categoria_docente, row.anos_servicio, row.numero_hijos, row.titulo);
+                        const avec = calcAVEC(sb, row.categoria_docente, row.anos_servicio, row.numero_hijos, row.titulo, convenioNomina, conceptosUniversales);
                         const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb) };
                         carpeta.file(nombreArchivo, reciboAVECBytes(row, data, avec, cestaObj, institucion));
                     }
@@ -1247,7 +1266,8 @@ const Pagos = () => {
                 >
                         <div className="space-y-5">
 
-                            {/* Tabla AVEC: sueldo base mensual por categoría */}
+                            {/* Tabla AVEC: sueldo base mensual por categoría — solo aplica al convenio AVEC */}
+                            {convenioNomina === 'avec_ve' && (
                             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
                                 <div className="px-4 py-2.5"
                                     style={{ background: 'var(--pb-light)', borderBottom: '0.5px solid var(--border-md)' }}>
@@ -1300,6 +1320,7 @@ const Pagos = () => {
                                     })}
                                 </div>
                             </div>
+                            )}
 
 
                             {/* Tasa BCV */}

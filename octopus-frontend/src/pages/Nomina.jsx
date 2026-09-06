@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 
 import { useNomina } from '../hooks/useNomina';
+import { useConfiguracion } from '../hooks/useConfiguracion';
 import { ReciboModal } from '../components/nomina/ReciboModal';
 import { GenerarNominaModal } from '../components/nomina/GenerarNominaModal';
 import { EmpleadoModal } from '../components/nomina/EmpleadoModal';
@@ -44,6 +45,8 @@ const Nomina = () => {
         empleadoParaEliminar, deletingId,
         solicitarEliminarEmpleado, cancelarEliminarEmpleado, confirmarEliminarEmpleado,
     } = useNomina();
+    const { config } = useConfiguracion();
+    const convenioNomina = config?.convenio_nomina || 'avec_ve';
 
     const [activeTab,  setActiveTab]  = useState('docente');
     const [reciboEmp,  setReciboEmp]  = useState(null);
@@ -296,6 +299,7 @@ const Nomina = () => {
                     isBusy={isRegistering}
                     submitLabel="Registrar"
                     submitIcon={Plus}
+                    convenioNomina={convenioNomina}
                 />
             )}
 
@@ -315,6 +319,7 @@ const Nomina = () => {
                     submitLabel="Guardar cambios"
                     submitIcon={Pencil}
                     showTipoSelect
+                    convenioNomina={convenioNomina}
                 />
             )}
 

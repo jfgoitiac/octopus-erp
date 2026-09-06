@@ -1,13 +1,14 @@
 from django.urls import path, include
 from .views import (
     ReciboNominaPDFView, VincularEmpleadoRRHHView,
-    RegistroNominaViewSet, ParametroLegalNominaViewSet,
+    RegistroNominaViewSet, ParametroLegalNominaViewSet, ConceptoNominaViewSet,
 )
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'registros', RegistroNominaViewSet, basename='registro-nomina')
 router.register(r'parametros-legales', ParametroLegalNominaViewSet, basename='parametro-legal-nomina')
+router.register(r'conceptos', ConceptoNominaViewSet, basename='concepto-nomina')
 
 urlpatterns = [
     path('', include(router.urls)),

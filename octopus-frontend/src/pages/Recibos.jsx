@@ -205,10 +205,9 @@ const Recibos = () => {
             <p className="text-[10px] mb-2" style={{ color: 'var(--ash)' }}>
               Los logos se cargan desde el módulo de Configuración. Puedes sobreescribirlos solo para este recibo.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {[
                 { field: 'logoColegio', label: 'Logo Colegio' },
-                { field: 'logoAvec',    label: 'Logo AVEC'    },
               ].map(({ field, label }) => (
                 <div key={field}>
                   <label className="block text-xs mb-1" style={{ color: 'var(--ash)' }}>{label}</label>
