@@ -3281,3 +3281,29 @@ inspección a ojo):
   reporta un síntoma similar en otro módulo, revisar primero si el dato se
   relee en el momento de la acción crítica (como se hizo aquí) en vez de
   solo al montar.
+
+## DEUDA TÉCNICA — useEffect DE ADELANTOS PISA BANCO/MONTO_VES DEL CAJERO (2026-09-07)
+
+Detectado al implementar el envío real de `montos_mensualidades` (abono
+parcial) al backend. No se tocó — está fuera del alcance de ese cambio y
+el síntoma no se agrava con él.
+
+- **Dónde**: `Cobranza.jsx:219-225` (useEffect que auto-convierte las líneas
+  de pago a `efectivo` cuando `restriccionAdelantoActiva` es `true`).
+- **Qué hace mal**: cuando se activa la restricción (adelantos + flag
+  `adelantosRequierenUSD`), el efecto fuerza **todas** las líneas de pago
+  no-divisa a `{ metodo_pago: 'efectivo', banco_receptor_id: '', monto_ves:
+  '' }` — incluso si el cajero ya había cargado banco y monto en Bs. antes
+  de marcar el adelanto (o de que el estado recalculara
+  `restriccionAdelantoActiva`). El dato tecleado se pierde sin aviso.
+- **Por qué no se corrigió ahora**: el trigger de este efecto es
+  `restriccionAdelantoActiva` (`adelantosRequierenUSD && hayAdelantos`), NO
+  `hayParciales` — el abono parcial de mensualidades pendientes (sin
+  adelanto) no lo dispara, así que el cambio de esta tarea no lo activa ni
+  lo agrava. Corregirlo implicaría decidir un comportamiento distinto (¿solo
+  limpiar si el método actual no es válido? ¿avisar en vez de pisar?) que no
+  estaba pedido en esta tarea.
+- **Sugerencia para cuando se aborde**: limitar el efecto a limpiar solo las
+  líneas cuyo método de pago realmente ya no sea válido bajo la restricción
+  (no todas), y/o mostrar un `toast` informativo cuando se descarta un valor
+  que el cajero había cargado, en vez de pisarlo en silencio.
