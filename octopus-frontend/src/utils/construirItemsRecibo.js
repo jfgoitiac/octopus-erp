@@ -33,12 +33,16 @@ export const construirItemsRecibo = ({
         (selectedMens || []).forEach(id => {
             const m = (mensualidades || []).find(x => x.id === id);
             if (!m) return;
+            // `saldo` (monto_usd - lo ya abonado) es lo que realmente se debe cobrar;
+            // si el backend aun no lo expone, se cae al monto bruto de la mensualidad.
+            const saldo = m.saldo !== undefined ? m.saldo : m.monto_usd;
             const ov = montosParciales?.[`mens_${id}`];
-            const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
-            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+            const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(saldo) || 0;
+            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
+            const saldoRestante = parcial ? Math.max(0, parseFloat(saldo) - monto) : 0;
             itemsRecibo.push({
                 concepto: 'MENSUALIDAD',
-                descripcion: `${fmtMesAnio(m.mes, m.anio)}${parcial ? ' (PARCIAL)' : ''}`,
+                descripcion: `${fmtMesAnio(m.mes, m.anio)}${parcial ? ` (PARCIAL — saldo restante: $${saldoRestante.toFixed(2)})` : ''}`,
                 monto_usd: monto.toFixed(2),
                 monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
                 alumno: nombreAlumno,
@@ -48,12 +52,14 @@ export const construirItemsRecibo = ({
         (selectedFuturas || []).forEach(id => {
             const m = (mensualidadesFuturas || []).find(x => x.id === id);
             if (!m) return;
+            const saldo = m.saldo !== undefined ? m.saldo : m.monto_usd;
             const ov = montosParciales?.[`futura_${id}`];
-            const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
-            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+            const monto = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(saldo) || 0;
+            const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
+            const saldoRestante = parcial ? Math.max(0, parseFloat(saldo) - monto) : 0;
             itemsRecibo.push({
                 concepto: 'ADELANTO',
-                descripcion: `${fmtMesAnio(m.mes, m.anio)}${parcial ? ' (PARCIAL)' : ''}`,
+                descripcion: `${fmtMesAnio(m.mes, m.anio)}${parcial ? ` (PARCIAL — saldo restante: $${saldoRestante.toFixed(2)})` : ''}`,
                 monto_usd: monto.toFixed(2),
                 monto_ves: tasa > 0 ? (monto * tasa).toFixed(2) : '',
                 alumno: nombreAlumno,
