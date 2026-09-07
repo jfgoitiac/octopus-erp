@@ -249,7 +249,9 @@ const BloqueDeudaAlumno = ({
                         {mensualidades.map(m => {
                             const isSel   = selectedMens.includes(m.id);
                             const ov      = montosParciales[`mens_${m.id}`];
-                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                            const saldo   = m.saldo !== undefined ? m.saldo : m.monto_usd;
+                            const abonada = parseFloat(saldo) < parseFloat(m.monto_usd) - 0.01;
+                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                             return (
                                 <div key={m.id}>
                                     <label
@@ -276,6 +278,9 @@ const BloqueDeudaAlumno = ({
                                         <div className="text-right">
                                             <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
                                             <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
+                                            {abonada && (
+                                                <p className="text-[10px] font-semibold" style={{ color: '#b45309' }}>Saldo: ${saldo}</p>
+                                            )}
                                         </div>
                                     </label>
                                     {isSel && (
@@ -287,15 +292,15 @@ const BloqueDeudaAlumno = ({
                                                 <DecimalInput
                                                     className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                     style={{ border: '1px solid var(--pb)', background: '#fff', color: 'var(--jet)' }}
-                                                    value={ov !== undefined ? ov : m.monto_usd}
+                                                    value={ov !== undefined ? ov : saldo}
                                                     onChange={v => setMontoParcial(alu.id, 'mens', m.id, v)}
-                                                    max={parseFloat(m.monto_usd)}
+                                                    max={parseFloat(saldo)}
                                                     aria-label={`Monto a abonar para mensualidad ${m.mes} ${m.anio}`}
                                                 />
                                             </div>
                                             {parcial && (
                                                 <button type="button"
-                                                    onClick={() => setMontoParcial(alu.id, 'mens', m.id, m.monto_usd)}
+                                                    onClick={() => setMontoParcial(alu.id, 'mens', m.id, saldo)}
                                                     className="text-[10px] px-2 py-1 rounded-md"
                                                     style={{ background: 'var(--pb)', color: '#fff' }}>
                                                     Completo
@@ -325,7 +330,9 @@ const BloqueDeudaAlumno = ({
                             {mensualidadesFuturas.map(m => {
                                 const isSel   = selectedFuturas.includes(m.id);
                                 const ov      = montosParciales[`futura_${m.id}`];
-                                const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                const saldo   = m.saldo !== undefined ? m.saldo : m.monto_usd;
+                                const abonada = parseFloat(saldo) < parseFloat(m.monto_usd) - 0.01;
+                                const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                                 const acento    = adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)';
                                 const acentoBg  = adelantosRequierenUSD ? '#ede9fe' : 'var(--pb-light)';
                                 const borderSuave = adelantosRequierenUSD ? '#d8b4fe' : 'var(--border)';
@@ -356,6 +363,9 @@ const BloqueDeudaAlumno = ({
                                             <div className="text-right">
                                                 <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
                                                 <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
+                                                {abonada && (
+                                                    <p className="text-[10px] font-semibold" style={{ color: acento }}>Saldo: ${saldo}</p>
+                                                )}
                                             </div>
                                         </label>
                                         {isSel && (
@@ -367,15 +377,15 @@ const BloqueDeudaAlumno = ({
                                                     <DecimalInput
                                                         className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                         style={{ border: `1px solid ${acento}`, background: '#fff', color: 'var(--jet)' }}
-                                                        value={ov !== undefined ? ov : m.monto_usd}
+                                                        value={ov !== undefined ? ov : saldo}
                                                         onChange={v => setMontoParcial(alu.id, 'futura', m.id, v)}
-                                                        max={parseFloat(m.monto_usd)}
+                                                        max={parseFloat(saldo)}
                                                         aria-label={`Monto adelanto para ${m.mes} ${m.anio}`}
                                                     />
                                                 </div>
                                                 {parcial && (
                                                     <button type="button"
-                                                        onClick={() => setMontoParcial(alu.id, 'futura', m.id, m.monto_usd)}
+                                                        onClick={() => setMontoParcial(alu.id, 'futura', m.id, saldo)}
                                                         className="text-[10px] px-2 py-1 rounded-md"
                                                         style={{ background: acento, color: '#fff' }}>
                                                         Completo
