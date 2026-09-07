@@ -233,8 +233,10 @@ const Cobranza = () => {
         if (!datos || !sel) return false;
         const parcialEn = (categoria, lista, ids) => ids.some(mid => {
             const m  = (lista || []).find(x => x.id === mid);
+            if (!m) return false;
+            const saldo = m.saldo !== undefined ? m.saldo : m.monto_usd;
             const ov = sel.montosParciales[`${categoria}_${mid}`];
-            return m && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+            return ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
         });
         return parcialEn('mens', datos.mensualidades_pendientes, sel.selectedMens) ||
                parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas);
@@ -460,12 +462,29 @@ const Cobranza = () => {
                 };
             });
 
+            // Solo se incluyen las mensualidades (pendientes o adelanto) donde el
+            // cajero escribió un override en el input de "Monto a abonar". Las que
+            // quedaron sin override no entran aquí: el backend las interpreta como
+            // pago del saldo completo (comportamiento actual, sin regresión).
+            const montosMensualidades = {};
+            alumnosSeleccionados.forEach(id => {
+                const sel = seleccion[id];
+                if (!sel) return;
+                const agregar = (categoria, ids) => ids.forEach(mid => {
+                    const ov = sel.montosParciales[`${categoria}_${mid}`];
+                    if (ov !== undefined && ov !== '') montosMensualidades[mid] = parseFloat(ov) || 0;
+                });
+                agregar('mens', sel.selectedMens);
+                agregar('futura', sel.selectedFuturas);
+            });
+
             const res = await axiosInstance.post('cobranza/registrar-pago/', {
                 alumnos: alumnosPayload,
                 concepto,
                 representante_documento: representanteCedula || cedula,
                 representante_nombre: representanteNombre,
                 proyecto_inversion_ids: selectedProyectos,
+                montos_mensualidades: montosMensualidades,
                 montos_proyecto_inversion: Object.fromEntries(
                     selectedProyectos
                         .filter(id => montosParcialesProyectos[id] !== undefined && montosParcialesProyectos[id] !== '')
