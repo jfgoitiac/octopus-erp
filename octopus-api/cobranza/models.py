@@ -329,6 +329,12 @@ class Mensualidad(models.Model):
     # costo de becas no dependa de recalcular contra el estado actual de Beca.
     monto_original_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     porcentaje_beca_aplicado = models.PositiveIntegerField(default=0)
+    # Acumulador de abonos (permite abono parcial y adelantos parciales de
+    # meses futuros). `pagado`/`fecha_pago` NO se asignan a mano en ningún
+    # lugar del código: se derivan siempre en `save()` a partir de
+    # `monto_pagado` vs `monto_usd` (mismo patrón que
+    # CuotaProyectoInversion.save() / CuotaSolvencia.save()).
+    monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     pagado = models.BooleanField(default=False, db_index=True)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     # True cuando el monto fue editado a mano (ActualizarMensualidadesView) en
@@ -346,6 +352,31 @@ class Mensualidad(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - {self.get_mes_display()} {self.anio} - {'Pagado' if self.pagado else 'Pendiente'}"
+
+    def save(self, *args, **kwargs):
+        """
+        Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada
+        guardado, igual que CuotaProyectoInversion.save() / CuotaSolvencia.save().
+        Un abono parcial (monto_pagado < monto_usd) NUNCA marca `pagado=True`:
+        eso es justamente lo que permite que cobranza/mora.py y
+        cobranza/recargos.py sigan viendo la mensualidad como impaga mientras
+        tenga saldo pendiente.
+        """
+        saldado = self.monto_usd <= 0 or self.monto_pagado >= self.monto_usd
+        if saldado:
+            if not self.pagado:
+                from django.utils import timezone
+                self.fecha_pago = self.fecha_pago or timezone.now()
+            self.pagado = True
+        else:
+            self.pagado = False
+            self.fecha_pago = None
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'pagado', 'fecha_pago'}
+
+        super().save(*args, **kwargs)
 
 
 class CuotaInscripcion(models.Model):
