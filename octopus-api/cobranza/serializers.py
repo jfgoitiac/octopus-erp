@@ -522,6 +522,16 @@ class PagoCreateSerializer(serializers.Serializer):
         required=False,
         default=dict,
     )
+    # Abono parcial de mensualidad (vencida o adelanto de mes futuro):
+    # {id_mensualidad: monto_abonado}. La clave puede venir de
+    # mensualidad_ids o mensualidad_adelanto_ids indistintamente. Si un id
+    # seleccionado no aparece aquí, se asume que se paga el saldo completo
+    # (mismo contrato que montos_proyecto_inversion, sin regresión).
+    montos_mensualidades = serializers.DictField(
+        child=serializers.DecimalField(max_digits=10, decimal_places=2),
+        required=False,
+        default=dict,
+    )
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
@@ -712,6 +722,45 @@ class PagoCreateSerializer(serializers.Serializer):
                     "Los adelantos de mensualidades solo se pueden pagar con Zelle o "
                     "Efectivo Divisas (USD)."
                 )
+
+        # Abono PARCIAL de mensualidad (vencida o adelanto): si el monto a
+        # abonar de ALGUNA mensualidad queda por debajo de su saldo actual
+        # (con tolerancia de 0.01, igual que usa el frontend para redondeo),
+        # y ConfiguracionSistema.abonos_parciales_requieren_usd está activo,
+        # TODAS las líneas de pago de la transacción deben ser en divisa.
+        # Regla independiente de adelantos_requieren_usd — ambas pueden estar
+        # activas a la vez y las dos se validan si aplican.
+        montos_mensualidades = data.get('montos_mensualidades') or {}
+        if todos_mensualidad_ids:
+            restriccion_abono_parcial_activa = not config or config.abonos_parciales_requieren_usd
+            if restriccion_abono_parcial_activa:
+                mensualidades_map = {
+                    m.id: m for m in Mensualidad.objects.filter(id__in=todos_mensualidad_ids)
+                }
+                hay_abono_parcial = False
+                for mid in todos_mensualidad_ids:
+                    m = mensualidades_map.get(mid)
+                    if not m:
+                        continue
+                    saldo_actual = m.monto_usd - m.monto_pagado
+                    monto_abonado = montos_mensualidades.get(
+                        str(mid), montos_mensualidades.get(mid, saldo_actual)
+                    )
+                    monto_abonado = Decimal(str(monto_abonado))
+                    if monto_abonado < saldo_actual - Decimal('0.01'):
+                        hay_abono_parcial = True
+                        break
+
+                if hay_abono_parcial:
+                    metodos_no_permitidos_parcial = {
+                        p['metodo_pago'] for p in data['pagos']
+                        if p['metodo_pago'] not in ('zelle', 'efectivo')
+                    }
+                    if metodos_no_permitidos_parcial:
+                        raise serializers.ValidationError(
+                            "Un abono parcial de mensualidad solo se puede pagar con Zelle o "
+                            "Efectivo Divisas (USD)."
+                        )
 
         # --- Carga retroactiva (fecha_pago explícita) ---
         # Reutiliza los mismos guardas que cargar_pago_retroactivo()

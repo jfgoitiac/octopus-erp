@@ -261,12 +261,18 @@ class BuscarAlumnoCobranzaView(APIView):
                 generar_mensualidades([alumno], meses_pendientes)
 
         def to_list(qs):
+            # `saldo` (monto_usd - monto_pagado) se expone igual que ya hace
+            # cuotas_proyecto_inversion más abajo: tras un abono parcial la
+            # mensualidad sigue pendiente pero por menos del monto original,
+            # y el frontend debe cobrar/mostrar el saldo, no el monto lleno.
             return [
                 {
-                    'id':        row['id'],
-                    'mes':       self.MES_NOMBRES.get(row['mes'], str(row['mes'])),
-                    'anio':      row['anio'],
-                    'monto_usd': str(row['monto_usd']),
+                    'id':           row['id'],
+                    'mes':          self.MES_NOMBRES.get(row['mes'], str(row['mes'])),
+                    'anio':         row['anio'],
+                    'monto_usd':    str(row['monto_usd']),
+                    'monto_pagado': str(row['monto_pagado']),
+                    'saldo':        str(row['monto_usd'] - row['monto_pagado']),
                 }
                 for row in qs
             ]
@@ -274,13 +280,13 @@ class BuscarAlumnoCobranzaView(APIView):
         mensualidades = to_list(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
             .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
-            .values('id', 'mes', 'anio', 'monto_usd')
+            .values('id', 'mes', 'anio', 'monto_usd', 'monto_pagado')
             .order_by('anio', 'mes')
         )
         mensualidades_futuras = to_list(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
             .filter(Q(anio__gt=hoy.year) | Q(anio=hoy.year, mes__gt=hoy.month))
-            .values('id', 'mes', 'anio', 'monto_usd')
+            .values('id', 'mes', 'anio', 'monto_usd', 'monto_pagado')
             .order_by('anio', 'mes')
         )
         cuotas_inscripcion = list(
@@ -527,23 +533,57 @@ class RegistrarPagoView(APIView):
         # de lo contrario se cobra o se exime el recargo según cuándo el
         # cajero tipeó el pago, no según cuándo el representante pagó.
         fecha_cobro = fecha_pago_retroactiva if fecha_pago_retroactiva else timezone.now()
+        # Abono parcial: {mensualidad_id (str o int): monto_a_abonar}. Un id de
+        # mensualidad_ids/mensualidad_adelanto_ids que NO aparece acá se
+        # interpreta como pago TOTAL del saldo (mismo comportamiento de
+        # siempre, sin regresión) — mismo contrato que ya usa
+        # montos_proyecto_inversion para CuotaProyectoInversion.
+        montos_mensualidades = data.get('montos_mensualidades') or {}
         todas_mensualidades_qs = Mensualidad.objects.none()
         recargos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_usd':...}}
         for a in alumnos_resueltos:
             ids = list(set(a['mensualidad_ids']) | set(a['mensualidad_adelanto_ids']))
             if not ids:
                 continue
-            # Se resuelve el recargo ANTES del update masivo, con la fecha
-            # real de esta transacción (fecha_cobro) — nunca se recalcula
-            # después ni depende de cuándo se generó la mensualidad.
-            for m in Mensualidad.objects.filter(id__in=ids, alumno=a['alumno']).select_related('alumno'):
-                resultado = resolver_recargo(m, fecha_cobro)
-                if resultado:
-                    recargos_por_mensualidad[m.id] = resultado
+            # select_for_update() dentro de la transacción atómica de esta
+            # vista evita que dos pagos casi simultáneos sobre la misma
+            # mensualidad pisen el abono uno del otro (mismo patrón que el
+            # guard de doble envío en PagoCreateSerializer.validate).
+            mensualidades_alumno = list(
+                Mensualidad.objects.select_for_update()
+                .filter(id__in=ids, alumno=a['alumno']).select_related('alumno')
+            )
+            for m in mensualidades_alumno:
+                # Se resuelve el recargo ANTES de aplicar el abono, con la
+                # fecha real de esta transacción (fecha_cobro) — nunca se
+                # recalcula después ni depende de cuándo se generó la
+                # mensualidad. Si esta mensualidad ya generó un recargo en un
+                # abono anterior (LineaRecargoPago), no se vuelve a cobrar:
+                # el recargo se cobra una sola vez por mensualidad, no una
+                # vez por cada abono parcial que reciba.
+                if not LineaRecargoPago.objects.filter(mensualidad_id=m.id).exists():
+                    resultado = resolver_recargo(m, fecha_cobro)
+                    if resultado:
+                        recargos_por_mensualidad[m.id] = resultado
 
-            Mensualidad.objects.filter(
-                id__in=ids, alumno=a['alumno']
-            ).update(pagado=True, fecha_pago=fecha_cobro)
+                saldo_actual = m.monto_usd - m.monto_pagado
+                monto_a_abonar = montos_mensualidades.get(
+                    str(m.id), montos_mensualidades.get(m.id, saldo_actual)
+                )
+                monto_a_abonar = Decimal(str(monto_a_abonar))
+                if monto_a_abonar < 0:
+                    monto_a_abonar = Decimal('0.00')
+
+                # Nunca se permite que monto_pagado supere monto_usd, sin
+                # importar lo que haya venido en el payload.
+                m.monto_pagado = min(m.monto_pagado + monto_a_abonar, m.monto_usd)
+                if m.monto_usd <= 0 or m.monto_pagado >= m.monto_usd:
+                    # Fecha REAL en que se recibió el dinero (retroactiva si
+                    # aplica), no la fecha en que se guarda esta fila — save()
+                    # respeta este valor si ya viene seteado.
+                    m.fecha_pago = fecha_cobro
+                m.save()
+
             todas_mensualidades_qs |= Mensualidad.objects.filter(id__in=ids, alumno=a['alumno'])
 
         if todas_mensualidades_qs.exists():
