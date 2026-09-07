@@ -259,7 +259,20 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         })
 
     with transaction.atomic():
-        pago.mensualidades_pagadas.all().update(pagado=False, fecha_pago=None)
+        # Mensualidad ahora deriva pagado/fecha_pago de monto_pagado (abono
+        # parcial, ver Mensualidad.save()) — hay que revertir monto_pagado
+        # también, si no la fila queda inconsistente (pagado=False pero
+        # monto_pagado=monto_usd, con saldo aparente 0 para un cajero que
+        # vuelva a mirar mensualidades_pendientes).
+        # LIMITACIÓN CONOCIDA (igual categoría que proyecto_inversion más
+        # arriba): si la mensualidad recibió abonos de VARIOS pagos distintos
+        # (abono parcial en una transacción, completado en otra), anular
+        # cualquiera de esos pagos resetea monto_pagado a 0 sin poder
+        # distinguir cuánto correspondía a cada pago — no hay snapshot por
+        # pago como sí existe para LineaRecargoPago. Ver NOTAS_TECNICAS.md.
+        pago.mensualidades_pagadas.all().update(
+            pagado=False, fecha_pago=None, monto_pagado=Decimal('0.00')
+        )
         pago.cuotas_inscripcion_pagadas.all().update(pagado=False, fecha_pago=None)
 
         # Recargo por pago tardío: las líneas (snapshot inmutable, ver
