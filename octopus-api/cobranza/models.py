@@ -361,8 +361,26 @@ class Mensualidad(models.Model):
         eso es justamente lo que permite que cobranza/mora.py y
         cobranza/recargos.py sigan viendo la mensualidad como impaga mientras
         tenga saldo pendiente.
+
+        COMPATIBILIDAD: a diferencia de CuotaProyectoInversion/CuotaSolvencia
+        (donde `pagado` nunca se toca a mano en ningún lugar del código),
+        Mensualidad SÍ tiene código existente que asigna `pagado=True`
+        directamente sin pasar por `monto_pagado` (ej. tests, código legado
+        de generación/propagación de montos). Para no romper ese código
+        (regresión: la fila volvería a `pagado=False` porque monto_pagado
+        seguiría en 0), si el caller marcó `pagado=True` a mano y
+        `monto_pagado` todavía no alcanza `monto_usd`, se interpreta como
+        "esto se pagó por el total" y se sincroniza `monto_pagado` hacia
+        arriba, en vez de pisar `pagado` de vuelta a False.
         """
-        saldado = self.monto_usd <= 0 or self.monto_pagado >= self.monto_usd
+        if self.monto_usd <= 0:
+            saldado = True
+        elif self.pagado and self.monto_pagado < self.monto_usd:
+            self.monto_pagado = self.monto_usd
+            saldado = True
+        else:
+            saldado = self.monto_pagado >= self.monto_usd
+
         if saldado:
             if not self.pagado:
                 from django.utils import timezone
@@ -374,7 +392,7 @@ class Mensualidad(models.Model):
 
         update_fields = kwargs.get('update_fields')
         if update_fields is not None:
-            kwargs['update_fields'] = set(update_fields) | {'pagado', 'fecha_pago'}
+            kwargs['update_fields'] = set(update_fields) | {'pagado', 'fecha_pago', 'monto_pagado'}
 
         super().save(*args, **kwargs)
 
