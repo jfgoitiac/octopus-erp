@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from django.core.management import call_command
 from io import StringIO
 from unittest.mock import patch
-from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio, CuotaSolvencia, CuotaProyectoInversion
+from .models import Pago, CierreCaja, BancoInstitucional, TasaCambio, CuotaSolvencia, CuotaProyectoInversion, Mensualidad, ReglaRecargoPago, LineaRecargoPago
 from .serializers import ComprobanteSerializer
 from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Representante
 
@@ -1750,3 +1750,279 @@ class TasaPorFechaViewTest(TestCase):
     def test_fecha_mal_formada_devuelve_400(self):
         resp = self.client.get('/api/cobranza/tasa/por-fecha/', {'fecha': '15-10-2025'})
         self.assertEqual(resp.status_code, 400)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ABONO PARCIAL DE MENSUALIDADES (incluye adelantos de meses futuros)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class AbonoParcialMensualidadBase(TestCase):
+    """Base compartida: alumno, banco, tasa y helper de payload para
+    registrar-pago con abono parcial de mensualidades."""
+
+    def setUp(self):
+        self.config = ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2025, 1, 1),
+            fecha_fin_inscripciones=date(2025, 12, 31),
+            fecha_inicio_ano_escolar=date(2025, 9, 1),
+            fecha_fin_ano_escolar=date(2026, 7, 31),
+            periodo_escolar_activo='2025-2026',
+        )
+        self.representante = Representante.objects.create(
+            cedula='V50000001', nombre='Carlos', apellido='Mendez',
+            telefono='0412', correo='carlos@example.com', direccion='Calle 2',
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Sofia', apellido='Mendez', cedula_escolar='E97000001',
+            fecha_nacimiento=date(2016, 3, 10), representante=self.representante,
+        )
+        self.banco = BancoInstitucional.objects.create(nombre='Banco Abono Parcial Test', activo=True)
+        TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        self.user = User.objects.create_superuser(
+            username='cajero_abono_parcial', password='clave123456', email='ap@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def _mensualidad(self, mes, anio, monto='30.00'):
+        return Mensualidad.objects.create(
+            alumno=self.alumno, mes=mes, anio=anio, monto_usd=Decimal(monto),
+        )
+
+    def _payload(self, mensualidad, monto_abono, metodo_pago='zelle',
+                  referencia='ZL-ABONO-001', adelanto=False, monto_ves=None):
+        clave_ids = 'mensualidad_adelanto_ids' if adelanto else 'mensualidad_ids'
+        pago = {
+            "metodo_pago": metodo_pago,
+            "referencia": referencia,
+        }
+        if monto_ves is not None:
+            pago["monto_ves"] = str(monto_ves)
+        else:
+            pago["monto_usd"] = str(monto_abono)
+        if metodo_pago not in ('efectivo', 'efectivo_ves'):
+            pago["banco_receptor_id"] = self.banco.id
+        return {
+            "alumnos": [{
+                "alumno_id": self.alumno.id,
+                clave_ids: [mensualidad.id],
+            }],
+            "concepto": "mensualidad",
+            "pagos": [pago],
+            "montos_mensualidades": {str(mensualidad.id): str(monto_abono)},
+        }
+
+
+class AbonoParcialMensualidadVencidaTest(AbonoParcialMensualidadBase):
+
+    def test_abono_parcial_de_mensualidad_vencida_queda_con_saldo_pendiente(self):
+        m = self._mensualidad(6, 2025, monto='30.00')  # ya vencida
+        payload = self._payload(m, '10.00')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('10.00'))
+        self.assertFalse(m.pagado)
+        self.assertIsNone(m.fecha_pago)
+        self.assertEqual(m.monto_usd - m.monto_pagado, Decimal('20.00'))
+
+
+class AbonoParcialAdelantoTest(AbonoParcialMensualidadBase):
+
+    def test_abono_parcial_de_un_adelanto_de_mes_futuro(self):
+        m = self._mensualidad(12, 2026, monto='30.00')  # futura
+        payload = self._payload(m, '15.00', adelanto=True)
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('15.00'))
+        self.assertFalse(m.pagado)
+        self.assertEqual(m.monto_usd - m.monto_pagado, Decimal('15.00'))
+
+
+class AbonoCompletaSaldoExactoTest(AbonoParcialMensualidadBase):
+
+    def test_abono_que_completa_el_saldo_exacto_marca_pagado_y_fecha_pago(self):
+        m = self._mensualidad(6, 2025, monto='30.00')
+        payload = self._payload(m, '30.00')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('30.00'))
+        self.assertTrue(m.pagado)
+        self.assertIsNotNone(m.fecha_pago)
+
+    def test_sin_montos_mensualidades_se_asume_pago_total_del_saldo(self):
+        """Compatibilidad: si el id no aparece en montos_mensualidades, se
+        paga el saldo completo, igual que el flujo sin abono de siempre."""
+        m = self._mensualidad(6, 2025, monto='30.00')
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [m.id]}],
+            "concepto": "mensualidad",
+            "pagos": [{
+                "metodo_pago": "efectivo", "monto_usd": "30.00", "referencia": "EFEC-TOTAL-001",
+            }],
+        }
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('30.00'))
+        self.assertTrue(m.pagado)
+
+
+class DobleAbonoSucesivoTest(AbonoParcialMensualidadBase):
+
+    def test_doble_abono_sucesivo_suma_correctamente_sin_superar_monto_usd(self):
+        m = self._mensualidad(6, 2025, monto='30.00')
+
+        payload_1 = self._payload(m, '10.00', referencia='ZL-DOBLE-001')
+        resp1 = self.client.post('/api/cobranza/registrar-pago/', payload_1, format='json')
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('10.00'))
+        self.assertFalse(m.pagado)
+
+        payload_2 = self._payload(m, '20.00', referencia='ZL-DOBLE-002')
+        resp2 = self.client.post('/api/cobranza/registrar-pago/', payload_2, format='json')
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('30.00'))
+        self.assertTrue(m.pagado)
+
+    def test_abono_no_puede_superar_monto_usd_aunque_el_payload_lo_pida(self):
+        m = self._mensualidad(6, 2025, monto='30.00')
+        payload_1 = self._payload(m, '10.00', referencia='ZL-CLAMP-001')
+        self.client.post('/api/cobranza/registrar-pago/', payload_1, format='json')
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('10.00'))
+
+        # Intenta abonar de más del saldo real (20.00) en el segundo abono.
+        payload_2 = self._payload(m, '50.00', referencia='ZL-CLAMP-002')
+        resp2 = self.client.post('/api/cobranza/registrar-pago/', payload_2, format='json')
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+
+        m.refresh_from_db()
+        # Se topa contra monto_usd, nunca lo supera.
+        self.assertEqual(m.monto_pagado, Decimal('30.00'))
+        self.assertTrue(m.pagado)
+
+
+class AbonoParcialRequiereUSDFlagTest(AbonoParcialMensualidadBase):
+    """ConfiguracionSistema.abonos_parciales_requieren_usd — independiente
+    de adelantos_requieren_usd."""
+
+    def test_abono_parcial_en_bs_con_flag_activo_es_rechazado(self):
+        self.assertTrue(self.config.abonos_parciales_requieren_usd)
+        m = self._mensualidad(6, 2025, monto='30.00')
+        payload = self._payload(
+            m, '10.00', metodo_pago='transferencia', referencia='TRANSF-PARCIAL-001',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('abono parcial', str(resp.data).lower())
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('0.00'))
+
+    def test_abono_parcial_en_bs_con_flag_desactivado_es_aceptado(self):
+        ConfiguracionSistema.objects.filter(id=self.config.id).update(
+            abonos_parciales_requieren_usd=False
+        )
+        m = self._mensualidad(6, 2025, monto='30.00')
+        payload = self._payload(
+            m, '10.00', metodo_pago='transferencia', referencia='TRANSF-PARCIAL-002',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('10.00'))
+
+    def test_pago_total_en_bs_no_se_ve_afectado_por_el_flag(self):
+        """El flag solo rige abonos PARCIALES — un pago que salda el saldo
+        completo puede seguir siendo en bolívares sin restricción."""
+        self.assertTrue(self.config.abonos_parciales_requieren_usd)
+        m = self._mensualidad(6, 2025, monto='30.00')
+        payload = self._payload(
+            m, '30.00', metodo_pago='transferencia', referencia='TRANSF-TOTAL-001',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertTrue(m.pagado)
+
+
+class AbonoParcialNoLimpiaMoraTest(AbonoParcialMensualidadBase):
+
+    def test_abono_parcial_no_limpia_la_mora_del_alumno(self):
+        from .mora import annotate_en_mora, sincronizar_estatus_alumno
+
+        m = self._mensualidad(6, 2025, monto='30.00')  # vencida
+        hoy = date(2025, 8, 1)
+
+        alumno_antes = annotate_en_mora(Alumno.objects.filter(pk=self.alumno.pk), hoy).first()
+        self.assertTrue(alumno_antes.en_mora)
+
+        payload = self._payload(m, '10.00')
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        self.alumno.refresh_from_db()
+        m.refresh_from_db()
+        self.assertFalse(m.pagado)
+
+        # sincronizar_estatus_alumno usa el criterio canónico (pagado=False
+        # sigue contando como deuda real) — un abono parcial no debe dejar
+        # al alumno "solvente".
+        estatus = sincronizar_estatus_alumno(self.alumno, hoy=hoy)
+        self.assertNotEqual(estatus, 'solvente')
+
+        alumno_despues = annotate_en_mora(Alumno.objects.filter(pk=self.alumno.pk), hoy).first()
+        self.assertTrue(alumno_despues.en_mora)
+
+
+class RecargoConAbonoParcialTest(AbonoParcialMensualidadBase):
+    """El recargo por pago tardío (cobranza/recargos.py) debe seguir
+    calculándose/aplicándose correctamente cuando queda saldo pendiente
+    tras un abono parcial."""
+
+    def _regla(self, **kwargs):
+        defaults = dict(
+            nombre='Recargo por pago tardío', tipo='recargo',
+            modo_calculo='monto_fijo_usd', valor=Decimal('2.00'),
+            dia_aplicacion=1, activa=True,
+        )
+        defaults.update(kwargs)
+        return ReglaRecargoPago.objects.create(**defaults)
+
+    def test_recargo_se_cobra_en_el_primer_abono_y_no_se_duplica_en_el_segundo(self):
+        self._regla()
+        m = self._mensualidad(6, 2025, monto='30.00')  # vencida, ya pasó dia_aplicacion=1
+
+        payload_1 = self._payload(m, '10.00', referencia='ZL-RECARGO-001')
+        resp1 = self.client.post('/api/cobranza/registrar-pago/', payload_1, format='json')
+        self.assertEqual(resp1.status_code, 201, resp1.content)
+
+        pago1 = Pago.objects.get(alumno=self.alumno, referencia='ZL-RECARGO-001')
+        self.assertTrue(LineaRecargoPago.objects.filter(pago=pago1, mensualidad=m).exists())
+        self.assertEqual(LineaRecargoPago.objects.filter(mensualidad=m).count(), 1)
+
+        # Segundo abono, completa el saldo — el recargo YA fue cobrado en el
+        # primer abono y no debe volver a generarse (una sola vez por
+        # mensualidad, no una vez por cada abono parcial).
+        payload_2 = self._payload(m, '20.00', referencia='ZL-RECARGO-002')
+        resp2 = self.client.post('/api/cobranza/registrar-pago/', payload_2, format='json')
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+
+        self.assertEqual(LineaRecargoPago.objects.filter(mensualidad=m).count(), 1)
+
+        m.refresh_from_db()
+        self.assertTrue(m.pagado)

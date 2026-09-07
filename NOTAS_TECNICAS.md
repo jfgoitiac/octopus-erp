@@ -3307,3 +3307,40 @@ el síntoma no se agrava con él.
   líneas cuyo método de pago realmente ya no sea válido bajo la restricción
   (no todas), y/o mostrar un `toast` informativo cuando se descarta un valor
   que el cajero había cargado, en vez de pisarlo en silencio.
+
+## DEUDA TÉCNICA — ANULAR_PAGO NO DISTINGUE ABONOS DE VARIOS PAGOS A LA MISMA MENSUALIDAD (2026-09-07)
+
+Detectado al implementar abono parcial de `Mensualidad` (backend,
+`cobranza/models.py` + `RegistrarPagoView`). No se implementó una solución
+completa — está fuera del alcance de esta tarea (que era habilitar el abono
+parcial hacia adelante, no rediseñar la anulación de pagos).
+
+- **Dónde**: `cobranza/correcciones.py::anular_pago()`.
+- **Qué hace hoy**: al anular un `Pago`, resetea `monto_pagado=0.00`,
+  `pagado=False`, `fecha_pago=None` en TODAS las `Mensualidad` enlazadas vía
+  `pago.mensualidades_pagadas` (M2M). Esto es correcto y necesario para el
+  caso de siempre (una mensualidad, pagada de una sola vez, por un solo
+  pago) — sin este reset, la fila quedaba inconsistente
+  (`pagado=False` pero `monto_pagado=monto_usd`, saldo aparente 0).
+- **Qué NO cubre**: si una mensualidad recibió abonos de **dos o más pagos
+  distintos** (ej. abono parcial de $10 en una transacción, completado con
+  $20 en otra), anular CUALQUIERA de esos dos pagos resetea
+  `monto_pagado` a 0 sin poder distinguir cuánto correspondía a cada uno —
+  se pierde el abono del pago que NO se está anulando. No existe (todavía)
+  un snapshot por-pago-por-mensualidad análogo a `LineaRecargoPago` (que sí
+  resuelve este problema para el recargo).
+- **Precedente**: `CuotaProyectoInversion` tiene la misma categoría de
+  limitación y la resuelve **bloqueando** la anulación automática
+  (`anular_pago` lanza `ValidationError` si `pago.proyectos_inversion_pagados.exists()`,
+  con mensaje pidiendo ajuste manual a Sistemas). `Mensualidad` no tiene ese
+  bloqueo — se decidió no agregarlo en esta tarea porque el caso común
+  (mensualidad pagada de una sola vez) es el mayoritario hoy y bloquear TODA
+  anulación de mensualidad hubiera sido una regresión real para ese caso.
+- **Sugerencia para cuando se aborde**: (a) agregar un modelo snapshot tipo
+  `LineaAbonoMensualidad(pago, mensualidad, monto)` que registre cuánto
+  abonó cada pago a cada mensualidad, y hacer que `anular_pago` reste
+  exactamente ese monto en vez de resetear a 0; o (b) mientras tanto,
+  detectar en `anular_pago` si la mensualidad tiene abonos de otros pagos
+  (comparando `monto_pagado` contra el monto que efectivamente aportó ESTE
+  pago, si se puede reconstruir desde `ComprobanteSerializer`/desglose) y
+  bloquear con el mismo mensaje que usa `proyecto_inversion`.
