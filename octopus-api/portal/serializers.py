@@ -173,17 +173,26 @@ class MensualidadSerializer(serializers.ModelSerializer):
     monto_recargo = serializers.SerializerMethodField()
     nombre_recargo = serializers.SerializerMethodField()
     monto_total = serializers.SerializerMethodField()
+    saldo = serializers.SerializerMethodField()
 
     class Meta:
         model = Mensualidad
         fields = [
-            'id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'pagado', 'fecha_pago', 'dias_mora',
+            'id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'monto_pagado', 'saldo',
+            'pagado', 'fecha_pago', 'dias_mora',
             'monto_original_usd', 'porcentaje_beca_aplicado',
             'monto_recargo', 'nombre_recargo', 'monto_total',
         ]
 
     def get_mes_nombre(self, obj):
         return obj.get_mes_display()
+
+    def get_saldo(self, obj):
+        # Igual criterio que cobranza/views.py (mensualidades_pendientes /
+        # mensualidades_futuras): saldo = monto_usd - monto_pagado. Tras un
+        # abono parcial la mensualidad sigue apareciendo en el portal, pero
+        # el representante debe ver/pagar el saldo real, no el monto lleno.
+        return obj.monto_usd - obj.monto_pagado
 
     def get_dias_mora(self, obj):
         """Calcula días de mora para mensualidades no pagadas y ya vencidas."""
