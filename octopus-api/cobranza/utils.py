@@ -28,7 +28,7 @@ _HEADERS = {
 
 def _parse_decimal(valor) -> Decimal:
     """Convierte cualquier representación numérica a Decimal, normalizando comas."""
-    return Decimal(str(valor).replace(',', '.')).quantize(Decimal('0.0001'))
+    return Decimal(str(valor).replace(',', '.')).quantize(Decimal('0.01'))
 
 
 def _obtener_tasa_por_scraping_bcv() -> Decimal:
@@ -91,7 +91,7 @@ def _obtener_tasa_de_emergencia_db() -> Decimal:
             manual = Decimal(parametro.valor)
             if manual > 0:
                 logger.warning(f"Usando tasa manual de contingencia: {manual}")
-                return manual.quantize(Decimal('0.0001'))
+                return manual.quantize(Decimal('0.01'))
         except InvalidOperation:
             pass
 

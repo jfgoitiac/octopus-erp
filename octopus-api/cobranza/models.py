@@ -291,7 +291,7 @@ class Pago(models.Model):
 
         self.monto_usd = Decimal(str(self.monto_usd)).quantize(Decimal('0.01'))
         self.monto_ves = Decimal(str(self.monto_ves)).quantize(Decimal('0.01'))
-        self.tasa_aplicada = Decimal(str(self.tasa_aplicada or 0)).quantize(Decimal('0.0001'))
+        self.tasa_aplicada = Decimal(str(self.tasa_aplicada or 0)).quantize(Decimal('0.01'))
 
         super().save(*args, **kwargs)
 
