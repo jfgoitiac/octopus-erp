@@ -2,6 +2,40 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## INFRAESTRUCTURA DE TESTING FRONTEND (2026-09-08)
+
+`octopus-frontend` no tenía ningún test runner (confirmado en varias auditorías
+previas de este archivo). Se agregó, con confirmación explícita del usuario
+(cambio de stack), a raíz de investigar el bug de abono parcial en Cobranza:
+
+- **Vitest + @testing-library/react + @testing-library/jest-dom +
+  @testing-library/user-event + jsdom** como `devDependencies`. Elegido por
+  ser la combinación estándar para proyectos Vite (reutiliza `vite.config.js`
+  sin duplicar configuración de bundler, a diferencia de Jest).
+- Config en `vite.config.js` (bloque `test: { environment: 'jsdom',
+  setupFiles: ['./src/test/setup.js'], globals: true }`) + script
+  `"test": "vitest run"` en `package.json`.
+- `src/test/setup.js` registra los matchers de `jest-dom` globalmente.
+- Primer test real: `src/pages/Cobranza.test.jsx` — cubre que seleccionar
+  "Efectivo Bs." y luego escribir un abono parcial fuerza la conversión
+  automática a divisa (regresión verificada: falla contra el código anterior
+  al fix de `requiereDivisas` en `Cobranza.jsx`, pasa con el fix aplicado).
+- Ninguna dependencia de producción cambió — son solo devDependencies, no se
+  incluyen en el bundle ni afectan el runtime en producción.
+
+## SERVICE WORKER EN MODO DESARROLLO (2026-09-08)
+
+Se detectó que un Service Worker registrado por una sesión previa de
+`vite preview`/build de producción sobre `localhost` puede seguir activo y
+sirviendo el bundle viejo mientras se corre `vite dev` en el mismo origen —
+un hard reload no lo desregistra (vive en Cache Storage, no en caché HTTP),
+lo que puede hacer que un fix ya aplicado en el código "no se vea" en el
+navegador. Corregido con una guarda (`src/utils/devServiceWorker.js`,
+`limpiarServiceWorkersEnDev()`) que desregistra cualquier Service Worker
+existente cuando `import.meta.env.DEV` es `true`, llamada desde
+`pwaUpdate.jsx` y `portal/hooks/useWebPush.js` antes de intentar registrar
+uno nuevo. No-op en producción.
+
 ## ROADMAP — PARAMETRIZACIÓN MULTI-COLEGIO (venta a colegios de Venezuela no
 ## afiliados a AVEC — alcance corregido 2026-09-04)
 
@@ -471,7 +505,25 @@ cualquier colegio, AVEC o no, pueda tenerlo con sus propios valores):
 
 8. ✅ Duplicación de fmt/fmtN/fmtZ — centralizado en `utils/formato.js`
 9. ⏳ Sin skeleton loaders en Step 1 — pendiente (spinner simple es aceptable por ahora)
-10. ⏳ Casos edge sin testing — pendiente (no hay suite de tests en el proyecto)
+10. ✅ Casos edge sin testing — cobertura frontend agregada (2026-09-08, ver
+    "INFRAESTRUCTURA DE TESTING FRONTEND" más abajo): `Cobranza.test.jsx` cubre
+    el escenario de abono parcial forzando divisas.
+
+11. ⏳ **`components/DecimalInput.jsx` no reenvía `aria-label` al `<input>`
+    real** (descubierto 2026-09-08 al escribir `Cobranza.test.jsx`: el
+    selector `getByLabelText` no encontraba el campo pese a que
+    `CobranzaStep1.jsx`/`CobranzaStep2.jsx` sí le pasan `aria-label` en cada
+    uso). El componente solo destructura `{ value, onChange, className, style,
+    placeholder, autoFocus, max }` — cualquier otra prop, incluido
+    `aria-label`, se descarta silenciosamente en vez de reenviarse al
+    `<input>`. Afecta a **todos** los montos de esta pantalla (parcial de
+    mensualidad/inscripción/solvencia/proyecto de inversión, línea de pago,
+    tasa retroactiva) y a cualquier otro módulo que use `DecimalInput` con
+    `aria-label` — son inaccesibles para lectores de pantalla pese a que el
+    código aparenta tener las etiquetas puestas. No corregido (fuera del
+    alcance del bug de abono parcial); el fix es agregar
+    `aria-label`/`aria-describedby` (y en general spread de props extra) al
+    `<input>` interno de `DecimalInput.jsx`.
 
 ## FASE 2 — SMARTDATEINPUT ✅
 
