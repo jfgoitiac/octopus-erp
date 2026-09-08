@@ -47,7 +47,7 @@ sudo systemctl is-active --quiet "$SERVICE" && echo "   ✓ Backend activo" || e
 echo ""
 echo "▶ Instalando dependencias Node..."
 cd "$FRONTEND"
-npm install --silent
+npm ci --silent
 
 echo "▶ Compilando frontend..."
 npm run build
@@ -60,7 +60,7 @@ sudo systemctl is-active --quiet nginx && echo "   ✓ Nginx activo" || echo "  
 echo ""
 echo "▶ Instalando dependencias Node (sitio institucional)..."
 cd "$SITIO"
-npm install --silent
+npm ci --silent
 
 echo "▶ Compilando sitio institucional..."
 npm run build
