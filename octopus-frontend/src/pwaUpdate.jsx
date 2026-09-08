@@ -1,4 +1,5 @@
 import { toast } from 'react-toastify';
+import { limpiarServiceWorkersEnDev } from './utils/devServiceWorker';
 
 // Registra el Service Worker al arrancar la app (antes solo se registraba al
 // activar push en useWebPush.js, así que cualquier dispositivo que nunca
@@ -7,6 +8,7 @@ import { toast } from 'react-toastify';
 // mismo registration en vez de crear uno duplicado.
 export async function iniciarActualizacionAutomatica() {
   if (!('serviceWorker' in navigator)) return;
+  if (await limpiarServiceWorkersEnDev()) return;
 
   let registerSW;
   try {

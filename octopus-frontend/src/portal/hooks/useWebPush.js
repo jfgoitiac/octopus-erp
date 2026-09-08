@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { suscribirPush, desuscribirPush } from '../api/notificaciones.service';
 import { useBranding } from '../../context/BrandingContext';
+import { limpiarServiceWorkersEnDev } from '../../utils/devServiceWorker';
 
 const isPushSupported = () =>
   typeof window !== 'undefined' &&
@@ -19,6 +20,7 @@ function urlBase64ToUint8Array(base64String) {
 // injectRegister: null en vite.config.js) y espera a que quede activo.
 async function ensureServiceWorkerReady() {
   if (!isPushSupported()) return null;
+  if (await limpiarServiceWorkersEnDev()) return null;
   try {
     const { registerSW } = await import('virtual:pwa-register');
     registerSW({ immediate: true });
