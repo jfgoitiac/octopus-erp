@@ -43,6 +43,16 @@ const Configuracion = () => {
         handleQuitarGradosAlumnos,
     } = useConfiguracion();
 
+    // El backend guarda "adelantos_requieren_usd" y "abonos_parciales_requieren_usd"
+    // como dos flags independientes (permite activar uno sin el otro), pero
+    // esta pantalla los presenta como un único control — se escriben siempre
+    // juntos al mismo valor.
+    const handleToggleDivisas = (e) => {
+        const { checked } = e.target;
+        handleConfigChange({ target: { name: 'adelantos_requieren_usd', type: 'checkbox', checked } });
+        handleConfigChange({ target: { name: 'abonos_parciales_requieren_usd', type: 'checkbox', checked } });
+    };
+
     const {
         grados, gradosLoading,
         showGradoModal, setShowGradoModal, gradoEditando, gradoForm, setGradoForm,
@@ -519,12 +529,13 @@ const Configuracion = () => {
                                 </label>
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Adelantos solo en USD</span>
+                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Adelantos y abonos parciales solo en USD</span>
                                 <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="adelantos_requieren_usd" className="sr-only peer"
-                                        checked={config?.adelantos_requieren_usd || false} onChange={handleConfigChange} />
+                                    <input type="checkbox" name="restriccion_divisas" className="sr-only peer"
+                                        checked={Boolean(config?.adelantos_requieren_usd) && Boolean(config?.abonos_parciales_requieren_usd)}
+                                        onChange={handleToggleDivisas} />
                                     <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"
-                                        style={{ background: config?.adelantos_requieren_usd ? 'var(--pb)' : 'var(--ash-light)' }}></div>
+                                        style={{ background: (config?.adelantos_requieren_usd && config?.abonos_parciales_requieren_usd) ? 'var(--pb)' : 'var(--ash-light)' }}></div>
                                 </label>
                             </div>
                             <button type="submit" disabled={saving}

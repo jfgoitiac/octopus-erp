@@ -127,6 +127,7 @@ const Cobranza = () => {
     const [montosParcialesProyectos, setMontosParcialesProyectos] = useState({});
 
     const [adelantosRequierenUSD, setAdelantosRequierenUSD] = useState(true);
+    const [abonosParcialesRequierenUSD, setAbonosParcialesRequierenUSD] = useState(true);
     const [concepto, setConcepto]                 = useState('mensualidad');
     const [lineas, setLineas]                     = useState([crearLinea()]);
     const [bancos, setBancos]                     = useState([]);
@@ -215,19 +216,13 @@ const Cobranza = () => {
     const hayAdelantos    = alumnosSeleccionados.some(id => seleccion[id]?.selectedFuturas.length > 0);
     const restriccionAdelantoActiva = adelantosRequierenUSD && hayAdelantos;
 
-    // Auto-convertir líneas a dólares cuando se seleccionan adelantos
-    useEffect(() => {
-        if (restriccionAdelantoActiva) {
-            setLineas(p => p.map(l =>
-                esDivisa(l.metodo_pago) ? l : { ...l, metodo_pago: 'efectivo', banco_receptor_id: '', monto_ves: '' }
-            ));
-        }
-    }, [restriccionAdelantoActiva]);
-
     // Solo el abono de mensualidades (pendientes o adelantos) exige divisas
     // (Efectivo USD / Zelle). Inscripción, solvencia y proyecto de inversión
-    // se pueden abonar con cualquier método de pago, incluido Bs.
-    const hayParciales = useMemo(() => alumnosSeleccionados.some(id => {
+    // se pueden abonar con cualquier método de pago, incluido Bs. Regla
+    // independiente de adelantos_requieren_usd (ConfiguracionSistema
+    // .abonos_parciales_requieren_usd, ambas pueden estar activas a la vez;
+    // ver validate() en cobranza/serializers.py del backend).
+    const hayAbonoParcial = useMemo(() => alumnosSeleccionados.some(id => {
         const datos = datosAlumnos[id];
         const sel   = seleccion[id];
         if (!datos || !sel) return false;
@@ -241,8 +236,21 @@ const Cobranza = () => {
         return parcialEn('mens', datos.mensualidades_pendientes, sel.selectedMens) ||
                parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas);
     }), [alumnosSeleccionados, datosAlumnos, seleccion]);
+    const hayParciales = abonosParcialesRequierenUSD && hayAbonoParcial;
 
     const requiereDivisas = restriccionAdelantoActiva || hayParciales;
+
+    // Auto-convertir líneas a dólares cuando se seleccionan adelantos o se
+    // escribe un abono parcial (antes solo reaccionaba a la restricción de
+    // adelanto: si el cajero elegía Efectivo Bs. y DESPUÉS tipeaba el monto
+    // parcial, la línea se quedaba en Bs. sin forzar el cambio).
+    useEffect(() => {
+        if (requiereDivisas) {
+            setLineas(p => p.map(l =>
+                esDivisa(l.metodo_pago) ? l : { ...l, metodo_pago: 'efectivo', banco_receptor_id: '', monto_ves: '' }
+            ));
+        }
+    }, [requiereDivisas]);
 
     const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
@@ -358,22 +366,25 @@ const Cobranza = () => {
         };
     }, [location.search, buscarAlumno]);
 
-    // Se relee en cada envío (ver handleSubmit) además de al montar: el
-    // toggle vive en Configuración y esta pantalla suele quedar abierta toda
-    // la jornada, así que un fetch único al montar podía validar contra un
-    // valor ya desactualizado si el admin cambiaba el flag en otra pestaña.
-    const fetchAdelantosRequierenUSD = useCallback(async () => {
+    // Se relee en cada envío (ver handleSubmit) además de al montar: los
+    // toggles viven en Configuración y esta pantalla suele quedar abierta
+    // toda la jornada, así que un fetch único al montar podía validar contra
+    // un valor ya desactualizado si el admin cambiaba el flag en otra pestaña.
+    // Un solo fetch trae ambos flags (mismo endpoint, misma respuesta).
+    const fetchFlagsDivisas = useCallback(async () => {
         try {
             const res = await axiosInstance.get('secretaria/configuracion/');
-            const valor = res.data?.adelantos_requieren_usd ?? true;
-            setAdelantosRequierenUSD(valor);
-            return valor;
+            const adelantos = res.data?.adelantos_requieren_usd ?? true;
+            const parciales = res.data?.abonos_parciales_requieren_usd ?? true;
+            setAdelantosRequierenUSD(adelantos);
+            setAbonosParcialesRequierenUSD(parciales);
+            return { adelantos, parciales };
         } catch {
             return null; // fetch falló: handleSubmit conserva el último valor conocido
         }
     }, []);
 
-    useEffect(() => { fetchAdelantosRequierenUSD(); }, [fetchAdelantosRequierenUSD]);
+    useEffect(() => { fetchFlagsDivisas(); }, [fetchFlagsDivisas]);
 
     // Alterna la inclusión de un alumno en la operación de pago (checkbox).
     const toggleAlumno = (alu) => {
@@ -420,12 +431,13 @@ const Cobranza = () => {
     const handleSubmit = async (e) => {
         e?.preventDefault();
         if (alumnosSeleccionados.length === 0) { toast.error('Selecciona al menos un alumno.'); return; }
-        // Relee el flag justo antes de validar: si el admin lo desactivó en
+        // Relee los flags justo antes de validar: si el admin los desactivó en
         // Configuración mientras esta pantalla estaba abierta, el valor en
-        // estado puede estar desactualizado (ver fetchAdelantosRequierenUSD).
-        const flagVigente = await fetchAdelantosRequierenUSD();
-        const restriccionVigente = (flagVigente ?? adelantosRequierenUSD) && hayAdelantos;
-        if ((restriccionVigente || hayParciales) && !todosDivisas) {
+        // estado puede estar desactualizado (ver fetchFlagsDivisas).
+        const flagsVigentes = await fetchFlagsDivisas();
+        const restriccionVigente = (flagsVigentes?.adelantos ?? adelantosRequierenUSD) && hayAdelantos;
+        const parcialesVigente   = (flagsVigentes?.parciales ?? abonosParcialesRequierenUSD) && hayAbonoParcial;
+        if ((restriccionVigente || parcialesVigente) && !todosDivisas) {
             toast.error('Los adelantos y pagos parciales requieren Efectivo USD o Zelle como método de pago.');
             return;
         }
