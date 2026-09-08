@@ -9,7 +9,7 @@ import { AuthContext } from '../context/AuthContext';
 // de los flags de ConfiguracionSistema (adelantos_requieren_usd es
 // independiente de abonos_parciales_requieren_usd — ver backend
 // cobranza/tests.py::AbonoParcialRequiereUSDFlagTest). `vi.hoisted` lo saca
-// del scope del factory de vi.mock, que corre antes que el resto del módulo.
+// del scope del factory de vi.mock, que corre antes que el resto del módulo..
 const { mockConfig } = vi.hoisted(() => ({
     mockConfig: { adelantos_requieren_usd: true, abonos_parciales_requieren_usd: true },
 }));

@@ -95,7 +95,7 @@ const Cobranza = () => {
     // Se precarga/reemplaza el campo con la sugerencia cada vez que cambia la
     // fecha consultada — el operador puede seguir editándolo a mano después;
     // lo que escriba manda sobre la sugerencia (no se vuelve a sobreescribir
-    // hasta el próximo cambio de fecha).
+    // hasta el próximo cambio de fecha)..
     useEffect(() => {
         if (retroActivo) setTasaManual(tasaSugerida != null ? String(tasaSugerida) : '');
     }, [tasaSugerida, retroActivo, fechaPagoRetro]);
