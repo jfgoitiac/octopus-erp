@@ -326,17 +326,53 @@ def generar_numero_constancia(tipo: str, periodo: str) -> str:
     """Replica el patrón de cobranza/solvencia.py::_generar_numero, con
     prefijo por tipo de constancia + período escolar completo + secuencial
     de 4 dígitos. Debe llamarse dentro de una transaction.atomic() del
-    llamador (igual que el ejemplo de cobranza)."""
+    llamador (igual que el ejemplo de cobranza).
+
+    Fase 4/agente 4B — corrección de bug: la versión original combinaba
+    `select_for_update()` con `.count()` (una función agregada) sobre el
+    MISMO queryset. PostgreSQL rechaza eso de plano
+    (`FeatureNotSupported: SELECT FOR UPDATE is not allowed with aggregate
+    functions`) — los tests pasaban porque corrían sobre SQLite, que
+    ignora `FOR UPDATE` en silencio, pero en producción (Postgres, ver
+    config/settings.py) esto reventaría en la primera emisión. Además,
+    aunque no reventara: `select_for_update()` sobre un queryset vacío (la
+    primera constancia de un tipo+período nuevo, sin ninguna fila con ese
+    prefijo todavía) no bloquea nada, así que dos emisiones concurrentes de
+    esa primera constancia podían generar el mismo número.
+
+    Se reemplaza por el mismo patrón ya usado en
+    `cantina/views.py::AperturaCajaCantinaView` (comentario ahí: "se
+    serializa contra el singleton ParametroCantina con select_for_update()
+    dentro de transaction.atomic(): dos POST concurrentes... quedan en
+    fila, uno detrás del otro, antes de contar"): se adquiere el lock sobre
+    la única fila de `ConfiguracionFirmante` (singleton ya existente del
+    módulo, ver su `save()` que fuerza fila única) ANTES de contar. Ese
+    `select_for_update()` no es un agregado (no lleva `.count()` ni
+    `.aggregate()` encima, solo trae la fila), así que es válido en
+    Postgres. Al ser una única fila para todo el módulo, serializa TODAS
+    las emisiones concurrentes entre sí (de cualquier tipo/período) — más
+    conservador que lo estrictamente necesario, pero correcto y sin
+    requerir un modelo/campo contador nuevo (fuera de alcance, ver
+    PROMPT_MODULO_CONSTANCIAS.md §O.2). El `.count()` posterior ya corre
+    después de tener el lock, como consulta normal (no combinado con
+    `select_for_update`), así que tampoco es agregado+lock."""
     from .models import ConstanciaEmitida
 
     prefijo_tipo = PREFIJOS_TIPO.get(tipo, tipo[:3].upper())
     periodo = periodo or ''
     prefijo = f"{prefijo_tipo}-{periodo}-"
     with transaction.atomic():
-        count = (
-            ConstanciaEmitida.objects
-            .select_for_update()
-            .filter(numero__startswith=prefijo)
-            .count()
-        )
+        firmante = ConfiguracionFirmante.objects.select_for_update().first()
+        if firmante is None:
+            # Caso raro: ConfiguracionFirmante nunca se configuró (se crea
+            # desde el panel antes de emitir la primera constancia en un
+            # colegio real). Sin fila que bloquear no hay singleton contra
+            # el cual serializar; se degrada a contar sin lock en vez de
+            # fallar la emisión — el contrato es explícito: "nunca abortes
+            # la emisión por falta de firma/lock: una emisión bloqueada
+            # deja al representante sin su documento". Mismo riesgo de
+            # colisión que el código original en este caso extremo, pero
+            # no revienta y no bloquea.
+            pass
+        count = ConstanciaEmitida.objects.filter(numero__startswith=prefijo).count()
         return f"{prefijo}{count + 1:04d}"

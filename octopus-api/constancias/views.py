@@ -321,10 +321,13 @@ class EmitirView(APIView):
             and firmante is not None
             and firmante.estampado_global_activo
             and firmante.firma_imagen
+            and puede_firmar_como_director(request.user)
         )
-        # NOTA para Fase 4/agente 4A: falta la tercera condición de permiso
-        # delegado por usuario para el estampado — fuera de alcance aquí,
-        # solo se implementan las tres condiciones de arriba.
+        # Regla del contrato (Fase 4/agente 4B): nunca abortar la emisión
+        # por falta de firma — una constancia sin firmar se firma a mano;
+        # una emisión bloqueada deja al representante sin su documento. Si
+        # `puede_firmar_como_director` da False, la constancia se emite
+        # igual, solo con salio_firmada=False (no hay return/403 aquí).
 
         constancia = ConstanciaEmitida.objects.create(
             numero=numero,

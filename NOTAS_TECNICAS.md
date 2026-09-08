@@ -3427,4 +3427,52 @@ tocar el bloque `salio_firmada` de `EmitirView` (reservado para el agente 4B).
   `test_views.py::PermisoSensibleNominaTests` (que sigue intacta y en verde)
   — se dejó como smoke test explícito para que quede evidencia de la
   regresión dentro del archivo de este agente, no reemplaza a la suite
+
+## CONSTANCIAS — FASE 4/AGENTE 4B: CORRELATIVO, `salio_firmada` Y AUDITORÍA
+(2026-09-08)
+
+- **Bug de producción corregido**: `constancias/resolvers.py::generar_numero_constancia`
+  combinaba `select_for_update()` con `.count()` (agregado) sobre el mismo
+  queryset — PostgreSQL lo rechaza (`FeatureNotSupported`), y los tests
+  pasaban solo porque SQLite ignora `FOR UPDATE` en silencio. Se corrigió
+  serializando las emisiones concurrentes contra el lock de la fila única
+  de `ConfiguracionFirmante` (mismo patrón documentado en
+  `cantina/views.py::AperturaCajaCantinaView` sobre `ParametroCantina`) y
+  haciendo el `.count()` después de adquirir ese lock, ya no combinado con
+  `select_for_update`. No requirió modelo/campo/migración nueva.
+- Se conectó la cuarta condición de `salio_firmada` en
+  `constancias/views.py::EmitirView.post()` usando
+  `puede_firmar_como_director(request.user)` (ya la dejó importada 4A). Se
+  confirmó con test que la emisión nunca se bloquea por esto (siempre 201),
+  solo cambia el booleano.
+- **Fallback sin cubrir con test de concurrencia real**: si
+  `ConfiguracionFirmante` nunca se configuró (`None`), no hay fila que
+  bloquear y `generar_numero_constancia` se degrada a contar sin lock (mismo
+  riesgo de colisión que el bug original, mínimo, pero documentado en el
+  docstring del resolver). En producción esto no debería pasar — el firmante
+  se configura antes de la primera emisión — pero si algún colegio emite su
+  primera constancia sin haber configurado nunca `ConfiguracionFirmante`, dos
+  emisiones concurrentes de esa primera constancia podrían, en teoría,
+  colisionar en el número. Si se vuelve un caso real, la solución limpia es
+  un modelo contador dedicado (fuera del alcance de esta fase, ver
+  PROMPT_MODULO_CONSTANCIAS.md §O.2).
+- **No hay tests de concurrencia real (threads) para el correlativo** — no
+  hay precedente de esto en el repo (`cantina/tests_apertura_caja.py`
+  tampoco los usa) y no es confiable contra la BD de test SQLite de este
+  proyecto. Los tests nuevos (`constancias/tests/test_correlativo_auditoria.py`)
+  verifican el contrato de numeración de forma secuencial (no colisión entre
+  llamadas, prefijos por tipo/período no se comparten, primer número de un
+  prefijo nuevo es `0001`). Verificación real de la ausencia de deadlock/
+  colisión bajo concurrencia real contra Postgres queda pendiente de un
+  test de integración fuera de este framework de tests unitarios.
+- **Efecto colateral detectado, no corregido**: correr la suite de
+  `constancias` dejó archivos reales en `octopus-api/media/constancias/
+  firmas/` y `.../sellos/` (`SimpleUploadedFile` en los tests de
+  `test_pdf.py` y el nuevo `test_correlativo_auditoria.py` escribe al
+  storage de `MEDIA_ROOT` real en vez de uno aislado por test, porque
+  `ImageField` no usa un storage de test dedicado en `config/settings.py`).
+  No se tocó `settings.py` por estar fuera de alcance de este agente; queda
+  anotado por si conviene configurar un `MEDIA_ROOT` temporal para tests
+  (ej. `override_settings(MEDIA_ROOT=tempfile.mkdtemp())`) en un agente
+  futuro que sí pueda tocar la config de tests.
   original.
