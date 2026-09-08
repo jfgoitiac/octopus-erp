@@ -2,11 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   User, IdCard, Briefcase, Save, Loader2, ImagePlus, Trash2, Lock, ToggleLeft, ToggleRight,
+  Users,
 } from 'lucide-react';
-import { getFirmante, actualizarFirmante } from '../../services/constancias';
+import { getFirmante, actualizarFirmante, getFirmaDelegada, agregarFirmaDelegada, quitarFirmaDelegada } from '../../services/constancias';
+import { getUsuarios } from '../../services/authentication';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Bone } from '../../components/shared/Skeleton';
+
+// Roles con sentido como candidatos a firma delegada: director ya puede
+// firmar siempre (ver constancias/permissions.py::puede_firmar_como_director),
+// y docente/representante no participan en la emisión de constancias.
+const ROLES_EXCLUIDOS_FIRMA_DELEGADA = ['director', 'docente', 'representante'];
 
 const MAX_SIZE = 2 * 1024 * 1024;
 
@@ -108,6 +115,136 @@ function ImagenUploader({ label, valor, onChange, onRemove }) {
   );
 }
 
+function FirmaDelegadaSection() {
+  const [candidatos, setCandidatos] = useState([]);
+  const [delegados, setDelegados] = useState(() => new Set());
+  const [loading, setLoading] = useState(true);
+  const [pendientes, setPendientes] = useState(() => new Set());
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      try {
+        const [resUsuarios, resDelegada] = await Promise.all([
+          getUsuarios(undefined, controller.signal),
+          getFirmaDelegada(controller.signal),
+        ]);
+        const usuarios = (resUsuarios.data || []).filter(
+          (u) => !ROLES_EXCLUIDOS_FIRMA_DELEGADA.includes(u.perfil?.rol),
+        );
+        setCandidatos(usuarios);
+        setDelegados(new Set((resDelegada.data?.usuarios || []).map((u) => u.id)));
+      } catch (err) {
+        if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return;
+        toast.error('No se pudo cargar la lista de firma delegada.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  const toggleDelegado = async (usuario) => {
+    const yaDelegado = delegados.has(usuario.id);
+    // Optimistic update — con rollback si la llamada falla.
+    setDelegados((prev) => {
+      const next = new Set(prev);
+      yaDelegado ? next.delete(usuario.id) : next.add(usuario.id);
+      return next;
+    });
+    setPendientes((prev) => new Set(prev).add(usuario.id));
+    try {
+      if (yaDelegado) {
+        await quitarFirmaDelegada(usuario.id);
+        toast.success(`${usuario.nombre_completo || usuario.username} ya no tiene firma delegada.`);
+      } else {
+        await agregarFirmaDelegada(usuario.id);
+        toast.success(`${usuario.nombre_completo || usuario.username} ahora puede emitir con firma delegada.`);
+      }
+    } catch (err) {
+      // Rollback: la llamada falló, revertimos el estado optimista.
+      setDelegados((prev) => {
+        const next = new Set(prev);
+        yaDelegado ? next.add(usuario.id) : next.delete(usuario.id);
+        return next;
+      });
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar la firma delegada.');
+    } finally {
+      setPendientes((prev) => {
+        const next = new Set(prev);
+        next.delete(usuario.id);
+        return next;
+      });
+    }
+  };
+
+  return (
+    <div className="mt-6">
+      <Card
+        titulo="Firma delegada"
+        subtitulo="Quién puede emitir con la firma del director"
+      >
+        <p className="text-xs mb-4" style={{ color: 'var(--ash)' }}>
+          Estos usuarios pueden emitir constancias con la firma del director ya
+          estampada, sin necesidad de firmarlas a mano después.
+        </p>
+
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => <Bone key={i} className="h-12 w-full" />)}
+          </div>
+        ) : candidatos.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-6 text-center" style={{ color: 'var(--ash)' }}>
+            <Users size={20} />
+            <p className="text-xs">No hay usuarios candidatos para este permiso.</p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {candidatos.map((usuario) => {
+              const activo = delegados.has(usuario.id);
+              const pendiente = pendientes.has(usuario.id);
+              return (
+                <li
+                  key={usuario.id}
+                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg px-3 py-2.5"
+                  style={{ border: '1px solid var(--border-md)', background: 'var(--bg)' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm truncate" style={{ color: 'var(--jet)' }}>
+                      {usuario.nombre_completo || usuario.username}
+                    </p>
+                    <p className="text-[11px] capitalize" style={{ color: 'var(--ash)' }}>
+                      {usuario.perfil?.rol || 'sin rol'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleDelegado(usuario)}
+                    disabled={pendiente}
+                    className="flex items-center gap-2 w-full sm:w-auto text-left disabled:opacity-60"
+                  >
+                    {pendiente ? (
+                      <Loader2 size={22} className="animate-spin" style={{ color: 'var(--ash)' }} />
+                    ) : activo ? (
+                      <ToggleRight size={26} style={{ color: 'var(--pb)' }} />
+                    ) : (
+                      <ToggleLeft size={26} style={{ color: 'var(--ash)' }} />
+                    )}
+                    <span className="text-xs sm:hidden" style={{ color: 'var(--jet)' }}>
+                      {activo ? 'Firma delegada activa' : 'Sin firma delegada'}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 export default function FirmanteConstancias() {
   const [form, setForm] = useState(FORM_INICIAL);
   const [firma, setFirma] = useState({ preview: null, file: null, tieneImagenGuardada: false, mantener: true });
@@ -187,6 +324,7 @@ export default function FirmanteConstancias() {
           {Array.from({ length: 4 }).map((_, i) => <Bone key={i} className="h-11 w-full" />)}
           <Bone className="h-24 w-full" />
         </Card>
+        <FirmaDelegadaSection />
       </div>
     );
   }
@@ -273,6 +411,8 @@ export default function FirmanteConstancias() {
           </div>
         </Card>
       </form>
+
+      <FirmaDelegadaSection />
     </div>
   );
 }

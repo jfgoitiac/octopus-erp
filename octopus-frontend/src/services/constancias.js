@@ -70,3 +70,14 @@ export const actualizarFirmante = (payload, signal) => {
     headers: isMultipart ? { 'Content-Type': 'multipart/form-data' } : undefined,
   });
 };
+
+/* ── Firma delegada (quién puede emitir con la firma del director) ── */
+
+export const getFirmaDelegada = (signal) =>
+  apiClient.get('constancias/firma-delegada/', { signal });
+
+export const agregarFirmaDelegada = (userId, signal) =>
+  apiClient.post(`constancias/firma-delegada/${userId}/`, {}, { signal });
+
+export const quitarFirmaDelegada = (userId, signal) =>
+  apiClient.delete(`constancias/firma-delegada/${userId}/`, { signal });

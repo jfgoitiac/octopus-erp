@@ -5,6 +5,8 @@ from .views import (
     ConstanciaEmitidaDetailView,
     ConstanciaEmitidaListView,
     EmitirView,
+    FirmaDelegadaListView,
+    FirmaDelegadaMiembroView,
     FirmanteFirmaProtegidaView,
     FirmanteSelloProtegidaView,
     FirmanteView,
@@ -28,4 +30,6 @@ urlpatterns = [
     path('firmante/', FirmanteView.as_view()),
     path('firmante/firma/', FirmanteFirmaProtegidaView.as_view()),
     path('firmante/sello/', FirmanteSelloProtegidaView.as_view()),
+    path('firma-delegada/', FirmaDelegadaListView.as_view()),
+    path('firma-delegada/<int:user_id>/', FirmaDelegadaMiembroView.as_view()),
 ]

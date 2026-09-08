@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db import transaction
 from django.db.models import ProtectedError
 from django.http import FileResponse, HttpResponse
@@ -11,7 +13,7 @@ from authentication.views import IsSystemAdminOrDirector
 from config.pagination import StandardResultsPagination
 
 from .models import ConfiguracionFirmante, ConstanciaEmitida, PlantillaConstancia
-from .permissions import EsRolConstancias, puede_firmar_como_director
+from .permissions import EsRolConstancias, NOMBRE_GRUPO_FIRMA_DELEGADA, puede_firmar_como_director
 from .render import renderizar_plantilla
 from .resolvers import (
     fecha_a_letras,
@@ -498,3 +500,65 @@ class FirmanteSelloProtegidaView(APIView):
         if firmante is None or not firmante.sello_imagen:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return _servir_archivo_protegido(firmante.sello_imagen)
+
+
+# ---------------------------------------------------------------------------
+# Firma delegada — CRUD sobre la membresía del grupo Django
+# `NOMBRE_GRUPO_FIRMA_DELEGADA` (ver constancias/permissions.py). Permite a
+# usuarios que no son director (típicamente secretaria) emitir constancias
+# con la firma del director ya estampada. Solo director/administrador/
+# sistemas/superuser puede gestionar quién tiene este permiso — misma
+# regla que configurar el firmante (ver FirmanteView arriba).
+# ---------------------------------------------------------------------------
+
+class FirmaDelegadaListView(APIView):
+    """GET /api/constancias/firma-delegada/ — lista los usuarios que hoy
+    pertenecen al grupo de firma delegada."""
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def get(self, request):
+        grupo = Group.objects.filter(name=NOMBRE_GRUPO_FIRMA_DELEGADA).first()
+        if grupo is None:
+            return Response({'usuarios': []})
+        usuarios = grupo.user_set.select_related('perfil').order_by('username')
+        data = [
+            {
+                'id': u.id,
+                'username': u.username,
+                'nombre': u.nombre_completo,
+                'rol': getattr(getattr(u, 'perfil', None), 'rol', None),
+            }
+            for u in usuarios
+        ]
+        return Response({'usuarios': data})
+
+
+class FirmaDelegadaMiembroView(APIView):
+    """POST/DELETE /api/constancias/firma-delegada/<user_id>/ — agrega o
+    quita a un usuario del grupo de firma delegada. Ambas operaciones son
+    idempotentes: agregar a quien ya está, o quitar a quien no está, no
+    falla."""
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def _obtener_usuario(self, user_id):
+        User = get_user_model()
+        return User.objects.filter(
+            pk=user_id, representante_portal__isnull=True,
+        ).first()
+
+    def post(self, request, user_id):
+        user = self._obtener_usuario(user_id)
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        grupo, _ = Group.objects.get_or_create(name=NOMBRE_GRUPO_FIRMA_DELEGADA)
+        user.groups.add(grupo)
+        return Response(status=status.HTTP_200_OK)
+
+    def delete(self, request, user_id):
+        user = self._obtener_usuario(user_id)
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        grupo = Group.objects.filter(name=NOMBRE_GRUPO_FIRMA_DELEGADA).first()
+        if grupo is not None:
+            user.groups.remove(grupo)
+        return Response(status=status.HTTP_204_NO_CONTENT)
