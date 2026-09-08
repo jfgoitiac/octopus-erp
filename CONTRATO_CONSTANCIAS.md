@@ -5,8 +5,10 @@
 > paralelismo O.1-O.5 y el bloque de instrucciones de cada agente 2A-2D). No hace
 > falta releer el historial de chat de las Fases 0 y 1.
 
-Estado: **Fase 1 (Contrato congelado) completa y aprobada. Fase 2 (Construcción en
-paralelo) en curso — lanzada el 2026-09-08.**
+Estado: **Fase 2 (Construcción en paralelo) completa — 2026-09-08. Compuerta 2→3
+superada (build/tests verdes, orquestador enganchó INSTALLED_APPS, rutas y menú).
+Pendiente de aprobación del usuario para abrir Fase 3 (Integración: endpoints DRF
++ generación de PDF).**
 
 ---
 
