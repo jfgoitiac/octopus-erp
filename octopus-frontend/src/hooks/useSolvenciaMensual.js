@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getSolvenciaMensual } from '../api/cobranza.service';
+import { useAutoRefresh } from './useAutoRefresh';
 
 /**
  * Solvencia mensual del período escolar activo, para el bloque "Solvencia
@@ -40,6 +41,8 @@ export function useSolvenciaMensual({ anioEscolar, sede } = {}) {
         const controller = new AbortController();
         fetchSolvencia(controller.signal);
     }, [fetchSolvencia]);
+
+    useAutoRefresh(retry);
 
     return {
         periodoEscolar: data?.periodo_escolar ?? null,

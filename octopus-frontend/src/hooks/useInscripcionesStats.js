@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getInscripcionesStats } from '../api/inscripcionesService';
 import { fmt } from '../utils/format';
+import { useAutoRefresh } from './useAutoRefresh';
 
 export function useInscripcionesStats(periodo) {
     const [stats, setStats] = useState(null);
@@ -84,6 +85,8 @@ export function useInscripcionesStats(periodo) {
             })),
         };
     }, [stats]);
+
+    useAutoRefresh(retry);
 
     return { ...derived, loading, error, retry };
 }

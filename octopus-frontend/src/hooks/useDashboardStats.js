@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboardStats } from '../api/dashboardService';
 import { fmt } from '../utils/format';
+import { useAutoRefresh } from './useAutoRefresh';
 
 export function useDashboardStats() {
     const [stats, setStats] = useState(null);
@@ -70,6 +71,8 @@ export function useDashboardStats() {
             },
         };
     }, [stats]);
+
+    useAutoRefresh(retry);
 
     return { ...derived, loading, error, retry };
 }
