@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     'notificaciones.apps.NotificacionesConfig',
     'cantina.apps.CantinaConfig',
     'sitio.apps.SitioConfig',
+    'constancias.apps.ConstanciasConfig',
 
 ]
 

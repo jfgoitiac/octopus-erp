@@ -260,6 +260,28 @@ function App() {
                 </ProtectedRoute>
               } />
 
+              {/* Constancias */}
+              <Route path="constancias/plantillas" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <PlantillasConstancias />
+                </ProtectedRoute>
+              } />
+              <Route path="constancias/emitir" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <EmisionConstancias />
+                </ProtectedRoute>
+              } />
+              <Route path="constancias/historico" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                  <HistoricoConstancias />
+                </ProtectedRoute>
+              } />
+              <Route path="constancias/firmante" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <FirmanteConstancias />
+                </ProtectedRoute>
+              } />
+
 
               {/* Reportes y nómina */}
               <Route path="reportes" element={
