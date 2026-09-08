@@ -58,7 +58,7 @@ export function useConfiguracion() {
             // logo_colegio/encabezado_personalizado son ImageField: el GET los devuelve
             // como URL de texto, y ese texto no es un archivo válido para el ImageField
             // del serializer. Se gestionan aparte (vía FormData) en useLogosRecibo.
-            const FILE_FIELDS = ['logo_colegio', 'encabezado_personalizado'];
+            const FILE_FIELDS = ['logo_colegio', 'encabezado_personalizado', 'pie_pagina_personalizado'];
             const payload = { ...config };
             DATE_FIELDS.forEach(f => { if (!payload[f]) delete payload[f]; });
             FILE_FIELDS.forEach(f => { delete payload[f]; });
