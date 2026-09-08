@@ -5,10 +5,11 @@
 > paralelismo O.1-O.5 y el bloque de instrucciones de cada agente 2A-2D). No hace
 > falta releer el historial de chat de las Fases 0 y 1.
 
-Estado: **Fase 2 (Construcción en paralelo) completa — 2026-09-08. Compuerta 2→3
-superada (build/tests verdes, orquestador enganchó INSTALLED_APPS, rutas y menú).
-Pendiente de aprobación del usuario para abrir Fase 3 (Integración: endpoints DRF
-+ generación de PDF).**
+Estado: **Fase 3 (Integración) completa — 2026-09-08. Compuerta 3→4 superada:
+flujo elegir plantilla → previsualizar → emitir → PDF verificado de punta a
+punta con datos reales (correlativo EST-2026-2027-0001, PDF 635 KB válido).
+Suite completa: 44/44 tests en verde. Pendiente de aprobación del usuario para
+abrir Fase 4 (Controles: permisos, firma delegada, correlativo, auditoría).**
 
 ---
 
