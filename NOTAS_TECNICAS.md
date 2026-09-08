@@ -3396,3 +3396,35 @@ parcial hacia adelante, no rediseñar la anulación de pagos).
   (comparando `monto_pagado` contra el monto que efectivamente aportó ESTE
   pago, si se puede reconstruir desde `ComprobanteSerializer`/desglose) y
   bloquear con el mismo mensaje que usa `proyecto_inversion`.
+
+## MÓDULO CONSTANCIAS — FASE 4 / AGENTE 4A: PERMISOS Y DATOS SENSIBLES (2026-09-08)
+
+Alcance ejecutado exactamente como pide `PROMPT_MODULO_CONSTANCIAS.md` §FASE 4
+bloque 4A: mover `EsRolConstancias` a `constancias/permissions.py`, separar
+"editar plantillas" (`director`/`administrador`, vía `IsSystemAdminOrDirector`)
+de "listar/ver y emitir" (incluye `secretaria`), y agregar el permiso
+independiente `puede_firmar_como_director()` basado en
+`django.contrib.auth.models.Group` (grupo `ConstanciasFirmaDelegada`), sin
+tocar el bloque `salio_firmada` de `EmitirView` (reservado para el agente 4B).
+`python manage.py test constancias -v2`: **60/60 OK** (44 tests previos +
+16 nuevos en `constancias/tests/test_permissions.py`).
+
+- **No hay forma de asignar el grupo `ConstanciasFirmaDelegada` desde la UI
+  del panel administrativo** — hoy solo se puede hacer desde `/admin/` de
+  Django (`Group` ya está registrado ahí por defecto). Si el flujo real de
+  "delegar la firma del director a una secretaria" se vuelve frecuente,
+  convendría una pantalla dedicada (ej. en Configuración > Firmante, ya que
+  ahí vive `ConfiguracionFirmante`) en vez de depender del admin de Django.
+  No implementado por estar fuera del alcance de este agente (solo permisos,
+  no UI).
+- `views.py` importa `puede_firmar_como_director` desde `.permissions` (pedido
+  explícito del contrato, para que el agente 4B lo tenga disponible) pero no
+  lo usa todavía — queda sin consumir hasta que 4B conecte la tercera
+  condición de `salio_firmada`. No es deuda, es intencional (evita que 4B
+  tenga que tocar la línea de imports y choque con este diff).
+- El test de smoke `PermisoSensibleSigueFuncionandoTests` en
+  `test_permissions.py` duplica parcialmente cobertura ya existente en
+  `test_views.py::PermisoSensibleNominaTests` (que sigue intacta y en verde)
+  — se dejó como smoke test explícito para que quede evidencia de la
+  regresión dentro del archivo de este agente, no reemplaza a la suite
+  original.

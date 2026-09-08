@@ -11,6 +11,7 @@ from authentication.views import IsSystemAdminOrDirector
 from config.pagination import StandardResultsPagination
 
 from .models import ConfiguracionFirmante, ConstanciaEmitida, PlantillaConstancia
+from .permissions import EsRolConstancias, puede_firmar_como_director
 from .render import renderizar_plantilla
 from .resolvers import (
     fecha_a_letras,
@@ -25,28 +26,6 @@ from .serializers import (
     ConstanciaEmitidaListSerializer,
     PlantillaConstanciaSerializer,
 )
-
-
-# ---------------------------------------------------------------------------
-# Permisos
-# ---------------------------------------------------------------------------
-
-class EsRolConstancias(permissions.BasePermission):
-    """director, administrador o secretaria — mismo patrón try/except de rol
-    que el resto del proyecto (ver secretaria/views.py::IsSecretariaOrAbove),
-    pero sin incluir 'sistemas' (el contrato de constancias no lo lista)."""
-    ROLES_PERMITIDOS = ('director', 'administrador', 'secretaria')
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        if request.user.is_superuser:
-            return True
-        try:
-            perfil = request.user.perfil
-            return perfil.esta_activo and perfil.rol in self.ROLES_PERMITIDOS
-        except Exception:
-            return False
 
 
 # ---------------------------------------------------------------------------
@@ -189,9 +168,17 @@ class PlaceholdersView(APIView):
 # ---------------------------------------------------------------------------
 
 class PlantillaConstanciaViewSet(viewsets.ModelViewSet):
+    """list/retrieve: cualquier rol de constancias (incluye secretaria, que
+    solo necesita ver plantillas para emitir). create/update/destroy: la
+    edición de plantillas queda reservada a director/administrador — ver
+    Fase 4/agente 4A, PROMPT_MODULO_CONSTANCIAS.md §FASE 4 bloque 4A."""
     queryset = PlantillaConstancia.objects.all().order_by('-creada_en')
     serializer_class = PlantillaConstanciaSerializer
-    permission_classes = [permissions.IsAuthenticated, EsRolConstancias]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [permissions.IsAuthenticated(), EsRolConstancias()]
+        return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
