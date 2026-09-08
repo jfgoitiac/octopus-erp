@@ -38,6 +38,7 @@ octopus-api/media/comprobantes/
 octopus-api/media/incidentes/
 octopus-api/media/cantina/
 octopus-api/media/sitio/
+octopus-api/media/constancias/
 
 # Caches de herramientas de desarrollo
 .playwright-cli/

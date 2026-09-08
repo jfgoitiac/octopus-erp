@@ -3397,17 +3397,16 @@ parcial hacia adelante, no rediseñar la anulación de pagos).
   pago, si se puede reconstruir desde `ComprobanteSerializer`/desglose) y
   bloquear con el mismo mensaje que usa `proyecto_inversion`.
 
-## MÓDULO CONSTANCIAS — FASE 4 / AGENTE 4A: PERMISOS Y DATOS SENSIBLES (2026-09-08)
+## MÓDULO CONSTANCIAS — DEUDA TÉCNICA CONSOLIDADA (Fase 5 — Cierre, 2026-09-08)
 
-Alcance ejecutado exactamente como pide `PROMPT_MODULO_CONSTANCIAS.md` §FASE 4
-bloque 4A: mover `EsRolConstancias` a `constancias/permissions.py`, separar
-"editar plantillas" (`director`/`administrador`, vía `IsSystemAdminOrDirector`)
-de "listar/ver y emitir" (incluye `secretaria`), y agregar el permiso
-independiente `puede_firmar_como_director()` basado en
-`django.contrib.auth.models.Group` (grupo `ConstanciasFirmaDelegada`), sin
-tocar el bloque `salio_firmada` de `EmitirView` (reservado para el agente 4B).
-`python manage.py test constancias -v2`: **60/60 OK** (44 tests previos +
-16 nuevos en `constancias/tests/test_permissions.py`).
+Consolida en una sola sección, agrupada por tema, las notas que los agentes
+2A-2D, 4A y 4B fueron dejando por separado durante el desarrollo del módulo
+(los agentes de Fase 2/3 no encontraron deuda que anotar; solo 4A y 4B
+dejaron entradas). Se conserva todo hallazgo real; se elimina únicamente la
+redundancia de formato entre entradas. Al final, el hallazgo propio de esta
+fase de cierre.
+
+### Permisos y grupos (Fase 4 / agente 4A)
 
 - **No hay forma de asignar el grupo `ConstanciasFirmaDelegada` desde la UI
   del panel administrativo** — hoy solo se puede hacer desde `/admin/` de
@@ -3415,21 +3414,22 @@ tocar el bloque `salio_firmada` de `EmitirView` (reservado para el agente 4B).
   "delegar la firma del director a una secretaria" se vuelve frecuente,
   convendría una pantalla dedicada (ej. en Configuración > Firmante, ya que
   ahí vive `ConfiguracionFirmante`) en vez de depender del admin de Django.
-  No implementado por estar fuera del alcance de este agente (solo permisos,
+  No implementado por estar fuera del alcance de ese agente (solo permisos,
   no UI).
 - `views.py` importa `puede_firmar_como_director` desde `.permissions` (pedido
-  explícito del contrato, para que el agente 4B lo tenga disponible) pero no
-  lo usa todavía — queda sin consumir hasta que 4B conecte la tercera
-  condición de `salio_firmada`. No es deuda, es intencional (evita que 4B
-  tenga que tocar la línea de imports y choque con este diff).
+  explícito del contrato, para que 4B lo tuviera disponible) pero no lo usó
+  de inmediato — quedó sin consumir hasta que 4B conectó la tercera
+  condición de `salio_firmada`. No fue deuda, era intencional (evitaba que
+  4B tuviera que tocar la línea de imports y chocara con ese diff); ya
+  resuelto, se deja la nota solo como registro histórico.
 - El test de smoke `PermisoSensibleSigueFuncionandoTests` en
   `test_permissions.py` duplica parcialmente cobertura ya existente en
-  `test_views.py::PermisoSensibleNominaTests` (que sigue intacta y en verde)
-  — se dejó como smoke test explícito para que quede evidencia de la
-  regresión dentro del archivo de este agente, no reemplaza a la suite
+  `test_views.py::PermisoSensibleNominaTests` (ambos siguen intactos y en
+  verde) — se dejó como smoke test explícito para que quedara evidencia de
+  la regresión dentro del archivo de ese agente; no reemplaza a la suite
+  original.
 
-## CONSTANCIAS — FASE 4/AGENTE 4B: CORRELATIVO, `salio_firmada` Y AUDITORÍA
-(2026-09-08)
+### Correlativo y concurrencia (Fase 4 / agente 4B)
 
 - **Bug de producción corregido**: `constancias/resolvers.py::generar_numero_constancia`
   combinaba `select_for_update()` con `.count()` (agregado) sobre el mismo
@@ -3440,11 +3440,6 @@ tocar el bloque `salio_firmada` de `EmitirView` (reservado para el agente 4B).
   `cantina/views.py::AperturaCajaCantinaView` sobre `ParametroCantina`) y
   haciendo el `.count()` después de adquirir ese lock, ya no combinado con
   `select_for_update`. No requirió modelo/campo/migración nueva.
-- Se conectó la cuarta condición de `salio_firmada` en
-  `constancias/views.py::EmitirView.post()` usando
-  `puede_firmar_como_director(request.user)` (ya la dejó importada 4A). Se
-  confirmó con test que la emisión nunca se bloquea por esto (siempre 201),
-  solo cambia el booleano.
 - **Fallback sin cubrir con test de concurrencia real**: si
   `ConfiguracionFirmante` nunca se configuró (`None`), no hay fila que
   bloquear y `generar_numero_constancia` se degrada a contar sin lock (mismo
@@ -3455,24 +3450,73 @@ tocar el bloque `salio_firmada` de `EmitirView` (reservado para el agente 4B).
   emisiones concurrentes de esa primera constancia podrían, en teoría,
   colisionar en el número. Si se vuelve un caso real, la solución limpia es
   un modelo contador dedicado (fuera del alcance de esta fase, ver
-  PROMPT_MODULO_CONSTANCIAS.md §O.2).
+  `PROMPT_MODULO_CONSTANCIAS.md` §O.2).
 - **No hay tests de concurrencia real (threads) para el correlativo** — no
   hay precedente de esto en el repo (`cantina/tests_apertura_caja.py`
   tampoco los usa) y no es confiable contra la BD de test SQLite de este
-  proyecto. Los tests nuevos (`constancias/tests/test_correlativo_auditoria.py`)
+  proyecto. Los tests de `constancias/tests/test_correlativo_auditoria.py`
   verifican el contrato de numeración de forma secuencial (no colisión entre
   llamadas, prefijos por tipo/período no se comparten, primer número de un
   prefijo nuevo es `0001`). Verificación real de la ausencia de deadlock/
   colisión bajo concurrencia real contra Postgres queda pendiente de un
   test de integración fuera de este framework de tests unitarios.
+- Se conectó la cuarta condición de `salio_firmada` en
+  `constancias/views.py::EmitirView.post()` usando
+  `puede_firmar_como_director(request.user)`. Se confirmó con test que la
+  emisión nunca se bloquea por esto (siempre 201), solo cambia el booleano.
+
+### Testing / infraestructura de tests (Fase 4 / agente 4B)
+
 - **Efecto colateral detectado, no corregido**: correr la suite de
-  `constancias` dejó archivos reales en `octopus-api/media/constancias/
+  `constancias` deja archivos reales en `octopus-api/media/constancias/
   firmas/` y `.../sellos/` (`SimpleUploadedFile` en los tests de
-  `test_pdf.py` y el nuevo `test_correlativo_auditoria.py` escribe al
-  storage de `MEDIA_ROOT` real en vez de uno aislado por test, porque
-  `ImageField` no usa un storage de test dedicado en `config/settings.py`).
-  No se tocó `settings.py` por estar fuera de alcance de este agente; queda
-  anotado por si conviene configurar un `MEDIA_ROOT` temporal para tests
-  (ej. `override_settings(MEDIA_ROOT=tempfile.mkdtemp())`) en un agente
-  futuro que sí pueda tocar la config de tests.
-  original.
+  `test_pdf.py` y `test_correlativo_auditoria.py` escribe al storage de
+  `MEDIA_ROOT` real en vez de uno aislado por test, porque `ImageField` no
+  usa un storage de test dedicado en `config/settings.py`). No se tocó
+  `settings.py` por estar fuera de alcance de ese agente; queda anotado por
+  si conviene configurar un `MEDIA_ROOT` temporal para tests (ej.
+  `override_settings(MEDIA_ROOT=tempfile.mkdtemp())`) en un agente futuro
+  que sí pueda tocar la config de tests.
+
+### Hallazgo nuevo — Fase 5 (Cierre): `familia.madre_*` / `familia.padre_*` nunca se resuelven
+
+Al verificar las cuatro plantillas semilla end-to-end contra el endpoint real
+`/previsualizar/` (`constancias/tests/test_plantillas_semilla.py`, nuevo en
+esta fase), se confirmó un hallazgo de integración entre el trabajo de
+varios agentes que ningún test previo cubría:
+
+- El catálogo de placeholders (`constancias/views.py::CATALOGO_PLACEHOLDERS`,
+  grupo `familia`) documenta `madre_nombres`, `madre_apellidos`,
+  `madre_cedula`, `padre_nombres`, `padre_apellidos` y `padre_cedula` como
+  tokens válidos, y el mapeo de notación vieja
+  (`constancias/render.py::_MAPEO_FIJO`) también traduce hacia esos mismos
+  tokens (`apellidosmadre` -> `{{familia.madre_apellidos}}`, etc.).
+- Sin embargo, `constancias/resolvers.py::resolver_datos` **nunca puebla
+  esas seis claves** — solo arma `familia.representante_nombres`,
+  `familia.representante_apellidos`, `familia.representante_cedula` y
+  `familia.parentesco` a partir del único `Alumno.representante` (FK
+  simple; un alumno tiene un solo representante con un solo parentesco, ver
+  comentario en `secretaria/models.py::Alumno.parentesco`).
+- Consecuencia real: el anexo de la plantilla semilla "Constancia de
+  Estudio" (`anexo_html`, fiel al formato Word original que sí pide madre y
+  padre por separado) **siempre** devuelve advertencia de "token
+  desconocido" para los 6 placeholders `familia.madre_*`/`familia.padre_*`
+  al previsualizar o emitir — se renderizan como cadena vacía. El resto del
+  anexo (fecha de nacimiento) y el cuerpo de las 4 plantillas sí renderizan
+  limpio.
+- No se corrigió en esta fase: `constancias/resolvers.py` no es un archivo
+  propio de Fase 5 según el mapa de propiedad de archivos de
+  `PROMPT_MODULO_CONSTANCIAS.md` (Fase 5 no tiene fila asignada ahí, y el
+  contrato de cierre solo autoriza tocar datos de plantilla, no código de
+  otro agente). El test nuevo documenta el comportamiento real (con las 6
+  advertencias) en vez de fingir que el catálogo funciona como está
+  documentado, para que el hallazgo no quede encubierto.
+- Además, aun si se poblaran esas claves, el modelo de datos actual (un
+  único `Alumno.representante` con un único `parentesco`) solo puede
+  resolver UN lado (madre O padre, el que corresponda al representante
+  registrado) — nunca ambos a la vez, salvo que se modele explícitamente
+  una relación alumno-representante con múltiples partes (fuera de alcance
+  de este módulo). Cualquier arreglo futuro debería decidir primero si basta
+  con mapear `representante` -> `madre_*`/`padre_*` según `parentesco` (fix
+  chico, cubre el caso común) o si se requiere un modelo nuevo para
+  soportar madre y padre simultáneos (cambio de alcance mayor).

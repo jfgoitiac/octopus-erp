@@ -5,11 +5,29 @@
 > paralelismo O.1-O.5 y el bloque de instrucciones de cada agente 2A-2D). No hace
 > falta releer el historial de chat de las Fases 0 y 1.
 
-Estado: **Fase 3 (Integración) completa — 2026-09-08. Compuerta 3→4 superada:
-flujo elegir plantilla → previsualizar → emitir → PDF verificado de punta a
-punta con datos reales (correlativo EST-2026-2027-0001, PDF 635 KB válido).
-Suite completa: 44/44 tests en verde. Pendiente de aprobación del usuario para
-abrir Fase 4 (Controles: permisos, firma delegada, correlativo, auditoría).**
+Estado: **Fase 4 (Controles) completa — 2026-09-08. Compuerta 4→5 superada:**
+- **4A (permisos)** — commit `3c48c75`: plantillas separan "editar" (director/
+  administrador, vía `IsSystemAdminOrDirector`) de "solo emitir" (secretaria
+  conserva list/retrieve/previsualizar/emitir); nuevo `permissions.py` con
+  `puede_firmar_como_director(user)` — permiso independiente del rol vía
+  grupo Django `ConstanciasFirmaDelegada`, sin migración nueva.
+- **4B (firma/correlativo/auditoría)** — commit `f082ee5`: corrigió un bug
+  real en `generar_numero_constancia` (`select_for_update()` combinado con
+  `.count()` agregado — rechazado por PostgreSQL en producción, enmascarado
+  en tests por SQLite); ahora serializa contra el singleton
+  `ConfiguracionFirmante` (mismo patrón que `cantina/views.py`). Conectó la
+  4ª condición de `salio_firmada` (`puede_firmar_como_director`); la emisión
+  nunca se bloquea por falta de firma, solo cambia el booleano.
+- **Suite completa: 69/69 tests en verde** (`python manage.py test constancias`).
+- Deuda técnica anotada (no implementada): sin UI de admin para asignar el
+  grupo `ConstanciasFirmaDelegada`; sin test de concurrencia real por hilos
+  (sin precedente en el repo); uploads de `ImageField` en tests escriben a
+  `MEDIA_ROOT` real en vez de storage aislado (preexistente, no introducido
+  aquí). Detalle completo en `NOTAS_TECNICAS.md`.
+
+Pendiente de aprobación del usuario para abrir Fase 5 (Cierre: fixtures de
+las cuatro plantillas reales, `npm run build` + tests verdes, consolidar
+`NOTAS_TECNICAS.md`, entrega para verificación visual del usuario).
 
 ---
 
