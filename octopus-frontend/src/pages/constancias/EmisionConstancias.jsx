@@ -18,13 +18,28 @@ const DESTINATARIO_LABEL = {
   representante: 'representante',
 };
 
-// Endpoints de búsqueda por destinatario. Los de alumno/trabajador ya existen
-// en el proyecto (ver src/api/secretaria.service.js y src/hooks/useNomina.js);
-// no se documentan en el contrato de constancias, así que este mapeo es una
-// suposición razonable a validar con backend — ver reporte de deuda técnica.
+// Endpoints de búsqueda por destinatario, confirmados contra el backend real:
+// - alumno: secretaria/alumnos/ (AlumnoListView, filtra ?buscar= por nombre/
+//   apellido/cedula_escolar/representante).
+// - trabajador: nomina/empleados/buscar/ (BuscarEmpleadosView, nueva — no
+//   existía endpoint de búsqueda para nomina.Empleado, que es la fuente
+//   canónica según CONTRATO_CONSTANCIAS.md D4, distinta de rrhh.Empleado).
+//   Devuelve id/cedula/nombre/apellido/tipo_personal, sin sueldo.
+// - representante: secretaria/representantes/ (RepresentanteViewSet, ya
+//   soporta ?buscar= por cedula/nombre/apellido/correo).
 const BUSQUEDA_ENDPOINT = {
   alumno: 'secretaria/alumnos/',
-  trabajador: 'rrhh/empleados/',
+  trabajador: 'nomina/empleados/buscar/',
+  representante: 'secretaria/representantes/',
+};
+
+// Los modelos reales usan nombre/apellido (singular), no nombres/apellidos.
+const nombreCompleto = (p) => {
+  if (!p) return '';
+  const nombre = p.nombre ?? p.nombres ?? '';
+  const apellido = p.apellido ?? p.apellidos ?? '';
+  const junto = `${nombre} ${apellido}`.trim();
+  return junto || p.nombre_completo || `#${p.id}`;
 };
 
 const inputCls = 'w-full text-sm rounded-lg px-3 py-2.5 outline-none border transition-all duration-150 focus:border-[color:var(--pb)]';
@@ -211,12 +226,7 @@ export default function EmisionConstancias() {
     setEmitida(null);
   };
 
-  const personaLabel = useMemo(() => {
-    if (!persona) return '';
-    return persona.nombres && persona.apellidos
-      ? `${persona.nombres} ${persona.apellidos}`
-      : (persona.nombre_completo || persona.nombre || `#${persona.id}`);
-  }, [persona]);
+  const personaLabel = useMemo(() => nombreCompleto(persona), [persona]);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -335,7 +345,7 @@ export default function EmisionConstancias() {
                     >
                       <User size={14} style={{ color: 'var(--ash)' }} />
                       <span className="text-xs" style={{ color: 'var(--jet)' }}>
-                        {r.nombres && r.apellidos ? `${r.nombres} ${r.apellidos}` : (r.nombre_completo || r.nombre || `#${r.id}`)}
+                        {nombreCompleto(r)}
                       </span>
                     </button>
                   ))}

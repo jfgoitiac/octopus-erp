@@ -25,6 +25,17 @@ class EmpleadoSerializer(serializers.ModelSerializer):
         return None
 
 
+class EmpleadoBusquedaSerializer(serializers.ModelSerializer):
+    """
+    Serializer minimo para busqueda de empleados (usado por constancias).
+    Deliberadamente sin sueldo_base_ves: es un dato sensible de nomina y este
+    endpoint solo sirve para localizar al trabajador por nombre/cedula.
+    """
+    class Meta:
+        model = Empleado
+        fields = ['id', 'cedula', 'nombre', 'apellido', 'tipo_personal']
+
+
 class ParametroLegalNominaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParametroLegalNomina

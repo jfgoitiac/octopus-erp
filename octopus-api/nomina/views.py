@@ -13,7 +13,8 @@ import json
 from cobranza.models import ParametroGlobal, TasaCambio
 from .models import RegistroNomina, Empleado, ConceptoNomina, ParametroLegalNomina
 from .serializers import (
-    EmpleadoSerializer, ConceptoNominaSerializer, ParametroLegalNominaSerializer, RegistroNominaSerializer,
+    EmpleadoSerializer, EmpleadoBusquedaSerializer, ConceptoNominaSerializer,
+    ParametroLegalNominaSerializer, RegistroNominaSerializer,
 )
 from .utils import GeneradorReciboNomina
 from authentication.views import IsSystemAdminOrDirector
@@ -147,6 +148,28 @@ class RegistroNominaViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'El período fue generado simultáneamente. Vuelve a consultar el historial.'}, status=409)
         except DjangoValidationError as e:
             return Response({'detail': '; '.join(e.messages) if hasattr(e, 'messages') else str(e)}, status=400)
+
+class BuscarEmpleadosView(APIView):
+    """
+    Busqueda liviana de nomina.Empleado por nombre/apellido/cedula, usada por
+    el flujo de emision de constancias de trabajo (necesita el Empleado
+    canonico de nomina, no rrhh.Empleado -- ver CONTRATO_CONSTANCIAS.md D4).
+    Deliberadamente sin sueldo_base_ves: usa EmpleadoBusquedaSerializer.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        buscar = request.query_params.get('buscar', '').strip()
+        qs = Empleado.objects.all().order_by('apellido', 'nombre')
+        if buscar:
+            qs = qs.filter(
+                Q(nombre__icontains=buscar) |
+                Q(apellido__icontains=buscar) |
+                Q(cedula__icontains=buscar)
+            )
+        qs = qs[:10]
+        return Response(EmpleadoBusquedaSerializer(qs, many=True).data)
+
 
 class ReciboNominaPDFView(APIView):
     # IDOR fix: antes solo exigía IsAuthenticated, permitiendo a cualquier
