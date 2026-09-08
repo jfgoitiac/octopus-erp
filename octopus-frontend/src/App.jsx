@@ -193,7 +193,7 @@ function App() {
 
               {/* Gestión de alumnos */}
               <Route path="inscripciones" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.SECRETARIA_ADMIN, ROLES.COBRANZA]}>
                   <Inscripciones />
                 </ProtectedRoute>
               } />

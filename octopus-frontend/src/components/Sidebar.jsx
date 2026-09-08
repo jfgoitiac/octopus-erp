@@ -23,10 +23,10 @@ const navSections = [
     label: 'Principal',
     items: [
       { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['director','cobranza','administrador'] },
-      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','administrador','cobranza'] },
+      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','administrador','cobranza','secretaria'] },
       { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','cobranza'] },
       { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza'] },
-      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','administrador','secretaria'] },
+      { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','administrador','secretaria','cobranza'] },
       { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','administrador','secretaria'] },
       { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Pre-Inscripción', path: '/preinscripcion', icon: FileText, roles: ['director','administrador','secretaria'] },

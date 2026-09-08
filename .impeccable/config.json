@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "octopus-frontend/src/index.css"
+        ],
+        "createdAt": "2026-09-08T15:05:28.651Z",
+        "reason": "pre-existing Toastify severity border (success/error/warning/info), conventional toast pattern not an AI card tell; unrelated to current task"
+      }
+    ]
+  }
+}
