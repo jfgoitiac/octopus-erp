@@ -203,6 +203,16 @@ class Alumno(models.Model):
         verbose_name='Sede',
     )
 
+    # Cédula del alumno (NUEVO — requerido por constancias, opcional en el
+    # resto del sistema).
+    cedula = models.CharField(max_length=15, blank=True, default='')
+    cedula_nacionalidad = models.CharField(
+        max_length=1,
+        choices=(('V', 'V'), ('E', 'E')),
+        default='V',
+        blank=True,
+    )
+
     # Managers
     objects = AlumnoManager()       # Por defecto: solo activos
     todos   = AlumnoManagerCompleto()  # Todos: activos + retirados

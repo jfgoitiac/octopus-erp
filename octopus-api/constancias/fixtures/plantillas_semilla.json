@@ -1,0 +1,70 @@
+[
+  {
+    "model": "constancias.plantillaconstancia",
+    "pk": 1,
+    "fields": {
+      "tipo": "estudio",
+      "nombre": "Constancia de Estudio",
+      "destinatario": "alumno",
+      "cuerpo_html": "<p>hace constar que {{alumno.nombres}} {{alumno.apellidos}}, {{sexo:inscrito|inscrita}} en el {{alumno.grado}} de {{alumno.nivel}}, sección {{alumno.seccion}}, para el año escolar {{alumno.anio_escolar}}.</p>",
+      "anexo_html": "<p>Fecha de nacimiento: {{alumno.fecha_nacimiento}}. Madre: {{familia.madre_nombres}} {{familia.madre_apellidos}}, C.I. {{familia.madre_cedula}}. Padre: {{familia.padre_nombres}} {{familia.padre_apellidos}}, C.I. {{familia.padre_cedula}}.</p>",
+      "anexo_habilitado": true,
+      "permite_estampado": true,
+      "activa": true,
+      "creada_en": "2026-09-08T00:00:00Z",
+      "actualizada_en": "2026-09-08T00:00:00Z",
+      "creada_por": null
+    }
+  },
+  {
+    "model": "constancias.plantillaconstancia",
+    "pk": 2,
+    "fields": {
+      "tipo": "conducta",
+      "nombre": "Constancia de Buena Conducta",
+      "destinatario": "alumno",
+      "cuerpo_html": "<p>hace constar que {{alumno.nombres}} {{alumno.apellidos}}, {{sexo:inscrito|inscrita}} en el {{alumno.grado}} de {{alumno.nivel}}, sección {{alumno.seccion}}, ha observado buena conducta durante el año escolar {{alumno.anio_escolar}}.</p>",
+      "anexo_html": "",
+      "anexo_habilitado": false,
+      "permite_estampado": false,
+      "activa": true,
+      "creada_en": "2026-09-08T00:00:00Z",
+      "actualizada_en": "2026-09-08T00:00:00Z",
+      "creada_por": null
+    }
+  },
+  {
+    "model": "constancias.plantillaconstancia",
+    "pk": 3,
+    "fields": {
+      "tipo": "retiro",
+      "nombre": "Constancia de Retiro",
+      "destinatario": "alumno",
+      "cuerpo_html": "<p>hace constar que {{alumno.nombres}} {{alumno.apellidos}}, {{sexo:inscrito|inscrita}} en el {{alumno.grado}} de {{alumno.nivel}}, sección {{alumno.seccion}}, durante el año escolar {{alumno.anio_escolar_promocion}}, fue promovido(a) al {{alumno.grado_promocion}} de {{alumno.nivel_promocion}}.</p>",
+      "anexo_html": "",
+      "anexo_habilitado": false,
+      "permite_estampado": false,
+      "activa": true,
+      "creada_en": "2026-09-08T00:00:00Z",
+      "actualizada_en": "2026-09-08T00:00:00Z",
+      "creada_por": null
+    }
+  },
+  {
+    "model": "constancias.plantillaconstancia",
+    "pk": 4,
+    "fields": {
+      "tipo": "trabajo",
+      "nombre": "Constancia de Trabajo",
+      "destinatario": "trabajador",
+      "cuerpo_html": "<p>hace constar que {{trabajador.nombres}} {{trabajador.apellidos}}, titular de la cédula de identidad {{trabajador.cedula}}, presta sus servicios en esta institución desde el {{trabajador.fecha_ingreso}}, desempeñando el cargo de {{trabajador.cargo}}, devengando un sueldo mensual de {{trabajador.sueldo}} más un bono de alimentación de {{trabajador.bono}}.</p>",
+      "anexo_html": "",
+      "anexo_habilitado": false,
+      "permite_estampado": true,
+      "activa": true,
+      "creada_en": "2026-09-08T00:00:00Z",
+      "actualizada_en": "2026-09-08T00:00:00Z",
+      "creada_por": null
+    }
+  }
+]

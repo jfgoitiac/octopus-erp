@@ -63,6 +63,19 @@ class Empleado(models.Model):
         help_text='Ficha maestra correspondiente en el módulo de RRHH.',
     )
 
+    # NUEVO — requerido por constancias (constancia de trabajo), opcional en
+    # el resto del sistema.
+    tipo_contrato = models.CharField(
+        max_length=20,
+        choices=(
+            ('fijo', 'Fijo'),
+            ('temporal', 'Temporal'),
+            ('honorarios', 'Honorarios'),
+        ),
+        blank=True,
+        default='',
+    )
+
     def __str__(self):
         return f"{self.cedula} - {self.nombre} {self.apellido}"
 
