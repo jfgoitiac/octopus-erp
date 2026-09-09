@@ -16,16 +16,20 @@ datos de ejemplo razonables, confirmando:
 - Trabajo: sin permiso de nómina no se ven sueldo/bono (403); con permiso
   de nómina (rol director) sí aparecen, sin advertencias.
 
-También documenta (sin arreglarlo — fuera del alcance de Fase 5, ver
-`PROMPT_MODULO_CONSTANCIAS.md` §ANEXO "Mapa de propiedad de archivos": este
-agente no es dueño de `constancias/resolvers.py`) un hallazgo real de
-integración: el anexo de Estudio usa `{{familia.madre_*}}` y
-`{{familia.padre_*}}` (documentados en el catálogo de `views.py` y en el
-mapeo de notación vieja de `render.py`), pero
-`resolvers.py::resolver_datos` nunca puebla esas claves — solo
-`familia.representante_*` y `familia.parentesco`. El test de abajo
-verifica el comportamiento REAL (con advertencias para esos tokens), no el
-comportamiento esperado por el catálogo, para no encubrir el hallazgo.
+Documenta también la resolución de un hallazgo de deuda técnica: el anexo
+de Estudio usa `{{familia.madre_*}}` y `{{familia.padre_*}}` (documentados
+en el catálogo de `views.py` y en el mapeo de notación vieja de
+`render.py`). `resolvers.py::resolver_datos` ahora mapea el
+`representante` del alumno hacia `madre_*` o `padre_*` según
+`alumno.parentesco` ('madre'/'padre'), además de seguir poblando
+`familia.representante_*` y `familia.parentesco` como antes. Como el
+modelo actual solo permite un representante con un solo parentesco por
+alumno, solo UN lado (madre O padre) puede resolverse a la vez — el otro
+sigue reportando advertencia de token desconocido. El test de abajo
+verifica ese comportamiento real (3 advertencias para `padre_*`, ninguna
+para `madre_*`, cuando el parentesco cargado es 'madre'), no el ideal de
+tener ambos simultáneamente resuelto (limitación de datos real, ver
+`NOTAS_TECNICAS.md`).
 """
 from datetime import date
 from decimal import Decimal
@@ -95,22 +99,19 @@ class PlantillasSemillaTests(TestCase):
         tipos = set(PlantillaConstancia.objects.values_list('tipo', flat=True))
         self.assertEqual(tipos, {'estudio', 'conducta', 'retiro', 'trabajo'})
 
-    def test_estudio_cuerpo_y_anexo_renderizan_madre_padre_sin_resolver(self):
+    def test_estudio_cuerpo_y_anexo_resuelven_madre_pero_no_padre(self):
         """`PrevisualizarView` concatena cuerpo + anexo en un solo
         `html_renderizado` cuando `anexo_habilitado=True` (ver
         `views.py::_cuerpo_completo`), así que Estudio siempre se
         previsualiza con su anexo incluido — no hay forma de aislar el
         cuerpo solo a través del endpoint real.
 
-        Documenta el hallazgo de Fase 5: `resolvers.py::resolver_datos`
-        nunca puebla `familia.madre_*` / `familia.padre_*` (solo
-        `familia.representante_*` y `familia.parentesco`), aunque esos 6
-        tokens están documentados en el catálogo de `views.py` y en el
-        mapeo de notación vieja de `render.py`. El anexo de Estudio
-        siempre reporta esos 6 tokens como desconocidos. No se corrige
-        aquí: `resolvers.py` no es un archivo propio de este agente (ver
-        mapa de propiedad de archivos — Fase 5 no tiene fila asignada) —
-        se documenta en `NOTAS_TECNICAS.md` para que se decida a futuro."""
+        `resolvers.py::resolver_datos` mapea el representante hacia
+        `madre_*` o `padre_*` según `alumno.parentesco`. Para un alumno con
+        parentesco 'madre', `familia.madre_*` (3 tokens) resuelve limpio;
+        `familia.padre_*` (3 tokens) sigue sin resolver porque el modelo
+        actual solo admite un representante/parentesco por alumno (no
+        arreglado — ver `NOTAS_TECNICAS.md`)."""
         plantilla = PlantillaConstancia.objects.get(tipo='estudio')
         alumno = Alumno.objects.create(
             nombre='María José', apellido='Rodríguez', cedula_escolar='E84000001',
@@ -134,16 +135,20 @@ class PlantillasSemillaTests(TestCase):
         self.assertIn('2025-2026', html)
         # Anexo: la fecha de nacimiento sí resuelve.
         self.assertIn('12/03/2012', html)
+        # Anexo: madre_* resuelve con los datos de la representante (su
+        # parentesco es 'madre'). La cédula del representante ya trae el
+        # prefijo 'V' en el fixture (cedula='V11122233') y el motor
+        # antepone otra 'V-' (mismo comportamiento ya documentado para
+        # trabajador en este archivo) -> "V-V11122233".
+        self.assertIn('Ana', html)
+        self.assertIn('García', html)
+        self.assertIn('V-V11122233', html)
 
-        advertencias_madre_padre = [
-            a for a in data['advertencias']
-            if 'familia.madre' in a or 'familia.padre' in a
-        ]
-        # Hallazgo real: hoy SIEMPRE hay advertencia para los 6 tokens de
-        # madre/padre porque el resolver no los puebla. Ninguna otra
-        # advertencia debería aparecer.
-        self.assertEqual(len(advertencias_madre_padre), 6, data['advertencias'])
-        self.assertEqual(len(data['advertencias']), 6, data['advertencias'])
+        advertencias_madre = [a for a in data['advertencias'] if 'familia.madre' in a]
+        advertencias_padre = [a for a in data['advertencias'] if 'familia.padre' in a]
+        self.assertEqual(advertencias_madre, [], data['advertencias'])
+        self.assertEqual(len(advertencias_padre), 3, data['advertencias'])
+        self.assertEqual(len(data['advertencias']), 3, data['advertencias'])
 
     def test_conducta_renderiza_sin_advertencias(self):
         plantilla = PlantillaConstancia.objects.get(tipo='conducta')

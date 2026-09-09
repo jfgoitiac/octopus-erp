@@ -3440,17 +3440,26 @@ fase de cierre.
   `cantina/views.py::AperturaCajaCantinaView` sobre `ParametroCantina`) y
   haciendo el `.count()` después de adquirir ese lock, ya no combinado con
   `select_for_update`. No requirió modelo/campo/migración nueva.
-- **Fallback sin cubrir con test de concurrencia real**: si
-  `ConfiguracionFirmante` nunca se configuró (`None`), no hay fila que
-  bloquear y `generar_numero_constancia` se degrada a contar sin lock (mismo
-  riesgo de colisión que el bug original, mínimo, pero documentado en el
-  docstring del resolver). En producción esto no debería pasar — el firmante
-  se configura antes de la primera emisión — pero si algún colegio emite su
-  primera constancia sin haber configurado nunca `ConfiguracionFirmante`, dos
-  emisiones concurrentes de esa primera constancia podrían, en teoría,
-  colisionar en el número. Si se vuelve un caso real, la solución limpia es
-  un modelo contador dedicado (fuera del alcance de esta fase, ver
-  `PROMPT_MODULO_CONSTANCIAS.md` §O.2).
+- ✅ **RESUELTO (2026-09-08)** — **Fallback sin cubrir con test de concurrencia
+  real**: si `ConfiguracionFirmante` nunca se configuró (`None`), no había
+  fila que bloquear y `generar_numero_constancia` se degradaba a contar sin
+  lock (mismo riesgo de colisión que el bug original, mínimo, pero
+  documentado en el docstring del resolver). Se corrigió sin migración
+  nueva: cuando `firmante is None`, se garantiza la fila singleton con
+  `ConfiguracionFirmante.objects.get_or_create(pk=1, defaults={'nombre':
+  '', 'cedula': '', 'cargo': ''})` **antes** de lockearla con
+  `select_for_update()`. `get_or_create` sobre el `pk` (campo único) es
+  race-safe bajo concurrencia según la documentación de Django: si dos
+  transacciones concurrentes llegan a la vez, la perdedora choca contra el
+  `IntegrityError` del pk duplicado y Django reintenta el `get()`
+  internamente, sin duplicar la fila. Si ya existía una fila con pk
+  distinto de 1 (creada antes de este fix, vía admin de Django o
+  `FirmanteView`), el primer `select_for_update().first()` ya la
+  encuentra y el bloque `get_or_create` nunca se ejecuta — sin riesgo de
+  duplicados. Test nuevo:
+  `test_correlativo_auditoria.py::GenerarNumeroConstanciaTests::test_sin_firmante_configurado_dos_llamadas_seguidas_no_colisionan`
+  (borra `ConfiguracionFirmante`, llama dos veces seguidas, confirma
+  números consecutivos y que queda una sola fila creada).
 - **No hay tests de concurrencia real (threads) para el correlativo** — no
   hay precedente de esto en el repo (`cantina/tests_apertura_caja.py`
   tampoco los usa) y no es confiable contra la BD de test SQLite de este
@@ -3467,23 +3476,31 @@ fase de cierre.
 
 ### Testing / infraestructura de tests (Fase 4 / agente 4B)
 
-- **Efecto colateral detectado, no corregido**: correr la suite de
-  `constancias` deja archivos reales en `octopus-api/media/constancias/
-  firmas/` y `.../sellos/` (`SimpleUploadedFile` en los tests de
-  `test_pdf.py` y `test_correlativo_auditoria.py` escribe al storage de
-  `MEDIA_ROOT` real en vez de uno aislado por test, porque `ImageField` no
-  usa un storage de test dedicado en `config/settings.py`). No se tocó
-  `settings.py` por estar fuera de alcance de ese agente; queda anotado por
-  si conviene configurar un `MEDIA_ROOT` temporal para tests (ej.
-  `override_settings(MEDIA_ROOT=tempfile.mkdtemp())`) en un agente futuro
-  que sí pueda tocar la config de tests.
+- ✅ **RESUELTO (2026-09-08)** — **Efecto colateral detectado**: correr la
+  suite de `constancias` dejaba archivos reales en
+  `octopus-api/media/constancias/firmas/` y `.../sellos/`
+  (`SimpleUploadedFile` en los tests de `test_pdf.py` y
+  `test_correlativo_auditoria.py` escribía al storage de `MEDIA_ROOT` real
+  en vez de uno aislado por test). Se corrigió en `config/settings.py`
+  (no había ningún flag `TESTING`/`sys.argv`/`pytest` previo en el archivo —
+  se revisó antes de agregar uno nuevo): al final del archivo, si `'test'
+  in sys.argv` o `'pytest' in sys.modules`, `MEDIA_ROOT` se sobreescribe con
+  un directorio temporal nuevo (`tempfile.mkdtemp(prefix='octopus_test_media_')`)
+  por corrida de `python manage.py test` — cubre toda la suite del
+  proyecto, no solo `constancias`. Se limpiaron los archivos basura ya
+  existentes de corridas anteriores (`octopus-api/media/constancias/`, ya
+  estaba en `.gitignore` desde Fase 5, confirmado con `git status` antes de
+  borrar) y se verificó que correr la suite de nuevo no vuelve a escribir
+  ahí. También resuelve, como efecto colateral, el hallazgo equivalente de
+  `portal` anotado más arriba en este archivo ("Los tests de portal dejan
+  archivos basura en `media/comprobantes/` al correr").
 
-### Hallazgo nuevo — Fase 5 (Cierre): `familia.madre_*` / `familia.padre_*` nunca se resuelven
+### ✅ RESUELTO (2026-09-08, parcial) — `familia.madre_*` / `familia.padre_*` no se resolvían
 
 Al verificar las cuatro plantillas semilla end-to-end contra el endpoint real
-`/previsualizar/` (`constancias/tests/test_plantillas_semilla.py`, nuevo en
-esta fase), se confirmó un hallazgo de integración entre el trabajo de
-varios agentes que ningún test previo cubría:
+`/previsualizar/` (`constancias/tests/test_plantillas_semilla.py`, Fase 5),
+se había confirmado un hallazgo de integración entre el trabajo de varios
+agentes que ningún test previo cubría:
 
 - El catálogo de placeholders (`constancias/views.py::CATALOGO_PLACEHOLDERS`,
   grupo `familia`) documenta `madre_nombres`, `madre_apellidos`,
@@ -3491,32 +3508,38 @@ varios agentes que ningún test previo cubría:
   tokens válidos, y el mapeo de notación vieja
   (`constancias/render.py::_MAPEO_FIJO`) también traduce hacia esos mismos
   tokens (`apellidosmadre` -> `{{familia.madre_apellidos}}`, etc.).
-- Sin embargo, `constancias/resolvers.py::resolver_datos` **nunca puebla
-  esas seis claves** — solo arma `familia.representante_nombres`,
+- Pero `constancias/resolvers.py::resolver_datos` no poblaba esas seis
+  claves — solo armaba `familia.representante_nombres`,
   `familia.representante_apellidos`, `familia.representante_cedula` y
   `familia.parentesco` a partir del único `Alumno.representante` (FK
   simple; un alumno tiene un solo representante con un solo parentesco, ver
   comentario en `secretaria/models.py::Alumno.parentesco`).
 - Consecuencia real: el anexo de la plantilla semilla "Constancia de
   Estudio" (`anexo_html`, fiel al formato Word original que sí pide madre y
-  padre por separado) **siempre** devuelve advertencia de "token
-  desconocido" para los 6 placeholders `familia.madre_*`/`familia.padre_*`
-  al previsualizar o emitir — se renderizan como cadena vacía. El resto del
-  anexo (fecha de nacimiento) y el cuerpo de las 4 plantillas sí renderizan
-  limpio.
-- No se corrigió en esta fase: `constancias/resolvers.py` no es un archivo
-  propio de Fase 5 según el mapa de propiedad de archivos de
-  `PROMPT_MODULO_CONSTANCIAS.md` (Fase 5 no tiene fila asignada ahí, y el
-  contrato de cierre solo autoriza tocar datos de plantilla, no código de
-  otro agente). El test nuevo documenta el comportamiento real (con las 6
-  advertencias) en vez de fingir que el catálogo funciona como está
-  documentado, para que el hallazgo no quede encubierto.
-- Además, aun si se poblaran esas claves, el modelo de datos actual (un
-  único `Alumno.representante` con un único `parentesco`) solo puede
-  resolver UN lado (madre O padre, el que corresponda al representante
-  registrado) — nunca ambos a la vez, salvo que se modele explícitamente
-  una relación alumno-representante con múltiples partes (fuera de alcance
-  de este módulo). Cualquier arreglo futuro debería decidir primero si basta
-  con mapear `representante` -> `madre_*`/`padre_*` según `parentesco` (fix
-  chico, cubre el caso común) o si se requiere un modelo nuevo para
-  soportar madre y padre simultáneos (cambio de alcance mayor).
+  padre por separado) siempre devolvía advertencia de "token desconocido"
+  para los 6 placeholders `familia.madre_*`/`familia.padre_*` al
+  previsualizar o emitir.
+
+**Fix aplicado (2026-09-08)**: en el bloque `datos_familia` de
+`resolver_datos()`, además de seguir poblando `representante_*` (se
+conserva tal cual, sigue siendo válido), ahora se replica el mismo dato del
+representante hacia `madre_*` o `padre_*` según
+`alumno.parentesco` ('madre' -> `madre_nombres`/`madre_apellidos`/
+`madre_cedula`; 'padre' -> los equivalentes de `padre_*`; cualquier otro
+valor de `Representante.PARENTESCOS` ('tutor', 'otro') o parentesco vacío
+no puebla ninguno de los dos, igual que antes). Test actualizado en
+`test_plantillas_semilla.py::test_estudio_cuerpo_y_anexo_resuelven_madre_pero_no_padre`
+para reflejar el comportamiento real corregido (para un alumno con
+parentesco 'madre': 0 advertencias de `familia.madre_*`, 3 advertencias de
+`familia.padre_*`, en vez de las 6 de antes).
+
+**Limitación real que NO se resolvió** (fuera de alcance de este fix
+puntual, documentado también como comentario en el código): el modelo de
+datos actual (`Alumno` -> un único `representante` con un único
+`parentesco`) solo puede resolver UN lado a la vez — madre O padre, nunca
+ambos simultáneamente para el mismo alumno — porque no existe una relación
+que permita cargar dos representantes (madre y padre) por alumno. Si un
+colegio necesita mostrar madre Y padre en la misma constancia, hace falta
+remodelar la relación alumno-representante (ej. una tabla intermedia
+alumno-representante con parentesco por fila, en vez de la FK simple
+actual) — cambio de alcance mayor, no cubierto aquí.

@@ -148,6 +148,44 @@ class GenerarNumeroConstanciaTests(TestCase):
         numero = generar_numero_constancia('trabajo', '2025-2026')
         self.assertEqual(numero, 'TRB-2025-2026-0001')
 
+    def test_sin_firmante_configurado_dos_llamadas_seguidas_no_colisionan(self):
+        """Hallazgo de deuda técnica resuelto: cuando nunca se configuró
+        ConfiguracionFirmante (fila inexistente), la primera llamada ya no
+        se degrada a contar sin lock -- garantiza la fila singleton
+        (get_or_create sobre pk=1) antes de lockearla. Dos llamadas
+        seguidas (simulando que la primera constancia efectivamente se
+        persistió antes de pedir la siguiente, mismo patrón que
+        test_dos_numeros_consecutivos_no_colisionan) deben seguir
+        produciendo números consecutivos sin colisión, y de paso debe
+        quedar creada una fila ConfiguracionFirmante (con campos vacíos)."""
+        self.assertFalse(ConfiguracionFirmante.objects.exists())
+
+        numero1 = generar_numero_constancia('estudio', '2025-2026')
+        self.assertEqual(numero1, 'EST-2025-2026-0001')
+
+        # La fila singleton ya existe tras la primera llamada, aunque sea
+        # con campos vacíos (defaults del get_or_create del fix).
+        self.assertTrue(ConfiguracionFirmante.objects.exists())
+        self.assertEqual(ConfiguracionFirmante.objects.count(), 1)
+
+        ConstanciaEmitida.objects.create(
+            numero=numero1, tipo='estudio',
+            plantilla=PlantillaConstancia.objects.create(
+                tipo='estudio', nombre='P sin firmante', destinatario='alumno',
+                cuerpo_html='<p></p>',
+            ),
+            html_renderizado='<p></p>',
+            emitida_por=_crear_usuario('u_correlativo_sin_firmante', 'director'),
+            periodo_escolar='2025-2026',
+        )
+        numero2 = generar_numero_constancia('estudio', '2025-2026')
+
+        self.assertNotEqual(numero1, numero2)
+        self.assertEqual(numero2, 'EST-2025-2026-0002')
+        # Sigue existiendo una sola fila -- get_or_create no la duplicó en
+        # la segunda llamada.
+        self.assertEqual(ConfiguracionFirmante.objects.count(), 1)
+
 
 # ---------------------------------------------------------------------------
 # salio_firmada (cuarta condición: puede_firmar_como_director) + auditoría

@@ -232,6 +232,35 @@ def resolver_datos(plantilla, alumno=None, trabajador=None, datos_capturados=Non
                     'numero': representante.cedula,
                     'nacionalidad': 'V',
                 }
+
+            # Además de representante_*, se replica el mismo dato hacia
+            # madre_*/padre_* (documentados en CATALOGO_PLACEHOLDERS de
+            # views.py y en el mapeo de notación vieja de render.py) según
+            # el parentesco de ESTE alumno con su único representante.
+            # LIMITACIÓN DE DATOS (no se resuelve aquí): el modelo actual
+            # (Alumno -> un solo `representante` con un solo `parentesco`,
+            # ver secretaria/models.py) solo puede tener padre O madre
+            # cargados a la vez, nunca ambos simultáneamente — necesitaría
+            # remodelar la relación alumno-representante para soportar dos
+            # representantes por alumno. Fuera de alcance de este fix (ver
+            # NOTAS_TECNICAS.md). Si el parentesco es otro valor (tutor,
+            # otro) o no está cargado, ni madre_* ni padre_* se pueblan y
+            # el motor los renderiza como token no reconocido (cadena
+            # vacía + advertencia), comportamiento ya aceptado por el
+            # contrato.
+            prefijo_familiar = None
+            if alumno.parentesco == 'madre':
+                prefijo_familiar = 'madre'
+            elif alumno.parentesco == 'padre':
+                prefijo_familiar = 'padre'
+            if prefijo_familiar is not None:
+                datos_familia[f'{prefijo_familiar}_nombres'] = representante.nombre
+                datos_familia[f'{prefijo_familiar}_apellidos'] = representante.apellido
+                if representante.cedula:
+                    datos_familia[f'{prefijo_familiar}_cedula'] = {
+                        'numero': representante.cedula,
+                        'nacionalidad': 'V',
+                    }
         if datos_familia:
             datos['familia'] = datos_familia
 
@@ -355,7 +384,16 @@ def generar_numero_constancia(tipo: str, periodo: str) -> str:
     requerir un modelo/campo contador nuevo (fuera de alcance, ver
     PROMPT_MODULO_CONSTANCIAS.md §O.2). El `.count()` posterior ya corre
     después de tener el lock, como consulta normal (no combinado con
-    `select_for_update`), así que tampoco es agregado+lock."""
+    `select_for_update`), así que tampoco es agregado+lock.
+
+    Hallazgo de deuda técnica resuelto: el caso "ConfiguracionFirmante
+    nunca se configuró" (nadie guardó el firmante todavía) originalmente
+    se degradaba a contar SIN lock, dejando la primerísima emisión
+    concurrente sin serializar. Ahora se garantiza la fila singleton con
+    `get_or_create(pk=1, ...)` antes de lockearla (ver el bloque `if
+    firmante is None` abajo) — sigue sin abortar nunca la emisión por
+    falta de firma/lock (mismo contrato: "una emisión bloqueada deja al
+    representante sin su documento"), pero ya no hay ventana sin lock."""
     from .models import ConstanciaEmitida
 
     prefijo_tipo = PREFIJOS_TIPO.get(tipo, tipo[:3].upper())
@@ -367,12 +405,24 @@ def generar_numero_constancia(tipo: str, periodo: str) -> str:
             # Caso raro: ConfiguracionFirmante nunca se configuró (se crea
             # desde el panel antes de emitir la primera constancia en un
             # colegio real). Sin fila que bloquear no hay singleton contra
-            # el cual serializar; se degrada a contar sin lock en vez de
-            # fallar la emisión — el contrato es explícito: "nunca abortes
-            # la emisión por falta de firma/lock: una emisión bloqueada
-            # deja al representante sin su documento". Mismo riesgo de
-            # colisión que el código original en este caso extremo, pero
-            # no revienta y no bloquea.
-            pass
+            # el cual serializar. Se garantiza que la fila exista (con
+            # campos vacíos si hace falta) para poder lockearla enseguida,
+            # en vez de degradar a contar sin lock.
+            #
+            # get_or_create sobre pk=1 es seguro bajo carrera concurrente:
+            # si dos transacciones llegan aquí a la vez, la que pierde la
+            # carrera choca contra el IntegrityError del pk duplicado y
+            # Django reintenta el get() internamente, sin duplicar la fila
+            # (patrón documentado de Django para "obtener o crear un
+            # singleton bajo concurrencia" — ver docs de
+            # QuerySet.get_or_create). No hay riesgo de duplicar filas si
+            # ya existía una con pk distinto de 1 (creada antes de este
+            # fix, ej. vía el admin de Django o FirmanteView): en ese caso
+            # el select_for_update().first() de arriba ya la habría
+            # encontrado y este bloque nunca se ejecuta.
+            ConfiguracionFirmante.objects.get_or_create(
+                pk=1, defaults={'nombre': '', 'cedula': '', 'cargo': ''}
+            )
+            firmante = ConfiguracionFirmante.objects.select_for_update().first()
         count = ConstanciaEmitida.objects.filter(numero__startswith=prefijo).count()
         return f"{prefijo}{count + 1:04d}"

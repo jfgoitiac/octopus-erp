@@ -381,3 +381,19 @@ if not DEBUG and not os.environ.get('CELERY_BROKER_URL'):
         'CELERY_BROKER_URL no está definida en el entorno — usando redis://localhost:6379/0 por defecto.',
         RuntimeWarning
     )
+
+# ── MEDIA_ROOT aislado durante los tests ────────────────────────────────────
+# `python manage.py test` (cualquier app, no solo constancias) ejercita
+# ImageField/FileField con SimpleUploadedFile (firma/sello de
+# ConfiguracionFirmante, comprobantes de pago, etc.) y sin esto los archivos
+# se escriben en el MEDIA_ROOT real de desarrollo (octopus-api/media/), sin
+# limpiarse solos. No había ningún flag TESTING/pytest existente en este
+# archivo (se revisó antes de agregar este) -- se usa la misma detección por
+# `sys.argv` que Django documenta para `manage.py test`. Un directorio
+# temporal nuevo por corrida, nunca reutilizado ni comiteado.
+import sys as _sys
+
+if 'test' in _sys.argv or 'pytest' in _sys.modules:
+    import tempfile as _tempfile
+
+    MEDIA_ROOT = _tempfile.mkdtemp(prefix='octopus_test_media_')
