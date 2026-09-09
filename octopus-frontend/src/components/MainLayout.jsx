@@ -41,6 +41,10 @@ const PAGE_TITLES = {
   '/comunicacion':       'Comunicación',
   '/multisede':          'Multi-sede',
   '/multisede/sedes':    'Sedes',
+  '/constancias/plantillas': 'Plantillas de Constancias',
+  '/constancias/emitir':     'Emitir Constancia',
+  '/constancias/historico':  'Histórico de Constancias',
+  '/constancias/firmante':   'Firmante de Constancias',
 };
 
 const FULL_HEIGHT_PAGES = ['/recibos'];

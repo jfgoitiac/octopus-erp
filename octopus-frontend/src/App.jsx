@@ -48,6 +48,10 @@ const Conciliador              = lazy(() => import('./pages/Conciliador'));
 const Auditoria                = lazy(() => import('./pages/Auditoria'));
 const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
+const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
+const EmisionConstancias       = lazy(() => import('./pages/constancias/EmisionConstancias'));
+const HistoricoConstancias     = lazy(() => import('./pages/constancias/HistoricoConstancias'));
+const FirmanteConstancias      = lazy(() => import('./pages/constancias/FirmanteConstancias'));
 
 // ── Módulo Académico ──────────────────────────────────────────────────────────
 const Notas                    = lazy(() => import('./pages/Notas'));
