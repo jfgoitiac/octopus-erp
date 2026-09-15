@@ -518,3 +518,48 @@
   bajo la clave vieja. Si se agrega `user.id` al JWT/AuthContext más
   adelante, migrar la clave de `octopus_sidebar_prefs_<username>` a
   `octopus_sidebar_prefs_<id>`.
+
+---
+
+## Propagación de monto global — inclusión de vencidas — 2026-09-15
+
+`propagar_monto_global()` (`octopus-api/cobranza/services.py`) ahora
+propaga `MONTO_MENSUALIDAD_DEFECTO` también a las mensualidades vencidas
+(antes se excluían). Se corrigieron de paso dos bugs preexistentes del
+`.update()` bulk (ignoraba la beca por fila, y no pasaba por `save()` —
+sin derivar `pagado` ni generar historial). Ver
+`cobranza/test_propagacion_montos_globales.py` para los casos cubiertos.
+
+- [FUERA DE ALCANCE] Cuando una mensualidad (vencida o no) ya tiene un
+  abono parcial que queda por encima del nuevo monto propagado, la fila se
+  marca `pagado=True` y el excedente pagado de más NO se registra como
+  saldo a favor del representante en ningún lado — simplemente deja de
+  aparecer como deuda. Es una decisión explícita del usuario para esta
+  fase ("queda saldada, excedente se ignora"), pero si en el futuro se
+  quiere ser más preciso con la contabilidad, habría que modelar un
+  concepto de "saldo a favor" reutilizable en el próximo cobro (no existe
+  hoy en `cobranza/models.py`).
+
+- [FUERA DE ALCANCE] Las notificaciones de cobranza ya enviadas (día
+  0/5/10/15, `notificaciones/tasks.py`) al monto viejo de una mensualidad
+  no se ajustan ni se re-notifican cuando esa mensualidad cambia de monto
+  por una propagación posterior. Propuesta para una fase futura: al
+  propagar, encolar un aviso de "tu cuota de [mes] cambió de $X a $Y" para
+  las filas con notificaciones ya enviadas (detectable por
+  `NotificacionLog` o el estado que use `revisar_y_programar_notificaciones_pendientes`)
+  — no implementado, solo queda anotado aquí por pedido explícito del
+  usuario.
+
+- [NOTA DE RENDIMIENTO] `propagar_monto_global()` materializa las
+  mensualidades propagables en una lista de objetos Python y llama
+  `.save()` fila por fila dentro de una única transacción (necesario para
+  aplicar la beca por fila y disparar `Mensualidad.save()`/historial — ver
+  commit `fix(cobranza): guarda mensualidades fila a fila...`). Medido con
+  un script ad-hoc (500 alumnos, 500 mensualidades impagas, SQLite de
+  test): ~1.05s para propagar las 500 filas — aceptable para uso
+  interactivo desde el modal. No se probó con volúmenes mucho mayores
+  (varios miles) ni contra PostgreSQL real. Si algún colegio grande nota
+  lentitud, migrar a `bulk_update()` por lotes (`batch_size`) con el
+  cálculo de `pagado`/`fecha_pago` resuelto explícitamente en Python antes
+  del lote (perdiendo el historial por fila de `django-simple-history`,
+  que no soporta `bulk_update`, a menos que se cree el historial a mano).
