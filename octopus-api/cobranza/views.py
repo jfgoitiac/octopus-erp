@@ -525,7 +525,8 @@ class RegistrarPagoView(APIView):
         # que marcar como pagadas. Se procesa alumno por alumno (cada hermano
         # incluido en la operación) para no filtrar por un único `alumno`.
         from .recargos import resolver_recargo
-        from .models import LineaRecargoPago
+        from .descuentos import resolver_descuento
+        from .models import LineaRecargoPago, LineaDescuentoPago
 
         # Con carga retroactiva, el recargo por mora y el fecha_pago de la
         # Mensualidad deben reflejar la fecha REAL en que se recibió el
@@ -541,6 +542,7 @@ class RegistrarPagoView(APIView):
         montos_mensualidades = data.get('montos_mensualidades') or {}
         todas_mensualidades_qs = Mensualidad.objects.none()
         recargos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_usd':...}}
+        descuentos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_final_usd':..., 'monto_descontado_usd':...}}
         for a in alumnos_resueltos:
             ids = list(set(a['mensualidad_ids']) | set(a['mensualidad_adelanto_ids']))
             if not ids:
@@ -566,6 +568,22 @@ class RegistrarPagoView(APIView):
                     if resultado:
                         recargos_por_mensualidad[m.id] = resultado
 
+                # Descuento por pago dentro de rango: mismo guard de "una vez
+                # por mensualidad" que el recargo. A diferencia del recargo
+                # (dinero EXTRA cobrado, nunca toca monto_pagado), el
+                # descuento se acredita como un "abono fantasma" — el monto
+                # perdonado (monto_descontado_usd) se suma a monto_pagado sin
+                # haber sido cobrado en efectivo/transferencia, así
+                # Mensualidad.monto_usd nunca cambia y todo cálculo de saldo
+                # existente (mora.py, solvencia_reportes.py, etc.) sigue
+                # funcionando sin tocarlo. Ver cobranza/descuentos.py.
+                credito_descuento = Decimal('0.00')
+                if not LineaDescuentoPago.objects.filter(mensualidad_id=m.id).exists():
+                    resultado_descuento = resolver_descuento(m, fecha_cobro)
+                    if resultado_descuento:
+                        descuentos_por_mensualidad[m.id] = resultado_descuento
+                        credito_descuento = resultado_descuento['monto_descontado_usd']
+
                 saldo_actual = m.monto_usd - m.monto_pagado
                 monto_a_abonar = montos_mensualidades.get(
                     str(m.id), montos_mensualidades.get(m.id, saldo_actual)
@@ -576,7 +594,7 @@ class RegistrarPagoView(APIView):
 
                 # Nunca se permite que monto_pagado supere monto_usd, sin
                 # importar lo que haya venido en el payload.
-                m.monto_pagado = min(m.monto_pagado + monto_a_abonar, m.monto_usd)
+                m.monto_pagado = min(m.monto_pagado + monto_a_abonar + credito_descuento, m.monto_usd)
                 if m.monto_usd <= 0 or m.monto_pagado >= m.monto_usd:
                     # Fecha REAL en que se recibió el dinero (retroactiva si
                     # aplica), no la fecha en que se guarda esta fila — save()
@@ -608,6 +626,19 @@ class RegistrarPagoView(APIView):
                     monto_usd=info['monto_usd'],
                 )
                 for mensualidad_id, info in recargos_por_mensualidad.items()
+            ])
+            # Snapshot inmutable del descuento otorgado (LineaDescuentoPago),
+            # mismo criterio de "pago principal" que el recargo — evita
+            # duplicar el monto del descuento en el desglose contable cuando
+            # la operación se divide en varios pagos hermanos.
+            LineaDescuentoPago.objects.bulk_create([
+                LineaDescuentoPago(
+                    pago=pago_principal,
+                    mensualidad_id=mensualidad_id,
+                    nombre=info['nombre'],
+                    monto_descontado_usd=info['monto_descontado_usd'],
+                )
+                for mensualidad_id, info in descuentos_por_mensualidad.items()
             ])
 
             # Recalcular con el criterio canónico: pagar un mes no implica

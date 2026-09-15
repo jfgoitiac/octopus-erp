@@ -282,6 +282,14 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         # recargo original si cambiaron las condiciones).
         pago.lineas_recargo.all().delete()
 
+        # Descuento por pago dentro de rango: mismo criterio que el recargo
+        # — se BORRA el snapshot (LineaDescuentoPago). El reset en bloque de
+        # monto_pagado a 0.00 de arriba ya elimina también el crédito
+        # fantasma que este descuento le había acreditado; al repagar,
+        # resolver_descuento() decide de nuevo con la fecha real del nuevo
+        # pago. Ver cobranza/descuentos.py.
+        pago.lineas_descuento.all().delete()
+
         # CuotaSolvencia deriva pagado/fecha_pago en save() a partir de
         # monto_pagado — no se puede tocar con un .update() masivo (ver
         # CuotaSolvencia.save()). Siempre se enlaza con monto_pagado ==
