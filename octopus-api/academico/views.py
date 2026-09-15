@@ -784,16 +784,21 @@ def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula, exc
     """
     Verifica si el bloque propuesto (dia_semana, hora_inicio-hora_fin) choca con
     otro HorarioClase existente para el MISMO docente (en cualquier grado_seccion,
-    no solo el grado de `materia`) o la MISMA aula (si viene informada).
+    no solo el grado de `materia`), la MISMA aula (si viene informada), o el
+    MISMO grado_seccion (un grado no puede tener dos clases simultáneas,
+    aunque no compartan docente ni aula — ej. ambas materias sin docente
+    asignado). Este último chequeo se agregó en la auditoría 2026-09-15: antes,
+    si ninguna de las dos clases tenía docente ni aula informados, no había
+    forma de detectar el choque.
 
     Comparación por rango horario (no solo igualdad exacta de hora), para detectar
     solapamientos parciales — ej. 07:00-08:00 vs 07:30-08:30 sí chocan.
 
-    Retorna una tupla (HorarioClase en conflicto, mismo_docente, misma_aula),
-    o (None, False, False) si no hay choque.
+    Retorna una tupla (HorarioClase en conflicto, mismo_docente, misma_aula,
+    mismo_grado), o (None, False, False, False) si no hay choque.
     """
     if not hora_inicio or not hora_fin:
-        return None, False, False
+        return None, False, False, False
 
     candidatos = HorarioClase.objects.filter(
         dia_semana=dia_semana,
@@ -802,30 +807,29 @@ def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula, exc
         candidatos = candidatos.exclude(pk=excluir_pk)
 
     docente_id = materia.docente_id if materia else None
+    grado_seccion = materia.grado_seccion if materia else None
     aula_normalizada = (aula or '').strip()
 
-    filtro_docente_o_aula = Q()
+    filtro_choque = Q(materia__grado_seccion=grado_seccion)
     if docente_id:
-        filtro_docente_o_aula |= Q(materia__docente_id=docente_id)
+        filtro_choque |= Q(materia__docente_id=docente_id)
     if aula_normalizada:
-        filtro_docente_o_aula |= Q(aula=aula_normalizada)
+        filtro_choque |= Q(aula=aula_normalizada)
 
-    if not filtro_docente_o_aula:
-        return None, False, False
-
-    candidatos = candidatos.filter(filtro_docente_o_aula)
+    candidatos = candidatos.filter(filtro_choque)
 
     for otro in candidatos:
         # Solapamiento de rango horario (intervalos semiabiertos [inicio, fin))
         if hora_inicio < otro.hora_fin and otro.hora_inicio < hora_fin:
             mismo_docente = bool(docente_id and otro.materia.docente_id == docente_id)
             misma_aula = bool(aula_normalizada and otro.aula.strip() == aula_normalizada)
-            if mismo_docente or misma_aula:
-                return otro, mismo_docente, misma_aula
-    return None, False, False
+            mismo_grado = bool(grado_seccion and otro.materia.grado_seccion == grado_seccion)
+            if mismo_docente or misma_aula or mismo_grado:
+                return otro, mismo_docente, misma_aula, mismo_grado
+    return None, False, False, False
 
 
-def _mensaje_choque_horario(otro, mismo_docente, misma_aula):
+def _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado):
     detalle = (
         f"'{otro.materia.nombre}' ({otro.materia.grado_seccion}) "
         f"el {otro.get_dia_semana_display()} de {otro.hora_inicio:%H:%M} a {otro.hora_fin:%H:%M}"
@@ -835,6 +839,8 @@ def _mensaje_choque_horario(otro, mismo_docente, misma_aula):
         motivos.append('el docente ya tiene clase asignada')
     if misma_aula:
         motivos.append("el aula ya está ocupada")
+    if mismo_grado:
+        motivos.append('el grado ya tiene otra clase asignada')
     motivo = ' y '.join(motivos) if motivos else 'hay un choque de horario'
     return f"Choque de horario: {motivo} en {detalle}."
 
@@ -879,7 +885,7 @@ class HorariosView(APIView):
         serializer = HorarioClaseSerializer(data=request.data)
         if serializer.is_valid():
             materia = serializer.validated_data.get('materia')
-            otro, mismo_docente, misma_aula = _buscar_choque_horario(
+            otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
                 materia,
                 serializer.validated_data.get('dia_semana'),
                 serializer.validated_data.get('hora_inicio'),
@@ -888,7 +894,7 @@ class HorariosView(APIView):
             )
             if otro:
                 return Response(
-                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula)},
+                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             serializer.save()
@@ -927,13 +933,13 @@ class HorarioDetailView(APIView):
             hora_inicio = datos.get('hora_inicio', horario.hora_inicio)
             hora_fin = datos.get('hora_fin', horario.hora_fin)
             aula = datos.get('aula', horario.aula)
-            otro, mismo_docente, misma_aula = _buscar_choque_horario(
+            otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
                 materia, dia_semana, hora_inicio, hora_fin, aula,
                 excluir_pk=horario.pk,
             )
             if otro:
                 return Response(
-                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula)},
+                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             serializer.save()

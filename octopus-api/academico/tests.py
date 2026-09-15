@@ -1289,7 +1289,7 @@ class GeneradorHorarioClasesBloqueadasTests(TestCase):
 # mismo bloque horario sin que el backend lo detecte, aunque un alumno no
 # pueda estar físicamente en dos clases simultáneas de su propio grado.
 # ─────────────────────────────────────────────
-class HorarioSinDocenteNiAulaPermiteChoqueDeGradoTests(TestCase):
+class HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.admin = crear_usuario('admin_horario_grado_bug', 'director')
@@ -1309,11 +1309,11 @@ class HorarioSinDocenteNiAulaPermiteChoqueDeGradoTests(TestCase):
         )
         self.client.force_authenticate(user=self.admin)
 
-    def test_bug_permite_dos_materias_del_mismo_grado_a_la_misma_hora(self):
-        # Documenta el comportamiento ACTUAL (defectuoso): sin docente ni
-        # aula informados, el backend no tiene forma de detectar que el
-        # MISMO grado quedaría con dos clases simultáneas, y el POST se
-        # acepta con 201 en vez de ser rechazado con 400.
+    def test_rechaza_dos_materias_del_mismo_grado_a_la_misma_hora(self):
+        # Regresión (auditoría 2026-09-15, H3): sin docente ni aula
+        # informados, el backend antes no tenía forma de detectar que el
+        # MISMO grado quedaría con dos clases simultáneas. Ahora
+        # _buscar_choque_horario también compara por grado_seccion.
         resp = self.client.post('/api/academico/horarios/', {
             'materia_id':  self.materia_y.id,
             'dia_semana':  'lunes',
@@ -1321,19 +1321,15 @@ class HorarioSinDocenteNiAulaPermiteChoqueDeGradoTests(TestCase):
             'hora_fin':    '08:30',
             'aula':        '',
         }, format='json')
-        self.assertEqual(
-            resp.status_code, 201,
-            f"{resp.content} — Si este assert falla porque ahora responde 400, "
-            "el bug fue corregido: actualizar este test para reflejar el "
-            "nuevo comportamiento esperado."
-        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('error', resp.data)
+        self.assertIn('grado', resp.data['error'].lower())
         self.assertEqual(
             HorarioClase.objects.filter(
                 materia__grado_seccion=self.grado, dia_semana='lunes',
             ).count(),
-            2,
-            "El grado quedó con dos clases solapadas (07:00-08:00 y 07:30-08:30) "
-            "sin que el backend lo haya impedido.",
+            1,
+            "El grado no debe quedar con dos clases solapadas (07:00-08:00 y 07:30-08:30).",
         )
 
 

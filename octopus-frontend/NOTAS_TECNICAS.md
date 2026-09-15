@@ -107,11 +107,12 @@
   `academico/tests.py::HorarioManualChoqueTests.test_get_devuelve_lista_plana_no_agrupada_por_dia`
   y frontend en `src/pages/Horarios.test.jsx`.
 
-- [DEUDA] `_buscar_choque_horario` (backend) solo valida choque de **docente** o **aula**;
-  nunca de **grado_seccion**. Si dos materias del mismo grado no tienen docente asignado y no
-  se informa aula, se pueden crear dos clases solapadas para el mismo grado sin que el backend
-  lo detecte (un alumno no puede estar en dos clases de su propio grado a la vez). Ver test
-  `academico/tests.py::HorarioSinDocenteNiAulaPermiteChoqueDeGradoTests` que documenta el bug.
+- [RESUELTO 2026-09-15] `_buscar_choque_horario` (backend) solo validaba choque de **docente**
+  o **aula**; nunca de **grado_seccion**. Si dos materias del mismo grado no tenían docente
+  asignado y no se informaba aula, se podían crear dos clases solapadas para el mismo grado sin
+  que el backend lo detectara. Corregido: ahora también compara por `materia__grado_seccion` y
+  el mensaje de error indica "el grado ya tiene otra clase asignada". Test de regresión en
+  `academico/tests.py::HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests`.
 
 - [DEUDA] El generador automático (`_ejecutar_algoritmo`) nunca considera el aula: no la lee
   de la config, no la asigna (crea todo con `aula=''`) y no valida choques de aula entre grados
