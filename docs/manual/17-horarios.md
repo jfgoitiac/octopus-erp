@@ -120,6 +120,7 @@ lista. Ciérralo con **"Entendido — ver horario generado"**.
 | "Completa todos los campos obligatorios." | Falta materia, día u horas. | Complétalos. |
 | "La hora de fin debe ser posterior a la de inicio." | Las horas están invertidas. | Corrígelas. |
 | "Ya existe una clase en ese horario. Elige otro día u hora." | Ese bloque ya está ocupado. | Elige otra celda o edita la clase existente. |
+| "Choque de horario: el grado ya tiene otra clase asignada en..." | El grado ya tiene otra clase en ese día y hora (aunque no compartan docente ni aula). | Elige otro día u hora, o edita la clase existente. |
 | "Sin materias registradas para este grado" | El grado no tiene materias. | Créalas en "Materias" antes de armar el horario. |
 | "Selecciona al menos un día de clases." | No marcaste ningún día en el generador. | Marca al menos uno. |
 | "Selecciona un grado primero" | Intentaste generar sin elegir grado. | Elige el grado. |
