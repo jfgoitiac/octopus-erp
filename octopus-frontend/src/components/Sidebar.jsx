@@ -12,7 +12,7 @@ import {
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
-  Pin, PinOff, ChevronDown
+  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
@@ -30,7 +30,15 @@ const navSections = [
       { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','administrador','secretaria'] },
       { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Pre-Inscripción', path: '/preinscripcion', icon: FileText, roles: ['director','administrador','secretaria'] },
-      { name: 'Constancias',    path: '/constancias/emitir', icon: FileSearch, roles: ['director','administrador','secretaria'] },
+    ],
+  },
+  {
+    label: 'Constancias',
+    items: [
+      { name: 'Plantillas', path: '/constancias/plantillas', icon: LayoutTemplate, roles: ['director','administrador','secretaria'] },
+      { name: 'Emitir',     path: '/constancias/emitir',     icon: FileOutput,     roles: ['director','administrador','secretaria'] },
+      { name: 'Histórico',  path: '/constancias/historico',  icon: History,        roles: ['director','administrador','secretaria'] },
+      { name: 'Firmante',   path: '/constancias/firmante',   icon: FileSignature,  roles: ['director','administrador'] },
     ],
   },
   {

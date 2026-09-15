@@ -1,5 +1,6 @@
 import { Plus, Edit3, CalendarX, Lock, LockOpen } from 'lucide-react';
 import { DIAS, HORAS_INICIO, getColor } from '../../constants/horarios';
+import { TablaScroll } from '../ui/TablaScroll';
 
 const TH_STYLE = {
   color: 'var(--ash)',
@@ -46,7 +47,7 @@ const SKELETON_PATTERN = [
 
 const SkeletonGrilla = ({ horasInicio }) => (
   <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-    <div className="overflow-x-auto">
+    <TablaScroll>
       <table className="w-full border-collapse" style={{ minWidth: 700 }}>
         <thead>
           <tr>
@@ -76,13 +77,13 @@ const SkeletonGrilla = ({ horasInicio }) => (
           ))}
         </tbody>
       </table>
-    </div>
+    </TablaScroll>
   </div>
 );
 
 const EmptyGrilla = () => (
   <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-    <div className="overflow-x-auto">
+    <TablaScroll>
       <table className="w-full border-collapse" style={{ minWidth: 700 }}>
         <thead>
           <tr>
@@ -107,7 +108,7 @@ const EmptyGrilla = () => (
           </tr>
         </tbody>
       </table>
-    </div>
+    </TablaScroll>
   </div>
 );
 
@@ -126,7 +127,7 @@ export const GrillaHorario = ({
   return (
     <div className="rounded-xl overflow-hidden print:shadow-none"
       style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-      <div className="overflow-x-auto">
+      <TablaScroll>
         <table className="w-full border-collapse" style={{ minWidth: 700 }}>
           <thead>
             <tr>
@@ -212,7 +213,7 @@ export const GrillaHorario = ({
             ))}
           </tbody>
         </table>
-      </div>
+      </TablaScroll>
     </div>
   );
 };

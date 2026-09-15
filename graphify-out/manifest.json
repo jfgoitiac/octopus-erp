@@ -50,8 +50,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/academico/models.py": {
-    "mtime": 1787927761.8722153,
-    "ast_hash": "59672e0bf3227c61e03c5c40c8105995",
+    "mtime": 1789501405.7244241,
+    "ast_hash": "715938381e16fe1d6c010b3c29869505",
     "semantic_hash": ""
   },
   "octopus-api/academico/serializers.py": {
@@ -1505,8 +1505,8 @@
     "semantic_hash": "27baeaa481a9aeb56372e9e87772f09b"
   },
   "octopus-frontend/src/components/horarios/GrillaHorario.jsx": {
-    "mtime": 1787947347.9139128,
-    "ast_hash": "f832893e9c1a83b4be6f90f9810a8470",
+    "mtime": 1789501609.626442,
+    "ast_hash": "fc3d0bbec99892c4cbdf2c74deaf4c2c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/horarios/ModalClase.jsx": {
@@ -2240,8 +2240,8 @@
     "semantic_hash": "53aa2860f052a083d440f8b3ee1ab855"
   },
   "octopus-frontend/NOTAS_TECNICAS.md": {
-    "mtime": 1789500593.0362232,
-    "ast_hash": "0cb57c85c2430b3cf8dc0db2093143d5",
+    "mtime": 1789501547.5948775,
+    "ast_hash": "f907128c98390c85b66074a5b71028c9",
     "semantic_hash": ""
   },
   "octopus-frontend/README.md": {
@@ -4890,8 +4890,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/.impeccable/hook.cache.json": {
-    "mtime": 1789500323.6929643,
-    "ast_hash": "52308442cb4a7bb643c7331c98e1fa9d",
+    "mtime": 1789501610.8316612,
+    "ast_hash": "59ee41bb3febe7e8882839a343172f08",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/docentes/ModalAsignarMaterias.jsx": {
@@ -5857,6 +5857,11 @@
   "octopus-api/media/configuracion/logos/pie_pagina_personalizado.png": {
     "mtime": 1788573771.6001182,
     "ast_hash": "12f278edb7249652cd695b73f61cdeac",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0014_horarioclase_academico_h_dia_sem_6188fb_idx.py": {
+    "mtime": 1789501424.2123423,
+    "ast_hash": "195b533b84e4f980973cdc1be73ee5ca",
     "semantic_hash": ""
   }
 }

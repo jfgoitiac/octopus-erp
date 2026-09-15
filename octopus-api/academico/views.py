@@ -853,7 +853,12 @@ def _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado):
 
 
 class HorariosView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    # Antes IsAuthenticated (cualquier rol, incluidos docentes, podía
+    # consultar el horario de cualquier grado/sección). Restringido a
+    # secretaria/director/sistemas/administrador — auditoría 2026-09-15, H7.
+    # POST sigue exigiendo además IsAdminOrAbove (más estricto) en su propio
+    # chequeo manual dentro de post().
+    permission_classes = [IsSecretariaOrAbove]
 
     def get(self, request):
         """

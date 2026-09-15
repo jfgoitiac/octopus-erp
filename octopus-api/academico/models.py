@@ -354,6 +354,11 @@ class HorarioClase(models.Model):
 
     class Meta:
         ordering = ['dia_semana', 'hora_inicio']
+        indexes = [
+            # Cubre el filtro de _buscar_choque_horario (dia_semana) y el
+            # patrón de ordering/consulta por rango horario dentro del día.
+            models.Index(fields=['dia_semana', 'hora_inicio']),
+        ]
         verbose_name = 'Horario de Clase'
         verbose_name_plural = 'Horarios de Clases'
 
