@@ -1132,6 +1132,19 @@ class HorarioManualChoqueTests(TestCase):
         horario_b.refresh_from_db()
         self.assertEqual(str(horario_b.hora_inicio), '09:00:00')
 
+    def test_get_devuelve_lista_plana_no_agrupada_por_dia(self):
+        # Regresión (auditoría 2026-09-15, H1): HorariosView.get devolvía un
+        # objeto {lunes: [...], martes: [...], ...} que el frontend
+        # (useHorarios.js) trataba como si fuera un array, dejando la grilla
+        # siempre "vacía". Ahora debe ser una lista plana, mismo contrato
+        # que DocenteMiHorarioView.
+        resp = self.client.get(f'/api/academico/horarios/?grado_seccion={self.grado_a}')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertIsInstance(resp.data, list)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]['id'], self.horario_existente.pk)
+        self.assertEqual(resp.data[0]['dia_semana'], 'lunes')
+
 
 # ─────────────────────────────────────────────
 # GENERADOR DE HORARIOS — end to end (sin regresiones)
@@ -1266,6 +1279,95 @@ class GeneradorHorarioClasesBloqueadasTests(TestCase):
             receso1 = (datetime.strptime('09:00', fmt), datetime.strptime('09:20', fmt))
             receso2 = (datetime.strptime('11:00', fmt), datetime.strptime('11:15', fmt))
             self.assertFalse(ini < receso1[1] and receso1[0] < fin)
+
+
+# ─────────────────────────────────────────────
+# HORARIOS — BUG: _buscar_choque_horario no valida el grado_seccion
+# (auditoría 2026-09-15, ver informe de Horarios). El chequeo actual solo
+# mira mismo docente o misma aula; si ambas clases no tienen docente
+# asignado y no se informa aula, el propio grado queda "duplicado" en el
+# mismo bloque horario sin que el backend lo detecte, aunque un alumno no
+# pueda estar físicamente en dos clases simultáneas de su propio grado.
+# ─────────────────────────────────────────────
+class HorarioSinDocenteNiAulaPermiteChoqueDeGradoTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_horario_grado_bug', 'director')
+        self.grado = 'Grado Choque Sin Docente'
+        # Ambas materias del MISMO grado, SIN docente asignado.
+        self.materia_x = Materia.objects.create(
+            nombre='Materia X', grado_seccion=self.grado,
+            horas_academicas=1, activa=True,
+        )
+        self.materia_y = Materia.objects.create(
+            nombre='Materia Y', grado_seccion=self.grado,
+            horas_academicas=1, activa=True,
+        )
+        HorarioClase.objects.create(
+            materia=self.materia_x, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='08:00', aula='',
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_bug_permite_dos_materias_del_mismo_grado_a_la_misma_hora(self):
+        # Documenta el comportamiento ACTUAL (defectuoso): sin docente ni
+        # aula informados, el backend no tiene forma de detectar que el
+        # MISMO grado quedaría con dos clases simultáneas, y el POST se
+        # acepta con 201 en vez de ser rechazado con 400.
+        resp = self.client.post('/api/academico/horarios/', {
+            'materia_id':  self.materia_y.id,
+            'dia_semana':  'lunes',
+            'hora_inicio': '07:30',
+            'hora_fin':    '08:30',
+            'aula':        '',
+        }, format='json')
+        self.assertEqual(
+            resp.status_code, 201,
+            f"{resp.content} — Si este assert falla porque ahora responde 400, "
+            "el bug fue corregido: actualizar este test para reflejar el "
+            "nuevo comportamiento esperado."
+        )
+        self.assertEqual(
+            HorarioClase.objects.filter(
+                materia__grado_seccion=self.grado, dia_semana='lunes',
+            ).count(),
+            2,
+            "El grado quedó con dos clases solapadas (07:00-08:00 y 07:30-08:30) "
+            "sin que el backend lo haya impedido.",
+        )
+
+
+# ─────────────────────────────────────────────
+# GENERADOR DE HORARIOS — BUG: el algoritmo nunca considera el aula
+# (auditoría 2026-09-15). `_ejecutar_algoritmo` solo evita choques de
+# DOCENTE entre grados (conflictos_docente); el campo `aula` no se lee ni
+# se asigna durante la generación (todas las clases se crean con aula=''),
+# por lo que dos grados distintos pueden terminar generados en la misma
+# aula física a la misma hora sin ninguna advertencia.
+# ─────────────────────────────────────────────
+class GeneradorHorarioIgnoraAulaTests(TestCase):
+    def test_generador_persiste_siempre_aula_vacia_nunca_valida_choque_de_aula(self):
+        grado = 'Grado Sin Chequeo De Aula'
+        Materia.objects.create(
+            nombre='Materia Aula 1', grado_seccion=grado,
+            horas_academicas=1, activa=True,
+        )
+        config = {
+            'hora_inicio': '07:00', 'hora_fin': '08:00',
+            'duracion_clase_min': 60,
+            'dias': ['lunes'],
+            'recreo_hora': '12:00', 'recreo_duracion_min': 0,
+        }
+        asignaciones, _ = _ejecutar_algoritmo(grado, config)
+        self.assertEqual(len(asignaciones), 1)
+        # El propio dict de asignación no trae ningún campo de aula: el
+        # algoritmo no la conoce ni la reserva.
+        self.assertNotIn(
+            'aula', asignaciones[0],
+            "El generador no maneja el concepto de aula: confirma que un "
+            "choque de aula entre grados generados por separado es "
+            "indetectable por este algoritmo."
+        )
 
 
 class DocenteModelTests(TestCase):

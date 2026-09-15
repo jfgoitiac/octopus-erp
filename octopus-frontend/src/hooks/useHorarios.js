@@ -72,8 +72,8 @@ export function useHorarios() {
   useEffect(() => { recargar(); }, [recargar]);
 
   const getClaseEnCelda = useCallback((dia, hora) => {
-    const diaNum = DIA_MAP[dia];
-    return horarios.find(h => h.dia_semana === diaNum && h.hora_inicio === hora) ?? null;
+    const diaKey = DIA_MAP[dia];
+    return horarios.find(h => h.dia_semana === diaKey && h.hora_inicio === hora) ?? null;
   }, [horarios]);
 
   // Devuelve true si ya existe otra clase que se solape en rango horario
@@ -82,10 +82,9 @@ export function useHorarios() {
   // ni valida choque de aula/docente entre grados; el backend es la fuente
   // de verdad y devuelve 400 si hay un choque que esta función no detectó.
   const tieneConflicto = useCallback((form) => {
-    const diaNum = parseInt(form.dia_semana, 10);
     if (!form.hora_inicio || !form.hora_fin) return false;
     return horarios.some(h =>
-      h.dia_semana  === diaNum &&
+      h.dia_semana  === form.dia_semana &&
       h.id          !== form.id &&  // al editar, ignora la clase actual
       form.hora_inicio < h.hora_fin &&
       h.hora_inicio    < form.hora_fin
@@ -102,7 +101,7 @@ export function useHorarios() {
       const payload = {
         grado_seccion: grado,
         materia_id:    form.materia_id,
-        dia_semana:    parseInt(form.dia_semana, 10),
+        dia_semana:    form.dia_semana,
         hora_inicio:   form.hora_inicio,
         hora_fin:      form.hora_fin,
         aula:          form.aula,

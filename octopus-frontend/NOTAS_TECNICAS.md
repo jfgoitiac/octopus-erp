@@ -69,7 +69,81 @@
 
 ---
 
+## Constancias
+
+- [DEUDA] `PlantillasConstancias.jsx:178` linkea a `${p.id}/editar` (resuelve a
+  `/constancias/plantillas/:id/editar`), pero `App.jsx` nunca registró esa ruta anidada —
+  solo existen `/constancias/plantillas`, `/constancias/emitir`, `/constancias/historico`
+  y `/constancias/firmante`. Al hacer clic en "Editar" desde la lista de plantillas, el
+  usuario cae en la pantalla 404. Agregar la ruta `constancias/plantillas/:id/editar` en
+  `App.jsx` (mismo `ProtectedRoute` con `ROLE_GROUPS.SECRETARIA_ADMIN`) o cambiar el flujo
+  de edición para que no dependa de una ruta hija. Detectado navegando manualmente el
+  sidebar (2026-09-11), no corregido por estar fuera del alcance de esa tarea (no tocar
+  `App.jsx` ni las pantallas de Constancias).
+
+- [DEUDA] Los roles de cada ítem del Sidebar (`src/components/Sidebar.jsx`) se declaran
+  como arrays de strings sueltos (`['director','administrador','secretaria']`) en vez de
+  reutilizar `ROLE_GROUPS` de `src/constants/roles.js` (p. ej. `ROLE_GROUPS.SECRETARIA_ADMIN`,
+  `ROLE_GROUPS.ADMIN_CENTRAL`). Hoy coinciden exactamente con las rutas protegidas en
+  `App.jsx`, pero al estar duplicados en dos archivos un cambio futuro en `ROLE_GROUPS`
+  (por ejemplo, agregar `cobranza` a `SECRETARIA_ADMIN`) no se reflejaría automáticamente
+  en el menú, y el ítem quedaría invisible para un rol que sí tiene acceso a la ruta.
+  Migrar `navSections` para importar y usar los mismos `ROLE_GROUPS` que `App.jsx`.
+
+---
+
 ## Horarios
+
+- [RESUELTO 2026-09-15] Auditoría integral del módulo (ver informe de la sesión). Se encontró
+  que `HorariosView.get` devolvía un objeto agrupado por día (`{lunes: [...], martes: [...], ...}`)
+  mientras que `useHorarios.js` lo trataba como un array plano (`setHorarios(resH.data || [])`,
+  luego `horarios.length`, `horarios.find(...)`), y que el frontend admin usaba `dia_semana`
+  numérico (1-5, vía `DIA_MAP`) mientras el backend usa el string de `HorarioClase.DIAS`
+  ('lunes'..'viernes'). Combinados, estos dos problemas hacían que la grilla mostrara
+  "Este grado aún no tiene clases" sin importar los datos reales, y que guardar una clase
+  manual enviara un `dia_semana` numérico que el serializer rechaza. Corregido: `HorariosView.get`
+  ahora devuelve una lista plana (mismo contrato que `DocenteMiHorarioView`), y `DIA_MAP` mapea
+  a los strings del backend en vez de a índices numéricos. Test de regresión backend en
+  `academico/tests.py::HorarioManualChoqueTests.test_get_devuelve_lista_plana_no_agrupada_por_dia`
+  y frontend en `src/pages/Horarios.test.jsx`.
+
+- [DEUDA] `_buscar_choque_horario` (backend) solo valida choque de **docente** o **aula**;
+  nunca de **grado_seccion**. Si dos materias del mismo grado no tienen docente asignado y no
+  se informa aula, se pueden crear dos clases solapadas para el mismo grado sin que el backend
+  lo detecte (un alumno no puede estar en dos clases de su propio grado a la vez). Ver test
+  `academico/tests.py::HorarioSinDocenteNiAulaPermiteChoqueDeGradoTests` que documenta el bug.
+
+- [DEUDA] El generador automático (`_ejecutar_algoritmo`) nunca considera el aula: no la lee
+  de la config, no la asigna (crea todo con `aula=''`) y no valida choques de aula entre grados
+  generados por separado — solo evita conflicto de docente. Requiere diseño (asignación +
+  índice de conflictos de aula) antes de implementarse; no se corrige en esta pasada por
+  quedar fuera del alcance aprobado. Ver test
+  `academico/tests.py::GeneradorHorarioIgnoraAulaTests`.
+
+- [DEUDA] `HorariosView.post`/`HorarioDetailView.put` verifican choque y guardan sin
+  `transaction.atomic()` ni `select_for_update()`: dos requests concurrentes podrían pasar
+  ambos el chequeo antes de que cualquiera guarde (condición de carrera, no reproducible en
+  un test determinístico).
+
+- [DEUDA] `GenerarHorarioView` con `reemplazar_existente=True` borra las clases existentes y
+  crea las nuevas sin envolver ambos pasos en `transaction.atomic()`. Si el proceso se
+  interrumpe entre el borrado y la creación, el grado queda sin horario y sin forma de
+  recuperarlo.
+
+- [DEUDA] `HorariosView.get` tiene `permission_classes = [IsAuthenticated]` sin restricción de
+  rol: cualquier usuario autenticado (incluye docentes) puede consultar el horario de
+  cualquier grado/sección, no solo el propio. Exposición baja (el serializer de materia solo
+  expone `id`/`nombre`), pero es una fuga de alcance entre secciones. Pendiente de decisión
+  del cliente sobre si es intencional.
+
+- [DEUDA] `HorarioClase` no tiene índice ni constraint de BD para (dia_semana, hora_inicio):
+  la integridad depende 100% de la capa de aplicación. Cualquier vía que la bypasee (fixtures,
+  `admin.py`, `loaddata`, migración de datos) puede crear solapamientos silenciosos. Bajo
+  riesgo dado el volumen de datos esperado.
+
+- [DEUDA] `GrillaHorario.jsx` no reutiliza `src/components/ui/TablaScroll.jsx` (obligatorio
+  por el estándar responsive del proyecto) — reimplementa su propio `overflow-x-auto`.
+  Funcionalmente correcto (no hay overflow del body), pero desvía del patrón compartido.
 
 - [DEUDA] `HORAS_INICIO`/`HORAS_FIN` asumen bloques de hora exacta (HH:00). Si el backend
   almacena clases con horarios libres (ej. `07:30`), el select de ModalClase mostrará

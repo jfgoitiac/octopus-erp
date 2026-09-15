@@ -1,4 +1,8 @@
-export const DIA_MAP = { Lunes: 1, Martes: 2, 'Miércoles': 3, Jueves: 4, Viernes: 5 };
+// Debe coincidir exactamente con HorarioClase.DIAS en el backend
+// (academico/models.py) — el contrato es el string en minúsculas, no un
+// índice numérico. Antes mapeaba a 1-5, lo que rompía la comparación contra
+// `dia_semana` (string) devuelto por la API — ver auditoría 2026-09-15.
+export const DIA_MAP = { Lunes: 'lunes', Martes: 'martes', 'Miércoles': 'miercoles', Jueves: 'jueves', Viernes: 'viernes' };
 export const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
 // Formato {label, value} para el endpoint /horarios/generar/ que recibe nombres en minúscula

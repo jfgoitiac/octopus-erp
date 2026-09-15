@@ -844,7 +844,12 @@ class HorariosView(APIView):
 
     def get(self, request):
         """
-        Retorna el horario semanal de un grado, agrupado por día.
+        Retorna el horario semanal de un grado como lista plana (mismo
+        contrato que DocenteMiHorarioView): cada elemento es un
+        HorarioClaseSerializer, con `dia_semana` en el mismo formato string
+        ('lunes'..'viernes') que usa el modelo. Antes se devolvía un objeto
+        agrupado por día, que el frontend (useHorarios.js) nunca consumía
+        correctamente — ver auditoría 2026-09-15 (NOTAS_TECNICAS.md).
         Parámetro requerido: ?grado_seccion=
         """
         grado = request.query_params.get('grado_seccion')
@@ -859,16 +864,7 @@ class HorariosView(APIView):
             materia__activa=True,
         ).select_related('materia')
 
-        # Agrupar por día de la semana
-        dias_orden = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
-        agrupado   = defaultdict(list)
-        for h in horarios:
-            agrupado[h.dia_semana].append(HorarioClaseSerializer(h).data)
-
-        resultado = {
-            dia: agrupado.get(dia, []) for dia in dias_orden
-        }
-        return Response(resultado)
+        return Response(HorarioClaseSerializer(horarios, many=True).data)
 
     def post(self, request):
         """
