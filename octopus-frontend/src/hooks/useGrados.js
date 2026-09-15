@@ -7,7 +7,7 @@ export function useGrados() {
     const [gradosLoading, setGradosLoading] = useState(false);
     const [showGradoModal, setShowGradoModal] = useState(false);
     const [gradoEditando, setGradoEditando] = useState(null);
-    const [gradoForm, setGradoForm] = useState({ grado_seccion: '', cupos_maximos: 30 });
+    const [gradoForm, setGradoForm] = useState({ grado_seccion: '', cupos_maximos: 30, aula_fija: '' });
     const [gradoSaving, setGradoSaving] = useState(false);
     const [showDeleteGradoModal, setShowDeleteGradoModal] = useState(false);
     const [gradoAEliminar, setGradoAEliminar] = useState(null);
@@ -42,13 +42,17 @@ export function useGrados() {
 
     const openCreateGrado = () => {
         setGradoEditando(null);
-        setGradoForm({ grado_seccion: '', cupos_maximos: 30 });
+        setGradoForm({ grado_seccion: '', cupos_maximos: 30, aula_fija: '' });
         setShowGradoModal(true);
     };
 
     const openEditGrado = (grado) => {
         setGradoEditando(grado);
-        setGradoForm({ grado_seccion: grado.grado_seccion, cupos_maximos: grado.cupos_maximos });
+        setGradoForm({
+            grado_seccion: grado.grado_seccion,
+            cupos_maximos: grado.cupos_maximos,
+            aula_fija: grado.aula_fija || '',
+        });
         setShowGradoModal(true);
     };
 

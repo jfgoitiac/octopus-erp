@@ -326,6 +326,12 @@ class ConfiguracionGrado(models.Model):
     grado_seccion    = models.CharField(max_length=50, unique=True)
     cupos_maximos    = models.PositiveIntegerField(default=30)
     cupos_utilizados = models.PositiveIntegerField(default=0, editable=False)
+    # Aula "hogar" fija del grado (ej. "Aula 12"). El generador automático de
+    # Horarios (academico/views.py::GenerarHorarioView) la asigna a todas las
+    # clases que genere para este grado, salvo las que el usuario ya haya
+    # marcado como bloqueadas con otra aula. Opcional: si queda vacía, el
+    # generador sigue creando las clases sin aula, como antes.
+    aula_fija        = models.CharField(max_length=50, blank=True, default='')
 
     @property
     def cupos_disponibles(self):

@@ -1447,6 +1447,17 @@ const Configuracion = () => {
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
                                 style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
                         </div>
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Aula Fija (opcional)</label>
+                            <input type="text" value={gradoForm.aula_fija}
+                                onChange={e => setGradoForm(p => ({ ...p, aula_fija: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                                placeholder="Ej. Aula 12" />
+                            <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                                El generador automático de Horarios asigna esta aula a todas las clases del grado.
+                            </p>
+                        </div>
                     </div>
                 </Modal>
             )}

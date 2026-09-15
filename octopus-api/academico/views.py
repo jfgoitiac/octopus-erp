@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from authentication.serializers import PerfilDocenteSerializer, PerfilFotoSerializer
-from secretaria.models import Alumno, ConfiguracionSistema
+from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema
 from .filters import AsistenciaFilter, IncidenteFilter, NotaFilter
 from .models import (
     AlertaRendimiento,
@@ -1168,7 +1168,8 @@ def _rangos_se_solapan(inicio_a, fin_a, inicio_b, fin_b, fmt='%H:%M'):
     return ia < fb and ib < fa
 
 
-def _intentar_recolocar(materia, dias, grilla, asignaciones, materia_dias, conflictos_docente):
+def _intentar_recolocar(materia, dias, grilla, asignaciones, materia_dias, conflictos_docente,
+                         aula_fija=None, conflictos_aula=None):
     """
     Backtracking limitado (no un solver completo): cuando `materia` no logra
     ubicarse, busca UNA asignación ya hecha de OTRA materia que pueda moverse
@@ -1178,13 +1179,21 @@ def _intentar_recolocar(materia, dias, grilla, asignaciones, materia_dias, confl
     Muta `grilla`, `asignaciones` y `materia_dias` en caso de éxito.
     """
     def conflicto(m, dia, bloque):
-        if not m.docente_id:
-            return False
-        ocupados = conflictos_docente.get((m.docente_id, dia), [])
-        return any(
-            _rangos_se_solapan(bloque['inicio'], bloque['fin'], oi, of)
-            for oi, of in ocupados
-        )
+        if m.docente_id:
+            ocupados = conflictos_docente.get((m.docente_id, dia), [])
+            if any(
+                _rangos_se_solapan(bloque['inicio'], bloque['fin'], oi, of)
+                for oi, of in ocupados
+            ):
+                return True
+        if aula_fija and conflictos_aula:
+            ocupados_aula = conflictos_aula.get((aula_fija, dia), [])
+            if any(
+                _rangos_se_solapan(bloque['inicio'], bloque['fin'], oi, of)
+                for oi, of in ocupados_aula
+            ):
+                return True
+        return False
 
     for idx, asignada in enumerate(asignaciones):
         otra_materia = asignada['materia']
@@ -1258,12 +1267,27 @@ def _ejecutar_algoritmo(grado_seccion, config, semilla=None):
         materia__grado_seccion=grado_seccion
     ).select_related('materia')
     conflictos_docente = {}
+    conflictos_aula = {}
     for h in horarios_otros:
         if h.materia.docente_id:
             clave = (h.materia.docente_id, h.dia_semana)
             conflictos_docente.setdefault(clave, []).append(
                 (h.hora_inicio.strftime('%H:%M'), h.hora_fin.strftime('%H:%M'))
             )
+        aula_otro = (h.aula or '').strip()
+        if aula_otro:
+            clave_aula = (aula_otro, h.dia_semana)
+            conflictos_aula.setdefault(clave_aula, []).append(
+                (h.hora_inicio.strftime('%H:%M'), h.hora_fin.strftime('%H:%M'))
+            )
+
+    # Aula fija del grado (ConfiguracionGrado.aula_fija) — el generador la
+    # asigna a todas las clases de este grado, evitando bloques donde esa
+    # misma aula ya esté ocupada por OTRO grado (ver auditoría 2026-09-15, H4).
+    aula_fija = (
+        ConfiguracionGrado.objects.filter(grado_seccion=grado_seccion)
+        .values_list('aula_fija', flat=True).first() or ''
+    ).strip()
 
     if semilla is not None:
         random.seed(semilla)
@@ -1328,6 +1352,19 @@ def _ejecutar_algoritmo(grado_seccion, config, semilla=None):
                             f"Conflicto de docente: '{materia.nombre}' el {dia} a las {bloque['inicio']} — se intentará otro bloque."
                         )
                         continue
+                # Verificar conflicto de aula fija del grado contra otros grados
+                # que ya tengan esa misma aula ocupada en un rango solapado.
+                if aula_fija:
+                    ocupados_aula = conflictos_aula.get((aula_fija, dia), [])
+                    if any(
+                        _rangos_se_solapan(bloque['inicio'], bloque['fin'], oi, of)
+                        for oi, of in ocupados_aula
+                    ):
+                        advertencias.append(
+                            f"Conflicto de aula: '{aula_fija}' ya está ocupada el {dia} a las "
+                            f"{bloque['inicio']} por otro grado — se intentará otro bloque."
+                        )
+                        continue
                 grilla[dia].pop(0)
                 materia_dias[materia.id].add(dia)
                 asignaciones.append({'materia': materia, 'dia': dia, 'bloque': bloque})
@@ -1340,7 +1377,8 @@ def _ejecutar_algoritmo(grado_seccion, config, semilla=None):
             # Recolocación acotada: intenta liberar el bloque de otra materia
             # que sí tenga una alternativa disponible en otro momento.
             reubicacion = _intentar_recolocar(
-                materia, dias, grilla, asignaciones, materia_dias, conflictos_docente
+                materia, dias, grilla, asignaciones, materia_dias, conflictos_docente,
+                aula_fija=aula_fija, conflictos_aula=conflictos_aula,
             )
             if reubicacion:
                 asignaciones.append(reubicacion)
@@ -1454,6 +1492,14 @@ class GenerarHorarioView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
 
+        # Aula fija del grado (H4): si ConfiguracionGrado la tiene definida,
+        # se asigna a todas las clases generadas. _ejecutar_algoritmo ya evitó
+        # bloques donde esa aula estuviera ocupada por otro grado.
+        aula_fija = (
+            ConfiguracionGrado.objects.filter(grado_seccion=grado_seccion)
+            .values_list('aula_fija', flat=True).first() or ''
+        ).strip()
+
         # ── Persistir resultado ───────────────────────────────────────────────
         # Borrado + creación en una sola transacción: si el proceso se
         # interrumpe a mitad de camino, el grado no debe quedar sin horario
@@ -1481,7 +1527,7 @@ class GenerarHorarioView(APIView):
                             dia_semana = asig['dia'],
                             hora_inicio= asig['bloque']['inicio'],
                             hora_fin   = asig['bloque']['fin'],
-                            aula       = '',
+                            aula       = aula_fija,
                         )
                     creados.append(hc)
                 except Exception as e:

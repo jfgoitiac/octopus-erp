@@ -18,7 +18,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
-from secretaria.models import Alumno, Representante
+from secretaria.models import Alumno, ConfiguracionGrado, Representante
 
 from django.db import IntegrityError, transaction
 
@@ -1347,6 +1347,38 @@ class GeneradorHorarioClasesBloqueadasTests(TestCase):
 # mismo bloque horario sin que el backend lo detecte, aunque un alumno no
 # pueda estar físicamente en dos clases simultáneas de su propio grado.
 # ─────────────────────────────────────────────
+class HorariosViewGetPermisosTests(TestCase):
+    """Regresión (auditoría 2026-09-15, H7): HorariosView.get era accesible
+    para cualquier usuario autenticado (incluidos docentes), sin restringir
+    por rol. Ahora requiere secretaria/director/sistemas/administrador."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.grado = 'Grado Permisos GET'
+        Materia.objects.create(
+            nombre='Materia Permisos', grado_seccion=self.grado,
+            horas_academicas=1, activa=True,
+        )
+
+    def test_docente_no_puede_consultar_horario_de_cualquier_grado(self):
+        docente = crear_usuario('docente_permisos_horario', 'docente')
+        self.client.force_authenticate(user=docente)
+        resp = self.client.get(f'/api/academico/horarios/?grado_seccion={self.grado}')
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_secretaria_puede_consultar_horario(self):
+        secretaria = crear_usuario('secretaria_permisos_horario', 'secretaria')
+        self.client.force_authenticate(user=secretaria)
+        resp = self.client.get(f'/api/academico/horarios/?grado_seccion={self.grado}')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_director_puede_consultar_horario(self):
+        director = crear_usuario('director_permisos_horario', 'director')
+        self.client.force_authenticate(user=director)
+        resp = self.client.get(f'/api/academico/horarios/?grado_seccion={self.grado}')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+
 class HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -1399,11 +1431,42 @@ class HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests(TestCase):
 # por lo que dos grados distintos pueden terminar generados en la misma
 # aula física a la misma hora sin ninguna advertencia.
 # ─────────────────────────────────────────────
-class GeneradorHorarioIgnoraAulaTests(TestCase):
-    def test_generador_persiste_siempre_aula_vacia_nunca_valida_choque_de_aula(self):
-        grado = 'Grado Sin Chequeo De Aula'
+class GeneradorHorarioAulaFijaTests(TestCase):
+    """Regresión (auditoría 2026-09-15, H4): el generador no asignaba ni
+    validaba aula. Ahora usa ConfiguracionGrado.aula_fija (si está definida)
+    para asignarla a todas las clases del grado, y evita bloques donde esa
+    aula ya esté ocupada por otro grado."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_horario_aula_fija', 'director')
+        self.client.force_authenticate(user=self.admin)
+
+    def test_asigna_aula_fija_del_grado_a_las_clases_generadas(self):
+        grado = 'Grado Aula Fija'
+        ConfiguracionGrado.objects.create(grado_seccion=grado, aula_fija='Aula 12')
         Materia.objects.create(
             nombre='Materia Aula 1', grado_seccion=grado,
+            horas_academicas=1, activa=True,
+        )
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'grado_seccion':       grado,
+            'hora_inicio':         '07:00',
+            'hora_fin':            '08:00',
+            'duracion_clase_min':  60,
+            'recreo_hora':         '12:00',
+            'recreo_duracion_min': 0,
+            'semilla':             1,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        creadas = HorarioClase.objects.filter(materia__grado_seccion=grado)
+        self.assertEqual(creadas.count(), 1)
+        self.assertEqual(creadas.first().aula, 'Aula 12')
+
+    def test_sin_aula_fija_configurada_sigue_generando_sin_aula_como_antes(self):
+        grado = 'Grado Sin Aula Fija'
+        Materia.objects.create(
+            nombre='Materia Sin Aula', grado_seccion=grado,
             horas_academicas=1, activa=True,
         )
         config = {
@@ -1412,15 +1475,41 @@ class GeneradorHorarioIgnoraAulaTests(TestCase):
             'dias': ['lunes'],
             'recreo_hora': '12:00', 'recreo_duracion_min': 0,
         }
-        asignaciones, _ = _ejecutar_algoritmo(grado, config)
+        asignaciones, advertencias = _ejecutar_algoritmo(grado, config)
         self.assertEqual(len(asignaciones), 1)
-        # El propio dict de asignación no trae ningún campo de aula: el
-        # algoritmo no la conoce ni la reserva.
-        self.assertNotIn(
-            'aula', asignaciones[0],
-            "El generador no maneja el concepto de aula: confirma que un "
-            "choque de aula entre grados generados por separado es "
-            "indetectable por este algoritmo."
+        self.assertEqual(advertencias, [])
+
+    def test_evita_bloque_donde_la_aula_fija_ya_esta_ocupada_por_otro_grado(self):
+        grado_a = 'Grado Aula Fija A'
+        grado_b = 'Grado Aula Fija B'
+        ConfiguracionGrado.objects.create(grado_seccion=grado_a, aula_fija='Aula 5')
+        ConfiguracionGrado.objects.create(grado_seccion=grado_b, aula_fija='Aula 5')
+        materia_a = Materia.objects.create(
+            nombre='Materia Ya Ubicada', grado_seccion=grado_a,
+            horas_academicas=1, activa=True,
+        )
+        # grado_a ya tiene una clase lunes 07:00-08:00 en "Aula 5".
+        HorarioClase.objects.create(
+            materia=materia_a, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='08:00', aula='Aula 5',
+        )
+        Materia.objects.create(
+            nombre='Materia Nueva', grado_seccion=grado_b,
+            horas_academicas=1, activa=True,
+        )
+        # Único bloque posible para grado_b es el mismo horario: debe
+        # detectar el choque de aula entre grados y no poder ubicarla.
+        config = {
+            'hora_inicio': '07:00', 'hora_fin': '08:00',
+            'duracion_clase_min': 60,
+            'dias': ['lunes'],
+            'recreo_hora': '12:00', 'recreo_duracion_min': 0,
+        }
+        asignaciones, advertencias = _ejecutar_algoritmo(grado_b, config)
+        self.assertEqual(asignaciones, [])
+        self.assertTrue(
+            any('aula' in a.lower() for a in advertencias),
+            f"Se esperaba una advertencia de conflicto de aula, se obtuvo: {advertencias}",
         )
 
 
