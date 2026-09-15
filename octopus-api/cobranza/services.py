@@ -393,12 +393,36 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
         vencida_q = _condicion_vencida_mensualidad(hoy)
         respetadas_por_override = base.filter(monto_personalizado=True).count()
         excluidas_por_vencidas = base.filter(monto_personalizado=False).filter(vencida_q).count()
-        propagables = base.filter(monto_personalizado=False).exclude(vencida_q)
-        actualizadas = propagables.count()
+        # Materializado a lista (no .update() bulk): el descuento de beca es
+        # distinto por fila (Mensualidad.porcentaje_beca_aplicado), y solo
+        # Mensualidad.save() deriva `pagado`/`fecha_pago` desde monto_pagado
+        # y dispara HistoricalRecords — un .update() bulk se salta ambas cosas
+        # (ver test_propaga_aplica_descuento_de_beca_por_fila,
+        # test_propaga_deriva_pagado_via_save_cuando_abono_cubre_el_nuevo_monto
+        # y test_propaga_genera_historial_por_fila).
+        propagables = list(base.filter(monto_personalizado=False).exclude(vencida_q))
+        actualizadas = len(propagables)
+
+        montos_nuevos = {}
+        becadas_afectadas = 0
+        saldadas_por_excedente = 0
+        for m in propagables:
+            monto_nuevo_usd = monto_con_beca(nuevo_monto, m.porcentaje_beca_aplicado)
+            montos_nuevos[m.pk] = monto_nuevo_usd
+            if m.porcentaje_beca_aplicado > 0:
+                becadas_afectadas += 1
+            # Abono ya cubre (o supera) el nuevo monto: queda saldada y el
+            # excedente pagado de más se ignora (decisión del usuario), igual
+            # que Mensualidad.save() ya hace hoy para cualquier abono.
+            if not m.pagado and (monto_nuevo_usd <= 0 or m.monto_pagado >= monto_nuevo_usd):
+                saldadas_por_excedente += 1
 
         if not dry_run:
             with transaction.atomic():
-                propagables.update(monto_usd=nuevo_monto)
+                for m in propagables:
+                    m.monto_original_usd = nuevo_monto
+                    m.monto_usd = montos_nuevos[m.pk]
+                    m.save()
                 from usuarios.models import crear_log
                 crear_log(
                     usuario=usuario, accion='Propagación de monto global', modulo='cobranza',
@@ -407,12 +431,16 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
                         'actualizadas': actualizadas,
                         'respetadas_por_override': respetadas_por_override,
                         'excluidas_por_vencidas': excluidas_por_vencidas,
+                        'becadas_afectadas': becadas_afectadas,
+                        'saldadas_por_excedente': saldadas_por_excedente,
                     },
                 )
         return {
             'actualizadas': actualizadas,
             'respetadas_por_override': respetadas_por_override,
             'excluidas_por_vencidas': excluidas_por_vencidas,
+            'becadas_afectadas': becadas_afectadas,
+            'saldadas_por_excedente': saldadas_por_excedente,
         }
 
     from secretaria.models import ConfiguracionSistema
