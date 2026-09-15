@@ -816,14 +816,33 @@ class ReglaRecargoPago(models.Model):
     descripcion = models.CharField(max_length=255, blank=True, default='')
     tipo = models.CharField(max_length=20, choices=TIPOS, default='recargo')
     modo_calculo = models.CharField(max_length=20, choices=MODOS, default='monto_fijo_usd')
+    # tipo='recargo': monto o % de recargo. tipo='descuento': monto FINAL en
+    # USD que paga la mensualidad si cae dentro de [dia_desde, dia_hasta]
+    # (modo_calculo se fuerza a 'monto_fijo_usd' para este tipo, ver clean()).
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     dia_aplicacion = models.PositiveSmallIntegerField(
+        null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text=(
-            "Día del mes de la mensualidad a partir del cual (inclusive) se "
-            "considera tardía. En meses cortos se topa al último día real "
-            "del mes (igual criterio que cobranza/mora.py::calcular_dias_atraso)."
+            "Solo tipo='recargo'. Día del mes de la mensualidad a partir del "
+            "cual (inclusive) se considera tardía. En meses cortos se topa al "
+            "último día real del mes (igual criterio que "
+            "cobranza/mora.py::calcular_dias_atraso)."
         ),
+    )
+    dia_desde = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        help_text=(
+            "Solo tipo='descuento'. Primer día del mes de la mensualidad "
+            "(inclusive) en que aplica el monto final `valor`. Igual tope de "
+            "fin de mes que dia_aplicacion."
+        ),
+    )
+    dia_hasta = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        help_text="Solo tipo='descuento'. Último día del rango (inclusive).",
     )
     activa = models.BooleanField(default=True)
     creada_por = models.ForeignKey(
@@ -846,8 +865,36 @@ class ReglaRecargoPago(models.Model):
         if not (self.nombre or '').strip():
             raise ValidationError({'nombre': "El nombre no puede estar vacío."})
 
-        if self.dia_aplicacion is not None and not (1 <= self.dia_aplicacion <= 31):
-            raise ValidationError({'dia_aplicacion': "Debe estar entre 1 y 31."})
+        if self.tipo == 'recargo':
+            if self.dia_aplicacion is None:
+                raise ValidationError({'dia_aplicacion': "Requerido para tipo 'Recargo'."})
+            if self.dia_desde is not None or self.dia_hasta is not None:
+                raise ValidationError(
+                    "dia_desde/dia_hasta son exclusivos de tipo 'Descuento'."
+                )
+        elif self.tipo == 'descuento':
+            if self.dia_aplicacion is not None:
+                raise ValidationError(
+                    {'dia_aplicacion': "Exclusivo de tipo 'Recargo'."}
+                )
+            if self.dia_desde is None or self.dia_hasta is None:
+                raise ValidationError(
+                    "dia_desde y dia_hasta son requeridos para tipo 'Descuento'."
+                )
+            if self.dia_desde > self.dia_hasta:
+                raise ValidationError(
+                    {'dia_hasta': "dia_hasta debe ser mayor o igual a dia_desde."}
+                )
+            if self.modo_calculo != 'monto_fijo_usd':
+                raise ValidationError(
+                    "tipo 'Descuento' solo soporta modo_calculo 'monto_fijo_usd' "
+                    "(el monto es el precio FINAL de la mensualidad, no un %)."
+                )
+
+        for campo in ('dia_aplicacion', 'dia_desde', 'dia_hasta'):
+            valor = getattr(self, campo)
+            if valor is not None and not (1 <= valor <= 31):
+                raise ValidationError({campo: "Debe estar entre 1 y 31."})
 
         # Solo una regla ACTIVA por tipo — es global, no hay variación por sede.
         if self.activa:
@@ -859,6 +906,38 @@ class ReglaRecargoPago(models.Model):
                     f"Ya existe una regla activa de tipo '{self.get_tipo_display()}'. "
                     f"Desactívela antes de crear otra."
                 )
+
+            # Recargo y descuento nunca pueden convivir sobre el mismo rango
+            # de días: el recargo aplica desde dia_aplicacion EN ADELANTE sin
+            # límite superior, así que hay solape si el rango de descuento
+            # (activo o el que se está guardando) toca o pasa ese día. Ambas
+            # reglas son globales (sin alcance por sede/alumno), por eso se
+            # puede validar en duro acá — a diferencia de la mora, que es por
+            # alumno (Alumno.dia_limite_pago) y no se puede garantizar sin
+            # solape para todos, así que esa sí queda solo como advertencia
+            # en el frontend, no como bloqueo aquí.
+            if self.tipo == 'descuento':
+                recargo_activo = ReglaRecargoPago.objects.filter(
+                    tipo='recargo', activa=True,
+                ).exclude(pk=self.pk).first()
+                if recargo_activo and self.dia_hasta >= recargo_activo.dia_aplicacion:
+                    raise ValidationError(
+                        f"El rango de descuento (hasta día {self.dia_hasta}) se solapa "
+                        f"con la regla de recargo activa '{recargo_activo.nombre}' "
+                        f"(aplica desde el día {recargo_activo.dia_aplicacion}). "
+                        f"Ajuste el rango o desactive el recargo primero."
+                    )
+            elif self.tipo == 'recargo':
+                descuento_activo = ReglaRecargoPago.objects.filter(
+                    tipo='descuento', activa=True,
+                ).exclude(pk=self.pk).first()
+                if descuento_activo and descuento_activo.dia_hasta >= self.dia_aplicacion:
+                    raise ValidationError(
+                        f"El día de aplicación ({self.dia_aplicacion}) se solapa con la "
+                        f"regla de descuento activa '{descuento_activo.nombre}' "
+                        f"(rango hasta el día {descuento_activo.dia_hasta}). "
+                        f"Ajuste el día o desactive el descuento primero."
+                    )
 
 
 class LineaRecargoPago(models.Model):
@@ -884,3 +963,35 @@ class LineaRecargoPago(models.Model):
 
     def __str__(self):
         return f"Recargo '{self.nombre}' - Pago {self.pago_id} - Mensualidad {self.mensualidad_id}"
+
+
+class LineaDescuentoPago(models.Model):
+    """
+    Snapshot INMUTABLE de un descuento por pago dentro de rango, otorgado al
+    pagar una Mensualidad. Se crea una vez, en RegistrarPagoView (guardia de
+    existencia idéntica a LineaRecargoPago: nunca dos líneas para la misma
+    mensualidad), y nunca se edita después.
+
+    `monto_descontado_usd` es el monto que se le ACREDITÓ a
+    Mensualidad.monto_pagado sin haber sido cobrado en efectivo/transferencia
+    ("abono fantasma") — así Mensualidad.monto_usd nunca se modifica y todo
+    cálculo de saldo/mora/solvencia existente (que asume monto_usd - monto_pagado)
+    sigue funcionando sin cambios. Ver cobranza/descuentos.py::resolver_descuento.
+
+    Al anular el Pago (ver cobranza/correcciones.py::anular_pago), estas
+    líneas se BORRAN igual que las de recargo: el reset en bloque de
+    monto_pagado a 0.00 ya elimina también el crédito fantasma, y al volver a
+    pagar la mensualidad, resolver_descuento() decide de nuevo con la fecha
+    real del nuevo pago.
+    """
+    pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='lineas_descuento')
+    mensualidad = models.ForeignKey(Mensualidad, on_delete=models.CASCADE, related_name='lineas_descuento')
+    nombre = models.CharField(max_length=100)
+    monto_descontado_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada_en']
+
+    def __str__(self):
+        return f"Descuento '{self.nombre}' - Pago {self.pago_id} - Mensualidad {self.mensualidad_id}"
