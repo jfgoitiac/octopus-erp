@@ -186,6 +186,69 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         self.assertEqual(log.detalles.get('clave'), 'MONTO_MENSUALIDAD_DEFECTO')
         self.assertEqual(log.detalles.get('actualizadas'), 1)
 
+    def test_propaga_aplica_descuento_de_beca_por_fila(self):
+        # Beca del 50%: monto_original_usd=35.00, monto_usd ya con el
+        # descuento aplicado (17.50).
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=7, anio=2026,
+            monto_original_usd=Decimal('35.00'),
+            monto_usd=Decimal('17.50'),
+            porcentaje_beca_aplicado=50,
+        )
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        # El nuevo monto BASE es 50.00; con beca del 50% el becado debe
+        # quedar cobrado a 25.00, no a 50.00.
+        self.assertEqual(m.monto_original_usd, Decimal('50.00'))
+        self.assertEqual(m.monto_usd, Decimal('25.00'))
+        self.assertEqual(resultado['becadas_afectadas'], 1)
+
+    def test_propaga_deriva_pagado_via_save_cuando_abono_cubre_el_nuevo_monto(self):
+        # Abono parcial (20.00) sobre una mensualidad de 35.00 (sigue impaga);
+        # al bajar el monto a 15.00 el abono ya alcanzado cubre de sobra el
+        # nuevo monto: debe quedar saldada automáticamente (excedente ignorado).
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=7, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        m.monto_pagado = Decimal('20.00')
+        m.save()
+        self.assertFalse(m.pagado)
+
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('15.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('15.00'))
+        self.assertTrue(m.pagado)
+        self.assertIsNotNone(m.fecha_pago)
+        self.assertEqual(resultado['saldadas_por_excedente'], 1)
+
+    def test_propaga_no_marca_pagado_cuando_abono_no_alcanza_el_nuevo_monto(self):
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=7, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        m.monto_pagado = Decimal('20.00')
+        m.save()
+
+        propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('40.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('40.00'))
+        self.assertFalse(m.pagado)
+
+    def test_propaga_genera_historial_por_fila(self):
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=7, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        historial_antes = m.history.count()
+        propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        self.assertEqual(m.history.count(), historial_antes + 1)
+
 
 class PropagacionInscripcionYProyectoTest(PropagacionMontosGlobalesBase):
 
