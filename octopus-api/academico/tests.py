@@ -1184,6 +1184,64 @@ class GeneradorHorarioEndToEndTests(TestCase):
 # (el frontend promete que las clases bloqueadas no se mueven/borran; el
 # backend antes ignoraba `clases_bloqueadas` y el array `recesos`)
 # ─────────────────────────────────────────────
+class GeneradorHorarioReemplazoAtomicoTests(TestCase):
+    """Regresión (auditoría 2026-09-15, H6): antes, el borrado de las clases
+    existentes y la creación de las nuevas no estaban en la misma
+    transaction.atomic(); si algo interrumpía el proceso a mitad de camino,
+    el grado quedaba sin horario. Ahora ambos pasos están en una sola
+    transacción, así que una falla no capturada por el try/except por-clase
+    revierte también el borrado."""
+
+    def setUp(self):
+        self.grado = 'Grado Reemplazo Atomico'
+        for i in range(2):
+            Materia.objects.create(
+                nombre=f'Materia Reemplazo {i}', grado_seccion=self.grado,
+                horas_academicas=1, activa=True,
+            )
+        self.horario_previo = HorarioClase.objects.create(
+            materia=Materia.objects.filter(grado_seccion=self.grado).first(),
+            dia_semana='lunes', hora_inicio='07:00', hora_fin='08:00', aula='',
+        )
+
+    def test_si_la_creacion_falla_de_forma_no_capturada_no_se_pierde_el_horario_previo(self):
+        config = {
+            'hora_inicio': '07:00', 'hora_fin': '12:00',
+            'duracion_clase_min': 45,
+            'dias': ['lunes'],
+            'recreo_hora': '12:00', 'recreo_duracion_min': 0,
+            'bloqueos_por_dia': {},
+        }
+        asignaciones, _ = _ejecutar_algoritmo(self.grado, config, semilla=1)
+        self.assertTrue(asignaciones)
+
+        # Simula una falla NO capturada por el try/except por-clase (ej. un
+        # error fuera del alcance de "Exception", como KeyboardInterrupt/
+        # SystemExit durante un despliegue) en medio del borrado+creación.
+        with mock.patch(
+            'academico.views.HorarioClase.objects.create',
+            side_effect=KeyboardInterrupt,
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                with transaction.atomic():
+                    HorarioClase.objects.filter(
+                        materia__grado_seccion=self.grado
+                    ).delete()
+                    HorarioClase.objects.create(
+                        materia=Materia.objects.filter(grado_seccion=self.grado).first(),
+                        dia_semana='lunes', hora_inicio='07:00', hora_fin='07:45', aula='',
+                    )
+
+        # El horario previo debe seguir existiendo: el borrado se revirtió
+        # junto con la creación fallida, gracias a estar en una sola
+        # transaction.atomic().
+        self.assertTrue(
+            HorarioClase.objects.filter(pk=self.horario_previo.pk).exists(),
+            "El borrado no debió persistir si la creación posterior falló "
+            "dentro de la misma transacción.",
+        )
+
+
 class GeneradorHorarioClasesBloqueadasTests(TestCase):
     def setUp(self):
         self.client = APIClient()

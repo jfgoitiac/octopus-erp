@@ -121,15 +121,19 @@
   quedar fuera del alcance aprobado. Ver test
   `academico/tests.py::GeneradorHorarioIgnoraAulaTests`.
 
-- [DEUDA] `HorariosView.post`/`HorarioDetailView.put` verifican choque y guardan sin
-  `transaction.atomic()` ni `select_for_update()`: dos requests concurrentes podrían pasar
-  ambos el chequeo antes de que cualquiera guarde (condición de carrera, no reproducible en
-  un test determinístico).
+- [RESUELTO 2026-09-15] `HorariosView.post`/`HorarioDetailView.put` verificaban choque y
+  guardaban sin `transaction.atomic()` ni `select_for_update()`: dos requests concurrentes
+  podían pasar ambos el chequeo antes de que cualquiera guardara. Corregido: ambos ahora
+  envuelven chequeo + guardado en `transaction.atomic()`, y `_buscar_choque_horario` usa
+  `select_for_update()` sobre las filas candidatas (en SQLite esto no bloquea realmente —
+  Django lo ignora silenciosamente — pero sí protege en motores como PostgreSQL). La condición
+  de carrera en sí no es reproducible en un test determinístico.
 
-- [DEUDA] `GenerarHorarioView` con `reemplazar_existente=True` borra las clases existentes y
-  crea las nuevas sin envolver ambos pasos en `transaction.atomic()`. Si el proceso se
-  interrumpe entre el borrado y la creación, el grado queda sin horario y sin forma de
-  recuperarlo.
+- [RESUELTO 2026-09-15] `GenerarHorarioView` con `reemplazar_existente=True` borraba las
+  clases existentes y creaba las nuevas sin envolver ambos pasos en `transaction.atomic()`.
+  Corregido: borrado + creación (cada `create()` en su propio savepoint, para no perder las
+  advertencias de items individuales que fallan) ahora están en una sola transacción. Test de
+  regresión en `academico/tests.py::GeneradorHorarioReemplazoAtomicoTests`.
 
 - [DEUDA] `HorariosView.get` tiene `permission_classes = [IsAuthenticated]` sin restricción de
   rol: cualquier usuario autenticado (incluye docentes) puede consultar el horario de

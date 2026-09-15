@@ -800,7 +800,14 @@ def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula, exc
     if not hora_inicio or not hora_fin:
         return None, False, False, False
 
-    candidatos = HorarioClase.objects.filter(
+    # select_for_update(): los dos callers (HorariosView.post,
+    # HorarioDetailView.put) envuelven el chequeo + guardado en
+    # transaction.atomic(), así que esto bloquea las filas candidatas hasta
+    # que la transacción termine, evitando que dos requests concurrentes
+    # pasen ambos el chequeo antes de que cualquiera guarde. En SQLite
+    # (dev/test) Django ignora el FOR UPDATE silenciosamente; el bloqueo real
+    # aplica en motores que sí lo soportan (ej. PostgreSQL).
+    candidatos = HorarioClase.objects.select_for_update().filter(
         dia_semana=dia_semana,
     ).select_related('materia')
     if excluir_pk is not None:
@@ -884,20 +891,21 @@ class HorariosView(APIView):
             )
         serializer = HorarioClaseSerializer(data=request.data)
         if serializer.is_valid():
-            materia = serializer.validated_data.get('materia')
-            otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
-                materia,
-                serializer.validated_data.get('dia_semana'),
-                serializer.validated_data.get('hora_inicio'),
-                serializer.validated_data.get('hora_fin'),
-                serializer.validated_data.get('aula'),
-            )
-            if otro:
-                return Response(
-                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
-                    status=status.HTTP_400_BAD_REQUEST
+            with transaction.atomic():
+                materia = serializer.validated_data.get('materia')
+                otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
+                    materia,
+                    serializer.validated_data.get('dia_semana'),
+                    serializer.validated_data.get('hora_inicio'),
+                    serializer.validated_data.get('hora_fin'),
+                    serializer.validated_data.get('aula'),
                 )
-            serializer.save()
+                if otro:
+                    return Response(
+                        {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -927,22 +935,23 @@ class HorarioDetailView(APIView):
             return Response({'error': 'Horario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = HorarioClaseSerializer(horario, data=request.data, partial=True)
         if serializer.is_valid():
-            datos = serializer.validated_data
-            materia = datos.get('materia', horario.materia)
-            dia_semana = datos.get('dia_semana', horario.dia_semana)
-            hora_inicio = datos.get('hora_inicio', horario.hora_inicio)
-            hora_fin = datos.get('hora_fin', horario.hora_fin)
-            aula = datos.get('aula', horario.aula)
-            otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
-                materia, dia_semana, hora_inicio, hora_fin, aula,
-                excluir_pk=horario.pk,
-            )
-            if otro:
-                return Response(
-                    {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
-                    status=status.HTTP_400_BAD_REQUEST
+            with transaction.atomic():
+                datos = serializer.validated_data
+                materia = datos.get('materia', horario.materia)
+                dia_semana = datos.get('dia_semana', horario.dia_semana)
+                hora_inicio = datos.get('hora_inicio', horario.hora_inicio)
+                hora_fin = datos.get('hora_fin', horario.hora_fin)
+                aula = datos.get('aula', horario.aula)
+                otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
+                    materia, dia_semana, hora_inicio, hora_fin, aula,
+                    excluir_pk=horario.pk,
                 )
-            serializer.save()
+                if otro:
+                    return Response(
+                        {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1441,28 +1450,37 @@ class GenerarHorarioView(APIView):
             )
 
         # ── Persistir resultado ───────────────────────────────────────────────
-        # Se excluyen las clases bloqueadas: el usuario pidió explícitamente que
-        # el generador no las toque, así que deben sobrevivir al reemplazo.
-        if reemplazar_existente and tiene_horario:
-            HorarioClase.objects.filter(
-                materia__grado_seccion=grado_seccion
-            ).exclude(
-                id__in=[hc.id for hc in clases_bloqueadas_qs]
-            ).delete()
-
+        # Borrado + creación en una sola transacción: si el proceso se
+        # interrumpe a mitad de camino, el grado no debe quedar sin horario
+        # (antes el borrado y la creación no estaban en la misma
+        # transaction.atomic() — ver auditoría 2026-09-15, H6).
         creados = []
-        for asig in asignaciones:
-            try:
-                hc = HorarioClase.objects.create(
-                    materia    = asig['materia'],
-                    dia_semana = asig['dia'],
-                    hora_inicio= asig['bloque']['inicio'],
-                    hora_fin   = asig['bloque']['fin'],
-                    aula       = '',
-                )
-                creados.append(hc)
-            except Exception as e:
-                advertencias.append(f"Error al guardar clase de '{asig['materia'].nombre}': {str(e)}")
+        with transaction.atomic():
+            # Se excluyen las clases bloqueadas: el usuario pidió explícitamente
+            # que el generador no las toque, así que deben sobrevivir al reemplazo.
+            if reemplazar_existente and tiene_horario:
+                HorarioClase.objects.filter(
+                    materia__grado_seccion=grado_seccion
+                ).exclude(
+                    id__in=[hc.id for hc in clases_bloqueadas_qs]
+                ).delete()
+
+            for asig in asignaciones:
+                try:
+                    # Savepoint por clase: si una falla (ej. IntegrityError),
+                    # se revierte solo esa clase sin poner en rollback las
+                    # demás ni el borrado ya aplicado en esta transacción.
+                    with transaction.atomic():
+                        hc = HorarioClase.objects.create(
+                            materia    = asig['materia'],
+                            dia_semana = asig['dia'],
+                            hora_inicio= asig['bloque']['inicio'],
+                            hora_fin   = asig['bloque']['fin'],
+                            aula       = '',
+                        )
+                    creados.append(hc)
+                except Exception as e:
+                    advertencias.append(f"Error al guardar clase de '{asig['materia'].nombre}': {str(e)}")
 
         # Deduplicar advertencias
         advertencias_unicas = list(dict.fromkeys(advertencias))
