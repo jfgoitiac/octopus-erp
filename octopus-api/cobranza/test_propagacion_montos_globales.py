@@ -3,9 +3,11 @@ Tests de propagar_monto_global (cobranza/services.py) y su integración en
 ConfiguracionCobranzaView.post:
   - Guardar un ParametroGlobal por defecto (mensualidad/inscripción/proyecto
     de inversión) debe propagarse a las cuotas ya generadas que dependen de
-    ese valor, respetando overrides manuales (monto_personalizado=True) y,
-    para mensualidad, excluyendo las vencidas (mismo criterio que
-    cobranza/mora.py::_condicion_mora).
+    ese valor, respetando overrides manuales (monto_personalizado=True).
+  - Para mensualidad, se propaga tanto a futuras como a VENCIDAS (mismo
+    criterio de "vencida" que cobranza/mora.py::_condicion_mora), aplicando
+    el % de beca de cada fila y dejando que Mensualidad.save() derive
+    `pagado` desde el abono acumulado.
   - Idempotencia: llamar dos veces con el mismo monto no duplica filas ni
     produce un segundo efecto distinto.
 """
@@ -67,7 +69,8 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         self.assertEqual(m.monto_usd, Decimal('50.00'))
         self.assertEqual(resultado['actualizadas'], 1)
         self.assertEqual(resultado['respetadas_por_override'], 0)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 0)
+        self.assertEqual(resultado['actualizadas_futuras'], 1)
+        self.assertEqual(resultado['actualizadas_vencidas'], 0)
 
     def test_no_propaga_a_mensualidad_personalizada(self):
         m = Mensualidad.objects.create(
@@ -81,7 +84,21 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         self.assertEqual(m.monto_usd, Decimal('35.00'))
         self.assertEqual(resultado['actualizadas'], 0)
         self.assertEqual(resultado['respetadas_por_override'], 1)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 0)
+
+    def test_no_propaga_a_mensualidad_personalizada_vencida(self):
+        # El override manual se respeta también en vencidas: la exclusión
+        # por override no depende de si la mensualidad ya venció o no.
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+            monto_personalizado=True,
+        )
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('35.00'))
+        self.assertEqual(resultado['actualizadas'], 0)
+        self.assertEqual(resultado['respetadas_por_override'], 1)
 
     def test_no_propaga_a_mensualidad_ya_pagada(self):
         m = Mensualidad.objects.create(
@@ -96,11 +113,11 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         self.assertFalse(m.monto_personalizado)
         self.assertEqual(resultado['actualizadas'], 0)
         self.assertEqual(resultado['respetadas_por_override'], 0)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 0)
 
-    def test_no_propaga_a_mensualidad_vencida_mes_pasado(self):
+    def test_no_propaga_a_mensualidad_vencida_ya_pagada(self):
         m = Mensualidad.objects.create(
             alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+            pagado=True,
         )
         resultado = propagar_monto_global(
             'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
@@ -108,9 +125,21 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         m.refresh_from_db()
         self.assertEqual(m.monto_usd, Decimal('35.00'))
         self.assertEqual(resultado['actualizadas'], 0)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 1)
 
-    def test_no_propaga_a_mensualidad_vencida_mes_actual_dia_limite_alcanzado(self):
+    def test_propaga_a_mensualidad_vencida_mes_pasado(self):
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('50.00'))
+        self.assertEqual(resultado['actualizadas'], 1)
+        self.assertEqual(resultado['actualizadas_futuras'], 0)
+        self.assertEqual(resultado['actualizadas_vencidas'], 1)
+
+    def test_propaga_a_mensualidad_vencida_mes_actual_dia_limite_alcanzado(self):
         # dia_limite_pago=10, hoy=15/jun/2026 -> ya se alcanzó el límite.
         m = Mensualidad.objects.create(
             alumno=self.alumno, mes=6, anio=2026, monto_usd=Decimal('35.00'),
@@ -119,9 +148,9 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
             'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
         )
         m.refresh_from_db()
-        self.assertEqual(m.monto_usd, Decimal('35.00'))
-        self.assertEqual(resultado['actualizadas'], 0)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 1)
+        self.assertEqual(m.monto_usd, Decimal('50.00'))
+        self.assertEqual(resultado['actualizadas'], 1)
+        self.assertEqual(resultado['actualizadas_vencidas'], 1)
 
     def test_propaga_a_mensualidad_mes_actual_dia_limite_no_alcanzado(self):
         # dia_limite_pago=10, hoy=5/jun/2026 -> aún no llega el límite.
@@ -135,7 +164,73 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         m.refresh_from_db()
         self.assertEqual(m.monto_usd, Decimal('50.00'))
         self.assertEqual(resultado['actualizadas'], 1)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 0)
+        self.assertEqual(resultado['actualizadas_futuras'], 1)
+        self.assertEqual(resultado['actualizadas_vencidas'], 0)
+
+    def test_propaga_a_mensualidad_vencida_con_beca_parcial(self):
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026,
+            monto_original_usd=Decimal('35.00'), monto_usd=Decimal('17.50'),
+            porcentaje_beca_aplicado=50,
+        )
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_original_usd, Decimal('50.00'))
+        self.assertEqual(m.monto_usd, Decimal('25.00'))
+        self.assertEqual(resultado['actualizadas_vencidas'], 1)
+        self.assertEqual(resultado['becadas_afectadas'], 1)
+
+    def test_propaga_a_mensualidad_vencida_con_abono_parcial_menor_sigue_impaga(self):
+        # Abono de 5.00 sobre una vencida de 35.00; el nuevo monto (15.00)
+        # sigue siendo mayor al abono: la fila sigue impaga.
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        m.monto_pagado = Decimal('5.00')
+        m.save()
+
+        propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('15.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('15.00'))
+        self.assertFalse(m.pagado)
+
+    def test_propaga_a_mensualidad_vencida_con_abono_parcial_igual_queda_saldada(self):
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        m.monto_pagado = Decimal('15.00')
+        m.save()
+
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('15.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('15.00'))
+        self.assertTrue(m.pagado)
+        self.assertEqual(resultado['saldadas_por_excedente'], 1)
+
+    def test_propaga_a_mensualidad_vencida_con_abono_parcial_mayor_queda_saldada_y_excedente_se_ignora(self):
+        # Abono de 20.00 sobre una vencida de 35.00; el nuevo monto (15.00)
+        # queda por debajo de lo ya abonado: la decisión del usuario es
+        # dejarla saldada e ignorar el excedente (no se modela saldo a favor).
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        m.monto_pagado = Decimal('20.00')
+        m.save()
+
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('15.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('15.00'))
+        self.assertEqual(m.monto_pagado, Decimal('20.00'))
+        self.assertTrue(m.pagado)
+        self.assertEqual(resultado['saldadas_por_excedente'], 1)
 
     def test_doble_ejecucion_consecutiva_es_idempotente(self):
         m = Mensualidad.objects.create(
@@ -160,6 +255,22 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         m.refresh_from_db()
         self.assertEqual(m.monto_usd, Decimal('50.00'))
 
+    def test_doble_ejecucion_con_vencida_impaga_es_idempotente(self):
+        # Vencida sin abono suficiente para saldarse: sigue impaga tras cada
+        # corrida, así que ambas corridas ven exactamente el mismo conjunto.
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        resultado_1 = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        resultado_2 = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario, hoy=self.hoy,
+        )
+        self.assertEqual(resultado_1, resultado_2)
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('50.00'))
+
     def test_dry_run_no_escribe_nada(self):
         m = Mensualidad.objects.create(
             alumno=self.alumno, mes=7, anio=2026, monto_usd=Decimal('35.00'),
@@ -173,6 +284,19 @@ class PropagacionMensualidadTest(PropagacionMontosGlobalesBase):
         self.assertEqual(m.monto_usd, Decimal('35.00'))
         self.assertEqual(resultado['actualizadas'], 1)
         self.assertEqual(LogAuditoria.objects.count(), logs_antes)
+
+    def test_dry_run_no_escribe_nada_con_vencida(self):
+        m = Mensualidad.objects.create(
+            alumno=self.alumno, mes=5, anio=2026, monto_usd=Decimal('35.00'),
+        )
+        resultado = propagar_monto_global(
+            'MONTO_MENSUALIDAD_DEFECTO', Decimal('50.00'), usuario=self.usuario,
+            dry_run=True, hoy=self.hoy,
+        )
+        m.refresh_from_db()
+        self.assertEqual(m.monto_usd, Decimal('35.00'))
+        self.assertFalse(m.pagado)
+        self.assertEqual(resultado['actualizadas_vencidas'], 1)
 
     def test_registra_auditoria_al_propagar(self):
         Mensualidad.objects.create(
@@ -263,7 +387,6 @@ class PropagacionInscripcionYProyectoTest(PropagacionMontosGlobalesBase):
         self.assertEqual(cuota.monto_usd, Decimal('60.00'))
         self.assertEqual(resultado['actualizadas'], 1)
         self.assertEqual(resultado['respetadas_por_override'], 0)
-        self.assertEqual(resultado['excluidas_por_vencidas'], 0)
 
     def test_no_propaga_a_cuota_inscripcion_personalizada(self):
         cuota = CuotaInscripcion.objects.create(

@@ -30,7 +30,6 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
 
 from .models import Mensualidad, ParametroGlobal
 
@@ -324,22 +323,26 @@ CLAVES_PROPAGABLES = (
 )
 
 
-def _condicion_vencida_mensualidad(hoy):
+def _es_vencida(mensualidad, hoy):
     """
-    Mismo criterio de "vencida" que cobranza/mora.py::_condicion_mora, pero
-    expresado sobre un queryset de Mensualidad (no de Alumno): mes/año ya
-    pasado, o mes actual con el `dia_limite_pago` del alumno ya alcanzado.
+    Mismo criterio de "vencida" que cobranza/mora.py::_condicion_mora,
+    evaluado sobre una instancia de Mensualidad ya materializada en memoria
+    (no un queryset): mes/año ya pasado, o mes actual con el `dia_limite_pago`
+    del alumno ya alcanzado. Usado por propagar_monto_global() para
+    desglosar actualizadas_futuras/actualizadas_vencidas.
 
     No se reutiliza _condicion_mora directamente porque esa función anota
-    Alumno vía OuterRef — aquí se necesita filtrar Mensualidad en sí, así
-    que se traduce el mismo criterio a `alumno__dia_limite_pago` sin tocar
-    la API pública de mora.py.
+    Alumno vía OuterRef sobre un queryset; aquí se evalúa fila por fila.
     """
-    return (
-        Q(anio__lt=hoy.year)
-        | Q(anio=hoy.year, mes__lt=hoy.month)
-        | Q(anio=hoy.year, mes=hoy.month, alumno__dia_limite_pago__lte=hoy.day)
-    )
+    if mensualidad.anio < hoy.year:
+        return True
+    if mensualidad.anio > hoy.year:
+        return False
+    if mensualidad.mes < hoy.month:
+        return True
+    if mensualidad.mes > hoy.month:
+        return False
+    return mensualidad.alumno.dia_limite_pago <= hoy.day
 
 
 def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
@@ -358,29 +361,32 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
     Reglas de alcance, siempre `pagado=False` y `monto_personalizado=False`
     (los overrides manuales — ver ActualizarMensualidadesView.patch y
     Mensualidad.monto_personalizado — quedan intactos):
-      - MONTO_MENSUALIDAD_DEFECTO: además excluye las VENCIDAS, con el mismo
-        criterio que cobranza/mora.py::_condicion_mora (ver
-        _condicion_vencida_mensualidad arriba). Solo se propaga a meses
-        futuros, o al mes actual si el `dia_limite_pago` del alumno todavía
-        no se alcanzó.
+      - MONTO_MENSUALIDAD_DEFECTO: se propaga a TODAS las mensualidades
+        impagas sin override, futuras Y VENCIDAS (mismo criterio de "vencida"
+        que cobranza/mora.py::_condicion_mora — ver
+        _condicion_vencida_mensualidad arriba, usado aquí solo para el
+        desglose `actualizadas_futuras`/`actualizadas_vencidas` del reporte,
+        ya no para excluir). Antes las vencidas quedaban fuera; se decidió
+        incluirlas siempre (sin opción de desactivarlo) para que un cambio de
+        monto por defecto alcance también la deuda atrasada.
       - MONTO_INSCRIPCION_DEFECTO / MONTO_PROYECTO_INVERSION_DEFECTO: igual
         que antes, acotado al `periodo_escolar` activo (ConfiguracionSistema)
         y, para proyecto, al TipoCargoEspecial semilla "Proyecto de
         Inversión" (tipo_cargo_proyecto_inversion) — nunca a otros cargos
         especiales que compartan periodo_escolar. No existe concepto de
-        "vencida" para estas dos, así que `excluidas_por_vencidas` es
-        siempre 0.
+        "vencida" para estas dos.
 
     dry_run=True: no escribe nada, solo cuenta.
-    dry_run=False: aplica el `.update()` dentro de una transacción y registra
+    dry_run=False: guarda cada fila dentro de una transacción y registra
     auditoría con usuarios.models.crear_log.
 
-    Devuelve siempre {'actualizadas': N, 'respetadas_por_override': M,
-    'excluidas_por_vencidas': K}.
+    Devuelve siempre {'actualizadas': N, 'respetadas_por_override': M}; para
+    MONTO_MENSUALIDAD_DEFECTO además {'actualizadas_futuras', 'actualizadas_vencidas',
+    'becadas_afectadas', 'saldadas_por_excedente'}.
 
     Idempotente: llamarla dos veces con el mismo `nuevo_monto` aplica el
-    mismo `.update()` sobre el mismo conjunto de filas (ya en ese valor) —
-    no hay creación de filas ni segundo efecto distinto.
+    mismo guardado sobre el mismo conjunto de filas (ya en ese valor) — no
+    hay creación de filas ni segundo efecto distinto.
     """
     if clave not in CLAVES_PROPAGABLES:
         raise ValueError(f"Clave no propagable: {clave}")
@@ -390,9 +396,10 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
 
     if clave == 'MONTO_MENSUALIDAD_DEFECTO':
         base = Mensualidad.objects.filter(pagado=False)
-        vencida_q = _condicion_vencida_mensualidad(hoy)
         respetadas_por_override = base.filter(monto_personalizado=True).count()
-        excluidas_por_vencidas = base.filter(monto_personalizado=False).filter(vencida_q).count()
+        # Ya no se excluyen las vencidas (ver docstring): se propagan igual
+        # que las futuras; _es_vencida() solo desglosa el reporte en
+        # actualizadas_futuras/actualizadas_vencidas.
         # Materializado a lista (no .update() bulk): el descuento de beca es
         # distinto por fila (Mensualidad.porcentaje_beca_aplicado), y solo
         # Mensualidad.save() deriva `pagado`/`fecha_pago` desde monto_pagado
@@ -400,22 +407,26 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
         # (ver test_propaga_aplica_descuento_de_beca_por_fila,
         # test_propaga_deriva_pagado_via_save_cuando_abono_cubre_el_nuevo_monto
         # y test_propaga_genera_historial_por_fila).
-        propagables = list(base.filter(monto_personalizado=False).exclude(vencida_q))
+        propagables = list(base.filter(monto_personalizado=False).select_related('alumno'))
         actualizadas = len(propagables)
 
         montos_nuevos = {}
         becadas_afectadas = 0
         saldadas_por_excedente = 0
+        actualizadas_vencidas = 0
         for m in propagables:
             monto_nuevo_usd = monto_con_beca(nuevo_monto, m.porcentaje_beca_aplicado)
             montos_nuevos[m.pk] = monto_nuevo_usd
             if m.porcentaje_beca_aplicado > 0:
                 becadas_afectadas += 1
+            if _es_vencida(m, hoy):
+                actualizadas_vencidas += 1
             # Abono ya cubre (o supera) el nuevo monto: queda saldada y el
             # excedente pagado de más se ignora (decisión del usuario), igual
             # que Mensualidad.save() ya hace hoy para cualquier abono.
             if not m.pagado and (monto_nuevo_usd <= 0 or m.monto_pagado >= monto_nuevo_usd):
                 saldadas_por_excedente += 1
+        actualizadas_futuras = actualizadas - actualizadas_vencidas
 
         if not dry_run:
             with transaction.atomic():
@@ -430,7 +441,8 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
                         'clave': clave, 'monto_nuevo': str(nuevo_monto),
                         'actualizadas': actualizadas,
                         'respetadas_por_override': respetadas_por_override,
-                        'excluidas_por_vencidas': excluidas_por_vencidas,
+                        'actualizadas_futuras': actualizadas_futuras,
+                        'actualizadas_vencidas': actualizadas_vencidas,
                         'becadas_afectadas': becadas_afectadas,
                         'saldadas_por_excedente': saldadas_por_excedente,
                     },
@@ -438,7 +450,8 @@ def propagar_monto_global(clave, nuevo_monto, usuario, dry_run=False, hoy=None):
         return {
             'actualizadas': actualizadas,
             'respetadas_por_override': respetadas_por_override,
-            'excluidas_por_vencidas': excluidas_por_vencidas,
+            'actualizadas_futuras': actualizadas_futuras,
+            'actualizadas_vencidas': actualizadas_vencidas,
             'becadas_afectadas': becadas_afectadas,
             'saldadas_por_excedente': saldadas_por_excedente,
         }
