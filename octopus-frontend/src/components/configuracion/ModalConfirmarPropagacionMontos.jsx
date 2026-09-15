@@ -1,4 +1,4 @@
-import { CheckCircle2, Lock, Loader2, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { CheckCircle2, Lock, Loader2, AlertTriangle, RefreshCcw, GraduationCap } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 
 const CONCEPTO_LABELS = {
@@ -54,7 +54,13 @@ export default function ModalConfirmarPropagacionMontos({ open, onClose, onConfi
                     const datos = preview[clave] || {};
                     const actualizadas = datos.actualizadas ?? 0;
                     const respetadas = datos.respetadas_por_override ?? 0;
-                    const excluidas = datos.excluidas_por_vencidas ?? 0;
+                    // Solo mensualidad trae este desglose (ver propagar_monto_global,
+                    // cobranza/services.py): inscripción y proyecto de inversión no
+                    // tienen concepto de beca, vencida ni abono parcial.
+                    const esMensualidad = clave === 'mensualidad';
+                    const vencidas = datos.actualizadas_vencidas ?? 0;
+                    const becadas = datos.becadas_afectadas ?? 0;
+                    const saldadasPorExcedente = datos.saldadas_por_excedente ?? 0;
                     return (
                         <div key={clave} className="rounded-lg p-3 sm:p-4 space-y-2" style={filaStyle}>
                             <p className="text-sm sm:text-base font-semibold" style={{ color: 'var(--jet)' }}>
@@ -64,6 +70,9 @@ export default function ModalConfirmarPropagacionMontos({ open, onClose, onConfi
                                 <RefreshCcw size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--pb)' }} />
                                 <p className="text-sm sm:text-base" style={textoAsh}>
                                     <strong style={{ color: 'var(--jet)' }}>{actualizadas}</strong> se actualizarán al nuevo monto
+                                    {esMensualidad && (
+                                        <> (<strong style={{ color: 'var(--jet)' }}>{vencidas}</strong> de ellas ya vencidas)</>
+                                    )}
                                 </p>
                             </div>
                             <div className="flex items-start gap-2">
@@ -72,12 +81,22 @@ export default function ModalConfirmarPropagacionMontos({ open, onClose, onConfi
                                     <strong style={{ color: 'var(--jet)' }}>{respetadas}</strong> se respetan por tener monto asignado manualmente
                                 </p>
                             </div>
-                            <div className="flex items-start gap-2">
-                                <AlertTriangle size={16} className="shrink-0 mt-0.5" style={textoAsh} />
-                                <p className="text-sm sm:text-base" style={textoAsh}>
-                                    <strong style={{ color: 'var(--jet)' }}>{excluidas}</strong> quedan excluidas por estar vencidas
-                                </p>
-                            </div>
+                            {esMensualidad && becadas > 0 && (
+                                <div className="flex items-start gap-2">
+                                    <GraduationCap size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--pb)' }} />
+                                    <p className="text-sm sm:text-base" style={textoAsh}>
+                                        <strong style={{ color: 'var(--jet)' }}>{becadas}</strong> tienen beca aplicada — se les mantiene su descuento sobre el nuevo monto
+                                    </p>
+                                </div>
+                            )}
+                            {esMensualidad && saldadasPorExcedente > 0 && (
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
+                                    <p className="text-sm sm:text-base" style={textoAsh}>
+                                        <strong style={{ color: 'var(--jet)' }}>{saldadasPorExcedente}</strong> quedarán saldadas porque el abono ya hecho cubre el nuevo monto (el excedente no se registra como saldo a favor)
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
