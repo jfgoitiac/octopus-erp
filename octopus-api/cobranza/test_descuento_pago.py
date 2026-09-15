@@ -22,6 +22,7 @@ from django.utils import timezone
 from secretaria.models import Alumno, ConfiguracionSistema, Representante
 from .descuentos import resolver_descuento
 from .models import Mensualidad, ReglaRecargoPago
+from portal.serializers import MensualidadSerializer
 
 
 def _crear_alumno(cedula, representante, **kwargs):
@@ -247,3 +248,65 @@ class ValidacionSolapeReglaTest(DescuentoPagoBase):
         )
         with self.assertRaises(ValidationError):
             regla.full_clean()
+
+
+class PortalCotizacionDescuentoTest(DescuentoPagoBase):
+    """MensualidadSerializer (portal) debe mostrar el mismo descuento
+    prospectivo que resolver_descuento(), evaluado con date.today() —
+    mismo patrón que ya cubre ConsistenciaMorosaPortalCajaTest para recargo
+    en test_recargo_pago_tardio.py."""
+
+    def test_portal_no_muestra_descuento_sin_reglas(self):
+        m = self._mensualidad(date.today().month, date.today().year)
+        data = MensualidadSerializer(m).data
+        self.assertEqual(data['monto_descuento'], '0.00')
+        self.assertIsNone(data['nombre_descuento'])
+        self.assertEqual(data['monto_total'], str(m.monto_usd))
+
+    def test_portal_muestra_descuento_disponible_hoy(self):
+        hoy = date.today()
+        regla = self._regla(dia_desde=1, dia_hasta=28, valor=Decimal('30.00'))
+        m = self._mensualidad(hoy.month, hoy.year, monto='32.00')
+        data = MensualidadSerializer(m).data
+        self.assertEqual(data['monto_descuento'], '2.00')
+        self.assertEqual(data['nombre_descuento'], regla.nombre)
+        self.assertEqual(data['monto_total'], '30.00')
+
+    def test_mensualidad_ya_pagada_no_muestra_descuento_hipotetico(self):
+        hoy = date.today()
+        self._regla(dia_desde=1, dia_hasta=28, valor=Decimal('30.00'))
+        m = self._mensualidad(hoy.month, hoy.year, monto='32.00')
+        m.monto_pagado = m.monto_usd
+        m.pagado = True
+        m.save()
+        data = MensualidadSerializer(m).data
+        self.assertEqual(data['monto_descuento'], '0.00')
+        self.assertEqual(data['monto_total'], str(m.monto_usd))
+
+    def test_no_repite_query_de_la_regla_al_serializar_varias_mensualidades(self):
+        """N+1 guard: con cache_reglas compartido, N mensualidades deben
+        resolver cada tipo de regla activa UNA sola vez, no N veces. Acá se
+        resuelven 2 tipos (recargo y descuento, ambos vía get_monto_total),
+        así que el total esperado es 2 queries (una por tipo), no 2*N."""
+        hoy = date.today()
+        self._regla(dia_desde=1, dia_hasta=28, valor=Decimal('30.00'))
+        mensualidades = [
+            self._mensualidad(hoy.month, hoy.year, monto='32.00'),
+            Mensualidad.objects.create(
+                alumno=_crear_alumno('E2000004', self.representante),
+                mes=hoy.month, anio=hoy.year, monto_usd=Decimal('32.00'),
+            ),
+        ]
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        cache_reglas = {}
+        with CaptureQueriesContext(connection) as ctx:
+            data = MensualidadSerializer(
+                mensualidades, many=True, context={'cache_reglas': cache_reglas}
+            ).data
+        queries_reglarecargopago = [
+            q for q in ctx.captured_queries if 'reglarecargopago' in q['sql'].lower()
+        ]
+        self.assertEqual(len(queries_reglarecargopago), 2)
+        self.assertEqual(data[0]['monto_descuento'], '2.00')
+        self.assertEqual(data[1]['monto_descuento'], '2.00')

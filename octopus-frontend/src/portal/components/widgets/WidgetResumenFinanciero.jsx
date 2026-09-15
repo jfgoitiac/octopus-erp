@@ -51,6 +51,14 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar }) => {
                       + ${Number(m.monto_recargo).toFixed(2)} {m.nombre_recargo}
                     </p>
                   </>
+                ) : m.monto_descuento > 0 ? (
+                  <>
+                    <p className="text-xs text-gray-400 line-through">${Number(m.monto_usd).toFixed(2)}</p>
+                    <p className="text-sm font-semibold text-green-600">${Number(m.monto_total).toFixed(2)}</p>
+                    <p className="text-[10px] text-green-600 font-medium">
+                      -${Number(m.monto_descuento).toFixed(2)} {m.nombre_descuento}
+                    </p>
+                  </>
                 ) : (
                   <p className="text-sm font-semibold text-gray-800">${Number(m.monto_usd).toFixed(2)}</p>
                 )}

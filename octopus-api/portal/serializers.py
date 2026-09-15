@@ -162,16 +162,22 @@ class MensualidadSerializer(serializers.ModelSerializer):
     Mensualidad con cálculo de días de mora.
     dias_mora > 0 indica que la mensualidad está vencida y sin pagar.
 
-    monto_recargo/nombre_recargo/monto_total son PROSPECTIVOS: se calculan
-    con resolver_recargo() evaluado HOY, solo si la mensualidad sigue sin
-    pagar (una ya pagada no debe mostrar un recargo hipotético — su recargo
-    REAL, si aplicó, ya quedó guardado como LineaRecargoPago inmutable en
-    el momento del cobro, y no se confunde con este cálculo de cotización).
+    monto_recargo/nombre_recargo, monto_descuento/nombre_descuento y
+    monto_total son PROSPECTIVOS: se calculan con resolver_recargo()/
+    resolver_descuento() evaluados HOY, solo si la mensualidad sigue sin
+    pagar (una ya pagada no debe mostrar un recargo/descuento hipotético —
+    el real, si aplicó, ya quedó guardado como LineaRecargoPago/
+    LineaDescuentoPago inmutable en el momento del cobro, y no se confunde
+    con este cálculo de cotización). Recargo y descuento nunca coexisten
+    sobre la misma mensualidad (ver ReglaRecargoPago.clean()), así que
+    monto_total resta el descuento o suma el recargo, nunca ambos.
     """
     mes_nombre = serializers.SerializerMethodField()
     dias_mora = serializers.SerializerMethodField()
     monto_recargo = serializers.SerializerMethodField()
     nombre_recargo = serializers.SerializerMethodField()
+    monto_descuento = serializers.SerializerMethodField()
+    nombre_descuento = serializers.SerializerMethodField()
     monto_total = serializers.SerializerMethodField()
     saldo = serializers.SerializerMethodField()
 
@@ -181,7 +187,8 @@ class MensualidadSerializer(serializers.ModelSerializer):
             'id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'monto_pagado', 'saldo',
             'pagado', 'fecha_pago', 'dias_mora',
             'monto_original_usd', 'porcentaje_beca_aplicado',
-            'monto_recargo', 'nombre_recargo', 'monto_total',
+            'monto_recargo', 'nombre_recargo',
+            'monto_descuento', 'nombre_descuento', 'monto_total',
         ]
 
     def get_mes_nombre(self, obj):
@@ -237,10 +244,40 @@ class MensualidadSerializer(serializers.ModelSerializer):
         resultado = self._resultado_recargo(obj)
         return resultado['nombre'] if resultado else None
 
+    def _resultado_descuento(self, obj):
+        """Mismo patrón de caché por objeto y `cache_reglas` compartido que
+        _resultado_recargo (ver PortalDashboardNPlusOneTest) — usa una clave
+        de caché distinta ('_regla_descuento', ver
+        descuentos.py::_regla_descuento_activa) así que puede compartir el
+        mismo dict `cache_reglas` sin pisar la del recargo."""
+        if hasattr(obj, '_descuento_resuelto_cache'):
+            return obj._descuento_resuelto_cache
+        if obj.pagado:
+            resultado = None
+        else:
+            from cobranza.descuentos import resolver_descuento
+            cache_reglas = self.context.get('cache_reglas')
+            resultado = resolver_descuento(obj, date.today(), _cache_reglas=cache_reglas)
+        obj._descuento_resuelto_cache = resultado
+        return resultado
+
+    def get_monto_descuento(self, obj):
+        resultado = self._resultado_descuento(obj)
+        return str(resultado['monto_descontado_usd']) if resultado else '0.00'
+
+    def get_nombre_descuento(self, obj):
+        resultado = self._resultado_descuento(obj)
+        return resultado['nombre'] if resultado else None
+
     def get_monto_total(self, obj):
-        resultado = self._resultado_recargo(obj)
-        recargo = resultado['monto_usd'] if resultado else Decimal('0.00')
-        return str(obj.monto_usd + recargo)
+        # Recargo y descuento nunca coexisten sobre la misma mensualidad
+        # (validado en ReglaRecargoPago.clean()), así que a lo sumo uno de
+        # los dos términos siguientes es distinto de cero.
+        resultado_recargo = self._resultado_recargo(obj)
+        recargo = resultado_recargo['monto_usd'] if resultado_recargo else Decimal('0.00')
+        resultado_descuento = self._resultado_descuento(obj)
+        descuento = resultado_descuento['monto_descontado_usd'] if resultado_descuento else Decimal('0.00')
+        return str(obj.monto_usd + recargo - descuento)
 
 
 class PagoHistorialSerializer(serializers.ModelSerializer):
