@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests.py": {
-    "mtime": 1789581703.8039434,
-    "ast_hash": "51791129bccc3f6b6493b45ed6d682b6",
+    "mtime": 1789584724.2254355,
+    "ast_hash": "15d586f6dfe8c19daf78a6749384fe4d",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/urls.py": {
@@ -295,8 +295,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1789581626.7241652,
-    "ast_hash": "092794ebf713f7d479ba71dfcbbdcfdc",
+    "mtime": 1789584641.0523827,
+    "ast_hash": "47cac4f4ff48b70950ba35d7474e97e7",
     "semantic_hash": ""
   },
   "octopus-api/config/__init__.py": {
@@ -2650,8 +2650,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/CobranzaStep1.jsx": {
-    "mtime": 1789510133.6968067,
-    "ast_hash": "a4101b26f4ae18834a3b7b51b65d7111",
+    "mtime": 1789584673.5117066,
+    "ast_hash": "1f2fe61de0640843b92c52a1386b5885",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/CobranzaStep2.jsx": {
@@ -2660,8 +2660,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/ResumenPago.jsx": {
-    "mtime": 1789526447.5063674,
-    "ast_hash": "ef5988632eb2ba1702e8560e55b2839d",
+    "mtime": 1789584691.2759612,
+    "ast_hash": "79feddbf14b33ecbe0ab5999375224cc",
     "semantic_hash": ""
   },
   "octopus-frontend/src/utils/construirItemsRecibo.js": {
@@ -3495,8 +3495,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1789581653.4913576,
-    "ast_hash": "fe8efbbd363cfad25ad154a5b902d66e",
+    "mtime": 1789584691.6033595,
+    "ast_hash": "518db7fce6c399c2d47753ecdb9f7b37",
     "semantic_hash": ""
   },
   "octopus-api/academico/migrations/0010_eventocalendario.py": {
