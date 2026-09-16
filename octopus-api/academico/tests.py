@@ -1846,7 +1846,7 @@ class DeshacerGeneracionHorarioTests(TestCase):
 
     def test_deshacer_revierte_lo_creado_y_restaura_lo_borrado(self):
         resp_generar = self.client.post('/api/academico/horarios/generar/', {
-            'paquete_id': self.paquete.id, 'semilla': 5,
+            'paquete_id': self.paquete.id, 'semilla': 5, 'reemplazar_existente': True,
         }, format='json')
         self.assertEqual(resp_generar.status_code, 201, resp_generar.content)
         self.assertEqual(resp_generar.data['clases_creadas'], 1)

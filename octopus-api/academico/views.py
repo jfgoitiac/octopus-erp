@@ -1933,9 +1933,23 @@ class GenerarHorarioView(APIView):
         if semilla is not None:
             semilla = int(semilla)
 
+        reemplazar_existente = bool(request.data.get('reemplazar_existente', False))
+
         grados = list(paquete.grados.values_list('grado_seccion', flat=True))
         if not grados:
             return Response({'error': 'El paquete no tiene grados asociados.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # El algoritmo ignora las clases no pineadas ya existentes (las trata
+        # como huecos libres) y la persistencia de abajo las borra siempre.
+        # Sin este chequeo, "reemplazar_existente=false" no protegía nada.
+        ya_existe_horario = HorarioClase.objects.filter(
+            materia__grado_seccion__in=grados, pineado=False,
+        ).exists()
+        if ya_existe_horario and not reemplazar_existente:
+            return Response(
+                {'error': 'Ya existe un horario generado para uno o más grados de este paquete. Marca "Reemplazar horario existente" para regenerarlo.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         colocadas, no_colocadas, advertencias = _ejecutar_algoritmo_paquete(paquete, semilla=semilla)
 
