@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from rest_framework import permissions, status
@@ -14,8 +15,11 @@ from .models import (
     AlertaRendimiento,
     Asistencia,
     BloqueEvaluacion,
+    BloqueHorario,
     Docente,
+    DisponibilidadDocente,
     EventoCalendario,
+    GeneracionHorarioSnapshot,
     HorarioClase,
     IncidenteDisciplinario,
     ItemEvaluacion,
@@ -24,6 +28,8 @@ from .models import (
     MaterialEstudio,
     Nota,
     NotaItemEvaluacion,
+    PaqueteHorario,
+    PaqueteHorarioGrado,
     PlanEvaluacion,
 )
 from .services import (
@@ -38,6 +44,8 @@ from .services import (
 from .serializers import (
     AsistenciaBulkSerializer,
     AsistenciaSerializer,
+    BloqueHorarioSerializer,
+    DisponibilidadDocenteSerializer,
     DocenteSerializer,
     EventoCalendarioSerializer,
     HorarioClaseSerializer,
@@ -49,6 +57,8 @@ from .serializers import (
     NotaBulkSerializer,
     NotaItemBulkSerializer,
     NotaSerializer,
+    PaqueteHorarioGradoSerializer,
+    PaqueteHorarioSerializer,
     PlanEvaluacionInputSerializer,
     PlanEvaluacionSerializer,
 )
@@ -1393,12 +1403,513 @@ def _ejecutar_algoritmo(grado_seccion, config, semilla=None):
     return asignaciones, advertencias
 
 
+def _armar_disponibilidad_map(docentes_ids):
+    """
+    {docente_user_id: [DisponibilidadDocente, ...] | None}.
+    None significa "sin franjas declaradas" == disponible siempre, para no
+    romper docentes que aún no configuraron su disponibilidad.
+    """
+    mapa = {uid: [] for uid in docentes_ids}
+    franjas = DisponibilidadDocente.objects.filter(
+        docente__user_id__in=docentes_ids
+    ).select_related('docente')
+    for f in franjas:
+        mapa[f.docente.user_id].append(f)
+    return {uid: (franjas_docente or None) for uid, franjas_docente in mapa.items()}
+
+
+def _docente_disponible_en_bloque(disponibilidad_map, docente_id, bloque):
+    """True si el docente puede dictar en `bloque` (BloqueHorario). Un
+    docente sin franjas declaradas (mapa[docente_id] es None) se considera
+    disponible siempre."""
+    franjas = disponibilidad_map.get(docente_id)
+    if not franjas:
+        return True
+    for f in franjas:
+        if (
+            f.dia_semana == bloque.dia_semana
+            and f.hora_inicio <= bloque.hora_inicio
+            and f.hora_fin >= bloque.hora_fin
+        ):
+            return True
+    return False
+
+
+def _ejecutar_algoritmo_paquete(paquete, semilla=None):
+    """
+    Distribuye las materias de TODOS los grados de `paquete` en una sola
+    pasada, usando los BloqueHorario del paquete como grilla (en vez de
+    bloques calculados on-the-fly como el algoritmo legado por-grado). Esto
+    permite detectar y evitar choques de docente/aula ENTRE los grados del
+    paquete dentro de la misma corrida.
+
+    Respeta:
+      - HorarioClase.pineado=True: no se tocan ni se cuentan como libres
+        los bloques que ya ocupan.
+      - DisponibilidadDocente: si el docente declaró franjas, solo se le
+        asigna dentro de ellas. Sin franjas declaradas = disponible siempre.
+      - Conflicto de aula (ConfiguracionGrado.aula_fija por grado), igual
+        que de docente.
+
+    Retorna (colocadas, no_colocadas, advertencias):
+      colocadas: [{'materia': Materia, 'bloque': BloqueHorario, 'aula': str}]
+      no_colocadas: [{'materia': Materia, 'horas_faltantes': int, 'motivo': str}]
+      advertencias: [str]
+    """
+    grados = list(
+        PaqueteHorarioGrado.objects.filter(paquete=paquete)
+        .values_list('grado_seccion', flat=True)
+    )
+    advertencias = []
+    if not grados:
+        return [], [], ['El paquete no tiene grados asociados.']
+
+    bloques_clase = list(
+        BloqueHorario.objects.filter(paquete=paquete, tipo='clase').order_by('dia_semana', 'orden')
+    )
+    if not bloques_clase:
+        return [], [], ['El paquete no tiene bloques de clase definidos.']
+
+    if semilla is not None:
+        random.seed(semilla)
+
+    materias = list(
+        Materia.objects.filter(grado_seccion__in=grados, activa=True).select_related('docente')
+    )
+    if not materias:
+        return [], [], ['No hay materias activas en los grados del paquete.']
+
+    pineadas = list(
+        HorarioClase.objects.filter(materia__grado_seccion__in=grados, pineado=True)
+        .select_related('materia')
+    )
+    pineadas_por_materia = defaultdict(int)
+    for hc in pineadas:
+        pineadas_por_materia[hc.materia_id] += 1
+
+    aula_fija_por_grado = {
+        g: (ConfiguracionGrado.objects.filter(grado_seccion=g).values_list('aula_fija', flat=True).first() or '').strip()
+        for g in grados
+    }
+
+    # Ocupación por bloque: qué docentes/aulas/grados ya están tomados ahí.
+    ocupacion = {b.id: {'docentes': set(), 'aulas': set(), 'grados': set()} for b in bloques_clase}
+    for hc in pineadas:
+        if hc.bloque_id and hc.bloque_id in ocupacion:
+            if hc.materia.docente_id:
+                ocupacion[hc.bloque_id]['docentes'].add(hc.materia.docente_id)
+            aula = (hc.aula or '').strip()
+            if aula:
+                ocupacion[hc.bloque_id]['aulas'].add(aula)
+            ocupacion[hc.bloque_id]['grados'].add(hc.materia.grado_seccion)
+
+    docentes_ids = {m.docente_id for m in materias if m.docente_id}
+    disponibilidad_map = _armar_disponibilidad_map(docentes_ids)
+
+    # Cola de "unidades de bloque" a colocar: una por cada hora académica
+    # pendiente (ya descontando lo que quedó pineado).
+    cola = []
+    for m in materias:
+        faltan = max(0, m.horas_academicas - pineadas_por_materia.get(m.id, 0))
+        cola.extend([m] * faltan)
+    random.shuffle(cola)
+
+    materia_dias = {m.id: set() for m in materias}
+    colocadas = []
+    no_colocadas_map = {}
+
+    bloques_por_grado = {g: list(bloques_clase) for g in grados}
+
+    for materia in cola:
+        grado = materia.grado_seccion
+        aula_grado = aula_fija_por_grado.get(grado, '')
+        candidatos = [b for b in bloques_por_grado[grado] if grado not in ocupacion[b.id]['grados']]
+        random.shuffle(candidatos)
+
+        ubicada = False
+        for evitar_repetir_dia in (True, False):
+            for bloque in candidatos:
+                if grado in ocupacion[bloque.id]['grados']:
+                    continue
+                if evitar_repetir_dia and bloque.dia_semana in materia_dias[materia.id]:
+                    continue
+                if materia.docente_id and materia.docente_id in ocupacion[bloque.id]['docentes']:
+                    continue
+                if materia.docente_id and not _docente_disponible_en_bloque(
+                    disponibilidad_map, materia.docente_id, bloque
+                ):
+                    continue
+                if aula_grado and aula_grado in ocupacion[bloque.id]['aulas']:
+                    continue
+
+                ocupacion[bloque.id]['grados'].add(grado)
+                if materia.docente_id:
+                    ocupacion[bloque.id]['docentes'].add(materia.docente_id)
+                if aula_grado:
+                    ocupacion[bloque.id]['aulas'].add(aula_grado)
+                materia_dias[materia.id].add(bloque.dia_semana)
+                colocadas.append({'materia': materia, 'bloque': bloque, 'aula': aula_grado})
+                ubicada = True
+                break
+            if ubicada:
+                break
+
+        if not ubicada:
+            entrada = no_colocadas_map.setdefault(materia.id, {
+                'materia': materia, 'horas_faltantes': 0, 'motivo': None,
+            })
+            entrada['horas_faltantes'] += 1
+            if entrada['motivo'] is None:
+                if materia.docente_id and disponibilidad_map.get(materia.docente_id):
+                    entrada['motivo'] = 'Sin bloques compatibles con la disponibilidad declarada del docente.'
+                else:
+                    entrada['motivo'] = 'Sin bloques libres por conflicto de docente/aula en el paquete.'
+
+    return colocadas, list(no_colocadas_map.values()), advertencias
+
+
+# ─────────────────────────────────────────────
+# PAQUETES DE HORARIO (rediseño 2026-09)
+# ─────────────────────────────────────────────
+class PaquetesHorarioView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        qs = PaqueteHorario.objects.select_related('sede', 'creado_por').prefetch_related('grados').all()
+        sede = request.query_params.get('sede')
+        periodo = request.query_params.get('periodo_escolar')
+        estado = request.query_params.get('estado')
+        if sede:
+            qs = qs.filter(sede_id=sede)
+        if periodo:
+            qs = qs.filter(periodo_escolar=periodo)
+        if estado:
+            qs = qs.filter(estado=estado)
+        return Response(PaqueteHorarioSerializer(qs, many=True).data)
+
+    def post(self, request):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'No tienes permisos para crear paquetes de horario.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = PaqueteHorarioSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(creado_por=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PaqueteHorarioDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get(self, pk):
+        try:
+            return PaqueteHorario.objects.select_related('sede', 'creado_por').get(pk=pk)
+        except PaqueteHorario.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        paquete = self._get(pk)
+        if not paquete:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PaqueteHorarioSerializer(paquete).data)
+
+    def put(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        paquete = self._get(pk)
+        if not paquete:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = PaqueteHorarioSerializer(paquete, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        paquete = self._get(pk)
+        if not paquete:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        paquete.delete()
+        return Response({'mensaje': 'Paquete eliminado correctamente.'})
+
+
+class PaqueteHorarioPublicarView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            paquete = PaqueteHorario.objects.get(pk=pk)
+        except PaqueteHorario.DoesNotExist:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not paquete.grados.exists():
+            return Response({'error': 'El paquete debe tener al menos un grado para publicarse.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not paquete.bloques.exists():
+            return Response({'error': 'El paquete debe tener al menos un bloque para publicarse.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        paquete.estado = 'publicado'
+        paquete.save(update_fields=['estado', 'actualizado_en'])
+        return Response(PaqueteHorarioSerializer(paquete).data)
+
+
+class PaqueteHorarioGradosView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            paquete = PaqueteHorario.objects.get(pk=pk)
+        except PaqueteHorario.DoesNotExist:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PaqueteHorarioGradoSerializer(paquete.grados.all(), many=True).data)
+
+    def post(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            paquete = PaqueteHorario.objects.get(pk=pk)
+        except PaqueteHorario.DoesNotExist:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        grado_seccion = (request.data.get('grado_seccion') or '').strip()
+        if not grado_seccion:
+            return Response({'error': 'El campo grado_seccion es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Regla: un grado_seccion no puede estar en dos PaqueteHorario con el
+        # mismo periodo_escolar a la vez, sin importar el estado del otro
+        # paquete (ver decisión #2 del rediseño).
+        conflicto = PaqueteHorarioGrado.objects.filter(
+            grado_seccion=grado_seccion,
+            paquete__periodo_escolar=paquete.periodo_escolar,
+        ).exclude(paquete=paquete).select_related('paquete').first()
+        if conflicto:
+            return Response(
+                {
+                    'error': (
+                        f"El grado '{grado_seccion}' ya está asignado al paquete "
+                        f"'{conflicto.paquete.nombre}' para el periodo {paquete.periodo_escolar}. "
+                        "Un grado no puede tener dos paquetes de horario vigentes en el mismo periodo."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if PaqueteHorarioGrado.objects.filter(paquete=paquete, grado_seccion=grado_seccion).exists():
+            return Response({'error': 'Ese grado ya está en este paquete.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        pg = PaqueteHorarioGrado.objects.create(paquete=paquete, grado_seccion=grado_seccion)
+        return Response(PaqueteHorarioGradoSerializer(pg).data, status=status.HTTP_201_CREATED)
+
+
+class PaqueteHorarioGradoDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk, grado_pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            pg = PaqueteHorarioGrado.objects.get(pk=grado_pk, paquete_id=pk)
+        except PaqueteHorarioGrado.DoesNotExist:
+            return Response({'error': 'Grado no encontrado en este paquete.'}, status=status.HTTP_404_NOT_FOUND)
+        pg.delete()
+        return Response({'mensaje': 'Grado removido del paquete.'})
+
+
+class PaqueteHorarioBloquesView(APIView):
+    """
+    GET: lista los bloques del paquete.
+    POST: agrega un bloque nuevo al final del día indicado. Recibe
+    {dia_semana, duracion_min, tipo}. hora_inicio se calcula automáticamente
+    como el hora_fin del último bloque de ese día (o '07:00' si es el primero).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    HORA_INICIO_JORNADA_DEFAULT = '07:00'
+
+    def get(self, request, pk):
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            paquete = PaqueteHorario.objects.get(pk=pk)
+        except PaqueteHorario.DoesNotExist:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(BloqueHorarioSerializer(paquete.bloques.all(), many=True).data)
+
+    def post(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            paquete = PaqueteHorario.objects.get(pk=pk)
+        except PaqueteHorario.DoesNotExist:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        dia_semana = request.data.get('dia_semana')
+        if dia_semana not in dict(HorarioClase.DIAS):
+            return Response({'error': 'dia_semana inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            duracion_min = int(request.data.get('duracion_min', 45))
+        except (TypeError, ValueError):
+            return Response({'error': 'duracion_min debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
+        if duracion_min <= 0:
+            return Response({'error': 'duracion_min debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
+        tipo = request.data.get('tipo', 'clase')
+        if tipo not in dict(BloqueHorario.TIPO_CHOICES):
+            return Response({'error': 'tipo inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ultimo = paquete.bloques.filter(dia_semana=dia_semana).order_by('orden').last()
+        fmt = '%H:%M'
+        if ultimo:
+            hora_inicio = ultimo.hora_fin
+            orden = ultimo.orden + 1
+        else:
+            hora_inicio = datetime.strptime(self.HORA_INICIO_JORNADA_DEFAULT, fmt).time()
+            orden = 1
+        hora_fin = (datetime.combine(date.today(), hora_inicio) + timedelta(minutes=duracion_min)).time()
+
+        with transaction.atomic():
+            bloque = BloqueHorario.objects.create(
+                paquete=paquete, dia_semana=dia_semana, orden=orden,
+                hora_inicio=hora_inicio, hora_fin=hora_fin, tipo=tipo,
+            )
+        return Response(BloqueHorarioSerializer(bloque).data, status=status.HTTP_201_CREATED)
+
+
+class PaqueteHorarioBloqueDetailView(APIView):
+    """
+    PUT: edita duración/tipo de un bloque. Al cambiar la duración, recalcula
+    hora_fin y desplaza en cascada los bloques siguientes del mismo día.
+    DELETE: elimina el bloque (no reordena ni desplaza los demás).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_bloque(self, pk, bloque_pk):
+        try:
+            return BloqueHorario.objects.get(pk=bloque_pk, paquete_id=pk)
+        except BloqueHorario.DoesNotExist:
+            return None
+
+    def put(self, request, pk, bloque_pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        bloque = self._get_bloque(pk, bloque_pk)
+        if not bloque:
+            return Response({'error': 'Bloque no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        tipo = request.data.get('tipo')
+        if tipo is not None:
+            if tipo not in dict(BloqueHorario.TIPO_CHOICES):
+                return Response({'error': 'tipo inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            bloque.tipo = tipo
+
+        duracion_min = request.data.get('duracion_min')
+        with transaction.atomic():
+            if duracion_min is not None:
+                try:
+                    duracion_min = int(duracion_min)
+                except (TypeError, ValueError):
+                    return Response({'error': 'duracion_min debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
+                if duracion_min <= 0:
+                    return Response({'error': 'duracion_min debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                nueva_hora_fin = (
+                    datetime.combine(date.today(), bloque.hora_inicio) + timedelta(minutes=duracion_min)
+                ).time()
+                desplazamiento = (
+                    datetime.combine(date.today(), nueva_hora_fin)
+                    - datetime.combine(date.today(), bloque.hora_fin)
+                )
+                bloque.hora_fin = nueva_hora_fin
+                bloque.save()
+
+                if desplazamiento != timedelta(0):
+                    siguientes = BloqueHorario.objects.filter(
+                        paquete_id=pk, dia_semana=bloque.dia_semana, orden__gt=bloque.orden,
+                    ).order_by('orden')
+                    for sig in siguientes:
+                        sig.hora_inicio = (datetime.combine(date.today(), sig.hora_inicio) + desplazamiento).time()
+                        sig.hora_fin = (datetime.combine(date.today(), sig.hora_fin) + desplazamiento).time()
+                        sig.save()
+            else:
+                bloque.save()
+
+        return Response(BloqueHorarioSerializer(bloque).data)
+
+    def delete(self, request, pk, bloque_pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        bloque = self._get_bloque(pk, bloque_pk)
+        if not bloque:
+            return Response({'error': 'Bloque no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        bloque.delete()
+        return Response({'mensaje': 'Bloque eliminado correctamente.'})
+
+
+# ─────────────────────────────────────────────
+# DISPONIBILIDAD DEL DOCENTE (rediseño 2026-09)
+# ─────────────────────────────────────────────
+class DocenteDisponibilidadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        if not IsSecretariaOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            docente = Docente.objects.get(pk=pk)
+        except Docente.DoesNotExist:
+            return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(DisponibilidadDocenteSerializer(docente.disponibilidades.all(), many=True).data)
+
+    def post(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            docente = Docente.objects.get(pk=pk)
+        except Docente.DoesNotExist:
+            return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        datos = request.data.copy()
+        datos['docente'] = docente.id
+        serializer = DisponibilidadDocenteSerializer(data=datos)
+        if serializer.is_valid():
+            try:
+                serializer.save(docente=docente)
+            except DjangoValidationError as e:
+                return Response({'error': '; '.join(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DocenteDisponibilidadDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk, disp_pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            disponibilidad = DisponibilidadDocente.objects.get(pk=disp_pk, docente_id=pk)
+        except DisponibilidadDocente.DoesNotExist:
+            return Response({'error': 'Franja no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        disponibilidad.delete()
+        return Response({'mensaje': 'Franja de disponibilidad eliminada.'})
+
+
 class GenerarHorarioView(APIView):
     """
     POST /api/academico/horarios/generar/
-    Genera automáticamente el horario de un grado usando un algoritmo de
-    constraint satisfaction con distribución equilibrada de materias.
+    Genera automáticamente el horario de TODOS los grados de un
+    PaqueteHorario en una sola pasada (así se detectan choques de
+    docente/aula entre esos grados dentro de la misma corrida).
     Roles permitidos: director, sistemas, administrador.
+
+    Body: {paquete_id, semilla? }
+    Respuesta: {colocadas, no_colocadas, advertencias, snapshot_id}
     """
     permission_classes = [permissions.IsAuthenticated, IsAdminOrAbove]
 
@@ -1409,139 +1920,150 @@ class GenerarHorarioView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # ── Validar body ──────────────────────────────────────────────────────
-        grado_seccion        = request.data.get('grado_seccion', '').strip()
-        horas_por_dia        = request.data.get('horas_por_dia', 6)
-        hora_inicio          = request.data.get('hora_inicio', '07:00')
-        hora_fin             = request.data.get('hora_fin', '13:00')
-        duracion_clase_min   = int(request.data.get('duracion_clase_min', 60))
-        dias                 = request.data.get('dias', ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'])
-        recreo_hora          = request.data.get('recreo_hora', '09:00')
-        recreo_duracion_min  = int(request.data.get('recreo_duracion_min', 20))
-        # Array de múltiples recesos: [{'hora': 'HH:MM', 'duracion_min': int}, ...].
-        # Si no viene, se arma uno solo a partir de los campos singulares (compat).
-        recesos = request.data.get('recesos') or [{
-            'hora': recreo_hora, 'duracion_min': recreo_duracion_min,
-        }]
-        reemplazar_existente = request.data.get('reemplazar_existente', False)
-        # IDs de HorarioClase que el usuario marcó explícitamente para que el
-        # generador NO las toque ni las mueva (ver ModalGenerador.jsx).
-        clases_bloqueadas_ids = request.data.get('clases_bloqueadas') or []
-        # Opcional: si se provee, fija random.seed(semilla) para que el horario
-        # generado sea reproducible. Si se omite, cada llamada usa aleatoriedad real.
+        paquete_id = request.data.get('paquete_id')
+        if not paquete_id:
+            return Response({'error': 'El campo paquete_id es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            paquete = PaqueteHorario.objects.get(pk=paquete_id)
+        except PaqueteHorario.DoesNotExist:
+            return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
         semilla = request.data.get('semilla', None)
         if semilla is not None:
             semilla = int(semilla)
 
-        if not grado_seccion:
+        grados = list(paquete.grados.values_list('grado_seccion', flat=True))
+        if not grados:
+            return Response({'error': 'El paquete no tiene grados asociados.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        colocadas, no_colocadas, advertencias = _ejecutar_algoritmo_paquete(paquete, semilla=semilla)
+
+        if not colocadas and not no_colocadas:
             return Response(
-                {'error': 'El campo grado_seccion es requerido.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': 'No se pudo generar el horario.', 'advertencias': advertencias},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        # ── Verificar si ya existe horario ────────────────────────────────────
-        tiene_horario = HorarioClase.objects.filter(
-            materia__grado_seccion=grado_seccion,
-            materia__activa=True,
-        ).exists()
-
-        if tiene_horario and not reemplazar_existente:
-            return Response(
-                {
-                    'error': f"El grado '{grado_seccion}' ya tiene un horario generado. "
-                             "Activa 'reemplazar_existente' para sobreescribirlo."
-                },
-                status=status.HTTP_409_CONFLICT
-            )
-
-        # ── Clases bloqueadas: el generador debe respetarlas ────────────────────
-        # Se resuelven contra HorarioClase reales de este grado (se ignora
-        # cualquier id que no pertenezca al grado) para armar el mapa de
-        # bloques ya ocupados que el algoritmo no debe tocar.
-        clases_bloqueadas_qs = HorarioClase.objects.filter(
-            id__in=clases_bloqueadas_ids,
-            materia__grado_seccion=grado_seccion,
-        ) if clases_bloqueadas_ids else HorarioClase.objects.none()
-
-        bloqueos_por_dia = defaultdict(list)
-        for hc in clases_bloqueadas_qs:
-            bloqueos_por_dia[hc.dia_semana].append(
-                (hc.hora_inicio.strftime('%H:%M'), hc.hora_fin.strftime('%H:%M'))
-            )
-
-        # ── Ejecutar algoritmo ────────────────────────────────────────────────
-        config = {
-            'hora_inicio':         hora_inicio,
-            'hora_fin':            hora_fin,
-            'duracion_clase_min':  duracion_clase_min,
-            'dias':                dias,
-            'recreo_hora':         recreo_hora,
-            'recreo_duracion_min': recreo_duracion_min,
-            'recesos':             recesos,
-            'bloqueos_por_dia':    dict(bloqueos_por_dia),
-        }
-
-        asignaciones, advertencias = _ejecutar_algoritmo(grado_seccion, config, semilla=semilla)
-
-        if not asignaciones:
-            return Response(
-                {
-                    'error': 'No se pudo generar el horario.',
-                    'advertencias': advertencias,
-                },
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY
-            )
-
-        # Aula fija del grado (H4): si ConfiguracionGrado la tiene definida,
-        # se asigna a todas las clases generadas. _ejecutar_algoritmo ya evitó
-        # bloques donde esa aula estuviera ocupada por otro grado.
-        aula_fija = (
-            ConfiguracionGrado.objects.filter(grado_seccion=grado_seccion)
-            .values_list('aula_fija', flat=True).first() or ''
-        ).strip()
-
-        # ── Persistir resultado ───────────────────────────────────────────────
-        # Borrado + creación en una sola transacción: si el proceso se
-        # interrumpe a mitad de camino, el grado no debe quedar sin horario
-        # (antes el borrado y la creación no estaban en la misma
-        # transaction.atomic() — ver auditoría 2026-09-15, H6).
+        # ── Persistir: borrar clases no pineadas de estos grados, crear las
+        # nuevas, y guardar un snapshot para poder deshacer la corrida ──────
+        horarios_eliminados_snapshot = []
         creados = []
         with transaction.atomic():
-            # Se excluyen las clases bloqueadas: el usuario pidió explícitamente
-            # que el generador no las toque, así que deben sobrevivir al reemplazo.
-            if reemplazar_existente and tiene_horario:
-                HorarioClase.objects.filter(
-                    materia__grado_seccion=grado_seccion
-                ).exclude(
-                    id__in=[hc.id for hc in clases_bloqueadas_qs]
-                ).delete()
+            a_borrar = HorarioClase.objects.filter(
+                materia__grado_seccion__in=grados, pineado=False,
+            ).select_related('materia')
+            for hc in a_borrar:
+                horarios_eliminados_snapshot.append({
+                    'materia_id': hc.materia_id,
+                    'dia_semana': hc.dia_semana,
+                    'hora_inicio': hc.hora_inicio.strftime('%H:%M'),
+                    'hora_fin': hc.hora_fin.strftime('%H:%M'),
+                    'aula': hc.aula,
+                    'bloque_id': hc.bloque_id,
+                    'pineado': hc.pineado,
+                })
+            a_borrar.delete()
 
-            for asig in asignaciones:
+            for item in colocadas:
+                materia = item['materia']
+                bloque = item['bloque']
                 try:
-                    # Savepoint por clase: si una falla (ej. IntegrityError),
-                    # se revierte solo esa clase sin poner en rollback las
-                    # demás ni el borrado ya aplicado en esta transacción.
                     with transaction.atomic():
                         hc = HorarioClase.objects.create(
-                            materia    = asig['materia'],
-                            dia_semana = asig['dia'],
-                            hora_inicio= asig['bloque']['inicio'],
-                            hora_fin   = asig['bloque']['fin'],
-                            aula       = aula_fija,
+                            materia=materia,
+                            dia_semana=bloque.dia_semana,
+                            hora_inicio=bloque.hora_inicio,
+                            hora_fin=bloque.hora_fin,
+                            aula=item['aula'],
+                            bloque=bloque,
                         )
                     creados.append(hc)
                 except Exception as e:
-                    advertencias.append(f"Error al guardar clase de '{asig['materia'].nombre}': {str(e)}")
+                    advertencias.append(f"Error al guardar clase de '{materia.nombre}': {str(e)}")
 
-        # Deduplicar advertencias
-        advertencias_unicas = list(dict.fromkeys(advertencias))
+            snapshot = GeneracionHorarioSnapshot.objects.create(
+                paquete=paquete,
+                horarios_creados_ids=[hc.id for hc in creados],
+                horarios_eliminados=horarios_eliminados_snapshot,
+                creado_por=request.user,
+            )
+
+        no_colocadas_data = [
+            {
+                'materia': item['materia'].nombre,
+                'materia_id': item['materia'].id,
+                'grado': item['materia'].grado_seccion,
+                'horas_faltantes': item['horas_faltantes'],
+                'motivo': item['motivo'],
+            }
+            for item in no_colocadas
+        ]
 
         return Response({
-            'generado':       True,
+            'generado': True,
             'clases_creadas': len(creados),
-            'advertencias':   advertencias_unicas,
-            'horario':        HorarioClaseSerializer(creados, many=True).data,
+            'colocadas': HorarioClaseSerializer(creados, many=True).data,
+            'no_colocadas': no_colocadas_data,
+            'advertencias': list(dict.fromkeys(advertencias)),
+            'snapshot_id': snapshot.id,
         }, status=status.HTTP_201_CREATED)
+
+
+class DeshacerGeneracionHorarioView(APIView):
+    """
+    POST /api/academico/horarios/generar/deshacer/
+    Body: {paquete_id}
+    Revierte la última generación (no deshecha aún) de ese paquete: elimina
+    los HorarioClase creados en esa corrida y recrea los que había borrado.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrAbove]
+
+    def post(self, request):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'No tienes permisos para deshacer una generación de horario.'}, status=status.HTTP_403_FORBIDDEN)
+
+        paquete_id = request.data.get('paquete_id')
+        if not paquete_id:
+            return Response({'error': 'El campo paquete_id es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        snapshot = (
+            GeneracionHorarioSnapshot.objects
+            .filter(paquete_id=paquete_id, deshecho=False)
+            .order_by('-creado_en')
+            .first()
+        )
+        if not snapshot:
+            return Response({'error': 'No hay ninguna generación pendiente de deshacer para ese paquete.'}, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            HorarioClase.objects.filter(id__in=snapshot.horarios_creados_ids).delete()
+
+            restaurados = []
+            for datos in snapshot.horarios_eliminados:
+                try:
+                    materia = Materia.objects.get(pk=datos['materia_id'])
+                except Materia.DoesNotExist:
+                    continue
+                hc = HorarioClase.objects.create(
+                    materia=materia,
+                    dia_semana=datos['dia_semana'],
+                    hora_inicio=datos['hora_inicio'],
+                    hora_fin=datos['hora_fin'],
+                    aula=datos.get('aula', ''),
+                    bloque_id=datos.get('bloque_id'),
+                    pineado=datos.get('pineado', False),
+                )
+                restaurados.append(hc)
+
+            snapshot.deshecho = True
+            snapshot.save(update_fields=['deshecho'])
+
+        return Response({
+            'mensaje': 'Generación de horario deshecha correctamente.',
+            'horarios_eliminados_de_la_corrida': len(snapshot.horarios_creados_ids),
+            'horarios_restaurados': len(restaurados),
+        })
 
 
 # ─────────────────────────────────────────────

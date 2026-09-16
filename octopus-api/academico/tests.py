@@ -8,7 +8,7 @@ Cubren:
   - Scoping de docente por sección (permitido en la suya, 403 en otra).
   - Validación de adjunto de incidentes (tamaño y tipo de archivo).
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest import mock
 
@@ -1149,6 +1149,31 @@ class HorarioManualChoqueTests(TestCase):
 # ─────────────────────────────────────────────
 # GENERADOR DE HORARIOS — end to end (sin regresiones)
 # ─────────────────────────────────────────────
+def crear_paquete_horario(nombre, periodo_escolar, grados, bloques_por_dia=6, dias=None,
+                           duracion_min=45, hora_inicio='07:00'):
+    """Helper de tests (rediseño 2026-09): crea un PaqueteHorario con sus
+    PaqueteHorarioGrado y una grilla simple de BloqueHorario tipo 'clase'
+    para los días indicados."""
+    from .models import PaqueteHorario, PaqueteHorarioGrado, BloqueHorario
+
+    dias = dias or ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
+    paquete = PaqueteHorario.objects.create(nombre=nombre, periodo_escolar=periodo_escolar)
+    for g in grados:
+        PaqueteHorarioGrado.objects.create(paquete=paquete, grado_seccion=g)
+
+    fmt = '%H:%M'
+    for dia in dias:
+        cursor = datetime.strptime(hora_inicio, fmt)
+        for orden in range(1, bloques_por_dia + 1):
+            fin = cursor + timedelta(minutes=duracion_min)
+            BloqueHorario.objects.create(
+                paquete=paquete, dia_semana=dia, orden=orden,
+                hora_inicio=cursor.time(), hora_fin=fin.time(), tipo='clase',
+            )
+            cursor = fin
+    return paquete
+
+
 class GeneradorHorarioEndToEndTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -1159,17 +1184,13 @@ class GeneradorHorarioEndToEndTests(TestCase):
                 nombre=f'Materia E2E {i}', grado_seccion=self.grado,
                 horas_academicas=2, activa=True,
             )
+        self.paquete = crear_paquete_horario('Paquete E2E', '2025-2026', [self.grado])
 
     def test_genera_y_persiste_horario(self):
         self.client.force_authenticate(user=self.admin)
         resp = self.client.post('/api/academico/horarios/generar/', {
-            'grado_seccion':       self.grado,
-            'hora_inicio':         '07:00',
-            'hora_fin':            '12:00',
-            'duracion_clase_min':  45,
-            'recreo_hora':         '09:00',
-            'recreo_duracion_min': 20,
-            'semilla':             7,
+            'paquete_id': self.paquete.id,
+            'semilla':    7,
         }, format='json')
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertGreater(resp.data['clases_creadas'], 0)
@@ -1257,23 +1278,22 @@ class GeneradorHorarioClasesBloqueadasTests(TestCase):
             nombre='Materia Fija', grado_seccion=self.grado,
             horas_academicas=1, activa=True,
         )
+        self.paquete = crear_paquete_horario('Paquete Bloqueo', '2025-2026', [self.grado])
+        primer_bloque = self.paquete.bloques.filter(dia_semana='lunes', orden=1).get()
+        # `pineado=True` es el equivalente, en el rediseño, a las
+        # "clases_bloqueadas" del algoritmo legado: el generador no debe
+        # tocarla ni contar su bloque como libre.
         self.clase_bloqueada = HorarioClase.objects.create(
             materia=self.materia_fija, dia_semana='lunes',
-            hora_inicio='07:00', hora_fin='07:45', aula='Aula Fija',
+            hora_inicio=primer_bloque.hora_inicio, hora_fin=primer_bloque.hora_fin,
+            aula='Aula Fija', bloque=primer_bloque, pineado=True,
         )
         self.client.force_authenticate(user=self.admin)
 
     def test_clase_bloqueada_sobrevive_al_reemplazar_existente(self):
         resp = self.client.post('/api/academico/horarios/generar/', {
-            'grado_seccion':        self.grado,
-            'hora_inicio':          '07:00',
-            'hora_fin':             '12:00',
-            'duracion_clase_min':   45,
-            'recreo_hora':          '09:00',
-            'recreo_duracion_min':  20,
-            'reemplazar_existente': True,
-            'clases_bloqueadas':    [self.clase_bloqueada.id],
-            'semilla':              7,
+            'paquete_id': self.paquete.id,
+            'semilla':    7,
         }, format='json')
         self.assertEqual(resp.status_code, 201, resp.content)
 
@@ -1449,14 +1469,13 @@ class GeneradorHorarioAulaFijaTests(TestCase):
             nombre='Materia Aula 1', grado_seccion=grado,
             horas_academicas=1, activa=True,
         )
+        paquete = crear_paquete_horario(
+            'Paquete Aula Fija', '2025-2026', [grado],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=60,
+        )
         resp = self.client.post('/api/academico/horarios/generar/', {
-            'grado_seccion':       grado,
-            'hora_inicio':         '07:00',
-            'hora_fin':            '08:00',
-            'duracion_clase_min':  60,
-            'recreo_hora':         '12:00',
-            'recreo_duracion_min': 0,
-            'semilla':             1,
+            'paquete_id': paquete.id,
+            'semilla':    1,
         }, format='json')
         self.assertEqual(resp.status_code, 201, resp.content)
         creadas = HorarioClase.objects.filter(materia__grado_seccion=grado)
@@ -1583,3 +1602,281 @@ class DocenteAsignarMateriasViewTests(TestCase):
         url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
         response = self.client.post(url, {'materias': [self.materia1.id]}, format='json')
         self.assertEqual(response.status_code, 403)
+
+
+# ─────────────────────────────────────────────
+# REDISEÑO DE HORARIOS (2026-09) — PaqueteHorario, BloqueHorario,
+# DisponibilidadDocente y el generador multi-grado.
+# ─────────────────────────────────────────────
+from .models import (
+    BloqueHorario, DisponibilidadDocente, GeneracionHorarioSnapshot,
+    PaqueteHorario, PaqueteHorarioGrado,
+)
+from .views import _ejecutar_algoritmo_paquete
+
+
+class PaqueteHorarioGradoUnicidadTests(TestCase):
+    """Un grado_seccion no puede estar en dos PaqueteHorario del mismo
+    periodo_escolar a la vez, sin importar el estado de ninguno de los dos
+    paquetes en conflicto (decisión #2 del rediseño)."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_paquete_grado', 'director')
+        self.client.force_authenticate(user=self.admin)
+        self.paquete_1 = PaqueteHorario.objects.create(nombre='Paquete 1', periodo_escolar='2025-2026')
+        self.paquete_2 = PaqueteHorario.objects.create(nombre='Paquete 2', periodo_escolar='2025-2026')
+        PaqueteHorarioGrado.objects.create(paquete=self.paquete_1, grado_seccion='1er Grado A')
+
+    def test_rechaza_grado_ya_asignado_a_otro_paquete_del_mismo_periodo(self):
+        resp = self.client.post(
+            f'/api/academico/paquetes-horario/{self.paquete_2.id}/grados/',
+            {'grado_seccion': '1er Grado A'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('error', resp.data)
+        self.assertEqual(
+            PaqueteHorarioGrado.objects.filter(grado_seccion='1er Grado A').count(), 1,
+        )
+
+    def test_permite_el_mismo_grado_en_periodos_distintos(self):
+        paquete_otro_periodo = PaqueteHorario.objects.create(
+            nombre='Paquete Otro Periodo', periodo_escolar='2026-2027',
+        )
+        resp = self.client.post(
+            f'/api/academico/paquetes-horario/{paquete_otro_periodo.id}/grados/',
+            {'grado_seccion': '1er Grado A'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_publicar_requiere_al_menos_un_grado_y_un_bloque(self):
+        paquete_vacio = PaqueteHorario.objects.create(nombre='Paquete Vacío', periodo_escolar='2025-2026')
+        resp = self.client.post(f'/api/academico/paquetes-horario/{paquete_vacio.id}/publicar/')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+
+class DisponibilidadDocenteTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_disponibilidad', 'director')
+        self.profe = crear_usuario('profe_disponibilidad', 'docente')
+        self.docente = Docente.objects.create(user=self.profe)
+        self.client.force_authenticate(user=self.admin)
+
+    def test_crea_franja_de_disponibilidad(self):
+        resp = self.client.post(
+            f'/api/academico/docentes/{self.docente.id}/disponibilidad/',
+            {'dia_semana': 'lunes', 'hora_inicio': '07:00', 'hora_fin': '10:00'},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(DisponibilidadDocente.objects.filter(docente=self.docente).count(), 1)
+
+    def test_rechaza_franja_solapada(self):
+        DisponibilidadDocente.objects.create(
+            docente=self.docente, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='10:00',
+        )
+        resp = self.client.post(
+            f'/api/academico/docentes/{self.docente.id}/disponibilidad/',
+            {'dia_semana': 'lunes', 'hora_inicio': '09:00', 'hora_fin': '11:00'},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(DisponibilidadDocente.objects.filter(docente=self.docente).count(), 1)
+
+
+class GeneradorHorarioMultiGradoTests(TestCase):
+    """El generador multi-grado resuelve TODOS los grados de un paquete en
+    una sola pasada, cruzando conflictos de docente/aula entre ellos."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_multi_grado', 'director')
+        self.docente_user = crear_usuario('docente_multi_grado', 'docente')
+        self.docente = Docente.objects.create(user=self.docente_user)
+
+        self.grado_a = 'Multi Grado A'
+        self.grado_b = 'Multi Grado B'
+        # Mismo docente dictando en dos grados distintos del mismo paquete:
+        # solo hay UN bloque disponible en la grilla, así que si el
+        # generador no cruza los grados, ambas materias terminarían
+        # colocadas en el mismo (único) bloque -- lo cual sería un choque.
+        self.materia_a = Materia.objects.create(
+            nombre='Materia Multi A', grado_seccion=self.grado_a,
+            docente=self.docente_user, horas_academicas=1, activa=True,
+        )
+        self.materia_b = Materia.objects.create(
+            nombre='Materia Multi B', grado_seccion=self.grado_b,
+            docente=self.docente_user, horas_academicas=1, activa=True,
+        )
+        self.paquete = crear_paquete_horario(
+            'Paquete Multi Grado', '2025-2026', [self.grado_a, self.grado_b],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=45,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_docente_no_queda_asignado_a_dos_grados_en_el_mismo_bloque(self):
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'paquete_id': self.paquete.id, 'semilla': 3,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        creadas = list(HorarioClase.objects.filter(
+            materia__grado_seccion__in=[self.grado_a, self.grado_b]
+        ))
+        # Con un único bloque disponible, el mismo docente en dos grados no
+        # puede quedar colocado en ambos: como máximo una de las dos
+        # materias logra ubicarse.
+        self.assertLessEqual(len(creadas), 1)
+        self.assertEqual(
+            len(resp.data['no_colocadas']) + resp.data['clases_creadas'], 2,
+        )
+
+
+class GeneradorHorarioDisponibilidadTests(TestCase):
+    """El generador no coloca a un docente fuera de las franjas que declaró
+    en DisponibilidadDocente."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_disponibilidad_gen', 'director')
+        self.docente_user = crear_usuario('docente_disponibilidad_gen', 'docente')
+        self.docente = Docente.objects.create(user=self.docente_user)
+        # El docente SOLO está disponible el lunes de 07:00 a 07:45 -- el
+        # único bloque de la grilla es martes, así que no debería poder
+        # colocarse en absoluto.
+        DisponibilidadDocente.objects.create(
+            docente=self.docente, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='07:45',
+        )
+        self.grado = 'Grado Disponibilidad Gen'
+        self.materia = Materia.objects.create(
+            nombre='Materia Disponibilidad', grado_seccion=self.grado,
+            docente=self.docente_user, horas_academicas=1, activa=True,
+        )
+        self.paquete = crear_paquete_horario(
+            'Paquete Disponibilidad', '2025-2026', [self.grado],
+            bloques_por_dia=1, dias=['martes'], duracion_min=45,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_no_coloca_al_docente_fuera_de_su_disponibilidad(self):
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'paquete_id': self.paquete.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data['clases_creadas'], 0)
+        self.assertEqual(len(resp.data['no_colocadas']), 1)
+        self.assertFalse(
+            HorarioClase.objects.filter(materia=self.materia).exists()
+        )
+
+    def test_coloca_al_docente_dentro_de_su_disponibilidad(self):
+        paquete_lunes = crear_paquete_horario(
+            'Paquete Disponibilidad Lunes', '2025-2026', [self.grado],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=45,
+        )
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'paquete_id': paquete_lunes.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data['clases_creadas'], 1)
+
+
+class GeneradorHorarioConflictoAulaPaqueteTests(TestCase):
+    """Conflicto de aula entre grados del mismo paquete: dos grados con la
+    misma aula fija no pueden quedar con clase en el mismo bloque."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_aula_paquete', 'director')
+        self.grado_a = 'Aula Paquete A'
+        self.grado_b = 'Aula Paquete B'
+        ConfiguracionGrado.objects.create(grado_seccion=self.grado_a, aula_fija='Aula 7')
+        ConfiguracionGrado.objects.create(grado_seccion=self.grado_b, aula_fija='Aula 7')
+        Materia.objects.create(
+            nombre='Materia Aula Paquete A', grado_seccion=self.grado_a,
+            horas_academicas=1, activa=True,
+        )
+        Materia.objects.create(
+            nombre='Materia Aula Paquete B', grado_seccion=self.grado_b,
+            horas_academicas=1, activa=True,
+        )
+        self.paquete = crear_paquete_horario(
+            'Paquete Aula Conflicto', '2025-2026', [self.grado_a, self.grado_b],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=45,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_rechaza_choque_de_aula_entre_grados_del_paquete(self):
+        resp = self.client.post('/api/academico/horarios/generar/', {
+            'paquete_id': self.paquete.id, 'semilla': 2,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        creadas = HorarioClase.objects.filter(
+            materia__grado_seccion__in=[self.grado_a, self.grado_b]
+        )
+        # Con una sola aula compartida y un único bloque, como máximo un
+        # grado logra su clase -- el otro debe quedar en no_colocadas.
+        self.assertLessEqual(creadas.count(), 1)
+        self.assertEqual(len(resp.data['no_colocadas']) + resp.data['clases_creadas'], 2)
+
+
+class DeshacerGeneracionHorarioTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_deshacer_horario', 'director')
+        self.grado = 'Grado Deshacer'
+        Materia.objects.create(
+            nombre='Materia Deshacer', grado_seccion=self.grado,
+            horas_academicas=1, activa=True,
+        )
+        # Clase preexistente, NO pineada, que el generador debe borrar y que
+        # el "deshacer" debe restaurar.
+        self.horario_previo = HorarioClase.objects.create(
+            materia=Materia.objects.get(nombre='Materia Deshacer'),
+            dia_semana='martes', hora_inicio='10:00', hora_fin='10:45', aula='',
+        )
+        self.paquete = crear_paquete_horario(
+            'Paquete Deshacer', '2025-2026', [self.grado],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=45,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_deshacer_revierte_lo_creado_y_restaura_lo_borrado(self):
+        resp_generar = self.client.post('/api/academico/horarios/generar/', {
+            'paquete_id': self.paquete.id, 'semilla': 5,
+        }, format='json')
+        self.assertEqual(resp_generar.status_code, 201, resp_generar.content)
+        self.assertEqual(resp_generar.data['clases_creadas'], 1)
+        # La clase previa (no pineada) fue reemplazada por la generación.
+        self.assertFalse(HorarioClase.objects.filter(pk=self.horario_previo.pk).exists())
+
+        snapshot_id = resp_generar.data['snapshot_id']
+        ids_creados = list(
+            HorarioClase.objects.filter(materia__grado_seccion=self.grado).values_list('id', flat=True)
+        )
+
+        resp_deshacer = self.client.post('/api/academico/horarios/generar/deshacer/', {
+            'paquete_id': self.paquete.id,
+        }, format='json')
+        self.assertEqual(resp_deshacer.status_code, 200, resp_deshacer.content)
+
+        # Las clases creadas por la generación ya no existen.
+        self.assertFalse(HorarioClase.objects.filter(id__in=ids_creados).exists())
+        # La clase previa fue restaurada con los mismos datos.
+        restaurada = HorarioClase.objects.filter(
+            materia__grado_seccion=self.grado, dia_semana='martes',
+            hora_inicio='10:00:00', hora_fin='10:45:00',
+        )
+        self.assertTrue(restaurada.exists())
+
+        snapshot = GeneracionHorarioSnapshot.objects.get(pk=snapshot_id)
+        self.assertTrue(snapshot.deshecho)
+
+    def test_deshacer_sin_generacion_previa_devuelve_404(self):
+        resp = self.client.post('/api/academico/horarios/generar/deshacer/', {
+            'paquete_id': self.paquete.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 404)

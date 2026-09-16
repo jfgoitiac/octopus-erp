@@ -5,6 +5,7 @@ from .models import (
     Materia, Lapso, Nota, Asistencia, HorarioClase, IncidenteDisciplinario,
     MaterialEstudio, EventoCalendario,
     PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion, Docente,
+    PaqueteHorario, PaqueteHorarioGrado, BloqueHorario, DisponibilidadDocente,
 )
 from .services import calcular_rendimiento_seccion
 
@@ -54,12 +55,25 @@ class MateriaSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 # DOCENTE
 # ─────────────────────────────────────────────
+class DisponibilidadDocenteSerializer(serializers.ModelSerializer):
+    dia_semana_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = DisponibilidadDocente
+        fields = ['id', 'docente', 'dia_semana', 'dia_semana_label', 'hora_inicio', 'hora_fin']
+        extra_kwargs = {'docente': {'required': False}}
+
+    def get_dia_semana_label(self, obj):
+        return obj.get_dia_semana_display()
+
+
 class DocenteSerializer(serializers.ModelSerializer):
     user_id         = serializers.IntegerField(source='user.id', read_only=True)
     username        = serializers.CharField(source='user.username', read_only=True)
     nombre_completo = serializers.SerializerMethodField()
     rol             = serializers.SerializerMethodField()
     materias        = serializers.SerializerMethodField()
+    disponibilidades = DisponibilidadDocenteSerializer(many=True, read_only=True)
 
     class Meta:
         model  = Docente
@@ -68,7 +82,8 @@ class DocenteSerializer(serializers.ModelSerializer):
             'user_id', 'username', 'nombre_completo', 'rol',
             'titulo_academico', 'especialidad', 'fecha_ingreso', 'telefono',
             'email_institucional', 'observaciones', 'activo', 'sede',
-            'materias',
+            'materias', 'horas_semanales_tope', 'horas_semanales_objetivo',
+            'disponibilidades',
         ]
         extra_kwargs = {
             'user': {'write_only': True},
@@ -239,6 +254,10 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
     materia_id   = serializers.PrimaryKeyRelatedField(
         queryset=Materia.objects.all(), source='materia', write_only=True
     )
+    bloque_id    = serializers.PrimaryKeyRelatedField(
+        queryset=BloqueHorario.objects.all(), source='bloque',
+        write_only=True, required=False, allow_null=True,
+    )
     dia_semana_label = serializers.SerializerMethodField()
 
     class Meta:
@@ -247,10 +266,56 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
             'id', 'materia', 'materia_id',
             'dia_semana', 'dia_semana_label',
             'hora_inicio', 'hora_fin', 'aula',
+            'bloque_id', 'pineado',
         ]
 
     def get_dia_semana_label(self, obj):
         return obj.get_dia_semana_display()
+
+
+# ─────────────────────────────────────────────
+# PAQUETE DE HORARIO / BLOQUE / DISPONIBILIDAD (rediseño 2026-09)
+# ─────────────────────────────────────────────
+class PaqueteHorarioGradoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = PaqueteHorarioGrado
+        fields = ['id', 'paquete', 'grado_seccion']
+        extra_kwargs = {'paquete': {'required': False}}
+
+
+class BloqueHorarioSerializer(serializers.ModelSerializer):
+    dia_semana_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = BloqueHorario
+        fields = [
+            'id', 'paquete', 'dia_semana', 'dia_semana_label',
+            'orden', 'hora_inicio', 'hora_fin', 'tipo',
+        ]
+        extra_kwargs = {'paquete': {'required': False}}
+
+    def get_dia_semana_label(self, obj):
+        return obj.get_dia_semana_display()
+
+
+class PaqueteHorarioSerializer(serializers.ModelSerializer):
+    grados = serializers.SerializerMethodField()
+    creado_por_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = PaqueteHorario
+        fields = [
+            'id', 'nombre', 'periodo_escolar', 'sede', 'estado',
+            'creado_por', 'creado_por_username', 'creado_en', 'actualizado_en',
+            'grados',
+        ]
+        read_only_fields = ['estado', 'creado_por', 'creado_en', 'actualizado_en']
+
+    def get_grados(self, obj):
+        return list(obj.grados.values_list('grado_seccion', flat=True))
+
+    def get_creado_por_username(self, obj):
+        return obj.creado_por.username if obj.creado_por else None
 
 
 # ─────────────────────────────────────────────

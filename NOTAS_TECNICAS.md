@@ -2,6 +2,83 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## REDISEÑO MÓDULO HORARIOS — PAQUETES + DRAG&DROP (2026-09-15)
+
+Contexto: se rediseñó `src/pages/Horarios.jsx` y todo `src/components/horarios/`
+para operar sobre "Paquetes de Horario" (jornada de bloques por sede/periodo,
+con drag & drop vía `@dnd-kit/core`) en vez de horas fijas de 1h por grado
+suelto. El backend se reescribió en paralelo por otro agente usando el
+contrato de API dado (`/api/academico/paquetes-horario/...`, `bloques/`,
+`disponibilidad/`, `/horarios/generar/` y `/horarios/generar/deshacer/`).
+
+**Supuestos hechos sobre la forma exacta de la respuesta (verificar contra
+el backend real cuando esté listo, pueden requerir ajuste rápido):**
+
+- `GET /paquetes-horario/<id>/bloques/` devuelve TODOS los bloques del
+  paquete (todos los días juntos), no filtrados por día. `GrillaHorario.jsx`
+  arma las filas de la tabla agrupando por `hora_inicio` única entre todos
+  los bloques y buscando, por cada día, el bloque que empieza a esa hora.
+  Si un día no tiene bloque a esa hora exacta, la celda queda como hueco
+  (no interactivo). Si asumí mal y el backend en cambio devuelve bloques ya
+  agrupados por día o con una forma distinta, hay que ajustar `buildFilas()`
+  en `GrillaHorario.jsx`.
+- Asumí que **todos los días comparten el mismo receso a la misma hora** es
+  el caso común pero no obligatorio: la fila se pinta como "Receso" unificado
+  (colspan) solo si TODOS los bloques presentes en esa fila (para los días
+  que sí tienen bloque a esa hora) son `tipo='receso'`. Si un colegio tiene
+  recesos a horas distintas por día, esa fila no se unifica y cada celda se
+  trata individualmente — pero como celda de receso no hay componente hoy
+  que la distinga visualmente en ese caso mixto (queda como hueco). Revisar
+  si hace falta un tratamiento explícito por celda cuando el back esté listo.
+- `POST /horarios/generar/` — el contrato final no incluye `clases_bloqueadas`
+  en el body (a diferencia de la versión anterior del generador). Asumí que
+  el campo `pineado` en cada `HorarioClase` (persistido vía
+  `PUT /horarios/<id>/ { pineado: true }`) es lo que el generador consulta
+  server-side para no mover esas clases. Si el backend en cambio espera un
+  array de ids en el body de `generar/`, hay que reintroducirlo en
+  `useHorarios.generar()` y `ModalGenerador.jsx`.
+- La respuesta de `generar/` se asumió con la forma exacta del contrato dado
+  (`{ colocadas, no_colocadas, advertencias }`); `ResumenGeneracion.jsx`
+  tolera arrays vacíos/ausentes pero no fue probado contra una respuesta real.
+- `ModalClase.jsx` ya no permite elegir día/hora libremente: la clase queda
+  fija al bloque donde se creó o donde ya estaba; para reasignarla a otro
+  bloque se usa drag & drop en la grilla (`onMoverClase` → `PUT /horarios/<id>/`
+  con el nuevo `bloque_id`/`dia_semana`). Si el negocio prefiere poder mover
+  una clase sin drag & drop (ej. en un dispositivo sin soporte táctil fino),
+  falta un selector de bloque alternativo en el modal.
+
+**Deuda anotada, no implementada:**
+
+- La inconsistencia ya conocida entre roles permitidos en el frontend
+  (`ROLES.DIRECTOR` únicamente en `/horarios` y ahora también en
+  `/horarios/paquetes`) vs. lo que probablemente permite el backend
+  (hasta secretaría) sigue sin resolverse — se mantuvo el mismo rol que ya
+  tenía `/horarios` en la ruta nueva, tal como se indicó no cambiar esto sin
+  pedido explícito.
+- `Materia.grado_seccion` sigue siendo un string libre (no una FK a un
+  catálogo de grados), tal como ya estaba. `PanelMaterias.jsx` y
+  `ModalMateria.jsx` no se tocaron en su forma de datos.
+- `PanelDisponibilidadDocente.jsx` se dejó como componente standalone
+  exportado — no se encontró un punto de entrada de "ficha de detalle de
+  docente" en `src/pages/Docentes.jsx` (hoy es lista + modal de alta/edición
+  simple, sin vista de detalle). Hay que montarlo ahí cuando exista esa
+  vista, pasándole el `docenteId` correspondiente.
+- `npm run lint` ya fallaba en el proyecto antes de este cambio con la regla
+  `react-hooks/set-state-in-effect` en varios hooks de datos existentes
+  (ej. `useDocentes.js`, la versión anterior de `useHorarios.js`) por el
+  patrón `useEffect(() => { recargar(); }, [recargar])`. Los hooks nuevos
+  (`usePaquetesHorario.js`, `useDisponibilidadDocente.js`) siguen el mismo
+  patrón por consistencia con el resto del código — no es una regresión
+  nueva, pero sigue pendiente una refactorización más amplia de ese patrón
+  en todo el proyecto si se decide perseguir cero errores de lint.
+- `constants/horarios.js` conserva `buildHoraBlocks`/`HORAS_INICIO`/
+  `HORAS_FIN` sin usarlos en el nuevo `GrillaHorario.jsx` (quedaron
+  reemplazados por las filas derivadas de `BloqueHorario`) — no se
+  eliminaron por si algo más los necesitaba, pero un grep confirmó que ya
+  no los usa ningún componente activo salvo el propio archivo de
+  constantes. Se pueden borrar en una limpieza futura si se confirma que
+  no hace falta compatibilidad hacia atrás.
+
 ## INFRAESTRUCTURA DE TESTING FRONTEND (2026-09-08)
 
 `octopus-frontend` no tenía ningún test runner (confirmado en varias auditorías
@@ -3543,3 +3620,89 @@ colegio necesita mostrar madre Y padre en la misma constancia, hace falta
 remodelar la relación alumno-representante (ej. una tabla intermedia
 alumno-representante con parentesco por fila, en vez de la FK simple
 actual) — cambio de alcance mayor, no cubierto aquí.
+
+## REDISEÑO BACKEND DE HORARIOS — PAQUETES/BLOQUES/DISPONIBILIDAD (2026-09-15)
+
+Contraparte backend del rediseño de `Horarios.jsx` documentado arriba.
+Se agregaron a `academico/models.py`: `PaqueteHorario`,
+`PaqueteHorarioGrado`, `BloqueHorario`, `DisponibilidadDocente` y
+`GeneracionHorarioSnapshot`; y los campos `Docente.horas_semanales_tope`,
+`Docente.horas_semanales_objetivo`, `HorarioClase.bloque` (FK) y
+`HorarioClase.pineado`. Migración `academico/migrations/0015_...` — 100%
+aditiva/nullable, sin migración de datos.
+
+**Decisiones tomadas por cuenta propia (no estaban 100% especificadas):**
+
+- El algoritmo legado por-grado (`_calcular_bloques`, `_ejecutar_algoritmo`,
+  `_intentar_recolocar`) se dejó intacto — no se tocó ni se llama desde el
+  endpoint nuevo. Se agregó un algoritmo separado,
+  `_ejecutar_algoritmo_paquete()`, que opera sobre `BloqueHorario` reales del
+  paquete en vez de bloques calculados on-the-fly, y cruza TODOS los grados
+  del paquete en una sola pasada. Motivo: reescribir el algoritmo legado in
+  situ hubiera sido mucho más riesgoso (tiene ~10 tests de regresión
+  encadenados a su firma exacta) que sumar uno nuevo y solo re-cablear el
+  endpoint `POST horarios/generar/` para usarlo. El legado queda como código
+  muerto de facto (nada más lo invoca en producción) — candidato a
+  eliminarse en una limpieza posterior, una vez el frontend confirme que no
+  quedan flujos dependiendo de el.
+- `_ejecutar_algoritmo_paquete()` es una heurística greedy simple (sin el
+  backtracking de un paso que sí tiene el algoritmo legado vía
+  `_intentar_recolocar`). Con la carga extra de cruzar N grados a la vez,
+  aunque bloque_id y aula fija, se priorizó tener un resultado correcto y
+  entendible sobre una tasa de colocación óptima. Si en la práctica quedan
+  muchas materias en `no_colocadas` con grillas razonables, vale la pena
+  portarle un mecanismo de recolocación equivalente.
+- El conflicto de aula en el generador nuevo sigue usando
+  `ConfiguracionGrado.aula_fija` (una sola aula "hogar" por grado), igual
+  que el algoritmo legado — el ticket menciona "aula" como recurso pero no
+  pide modelar aulas como catálogo propio. Si a futuro un grado necesita
+  usar varias aulas distintas según la materia (ej. laboratorio vs. aula
+  regular), hace falta promover `aula` a modelo propio con FK desde
+  `Materia` o `HorarioClase`, en vez de heredarla siempre del grado.
+- `PUT paquetes-horario/<id>/bloques/<bloque_pk>/` desplaza en cascada los
+  bloques *siguientes del mismo día* al cambiar la duración, pero NO
+  recalcula ni mueve los `HorarioClase` ya creados que apuntan a esos
+  bloques desplazados (sus `hora_inicio`/`hora_fin` propios quedan
+  congelados en el valor con el que se crearon). Consecuencia: si se edita
+  la duración de un bloque después de generar/editar el horario, las clases
+  ya creadas en los bloques siguientes de ese día quedan con un
+  `hora_inicio`/`hora_fin` que ya no coincide con su `bloque.hora_inicio`/
+  `hora_fin` actualizado, hasta que se regeneren o se muevan manualmente.
+  No implementado por ser un caso de edición posterior a la generación, no
+  cubierto explícitamente en el pedido — anotarlo aquí para que quien arme
+  el flujo de edición de bloques en el frontend sepa que debe advertir al
+  usuario o forzar una regeneración tras cambiar duraciones.
+- `GeneracionHorarioSnapshot.horarios_eliminados` guarda los campos del
+  `HorarioClase` borrado (materia_id, dia_semana, horas, aula, bloque_id,
+  pineado) en un JSONField en vez de guardar una copia completa del modelo.
+  El "deshacer" recrea filas nuevas (con PKs distintos a las originales),
+  no restaura los mismos IDs. Si algo externo llegó a referenciar el PK
+  exacto de un `HorarioClase` borrado durante la ventana entre generar y
+  deshacer (poco probable dado que es la misma operación), esa referencia
+  quedaría rota. Se consideró aceptable porque el flujo de uso es
+  generar -> revisar -> deshacer inmediato, sin operaciones intermedias
+  sobre esos IDs.
+- El endpoint de deshacer solo revierte la generación NO deshecha más
+  reciente por paquete (no hay pila de deshacer/rehacer de múltiples
+  niveles). Generar dos veces seguidas sin deshacer entre medio dejará dos
+  snapshots; deshacer solo revierte el último.
+
+**Deuda técnica anotada, NO implementada (fuera de alcance de este ticket):**
+
+- `Materia.docente` sigue siendo FK a `User` en vez de a `Docente` (la
+  particularidad ya conocida y documentada en el modelo `Docente.materias_asignadas`,
+  que cruza por `User` en vez de FK directa). El nuevo generador y
+  `DisponibilidadDocente` heredan esa misma indirección (todo se indexa por
+  `docente.user_id`, no por `Docente.id`), lo que obliga a mapear
+  `Docente <-> User` en varios puntos de `_ejecutar_algoritmo_paquete()` y
+  `_armar_disponibilidad_map()`. No se normalizó porque el ticket pidió
+  explícitamente no tocar esa relación.
+- `Docente.horas_semanales_tope`/`horas_semanales_objetivo` se agregaron al
+  modelo y al serializer, pero el generador (`_ejecutar_algoritmo_paquete`)
+  todavía NO los usa como restricción — no estaban en el pedido de reglas
+  del generador, solo se pidió agregar los campos. Quedan disponibles para
+  un futuro ajuste del algoritmo (ej. dejar de ofrecerle bloques a un
+  docente que ya alcanzó su tope).
+- El WhatsApp de las notificaciones de cobranza (Twilio/Meta Business API)
+  sigue sin implementar — no aplica a este ticket (es de otro módulo), se
+  menciona aquí solo porque comparte el mismo archivo de notas.

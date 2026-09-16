@@ -352,6 +352,23 @@ class HorarioClase(models.Model):
     hora_fin    = models.TimeField()
     aula        = models.CharField(max_length=50, blank=True)
 
+    # ── Rediseño de horarios (2026-09) ──────────────────────────────────
+    # `bloque` es opcional: los HorarioClase creados antes de este cambio
+    # (o creados manualmente sin pasar por un PaqueteHorario) siguen sin
+    # bloque, usando hora_inicio/hora_fin propios como fuente de verdad —
+    # eso NO cambia. Cuando una clase sí se crea/mueve a partir de un
+    # BloqueHorario, hora_inicio/hora_fin se copian del bloque al guardar
+    # (ver services/vistas del generador) para no desincronizarlos.
+    bloque = models.ForeignKey(
+        'BloqueHorario',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='clases',
+    )
+    # Si está en True, el generador automático no la toca ni la cuenta como
+    # bloque libre al regenerar el paquete.
+    pineado = models.BooleanField(default=False)
+
     class Meta:
         ordering = ['dia_semana', 'hora_inicio']
         indexes = [
@@ -558,6 +575,19 @@ class Docente(models.Model):
 
     history = HistoricalRecords()
 
+    # ── Rediseño de horarios (2026-09) ──────────────────────────────────
+    # Topes usados por el generador automático de horarios para no saturar
+    # a un docente. Ambos opcionales: si quedan en null, el generador no
+    # aplica ningún límite de carga horaria semanal para ese docente.
+    horas_semanales_tope = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text='Máximo de bloques de 45 min que puede dictar por semana.',
+    )
+    horas_semanales_objetivo = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text='Cantidad de bloques semanales deseada (referencia, no un tope duro).',
+    )
+
     class Meta:
         ordering = ['user__first_name']
         verbose_name = 'Docente'
@@ -570,3 +600,191 @@ class Docente(models.Model):
     @property
     def materias_asignadas(self):
         return Materia.objects.filter(docente=self.user, activa=True)
+
+
+# ─────────────────────────────────────────────
+# REDISEÑO DE HORARIOS (2026-09)
+# ─────────────────────────────────────────────
+class PaqueteHorario(models.Model):
+    """
+    Agrupa el horario de uno o más grados (PaqueteHorarioGrado) bajo un mismo
+    periodo escolar, con sus propios bloques/recesos (BloqueHorario). Un
+    grado_seccion no puede pertenecer a dos paquetes del mismo periodo_escolar
+    a la vez — ver PaqueteHorarioGrado y la validación en la vista de grados.
+    """
+    ESTADO_CHOICES = (
+        ('borrador',  'Borrador'),
+        ('publicado', 'Publicado'),
+    )
+
+    nombre          = models.CharField(max_length=150)
+    periodo_escolar = models.CharField(max_length=20)
+    sede = models.ForeignKey(
+        'multisede.Sede',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='paquetes_horario',
+    )
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='borrador')
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='paquetes_horario_creados',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        verbose_name = 'Paquete de Horario'
+        verbose_name_plural = 'Paquetes de Horario'
+
+    def __str__(self):
+        return f"{self.nombre} ({self.periodo_escolar}) — {self.get_estado_display()}"
+
+
+class PaqueteHorarioGrado(models.Model):
+    """
+    Un grado_seccion incluido dentro de un PaqueteHorario. La regla de
+    "un solo paquete vigente por grado+periodo" se valida a nivel de
+    aplicación (no puede ser unique_together de BD porque cruza distintos
+    PaqueteHorario) — ver PaqueteHorarioGradosView.post en views.py.
+    """
+    paquete = models.ForeignKey(
+        PaqueteHorario, on_delete=models.CASCADE, related_name='grados'
+    )
+    grado_seccion = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ('paquete', 'grado_seccion')
+        verbose_name = 'Grado de Paquete de Horario'
+        verbose_name_plural = 'Grados de Paquete de Horario'
+
+    def __str__(self):
+        return f"{self.grado_seccion} — {self.paquete.nombre}"
+
+
+class BloqueHorario(models.Model):
+    """
+    Un bloque de la grilla de un PaqueteHorario (clase o receso). Los
+    recesos son iguales para todos los grados del paquete — se definen aquí,
+    a nivel de paquete, no por grado.
+    """
+    TIPO_CHOICES = (
+        ('clase',  'Clase'),
+        ('receso', 'Receso'),
+    )
+
+    paquete     = models.ForeignKey(
+        PaqueteHorario, on_delete=models.CASCADE, related_name='bloques'
+    )
+    dia_semana  = models.CharField(max_length=10, choices=HorarioClase.DIAS)
+    orden       = models.PositiveSmallIntegerField()
+    hora_inicio = models.TimeField()
+    hora_fin    = models.TimeField()
+    tipo        = models.CharField(max_length=10, choices=TIPO_CHOICES, default='clase')
+
+    class Meta:
+        unique_together = ('paquete', 'dia_semana', 'orden')
+        ordering = ['dia_semana', 'orden']
+        verbose_name = 'Bloque de Horario'
+        verbose_name_plural = 'Bloques de Horario'
+
+    def clean(self):
+        if self.hora_inicio and self.hora_fin:
+            if self.hora_fin <= self.hora_inicio:
+                raise ValidationError(
+                    'La hora de fin del bloque debe ser posterior a la hora de inicio.'
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.paquete.nombre} — {self.get_dia_semana_display()} "
+            f"#{self.orden} {self.hora_inicio:%H:%M}-{self.hora_fin:%H:%M} ({self.tipo})"
+        )
+
+
+class DisponibilidadDocente(models.Model):
+    """
+    Franja horaria en la que un docente declara estar disponible para
+    dictar clases. Se declara por franjas libres (día + hora_inicio +
+    hora_fin), no marcando celdas de una grilla. Un docente SIN ninguna
+    franja declarada se trata como "disponible siempre" en el generador
+    (ver _ejecutar_algoritmo_paquete), para no romper docentes que aún no
+    configuraron nada.
+    """
+    docente     = models.ForeignKey(
+        Docente, on_delete=models.CASCADE, related_name='disponibilidades'
+    )
+    dia_semana  = models.CharField(max_length=10, choices=HorarioClase.DIAS)
+    hora_inicio = models.TimeField()
+    hora_fin    = models.TimeField()
+
+    class Meta:
+        ordering = ['dia_semana', 'hora_inicio']
+        verbose_name = 'Disponibilidad de Docente'
+        verbose_name_plural = 'Disponibilidades de Docentes'
+
+    def clean(self):
+        if self.hora_inicio and self.hora_fin:
+            if self.hora_fin <= self.hora_inicio:
+                raise ValidationError(
+                    'La hora de fin de la franja debe ser posterior a la hora de inicio.'
+                )
+            solapadas = DisponibilidadDocente.objects.filter(
+                docente=self.docente, dia_semana=self.dia_semana,
+            ).exclude(pk=self.pk)
+            for otra in solapadas:
+                if self.hora_inicio < otra.hora_fin and otra.hora_inicio < self.hora_fin:
+                    raise ValidationError(
+                        f"Esta franja se solapa con otra ya declarada para el "
+                        f"{self.get_dia_semana_display()} de {otra.hora_inicio:%H:%M} "
+                        f"a {otra.hora_fin:%H:%M}."
+                    )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.docente} — {self.get_dia_semana_display()} "
+            f"{self.hora_inicio:%H:%M}-{self.hora_fin:%H:%M}"
+        )
+
+
+class GeneracionHorarioSnapshot(models.Model):
+    """
+    Snapshot de una corrida de GenerarHorarioView para un PaqueteHorario,
+    usado para poder deshacerla (POST horarios/generar/deshacer/).
+    `horarios_creados_ids`: ids de HorarioClase creados en esa corrida
+    (se eliminan al deshacer).
+    `horarios_eliminados`: lista de dicts con los campos de los HorarioClase
+    borrados en esa corrida (se recrean al deshacer).
+    """
+    paquete = models.ForeignKey(
+        PaqueteHorario, on_delete=models.CASCADE, related_name='snapshots_generacion'
+    )
+    horarios_creados_ids = models.JSONField(default=list)
+    horarios_eliminados   = models.JSONField(default=list)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='snapshots_generacion_horario',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    deshecho  = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-creado_en']
+        verbose_name = 'Snapshot de Generación de Horario'
+        verbose_name_plural = 'Snapshots de Generación de Horario'
+
+    def __str__(self):
+        return f"Snapshot #{self.pk} — {self.paquete.nombre} ({self.creado_en:%Y-%m-%d %H:%M})"
