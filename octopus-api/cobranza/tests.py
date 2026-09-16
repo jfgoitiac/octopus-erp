@@ -614,6 +614,23 @@ class RegistrarPagoSolvenciaTest(TestCase):
         self.assertEqual(fila['monto_pagado_usd'], '10.00')
         self.assertEqual(fila['saldo_usd'], '20.00')
 
+    def test_pantalla_de_cobro_muestra_saldo_real_tras_abono_previo(self):
+        """Regresión: BuscarAlumnoCobranzaView (pantalla de cobro) no exponía
+        `saldo` para CuotaSolvencia, así que tras un abono parcial el cajero
+        seguía viendo/pudiendo escribir hasta el monto ORIGINAL en el próximo
+        abono, y el backend lo rechazaba por exceder el saldo real."""
+        self.cuota.monto_pagado = Decimal('10.00')
+        self.cuota.save()
+
+        response = self.client.get(f'/api/cobranza/buscar/{self.alumno.cedula_escolar}/')
+        self.assertEqual(response.status_code, 200, response.content)
+
+        cuotas = response.data['alumnos'][0]['cuotas_solvencia_pendientes']
+        fila = next(c for c in cuotas if c['id'] == self.cuota.id)
+        self.assertEqual(fila['monto_usd'], Decimal('30.00'))
+        self.assertEqual(fila['monto_pagado'], Decimal('10.00'))
+        self.assertEqual(fila['saldo'], Decimal('20.00'))
+
 
 class SincronizarSolvenciasCommandTest(TestCase):
     """El management command debe saldar solvencias de alumnos solventes o
