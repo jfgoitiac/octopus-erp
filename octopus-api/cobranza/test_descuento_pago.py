@@ -18,6 +18,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from secretaria.models import Alumno, ConfiguracionSistema, Representante
 from .descuentos import resolver_descuento
@@ -248,6 +249,67 @@ class ValidacionSolapeReglaTest(DescuentoPagoBase):
         )
         with self.assertRaises(ValidationError):
             regla.full_clean()
+
+
+class ApiReglaRecargoPagoDescuentoTest(DescuentoPagoBase):
+    """ReglaRecargoPagoSerializer debe exponer/aceptar dia_desde/dia_hasta y
+    no romper con dia_aplicacion=None (tipo='descuento') ni con
+    dia_desde/dia_hasta=None (tipo='recargo', el caso ya existente)."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_superuser(
+            username='admin_reglas_descuento', password='clave123456', email='ard@test.com'
+        )
+        self.client_api = APIClient()
+        self.client_api.force_authenticate(user=self.user)
+
+    def test_crear_regla_descuento_via_api(self):
+        payload = {
+            'nombre': 'Descuento pronto pago', 'tipo': 'descuento',
+            'modo_calculo': 'monto_fijo_usd', 'valor': '30.00',
+            'dia_desde': 15, 'dia_hasta': 18, 'activa': True,
+        }
+        response = self.client_api.post('/api/cobranza/reglas-recargo-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.data['dia_desde'], 15)
+        self.assertEqual(response.data['dia_hasta'], 18)
+        self.assertIsNone(response.data['dia_aplicacion'])
+
+    def test_crear_regla_recargo_via_api_sigue_funcionando(self):
+        payload = {
+            'nombre': 'Recargo tardío', 'tipo': 'recargo',
+            'modo_calculo': 'monto_fijo_usd', 'valor': '2.00',
+            'dia_aplicacion': 19, 'activa': True,
+        }
+        response = self.client_api.post('/api/cobranza/reglas-recargo-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.data['dia_aplicacion'], 19)
+        self.assertIsNone(response.data['dia_desde'])
+        self.assertIsNone(response.data['dia_hasta'])
+
+    def test_crear_regla_descuento_sin_rango_via_api_da_400(self):
+        payload = {
+            'nombre': 'Descuento incompleto', 'tipo': 'descuento',
+            'modo_calculo': 'monto_fijo_usd', 'valor': '30.00', 'activa': True,
+        }
+        response = self.client_api.post('/api/cobranza/reglas-recargo-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 400, response.content)
+
+    def test_crear_regla_descuento_solapada_con_recargo_via_api_da_400(self):
+        ReglaRecargoPago.objects.create(
+            nombre='Recargo', tipo='recargo', modo_calculo='monto_fijo_usd',
+            valor=Decimal('2.00'), dia_aplicacion=16, activa=True,
+        )
+        payload = {
+            'nombre': 'Descuento solapado', 'tipo': 'descuento',
+            'modo_calculo': 'monto_fijo_usd', 'valor': '30.00',
+            'dia_desde': 15, 'dia_hasta': 18, 'activa': True,
+        }
+        response = self.client_api.post('/api/cobranza/reglas-recargo-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 400, response.content)
 
 
 class PortalCotizacionDescuentoTest(DescuentoPagoBase):

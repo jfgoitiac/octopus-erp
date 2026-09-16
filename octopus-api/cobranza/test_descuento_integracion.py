@@ -18,6 +18,8 @@ from rest_framework.test import APIClient
 from secretaria.models import Alumno, ConfiguracionSistema, Representante
 from . import correcciones
 from .models import BancoInstitucional, LineaDescuentoPago, Mensualidad, Pago, ReglaRecargoPago, TasaCambio
+from .serializers import calcular_desglose_automatico
+from .utils_pdf import generar_recibo_pdf
 
 
 def _crear_alumno(cedula, representante, **kwargs):
@@ -188,3 +190,78 @@ class SnapshotInmutableDescuentoTest(DescuentoIntegracionBase):
         m.refresh_from_db()
         self.assertTrue(m.pagado)
         self.assertEqual(m.monto_pagado, Decimal('32.00'))
+
+
+class DesgloseReciboTest(DescuentoIntegracionBase):
+    """El descuento debe verse como línea NEGATIVA en el desglose contable
+    (calcular_desglose_automatico) y en el recibo PDF, junto a la línea de
+    la mensualidad — mismo criterio de indexado sin N+1 que el recargo."""
+
+    def test_desglose_automatico_incluye_linea_negativa_de_descuento(self):
+        m = self._mensualidad(7, 2026, monto='32.00')
+        response = self._pagar(m, '30.00', fecha_pago_iso="2026-07-16T10:00:00Z")
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        lineas = calcular_desglose_automatico(pago)
+        conceptos = [l['concepto'] for l in lineas]
+        self.assertIn('mensualidad', conceptos)
+        self.assertIn('descuento_pago', conceptos)
+
+        linea_descuento = next(l for l in lineas if l['concepto'] == 'descuento_pago')
+        self.assertEqual(linea_descuento['monto_usd'], '-2.00')
+        self.assertEqual(linea_descuento['descripcion'], self.regla.nombre)
+
+    def test_recibo_pdf_se_genera_sin_error_con_descuento(self):
+        m = self._mensualidad(7, 2026, monto='32.00')
+        response = self._pagar(m, '30.00', fecha_pago_iso="2026-07-16T10:00:00Z")
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        pdf_bytes = generar_recibo_pdf(pago)
+        self.assertTrue(bytes(pdf_bytes).startswith(b'%PDF'))
+
+
+class PantallaDeCobroAdminTest(DescuentoIntegracionBase):
+    """BuscarAlumnoCobranzaView (pantalla de cobro del panel admin) debe
+    mostrar el descuento/recargo prospectivo en el preview — deuda técnica
+    detectada: antes de esta feature, esta pantalla no mostraba el recargo
+    en absoluto (ver plan de la feature)."""
+
+    def setUp(self):
+        super().setUp()
+        # self.regla (rango fijo 15-18) no sirve para un test determinístico
+        # contra date.today() — se reemplaza por un rango que cubre casi
+        # cualquier día del mes en que corra la suite.
+        self.regla.activa = False
+        self.regla.save()
+        self.hoy = date.today()
+        self.regla_hoy = ReglaRecargoPago.objects.create(
+            nombre='Descuento vigente hoy', tipo='descuento',
+            modo_calculo='monto_fijo_usd', valor=Decimal('30.00'),
+            dia_desde=1, dia_hasta=28, activa=True,
+        )
+
+    def test_buscar_alumno_muestra_descuento_disponible_hoy(self):
+        self._mensualidad(self.hoy.month, self.hoy.year, monto='32.00')
+        response = self.client.get(f'/api/cobranza/buscar/{self.alumno.cedula_escolar}/')
+        self.assertEqual(response.status_code, 200, response.content)
+
+        mensualidades = response.data['alumnos'][0]['mensualidades_pendientes']
+        self.assertEqual(len(mensualidades), 1)
+        m = mensualidades[0]
+        self.assertEqual(m['monto_descuento'], '2.00')
+        self.assertEqual(m['nombre_descuento'], self.regla_hoy.nombre)
+        self.assertEqual(m['saldo_a_pagar_hoy'], '30.00')
+        self.assertEqual(m['monto_recargo'], '0.00')
+
+    def test_buscar_alumno_sin_regla_vigente_muestra_saldo_normal(self):
+        self.regla_hoy.activa = False
+        self.regla_hoy.save()
+        self._mensualidad(self.hoy.month, self.hoy.year, monto='32.00')
+        response = self.client.get(f'/api/cobranza/buscar/{self.alumno.cedula_escolar}/')
+        self.assertEqual(response.status_code, 200, response.content)
+
+        m = response.data['alumnos'][0]['mensualidades_pendientes'][0]
+        self.assertEqual(m['monto_descuento'], '0.00')
+        self.assertEqual(m['saldo_a_pagar_hoy'], m['saldo'])

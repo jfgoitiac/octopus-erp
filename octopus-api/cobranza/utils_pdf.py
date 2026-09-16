@@ -40,10 +40,16 @@ def generar_recibo_pdf(pago):
     if mensualidades:
         # Desglose línea por línea: mensualidad, seguida inmediatamente de
         # su recargo por pago tardío si aplicó (LineaRecargoPago, snapshot
-        # inmutable). Si el pago está a tiempo, no hay línea de recargo —
-        # se ve igual que la única línea agregada que se mostraba antes.
+        # inmutable) o su descuento por pago dentro de rango si aplicó
+        # (LineaDescuentoPago) — nunca ambos sobre la misma mensualidad (ver
+        # ReglaRecargoPago.clean()). Si el pago está a tiempo sin descuento,
+        # no hay línea extra — se ve igual que la única línea agregada que
+        # se mostraba antes.
         recargos_por_mensualidad = {
             r.mensualidad_id: r for r in pago.lineas_recargo.all()
+        }
+        descuentos_por_mensualidad = {
+            d.mensualidad_id: d for d in pago.lineas_descuento.all()
         }
         total_mensualidades = 0
         for m in mensualidades:
@@ -56,6 +62,12 @@ def generar_recibo_pdf(pago):
                 pdf.cell(140, 8, "Recargo por pago tardio", 1)
                 pdf.cell(0, 8, f"{recargo.monto_usd} $", 1, 1)
                 total_mensualidades += recargo.monto_usd
+
+            descuento = descuentos_por_mensualidad.get(m.id)
+            if descuento:
+                pdf.cell(140, 8, f"Descuento por pago oportuno ({descuento.nombre})", 1)
+                pdf.cell(0, 8, f"-{descuento.monto_descontado_usd} $", 1, 1)
+                total_mensualidades -= descuento.monto_descontado_usd
 
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(140, 8, "Total", 1)

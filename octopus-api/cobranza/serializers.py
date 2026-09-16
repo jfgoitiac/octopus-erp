@@ -4,9 +4,9 @@ from django.db.models import F, Sum
 from rest_framework import serializers
 from .models import (
     BancoInstitucional, CierreCaja, ClasificacionPagoManual, CuotaInscripcion,
-    CuotaProyectoInversion, CuotaSolvencia, LineaRecargoPago, LoteRevisionCaja,
-    Mensualidad, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio,
-    TipoCargoEspecial,
+    CuotaProyectoInversion, CuotaSolvencia, LineaDescuentoPago, LineaRecargoPago,
+    LoteRevisionCaja, Mensualidad, Pago, ReglaRecargoPago, SolvenciaRepresentante,
+    TasaCambio, TipoCargoEspecial,
 )
 from secretaria.models import Alumno, ConfiguracionSistema
 from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
@@ -64,6 +64,12 @@ def calcular_desglose_automatico(principal_pago):
     recargos_por_mensualidad = {
         r.mensualidad_id: r for r in principal_pago.lineas_recargo.all()
     }
+    # Descuento por pago dentro de rango: mismo criterio de indexado sin N+1
+    # que el recargo. Nunca coexiste con un recargo sobre la misma
+    # mensualidad (ver ReglaRecargoPago.clean()).
+    descuentos_por_mensualidad = {
+        d.mensualidad_id: d for d in principal_pago.lineas_descuento.all()
+    }
 
     for m in principal_pago.mensualidades_pagadas.all():
         extra = None
@@ -99,6 +105,15 @@ def calcular_desglose_automatico(principal_pago):
                 recargo.nombre,
                 f"{m.alumno.nombre} {m.alumno.apellido}",
                 recargo.monto_usd,
+            ))
+
+        descuento = descuentos_por_mensualidad.get(m.id)
+        if descuento:
+            lineas.append(_linea(
+                'descuento_pago', 'DESCUENTO POR PAGO OPORTUNO',
+                descuento.nombre,
+                f"{m.alumno.nombre} {m.alumno.apellido}",
+                -descuento.monto_descontado_usd,
             ))
 
     for c in principal_pago.cuotas_inscripcion_pagadas.all():
@@ -343,6 +358,7 @@ class ComprobanteSerializer(serializers.ModelSerializer):
                     'cuotas_solvencia_pagadas__alumno',
                     'proyectos_inversion_pagados__representante',
                     'lineas_recargo',
+                    'lineas_descuento',
                 )
                 .order_by('id')
                 .first()
@@ -424,16 +440,20 @@ class SolvenciaRepresentanteSerializer(serializers.ModelSerializer):
 
 class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
     """
-    CRUD de la configuración de recargo por pago tardío. La lógica de
-    cálculo/aplicación vive en cobranza/recargos.py::resolver_recargo — este
-    serializer solo valida y persiste la configuración.
+    CRUD de la configuración de recargo (tipo='recargo') y descuento por pago
+    dentro de rango (tipo='descuento'). La lógica de cálculo/aplicación vive
+    en cobranza/recargos.py::resolver_recargo y cobranza/descuentos.py::
+    resolver_descuento — este serializer solo valida y persiste la
+    configuración, delegando en ReglaRecargoPago.clean() la validación
+    cruzada por tipo (qué campos son requeridos/prohibidos, y el solape
+    entre recargo y descuento activos).
     """
     class Meta:
         model = ReglaRecargoPago
         fields = [
             'id', 'nombre', 'descripcion', 'tipo', 'modo_calculo', 'valor',
-            'dia_aplicacion', 'activa', 'creada_por', 'creada_en',
-            'modificada_en',
+            'dia_aplicacion', 'dia_desde', 'dia_hasta', 'activa', 'creada_por',
+            'creada_en', 'modificada_en',
         ]
         read_only_fields = ['creada_por', 'creada_en', 'modificada_en']
 
@@ -442,10 +462,19 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El nombre no puede estar vacío.")
         return value
 
-    def validate_dia_aplicacion(self, value):
-        if not (1 <= value <= 31):
+    def _validate_dia(self, value):
+        if value is not None and not (1 <= value <= 31):
             raise serializers.ValidationError("Debe estar entre 1 y 31.")
         return value
+
+    def validate_dia_aplicacion(self, value):
+        return self._validate_dia(value)
+
+    def validate_dia_desde(self, value):
+        return self._validate_dia(value)
+
+    def validate_dia_hasta(self, value):
+        return self._validate_dia(value)
 
     def validate_valor(self, value):
         if value <= 0:
@@ -453,8 +482,8 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        # Reutiliza la validación de unicidad activa por tipo del modelo
-        # (ReglaRecargoPago.clean()) para no duplicar la regla acá.
+        # Reutiliza la validación cruzada por tipo y de unicidad/solape del
+        # modelo (ReglaRecargoPago.clean()) para no duplicarla acá.
         instancia = ReglaRecargoPago(
             id=self.instance.id if self.instance else None,
             nombre=data.get('nombre', getattr(self.instance, 'nombre', '')),
@@ -462,6 +491,8 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
             modo_calculo=data.get('modo_calculo', getattr(self.instance, 'modo_calculo', 'monto_fijo_usd')),
             valor=data.get('valor', getattr(self.instance, 'valor', None)),
             dia_aplicacion=data.get('dia_aplicacion', getattr(self.instance, 'dia_aplicacion', None)),
+            dia_desde=data.get('dia_desde', getattr(self.instance, 'dia_desde', None)),
+            dia_hasta=data.get('dia_hasta', getattr(self.instance, 'dia_hasta', None)),
             activa=data.get('activa', getattr(self.instance, 'activa', True)),
         )
         try:

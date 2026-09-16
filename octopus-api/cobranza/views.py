@@ -277,10 +277,43 @@ class BuscarAlumnoCobranzaView(APIView):
                 for row in qs
             ]
 
-        mensualidades = to_list(
+        def to_list_con_recargo_descuento(qs):
+            """Igual que to_list(), pero agrega el recargo/descuento
+            PROSPECTIVO (evaluado HOY, con resolver_recargo/resolver_descuento
+            — misma fuente de verdad que usa RegistrarPagoView al cobrar) para
+            que el cajero vea en el preview el monto real a cobrar, no solo el
+            saldo nominal. Antes de esta feature, la pantalla de cobro no
+            mostraba el recargo en absoluto (deuda técnica detectada). Recargo
+            y descuento son mutuamente excluyentes (ver ReglaRecargoPago.clean()),
+            así que a lo sumo uno de los dos es distinto de cero por fila."""
+            from .recargos import resolver_recargo
+            from .descuentos import resolver_descuento
+            cache_reglas = {}
+            lineas = []
+            for m in qs:
+                saldo = m.monto_usd - m.monto_pagado
+                resultado_recargo = resolver_recargo(m, hoy, _cache_reglas=cache_reglas)
+                resultado_descuento = resolver_descuento(m, hoy, _cache_reglas=cache_reglas)
+                monto_recargo = resultado_recargo['monto_usd'] if resultado_recargo else Decimal('0.00')
+                monto_descuento = resultado_descuento['monto_descontado_usd'] if resultado_descuento else Decimal('0.00')
+                lineas.append({
+                    'id':               m.id,
+                    'mes':              self.MES_NOMBRES.get(m.mes, str(m.mes)),
+                    'anio':             m.anio,
+                    'monto_usd':        str(m.monto_usd),
+                    'monto_pagado':     str(m.monto_pagado),
+                    'saldo':            str(saldo),
+                    'monto_recargo':    str(monto_recargo),
+                    'nombre_recargo':   resultado_recargo['nombre'] if resultado_recargo else None,
+                    'monto_descuento':  str(monto_descuento),
+                    'nombre_descuento': resultado_descuento['nombre'] if resultado_descuento else None,
+                    'saldo_a_pagar_hoy': str(saldo + monto_recargo - monto_descuento),
+                })
+            return lineas
+
+        mensualidades = to_list_con_recargo_descuento(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
             .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
-            .values('id', 'mes', 'anio', 'monto_usd', 'monto_pagado')
             .order_by('anio', 'mes')
         )
         mensualidades_futuras = to_list(
