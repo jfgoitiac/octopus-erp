@@ -1,6 +1,8 @@
-import { Plus, Edit3, CalendarX, Lock, LockOpen } from 'lucide-react';
-import { DIAS, HORAS_INICIO, getColor } from '../../constants/horarios';
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { CalendarX, Coffee } from 'lucide-react';
+import { DIAS, DIAS_GENERADOR } from '../../constants/horarios';
 import { TablaScroll } from '../ui/TablaScroll';
+import { CeldaDroppable } from './CeldaDroppable';
 
 const TH_STYLE = {
   color: 'var(--ash)',
@@ -31,21 +33,33 @@ const CELL_STYLE = {
   borderLeft: '0.5px solid var(--border)',
 };
 
-// Patrón determinista que simula un horario parcialmente lleno para el skeleton
-const SKELETON_PATTERN = [
-  [true,  false, true,  true,  false],
-  [false, true,  false, false, true ],
-  [true,  false, true,  false, true ],
-  [false, true,  true,  false, false],
-  [true,  true,  false, true,  false],
-  [false, false, true,  true,  true ],
-  [true,  false, false, true,  false],
-  [false, true,  true,  false, true ],
-  [true,  false, true,  false, false],
-  [false, true,  false, true,  true ],
-];
+// A partir de los BloqueHorario del paquete (uno por día, con su propio
+// hora_inicio/hora_fin/tipo) arma las filas de la grilla: cada fila es una
+// hora de inicio distinta; cada columna busca el bloque de ese día que
+// empieza a esa hora. Si un día no tiene bloque a esa hora, la celda queda
+// como hueco (jornadas pueden diferir ligeramente entre días).
+// Si TODOS los bloques presentes en una fila son tipo 'receso', se pinta
+// como una fila de receso unificada.
+const buildFilas = (bloques) => {
+  const porDia = {};
+  DIAS_GENERADOR.forEach(d => {
+    porDia[d.value] = bloques
+      .filter(b => b.dia_semana === d.value)
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.hora_inicio.localeCompare(b.hora_inicio));
+  });
 
-const SkeletonGrilla = ({ horasInicio }) => (
+  const horas = [...new Set(bloques.map(b => b.hora_inicio))].sort();
+
+  return horas.map(hora => {
+    const celdas = DIAS_GENERADOR.map(d => porDia[d.value].find(b => b.hora_inicio === hora) ?? null);
+    const existentes = celdas.filter(Boolean);
+    const esReceso = existentes.length > 0 && existentes.every(b => b.tipo === 'receso');
+    const horaFin = existentes[0]?.hora_fin ?? '';
+    return { hora, horaFin, celdas, esReceso };
+  });
+};
+
+const SkeletonGrilla = () => (
   <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
     <TablaScroll>
       <table className="w-full border-collapse" style={{ minWidth: 700 }}>
@@ -61,14 +75,14 @@ const SkeletonGrilla = ({ horasInicio }) => (
           </tr>
         </thead>
         <tbody>
-          {horasInicio.map((hora, row) => (
-            <tr key={hora} style={{ borderBottom: '0.5px solid var(--border)' }}>
+          {Array.from({ length: 8 }).map((_, row) => (
+            <tr key={row} style={{ borderBottom: '0.5px solid var(--border)' }}>
               <td className="px-3 py-2" style={HORA_CELL_STYLE}>
                 <div className="h-3 w-10 rounded animate-pulse" style={{ background: 'var(--border-md)' }} />
               </td>
               {DIAS.map((_, col) => (
                 <td key={col} className="px-2 py-1.5" style={CELL_STYLE}>
-                  {(SKELETON_PATTERN[row] ?? [])[col] && (
+                  {(row + col) % 2 === 0 && (
                     <div className="h-12 rounded-lg animate-pulse" style={{ background: 'var(--border-md)' }} />
                   )}
                 </td>
@@ -81,7 +95,7 @@ const SkeletonGrilla = ({ horasInicio }) => (
   </div>
 );
 
-const EmptyGrilla = () => (
+const EmptyGrilla = ({ mensaje }) => (
   <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
     <TablaScroll>
       <table className="w-full border-collapse" style={{ minWidth: 700 }}>
@@ -102,8 +116,7 @@ const EmptyGrilla = () => (
           <tr>
             <td colSpan={DIAS.length + 1} className="py-16 text-center" style={{ color: 'var(--ash)' }}>
               <CalendarX size={36} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Este grado aún no tiene clases.</p>
-              <p className="text-xs mt-1 opacity-70">Haz clic en cualquier celda para agregar la primera clase.</p>
+              <p className="text-sm">{mensaje}</p>
             </td>
           </tr>
         </tbody>
@@ -114,106 +127,90 @@ const EmptyGrilla = () => (
 
 export const GrillaHorario = ({
   loading,
-  isEmpty,
-  horasInicio = HORAS_INICIO,
-  getClaseEnCelda,
+  bloques = [],
+  getClaseEnBloque,
   onCeldaClick,
-  lockedIds = new Set(),
-  onToggleLock,
+  onEditarClase,
+  onTogglePin,
+  onMoverClase,
 }) => {
-  if (loading) return <SkeletonGrilla horasInicio={horasInicio} />;
-  if (isEmpty) return <EmptyGrilla />;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  if (loading) return <SkeletonGrilla />;
+  if (!bloques.length) {
+    return <EmptyGrilla mensaje="Esta jornada aún no tiene bloques definidos. Configúralos desde 'Editar bloques'." />;
+  }
+
+  const filas = buildFilas(bloques);
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    const clase = active.data.current?.clase;
+    const bloqueDestino = over.data.current?.bloque;
+    if (!clase || !bloqueDestino) return;
+    if (bloqueDestino.tipo !== 'clase') return;
+    if (bloqueDestino.id === clase.bloque_id) return; // soltó en el mismo lugar
+    onMoverClase?.(clase, bloqueDestino);
+  };
 
   return (
-    <div className="rounded-xl overflow-hidden print:shadow-none"
-      style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-      <TablaScroll>
-        <table className="w-full border-collapse" style={{ minWidth: 700 }}>
-          <thead>
-            <tr>
-              <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-left w-20"
-                style={TH_STICKY_STYLE}>
-                Hora
-              </th>
-              {DIAS.map(d => (
-                <th key={d} className="px-3 py-3 text-[11px] uppercase tracking-widest text-center"
-                  style={{ ...TH_STYLE, borderLeft: '0.5px solid var(--border)' }}>
-                  {d}
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <div className="rounded-xl overflow-hidden print:shadow-none"
+        style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+        <TablaScroll>
+          <table className="w-full border-collapse" style={{ minWidth: 700 }}>
+            <thead>
+              <tr>
+                <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-left w-20"
+                  style={TH_STICKY_STYLE}>
+                  Hora
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {horasInicio.map(hora => (
-              <tr key={hora} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                <td className="px-3 py-2 text-xs font-medium" style={HORA_CELL_STYLE}>
-                  {hora}
-                </td>
-                {DIAS.map(dia => {
-                  const clase = getClaseEnCelda(dia, hora);
-                  const isLocked = clase && lockedIds.has(clase.id);
-                  return (
-                    <td key={dia} className="px-2 py-1.5 text-center" style={CELL_STYLE}>
-                      {clase ? (
-                        <button
-                          onClick={() => onCeldaClick(dia, hora)}
-                          aria-label={`Editar ${clase.materia?.nombre || 'clase'} — ${dia} ${hora}`}
-                          className="w-full rounded-lg px-2 py-2 text-left transition-all hover:opacity-80 group relative focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
-                          style={{
-                            background: getColor(clase.materia?.id),
-                            border: isLocked ? '2px solid #7c3aed' : '1px solid rgba(0,0,0,0.07)',
-                          }}
-                        >
-                          <p className="text-[11px] font-bold leading-tight" style={{ color: 'var(--jet)' }}>
-                            {clase.materia?.nombre || 'Materia'}
-                          </p>
-                          {clase.aula && (
-                            <p className="text-[10px] mt-0.5" style={{ color: 'var(--ash)' }}>{clase.aula}</p>
-                          )}
-                          <p className="text-[9px] mt-0.5 opacity-60" style={{ color: 'var(--jet)' }}>
-                            {clase.hora_inicio} – {clase.hora_fin}
-                          </p>
-                          {/* Botón lock — siempre visible si bloqueado, hover si no */}
-                          {onToggleLock && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); onToggleLock(clase.id); }}
-                              aria-label={isLocked ? 'Desbloquear clase' : 'Bloquear clase para el generador'}
-                              className={`absolute top-1 left-1 p-0.5 rounded transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/60 ${isLocked ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}
-                              style={{ background: 'rgba(255,255,255,0.85)' }}
-                            >
-                              {isLocked
-                                ? <Lock size={10} style={{ color: '#7c3aed' }} />
-                                : <LockOpen size={10} style={{ color: 'var(--ash)' }} />
-                              }
-                            </button>
-                          )}
-                          <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
-                            <span className="p-0.5 rounded" style={{ background: 'rgba(255,255,255,0.8)' }}>
-                              <Edit3 size={10} style={{ color: 'var(--pb)' }} />
-                            </span>
-                          </div>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => onCeldaClick(dia, hora)}
-                          aria-label={`Agregar clase — ${dia} ${hora}`}
-                          // Borde siempre visible: marca el hueco como celda vacía y clicable.
-                          // El ícono "+" es sutil por defecto y se refuerza con hover/foco de teclado.
-                          className="group/empty w-full h-12 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--pb-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50"
-                          style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
-                        >
-                          <Plus size={14} className="opacity-40 transition-opacity group-hover/empty:opacity-100 group-focus-visible/empty:opacity-100" />
-                        </button>
-                      )}
-                    </td>
-                  );
-                })}
+                {DIAS.map(d => (
+                  <th key={d} className="px-3 py-3 text-[11px] uppercase tracking-widest text-center"
+                    style={{ ...TH_STYLE, borderLeft: '0.5px solid var(--border)' }}>
+                    {d}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TablaScroll>
-    </div>
+            </thead>
+            <tbody>
+              {filas.map(fila => (
+                <tr key={fila.hora} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <td className="px-3 py-2 text-xs font-medium" style={HORA_CELL_STYLE}>
+                    {fila.hora}{fila.horaFin ? `–${fila.horaFin}` : ''}
+                  </td>
+                  {fila.esReceso ? (
+                    <td colSpan={DIAS.length} className="px-2 py-1.5 text-center" style={{ ...CELL_STYLE, background: 'var(--ash-light, #f4f4f5)' }}>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--ash)' }}>
+                        <Coffee size={12} />
+                        Receso
+                      </span>
+                    </td>
+                  ) : (
+                    DIAS.map((dia, i) => {
+                      const bloque = fila.celdas[i];
+                      const clase = bloque ? getClaseEnBloque(bloque.id) : null;
+                      return (
+                        <td key={dia} className="px-2 py-1.5 text-center" style={CELL_STYLE}>
+                          <CeldaDroppable
+                            bloque={bloque}
+                            clase={clase}
+                            cellKey={`${dia}-${fila.hora}`}
+                            onCeldaClick={onCeldaClick}
+                            onEditarClase={onEditarClase}
+                            onTogglePin={onTogglePin}
+                          />
+                        </td>
+                      );
+                    })
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TablaScroll>
+      </div>
+    </DndContext>
   );
 };

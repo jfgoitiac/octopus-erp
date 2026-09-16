@@ -1,16 +1,18 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import {
   getMaterias, getHorarios,
   saveHorario, updateHorario, deleteHorario,
-  generarHorario,
+  generarHorario, deshacerGenerarHorario,
   createMateria, updateMateria, deleteMateria,
+  getBloquesPaquete,
 } from '../api/academico.service';
-import { DIA_MAP, HORAS_INICIO, HORAS_FIN, buildHoraBlocks } from '../constants/horarios';
-import apiClient from '../api/apiClient';
 
-export function useHorarios() {
-  const [grado, setGrado]         = useState('');
+// Opera sobre un paquete de horario (jornada) + un grado dentro de ese
+// paquete. La grilla ya no usa horas fijas de 1h (buildHoraBlocks) — las
+// filas salen de los BloqueHorario reales del paquete.
+export function useHorarios(paqueteId, grado) {
+  const [bloques, setBloques]     = useState([]);
   const [horarios, setHorarios]   = useState([]);
   const [materias, setMaterias]   = useState([]);
   const [loading, setLoading]     = useState(false);
@@ -18,37 +20,13 @@ export function useHorarios() {
   const [savingMateria, setSavingMateria] = useState(false);
   const [generando, setGenerando]       = useState(false);
 
-  // Horas dinámicas — se sobreescriben si la institución tiene config propia
-  const [horasInicio, setHorasInicio] = useState(HORAS_INICIO);
-  const [horasFin,    setHorasFin]    = useState(HORAS_FIN);
-
   const abortRef = useRef(null);
 
   // Cancelar cualquier petición en vuelo al desmontar
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
-  // Leer hora_inicio_clases y hora_fin_clases desde el perfil de la institución
-  useEffect(() => {
-    apiClient.get('secretaria/configuracion/')
-      .then(res => {
-        const inicio = res.data?.hora_inicio_clases;
-        const fin    = res.data?.hora_fin_clases;
-        if (inicio && fin) {
-          setHorasInicio(buildHoraBlocks(inicio, fin));
-          // fin de bloque comienza 1 hora después del inicio de la jornada
-          const startH = parseInt(inicio.split(':')[0], 10);
-          const endH   = parseInt(fin.split(':')[0], 10);
-          setHorasFin(buildHoraBlocks(
-            `${String((startH + 1) % 24).padStart(2, '0')}:00`,
-            `${String((endH   + 1) % 24).padStart(2, '0')}:00`
-          ));
-        }
-      })
-      .catch(() => {}); // silencioso — usa los defaults de la constante
-  }, []);
-
   const recargar = useCallback(() => {
-    if (!grado) { setHorarios([]); setMaterias([]); return; }
+    if (!paqueteId || !grado) { setBloques([]); setHorarios([]); setMaterias([]); return; }
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -56,9 +34,14 @@ export function useHorarios() {
     const { signal } = controller;
 
     setLoading(true);
-    Promise.all([getHorarios(grado, signal), getMaterias(grado, signal)])
-      .then(([resH, resM]) => {
+    Promise.all([
+      getBloquesPaquete(paqueteId, signal),
+      getHorarios(paqueteId, grado, signal),
+      getMaterias(grado, signal),
+    ])
+      .then(([resB, resH, resM]) => {
         if (signal.aborted) return;
+        setBloques(resB.data || []);
         setHorarios(resH.data || []);
         setMaterias(resM.data || []);
       })
@@ -67,43 +50,36 @@ export function useHorarios() {
         toast.error('No se pudo cargar el horario.');
       })
       .finally(() => { if (!signal.aborted) setLoading(false); });
-  }, [grado]);
+  }, [paqueteId, grado]);
 
   useEffect(() => { recargar(); }, [recargar]);
 
-  const getClaseEnCelda = useCallback((dia, hora) => {
-    const diaKey = DIA_MAP[dia];
-    return horarios.find(h => h.dia_semana === diaKey && h.hora_inicio === hora) ?? null;
+  // Índice rápido: bloque_id -> clase asignada en ese bloque
+  const claseEnBloque = useMemo(() => {
+    const map = new Map();
+    horarios.forEach(h => { if (h.bloque_id != null) map.set(h.bloque_id, h); });
+    return map;
   }, [horarios]);
 
-  // Devuelve true si ya existe otra clase que se solape en rango horario
-  // (no solo hora_inicio exacta) el mismo día, dentro de este grado.
-  // Nota: es solo feedback rápido en el cliente — no considera otros grados
-  // ni valida choque de aula/docente entre grados; el backend es la fuente
-  // de verdad y devuelve 400 si hay un choque que esta función no detectó.
+  const getClaseEnBloque = useCallback((bloqueId) => claseEnBloque.get(bloqueId) ?? null, [claseEnBloque]);
+
+  // Conflicto: otro horario ya ocupa ese bloque (ignorando el que se edita).
+  // Solo feedback rápido en cliente — el backend es la fuente de verdad para
+  // choques entre grados/docentes/aulas.
   const tieneConflicto = useCallback((form) => {
-    if (!form.hora_inicio || !form.hora_fin) return false;
-    return horarios.some(h =>
-      h.dia_semana  === form.dia_semana &&
-      h.id          !== form.id &&  // al editar, ignora la clase actual
-      form.hora_inicio < h.hora_fin &&
-      h.hora_inicio    < form.hora_fin
-    );
-  }, [horarios]);
+    if (!form.bloque_id) return false;
+    const existente = claseEnBloque.get(form.bloque_id);
+    return !!existente && existente.id !== form.id;
+  }, [claseEnBloque]);
 
   const guardar = useCallback(async (form) => {
-    if (form.hora_inicio >= form.hora_fin) {
-      toast.warning('La hora de fin debe ser posterior a la de inicio.');
-      return false;
-    }
     setSaving(true);
     try {
       const payload = {
         grado_seccion: grado,
         materia_id:    form.materia_id,
         dia_semana:    form.dia_semana,
-        hora_inicio:   form.hora_inicio,
-        hora_fin:      form.hora_fin,
+        bloque_id:     form.bloque_id,
         aula:          form.aula,
       };
       if (form.id) {
@@ -139,6 +115,21 @@ export function useHorarios() {
       setSaving(false);
     }
   }, [recargar]);
+
+  // Pinear/despinear una clase — el generador automático respeta las clases
+  // pineado=true y no las mueve. Reemplaza el antiguo Set local `lockedIds`:
+  // ahora el estado vive en el backend (persiste entre sesiones y lo usa el
+  // generador vía HorarioClase.pineado, no un array aparte en el payload).
+  const pinear = useCallback(async (id, pineado) => {
+    try {
+      await updateHorario(id, { pineado });
+      setHorarios(prev => prev.map(h => h.id === id ? { ...h, pineado } : h));
+      return true;
+    } catch {
+      toast.error('No se pudo actualizar el bloqueo de la clase.');
+      return false;
+    }
+  }, []);
 
   const crearMateria = useCallback(async (form) => {
     setSavingMateria(true);
@@ -199,25 +190,42 @@ export function useHorarios() {
   const generar = useCallback(async (config) => {
     setGenerando(true);
     try {
-      const res = await generarHorario({ ...config, grado_seccion: grado });
+      const res = await generarHorario({ ...config, paquete_id: paqueteId });
+      recargar();
       return { ok: true, data: res.data };
     } catch (err) {
-      const msg = err.response?.data?.error || 'Error al generar el horario.';
-      toast.error(msg);
+      if (err.response?.status === 409) {
+        toast.warning(err.response?.data?.error || 'Ya existe un horario generado para este paquete.');
+      } else {
+        toast.error(err.response?.data?.error || 'Error al generar el horario.');
+      }
       return { ok: false };
     } finally {
       setGenerando(false);
     }
-  }, [grado]);
+  }, [paqueteId, recargar]);
+
+  const deshacerGeneracion = useCallback(async () => {
+    setGenerando(true);
+    try {
+      await deshacerGenerarHorario(paqueteId);
+      toast.success('Generación deshecha.');
+      recargar();
+      return true;
+    } catch {
+      toast.error('No se pudo deshacer la generación.');
+      return false;
+    } finally {
+      setGenerando(false);
+    }
+  }, [paqueteId, recargar]);
 
   return {
-    grado, setGrado,
-    horarios, materias,
+    bloques, horarios, materias,
     loading, saving, savingMateria, generando,
-    horasInicio, horasFin,
-    getClaseEnCelda,
+    getClaseEnBloque,
     tieneConflicto,
-    guardar, eliminar, generar, recargar,
+    guardar, eliminar, pinear, generar, deshacerGeneracion, recargar,
     crearMateria, actualizarMateria, eliminarMateria,
   };
 }

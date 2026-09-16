@@ -66,9 +66,13 @@ export const saveAsistencia = (gradoSeccion, fecha, registros) =>
 export const getResumenAsistencia = (alumnoId, mes, anio) =>
   apiClient.get(`academico/asistencia/resumen/?alumno_id=${alumnoId}&mes=${mes}&anio=${anio}`);
 
-// Horarios
-export const getHorarios = (gradoSeccion, signal) =>
-  apiClient.get(`academico/horarios/?grado_seccion=${encodeURIComponent(gradoSeccion)}`, signal ? { signal } : undefined);
+// Horarios — ahora se filtran por paquete + grado_seccion (ver PaquetesHorario)
+export const getHorarios = (paqueteId, gradoSeccion, signal) => {
+  const params = new URLSearchParams();
+  if (paqueteId) params.set('paquete', paqueteId);
+  if (gradoSeccion) params.set('grado_seccion', gradoSeccion);
+  return apiClient.get(`academico/horarios/?${params.toString()}`, signal ? { signal } : undefined);
+};
 
 export const saveHorario = (data) =>
   apiClient.post('academico/horarios/', data);
@@ -78,6 +82,65 @@ export const updateHorario = (id, data) =>
 
 export const deleteHorario = (id) =>
   apiClient.delete(`academico/horarios/${id}/`);
+
+// Paquetes de Horario
+export const getPaquetesHorario = (filtros, signal) => {
+  const params = new URLSearchParams(filtros || {});
+  const qs = params.toString();
+  return apiClient.get(`academico/paquetes-horario/${qs ? `?${qs}` : ''}`, signal ? { signal } : undefined);
+};
+
+export const getPaqueteHorario = (id, signal) =>
+  apiClient.get(`academico/paquetes-horario/${id}/`, signal ? { signal } : undefined);
+
+export const createPaqueteHorario = (data) =>
+  apiClient.post('academico/paquetes-horario/', data);
+
+export const updatePaqueteHorario = (id, data) =>
+  apiClient.put(`academico/paquetes-horario/${id}/`, data);
+
+export const deletePaqueteHorario = (id) =>
+  apiClient.delete(`academico/paquetes-horario/${id}/`);
+
+export const publicarPaqueteHorario = (id) =>
+  apiClient.post(`academico/paquetes-horario/${id}/publicar/`);
+
+// Grados dentro de un paquete
+export const getGradosPaquete = (paqueteId, signal) =>
+  apiClient.get(`academico/paquetes-horario/${paqueteId}/grados/`, signal ? { signal } : undefined);
+
+export const addGradoPaquete = (paqueteId, gradoSeccion) =>
+  apiClient.post(`academico/paquetes-horario/${paqueteId}/grados/`, { grado_seccion: gradoSeccion });
+
+export const removeGradoPaquete = (paqueteId, gradoPk) =>
+  apiClient.delete(`academico/paquetes-horario/${paqueteId}/grados/${gradoPk}/`);
+
+// Bloques (jornada horaria) dentro de un paquete
+export const getBloquesPaquete = (paqueteId, signal) =>
+  apiClient.get(`academico/paquetes-horario/${paqueteId}/bloques/`, signal ? { signal } : undefined);
+
+export const addBloquePaquete = (paqueteId, data) =>
+  apiClient.post(`academico/paquetes-horario/${paqueteId}/bloques/`, data);
+
+export const updateBloquePaquete = (paqueteId, bloqueId, data) =>
+  apiClient.put(`academico/paquetes-horario/${paqueteId}/bloques/${bloqueId}/`, data);
+
+export const deleteBloquePaquete = (paqueteId, bloqueId) =>
+  apiClient.delete(`academico/paquetes-horario/${paqueteId}/bloques/${bloqueId}/`);
+
+// Disponibilidad de un docente (usada por el generador y por su ficha)
+export const getDisponibilidadDocente = (docenteId, signal) =>
+  apiClient.get(`academico/docentes/${docenteId}/disponibilidad/`, signal ? { signal } : undefined);
+
+export const addDisponibilidadDocente = (docenteId, data) =>
+  apiClient.post(`academico/docentes/${docenteId}/disponibilidad/`, data);
+
+export const deleteDisponibilidadDocente = (docenteId, dispId) =>
+  apiClient.delete(`academico/docentes/${docenteId}/disponibilidad/${dispId}/`);
+
+// Deshacer la última generación automática de horarios de un paquete
+export const deshacerGenerarHorario = (paqueteId) =>
+  apiClient.post('academico/horarios/generar/deshacer/', { paquete_id: paqueteId });
 
 // Boletín
 export const getBoletin = (alumnoId, lapsoId, signal) =>

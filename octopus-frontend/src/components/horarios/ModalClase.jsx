@@ -1,33 +1,30 @@
 import { useState } from 'react';
-import { Save, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, Trash2, AlertTriangle, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { DIAS, DIA_MAP, HORAS_INICIO, HORAS_FIN } from '../../constants/horarios';
+import { DIA_MAP } from '../../constants/horarios';
 import { INPUT_STYLE } from '../../constants/styles';
 import { Modal } from '../ui/Modal';
 
-// Devuelve la hora siguiente en formato HH:00 ("07:00" → "08:00"), tope en 23:00
-const nextHour = (hhmm) => {
-  const next = parseInt(hhmm.split(':')[0], 10) + 1;
-  return next < 24 ? `${String(next).padStart(2, '0')}:00` : '23:00';
-};
+const DIA_LABEL = Object.fromEntries(Object.entries(DIA_MAP).map(([label, val]) => [val, label]));
 
-const buildInitialForm = (claseInicial, celdaDefecto) => {
+// El día/hora ya no se eligen aquí: la clase queda fija al bloque de la
+// grilla donde se creó (celda vacía) o donde ya estaba (edición). Para
+// moverla de bloque se usa drag & drop en GrillaHorario.
+const buildInitialForm = (claseInicial, bloque) => {
   if (claseInicial) {
     return {
       id:          claseInicial.id,
       materia_id:  claseInicial.materia?.id || '',
       dia_semana:  claseInicial.dia_semana,
-      hora_inicio: claseInicial.hora_inicio,
-      hora_fin:    claseInicial.hora_fin,
+      bloque_id:   claseInicial.bloque_id,
       aula:        claseInicial.aula || '',
     };
   }
   return {
     id:          null,
     materia_id:  '',
-    dia_semana:  celdaDefecto?.dia || '',
-    hora_inicio: celdaDefecto?.hora || '',
-    hora_fin:    celdaDefecto?.hora ? nextHour(celdaDefecto.hora) : '',
+    dia_semana:  bloque?.dia_semana || '',
+    bloque_id:   bloque?.id ?? null,
     aula:        '',
   };
 };
@@ -35,41 +32,32 @@ const buildInitialForm = (claseInicial, celdaDefecto) => {
 export const ModalClase = ({
   materias,
   claseInicial,
-  celdaDefecto,
+  bloque,
   saving,
-  horasInicio = HORAS_INICIO,
-  horasFin    = HORAS_FIN,
   tieneConflicto,
   onClose,
   onSave,
   onDelete,
 }) => {
-  const [form, setForm]             = useState(() => buildInitialForm(claseInicial, celdaDefecto));
+  const [form, setForm]             = useState(() => buildInitialForm(claseInicial, bloque));
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
-  // Conflicto: otra clase en el mismo día y hora (ignorando la clase actual al editar)
-  const conflicto = tieneConflicto &&
-    form.dia_semana &&
-    form.hora_inicio &&
-    tieneConflicto(form);
+  // Conflicto: otro horario ya ocupa este mismo bloque (ignorando la clase actual al editar)
+  const conflicto = tieneConflicto && tieneConflicto(form);
 
-  // Validación inline — evita depender solo del error del backend para un caso obvio
-  const horaInvalida = !!(form.hora_inicio && form.hora_fin && form.hora_inicio >= form.hora_fin);
+  const horaInicio = claseInicial?.hora_inicio || bloque?.hora_inicio;
+  const horaFin    = claseInicial?.hora_fin    || bloque?.hora_fin;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.materia_id || !form.dia_semana || !form.hora_inicio || !form.hora_fin) {
-      toast.warning('Completa todos los campos obligatorios.');
-      return;
-    }
-    if (horaInvalida) {
-      toast.warning('La hora de fin debe ser posterior a la de inicio.');
+    if (!form.materia_id || !form.bloque_id) {
+      toast.warning('Selecciona una materia.');
       return;
     }
     if (conflicto) {
-      toast.warning('Ya existe una clase en ese horario. Elige otro día u hora.');
+      toast.warning('Ya existe una clase en ese bloque. Elige otra celda.');
       return;
     }
     onSave(form);
@@ -82,7 +70,7 @@ export const ModalClase = ({
         style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
         Cancelar
       </button>
-      <button type="submit" form="form-clase" disabled={saving || materias.length === 0 || horaInvalida || conflicto}
+      <button type="submit" form="form-clase" disabled={saving || materias.length === 0 || conflicto}
         className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white disabled:opacity-50"
         style={{ background: 'var(--pb)' }}>
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -100,6 +88,16 @@ export const ModalClase = ({
       size="sm"
     >
       <form id="form-clase" onSubmit={handleSubmit} className="space-y-4">
+
+        {/* Día y hora — fijos al bloque, no editables aquí (usa drag & drop en la grilla) */}
+        <div className="rounded-lg px-3 py-2.5 flex items-center gap-2"
+          style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}>
+          <Clock size={14} style={{ color: 'var(--pb)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+            {DIA_LABEL[form.dia_semana] || form.dia_semana}
+            {horaInicio && horaFin ? ` · ${horaInicio}–${horaFin}` : ''}
+          </p>
+        </div>
 
         {/* Materia */}
         <div>
@@ -124,59 +122,13 @@ export const ModalClase = ({
           )}
         </div>
 
-        {/* Día */}
-        <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-            Día
-          </label>
-          <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
-            value={form.dia_semana} onChange={set('dia_semana')} required>
-            <option value="">Seleccionar...</option>
-            {DIAS.map(d => <option key={d} value={DIA_MAP[d]}>{d}</option>)}
-          </select>
-        </div>
-
-        {/* Hora inicio / fin */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-              Hora inicio
-            </label>
-            <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
-              value={form.hora_inicio} onChange={set('hora_inicio')} required>
-              <option value="">—</option>
-              {horasInicio.map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-              Hora fin
-            </label>
-            <select
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={horaInvalida ? { ...INPUT_STYLE, border: '1px solid var(--red)' } : INPUT_STYLE}
-              value={form.hora_fin} onChange={set('hora_fin')}
-              aria-invalid={horaInvalida}
-              aria-describedby={horaInvalida ? 'hora-fin-error' : undefined}
-              required>
-              <option value="">—</option>
-              {horasFin.map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-            {horaInvalida && (
-              <p id="hora-fin-error" className="text-[11px] mt-1.5" style={{ color: 'var(--red)' }}>
-                Debe ser posterior a la hora de inicio.
-              </p>
-            )}
-          </div>
-        </div>
-
         {/* Aviso de conflicto */}
         {conflicto && (
           <div className="rounded-lg px-3 py-2 flex items-start gap-2"
             style={{ background: '#fffbeb', border: '0.5px solid #fcd34d' }}>
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#b45309' }} />
             <p className="text-xs" style={{ color: '#92400e' }}>
-              Ya hay una clase asignada en ese día y hora. Elige otra combinación.
+              Ya hay una clase asignada en ese bloque. Elige otra celda.
             </p>
           </div>
         )}
