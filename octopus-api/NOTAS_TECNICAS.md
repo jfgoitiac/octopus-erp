@@ -879,3 +879,32 @@ Ya se aplicó en `app.clhmacoro.com` (2026-09-04): assets con hash de Vite → c
 (ver `deploy/nginx/app.clhma.com.snippet.conf`), así que hay que pedirle el archivo real al servidor primero y
 adaptar el parche igual que se hizo acá, no copiar `app.clhmacoro.com.conf` a ciegas (los puertos/rutas pueden
 diferir).
+
+## `CuotaSolvencia` no tiene historial de abonos individuales
+
+Al corregir el bug de abono parcial de solvencia (2026-09-16), se agregó soporte para acumular abonos vía
+`monto_pagado` (mismo patrón que `Mensualidad`/`CuotaProyectoInversion`), pero **no existe una tabla de
+"abonos" o "líneas de pago por cuota"** — solo el acumulador `CuotaSolvencia.monto_pagado`. Esto alcanza para
+saber cuánto se debe hoy, pero no para mostrar un historial ("abonó $50 el 3 de marzo, $30 el 10 de abril,
+método X, cajero Y") sin reconstruirlo indirectamente cruzando `CuotaSolvencia.pagos` (M2M a `Pago`) — que
+tampoco guarda cuánto de CADA `Pago` fue aplicado a esa cuota específica cuando un mismo pago cubre varias
+cuotas o mensualidades a la vez. Si se pide un historial de abonos por solvencia (dashboard del representante,
+portal), hay que decidir primero si conviene: (a) inferirlo cruzando `pagos.all()` ordenados por fecha
+(impreciso si un pago cubre varias deudas), o (b) modelar una tabla explícita de abonos, análoga a
+`LineaDescuentoPago`/`LineaRecargoPago`, que registre monto/fecha/pago/cuota por cada abono aplicado. No se
+implementó ninguna de las dos: fuera del alcance del bug reportado (que solo pedía que el saldo pendiente
+quedara bien calculado).
+
+## `CuotaSolvencia` con abonos parciales pre-existentes al bug de 2026-09-16 quedaron mal registradas
+
+Antes de esta corrección, `RegistrarPagoView` siempre marcaba `CuotaSolvencia.monto_pagado = monto_usd` (saldo
+completo) sin importar cuánto se cobró realmente en un abono parcial — ver el bloque de `cuota_solvencia_ids`
+en `views.py` (antes de este fix hacía `cuota.monto_pagado = cuota.monto_usd` sin condicional). Toda solvencia
+que haya recibido un abono parcial por caja antes de esta fecha quedó marcada `pagado=True` con
+`monto_pagado=monto_usd`, perdiendo el saldo real pendiente sin dejar rastro recuperable en la BD (el campo fue
+sobrescrito, y no hay historial de abonos — ver nota de arriba). No se puede diferenciar automáticamente una
+solvencia "de verdad pagada al 100%" de una "marcada pagada por este bug" solo mirando `CuotaSolvencia`. Un
+indicio parcial: cruzar el monto total cobrado en cada `Pago` vinculado (M2M `pagos`) contra la suma de
+`monto_usd` de las `CuotaSolvencia` que ese pago saldó — si lo cobrado fue menor a esa suma, es candidata a
+revisión manual. Requiere decisión de negocio (¿se audita caso por caso con el colegio? ¿se asume pérdida y se
+sigue adelante?) antes de tocar datos de producción — no se implementó ninguna migración de corrección.
