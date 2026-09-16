@@ -32,6 +32,10 @@ export const CeldaDroppable = ({ bloque, clase, cellKey, onCeldaClick, onEditarC
     >
       {clase ? (
         <BloqueDraggable clase={clase} onClick={onEditarClase} onTogglePin={onTogglePin} />
+      ) : bloque.tipo === 'receso' ? (
+        // Receso "suelto" (no forma parte de la fila unificada porque la
+        // jornada varía por día) — hueco no interactivo, nunca abre ModalClase.
+        <div className="w-full h-12 rounded-lg" style={{ background: 'transparent' }} />
       ) : (
         <button
           onClick={() => onCeldaClick(bloque)}

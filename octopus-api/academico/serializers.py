@@ -254,9 +254,12 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
     materia_id   = serializers.PrimaryKeyRelatedField(
         queryset=Materia.objects.all(), source='materia', write_only=True
     )
+    # No es write_only: el frontend (GrillaHorario/useHorarios) necesita
+    # leer de vuelta a qué bloque pertenece cada clase para ubicarla en la
+    # grilla y detectar conflictos.
     bloque_id    = serializers.PrimaryKeyRelatedField(
         queryset=BloqueHorario.objects.all(), source='bloque',
-        write_only=True, required=False, allow_null=True,
+        required=False, allow_null=True,
     )
     dia_semana_label = serializers.SerializerMethodField()
 
@@ -268,9 +271,35 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
             'hora_inicio', 'hora_fin', 'aula',
             'bloque_id', 'pineado',
         ]
+        extra_kwargs = {
+            # Se derivan de `bloque` en validate() cuando se manda bloque_id
+            # (flujo nuevo desde la grilla). Siguen siendo obligatorios si no
+            # se manda ningún bloque.
+            'hora_inicio': {'required': False},
+            'hora_fin': {'required': False},
+        }
 
     def get_dia_semana_label(self, obj):
         return obj.get_dia_semana_display()
+
+    def validate(self, attrs):
+        bloque = attrs.get('bloque', getattr(self.instance, 'bloque', None))
+        if bloque is not None:
+            attrs['dia_semana'] = bloque.dia_semana
+            attrs['hora_inicio'] = bloque.hora_inicio
+            attrs['hora_fin'] = bloque.hora_fin
+        else:
+            actuales = self.instance
+            faltantes = [
+                campo for campo in ('hora_inicio', 'hora_fin')
+                if attrs.get(campo) is None and not (actuales and getattr(actuales, campo, None))
+            ]
+            if faltantes:
+                raise serializers.ValidationError({
+                    campo: 'Este campo es requerido si no se especifica un bloque.'
+                    for campo in faltantes
+                })
+        return attrs
 
 
 # ─────────────────────────────────────────────

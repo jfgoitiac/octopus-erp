@@ -892,6 +892,13 @@ class HorariosView(APIView):
             materia__activa=True,
         ).select_related('materia')
 
+        # Un mismo grado_seccion puede repetirse en distintos periodos/sedes
+        # (paquetes distintos) — sin este filtro se mezclaban horarios de
+        # paquetes distintos que comparten el mismo nombre de grado.
+        paquete_id = request.query_params.get('paquete')
+        if paquete_id:
+            horarios = horarios.filter(bloque__paquete_id=paquete_id)
+
         return Response(HorarioClaseSerializer(horarios, many=True).data)
 
     def post(self, request):
@@ -1684,11 +1691,13 @@ class PaqueteHorarioGradosView(APIView):
             return Response({'error': 'El campo grado_seccion es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Regla: un grado_seccion no puede estar en dos PaqueteHorario con el
-        # mismo periodo_escolar a la vez, sin importar el estado del otro
-        # paquete (ver decisión #2 del rediseño).
+        # mismo periodo_escolar Y sede a la vez, sin importar el estado del
+        # otro paquete (ver decisión #2 del rediseño). Se filtra por sede
+        # porque el mismo nombre de grado puede repetirse en sedes distintas.
         conflicto = PaqueteHorarioGrado.objects.filter(
             grado_seccion=grado_seccion,
             paquete__periodo_escolar=paquete.periodo_escolar,
+            paquete__sede=paquete.sede,
         ).exclude(paquete=paquete).select_related('paquete').first()
         if conflicto:
             return Response(
@@ -1763,21 +1772,31 @@ class PaqueteHorarioBloquesView(APIView):
         if tipo not in dict(BloqueHorario.TIPO_CHOICES):
             return Response({'error': 'tipo inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        ultimo = paquete.bloques.filter(dia_semana=dia_semana).order_by('orden').last()
         fmt = '%H:%M'
-        if ultimo:
-            hora_inicio = ultimo.hora_fin
-            orden = ultimo.orden + 1
-        else:
-            hora_inicio = datetime.strptime(self.HORA_INICIO_JORNADA_DEFAULT, fmt).time()
-            orden = 1
-        hora_fin = (datetime.combine(date.today(), hora_inicio) + timedelta(minutes=duracion_min)).time()
+        try:
+            with transaction.atomic():
+                # select_for_update evita que dos POST concurrentes calculen
+                # el mismo `orden` y choquen contra el unique_together.
+                ultimo = (
+                    paquete.bloques.select_for_update()
+                    .filter(dia_semana=dia_semana).order_by('orden').last()
+                )
+                if ultimo:
+                    hora_inicio = ultimo.hora_fin
+                    orden = ultimo.orden + 1
+                else:
+                    hora_inicio = datetime.strptime(self.HORA_INICIO_JORNADA_DEFAULT, fmt).time()
+                    orden = 1
+                hora_fin = (datetime.combine(date.today(), hora_inicio) + timedelta(minutes=duracion_min)).time()
 
-        with transaction.atomic():
-            bloque = BloqueHorario.objects.create(
-                paquete=paquete, dia_semana=dia_semana, orden=orden,
-                hora_inicio=hora_inicio, hora_fin=hora_fin, tipo=tipo,
-            )
+                bloque = BloqueHorario(
+                    paquete=paquete, dia_semana=dia_semana, orden=orden,
+                    hora_inicio=hora_inicio, hora_fin=hora_fin, tipo=tipo,
+                )
+                bloque.full_clean()
+                bloque.save()
+        except DjangoValidationError as e:
+            return Response({'error': '; '.join(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(BloqueHorarioSerializer(bloque).data, status=status.HTTP_201_CREATED)
 
 
@@ -1809,35 +1828,38 @@ class PaqueteHorarioBloqueDetailView(APIView):
             bloque.tipo = tipo
 
         duracion_min = request.data.get('duracion_min')
-        with transaction.atomic():
-            if duracion_min is not None:
-                try:
-                    duracion_min = int(duracion_min)
-                except (TypeError, ValueError):
-                    return Response({'error': 'duracion_min debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
-                if duracion_min <= 0:
-                    return Response({'error': 'duracion_min debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            with transaction.atomic():
+                if duracion_min is not None:
+                    try:
+                        duracion_min = int(duracion_min)
+                    except (TypeError, ValueError):
+                        return Response({'error': 'duracion_min debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
+                    if duracion_min <= 0:
+                        return Response({'error': 'duracion_min debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
 
-                nueva_hora_fin = (
-                    datetime.combine(date.today(), bloque.hora_inicio) + timedelta(minutes=duracion_min)
-                ).time()
-                desplazamiento = (
-                    datetime.combine(date.today(), nueva_hora_fin)
-                    - datetime.combine(date.today(), bloque.hora_fin)
-                )
-                bloque.hora_fin = nueva_hora_fin
-                bloque.save()
+                    nueva_hora_fin = (
+                        datetime.combine(date.today(), bloque.hora_inicio) + timedelta(minutes=duracion_min)
+                    ).time()
+                    desplazamiento = (
+                        datetime.combine(date.today(), nueva_hora_fin)
+                        - datetime.combine(date.today(), bloque.hora_fin)
+                    )
+                    bloque.hora_fin = nueva_hora_fin
+                    bloque.save()
 
-                if desplazamiento != timedelta(0):
-                    siguientes = BloqueHorario.objects.filter(
-                        paquete_id=pk, dia_semana=bloque.dia_semana, orden__gt=bloque.orden,
-                    ).order_by('orden')
-                    for sig in siguientes:
-                        sig.hora_inicio = (datetime.combine(date.today(), sig.hora_inicio) + desplazamiento).time()
-                        sig.hora_fin = (datetime.combine(date.today(), sig.hora_fin) + desplazamiento).time()
-                        sig.save()
-            else:
-                bloque.save()
+                    if desplazamiento != timedelta(0):
+                        siguientes = BloqueHorario.objects.filter(
+                            paquete_id=pk, dia_semana=bloque.dia_semana, orden__gt=bloque.orden,
+                        ).order_by('orden')
+                        for sig in siguientes:
+                            sig.hora_inicio = (datetime.combine(date.today(), sig.hora_inicio) + desplazamiento).time()
+                            sig.hora_fin = (datetime.combine(date.today(), sig.hora_fin) + desplazamiento).time()
+                            sig.save()
+                else:
+                    bloque.save()
+        except DjangoValidationError as e:
+            return Response({'error': '; '.join(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(BloqueHorarioSerializer(bloque).data)
 
@@ -1939,18 +1961,6 @@ class GenerarHorarioView(APIView):
         if not grados:
             return Response({'error': 'El paquete no tiene grados asociados.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # El algoritmo ignora las clases no pineadas ya existentes (las trata
-        # como huecos libres) y la persistencia de abajo las borra siempre.
-        # Sin este chequeo, "reemplazar_existente=false" no protegía nada.
-        ya_existe_horario = HorarioClase.objects.filter(
-            materia__grado_seccion__in=grados, pineado=False,
-        ).exists()
-        if ya_existe_horario and not reemplazar_existente:
-            return Response(
-                {'error': 'Ya existe un horario generado para uno o más grados de este paquete. Marca "Reemplazar horario existente" para regenerarlo.'},
-                status=status.HTTP_409_CONFLICT,
-            )
-
         colocadas, no_colocadas, advertencias = _ejecutar_algoritmo_paquete(paquete, semilla=semilla)
 
         if not colocadas and not no_colocadas:
@@ -1961,12 +1971,21 @@ class GenerarHorarioView(APIView):
 
         # ── Persistir: borrar clases no pineadas de estos grados, crear las
         # nuevas, y guardar un snapshot para poder deshacer la corrida ──────
+        # El chequeo de "ya existe algo que se perdería" y el borrado viven en
+        # la MISMA transacción, con select_for_update, para que dos POST
+        # concurrentes (doble clic en "Generar") no pasen ambos el chequeo
+        # antes de que ninguno haya confirmado — evita horarios duplicados.
         horarios_eliminados_snapshot = []
         creados = []
         with transaction.atomic():
-            a_borrar = HorarioClase.objects.filter(
+            a_borrar = HorarioClase.objects.select_for_update().filter(
                 materia__grado_seccion__in=grados, pineado=False,
             ).select_related('materia')
+            if a_borrar.exists() and not reemplazar_existente:
+                return Response(
+                    {'error': 'Ya existen clases cargadas para uno o más grados de este paquete. Marca "Reemplazar horario existente" para regenerarlo.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
             for hc in a_borrar:
                 horarios_eliminados_snapshot.append({
                     'materia_id': hc.materia_id,

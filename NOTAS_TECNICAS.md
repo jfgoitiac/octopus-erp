@@ -3706,3 +3706,59 @@ aditiva/nullable, sin migración de datos.
 - El WhatsApp de las notificaciones de cobranza (Twilio/Meta Business API)
   sigue sin implementar — no aplica a este ticket (es de otro módulo), se
   menciona aquí solo porque comparte el mismo archivo de notas.
+
+**Revisión post-integración (2026-09-16) — bugs corregidos y deuda pendiente:**
+
+Al integrar los dos agentes que armaron el backend/frontend en paralelo, una
+revisión de código de 8 pasadas (ángulos: eficiencia, correctitud línea por
+línea, reuso, altitud/arquitectura, cumplimiento de CLAUDE.md, comportamiento
+removido, y trazado cruzado front↔back) encontró varios bugs reales que ya se
+corrigieron en `academico/serializers.py` y `academico/views.py`:
+- `HorarioClaseSerializer.bloque_id` era `write_only` — el GET nunca lo
+  devolvía, dejando la grilla siempre vacía visualmente. Corregido (ahora es
+  legible).
+- Crear/editar una clase sin pasar `hora_inicio`/`hora_fin` (el flujo nuevo
+  desde la grilla) siempre daba 400, porque esos campos seguían siendo
+  obligatorios a nivel de serializer. Corregido: se derivan de `bloque` en
+  `validate()`.
+- El drag-and-drop dejaba `hora_inicio`/`hora_fin` desincronizados del bloque
+  real tras mover una clase (mismo root cause que el punto anterior, mismo
+  fix).
+- `GenerarHorarioView`: el chequeo de `reemplazar_existente` tenía una
+  condición de carrera (TOCTOU, sin `select_for_update()`) — corregido
+  moviendo el chequeo dentro de la misma transacción con lock.
+- `PaqueteHorarioGradosView`: la validación de "un grado por paquete/periodo"
+  ignoraba `sede`, rechazando falsos positivos entre sedes distintas —
+  corregido.
+- `PaqueteHorarioBloquesView.post` / `PaqueteHorarioBloqueDetailView.put`:
+  un `ValidationError` de `BloqueHorario.full_clean()` (ej. un bloque que
+  cruza medianoche) no estaba capturado y devolvía 500 en vez de 400 —
+  corregido. También se agregó `select_for_update()` al calcular `orden` de
+  un bloque nuevo para evitar una condición de carrera con doble-POST
+  concurrente.
+- `GET /horarios/` ignoraba el parámetro `?paquete=` que el frontend ya
+  enviaba — un mismo `grado_seccion` reutilizado en otro paquete/periodo
+  podía mezclar horarios de paquetes distintos. Corregido.
+- Frontend: `CeldaDroppable.jsx` abría `ModalClase` sobre un bloque de tipo
+  `receso` no unificado en la fila (jornadas con receso en horas distintas
+  por día) — corregido, ahora es un hueco no interactivo.
+- Frontend: `GrillaHorario.jsx` no impedía soltar una clase arrastrada sobre
+  una celda ya ocupada — corregido con un guard adicional en `handleDragEnd`.
+
+**Pendiente, NO corregido (menor severidad, documentado para más adelante):**
+- `_ejecutar_algoritmo_paquete`: `aula_fija_por_grado` hace una query por
+  grado en vez de una sola con `grado_seccion__in`; `DeshacerGeneracionHorarioView`
+  hace un `Materia.objects.get()` por clase restaurada en vez de `in_bulk()`.
+  N+1 evitables, bajo impacto salvo con paquetes muy grandes (20-30+ grados).
+- El resumen de generación (`no_colocadas`) cuenta una entrada por *materia*
+  con `horas_faltantes`, no una por hora-bloque faltante — cualquier lógica
+  futura que sume `len(no_colocadas) + clases_creadas` esperando el total de
+  horas-clase pedidas dará un número menor al real cuando una materia queda
+  parcialmente colocada.
+- `PaqueteHorarioBloqueDetailView.put`: al desplazar los bloques siguientes
+  del mismo día tras cambiar una duración, se guardan uno por uno (N updates)
+  en vez de `bulk_update()`. Bajo impacto (pocos bloques por día).
+- Lógica de "agrupar por día" duplicada entre `EditorBloques.jsx` y
+  `PanelDisponibilidadDocente.jsx` sin un helper compartido.
+- `PanelDisponibilidadDocente.jsx` quedó sin punto de montaje real en la UI
+  (no hay vista de "ficha de docente" hoy) — construido como standalone.

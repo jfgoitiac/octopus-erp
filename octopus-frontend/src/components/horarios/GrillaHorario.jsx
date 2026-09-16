@@ -151,6 +151,7 @@ export const GrillaHorario = ({
     if (!clase || !bloqueDestino) return;
     if (bloqueDestino.tipo !== 'clase') return;
     if (bloqueDestino.id === clase.bloque_id) return; // soltó en el mismo lugar
+    if (getClaseEnBloque?.(bloqueDestino.id)) return; // celda destino ya ocupada
     onMoverClase?.(clase, bloqueDestino);
   };
 
