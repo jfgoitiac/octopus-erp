@@ -517,6 +517,22 @@ const Cobranza = () => {
                 agregar('futura', sel.selectedFuturas);
             });
 
+            // Abono parcial de solvencia: el cajero puede escribir un monto
+            // menor al saldo en "Monto a abonar" (CobranzaStep1) — sin este
+            // envío, ese override se perdía y el backend saldaba la cuota
+            // completa aunque se cobró menos (ver diagnóstico del bug).
+            const montosCuotaSolvencia = {};
+            alumnosSeleccionados.forEach(id => {
+                const sel = seleccion[id];
+                if (!sel) return;
+                sel.selectedSolvencias.forEach(sid => {
+                    const ov = sel.montosParciales[`solv_${sid}`];
+                    if (ov !== undefined && ov !== '') {
+                        montosCuotaSolvencia[sid] = parseFloat(ov) || 0;
+                    }
+                });
+            });
+
             const res = await axiosInstance.post('cobranza/registrar-pago/', {
                 alumnos: alumnosPayload,
                 concepto,
@@ -524,6 +540,7 @@ const Cobranza = () => {
                 representante_nombre: representanteNombre,
                 proyecto_inversion_ids: selectedProyectos,
                 montos_mensualidades: montosMensualidades,
+                montos_cuota_solvencia: montosCuotaSolvencia,
                 montos_proyecto_inversion: Object.fromEntries(
                     selectedProyectos
                         .filter(id => montosParcialesProyectos[id] !== undefined && montosParcialesProyectos[id] !== '')
