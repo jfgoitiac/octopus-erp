@@ -563,6 +563,15 @@ class PagoCreateSerializer(serializers.Serializer):
         required=False,
         default=dict,
     )
+    # Abono parcial de CuotaSolvencia: {id_cuota: monto_abonado}. Mismo
+    # contrato que montos_proyecto_inversion/montos_mensualidades. A
+    # diferencia de esas dos, acá SÍ se rechaza (no se recorta en silencio)
+    # un abono que exceda el saldo pendiente — ver validación más abajo.
+    montos_cuota_solvencia = serializers.DictField(
+        child=serializers.DecimalField(max_digits=10, decimal_places=2),
+        required=False,
+        default=dict,
+    )
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
@@ -650,6 +659,31 @@ class PagoCreateSerializer(serializers.Serializer):
                     f"La cuota de solvencia de {ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} "
                     "ya está pagada. Actualice la página antes de continuar (posible doble envío)."
                 )
+
+            # Abono parcial de solvencia: a diferencia de mensualidades/
+            # proyecto de inversión (que recortan en silencio con `min()`),
+            # acá un abono por encima del saldo pendiente se rechaza con un
+            # error explícito (pedido del bug de abono parcial no registrado:
+            # nunca se debe poder "abonar" de más y que el sistema lo trague).
+            montos_cuota_solvencia = data.get('montos_cuota_solvencia') or {}
+            if montos_cuota_solvencia:
+                cuotas_solvencia_map = {
+                    c.id: c for c in CuotaSolvencia.objects.filter(id__in=todos_cuota_solvencia_ids)
+                }
+                for clave, monto_abonado in montos_cuota_solvencia.items():
+                    try:
+                        cuota_id = int(clave)
+                    except (TypeError, ValueError):
+                        continue
+                    cuota = cuotas_solvencia_map.get(cuota_id)
+                    if not cuota:
+                        continue
+                    saldo_pendiente = cuota.monto_usd - cuota.monto_pagado
+                    if Decimal(str(monto_abonado)) > saldo_pendiente + Decimal('0.01'):
+                        raise serializers.ValidationError(
+                            f"El abono de solvencia de {cuota.alumno.nombre} {cuota.alumno.apellido} "
+                            f"(${monto_abonado}) excede el saldo pendiente (${saldo_pendiente})."
+                        )
 
         proyecto_inversion_ids = data.get('proyecto_inversion_ids') or []
         if proyecto_inversion_ids:

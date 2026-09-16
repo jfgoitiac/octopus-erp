@@ -715,6 +715,7 @@ class RegistrarPagoView(APIView):
             for pago in pagos_creados:
                 pago.cuotas_inscripcion_pagadas.set(todas_cuotas_inscripcion_qs)
 
+        montos_cuota_solvencia = data.get('montos_cuota_solvencia') or {}
         todas_cuotas_solvencia_qs = CuotaSolvencia.objects.none()
         for a in alumnos_resueltos:
             if not a['cuota_solvencia_ids']:
@@ -726,7 +727,14 @@ class RegistrarPagoView(APIView):
                 id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
             )
             for cuota in cuotas:
-                cuota.monto_pagado = cuota.monto_usd
+                # Abono parcial (mismo patrón que CuotaProyectoInversion más
+                # abajo): si no viene un monto explícito para esta cuota, se
+                # asume que se paga el saldo completo (compatibilidad con el
+                # flujo sin abono). PagoCreateSerializer.validate ya rechazó
+                # cualquier monto que exceda el saldo pendiente.
+                saldo = cuota.monto_usd - cuota.monto_pagado
+                abono = montos_cuota_solvencia.get(str(cuota.id), saldo)
+                cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
                 cuota.save()
             todas_cuotas_solvencia_qs |= CuotaSolvencia.objects.filter(
                 id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
