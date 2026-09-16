@@ -158,7 +158,13 @@ const BloqueDeudaAlumno = ({
                         {cuotasSolvencia.map(c => {
                             const isSel   = selectedSolvencias.includes(c.id);
                             const ov      = montosParciales[`solv_${c.id}`];
-                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                            // saldo: lo que realmente falta pagar hoy, ya descontando
+                            // abonos previos (ver views.py) — nunca el monto_usd bruto,
+                            // que llevaría a permitir/mostrar un monto mayor al que el
+                            // backend va a aceptar (abono rechazado por "excede el saldo").
+                            const saldo   = c.saldo !== undefined ? c.saldo : c.monto_usd;
+                            const abonada = parseFloat(saldo) < parseFloat(c.monto_usd) - 0.01;
+                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                             return (
                                 <div key={c.id}>
                                     <label
@@ -192,6 +198,9 @@ const BloqueDeudaAlumno = ({
                                         <div className="text-right">
                                             <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
                                             <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                            {abonada && (
+                                                <p className="text-[10px] font-semibold" style={{ color: '#b45309' }}>Saldo: ${saldo}</p>
+                                            )}
                                         </div>
                                     </label>
                                     {isSel && (
@@ -203,15 +212,15 @@ const BloqueDeudaAlumno = ({
                                                 <DecimalInput
                                                     className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                     style={{ border: '1px solid #dc2626', background: '#fff', color: 'var(--jet)' }}
-                                                    value={ov !== undefined ? ov : c.monto_usd}
+                                                    value={ov !== undefined ? ov : saldo}
                                                     onChange={v => setMontoParcial(alu.id, 'solv', c.id, v)}
-                                                    max={parseFloat(c.monto_usd)}
+                                                    max={parseFloat(saldo)}
                                                     aria-label={`Monto a abonar para solvencia ${c.concepto || c.periodo_escolar}`}
                                                 />
                                             </div>
                                             {parcial && (
                                                 <button type="button"
-                                                    onClick={() => setMontoParcial(alu.id, 'solv', c.id, c.monto_usd)}
+                                                    onClick={() => setMontoParcial(alu.id, 'solv', c.id, saldo)}
                                                     className="text-[10px] px-2 py-1 rounded-md"
                                                     style={{ background: '#dc2626', color: '#fff' }}>
                                                     Completo

@@ -155,8 +155,9 @@ const ResumenPago = ({
                                 const c  = (datos?.cuotas_solvencia_pendientes || []).find(x => x.id === cid);
                                 if (!c) return null;
                                 const ov = sel.montosParciales[`solv_${cid}`];
-                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(c.monto_usd) || 0;
-                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
+                                const saldo   = c.saldo !== undefined ? c.saldo : c.monto_usd;
+                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(saldo) || 0;
+                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                                 return (
                                     <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
                                         style={{ background: '#fee2e2', color: '#b91c1c' }}>
