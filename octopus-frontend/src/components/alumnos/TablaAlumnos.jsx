@@ -37,6 +37,7 @@ export const TablaAlumnosSkeleton = () => (
 const TablaAlumnos = ({
     alumnos,
     isSecretaria,
+    puedeAsignarGrado,
     isCajero,
     editingId,
     editModalLoading,
@@ -119,7 +120,7 @@ const TablaAlumnos = ({
                                             : <Edit2 size={18} />}
                                     </button>
 
-                                    {isSecretaria && (
+                                    {puedeAsignarGrado && (
                                         <button
                                             onClick={() => onAsignarGrado(alumno)}
                                             className="p-2 rounded-lg transition-all"

@@ -32,6 +32,9 @@ const ListaAlumnos = () => {
     const isSecretaria = !!user && ['director', 'administrador', 'secretaria', 'sistemas'].includes(user.rol);
     const isCajero     = !!user && ['director', 'administrador', 'cajero', 'cobranza'].includes(user.rol);
     const puedeEditarSolvencia = !!user && ['director', 'administrador', 'cobranza'].includes(user.rol);
+    // Cobranza necesita asignar grados desde el banco de alumnos (sin heredar
+    // el resto de permisos de secretaría: registrar/retirar/reactivar alumno).
+    const puedeAsignarGrado = isSecretaria || (!!user && user.rol === 'cobranza');
 
     // UI-only state (no lógica de negocio)
     const [showConfig, setShowConfig] = useState(false);
@@ -260,6 +263,7 @@ const ListaAlumnos = () => {
                         alumnos={alumnos.alumnos}
                         isSecretaria={isSecretaria}
                         isCajero={isCajero}
+                        puedeAsignarGrado={puedeAsignarGrado}
                         editingId={alumnos.editingId}
                         editModalLoading={alumnos.editModalLoading}
                         onVerFicha={handleVerFicha}
