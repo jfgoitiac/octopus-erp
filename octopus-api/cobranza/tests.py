@@ -519,6 +519,101 @@ class RegistrarPagoSolvenciaTest(TestCase):
         self.assertEqual(self.cuota.monto_pagado, Decimal('30.00'))
         self.assertIsNotNone(self.cuota.fecha_pago)
 
+    def test_abono_parcial_de_solvencia_queda_registrado_y_sigue_pendiente(self):
+        """Regresión del bug: un abono parcial de solvencia marcaba la cuota
+        como saldada por el total, "regalando" el saldo restante."""
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+            "concepto": "solvencia",
+            "montos_cuota_solvencia": {str(self.cuota.id): "10.00"},
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "10.00", "referencia": "EFEC-SOLV-2"},
+            ],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        self.cuota.refresh_from_db()
+        self.assertFalse(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('10.00'))
+        self.assertIsNone(self.cuota.fecha_pago)
+
+    def test_varios_abonos_sucesivos_se_acumulan(self):
+        primer_abono = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+            "concepto": "solvencia",
+            "montos_cuota_solvencia": {str(self.cuota.id): "10.00"},
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "10.00", "referencia": "EFEC-SOLV-3A"}],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', primer_abono, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        segundo_abono = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+            "concepto": "solvencia",
+            "montos_cuota_solvencia": {str(self.cuota.id): "15.00"},
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "15.00", "referencia": "EFEC-SOLV-3B"}],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', segundo_abono, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        self.cuota.refresh_from_db()
+        self.assertFalse(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('25.00'))
+
+        tercer_abono = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+            "concepto": "solvencia",
+            "montos_cuota_solvencia": {str(self.cuota.id): "5.00"},
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "5.00", "referencia": "EFEC-SOLV-3C"}],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', tercer_abono, format='json')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        self.cuota.refresh_from_db()
+        self.assertTrue(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('30.00'))
+        self.assertIsNotNone(self.cuota.fecha_pago)
+
+    def test_abono_mayor_al_pendiente_es_rechazado(self):
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+            "concepto": "solvencia",
+            "montos_cuota_solvencia": {str(self.cuota.id): "50.00"},
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": "50.00", "referencia": "EFEC-SOLV-4"}],
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(response.status_code, 400, response.content)
+
+        self.cuota.refresh_from_db()
+        self.assertEqual(self.cuota.monto_pagado, Decimal('0.00'))
+        self.assertFalse(self.cuota.pagado)
+
+    def test_reporte_de_solvencias_devuelve_saldo_pendiente_correcto(self):
+        """El endpoint de estado-por-concepto (solvencia_reportes.py) debe
+        exponer el abono parcial en monto_pagado_usd/saldo_usd, no el total,
+        y clasificar la fila como 'parcial'."""
+        response = self.client.post(
+            '/api/cobranza/registrar-pago/',
+            {
+                "alumnos": [{"alumno_id": self.alumno.id, "cuota_solvencia_ids": [self.cuota.id]}],
+                "concepto": "solvencia",
+                "montos_cuota_solvencia": {str(self.cuota.id): "10.00"},
+                "pagos": [{"metodo_pago": "efectivo", "monto_usd": "10.00", "referencia": "EFEC-SOLV-5"}],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+
+        reporte = self.client.get(
+            '/api/cobranza/estado-por-concepto/?concepto=solvencia&estado=todos&page_size=100'
+        )
+        self.assertEqual(reporte.status_code, 200, reporte.content)
+        fila = next(f for f in reporte.data['results'] if f['alumno_id'] == self.alumno.id)
+        self.assertEqual(fila['estado'], 'parcial')
+        self.assertEqual(fila['monto_pagado_usd'], '10.00')
+        self.assertEqual(fila['saldo_usd'], '20.00')
+
 
 class SincronizarSolvenciasCommandTest(TestCase):
     """El management command debe saldar solvencias de alumnos solventes o
