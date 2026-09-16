@@ -12,7 +12,30 @@ const FORM_INICIAL = {
     modo_calculo: 'monto_fijo_usd',
     valor: '',
     dia_aplicacion: '',
+    dia_desde: '',
+    dia_hasta: '',
     activa: true,
+};
+
+/**
+ * Arma el payload a enviar según `tipo`: dia_aplicacion es exclusivo de
+ * 'recargo' y dia_desde/dia_hasta de 'descuento' (ver
+ * ReglaRecargoPago.clean() en el backend, que rechaza si vienen los campos
+ * del otro tipo) — nunca se envían ambos juntos, aunque el form todavía
+ * tenga restos de un tipo anterior por haber cambiado el selector.
+ */
+const construirPayload = (form) => {
+    const base = {
+        nombre: form.nombre,
+        descripcion: form.descripcion,
+        tipo: form.tipo,
+        activa: form.activa,
+        valor: form.valor,
+    };
+    if (form.tipo === 'descuento') {
+        return { ...base, modo_calculo: 'monto_fijo_usd', dia_desde: form.dia_desde, dia_hasta: form.dia_hasta };
+    }
+    return { ...base, modo_calculo: form.modo_calculo, dia_aplicacion: form.dia_aplicacion };
 };
 
 export function useReglasRecargoPago() {
@@ -56,6 +79,8 @@ export function useReglasRecargoPago() {
             modo_calculo: regla.modo_calculo,
             valor: regla.valor,
             dia_aplicacion: regla.dia_aplicacion ?? '',
+            dia_desde: regla.dia_desde ?? '',
+            dia_hasta: regla.dia_hasta ?? '',
             activa: regla.activa,
         });
         setShowReglaRecargoPagoModal(true);
@@ -68,12 +93,13 @@ export function useReglasRecargoPago() {
         }
         setReglaRecargoPagoSaving(true);
         try {
+            const payload = construirPayload(reglaRecargoPagoForm);
             if (reglaRecargoPagoEditando) {
-                await axiosInstance.patch(`cobranza/reglas-recargo-pago/${reglaRecargoPagoEditando.id}/`, reglaRecargoPagoForm);
-                toast.success("Regla de recargo actualizada.");
+                await axiosInstance.patch(`cobranza/reglas-recargo-pago/${reglaRecargoPagoEditando.id}/`, payload);
+                toast.success(reglaRecargoPagoForm.tipo === 'descuento' ? "Regla de descuento actualizada." : "Regla de recargo actualizada.");
             } else {
-                await axiosInstance.post('cobranza/reglas-recargo-pago/', reglaRecargoPagoForm);
-                toast.success("Regla de recargo agregada.");
+                await axiosInstance.post('cobranza/reglas-recargo-pago/', payload);
+                toast.success(reglaRecargoPagoForm.tipo === 'descuento' ? "Regla de descuento agregada." : "Regla de recargo agregada.");
             }
             setShowReglaRecargoPagoModal(false);
             fetchReglasRecargoPago();

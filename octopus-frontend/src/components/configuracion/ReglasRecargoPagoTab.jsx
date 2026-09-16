@@ -5,13 +5,21 @@ import { useReglasRecargoPago } from '../../hooks/useReglasRecargoPago';
 import ModalReglaRecargoPago from './ModalReglaRecargoPago';
 
 const formatearValor = (regla) =>
-    regla.modo_calculo === 'porcentaje'
-        ? `${Number(regla.valor)}%`
-        : `$${Number(regla.valor).toFixed(2)}`;
+    regla.tipo === 'descuento'
+        ? `$${Number(regla.valor).toFixed(2)} final`
+        : regla.modo_calculo === 'porcentaje'
+            ? `${Number(regla.valor)}%`
+            : `$${Number(regla.valor).toFixed(2)}`;
+
+const formatearDia = (regla) =>
+    regla.tipo === 'descuento'
+        ? `Días ${regla.dia_desde}–${regla.dia_hasta}`
+        : `Día ${regla.dia_aplicacion}`;
 
 /**
- * Sección "Recargos por Pago Tardío" de Configuración: CRUD de
- * ReglaRecargoPago (cobranza/reglas-recargo-pago/ — ver contrato de API).
+ * Sección "Recargos y Descuentos por Pago" de Configuración: CRUD de
+ * ReglaRecargoPago, tanto tipo='recargo' como tipo='descuento'
+ * (cobranza/reglas-recargo-pago/ — ver contrato de API).
  * Mobile-first: la tabla scrollea dentro de TablaScroll, nunca el <body>.
  */
 export default function ReglasRecargoPagoTab() {
@@ -33,14 +41,14 @@ export default function ReglasRecargoPagoTab() {
                         <AlertTriangle size={15} style={{ color: 'var(--red)' }} />
                     </div>
                     <div>
-                        <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Recargos por Pago Tardío</h3>
-                        <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Recargos que se cobran a las mensualidades vencidas a partir de cierto día del mes</p>
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Recargos y Descuentos por Pago</h3>
+                        <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Recargos por mensualidad vencida y descuentos por pago dentro de rango</p>
                     </div>
                 </div>
                 <button type="button" onClick={openCreateReglaRecargoPago}
                     className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
                     style={{ background: 'var(--pb)' }}>
-                    <Plus size={13} /> Agregar Regla de Recargo
+                    <Plus size={13} /> Agregar Regla
                 </button>
             </div>
 
@@ -51,14 +59,14 @@ export default function ReglasRecargoPagoTab() {
             ) : reglasRecargoPago.length === 0 ? (
                 <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
                     <AlertTriangle size={30} className="mb-2 opacity-20" />
-                    <p className="text-sm">No hay reglas de recargo configuradas.</p>
+                    <p className="text-sm">No hay reglas de recargo o descuento configuradas.</p>
                 </div>
             ) : (
                 <TablaScroll>
-                    <table className="w-full text-left min-w-[720px]">
+                    <table className="w-full text-left min-w-[820px]">
                         <thead>
                             <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                                {['Nombre', 'Valor', 'Día de aplicación', 'Estado', ''].map(h => (
+                                {['Nombre', 'Tipo', 'Valor', 'Día(s)', 'Estado', ''].map(h => (
                                     <th key={h} className="px-5 py-3 text-[11px] uppercase tracking-widest"
                                         style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
                                 ))}
@@ -68,8 +76,16 @@ export default function ReglasRecargoPagoTab() {
                             {reglasRecargoPago.map(regla => (
                                 <tr key={regla.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
                                     <td className="px-5 py-3.5 text-sm font-medium" style={{ color: 'var(--jet)' }}>{regla.nombre}</td>
+                                    <td className="px-5 py-3.5">
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                            style={regla.tipo === 'descuento'
+                                                ? { background: '#dcfce7', color: '#16a34a' }
+                                                : { background: 'var(--red-light)', color: 'var(--red)' }}>
+                                            {regla.tipo === 'descuento' ? 'Descuento' : 'Recargo'}
+                                        </span>
+                                    </td>
                                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--jet)' }}>{formatearValor(regla)}</td>
-                                    <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>Día {regla.dia_aplicacion}</td>
+                                    <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>{formatearDia(regla)}</td>
                                     <td className="px-5 py-3.5">
                                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                                             style={regla.activa
@@ -115,7 +131,7 @@ export default function ReglasRecargoPagoTab() {
 
             {showDeleteReglaRecargoPagoModal && (
                 <ConfirmDeleteModal
-                    titulo="Eliminar Regla de Recargo"
+                    titulo={reglaRecargoPagoAEliminar?.tipo === 'descuento' ? 'Eliminar Regla de Descuento' : 'Eliminar Regla de Recargo'}
                     nombre={reglaRecargoPagoAEliminar?.nombre}
                     onConfirm={handleDeleteReglaRecargoPago}
                     onCancel={() => { setShowDeleteReglaRecargoPagoModal(false); setReglaRecargoPagoAEliminar(null); }}

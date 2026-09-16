@@ -4,13 +4,13 @@ import { Modal } from '../ui/Modal';
 const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const labelStyle = { color: 'var(--ash)' };
 
-const MONTO_EJEMPLO = 30;
+const MONTO_EJEMPLO = 32;
 
 /**
  * Calcula la previsualización en vivo del recargo, 100% en el cliente,
  * sin llamar a la API — solo con los valores actuales del formulario.
  */
-const calcularEjemplo = (form) => {
+const calcularEjemploRecargo = (form) => {
     const dia = parseInt(form.dia_aplicacion, 10);
     const valor = parseFloat(form.valor);
     if (!dia || isNaN(dia) || form.valor === '' || isNaN(valor)) return null;
@@ -28,6 +28,26 @@ const calcularEjemplo = (form) => {
 };
 
 /**
+ * Previsualización del descuento: monto final SIEMPRE es el `valor` de la
+ * regla (modo_calculo se fuerza a 'monto_fijo_usd' en el backend para
+ * tipo='descuento') — mismo criterio que ReglaRecargoPago.clean().
+ */
+const calcularEjemploDescuento = (form) => {
+    const desde = parseInt(form.dia_desde, 10);
+    const hasta = parseInt(form.dia_hasta, 10);
+    const montoFinal = parseFloat(form.valor);
+    if (!desde || !hasta || isNaN(desde) || isNaN(hasta) || form.valor === '' || isNaN(montoFinal)) return null;
+
+    return {
+        diaDesde: desde,
+        diaHasta: hasta,
+        montoNormal: MONTO_EJEMPLO.toFixed(2),
+        montoFinal: montoFinal.toFixed(2),
+        excedePrecio: montoFinal >= MONTO_EJEMPLO,
+    };
+};
+
+/**
  * Formulario de creación/edición de ReglaRecargoPago (recargo por
  * mensualidad vencida a partir de cierto día del mes — ver contrato de API
  * cobranza/reglas-recargo-pago/).
@@ -36,13 +56,17 @@ export default function ModalReglaRecargoPago({
     open, onClose, editando,
     form, setForm, saving, onSave,
 }) {
-    const ejemplo = calcularEjemplo(form);
+    const esDescuento = form.tipo === 'descuento';
+    const ejemploRecargo = !esDescuento ? calcularEjemploRecargo(form) : null;
+    const ejemploDescuento = esDescuento ? calcularEjemploDescuento(form) : null;
 
     return (
         <Modal
             open={open}
             onClose={onClose}
-            titulo={editando ? 'Editar Regla de Recargo' : 'Agregar Regla de Recargo'}
+            titulo={editando
+                ? (esDescuento ? 'Editar Regla de Descuento' : 'Editar Regla de Recargo')
+                : (esDescuento ? 'Agregar Regla de Descuento' : 'Agregar Regla de Recargo')}
             size="lg"
             footer={(
                 <>
@@ -80,21 +104,38 @@ export default function ModalReglaRecargoPago({
                         <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>Texto que ve el representante en el portal.</p>
                     </div>
 
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Modo de Cálculo</label>
-                        <select value={form.modo_calculo}
-                            onChange={e => setForm(p => ({ ...p, modo_calculo: e.target.value }))}
+                    <div className="sm:col-span-2">
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Tipo de Regla</label>
+                        <select value={form.tipo}
+                            onChange={e => setForm(p => ({ ...p, tipo: e.target.value }))}
                             className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                            <option value="monto_fijo_usd">Monto fijo (USD)</option>
-                            <option value="porcentaje">Porcentaje</option>
+                            <option value="recargo">Recargo por pago tardío</option>
+                            <option value="descuento">Descuento por pago dentro de rango</option>
                         </select>
+                        <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                            {esDescuento
+                                ? 'Si el representante paga entre el día desde y hasta, la mensualidad queda en el monto final.'
+                                : 'A partir de cierto día del mes, se suma un recargo a la mensualidad vencida.'}
+                        </p>
                     </div>
+
+                    {!esDescuento && (
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Modo de Cálculo</label>
+                            <select value={form.modo_calculo}
+                                onChange={e => setForm(p => ({ ...p, modo_calculo: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                                <option value="monto_fijo_usd">Monto fijo (USD)</option>
+                                <option value="porcentaje">Porcentaje</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>
-                            Valor {form.modo_calculo === 'porcentaje' ? '(%)' : '(USD)'} *
+                            {esDescuento ? 'Monto Final (USD) *' : `Valor ${form.modo_calculo === 'porcentaje' ? '(%)' : '(USD)'} *`}
                         </label>
-                        {form.modo_calculo === 'porcentaje' ? (
+                        {!esDescuento && form.modo_calculo === 'porcentaje' ? (
                             <input type="number" step="1" min="0" max="100" value={form.valor}
                                 onChange={e => setForm(p => ({ ...p, valor: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
@@ -103,27 +144,62 @@ export default function ModalReglaRecargoPago({
                                 onChange={e => setForm(p => ({ ...p, valor: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                         )}
+                        {esDescuento && (
+                            <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>Precio final que paga la mensualidad, no un descuento porcentual.</p>
+                        )}
                     </div>
 
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Día de Aplicación *</label>
-                        <input type="number" min="1" max="31" value={form.dia_aplicacion}
-                            onChange={e => setForm(p => ({ ...p, dia_aplicacion: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                        <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>El recargo aplica desde este día, inclusive.</p>
-                    </div>
+                    {esDescuento ? (
+                        <>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Día Desde *</label>
+                                <input type="number" min="1" max="31" value={form.dia_desde}
+                                    onChange={e => setForm(p => ({ ...p, dia_desde: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Día Hasta *</label>
+                                <input type="number" min="1" max="31" value={form.dia_hasta}
+                                    onChange={e => setForm(p => ({ ...p, dia_hasta: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                                <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>Ambos días son inclusive.</p>
+                            </div>
+                        </>
+                    ) : (
+                        <div>
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Día de Aplicación *</label>
+                            <input type="number" min="1" max="31" value={form.dia_aplicacion}
+                                onChange={e => setForm(p => ({ ...p, dia_aplicacion: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                            <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>El recargo aplica desde este día, inclusive.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Previsualización en vivo — calculada 100% en el cliente, sin llamada a la API */}
                 <div className="p-3.5 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                     <p className="text-[11px] uppercase tracking-widest mb-2" style={labelStyle}>Previsualización</p>
-                    {ejemplo ? (
+                    {esDescuento ? (
+                        ejemploDescuento ? (
+                            <div className="space-y-1.5 text-sm">
+                                <p style={{ color: 'var(--jet)' }}>
+                                    Una mensualidad de ${ejemploDescuento.montoNormal} pagada fuera del rango → <span className="font-semibold">${ejemploDescuento.montoNormal}</span> (monto normal)
+                                </p>
+                                <p style={{ color: ejemploDescuento.excedePrecio ? 'var(--red)' : 'var(--green, #16a34a)' }}>
+                                    Pagada entre el día {ejemploDescuento.diaDesde} y el {ejemploDescuento.diaHasta} → <span className="font-semibold">${ejemploDescuento.montoFinal}</span>
+                                    {ejemploDescuento.excedePrecio && ' — ⚠ igual o mayor al monto normal, no tendrá efecto'}
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="text-xs" style={{ color: 'var(--ash)' }}>Completa el rango de días y el monto final para ver el ejemplo.</p>
+                        )
+                    ) : ejemploRecargo ? (
                         <div className="space-y-1.5 text-sm">
                             <p style={{ color: 'var(--jet)' }}>
-                                Una mensualidad de ${MONTO_EJEMPLO.toFixed(2)} pagada el día {ejemplo.diaSinRecargo} → <span className="font-semibold">${ejemplo.montoSinRecargo}</span> (sin recargo)
+                                Una mensualidad de ${MONTO_EJEMPLO.toFixed(2)} pagada el día {ejemploRecargo.diaSinRecargo} → <span className="font-semibold">${ejemploRecargo.montoSinRecargo}</span> (sin recargo)
                             </p>
                             <p style={{ color: 'var(--red)' }}>
-                                Una mensualidad de ${MONTO_EJEMPLO.toFixed(2)} pagada el día {ejemplo.diaConRecargo} → <span className="font-semibold">${ejemplo.montoConRecargo}</span> (con recargo)
+                                Una mensualidad de ${MONTO_EJEMPLO.toFixed(2)} pagada el día {ejemploRecargo.diaConRecargo} → <span className="font-semibold">${ejemploRecargo.montoConRecargo}</span> (con recargo)
                             </p>
                         </div>
                     ) : (
