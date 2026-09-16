@@ -327,11 +327,19 @@ class BuscarAlumnoCobranzaView(APIView):
             .values('id', 'periodo_escolar', 'monto_usd')
             .order_by('-periodo_escolar')
         )
-        cuotas_solvencia = list(
-            CuotaSolvencia.objects.filter(alumno=alumno, pagado=False, monto_usd__gt=0)
-            .values('id', 'periodo_escolar', 'monto_usd', 'concepto')
+        # Se expone `saldo` (monto_usd - monto_pagado), igual que ya hace
+        # cuotas_proyecto_inversion más abajo: tras un abono parcial la cuota
+        # sigue pendiente pero por menos del monto original, y el frontend
+        # necesita el saldo real (no el monto lleno) para mostrar/limitar el
+        # siguiente abono — si no, permite escribir hasta el monto original y
+        # el backend lo rechaza al validar contra el saldo real (bug: abono
+        # parcial sucesivo de solvencia rechazado con "excede el saldo").
+        cuotas_solvencia = [
+            {**c, 'saldo': c['monto_usd'] - c['monto_pagado']}
+            for c in CuotaSolvencia.objects.filter(alumno=alumno, pagado=False, monto_usd__gt=0)
+            .values('id', 'periodo_escolar', 'monto_usd', 'monto_pagado', 'concepto')
             .order_by('-periodo_escolar')
-        )
+        ]
         # Proyecto de Inversión: cuota del REPRESENTANTE (no del alumno), por
         # eso se filtra por alumno.representante en vez de por alumno.
         # Se expone `saldo` (monto_usd - monto_pagado) además del monto bruto:
