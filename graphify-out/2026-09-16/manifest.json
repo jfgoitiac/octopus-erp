@@ -50,23 +50,23 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/academico/models.py": {
-    "mtime": 1789530113.7253933,
-    "ast_hash": "d72c370772143f75db829a422fd4e2ce",
+    "mtime": 1789501405.7244241,
+    "ast_hash": "715938381e16fe1d6c010b3c29869505",
     "semantic_hash": ""
   },
   "octopus-api/academico/serializers.py": {
-    "mtime": 1789531754.8211164,
-    "ast_hash": "436aee93f2af5d89248d7ec45145d978",
+    "mtime": 1787929697.3955467,
+    "ast_hash": "4117df7ebf1e3899fbe12dfe1af7c401",
     "semantic_hash": ""
   },
   "octopus-api/academico/urls.py": {
-    "mtime": 1789530113.728379,
-    "ast_hash": "dde4603b45182c6987704b2af212bd7e",
+    "mtime": 1787928082.493987,
+    "ast_hash": "b9401128e22c4207681f4fbb3f4e630f",
     "semantic_hash": ""
   },
   "octopus-api/academico/views.py": {
-    "mtime": 1789531893.2251797,
-    "ast_hash": "baa0f74bf54fb92f85657ee339e33ebf",
+    "mtime": 1789506438.0617888,
+    "ast_hash": "7f2c89e25a70e59fbad0a76fa3894b61",
     "semantic_hash": ""
   },
   "octopus-api/authentication/__init__.py": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/serializers.py": {
-    "mtime": 1789581595.861636,
-    "ast_hash": "78bd4fab304dba4b9f8efe6e5db756fc",
+    "mtime": 1789508817.967652,
+    "ast_hash": "e78de80253580137809a144f7cd87f58",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/services.py": {
@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests.py": {
-    "mtime": 1789581703.8039434,
-    "ast_hash": "51791129bccc3f6b6493b45ed6d682b6",
+    "mtime": 1788816121.12921,
+    "ast_hash": "3efc6a25c067fbde865e9c162d1deec2",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/urls.py": {
@@ -295,8 +295,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1789581626.7241652,
-    "ast_hash": "092794ebf713f7d479ba71dfcbbdcfdc",
+    "mtime": 1789510086.0639894,
+    "ast_hash": "2788caf6e80efa98e6a474a9bc9ec148",
     "semantic_hash": ""
   },
   "octopus-api/config/__init__.py": {
@@ -1345,13 +1345,13 @@
     "semantic_hash": "f91fdd67c3c13a794f2f6c4ea16a4eec"
   },
   "octopus-frontend/src/App.jsx": {
-    "mtime": 1789530113.7328622,
-    "ast_hash": "1ae6078e656092d345187c9ce7583d13",
+    "mtime": 1788979392.8742366,
+    "ast_hash": "9ad3ce7f269ed886bc5c36ff2747a21b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/academico.service.js": {
-    "mtime": 1789530113.7348802,
-    "ast_hash": "d3f162f0a194cc610b08c1f5f5c028b9",
+    "mtime": 1787928117.481852,
+    "ast_hash": "173cfce1bc6c5640f8811f2ae5488453",
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/apiClient.js": {
@@ -1505,18 +1505,18 @@
     "semantic_hash": "27baeaa481a9aeb56372e9e87772f09b"
   },
   "octopus-frontend/src/components/horarios/GrillaHorario.jsx": {
-    "mtime": 1789531985.105528,
-    "ast_hash": "393ee4f270a98548c8f9002b3a00b698",
+    "mtime": 1789501609.626442,
+    "ast_hash": "fc3d0bbec99892c4cbdf2c74deaf4c2c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/horarios/ModalClase.jsx": {
-    "mtime": 1789530113.7368896,
-    "ast_hash": "f91985c54ce151a3ada47aad0c92001c",
+    "mtime": 1787986255.7039871,
+    "ast_hash": "34d4b5bfba0787fd0b9b2a5aa4da8f69",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/horarios/ModalGenerador.jsx": {
-    "mtime": 1789530113.738899,
-    "ast_hash": "ece730f5cd1b233006aeeee54b09d205",
+    "mtime": 1787986255.70599,
+    "ast_hash": "a89abfe853b5d28346567f6454b23bf5",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/horarios/ModalMateria.jsx": {
@@ -1795,8 +1795,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useHorarios.js": {
-    "mtime": 1789530145.1399689,
-    "ast_hash": "96d615c2ab8526cc6574b1eaa5780d03",
+    "mtime": 1789499159.290285,
+    "ast_hash": "b27fec78da8be72a27dd862c575c9731",
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useInscripcion.js": {
@@ -1925,8 +1925,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Cobranza.jsx": {
-    "mtime": 1789581653.131386,
-    "ast_hash": "a5c3331638a40b34dec7f4a565e983c9",
+    "mtime": 1789526410.2065463,
+    "ast_hash": "99e5044e94bac8887566824da2d956e6",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaDashboard.jsx": {
@@ -1970,8 +1970,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Horarios.jsx": {
-    "mtime": 1789530113.738899,
-    "ast_hash": "b9ca640398c69029a8a4475e1d6c5b27",
+    "mtime": 1787983271.2940667,
+    "ast_hash": "50cc89ce49e6fcaf776bb81592929fdc",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Inscripciones.jsx": {
@@ -2555,8 +2555,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1789532170.5833359,
-    "ast_hash": "1e4a6831b115193e4947c3dd817ef350",
+    "mtime": 1788901653.8408248,
+    "ast_hash": "6cefffed2e10d23d5a954057201a173e",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -2735,8 +2735,8 @@
     "semantic_hash": ""
   },
   "octopus-api/academico/tests.py": {
-    "mtime": 1789530863.8081152,
-    "ast_hash": "34699d94f0210af2bfe0b03dee636809",
+    "mtime": 1789506438.0589876,
+    "ast_hash": "d649e29f090474814ef374afaf537d1d",
     "semantic_hash": ""
   },
   "octopus-api/academico/urls_portal.py": {
@@ -3240,8 +3240,8 @@
     "semantic_hash": ""
   },
   "octopus-api/NOTAS_TECNICAS.md": {
-    "mtime": 1789582091.2707436,
-    "ast_hash": "55c672ff80d835821e0bee8000547e4c",
+    "mtime": 1789526997.3271015,
+    "ast_hash": "44bbe862cefca0972410c432ddef911d",
     "semantic_hash": ""
   },
   "octopus-api/RESTAURACION_EMERGENCIA.md": {
@@ -3495,8 +3495,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1789581653.4913576,
-    "ast_hash": "fe8efbbd363cfad25ad154a5b902d66e",
+    "mtime": 1789526447.823582,
+    "ast_hash": "7d6ae8cb66b08868652d6bc69301ea48",
     "semantic_hash": ""
   },
   "octopus-api/academico/migrations/0010_eventocalendario.py": {
@@ -5505,8 +5505,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Horarios.test.jsx": {
-    "mtime": 1789530403.481462,
-    "ast_hash": "7179b4603ff24e65a6105e4b4da5bfa0",
+    "mtime": 1789499673.1990404,
+    "ast_hash": "46b976529bc363115c5dd779d5134eac",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/constancias/EmisionConstancias.jsx": {
@@ -5887,51 +5887,6 @@
   "octopus-api/secretaria/migrations/0029_configuraciongrado_aula_fija.py": {
     "mtime": 1789506438.230369,
     "ast_hash": "ad52ec108dcb68dffa4c2b21c8e9dde2",
-    "semantic_hash": ""
-  },
-  "octopus-api/academico/migrations/0015_bloquehorario_docente_horas_semanales_objetivo_and_more.py": {
-    "mtime": 1789529645.7228367,
-    "ast_hash": "46b416af3f428f1564ee0bd4c3855fbf",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/components/horarios/BloqueDraggable.jsx": {
-    "mtime": 1789529788.703158,
-    "ast_hash": "6417681583db9b36b3e0502c4cf6a5ee",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/components/horarios/CeldaDroppable.jsx": {
-    "mtime": 1789531945.9519448,
-    "ast_hash": "95063f6bd0ffec74c867e819578a17d6",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/components/horarios/EditorBloques.jsx": {
-    "mtime": 1789529930.740136,
-    "ast_hash": "7d3cc775510d0f0ce62cfaa90e7d902f",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/components/horarios/PanelDisponibilidadDocente.jsx": {
-    "mtime": 1789529947.5704834,
-    "ast_hash": "fb55b2ddf139a1f5cbfc2438e8c20799",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/components/horarios/ResumenGeneracion.jsx": {
-    "mtime": 1789529904.8892412,
-    "ast_hash": "70ec989f0e6dd18b8728660dea657aab",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/hooks/useDisponibilidadDocente.js": {
-    "mtime": 1789530181.5618222,
-    "ast_hash": "87ae690b81d510e316111bad5a88160a",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/hooks/usePaquetesHorario.js": {
-    "mtime": 1789530167.4594326,
-    "ast_hash": "176be1aecf87241b937ae90a46cedaab",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/pages/PaquetesHorario.jsx": {
-    "mtime": 1789530172.8733902,
-    "ast_hash": "944af34b5301fba1d35266b7db63e2ba",
     "semantic_hash": ""
   }
 }
