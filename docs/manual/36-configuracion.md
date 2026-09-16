@@ -27,6 +27,7 @@ El título es **"Configuración del Sistema"**, y está dividida en bloques:
 | **"Proceso de Inscripción"** | Cuándo abren y cierran las inscripciones |
 | **"Control de Cupos"** | Grados, secciones y cupos máximos |
 | **"Panel de Cobros"** | Día límite de pago |
+| **"Recargos y Descuentos por Pago"** | Recargo por mensualidad vencida y descuento por pago dentro de rango |
 | **"Bancos y Medios de Pago"** | Bancos del colegio y métodos aceptados |
 | **"Bancos de Nómina"** | Bancos donde cobra el personal |
 | **"Tipos de Cargo"** | Cargos del personal |
@@ -82,6 +83,31 @@ Verás **"Día límite de pago aplicado a 214 alumnos"**.
 
 > Este día decide cuándo una mensualidad del mes en curso pasa a estar vencida, y
 > por lo tanto cuándo empieza la mora y salen los avisos automáticos.
+
+### Configurar un recargo o un descuento por pago
+
+1. Ve al bloque **"Recargos y Descuentos por Pago"**.
+2. Presiona **"Agregar Regla"**.
+3. Elige el **"Tipo de Regla"**:
+   - **"Recargo por pago tardío"**: se suma un monto (o un %) a la mensualidad
+     a partir de cierto **"Día de Aplicación"**.
+   - **"Descuento por pago dentro de rango"**: si el representante paga entre
+     **"Día Desde"** y **"Día Hasta"**, la mensualidad queda en el **"Monto
+     Final (USD)"** que definas, en vez de su monto normal.
+4. Completa el **"Nombre"** (se imprime tal cual en el recibo) y el resto de los
+   campos según el tipo elegido.
+5. Revisa la **"Previsualización"**: muestra un ejemplo en vivo con una
+   mensualidad de $32, calculado en el navegador antes de guardar.
+6. Marca si la regla queda **"Activa"** y guarda.
+
+Solo puede haber **una regla activa de cada tipo** a la vez — para cambiar de
+regla, desactiva la anterior primero. Si el rango del descuento se solapa con
+el día de aplicación del recargo activo (o viceversa), el sistema rechaza el
+guardado con un mensaje explicando el conflicto.
+
+> El descuento no le sube el precio a una mensualidad que ya tiene beca o un
+> monto especial: si el "Monto Final" configurado es mayor o igual al monto
+> que le toca pagar a ese alumno, simplemente no se aplica.
 
 ### Cargar un banco
 
@@ -150,6 +176,19 @@ historial"* — muestra:
 | Cupos Máximos | Sí | Número entero | Cuántos alumnos caben |
 | Día Límite de Pago | Sí | Número del 1 al 31 | Día del mes en que vence la mensualidad |
 
+### Recargos y descuentos por pago
+
+| Campo | Obligatorio | Formato | Qué significa |
+|-------|:-----------:|---------|---------------|
+| Tipo de Regla | Sí | Recargo / Descuento | Qué efecto tiene sobre la mensualidad |
+| Nombre | Sí | Texto | Se imprime en el recibo, lo ve el representante |
+| Descripción | No | Texto | Texto que ve el representante en el portal |
+| Modo de Cálculo (solo Recargo) | Sí | Monto fijo (USD) / Porcentaje | Cómo se calcula el recargo |
+| Valor / Monto Final | Sí | Número | Monto o % de recargo, o el precio final del descuento |
+| Día de Aplicación (solo Recargo) | Sí | Número del 1 al 31 | Desde qué día la mensualidad carga recargo |
+| Día Desde / Día Hasta (solo Descuento) | Sí | Número del 1 al 31 | Rango de días (ambos inclusive) en que aplica el monto final |
+| Activa | Sí | Sí / No | Si la regla está en uso |
+
 ### Bancos
 
 | Campo | Obligatorio | Formato | Qué significa |
@@ -178,6 +217,13 @@ historial"* — muestra:
   cuotas que se generan, la solvencia y la validación de los pagos retroactivos.
 - **Cambiar el día límite de pago** se aplica a todos los alumnos y recalcula
   desde cuándo se considera vencida la mensualidad del mes.
+- **Crear o editar una regla de recargo o descuento** se refleja de inmediato
+  en la pantalla de cobro de caja y en el portal de representantes: ambos
+  muestran el monto real a cobrar (con recargo o con descuento) apenas se
+  guarda la regla.
+- **Editar o desactivar una regla no cambia recibos ya emitidos** — el
+  recargo o descuento cobrado queda fijo en el recibo (línea inmutable), aunque
+  la regla cambie después.
 - **Crear un grado** lo habilita para inscribir alumnos.
 - **Reducir los cupos** de una sección no expulsa a nadie, pero impide inscribir
   o reactivar más alumnos.
@@ -197,6 +243,8 @@ historial"* — muestra:
 | "El período escolar activo tiene un formato inválido." | No respeta el formato `2025-2026`. | Corrígelo. |
 | "No hay grados configurados." | No se han creado grados. | Créalos en "Control de Cupos". |
 | "No hay bancos registrados." | No hay bancos del colegio cargados. | Créalos: sin banco no se puede cobrar. |
+| "Ya existe una regla activa de tipo 'Recargo'/'Descuento'." | Solo puede haber una regla activa por tipo. | Desactiva la anterior antes de crear otra. |
+| "El rango de descuento... se solapa con la regla de recargo activa..." | El día de aplicación del recargo cae dentro (o después) del rango del descuento. | Ajusta los días, o desactiva una de las dos reglas. |
 | "Banco desactivado. Tiene registros asociados y no puede eliminarse permanentemente." | El banco tiene pagos cargados. | Queda desactivado; es lo correcto. |
 | "No hay tipos de cargo registrados." | No se han cargado cargos. | Créalos antes de registrar personal. |
 | "No hay notificaciones registradas." | Todavía no ha salido ningún aviso. | Envía un mensaje de prueba. |

@@ -726,11 +726,8 @@ intermedia con el monto exacto), no solo el acumulado en la cuota.
   `LineaRecargoPago.mensualidad` (FK directa a `Mensualidad`) tendría que generalizarse a una FK genérica
   (`ContentType` + `object_id`) o agregar FKs opcionales paralelas (`cuota_inscripcion`, `cuota_solvencia`),
   y `ReglaRecargoPago` necesitaría un campo que indique a qué tipo de cargo aplica cada regla.
-- `tipo='descuento'` existe como choice en `ReglaRecargoPago` (reservado a propósito, ver el enunciado de la
-  feature) pero no tiene NINGUNA lógica en `cobranza/recargos.py::resolver_recargo` — una regla creada con
-  `tipo='descuento'` queda guardada pero nunca se evalúa ni se aplica en ningún flujo (cobro, portal, morosos).
-  Si se implementa, hay que decidir además cómo interactúa con `porcentaje_beca_aplicado` (¿se puede
-  descontar sobre una mensualidad ya becada? ¿en qué orden se aplican beca y descuento?).
+- `tipo='descuento'` **ya está implementado** (ver sección "Descuento por Pago Dentro de Rango" más abajo) —
+  este bullet queda solo como referencia histórica de que antes no lo estaba.
 - `cobranza/utils_pdf.py::generar_recibo_pdf` no tenía desglose línea por línea para NINGÚN concepto antes de
   este cambio — solo mostraba el `monto_usd`/`tasa_aplicada`/`monto_ves` agregado del `Pago` completo (una
   sola celda "Monto en Divisas"). Es una limitación preexistente, no algo introducido por esta feature: se
@@ -750,6 +747,45 @@ intermedia con el monto exacto), no solo el acumulado en la cuota.
   `ComprobanteSerializer._get_principal_con_conceptos` (ordenado por `id`) para elegir el "pago principal" de
   la operación al desglosar. Si en el futuro se necesita saber cuánto de CADA método cubrió el recargo
   específicamente, haría falta un cambio de modelo (hoy no se rastrea esa relación para ningún concepto).
+
+## Descuento por Pago Dentro de Rango (`ReglaRecargoPago tipo='descuento'`/`resolver_descuento`)
+
+- **Mecanismo de "abono fantasma"**: a diferencia del recargo (dinero EXTRA cobrado, nunca toca
+  `Mensualidad.monto_usd`/`monto_pagado`), el descuento debe CERRAR la mensualidad aunque el representante pague
+  menos de `monto_usd`. Se resolvió acreditando el monto perdonado (`monto_descontado_usd`) directamente a
+  `monto_pagado` en `RegistrarPagoView`, sin tocar `monto_usd` — así `mora.py`, `solvencia_reportes.py` y todo
+  cálculo de saldo existente (`monto_usd - monto_pagado`) sigue funcionando sin cambios. La alternativa (reducir
+  `monto_usd` permanentemente) se descartó por tocar ~10 lugares del código. Si en el futuro se necesita
+  distinguir "cuánto pagó el representante" de "cuánto se le perdonó" en algún reporte financiero/contable que
+  hoy no lo separe, ese dato vive en `LineaDescuentoPago.monto_descontado_usd`, no en `Mensualidad`.
+- **Una sola regla global activa** (`tipo='descuento'`), sin alcance por sede, igual que el recargo. No se
+  soportan rangos múltiples no solapados (ej. "5-8 → $31" y "15-18 → $30" simultáneos) — habría que cambiar la
+  constraint de unicidad en `ReglaRecargoPago.clean()` y agregar validación de solape entre rangos.
+- **Modo único**: solo "monto final" (`modo_calculo` forzado a `monto_fijo_usd`). No se implementaron "restar
+  $X" ni "restar X%" — si se necesitan, agregar nuevos valores a `MODOS` y su lógica en
+  `descuentos.py::resolver_descuento`.
+- **Validación de solape con mora**: `ReglaRecargoPago.clean()` bloquea en duro el solape entre la regla de
+  descuento y la de recargo (ambas globales), pero NO valida contra `Alumno.dia_limite_pago` (mora, que es
+  POR ALUMNO) — no se puede garantizar sin solape para todos los alumnos con una sola regla global. Queda como
+  advertencia a criterio del admin al configurar, no como bloqueo.
+- **Sin reporte agregado**: no existe un reporte de "descuentos otorgados" (análogo a `ReporteCostoBecasView`).
+  El único rastro es `LineaDescuentoPago` por pago individual (desglose del recibo/JSON contable). Si se pide,
+  sería una vista nueva que sume `LineaDescuentoPago` por rango de fechas.
+- **Portal y pantalla de cobro admin solo muestran el descuento de mensualidades "vencidas"** (mes actual o
+  anterior, ver `mensualidades_pendientes`/`mensualidades_vencidas`) — los adelantos de meses futuros
+  (`mensualidades_futuras`) no se enriquecen con `resolver_descuento`, porque el rango de la regla se evalúa
+  contra el mes PROPIO de la mensualidad y normalmente no coincide con "hoy" para un mes futuro. Si alguna vez
+  se necesita cotizar el descuento de un adelanto (pagar octubre en septiembre, dentro del rango de octubre),
+  habría que enriquecer también esa lista.
+- **Gap preexistente corregido de paso, no introducido por esta feature**: antes de este cambio, la pantalla de
+  cobro admin (`BuscarAlumnoCobranzaView`/`Cobranza.jsx`) no mostraba el recargo por pago tardío en absoluto en
+  el preview, y el total a cobrar (`subtotalAlumnoUSD`/`sumarLista` en el frontend) se calculaba con
+  `monto_usd` bruto en vez del saldo real — un cajero que no escribiera el monto a mano habría cobrado de
+  menos en una mensualidad con recargo (o de más en una con descuento, antes de esta corrección). Se corrigió
+  como parte de esta entrega porque el descuento lo necesitaba para funcionar correctamente, y de paso quedó
+  arreglado también para el recargo. Sigue sin existir una validación server-side de que el monto de los
+  `pagos` cubra exactamente lo esperado (ver bullet de recargo más arriba) — el frontend ahora calcula bien el
+  default, pero un cajero todavía puede sobreescribir el monto a cualquier valor sin que el backend lo rechace.
 
 ## `InscripcionStatsView` (indicador de inscripciones del Dashboard) duplica la ocupación por grado de `cobranza/stats/`
 

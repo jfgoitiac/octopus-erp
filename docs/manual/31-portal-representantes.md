@@ -45,6 +45,11 @@ Arriba verás tu situación en un vistazo:
 - Si no debes nada: **"Solvente — al día con los pagos"**, en verde.
 - Si debes: **"Deuda pendiente"** con el monto, en rojo.
 
+Si el colegio tiene un recargo o un descuento por pago configurado, la
+mensualidad del mes lo muestra: el monto normal tachado, el monto real al lado
+(en rojo si es un recargo por atraso, en verde si es un descuento por pagar
+dentro de cierto rango de días) y el nombre de la regla debajo.
+
 Debajo:
 
 - **"Próximos vencimientos"** — lo que está por vencer.

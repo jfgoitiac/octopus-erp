@@ -51,6 +51,23 @@ Para volver atrás, usa **"Volver a buscar alumno"**.
 | **"PARCIAL"** | Pago que no cubre el total de la cuota |
 | **"ABONADO"** | La cuota ya tiene un abono previo |
 
+### Recargo y descuento en la mensualidad
+
+Si hay una regla de recargo o descuento activa (ver **Configuración → Recargos
+y Descuentos por Pago**), la mensualidad vencida lo muestra apenas la
+seleccionas:
+
+- **Con recargo**: el monto normal aparece tachado y al lado el monto real a
+  cobrar en rojo, con el nombre del recargo debajo (ej. *"+ $2.00 Recargo por
+  pago tardío"*).
+- **Con descuento**: igual, pero en verde y con el monto ya rebajado (ej.
+  *"-$2.00 Descuento por pronto pago"*).
+
+El campo **"Monto a abonar (USD)"** ya viene precargado con el monto correcto
+(con el recargo sumado o el descuento restado) — no hace falta calcularlo a
+mano. Un recargo y un descuento nunca aparecen juntos sobre la misma
+mensualidad.
+
 ### Adelantos y pagos parciales
 
 - **"Mensualidades futuras"** te deja adelantar meses que aún no vencen.
