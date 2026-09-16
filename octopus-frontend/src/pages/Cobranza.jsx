@@ -174,7 +174,14 @@ const Cobranza = () => {
             const item = (lista || []).find(x => x.id === id);
             if (!item) return s;
             const ov = sel.montosParciales[`${categoria}_${id}`];
-            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(item.monto_usd) || 0);
+            // Fallback sin override: saldo_a_pagar_hoy (saldo + recargo -
+            // descuento, resuelto HOY) cuando está disponible, si no el saldo
+            // nominal (monto_usd - monto_pagado ya considerando abonos
+            // previos) — nunca el monto_usd bruto, que ignoraría ambos.
+            const fallback = item.saldo_a_pagar_hoy !== undefined
+                ? item.saldo_a_pagar_hoy
+                : (item.saldo !== undefined ? item.saldo : item.monto_usd);
+            return s + (ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(fallback) || 0);
         }, 0);
 
         return sumarLista('mens', datos.mensualidades_pendientes, sel.selectedMens)
@@ -229,7 +236,12 @@ const Cobranza = () => {
         const parcialEn = (categoria, lista, ids) => ids.some(mid => {
             const m  = (lista || []).find(x => x.id === mid);
             if (!m) return false;
-            const saldo = m.saldo !== undefined ? m.saldo : m.monto_usd;
+            // Un pago que cubre exactamente el monto con descuento (menor al
+            // saldo nominal) es un pago COMPLETO, no parcial — se compara
+            // contra saldo_a_pagar_hoy cuando existe, no contra el saldo bruto.
+            const saldo = m.saldo_a_pagar_hoy !== undefined
+                ? m.saldo_a_pagar_hoy
+                : (m.saldo !== undefined ? m.saldo : m.monto_usd);
             const ov = sel.montosParciales[`${categoria}_${mid}`];
             return ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
         });
@@ -474,19 +486,34 @@ const Cobranza = () => {
                 };
             });
 
-            // Solo se incluyen las mensualidades (pendientes o adelanto) donde el
-            // cajero escribió un override en el input de "Monto a abonar". Las que
-            // quedaron sin override no entran aquí: el backend las interpreta como
-            // pago del saldo completo (comportamiento actual, sin regresión).
+            // Se incluye una mensualidad (pendiente o adelanto) en el payload
+            // cuando: (a) el cajero escribió un override en "Monto a abonar", o
+            // (b) tiene un recargo/descuento vigente (saldo_a_pagar_hoy distinto
+            // del saldo nominal) — en ese caso se envía saldo_a_pagar_hoy aunque
+            // el cajero no haya tocado el input, para no cobrar de más ni de
+            // menos por default. El resto (sin override y sin recargo/descuento)
+            // no entra aquí: el backend las interpreta como pago del saldo
+            // completo (comportamiento actual, sin regresión).
             const montosMensualidades = {};
             alumnosSeleccionados.forEach(id => {
                 const sel = seleccion[id];
                 if (!sel) return;
-                const agregar = (categoria, ids) => ids.forEach(mid => {
+                const datos = datosAlumnos[id];
+                const agregar = (categoria, ids, lista) => ids.forEach(mid => {
                     const ov = sel.montosParciales[`${categoria}_${mid}`];
-                    if (ov !== undefined && ov !== '') montosMensualidades[mid] = parseFloat(ov) || 0;
+                    if (ov !== undefined && ov !== '') {
+                        montosMensualidades[mid] = parseFloat(ov) || 0;
+                        return;
+                    }
+                    const m = lista?.find(x => x.id === mid);
+                    if (m?.saldo_a_pagar_hoy !== undefined) {
+                        const saldoNominal = m.saldo !== undefined ? m.saldo : m.monto_usd;
+                        if (parseFloat(m.saldo_a_pagar_hoy) !== parseFloat(saldoNominal)) {
+                            montosMensualidades[mid] = parseFloat(m.saldo_a_pagar_hoy) || 0;
+                        }
+                    }
                 });
-                agregar('mens', sel.selectedMens);
+                agregar('mens', sel.selectedMens, datos?.mensualidades_pendientes);
                 agregar('futura', sel.selectedFuturas);
             });
 

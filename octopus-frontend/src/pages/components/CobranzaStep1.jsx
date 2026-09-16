@@ -250,8 +250,15 @@ const BloqueDeudaAlumno = ({
                             const isSel   = selectedMens.includes(m.id);
                             const ov      = montosParciales[`mens_${m.id}`];
                             const saldo   = m.saldo !== undefined ? m.saldo : m.monto_usd;
+                            // saldo_a_pagar_hoy = saldo + recargo - descuento (mutuamente
+                            // excluyentes), resuelto HOY por el backend (misma fuente de
+                            // verdad que usa RegistrarPagoView al cobrar) — es el monto
+                            // real a cobrar, no solo el saldo nominal.
+                            const saldoHoy   = m.saldo_a_pagar_hoy !== undefined ? m.saldo_a_pagar_hoy : saldo;
+                            const tieneRecargo   = parseFloat(m.monto_recargo || 0) > 0;
+                            const tieneDescuento = parseFloat(m.monto_descuento || 0) > 0;
                             const abonada = parseFloat(saldo) < parseFloat(m.monto_usd) - 0.01;
-                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
+                            const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldoHoy) - 0.01;
                             return (
                                 <div key={m.id}>
                                     <label
@@ -276,8 +283,22 @@ const BloqueDeudaAlumno = ({
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
-                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
+                                            {tieneRecargo ? (
+                                                <>
+                                                    <span className="text-[10px] line-through" style={{ color: 'var(--ash)' }}>${m.monto_usd}</span>{' '}
+                                                    <span className="text-sm font-semibold" style={{ color: 'var(--red)' }}>${saldoHoy}</span>
+                                                    <p className="text-[10px] font-semibold" style={{ color: 'var(--red)' }}>+ ${m.monto_recargo} {m.nombre_recargo}</p>
+                                                </>
+                                            ) : tieneDescuento ? (
+                                                <>
+                                                    <span className="text-[10px] line-through" style={{ color: 'var(--ash)' }}>${m.monto_usd}</span>{' '}
+                                                    <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>${saldoHoy}</span>
+                                                    <p className="text-[10px] font-semibold" style={{ color: '#16a34a' }}>-${m.monto_descuento} {m.nombre_descuento}</p>
+                                                </>
+                                            ) : (
+                                                <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
+                                            )}
+                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(saldoHoy) * tasa)}</p>
                                             {abonada && (
                                                 <p className="text-[10px] font-semibold" style={{ color: '#b45309' }}>Saldo: ${saldo}</p>
                                             )}
@@ -292,15 +313,15 @@ const BloqueDeudaAlumno = ({
                                                 <DecimalInput
                                                     className="pl-6 pr-2 py-1 rounded-md text-sm font-semibold outline-none w-28"
                                                     style={{ border: '1px solid var(--pb)', background: '#fff', color: 'var(--jet)' }}
-                                                    value={ov !== undefined ? ov : saldo}
+                                                    value={ov !== undefined ? ov : saldoHoy}
                                                     onChange={v => setMontoParcial(alu.id, 'mens', m.id, v)}
-                                                    max={parseFloat(saldo)}
+                                                    max={parseFloat(saldoHoy)}
                                                     aria-label={`Monto a abonar para mensualidad ${m.mes} ${m.anio}`}
                                                 />
                                             </div>
                                             {parcial && (
                                                 <button type="button"
-                                                    onClick={() => setMontoParcial(alu.id, 'mens', m.id, saldo)}
+                                                    onClick={() => setMontoParcial(alu.id, 'mens', m.id, saldoHoy)}
                                                     className="text-[10px] px-2 py-1 rounded-md"
                                                     style={{ background: 'var(--pb)', color: '#fff' }}>
                                                     Completo

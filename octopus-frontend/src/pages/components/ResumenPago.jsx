@@ -60,12 +60,20 @@ const ResumenPago = ({
                                 const m  = (datos?.mensualidades_pendientes || []).find(x => x.id === mid);
                                 if (!m) return null;
                                 const ov = sel.montosParciales[`mens_${mid}`];
-                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(m.monto_usd) || 0;
-                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
+                                const fallback = m.saldo_a_pagar_hoy !== undefined ? m.saldo_a_pagar_hoy : m.monto_usd;
+                                const monto   = ov !== undefined && ov !== '' ? parseFloat(ov) || 0 : parseFloat(fallback) || 0;
+                                const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(fallback) - 0.01;
+                                const tieneRecargo   = parseFloat(m.monto_recargo || 0) > 0;
+                                const tieneDescuento = parseFloat(m.monto_descuento || 0) > 0;
                                 return (
                                     <div key={mid} className="flex justify-between text-xs px-2 py-1 rounded-md"
                                         style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                                        <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        <span>
+                                            {m.mes} {m.anio}
+                                            {parcial && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                            {tieneRecargo && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--red)', color: '#fff' }}>+RECARGO</span>}
+                                            {tieneDescuento && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#16a34a', color: '#fff' }}>DESCUENTO</span>}
+                                        </span>
                                         <span className="font-semibold">${fmt(monto)}</span>
                                     </div>
                                 );
