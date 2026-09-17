@@ -946,3 +946,23 @@ Los otros 84 "falsos positivos" (pagos combinados con otras deudas) **quedaron s
 se descartaron por patrón, no uno por uno. Si en el futuro se quiere confirmar con certeza que ninguno esconde
 un caso real, habría que repetir el análisis por operación completa (sumando todos los conceptos que cada
 `Pago`/grupo de "hermanos" efectivamente cubrió), no solo por esta cuota aislada.
+
+## `CorregirPagoView` — edición de monto solo soportada para pagos con UNA CuotaSolvencia (o ninguna)
+
+Al extender "Corregir Pago" (Función A) para permitir editar `monto_usd` del `Pago` y el abono
+(`monto_pagado` absoluto) de su `CuotaSolvencia` ligada (`cobranza/correcciones.py::corregir_pago` /
+`elegibilidad_monto`), se decidió restringir la edición de monto a pagos ligados a **como máximo una**
+`CuotaSolvencia` y a **ninguna** `Mensualidad`/`CuotaInscripcion`/`CuotaProyectoInversion` — cualquier otro
+caso devuelve 400 y pide un ajuste manual de Sistemas, en vez de adivinar cómo repartir el cambio entre varias
+cuotas. La raíz del problema es la misma que ya documenta la nota de arriba
+("`CuotaSolvencia` no tiene historial de abonos individuales"): el M2M `CuotaSolvencia.pagos` no guarda cuánto
+de CADA `Pago` fue aplicado a esa cuota, así que no hay forma segura de saber qué le corresponde a cada una
+cuando hay varias. Extender la edición de monto a los casos de mensualidad/inscripción/proyecto de inversión
+(fuera de alcance de esta entrega) tendría el mismo obstáculo de fondo.
+
+Además, la auditoría del cambio de monto (quién, cuándo, valores antes/después de `Pago` y de la
+`CuotaSolvencia`) se registra en `LogAuditoria` (accion=`CORREGIR_PAGO_MONTO`) — genérico, sin migración nueva
+— porque `CuotaSolvencia` no tiene `HistoricalRecords` (a diferencia de `Pago`, que ya lo cubre solo). Si en el
+futuro se necesita reconstruir un historial de abonos de solvencia navegable (no solo un log de auditoría
+plano), aplica la misma decisión pendiente de la nota de arriba: inferirlo cruzando pagos, o modelar una tabla
+explícita de abonos.
