@@ -914,8 +914,35 @@ Olivera, id=826, período 2026-2027, concepto "deuda") tenía `monto_usd=110.00`
 único `Pago` real vinculado (id=764, 2026-08-17, transferencia) era de solo `$30.00`. El indicio de arriba lo
 confirmó: `monto_pagado` no coincidía con la suma real de `pagos` vinculados. Se corrigió a mano en producción
 (`c.monto_pagado = Decimal('30.00'); c.save()`, vía shell, con confirmación explícita del usuario de que no
-había otro cobro sin registrar) — saldo pasó de $20 (incorrecto) a $80 (real). **No se corrió una auditoría
-masiva sobre el resto de la base** para encontrar otros casos similares — este fue un caso puntual reportado
-por el usuario, no un barrido completo. Si se quiere descartar que haya más, correr sobre todas las
-`CuotaSolvencia` con `monto_pagado > 0` una comparación entre `monto_pagado` y `sum(pagos.all().values_list(
-'monto_usd', flat=True))` y revisar las que no coincidan.
+había otro cobro sin registrar) — saldo pasó de $20 (incorrecto) a $80 (real).
+
+**Auditoría completa corrida sobre producción (2026-09-17):** de las 119 `CuotaSolvencia` con `monto_pagado > 0`,
+86 salieron "sospechosas" en una primera pasada (comparando `monto_pagado` contra la suma de `monto_usd` de sus
+`Pago` vinculados). **84 de esas 86 son falsos positivos**: el criterio ingenuo no distingue una cuota pagada
+junto con OTRAS deudas en la misma operación (mensualidades, inscripción, proyecto de inversión) — cuando eso
+pasa, el mismo `Pago` queda vinculado por igual a todas las deudas de esa operación (ver nota de arriba sobre
+`desglose-contable`/pagos "hermanos"), así que la suma "esperada" sale mayor sin que haya ningún error real. El
+criterio que sí aisló los 2 casos reales fue el opuesto: `monto_pagado` **mayor** a lo rastreable en pagos
+reales (nunca al revés).
+
+Los 2 casos reales:
+- **id=210 (Jhanna Sofía Uzcategui Olivera)** — corregido, ver arriba.
+- **id=259 (Freddy Sebastián Guillén Primera)**, período 2026-2027, concepto `'50 Proyect'`: `monto_usd=100.01`,
+  `monto_pagado` decía `100.00` pero el único `Pago` real vinculado (id=648, 2026-07-22, transferencia) era de
+  `$50.00`. Mismo patrón que Jhanna. Corregido a mano (`monto_pagado = Decimal('50.00')`), con confirmación del
+  usuario — saldo pasó de $0.01 (Íntegramente pagada, solo faltaba 1 centavo) a **$50.01** (real).
+
+**id=163 (Shantal Caridad Rivas García) quedó sin tocar, a propósito.** `monto_usd=95.00`, `monto_pagado=95.00`,
+concepto `'junio, julio, agosto y proyecto'` (sugiere que esta cuota se usó como bolsa genérica para varias
+deudas, no solo el cargo de solvencia). Dos `Pago` reales vinculados de la misma operación: $75.00 (punto de
+venta) + un leg en bolívares cuyo equivalente en USD es prácticamente cero (`monto_ves=0.75`, `tasa_aplicada=
+827.74` → ≈$0.0009). El real trazable (~$75) no cuadra con `monto_pagado` ($95), así que técnicamente encaja en
+el mismo patrón — pero dado que el concepto mezcla varias deudas y no hay certeza de qué se cobró realmente ese
+día, **el usuario decidió explícitamente dejarla como está** hasta que alguien de cobranza la revise con más
+contexto, en vez de corregirla a ciegas. Si se investiga, empezar por revisar todos los `Pago`/mensualidades de
+esa alumna cerca del 2026-09-10 (fecha de esos 2 pagos) para reconstruir qué se cobró de verdad.
+
+Los otros 84 "falsos positivos" (pagos combinados con otras deudas) **quedaron sin revisar individualmente** —
+se descartaron por patrón, no uno por uno. Si en el futuro se quiere confirmar con certeza que ninguno esconde
+un caso real, habría que repetir el análisis por operación completa (sumando todos los conceptos que cada
+`Pago`/grupo de "hermanos" efectivamente cubrió), no solo por esta cuota aislada.
