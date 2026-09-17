@@ -908,3 +908,14 @@ indicio parcial: cruzar el monto total cobrado en cada `Pago` vinculado (M2M `pa
 `monto_usd` de las `CuotaSolvencia` que ese pago saldó — si lo cobrado fue menor a esa suma, es candidata a
 revisión manual. Requiere decisión de negocio (¿se audita caso por caso con el colegio? ¿se asume pérdida y se
 sigue adelante?) antes de tocar datos de producción — no se implementó ninguna migración de corrección.
+
+**Caso real confirmado y corregido a mano (2026-09-17):** `CuotaSolvencia` id=210 (alumna Jhanna Sofía Uzcategui
+Olivera, id=826, período 2026-2027, concepto "deuda") tenía `monto_usd=110.00` y `monto_pagado=90.00`, pero el
+único `Pago` real vinculado (id=764, 2026-08-17, transferencia) era de solo `$30.00`. El indicio de arriba lo
+confirmó: `monto_pagado` no coincidía con la suma real de `pagos` vinculados. Se corrigió a mano en producción
+(`c.monto_pagado = Decimal('30.00'); c.save()`, vía shell, con confirmación explícita del usuario de que no
+había otro cobro sin registrar) — saldo pasó de $20 (incorrecto) a $80 (real). **No se corrió una auditoría
+masiva sobre el resto de la base** para encontrar otros casos similares — este fue un caso puntual reportado
+por el usuario, no un barrido completo. Si se quiere descartar que haya más, correr sobre todas las
+`CuotaSolvencia` con `monto_pagado > 0` una comparación entre `monto_pagado` y `sum(pagos.all().values_list(
+'monto_usd', flat=True))` y revisar las que no coincidan.
