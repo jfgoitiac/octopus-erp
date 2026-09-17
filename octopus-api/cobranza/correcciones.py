@@ -42,9 +42,8 @@ CAMPOS_EDITABLES_CORRECCION = ('metodo_pago', 'referencia', 'numero_lote', 'banc
 
 # Campos de monto: requieren rol admin/director/sistemas (chequeado en la vista
 # vía IsSystemAdminOrDirector) y solo se pueden tocar si el pago está ligado a
-# lo sumo a UNA CuotaSolvencia y a ninguna Mensualidad/CuotaInscripcion/
-# CuotaProyectoInversion — ver `elegibilidad_monto()`.
-CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_solvencia_monto_pagado')
+# lo sumo a UNA "cuota" en total, contando las 4 M2M — ver `elegibilidad_monto()`.
+CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_monto_pagado')
 
 
 def fecha_en_cierre_validado(usuario, fecha):
@@ -118,54 +117,61 @@ def fecha_dentro_periodo_activo(fecha):
     return True, None
 
 
+TIPOS_CUOTA_ABONO_PARCIAL = ('solvencia', 'mensualidad', 'proyecto_inversion')
+TIPOS_CUOTA_TODO_O_NADA = ('inscripcion',)
+
+
 def elegibilidad_monto(pago: Pago) -> dict:
     """
-    Determina si `pago` puede tener su monto (y el abono de su cuota de
-    solvencia) corregido. Solo se permite cuando el pago está ligado a lo
-    sumo a UNA CuotaSolvencia y a ninguna Mensualidad/CuotaInscripcion/
-    CuotaProyectoInversion — esas cuotas no guardan cuánto aportó CADA pago
-    (M2M sin monto por pago, ver CuotaSolvencia.pagos), así que no hay forma
-    segura de repartir un cambio de monto entre varias.
+    Determina si `pago` puede tener su monto corregido (y, si aplica, el
+    abono de la cuota que tenga ligada). Solo se permite cuando el pago está
+    ligado a lo SUMO a UNA "cuota" en total, contando las 4 M2M
+    (CuotaSolvencia, Mensualidad, CuotaProyectoInversion, CuotaInscripcion)
+    — ninguna de ellas guarda cuánto aportó CADA pago (M2M sin monto por
+    pago, ver CuotaSolvencia.pagos), así que no hay forma segura de repartir
+    un cambio de monto entre varias, sin importar si son del mismo tipo o no.
 
-    Devuelve {'editable': bool, 'razon': str|None, 'cuota_solvencia': CuotaSolvencia|None}.
+    CuotaInscripcion es un caso especial: no tiene `monto_pagado` (solo un
+    booleano `pagado`, todo-o-nada) — cuando la única cuota ligada es de ese
+    tipo, se puede corregir `monto_usd` del pago pero NO hay campo de abono
+    que editar (ver TIPOS_CUOTA_TODO_O_NADA).
+
+    Devuelve {'editable': bool, 'razon': str|None, 'cuota': dict|None}, donde
+    'cuota' es {'tipo': 'solvencia'|'mensualidad'|'proyecto_inversion'|'inscripcion',
+    'obj': <instancia>} o None si el pago no está ligado a ninguna.
     """
-    if pago.mensualidades_pagadas.exists() or pago.cuotas_inscripcion_pagadas.exists() \
-            or pago.proyectos_inversion_pagados.exists():
-        return {
-            'editable': False,
-            'razon': (
-                'Este pago está ligado a una mensualidad, cuota de inscripción o '
-                'proyecto de inversión — la corrección de monto para esos conceptos '
-                'no está soportada aquí. Contactar a Sistemas para un ajuste manual.'
-            ),
-            'cuota_solvencia': None,
-        }
+    buckets = (
+        ('solvencia', list(pago.cuotas_solvencia_pagadas.all())),
+        ('mensualidad', list(pago.mensualidades_pagadas.all())),
+        ('proyecto_inversion', list(pago.proyectos_inversion_pagados.all())),
+        ('inscripcion', list(pago.cuotas_inscripcion_pagadas.all())),
+    )
+    total_ligadas = sum(len(objs) for _, objs in buckets)
 
-    cuotas_solvencia = list(pago.cuotas_solvencia_pagadas.all())
-    if len(cuotas_solvencia) > 1:
+    if total_ligadas > 1:
         return {
             'editable': False,
             'razon': (
-                'Este pago está ligado a más de una cuota de solvencia — no se puede '
+                'Este pago está ligado a más de una cuota/mensualidad — no se puede '
                 'determinar con certeza cuánto corresponde a cada una. Contactar a '
                 'Sistemas para un ajuste manual.'
             ),
-            'cuota_solvencia': None,
+            'cuota': None,
         }
 
-    return {
-        'editable': True,
-        'razon': None,
-        'cuota_solvencia': cuotas_solvencia[0] if cuotas_solvencia else None,
-    }
+    for tipo, objs in buckets:
+        if objs:
+            return {'editable': True, 'razon': None, 'cuota': {'tipo': tipo, 'obj': objs[0]}}
+
+    return {'editable': True, 'razon': None, 'cuota': None}
 
 
 def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
     """
     Función A: edición in-place de un pago ya existente. Además de
     metodo_pago/referencia/numero_lote/banco_receptor/observaciones, permite
-    corregir monto_usd y el abono (monto_pagado absoluto) de la CuotaSolvencia
-    ligada al pago — ver `elegibilidad_monto()` para las restricciones.
+    corregir monto_usd y, si aplica, el abono (monto_pagado absoluto) de la
+    cuota ligada al pago — ver `elegibilidad_monto()` para las restricciones.
 
     El chequeo de ROL para los campos de monto (admin/director/sistemas) es
     responsabilidad del caller (CorregirPagoView) vía IsSystemAdminOrDirector,
@@ -189,21 +195,28 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
             setattr(pago, campo, cambios[campo])
 
     monto_usd_nuevo = cambios.get('monto_usd')
-    cuota_monto_pagado_nuevo = cambios.get('cuota_solvencia_monto_pagado')
+    cuota_monto_pagado_nuevo = cambios.get('cuota_monto_pagado')
     cuota_afectada = None
 
     if monto_usd_nuevo is not None or cuota_monto_pagado_nuevo is not None:
         info = elegibilidad_monto(pago)
         if not info['editable']:
             raise ValidationError({'monto_usd': info['razon']})
-        cuota_afectada = info['cuota_solvencia']
+        cuota_info = info['cuota']
+        cuota_afectada = cuota_info['obj'] if cuota_info else None
 
-        if cuota_monto_pagado_nuevo is not None and cuota_afectada is None:
-            raise ValidationError({
-                'cuota_solvencia_monto_pagado': (
-                    'Este pago no está ligado a ninguna cuota de solvencia.'
-                )
-            })
+        if cuota_monto_pagado_nuevo is not None:
+            if cuota_afectada is None:
+                raise ValidationError({
+                    'cuota_monto_pagado': 'Este pago no está ligado a ninguna cuota con abono editable.'
+                })
+            if cuota_info['tipo'] in TIPOS_CUOTA_TODO_O_NADA:
+                raise ValidationError({
+                    'cuota_monto_pagado': (
+                        'La cuota de inscripción es todo-o-nada (no tiene abono parcial) — '
+                        'no hay nada que corregir ahí, solo el monto del pago.'
+                    )
+                })
 
     if monto_usd_nuevo is not None:
         if monto_usd_nuevo <= 0:
@@ -216,11 +229,20 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
     if cuota_monto_pagado_nuevo is not None:
         if cuota_monto_pagado_nuevo < 0 or cuota_monto_pagado_nuevo > cuota_afectada.monto_usd:
             raise ValidationError({
-                'cuota_solvencia_monto_pagado': (
+                'cuota_monto_pagado': (
                     f'El monto pagado de la cuota debe estar entre 0 y '
                     f'{cuota_afectada.monto_usd} (monto total de la cuota).'
                 )
             })
+        if cuota_info['tipo'] == 'mensualidad':
+            # Mensualidad.save() tiene una compatibilidad especial (ver su
+            # docstring): si `pagado` ya estaba en True y el monto_pagado
+            # nuevo es menor a monto_usd, lo interpreta como "se pagó por el
+            # total" y sincroniza monto_pagado hacia ARRIBA en vez de
+            # bajarlo. Hay que resetear `pagado` a mano para que save()
+            # derive el estado real a partir del monto_pagado que sí estamos
+            # corrigiendo explícitamente.
+            cuota_afectada.pagado = False
         cuota_afectada.monto_pagado = cuota_monto_pagado_nuevo
         cuota_afectada.save()
 

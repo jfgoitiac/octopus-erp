@@ -2024,8 +2024,8 @@ class ClasificacionPagoCreateView(APIView):
 class ElegibilidadMontoCorreccionView(APIView):
     """
     Consulta previa para el modal "Corregir Pago": indica si el pago admite
-    edición de monto (y la cuota de solvencia ligada, si aplica) ANTES de
-    mostrar esos campos — ver cobranza/correcciones.py::elegibilidad_monto.
+    edición de monto (y la cuota ligada, si aplica) ANTES de mostrar esos
+    campos — ver cobranza/correcciones.py::elegibilidad_monto.
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
@@ -2036,15 +2036,21 @@ class ElegibilidadMontoCorreccionView(APIView):
             return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         info = correcciones.elegibilidad_monto(pago)
-        cuota = info['cuota_solvencia']
+        cuota_info = info['cuota']
+        cuota_payload = None
+        if cuota_info:
+            obj = cuota_info['obj']
+            cuota_payload = {
+                'tipo': cuota_info['tipo'],
+                'id': obj.id,
+                'monto_usd': str(obj.monto_usd),
+                # CuotaInscripcion no tiene monto_pagado (es todo-o-nada).
+                'monto_pagado': str(obj.monto_pagado) if cuota_info['tipo'] not in correcciones.TIPOS_CUOTA_TODO_O_NADA else None,
+            }
         return Response({
             'editable_monto': info['editable'],
             'razon': info['razon'],
-            'cuota_solvencia': {
-                'id': cuota.id,
-                'monto_usd': str(cuota.monto_usd),
-                'monto_pagado': str(cuota.monto_pagado),
-            } if cuota else None,
+            'cuota': cuota_payload,
         })
 
 
@@ -2054,7 +2060,8 @@ class CorregirPagoView(APIView):
     registrados de un pago existente (ej. método de pago equivocado). No
     anula ni recrea el Pago — HistoricalRecords deja constancia del cambio.
 
-    Además permite corregir monto_usd y el abono de la CuotaSolvencia ligada
+    Además permite corregir monto_usd y, si el pago está ligado a lo sumo una
+    cuota (solvencia/mensualidad/proyecto de inversión), su abono
     (ver CAMPOS_EDITABLES_CORRECCION_MONTO) — restringido a admin/director/
     sistemas, chequeado acá por campo (el permission_classes de la vista
     sigue siendo EsPersonalCobranza para no bloquear las correcciones no
@@ -2090,8 +2097,13 @@ class CorregirPagoView(APIView):
 
         monto_usd_anterior = pago.monto_usd
         monto_ves_anterior = pago.monto_ves
-        cuota_previa = correcciones.elegibilidad_monto(pago)['cuota_solvencia']
-        cuota_monto_pagado_anterior = cuota_previa.monto_pagado if cuota_previa else None
+        cuota_info_previa = correcciones.elegibilidad_monto(pago)['cuota']
+        cuota_obj_previa = cuota_info_previa['obj'] if cuota_info_previa else None
+        cuota_monto_pagado_anterior = (
+            cuota_obj_previa.monto_pagado
+            if cuota_obj_previa is not None and cuota_info_previa['tipo'] not in correcciones.TIPOS_CUOTA_TODO_O_NADA
+            else None
+        )
 
         try:
             pago_actualizado = correcciones.corregir_pago(pago, cambios, request.user, motivo)
@@ -2109,10 +2121,17 @@ class CorregirPagoView(APIView):
                 'monto_ves_anterior': str(monto_ves_anterior),
                 'monto_ves_nuevo': str(pago_actualizado.monto_ves),
             }
-            if cuota_previa is not None:
-                detalles['cuota_solvencia_id'] = cuota_previa.id
-                detalles['cuota_solvencia_monto_pagado_anterior'] = str(cuota_monto_pagado_anterior)
-                detalles['cuota_solvencia_monto_pagado_nuevo'] = str(cuota_previa.monto_pagado)
+            if cuota_obj_previa is not None:
+                # cuota_obj_previa se leyó ANTES de corregir_pago(); hay que
+                # refrescarlo desde la BD para capturar el valor real "nuevo"
+                # (corregir_pago() opera sobre una instancia distinta, obtenida
+                # con su propia consulta a elegibilidad_monto()).
+                detalles['cuota_tipo'] = cuota_info_previa['tipo']
+                detalles['cuota_id'] = cuota_obj_previa.id
+                if cuota_monto_pagado_anterior is not None:
+                    cuota_obj_previa.refresh_from_db()
+                    detalles['cuota_monto_pagado_anterior'] = str(cuota_monto_pagado_anterior)
+                    detalles['cuota_monto_pagado_nuevo'] = str(cuota_obj_previa.monto_pagado)
             LogAuditoria.objects.create(
                 usuario=request.user,
                 accion="CORREGIR_PAGO_MONTO",

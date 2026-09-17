@@ -886,9 +886,12 @@ class CorreccionPagoSerializer(serializers.Serializer):
     motivo = serializers.CharField(min_length=10, required=True)
     # Campos de monto: solo admin/director/sistemas (chequeo de rol en
     # CorregirPagoView, no acá) y solo si el pago es elegible — ver
-    # cobranza/correcciones.py::elegibilidad_monto.
+    # cobranza/correcciones.py::elegibilidad_monto. `cuota_monto_pagado` es
+    # genérico: aplica a la cuota (solvencia/mensualidad/proyecto de
+    # inversión) que esté ligada al pago, si la hay — no a inscripción, que
+    # es todo-o-nada y no tiene abono parcial.
     monto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False)
-    cuota_solvencia_monto_pagado = serializers.DecimalField(
+    cuota_monto_pagado = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal('0.00'), required=False
     )
 
