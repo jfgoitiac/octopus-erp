@@ -35,10 +35,16 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import CierreCaja, Pago, TasaCambio
+from .models import CierreCaja, CuotaSolvencia, Pago, TasaCambio
 from .solvencia import periodo_activo
 
 CAMPOS_EDITABLES_CORRECCION = ('metodo_pago', 'referencia', 'numero_lote', 'banco_receptor')
+
+# Campos de monto: requieren rol admin/director/sistemas (chequeado en la vista
+# vía IsSystemAdminOrDirector) y solo se pueden tocar si el pago está ligado a
+# lo sumo a UNA CuotaSolvencia y a ninguna Mensualidad/CuotaInscripcion/
+# CuotaProyectoInversion — ver `elegibilidad_monto()`.
+CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_solvencia_monto_pagado')
 
 
 def fecha_en_cierre_validado(usuario, fecha):
@@ -112,11 +118,58 @@ def fecha_dentro_periodo_activo(fecha):
     return True, None
 
 
+def elegibilidad_monto(pago: Pago) -> dict:
+    """
+    Determina si `pago` puede tener su monto (y el abono de su cuota de
+    solvencia) corregido. Solo se permite cuando el pago está ligado a lo
+    sumo a UNA CuotaSolvencia y a ninguna Mensualidad/CuotaInscripcion/
+    CuotaProyectoInversion — esas cuotas no guardan cuánto aportó CADA pago
+    (M2M sin monto por pago, ver CuotaSolvencia.pagos), así que no hay forma
+    segura de repartir un cambio de monto entre varias.
+
+    Devuelve {'editable': bool, 'razon': str|None, 'cuota_solvencia': CuotaSolvencia|None}.
+    """
+    if pago.mensualidades_pagadas.exists() or pago.cuotas_inscripcion_pagadas.exists() \
+            or pago.proyectos_inversion_pagados.exists():
+        return {
+            'editable': False,
+            'razon': (
+                'Este pago está ligado a una mensualidad, cuota de inscripción o '
+                'proyecto de inversión — la corrección de monto para esos conceptos '
+                'no está soportada aquí. Contactar a Sistemas para un ajuste manual.'
+            ),
+            'cuota_solvencia': None,
+        }
+
+    cuotas_solvencia = list(pago.cuotas_solvencia_pagadas.all())
+    if len(cuotas_solvencia) > 1:
+        return {
+            'editable': False,
+            'razon': (
+                'Este pago está ligado a más de una cuota de solvencia — no se puede '
+                'determinar con certeza cuánto corresponde a cada una. Contactar a '
+                'Sistemas para un ajuste manual.'
+            ),
+            'cuota_solvencia': None,
+        }
+
+    return {
+        'editable': True,
+        'razon': None,
+        'cuota_solvencia': cuotas_solvencia[0] if cuotas_solvencia else None,
+    }
+
+
 def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
     """
-    Función A: edición in-place de un pago ya existente. Solo permite tocar
-    metodo_pago/referencia/numero_lote/banco_receptor/observaciones — el resto
-    de los campos (monto, alumno, fecha, etc.) no se tocan aquí.
+    Función A: edición in-place de un pago ya existente. Además de
+    metodo_pago/referencia/numero_lote/banco_receptor/observaciones, permite
+    corregir monto_usd y el abono (monto_pagado absoluto) de la CuotaSolvencia
+    ligada al pago — ver `elegibilidad_monto()` para las restricciones.
+
+    El chequeo de ROL para los campos de monto (admin/director/sistemas) es
+    responsabilidad del caller (CorregirPagoView) vía IsSystemAdminOrDirector,
+    no de esta función.
     """
     if pago.estatus == 'anulado':
         raise ValidationError({
@@ -134,6 +187,42 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
     for campo in CAMPOS_EDITABLES_CORRECCION:
         if campo in cambios:
             setattr(pago, campo, cambios[campo])
+
+    monto_usd_nuevo = cambios.get('monto_usd')
+    cuota_monto_pagado_nuevo = cambios.get('cuota_solvencia_monto_pagado')
+    cuota_afectada = None
+
+    if monto_usd_nuevo is not None or cuota_monto_pagado_nuevo is not None:
+        info = elegibilidad_monto(pago)
+        if not info['editable']:
+            raise ValidationError({'monto_usd': info['razon']})
+        cuota_afectada = info['cuota_solvencia']
+
+        if cuota_monto_pagado_nuevo is not None and cuota_afectada is None:
+            raise ValidationError({
+                'cuota_solvencia_monto_pagado': (
+                    'Este pago no está ligado a ninguna cuota de solvencia.'
+                )
+            })
+
+    if monto_usd_nuevo is not None:
+        if monto_usd_nuevo <= 0:
+            raise ValidationError({'monto_usd': 'El monto debe ser mayor a 0.'})
+        pago.monto_usd = monto_usd_nuevo
+        # Se conserva la tasa original del pago: corregir un error de
+        # digitación no debe re-expresar el pago a la tasa de hoy.
+        pago.monto_ves = (monto_usd_nuevo * pago.tasa_aplicada).quantize(Decimal('0.01'))
+
+    if cuota_monto_pagado_nuevo is not None:
+        if cuota_monto_pagado_nuevo < 0 or cuota_monto_pagado_nuevo > cuota_afectada.monto_usd:
+            raise ValidationError({
+                'cuota_solvencia_monto_pagado': (
+                    f'El monto pagado de la cuota debe estar entre 0 y '
+                    f'{cuota_afectada.monto_usd} (monto total de la cuota).'
+                )
+            })
+        cuota_afectada.monto_pagado = cuota_monto_pagado_nuevo
+        cuota_afectada.save()
 
     # Se antepone el motivo a las observaciones. Si vinieron observaciones
     # nuevas en `cambios`, esas son la base sobre la que se antepone el

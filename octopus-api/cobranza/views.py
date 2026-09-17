@@ -2021,11 +2021,44 @@ class ClasificacionPagoCreateView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class ElegibilidadMontoCorreccionView(APIView):
+    """
+    Consulta previa para el modal "Corregir Pago": indica si el pago admite
+    edición de monto (y la cuota de solvencia ligada, si aplica) ANTES de
+    mostrar esos campos — ver cobranza/correcciones.py::elegibilidad_monto.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request, pago_id):
+        try:
+            pago = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(pk=pago_id)
+        except Pago.DoesNotExist:
+            return Response({'error': 'Pago no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        info = correcciones.elegibilidad_monto(pago)
+        cuota = info['cuota_solvencia']
+        return Response({
+            'editable_monto': info['editable'],
+            'razon': info['razon'],
+            'cuota_solvencia': {
+                'id': cuota.id,
+                'monto_usd': str(cuota.monto_usd),
+                'monto_pagado': str(cuota.monto_pagado),
+            } if cuota else None,
+        })
+
+
 class CorregirPagoView(APIView):
     """
     Función A del módulo de Corrección de Pagos: edita in-place datos mal
     registrados de un pago existente (ej. método de pago equivocado). No
     anula ni recrea el Pago — HistoricalRecords deja constancia del cambio.
+
+    Además permite corregir monto_usd y el abono de la CuotaSolvencia ligada
+    (ver CAMPOS_EDITABLES_CORRECCION_MONTO) — restringido a admin/director/
+    sistemas, chequeado acá por campo (el permission_classes de la vista
+    sigue siendo EsPersonalCobranza para no bloquear las correcciones no
+    monetarias de cajero/cobranza).
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
@@ -2041,16 +2074,51 @@ class CorregirPagoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        campos_monto_solicitados = [
+            campo for campo in correcciones.CAMPOS_EDITABLES_CORRECCION_MONTO if campo in request.data
+        ]
+        if campos_monto_solicitados and not IsSystemAdminOrDirector().has_permission(request, self):
+            return Response(
+                {'error': 'Solo administrador, director o sistemas pueden corregir montos.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         serializer = CorreccionPagoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         cambios = dict(serializer.validated_data)
         motivo = cambios.pop('motivo')
+
+        monto_usd_anterior = pago.monto_usd
+        monto_ves_anterior = pago.monto_ves
+        cuota_previa = correcciones.elegibilidad_monto(pago)['cuota_solvencia']
+        cuota_monto_pagado_anterior = cuota_previa.monto_pagado if cuota_previa else None
 
         try:
             pago_actualizado = correcciones.corregir_pago(pago, cambios, request.user, motivo)
         except DjangoValidationError as e:
             detail = e.message_dict if hasattr(e, 'message_dict') else {'error': e.messages}
             return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+
+        if campos_monto_solicitados:
+            detalles = {
+                'pago_id': pago_actualizado.id,
+                'alumno_id': pago_actualizado.alumno_id,
+                'motivo': motivo,
+                'monto_usd_anterior': str(monto_usd_anterior),
+                'monto_usd_nuevo': str(pago_actualizado.monto_usd),
+                'monto_ves_anterior': str(monto_ves_anterior),
+                'monto_ves_nuevo': str(pago_actualizado.monto_ves),
+            }
+            if cuota_previa is not None:
+                detalles['cuota_solvencia_id'] = cuota_previa.id
+                detalles['cuota_solvencia_monto_pagado_anterior'] = str(cuota_monto_pagado_anterior)
+                detalles['cuota_solvencia_monto_pagado_nuevo'] = str(cuota_previa.monto_pagado)
+            LogAuditoria.objects.create(
+                usuario=request.user,
+                accion="CORREGIR_PAGO_MONTO",
+                modulo="COBRANZA",
+                detalles=detalles,
+            )
 
         return Response(PagoSerializer(pago_actualizado).data, status=status.HTTP_200_OK)
 
