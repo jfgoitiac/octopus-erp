@@ -1042,6 +1042,184 @@ class AnularPagoTests(TestCase):
             anular_pago(pago, self.user, 'Reverso bancario confirmado por el banco')
 
 
+class CorregirPagoMontoTests(TestCase):
+    """
+    Extensión de "Corregir Pago" (Función A) para editar monto_usd/monto_ves
+    del Pago y el abono (monto_pagado absoluto) de su CuotaSolvencia ligada.
+    Ver cobranza/correcciones.py::corregir_pago / elegibilidad_monto.
+    """
+
+    def setUp(self):
+        # Usuario admin (no superuser): PerfilUsuario nace con rol='cajero'
+        # por la señal de authentication.signals — se sube a 'administrador'
+        # a mano para probar el camino FELIZ con el chequeo de rol real.
+        self.admin = User.objects.create_user(
+            username='admin_monto', password='password123', email='admin_monto@example.com'
+        )
+        self.admin.perfil.rol = 'administrador'
+        self.admin.perfil.save(update_fields=['rol'])
+
+        self.cajero = User.objects.create_user(
+            username='cajero_monto', password='password123', email='cajero_monto@example.com'
+        )
+        # rol='cajero' queda por default de la señal.
+
+        self.client = APIClient()
+        self.representante = Representante.objects.create(
+            cedula='V50000001', nombre='Ana', apellido='Solis', correo='ana@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Beto', apellido='Solis', cedula_escolar='E96000001',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+
+    def _pago_con_cuota_solvencia(self, monto_usd='100.00', cuota_monto_usd='100.00', cuota_monto_pagado='100.00'):
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='solvencia', monto_usd=Decimal(monto_usd), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-SOLV-1', estatus='completado',
+        )
+        cuota = CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            monto_usd=Decimal(cuota_monto_usd), monto_pagado=Decimal(cuota_monto_pagado),
+        )
+        cuota.pagos.add(pago)
+        return pago, cuota
+
+    def test_admin_corrige_monto_y_abono_de_cuota(self):
+        from usuarios.models import LogAuditoria
+
+        pago, cuota = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '80.00',
+            'cuota_solvencia_monto_pagado': '80.00',
+            'motivo': 'Se digitó mal el monto original',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        pago.refresh_from_db()
+        cuota.refresh_from_db()
+        self.assertEqual(pago.monto_usd, Decimal('80.00'))
+        # tasa_aplicada se conserva; monto_ves se recalcula con ella (no la de hoy).
+        self.assertEqual(pago.monto_ves, Decimal('3200.00'))
+        self.assertEqual(pago.tasa_aplicada, Decimal('40.00'))
+        self.assertEqual(cuota.monto_pagado, Decimal('80.00'))
+        self.assertFalse(cuota.pagado)
+        self.assertIsNone(cuota.fecha_pago)
+
+        self.assertTrue(
+            LogAuditoria.objects.filter(accion='CORREGIR_PAGO_MONTO', detalles__pago_id=pago.id).exists()
+        )
+
+    def test_cajero_recibe_403_al_intentar_editar_monto(self):
+        pago, cuota = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.cajero)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '80.00',
+            'motivo': 'Se digitó mal el monto original',
+        }, format='json')
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+        pago.refresh_from_db()
+        self.assertEqual(pago.monto_usd, Decimal('100.00'))
+
+    def test_cajero_sigue_pudiendo_corregir_campos_no_monetarios(self):
+        pago, _ = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.cajero)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'referencia': 'TRF-SOLV-1-CORREGIDA',
+            'motivo': 'Referencia digitada con un espacio de más',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+    def test_monto_usd_cero_o_negativo_es_rechazado(self):
+        pago, _ = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '0.00',
+            'motivo': 'Intento de monto invalido',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_cuota_monto_pagado_fuera_de_rango_es_rechazado(self):
+        pago, cuota = self._pago_con_cuota_solvencia(cuota_monto_usd='100.00', cuota_monto_pagado='100.00')
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_solvencia_monto_pagado': '150.00',
+            'motivo': 'Intento de abono mayor al total de la cuota',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_pagado, Decimal('100.00'))
+
+    def test_abono_parcial_recalcula_pagado_y_fecha_pago_de_la_cuota(self):
+        pago, cuota = self._pago_con_cuota_solvencia(cuota_monto_usd='100.00', cuota_monto_pagado='100.00')
+        self.assertTrue(cuota.pagado)
+        self.assertIsNotNone(cuota.fecha_pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_solvencia_monto_pagado': '40.00',
+            'motivo': 'Se había registrado el abono completo por error',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_pagado, Decimal('40.00'))
+        self.assertFalse(cuota.pagado)
+        self.assertIsNone(cuota.fecha_pago)
+
+    def test_pago_con_mas_de_una_cuota_solvencia_rechaza_edicion_de_monto(self):
+        pago, cuota1 = self._pago_con_cuota_solvencia()
+        cuota2 = CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2024-2025',
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('0.00'),
+        )
+        cuota2.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '80.00',
+            'motivo': 'Intento de corregir pago multi-cuota',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_pago_ligado_a_mensualidad_rechaza_edicion_de_monto(self):
+        mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno, mes=9, anio=2025, monto_usd=Decimal('60.00'),
+            monto_pagado=Decimal('60.00'), pagado=True,
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='mensualidad', monto_usd=Decimal('60.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-MENS-1', estatus='completado',
+        )
+        mensualidad.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '50.00',
+            'motivo': 'Intento de corregir monto de pago ligado a mensualidad',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+    def test_elegibilidad_monto_endpoint_reporta_cuota_ligada(self):
+        pago, cuota = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.get(f'/api/cobranza/pagos/{pago.id}/elegibilidad-monto/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(resp.data['editable_monto'])
+        self.assertEqual(resp.data['cuota_solvencia']['id'], cuota.id)
+
+
 class ReferenciaBancariaCompuestaTests(TestCase):
     """
     La unicidad de referencia bancaria dejó de ser global: pasa a ser por la
