@@ -9,14 +9,23 @@ import { ROLE_GROUPS } from '../../constants/roles';
 
 const MOTIVO_MIN_LEN = 10;
 
+// Label del campo de abono según el tipo de cuota que devuelva el backend
+// (ver ElegibilidadMontoCorreccionView) — 'inscripcion' no tiene abono
+// parcial (es todo-o-nada), así que no aparece acá.
+const CUOTA_ABONO_LABEL = {
+    solvencia: 'Abono a cuota de solvencia',
+    mensualidad: 'Abono a mensualidad',
+    proyecto_inversion: 'Abono a proyecto de inversión',
+};
+
 /**
  * Corrige datos de un pago YA registrado (método, referencia, lote, banco,
- * observaciones, y para admin/director/sistemas también monto y el abono de
- * su cuota de solvencia). Requiere `motivo` (auditoría de por qué se
- * corrigió) — el backend puede rechazar la corrección si el pago cae dentro
- * de un cierre de caja ya validado, o si el monto no es editable (ligado a
- * varias cuotas de solvencia o a mensualidad/inscripción/proyecto de
- * inversión); esos mensajes se muestran tal cual, sin reformular.
+ * observaciones, y para admin/director/sistemas también monto y, si el pago
+ * está ligado a lo sumo una cuota, su abono). Requiere `motivo` (auditoría
+ * de por qué se corrigió) — el backend puede rechazar la corrección si el
+ * pago cae dentro de un cierre de caja ya validado, o si el monto no es
+ * editable (ligado a más de una cuota/mensualidad); esos mensajes se
+ * muestran tal cual, sin reformular.
  */
 const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => {
     const { user } = useContext(AuthContext);
@@ -47,8 +56,8 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
         obtenerElegibilidadMontoPago(pago.id, controller.signal)
             .then(({ data }) => {
                 setElegibilidad(data);
-                if (data.cuota_solvencia) {
-                    setCuotaMontoPagado(String(data.cuota_solvencia.monto_pagado));
+                if (data.cuota?.monto_pagado != null) {
+                    setCuotaMontoPagado(String(data.cuota.monto_pagado));
                 }
             })
             .catch(err => {
@@ -60,16 +69,19 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
         return () => controller.abort();
     }, [puedeEditarMonto, pago.id]);
 
+    // 'inscripcion' es todo-o-nada (sin monto_pagado) — no tiene campo de abono.
+    const cuotaConAbono = elegibilidad?.cuota && elegibilidad.cuota.tipo !== 'inscripcion' ? elegibilidad.cuota : null;
+
     const requiereBanco = metodoPago && !['efectivo', 'efectivo_ves'].includes(metodoPago);
     const esPuntoDeVenta = metodoPago === 'punto_de_venta';
     const loteInvalido = esPuntoDeVenta && numeroLote.length !== 4;
     const motivoInvalido = motivo.trim().length < MOTIVO_MIN_LEN;
     const montoUsdInvalido = puedeEditarMonto && elegibilidad?.editable_monto
         && (montoUsd === '' || Number(montoUsd) <= 0);
-    const cuotaMontoInvalido = puedeEditarMonto && elegibilidad?.cuota_solvencia
+    const cuotaMontoInvalido = puedeEditarMonto && cuotaConAbono
         && (cuotaMontoPagado === ''
             || Number(cuotaMontoPagado) < 0
-            || Number(cuotaMontoPagado) > Number(elegibilidad.cuota_solvencia.monto_usd));
+            || Number(cuotaMontoPagado) > Number(cuotaConAbono.monto_usd));
 
     const handleGuardar = async () => {
         setTouched(true);
@@ -103,9 +115,8 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                 if (Number(montoUsd) !== Number(pago.monto_usd)) {
                     payload.monto_usd = montoUsd;
                 }
-                if (elegibilidad.cuota_solvencia
-                    && Number(cuotaMontoPagado) !== Number(elegibilidad.cuota_solvencia.monto_pagado)) {
-                    payload.cuota_solvencia_monto_pagado = cuotaMontoPagado;
+                if (cuotaConAbono && Number(cuotaMontoPagado) !== Number(cuotaConAbono.monto_pagado)) {
+                    payload.cuota_monto_pagado = cuotaMontoPagado;
                 }
             }
             await corregirPago(pago.id, payload);
@@ -276,16 +287,16 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                                 <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>Debe ser mayor a 0.</p>
                             )}
                         </div>
-                        {elegibilidad.cuota_solvencia && (
+                        {cuotaConAbono && (
                             <div className="flex-1">
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
-                                    Abono a cuota de solvencia (de ${fmt(elegibilidad.cuota_solvencia.monto_usd)})
+                                    {CUOTA_ABONO_LABEL[cuotaConAbono.tipo] || 'Abono a cuota'} (de ${fmt(cuotaConAbono.monto_usd)})
                                 </label>
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    max={elegibilidad.cuota_solvencia.monto_usd}
+                                    max={cuotaConAbono.monto_usd}
                                     value={cuotaMontoPagado}
                                     onChange={e => setCuotaMontoPagado(e.target.value)}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
@@ -293,10 +304,15 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                                 />
                                 {touched && cuotaMontoInvalido && (
                                     <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
-                                        Debe estar entre 0 y {fmt(elegibilidad.cuota_solvencia.monto_usd)}.
+                                        Debe estar entre 0 y {fmt(cuotaConAbono.monto_usd)}.
                                     </p>
                                 )}
                             </div>
+                        )}
+                        {elegibilidad.cuota?.tipo === 'inscripcion' && (
+                            <p className="flex-1 text-xs self-center" style={{ color: 'var(--ash)' }}>
+                                Ligado a una cuota de inscripción (todo-o-nada) — no tiene abono que corregir.
+                            </p>
                         )}
                     </div>
                 )}
