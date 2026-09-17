@@ -53,6 +53,9 @@ export const listarPagos = (params, signal) =>
 export const corregirPago = (pagoId, payload, signal) =>
     apiClient.patch(`cobranza/pagos/${pagoId}/corregir/`, payload, { signal });
 
+export const obtenerElegibilidadMontoPago = (pagoId, signal) =>
+    apiClient.get(`cobranza/pagos/${pagoId}/elegibilidad-monto/`, { signal });
+
 export const cargarPagoRetroactivo = (payload, signal) =>
     apiClient.post('cobranza/pagos/retroactivo/', payload, { signal });
 

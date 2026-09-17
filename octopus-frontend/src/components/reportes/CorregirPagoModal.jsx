@@ -1,19 +1,28 @@
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Pencil, Loader2, Save } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { corregirPago } from '../../api/cobranza.service';
+import { corregirPago, obtenerElegibilidadMontoPago } from '../../api/cobranza.service';
 import { METODO_LABELS, getErrorMessage, fmt } from '../../constants/reportes';
 import { Modal } from '../ui/Modal';
+import { AuthContext } from '../../context/AuthContext';
+import { ROLE_GROUPS } from '../../constants/roles';
 
 const MOTIVO_MIN_LEN = 10;
 
 /**
  * Corrige datos de un pago YA registrado (método, referencia, lote, banco,
- * observaciones). Requiere `motivo` (auditoría de por qué se corrigió) — el
- * backend puede rechazar la corrección si el pago cae dentro de un cierre de
- * caja ya validado; ese mensaje se muestra tal cual, sin reformular.
+ * observaciones, y para admin/director/sistemas también monto y el abono de
+ * su cuota de solvencia). Requiere `motivo` (auditoría de por qué se
+ * corrigió) — el backend puede rechazar la corrección si el pago cae dentro
+ * de un cierre de caja ya validado, o si el monto no es editable (ligado a
+ * varias cuotas de solvencia o a mensualidad/inscripción/proyecto de
+ * inversión); esos mensajes se muestran tal cual, sin reformular.
  */
 const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => {
+    const { user } = useContext(AuthContext);
+    const rol = (user?.rol || '').toLowerCase().trim();
+    const puedeEditarMonto = ROLE_GROUPS.REPRESENTANTES_EDITAR.includes(rol);
+
     const [metodoPago, setMetodoPago] = useState(pago.metodo_pago || 'transferencia');
     const [referencia, setReferencia] = useState(pago.referencia || '');
     const [numeroLote, setNumeroLote] = useState(pago.numero_lote || '');
@@ -25,10 +34,42 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
     const [touched, setTouched] = useState(false);
     const [guardando, setGuardando] = useState(false);
 
+    // Elegibilidad de edición de monto — solo se consulta si el rol califica,
+    // para no gastar la llamada en cajero/cobranza que nunca verán estos campos.
+    const [elegibilidad, setElegibilidad] = useState(null);
+    const [cargandoElegibilidad, setCargandoElegibilidad] = useState(puedeEditarMonto);
+    const [montoUsd, setMontoUsd] = useState(String(pago.monto_usd ?? ''));
+    const [cuotaMontoPagado, setCuotaMontoPagado] = useState('');
+
+    useEffect(() => {
+        if (!puedeEditarMonto) return;
+        const controller = new AbortController();
+        obtenerElegibilidadMontoPago(pago.id, controller.signal)
+            .then(({ data }) => {
+                setElegibilidad(data);
+                if (data.cuota_solvencia) {
+                    setCuotaMontoPagado(String(data.cuota_solvencia.monto_pagado));
+                }
+            })
+            .catch(err => {
+                if (err.name !== 'CanceledError') {
+                    toast.error(getErrorMessage(err, 'No se pudo consultar la elegibilidad de monto.'));
+                }
+            })
+            .finally(() => setCargandoElegibilidad(false));
+        return () => controller.abort();
+    }, [puedeEditarMonto, pago.id]);
+
     const requiereBanco = metodoPago && !['efectivo', 'efectivo_ves'].includes(metodoPago);
     const esPuntoDeVenta = metodoPago === 'punto_de_venta';
     const loteInvalido = esPuntoDeVenta && numeroLote.length !== 4;
     const motivoInvalido = motivo.trim().length < MOTIVO_MIN_LEN;
+    const montoUsdInvalido = puedeEditarMonto && elegibilidad?.editable_monto
+        && (montoUsd === '' || Number(montoUsd) <= 0);
+    const cuotaMontoInvalido = puedeEditarMonto && elegibilidad?.cuota_solvencia
+        && (cuotaMontoPagado === ''
+            || Number(cuotaMontoPagado) < 0
+            || Number(cuotaMontoPagado) > Number(elegibilidad.cuota_solvencia.monto_usd));
 
     const handleGuardar = async () => {
         setTouched(true);
@@ -40,16 +81,34 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
             toast.warning(`Explica el motivo de la corrección (mínimo ${MOTIVO_MIN_LEN} caracteres).`);
             return;
         }
+        if (montoUsdInvalido) {
+            toast.warning('El monto del pago debe ser mayor a 0.');
+            return;
+        }
+        if (cuotaMontoInvalido) {
+            toast.warning('El monto pagado de la cuota debe estar entre 0 y el total de la cuota.');
+            return;
+        }
         setGuardando(true);
         try {
-            await corregirPago(pago.id, {
+            const payload = {
                 metodo_pago: metodoPago,
                 referencia,
                 numero_lote: esPuntoDeVenta ? numeroLote : '',
                 banco_receptor: requiereBanco ? (bancoReceptor || null) : null,
                 observaciones,
                 motivo: motivo.trim(),
-            });
+            };
+            if (puedeEditarMonto && elegibilidad?.editable_monto) {
+                if (Number(montoUsd) !== Number(pago.monto_usd)) {
+                    payload.monto_usd = montoUsd;
+                }
+                if (elegibilidad.cuota_solvencia
+                    && Number(cuotaMontoPagado) !== Number(elegibilidad.cuota_solvencia.monto_pagado)) {
+                    payload.cuota_solvencia_monto_pagado = cuotaMontoPagado;
+                }
+            }
+            await corregirPago(pago.id, payload);
             onGuardado();
         } catch (err) {
             // El backend devuelve, ej., "el pago pertenece a un cierre de caja ya
@@ -188,6 +247,59 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                         style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
                     />
                 </div>
+
+                {/* Monto del pago y abono de solvencia — solo admin/director/sistemas */}
+                {puedeEditarMonto && cargandoElegibilidad && (
+                    <div className="h-16 rounded-lg animate-pulse" style={{ background: 'var(--bg)' }} />
+                )}
+                {puedeEditarMonto && !cargandoElegibilidad && elegibilidad && !elegibilidad.editable_monto && (
+                    <p className="text-xs p-2.5 rounded-lg" style={{ background: 'var(--bg)', color: 'var(--ash)' }}>
+                        {elegibilidad.razon}
+                    </p>
+                )}
+                {puedeEditarMonto && !cargandoElegibilidad && elegibilidad?.editable_monto && (
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="flex-1">
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                                Monto del pago (USD)
+                            </label>
+                            <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={montoUsd}
+                                onChange={e => setMontoUsd(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                style={{ border: `0.5px solid ${touched && montoUsdInvalido ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                            />
+                            {touched && montoUsdInvalido && (
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>Debe ser mayor a 0.</p>
+                            )}
+                        </div>
+                        {elegibilidad.cuota_solvencia && (
+                            <div className="flex-1">
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                                    Abono a cuota de solvencia (de ${fmt(elegibilidad.cuota_solvencia.monto_usd)})
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    max={elegibilidad.cuota_solvencia.monto_usd}
+                                    value={cuotaMontoPagado}
+                                    onChange={e => setCuotaMontoPagado(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: `0.5px solid ${touched && cuotaMontoInvalido ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                />
+                                {touched && cuotaMontoInvalido && (
+                                    <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
+                                        Debe estar entre 0 y {fmt(elegibilidad.cuota_solvencia.monto_usd)}.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Motivo (obligatorio) */}
                 <div>
