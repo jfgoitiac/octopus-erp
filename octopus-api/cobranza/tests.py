@@ -1045,7 +1045,11 @@ class AnularPagoTests(TestCase):
 class CorregirPagoMontoTests(TestCase):
     """
     Extensión de "Corregir Pago" (Función A) para editar monto_usd/monto_ves
-    del Pago y el abono (monto_pagado absoluto) de su CuotaSolvencia ligada.
+    del Pago y, si el pago está ligado a lo sumo UNA cuota en total (contando
+    CuotaSolvencia/Mensualidad/CuotaProyectoInversion/CuotaInscripcion), su
+    abono (monto_pagado absoluto) — CuotaInscripcion es la excepción: no
+    tiene monto_pagado (todo-o-nada), así que solo admite corregir el monto
+    del pago, sin campo de abono.
     Ver cobranza/correcciones.py::corregir_pago / elegibilidad_monto.
     """
 
@@ -1086,7 +1090,7 @@ class CorregirPagoMontoTests(TestCase):
         cuota.pagos.add(pago)
         return pago, cuota
 
-    def test_admin_corrige_monto_y_abono_de_cuota(self):
+    def test_admin_corrige_monto_y_abono_de_cuota_solvencia(self):
         from usuarios.models import LogAuditoria
 
         pago, cuota = self._pago_con_cuota_solvencia()
@@ -1094,7 +1098,7 @@ class CorregirPagoMontoTests(TestCase):
 
         resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
             'monto_usd': '80.00',
-            'cuota_solvencia_monto_pagado': '80.00',
+            'cuota_monto_pagado': '80.00',
             'motivo': 'Se digitó mal el monto original',
         }, format='json')
         self.assertEqual(resp.status_code, 200, resp.content)
@@ -1109,9 +1113,12 @@ class CorregirPagoMontoTests(TestCase):
         self.assertFalse(cuota.pagado)
         self.assertIsNone(cuota.fecha_pago)
 
-        self.assertTrue(
-            LogAuditoria.objects.filter(accion='CORREGIR_PAGO_MONTO', detalles__pago_id=pago.id).exists()
-        )
+        log = LogAuditoria.objects.get(accion='CORREGIR_PAGO_MONTO', detalles__pago_id=pago.id)
+        # El log debe reflejar el valor NUEVO de la cuota, no el que tenía
+        # antes de la corrección (bug corregido: el objeto leído antes de
+        # corregir_pago() debe refrescarse desde la BD, no releerse tal cual).
+        self.assertEqual(log.detalles['cuota_monto_pagado_anterior'], '100.00')
+        self.assertEqual(log.detalles['cuota_monto_pagado_nuevo'], '80.00')
 
     def test_cajero_recibe_403_al_intentar_editar_monto(self):
         pago, cuota = self._pago_con_cuota_solvencia()
@@ -1151,7 +1158,7 @@ class CorregirPagoMontoTests(TestCase):
         self.client.force_authenticate(user=self.admin)
 
         resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
-            'cuota_solvencia_monto_pagado': '150.00',
+            'cuota_monto_pagado': '150.00',
             'motivo': 'Intento de abono mayor al total de la cuota',
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
@@ -1166,7 +1173,7 @@ class CorregirPagoMontoTests(TestCase):
         self.client.force_authenticate(user=self.admin)
 
         resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
-            'cuota_solvencia_monto_pagado': '40.00',
+            'cuota_monto_pagado': '40.00',
             'motivo': 'Se había registrado el abono completo por error',
         }, format='json')
         self.assertEqual(resp.status_code, 200, resp.content)
@@ -1191,7 +1198,7 @@ class CorregirPagoMontoTests(TestCase):
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
 
-    def test_pago_ligado_a_mensualidad_rechaza_edicion_de_monto(self):
+    def test_pago_ligado_solo_a_una_mensualidad_admite_editar_monto_y_abono(self):
         mensualidad = Mensualidad.objects.create(
             alumno=self.alumno, mes=9, anio=2025, monto_usd=Decimal('60.00'),
             monto_pagado=Decimal('60.00'), pagado=True,
@@ -1206,7 +1213,86 @@ class CorregirPagoMontoTests(TestCase):
 
         resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
             'monto_usd': '50.00',
-            'motivo': 'Intento de corregir monto de pago ligado a mensualidad',
+            'cuota_monto_pagado': '50.00',
+            'motivo': 'Se digitó mal el monto de la mensualidad',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        pago.refresh_from_db()
+        mensualidad.refresh_from_db()
+        self.assertEqual(pago.monto_usd, Decimal('50.00'))
+        self.assertEqual(mensualidad.monto_pagado, Decimal('50.00'))
+        self.assertFalse(mensualidad.pagado)
+
+    def test_pago_ligado_a_proyecto_inversion_admite_editar_monto_y_abono(self):
+        from cobranza.services import tipo_cargo_proyecto_inversion
+
+        tipo = tipo_cargo_proyecto_inversion()
+        cuota = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=tipo, monto_usd=Decimal('30.00'), monto_pagado=Decimal('30.00'),
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='proyecto_inversion', monto_usd=Decimal('30.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-PROYECTO-MONTO-1', estatus='completado',
+        )
+        cuota.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_monto_pagado': '20.00',
+            'motivo': 'Se había registrado el abono completo por error',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_pagado, Decimal('20.00'))
+        self.assertFalse(cuota.pagado)
+
+    def test_pago_ligado_a_cuota_inscripcion_admite_editar_monto_pero_no_abono(self):
+        from cobranza.models import CuotaInscripcion
+
+        cuota = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('50.00'), pagado=True,
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='inscripcion', monto_usd=Decimal('50.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-INSCRIPCION-1', estatus='completado',
+        )
+        cuota.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        # Monto del pago sí se puede corregir.
+        resp_ok = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '45.00',
+            'motivo': 'Se digitó mal el monto de la inscripción',
+        }, format='json')
+        self.assertEqual(resp_ok.status_code, 200, resp_ok.content)
+        pago.refresh_from_db()
+        self.assertEqual(pago.monto_usd, Decimal('45.00'))
+
+        # Pero no hay abono parcial que editar — es todo-o-nada.
+        resp_rechazado = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_monto_pagado': '25.00',
+            'motivo': 'Intento de abono parcial en cuota de inscripción',
+        }, format='json')
+        self.assertEqual(resp_rechazado.status_code, 400, resp_rechazado.content)
+
+    def test_pago_ligado_a_mensualidad_y_solvencia_a_la_vez_rechaza_edicion(self):
+        """Mezclar tipos también cuenta para la regla de 'a lo sumo UNA cuota en total'."""
+        mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno, mes=9, anio=2025, monto_usd=Decimal('60.00'),
+            monto_pagado=Decimal('60.00'), pagado=True,
+        )
+        pago, cuota_solvencia = self._pago_con_cuota_solvencia(monto_usd='90.00')
+        mensualidad.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'monto_usd': '80.00',
+            'motivo': 'Intento de corregir pago ligado a mensualidad + solvencia',
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
 
@@ -1217,7 +1303,8 @@ class CorregirPagoMontoTests(TestCase):
         resp = self.client.get(f'/api/cobranza/pagos/{pago.id}/elegibilidad-monto/')
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertTrue(resp.data['editable_monto'])
-        self.assertEqual(resp.data['cuota_solvencia']['id'], cuota.id)
+        self.assertEqual(resp.data['cuota']['tipo'], 'solvencia')
+        self.assertEqual(resp.data['cuota']['id'], cuota.id)
 
 
 class ReferenciaBancariaCompuestaTests(TestCase):
