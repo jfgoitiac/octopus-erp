@@ -19,8 +19,8 @@ import { useInstitucionPDF } from '../hooks/useInstitucionPDF';
 import JSZip from 'jszip';
 import { es as esLocale } from 'date-fns/locale';
 import {
-    CESTA_DEFAULT, calcAVEC, calcSueldoBase, loadConceptosUniversales,
-    SSO_PCT, SPF_PCT, FAOV_PCT, SSO_TOPE, CATEGORIAS_DOCENTE,
+    CESTA_DEFAULT, calcAVEC, loadConceptosUniversales,
+    SSO_PCT, SPF_PCT, FAOV_PCT, SSO_TOPE,
 } from '../constants/avec';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -82,19 +82,17 @@ const esBancaribe = (emp) => (emp.numero_cuenta || '').startsWith('0114');
 
 /**
  * Calcula el monto de nómina (neto o quincena) para un empleado.
- * Docentes y directivos, convenio AVEC: usa tablas AVEC + cestaConfig (costo_hora).
- * Docentes y directivos, convenio genérico: usa emp.sueldo_base directo, sin categorías.
+ * Docentes y directivos: usa emp.sueldo_base almacenado en su ficha (convenio AVEC
+ * agrega la prima docente/geográfica por emp.categoria_docente en calcAVEC).
  * Administrativos / apoyo (obreros): usa emp.sueldo_base almacenado (sin cambios).
  */
-function calcMontoNomina(emp, cestaConfig, periodo, convenioNomina = 'avec_ve', conceptosUniversales = {}) {
+function calcMontoNomina(emp, periodo, convenioNomina = 'avec_ve', conceptosUniversales = {}) {
     const esDocente = emp.tipo_personal === 'docente' || emp.tipo_personal === 'directivo';
     let neto = 0;
     let ok   = false;
 
     if (esDocente) {
-        const sb = convenioNomina === 'avec_ve'
-            ? calcSueldoBase(cestaConfig, emp.categoria_docente, emp.horas_semanales)
-            : (parseFloat(emp.sueldo_base) || 0);
+        const sb = parseFloat(emp.sueldo_base) || 0;
         if (sb > 0) {
             const avec = calcAVEC(sb, emp.categoria_docente, emp.anos_servicio, emp.numero_hijos, emp.titulo, convenioNomina, conceptosUniversales);
             neto = avec.neto;
@@ -307,10 +305,9 @@ const Pagos = () => {
         setShowNominaModal(true); // UX-4: abre el modal primero con skeleton
         setLoadingNomina(true);
         try {
-            const cfg  = cestaConfigLocal;
             const emps = await fetchEmpleados(); // Q-2: usa cache compartido
             const rows = emps.map(emp => {
-                const { monto, ok } = calcMontoNomina(emp, cfg, nominaPeriodo, convenioNomina, conceptosUniversales);
+                const { monto, ok } = calcMontoNomina(emp, nominaPeriodo, convenioNomina, conceptosUniversales);
                 return { ...emp, monto_bs: ok ? String(monto) : '', calculado: ok };
             });
             setNominaRows(rows);
@@ -325,9 +322,8 @@ const Pagos = () => {
     /** Recalcula los montos al cambiar el período sin volver a llamar a la API. */
     const handleNominaPeriodoChange = (periodo) => {
         setNominaPeriodo(periodo);
-        const cfg = cestaConfigLocal;
         setNominaRows(prev => prev.map(emp => {
-            const { monto, ok } = calcMontoNomina(emp, cfg, periodo, convenioNomina, conceptosUniversales);
+            const { monto, ok } = calcMontoNomina(emp, periodo, convenioNomina, conceptosUniversales);
             // Si el usuario ya editó el monto manualmente (!emp.calculado), no sobreescribir
             if (!ok && !emp.calculado) return emp;
             return { ...emp, monto_bs: ok ? String(monto) : '', calculado: ok };
@@ -502,9 +498,7 @@ const Pagos = () => {
                 const esDocente     = !row.tipo_personal || row.tipo_personal === 'docente' || row.tipo_personal === 'directivo';
 
                 if (esDocente) {
-                    const sb = convenioNomina === 'avec_ve'
-                        ? calcSueldoBase(cfg, row.categoria_docente, row.horas_semanales)
-                        : (parseFloat(row.sueldo_base) || 0);
+                    const sb = parseFloat(row.sueldo_base) || 0;
                     if (sb > 0) {
                         const avec = calcAVEC(sb, row.categoria_docente, row.anos_servicio, row.numero_hijos, row.titulo, convenioNomina, conceptosUniversales);
                         const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb) };
@@ -1265,63 +1259,6 @@ const Pagos = () => {
                     )}
                 >
                         <div className="space-y-5">
-
-                            {/* Tabla AVEC: sueldo base mensual por categoría — solo aplica al convenio AVEC */}
-                            {convenioNomina === 'avec_ve' && (
-                            <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-                                <div className="px-4 py-2.5"
-                                    style={{ background: 'var(--pb-light)', borderBottom: '0.5px solid var(--border-md)' }}>
-                                    <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--pb-mid)' }}>
-                                        Tabla AVEC — Sueldo Base Mensual según Categoría
-                                    </p>
-                                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--ash)' }}>
-                                        Bs/hora = Sueldo/Mes ÷ H/Sem referencia · Sueldo empleado = Bs/hora × H/Sem del docente
-                                    </p>
-                                </div>
-                                <div className="divide-y" style={{ background: 'var(--porcelain)' }}>
-                                    {CATEGORIAS_DOCENTE.map((cat, i) => {
-                                        const mensual  = cestaFormLocal.categorias?.[cat]?.sueldo_mensual || '';
-                                        const horasRef = parseFloat(cestaFormLocal.horas_sem_referencia) || 44;
-                                        const horasDia = parseFloat(cestaFormLocal.horas_por_dia) || 6.67;
-                                        const monto    = parseFloat(mensual) || 0;
-                                        const porHora  = monto > 0 ? monto / horasRef : null;
-                                        const porDia   = porHora !== null ? porHora * horasDia : null;
-                                        return (
-                                            <div key={cat} className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
-                                                <span className="text-xs font-medium w-16 flex-shrink-0 px-2 py-0.5 rounded text-center"
-                                                    style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-                                                    {cat}
-                                                </span>
-                                                <div className="flex items-center gap-1.5">
-                                                    <input type="number" step="0.01" min="0"
-                                                        placeholder="0.00"
-                                                        autoFocus={i === 0}
-                                                        value={mensual}
-                                                        onChange={e => handleCestaConfigFormChange(`categorias.${cat}.sueldo_mensual`, e.target.value)}
-                                                        className="w-32 px-2.5 py-1.5 rounded-lg text-sm font-mono outline-none"
-                                                        style={{ border: `0.5px solid ${mensual ? 'var(--pb)' : 'var(--border-md)'}`, background: 'var(--porcelain)', color: 'var(--jet)' }}
-                                                        aria-label={`Sueldo base mensual categoría ${cat}`} />
-                                                    <span className="text-[11px]" style={{ color: 'var(--ash)' }}>Bs/mes</span>
-                                                </div>
-                                                {porHora !== null && (
-                                                    <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                                                        <span className="px-2 py-0.5 rounded"
-                                                            style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-                                                            {porHora.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/h
-                                                        </span>
-                                                        <span className="px-2 py-0.5 rounded"
-                                                            style={{ background: '#f0fdf4', color: '#15803d' }}>
-                                                            {porDia.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs/día
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            )}
-
 
                             {/* Tasa BCV */}
                             <div>
