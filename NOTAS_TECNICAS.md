@@ -2,6 +2,40 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## SIMPLIFICACIÓN CESTA TICKET — SUELDO BASE AVEC POR EMPLEADO (2026-09-18)
+
+Contexto: se retiró del modal "Configuración de Cesta Ticket" (`Pagos.jsx`) la
+tabla global "TABLA AVEC — Sueldo Base Mensual según Categoría". El sueldo
+base de cada docente en convenio AVEC ahora se lee de `Empleado.sueldo_base`
+(campo que ya existía en `rrhh.Empleado`, pero que hasta este cambio no se
+mostraba en el formulario para docentes AVEC — se derivaba en cada cálculo
+desde `cestaConfig.categorias[categoria] × horas_semanales`). Se agregó el
+comando `python manage.py backfill_sueldo_base_avec` (`rrhh/management/commands/`)
+para completar `sueldo_base` de los docentes AVEC existentes con el valor que
+tenían "de facto" antes del cambio — correrlo con `--aplicar` antes o
+inmediatamente después de desplegar este cambio, o los docentes AVEC quedarán
+con nómina en 0 hasta que se les cargue el sueldo a mano.
+
+**Deuda / cabos sueltos detectados, sin implementar:**
+
+- `horas_sem_referencia` quedó sin ningún lector en el frontend (solo existía
+  para el cálculo `sueldo_mensual ÷ horas_sem_referencia` de la tabla
+  retirada). Se eliminó de `CESTA_DEFAULT` en `constants/avec.js`, pero la
+  clave puede seguir presente en configuraciones ya guardadas en
+  `ParametroGlobal(clave='NOMINA_CONFIG_JSON')` — es JSON libre, no rompe
+  nada dejarla, pero es dato muerto. No se tocó el blob ya persistido.
+- El campo `categorias` dentro de ese mismo JSON (`NOMINA_CONFIG_JSON`) queda
+  igual: dead data histórica, ya no se lee ni se vuelve a escribir en el
+  próximo `PUT` (el frontend deja de enviarlo), pero no se purga
+  retroactivamente de configuraciones ya guardadas.
+- `horas_semanales` del empleado docente AVEC sigue existiendo en la ficha
+  (se usa en el PDF de nómina y en `useNomina.js`), pero perdió su único uso
+  funcional en el cálculo del sueldo base. Queda como dato informativo; no se
+  evaluó si vale la pena mantenerlo obligatorio en el formulario.
+- El comentario del modelo `ParametroGlobal` en `cobranza/models.py` (línea
+  ~17) menciona "categorías docentes" como ejemplo de contenido de
+  `NOMINA_CONFIG_JSON` — quedó desactualizado tras este cambio, no se tocó.
+
 ## REDISEÑO MÓDULO HORARIOS — PAQUETES + DRAG&DROP (2026-09-15)
 
 Contexto: se rediseñó `src/pages/Horarios.jsx` y todo `src/components/horarios/`
