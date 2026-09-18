@@ -174,7 +174,7 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                                 onChange={onChange} placeholder="36" min="1" max="40"
                                 className={inputCls} style={inputStyle} />
                             <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
-                                Horas semanales asignadas (define el sueldo base)
+                                Horas semanales asignadas
                             </p>
                         </div>
                         <div>
