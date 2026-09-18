@@ -947,18 +947,28 @@ se descartaron por patrón, no uno por uno. Si en el futuro se quiere confirmar 
 un caso real, habría que repetir el análisis por operación completa (sumando todos los conceptos que cada
 `Pago`/grupo de "hermanos" efectivamente cubrió), no solo por esta cuota aislada.
 
-## `CorregirPagoView` — edición de monto solo soportada para pagos con UNA CuotaSolvencia (o ninguna)
+## `CorregirPagoView` — edición de monto solo soportada para pagos con UNA cuota ligada en total (o ninguna)
 
-Al extender "Corregir Pago" (Función A) para permitir editar `monto_usd` del `Pago` y el abono
-(`monto_pagado` absoluto) de su `CuotaSolvencia` ligada (`cobranza/correcciones.py::corregir_pago` /
-`elegibilidad_monto`), se decidió restringir la edición de monto a pagos ligados a **como máximo una**
-`CuotaSolvencia` y a **ninguna** `Mensualidad`/`CuotaInscripcion`/`CuotaProyectoInversion` — cualquier otro
-caso devuelve 400 y pide un ajuste manual de Sistemas, en vez de adivinar cómo repartir el cambio entre varias
-cuotas. La raíz del problema es la misma que ya documenta la nota de arriba
-("`CuotaSolvencia` no tiene historial de abonos individuales"): el M2M `CuotaSolvencia.pagos` no guarda cuánto
-de CADA `Pago` fue aplicado a esa cuota, así que no hay forma segura de saber qué le corresponde a cada una
-cuando hay varias. Extender la edición de monto a los casos de mensualidad/inscripción/proyecto de inversión
-(fuera de alcance de esta entrega) tendría el mismo obstáculo de fondo.
+Al extender "Corregir Pago" (Función A) para permitir editar `monto_usd` del `Pago` y, si aplica, el abono
+(`monto_pagado` absoluto) de la cuota ligada (`cobranza/correcciones.py::corregir_pago` / `elegibilidad_monto`),
+se generalizó a las 4 M2M — `CuotaSolvencia`, `Mensualidad`, `CuotaProyectoInversion` y `CuotaInscripcion` —
+pero restringido a pagos ligados a **como máximo UNA cuota en total**, sin importar el tipo (ej. una mensualidad
++ una cuota de solvencia a la vez también cuenta como 2 y se rechaza). Cualquier otro caso devuelve 400 y pide
+un ajuste manual de Sistemas, en vez de adivinar cómo repartir el cambio entre varias. La raíz del problema es
+la misma que ya documenta la nota de arriba ("`CuotaSolvencia` no tiene historial de abonos individuales"):
+ninguna de esas M2M guarda cuánto de CADA `Pago` fue aplicado a esa cuota, así que no hay forma segura de saber
+qué le corresponde a cada una cuando hay varias.
+
+`CuotaInscripcion` es un caso especial dentro de esta generalización: no tiene `monto_pagado` (solo un booleano
+`pagado`, todo-o-nada — ver su modelo). Cuando la única cuota ligada es de ese tipo, se puede corregir
+`monto_usd` del pago pero NO hay campo de abono que editar (`cuota_monto_pagado` se rechaza con 400).
+
+**Quirk de `Mensualidad.save()` a tener en cuenta si se toca esta lógica de nuevo:** a diferencia de
+`CuotaSolvencia`/`CuotaProyectoInversion`, `Mensualidad.save()` tiene una compatibilidad especial (ver su
+docstring) — si `pagado` ya estaba en `True` y el `monto_pagado` nuevo es menor a `monto_usd`, lo interpreta
+como "esto se pagó por el total" y sincroniza `monto_pagado` HACIA ARRIBA en vez de bajarlo. `corregir_pago()`
+resetea `pagado=False` a mano antes de guardar la mensualidad para evitar que esa compatibilidad revierta la
+corrección silenciosamente (se detectó con un test que fallaba exactamente por esto).
 
 Además, la auditoría del cambio de monto (quién, cuándo, valores antes/después de `Pago` y de la
 `CuotaSolvencia`) se registra en `LogAuditoria` (accion=`CORREGIR_PAGO_MONTO`) — genérico, sin migración nueva
