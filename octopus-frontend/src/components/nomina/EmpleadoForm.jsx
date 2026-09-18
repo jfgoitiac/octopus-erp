@@ -166,32 +166,6 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                             </div>
                         </div>
                     )}
-                    {esAVEC && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className={labelCls} style={labelStyle}>N° H/Sem <Req /></label>
-                            <input type="number" name="horas_semanales" value={data.horas_semanales}
-                                onChange={onChange} placeholder="36" min="1" max="40"
-                                className={inputCls} style={inputStyle} />
-                            <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
-                                Horas semanales asignadas
-                            </p>
-                        </div>
-                        <div>
-                            <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>
-                            <SmartDateInput
-                                id="fecha_ingreso"
-                                value={fechaIngresoDate}
-                                onChange={handleFechaIngresoChange}
-                                placeholder="15/09/1993"
-                                className={inputCls}
-                                style={inputStyle}
-                                aria-label="Fecha de ingreso"
-                            />
-                        </div>
-                    </div>
-                    )}
-                    {!esAVEC && (
                     <div>
                         <label className={labelCls} style={labelStyle}>Fecha de Ingreso</label>
                         <SmartDateInput
@@ -204,7 +178,6 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                             aria-label="Fecha de ingreso"
                         />
                     </div>
-                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label className={labelCls} style={labelStyle}>Años de Servicio</label>
