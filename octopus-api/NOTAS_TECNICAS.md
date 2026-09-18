@@ -976,3 +976,27 @@ Además, la auditoría del cambio de monto (quién, cuándo, valores antes/despu
 futuro se necesita reconstruir un historial de abonos de solvencia navegable (no solo un log de auditoría
 plano), aplica la misma decisión pendiente de la nota de arriba: inferirlo cruzando pagos, o modelar una tabla
 explícita de abonos.
+
+## `abonos_parciales_requieren_usd` ya NO restringe abonos parciales de mensualidades VENCIDAS (decisión de negocio, 2026-09-17)
+
+Antes, si `ConfiguracionSistema.abonos_parciales_requieren_usd` estaba activo, un abono parcial de CUALQUIER
+mensualidad (vencida o adelanto de mes futuro) exigía que TODAS las líneas de la transacción fueran en Zelle o
+Efectivo Divisas (USD). Se decidió (pedido explícito del usuario, confirmado con opción concreta) que esa
+restricción deje de aplicar a mensualidades **ya vencidas**: recibir un abono parcial de deuda real vencida en
+cualquier moneda es mejor que no recibir nada — la restricción de USD tiene sentido para proteger al colegio de
+descuadres de tasa en **adelantos** (dinero que ni siquiera necesita todavía), no para bloquear la recuperación
+de deuda ya generada.
+
+Cambios: `cobranza/serializers.py::PagoCreateSerializer.validate()` ahora evalúa el abono parcial solo sobre
+`mensualidad_adelanto_ids` (antes evaluaba `mensualidad_ids` + `mensualidad_adelanto_ids` juntos). En el
+frontend, `Cobranza.jsx::hayAbonoParcial` refleja lo mismo (ya no mira `selectedMens`, solo `selectedFuturas`).
+El campo del modelo y su `help_text` se actualizaron para reflejar el alcance nuevo (migración
+`secretaria/migrations/0030_alter_configuracionsistema_abonos_parciales_requieren_usd.py`, solo cambia el
+`help_text`, no el tipo ni el default).
+
+**Nota de diseño:** esto deja a `abonos_parciales_requieren_usd` funcionalmente solapado con
+`adelantos_requieren_usd` en el caso común (un adelanto completo YA exige USD vía `adelantos_requieren_usd`),
+pero siguen siendo independientes por diseño: si algún día se desactiva `adelantos_requieren_usd` (adelantos
+completos permitidos en Bs.) pero se deja `abonos_parciales_requieren_usd` activo, un abono PARCIAL de un
+adelanto seguiría exigiendo USD — ese matiz es intencional (ver comentario en el modelo) y por eso no se fusionó
+en un solo flag.

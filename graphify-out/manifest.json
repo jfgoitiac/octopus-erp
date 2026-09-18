@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/serializers.py": {
-    "mtime": 1789688899.1551948,
-    "ast_hash": "ed44ab27914f61840e7df4230d87ae2b",
+    "mtime": 1789690874.220003,
+    "ast_hash": "b52e7c59962f994aa4154b04a8b3bb66",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/services.py": {
@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests.py": {
-    "mtime": 1789689189.651011,
-    "ast_hash": "2ab88c353ce8d41b65ff9e15857e6c39",
+    "mtime": 1789690948.5982373,
+    "ast_hash": "42d30b48ecd580b831a8747832fdf2e7",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/urls.py": {
@@ -770,8 +770,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/secretaria/models.py": {
-    "mtime": 1789506438.0648634,
-    "ast_hash": "388f5d24962d4d0e38010c833c3fdf3e",
+    "mtime": 1789690874.2215927,
+    "ast_hash": "b40cfb11d372f98bcc2a21626b8bf375",
     "semantic_hash": ""
   },
   "octopus-api/secretaria/seed_primer_ano.py": {
@@ -1925,8 +1925,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Cobranza.jsx": {
-    "mtime": 1789581653.131386,
-    "ast_hash": "a5c3331638a40b34dec7f4a565e983c9",
+    "mtime": 1789690874.2232945,
+    "ast_hash": "1ff24ac61ce4778c273fa690d8752866",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaDashboard.jsx": {
@@ -1945,8 +1945,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Configuracion.jsx": {
-    "mtime": 1789506438.073279,
-    "ast_hash": "c1923a12c62a92a5e76606a6557927cd",
+    "mtime": 1789691022.0769522,
+    "ast_hash": "fd4d8b48c8f7370b2fa0a2a5888e1e1c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/ConfiguracionNotificaciones.jsx": {
@@ -3240,8 +3240,8 @@
     "semantic_hash": ""
   },
   "octopus-api/NOTAS_TECNICAS.md": {
-    "mtime": 1789689363.245148,
-    "ast_hash": "587c0a87f830ca46c797a5a01ed88e15",
+    "mtime": 1789691073.315248,
+    "ast_hash": "8e901bf4ec8c6a7f8b6c0375e8dff4df",
     "semantic_hash": ""
   },
   "octopus-api/RESTAURACION_EMERGENCIA.md": {
@@ -5500,8 +5500,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Cobranza.test.jsx": {
-    "mtime": 1788847225.733054,
-    "ast_hash": "28748ad53c003b0ced5e724006f77a13",
+    "mtime": 1789690874.2244337,
+    "ast_hash": "f026fac6d8524b5e69048636e6a3cb94",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Horarios.test.jsx": {
@@ -5932,6 +5932,11 @@
   "octopus-frontend/src/pages/PaquetesHorario.jsx": {
     "mtime": 1789530172.8733902,
     "ast_hash": "944af34b5301fba1d35266b7db63e2ba",
+    "semantic_hash": ""
+  },
+  "octopus-api/secretaria/migrations/0030_alter_configuracionsistema_abonos_parciales_requieren_usd.py": {
+    "mtime": 1789690639.269912,
+    "ast_hash": "89fe2c32c8ee5fdbc67329365a1c36d1",
     "semantic_hash": ""
   }
 }

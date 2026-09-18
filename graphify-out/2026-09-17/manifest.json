@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/serializers.py": {
-    "mtime": 1789684408.1001384,
-    "ast_hash": "cdf120307f205d2296b9f6e4118abb47",
+    "mtime": 1789688899.1551948,
+    "ast_hash": "ed44ab27914f61840e7df4230d87ae2b",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/services.py": {
@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests.py": {
-    "mtime": 1789684733.0389118,
-    "ast_hash": "f66ae303358f07398970c390c4347c7b",
+    "mtime": 1789689189.651011,
+    "ast_hash": "2ab88c353ce8d41b65ff9e15857e6c39",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/urls.py": {
@@ -295,8 +295,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1789684481.536068,
-    "ast_hash": "8775d8db04454e58b7f17790810405db",
+    "mtime": 1789688965.4046288,
+    "ast_hash": "c242eb6c1c95ca5ce410c2a7aa8cb7bf",
     "semantic_hash": ""
   },
   "octopus-api/config/__init__.py": {
@@ -3240,8 +3240,8 @@
     "semantic_hash": ""
   },
   "octopus-api/NOTAS_TECNICAS.md": {
-    "mtime": 1789684987.8566105,
-    "ast_hash": "48d3e83eb979e4e37aa11d489a60c351",
+    "mtime": 1789689363.245148,
+    "ast_hash": "587c0a87f830ca46c797a5a01ed88e15",
     "semantic_hash": ""
   },
   "octopus-api/RESTAURACION_EMERGENCIA.md": {
@@ -3495,8 +3495,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1789684621.8071458,
-    "ast_hash": "77807a63add21a67f559c7b6db236032",
+    "mtime": 1789689029.1551065,
+    "ast_hash": "51b69aac1e81688a15546eed2c6e2d5b",
     "semantic_hash": ""
   },
   "octopus-api/academico/migrations/0010_eventocalendario.py": {
@@ -3670,8 +3670,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/correcciones.py": {
-    "mtime": 1789684364.7333553,
-    "ast_hash": "7ce76778f948593e7c3990e975488ee6",
+    "mtime": 1789689266.2000053,
+    "ast_hash": "f8d2afbbbcfde0e1423ad485b43633a5",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/migrations/0028_clasificacionpagomanual.py": {
@@ -4115,8 +4115,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/CorregirPagoModal.jsx": {
-    "mtime": 1789685041.2374706,
-    "ast_hash": "e9f43c47dc0c758bcb852dcae9446442",
+    "mtime": 1789689028.6535554,
+    "ast_hash": "88d1dd59afb01fc6bd9b8982c207557c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/reportes/HistoricoMensualTab.jsx": {
