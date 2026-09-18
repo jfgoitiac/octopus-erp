@@ -30,13 +30,16 @@ class ConfiguracionSistema(models.Model):  # NUEVO
         default=True,
         help_text='Si está activo, los adelantos de mensualidades futuras solo se aceptan en Zelle o Efectivo Divisas (USD).'
     )
-    # Independiente de adelantos_requieren_usd: esa regla cubre adelantos de
-    # meses futuros; esta cubre abonos PARCIALES (a mensualidades vencidas o
-    # futuras) — ambas pueden estar activas a la vez y las dos se validan si
-    # aplican (ver PagoCreateSerializer.validate en cobranza/serializers.py).
+    # Independiente de adelantos_requieren_usd: esa regla cubre CUALQUIER
+    # adelanto de mes futuro (parcial o completo); esta cubre específicamente
+    # abonos PARCIALES de adelantos — ambas pueden estar activas a la vez y
+    # las dos se validan si aplican (ver PagoCreateSerializer.validate en
+    # cobranza/serializers.py). Desde 2026-09-17 NO aplica a mensualidades ya
+    # VENCIDAS: un abono parcial sobre deuda real vencida se acepta en
+    # cualquier moneda sin importar este flag (ver NOTAS_TECNICAS.md).
     abonos_parciales_requieren_usd = models.BooleanField(
         default=True,
-        help_text='Si está activo, un abono parcial de mensualidad solo se acepta si TODAS las líneas de la transacción son en Zelle o Efectivo Divisas (USD).'
+        help_text='Si está activo, un abono parcial de un ADELANTO de mensualidad (mes futuro) solo se acepta si TODAS las líneas de la transacción son en Zelle o Efectivo Divisas (USD). No aplica a mensualidades ya vencidas.'
     )
 
     # Convenio de nómina aplicable al cálculo de asignaciones docentes (frontend, USD).

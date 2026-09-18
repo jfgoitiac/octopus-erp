@@ -616,10 +616,12 @@ class PagoCreateSerializer(serializers.Serializer):
         # que el desglose contable termina contando el mismo cargo dos veces
         # aunque el dinero solo se cobró una vez.
         todos_mensualidad_ids = set()
+        todos_mensualidad_adelanto_ids = set()
         todos_cuota_inscripcion_ids = set()
         todos_cuota_solvencia_ids = set()
         for a in alumnos_resueltos:
             todos_mensualidad_ids |= set(a['mensualidad_ids']) | set(a['mensualidad_adelanto_ids'])
+            todos_mensualidad_adelanto_ids |= set(a['mensualidad_adelanto_ids'])
             todos_cuota_inscripcion_ids |= set(a['cuota_inscripcion_ids'])
             todos_cuota_solvencia_ids |= set(a['cuota_solvencia_ids'])
 
@@ -788,22 +790,30 @@ class PagoCreateSerializer(serializers.Serializer):
                     "Efectivo Divisas (USD)."
                 )
 
-        # Abono PARCIAL de mensualidad (vencida o adelanto): si el monto a
-        # abonar de ALGUNA mensualidad queda por debajo de su saldo actual
-        # (con tolerancia de 0.01, igual que usa el frontend para redondeo),
-        # y ConfiguracionSistema.abonos_parciales_requieren_usd está activo,
+        # Abono PARCIAL de mensualidad: si el monto a abonar de ALGÚN
+        # ADELANTO (mes futuro) queda por debajo de su saldo actual (con
+        # tolerancia de 0.01, igual que usa el frontend para redondeo), y
+        # ConfiguracionSistema.abonos_parciales_requieren_usd está activo,
         # TODAS las líneas de pago de la transacción deben ser en divisa.
         # Regla independiente de adelantos_requieren_usd — ambas pueden estar
         # activas a la vez y las dos se validan si aplican.
+        #
+        # Las mensualidades YA VENCIDAS (mensualidad_ids, no adelanto) están
+        # EXENTAS de esta restricción desde 2026-09-17: bloquear un abono
+        # parcial en bolívares sobre deuda real ya vencida no tiene el mismo
+        # respaldo de negocio que bloquearlo sobre un adelanto (dinero que el
+        # colegio ni siquiera necesita todavía) — recibir parte de la deuda
+        # en cualquier moneda es mejor que no recibir nada. Ver
+        # NOTAS_TECNICAS.md.
         montos_mensualidades = data.get('montos_mensualidades') or {}
-        if todos_mensualidad_ids:
+        if todos_mensualidad_adelanto_ids:
             restriccion_abono_parcial_activa = not config or config.abonos_parciales_requieren_usd
             if restriccion_abono_parcial_activa:
                 mensualidades_map = {
-                    m.id: m for m in Mensualidad.objects.filter(id__in=todos_mensualidad_ids)
+                    m.id: m for m in Mensualidad.objects.filter(id__in=todos_mensualidad_adelanto_ids)
                 }
                 hay_abono_parcial = False
-                for mid in todos_mensualidad_ids:
+                for mid in todos_mensualidad_adelanto_ids:
                     m = mensualidades_map.get(mid)
                     if not m:
                         continue
@@ -823,8 +833,8 @@ class PagoCreateSerializer(serializers.Serializer):
                     }
                     if metodos_no_permitidos_parcial:
                         raise serializers.ValidationError(
-                            "Un abono parcial de mensualidad solo se puede pagar con Zelle o "
-                            "Efectivo Divisas (USD)."
+                            "Un abono parcial de un adelanto de mensualidad solo se puede pagar "
+                            "con Zelle o Efectivo Divisas (USD)."
                         )
 
         # --- Carga retroactiva (fecha_pago explícita) ---
