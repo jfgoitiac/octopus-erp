@@ -223,12 +223,18 @@ const Cobranza = () => {
     const hayAdelantos    = alumnosSeleccionados.some(id => seleccion[id]?.selectedFuturas.length > 0);
     const restriccionAdelantoActiva = adelantosRequierenUSD && hayAdelantos;
 
-    // Solo el abono de mensualidades (pendientes o adelantos) exige divisas
+    // Solo el abono PARCIAL de un ADELANTO (mes futuro) exige divisas
     // (Efectivo USD / Zelle). Inscripción, solvencia y proyecto de inversión
     // se pueden abonar con cualquier método de pago, incluido Bs. Regla
     // independiente de adelantos_requieren_usd (ConfiguracionSistema
     // .abonos_parciales_requieren_usd, ambas pueden estar activas a la vez;
     // ver validate() en cobranza/serializers.py del backend).
+    //
+    // Desde 2026-09-17 un abono parcial de una mensualidad YA VENCIDA
+    // (mensualidades_pendientes/selectedMens) queda exento — se acepta en
+    // cualquier moneda sin importar este flag, porque bloquear la
+    // recuperación de deuda real ya vencida no tiene el mismo respaldo de
+    // negocio que bloquear un adelanto. Ver NOTAS_TECNICAS.md.
     const hayAbonoParcial = useMemo(() => alumnosSeleccionados.some(id => {
         const datos = datosAlumnos[id];
         const sel   = seleccion[id];
@@ -245,8 +251,7 @@ const Cobranza = () => {
             const ov = sel.montosParciales[`${categoria}_${mid}`];
             return ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
         });
-        return parcialEn('mens', datos.mensualidades_pendientes, sel.selectedMens) ||
-               parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas);
+        return parcialEn('futura', datos.mensualidades_futuras, sel.selectedFuturas);
     }), [alumnosSeleccionados, datosAlumnos, seleccion]);
     const hayParciales = abonosParcialesRequierenUSD && hayAbonoParcial;
 

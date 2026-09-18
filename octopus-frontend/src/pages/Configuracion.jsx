@@ -46,7 +46,10 @@ const Configuracion = () => {
     // El backend guarda "adelantos_requieren_usd" y "abonos_parciales_requieren_usd"
     // como dos flags independientes (permite activar uno sin el otro), pero
     // esta pantalla los presenta como un único control — se escriben siempre
-    // juntos al mismo valor.
+    // juntos al mismo valor. Desde 2026-09-17 "abonos_parciales_requieren_usd"
+    // solo restringe abonos parciales de ADELANTOS (meses futuros) — nunca de
+    // mensualidades ya vencidas, sin importar este switch (ver
+    // NOTAS_TECNICAS.md / cobranza/serializers.py::validate).
     const handleToggleDivisas = (e) => {
         const { checked } = e.target;
         handleConfigChange({ target: { name: 'adelantos_requieren_usd', type: 'checkbox', checked } });
@@ -529,7 +532,7 @@ const Configuracion = () => {
                                 </label>
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
-                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Adelantos y abonos parciales solo en USD</span>
+                                <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Adelantos (incluye abonos parciales) solo en USD</span>
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" name="restriccion_divisas" className="sr-only peer"
                                         checked={Boolean(config?.adelantos_requieren_usd) && Boolean(config?.abonos_parciales_requieren_usd)}
