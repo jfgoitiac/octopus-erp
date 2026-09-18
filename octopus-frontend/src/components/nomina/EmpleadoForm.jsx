@@ -124,7 +124,7 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                 <>
                     <SectionLabel text={esAVEC ? 'Datos AVEC / MPPE' : 'Datos salariales'} />
                     {esAVEC ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <div>
                                 <label className={labelCls} style={labelStyle}>Categoría Docente</label>
                                 <select name="categoria_docente" value={data.categoria_docente}
@@ -132,6 +132,15 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                                     <option value="">— Seleccionar —</option>
                                     {CATEGORIAS_DOCENTE.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
+                            </div>
+                            <div>
+                                <label className={labelCls} style={labelStyle}>Sueldo Base Mensual (Bs) <Req /></label>
+                                <input type="number" name="sueldo_base" value={data.sueldo_base}
+                                    onChange={onChange} placeholder="0.00" min="0" step="0.01"
+                                    className={inputCls} style={inputStyle} />
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    Base para primas AVEC, SSO, SPF y FAOV
+                                </p>
                             </div>
                             <div>
                                 <label className={labelCls} style={labelStyle}>Título Académico</label>
