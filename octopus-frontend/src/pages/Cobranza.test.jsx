@@ -27,7 +27,9 @@ vi.mock('../api/apiClient', () => {
         mensualidades_pendientes: [
             { id: 10, mes: 'Enero', anio: 2026, monto_usd: '40.00', saldo: '40.00' },
         ],
-        mensualidades_futuras: [],
+        mensualidades_futuras: [
+            { id: 20, mes: 'Diciembre', anio: 2026, monto_usd: '40.00', saldo: '40.00' },
+        ],
         cuotas_inscripcion_pendientes: [],
         cuotas_solvencia_pendientes: [],
         cuotas_proyecto_inversion_pendientes: [],
@@ -69,7 +71,13 @@ describe('Cobranza — abono parcial fuerza pago en divisas', () => {
         mockConfig.abonos_parciales_requieren_usd = true;
     });
 
-    it('convierte automáticamente una línea "Efectivo Bs." a USD en cuanto se escribe un monto parcial', async () => {
+    // Desde 2026-09-17: abonos_parciales_requieren_usd YA NO aplica a
+    // mensualidades VENCIDAS (mensualidad_ids) — solo a ADELANTOS
+    // (mensualidad_adelanto_ids). Bloquear la recuperación de deuda real ya
+    // vencida en bolívares no tiene el mismo respaldo de negocio que
+    // bloquear un adelanto. Ver cobranza/serializers.py::validate y
+    // NOTAS_TECNICAS.md.
+    it('un abono parcial de una mensualidad YA VENCIDA no fuerza divisas aunque el flag esté activo', async () => {
         const user = userEvent.setup();
         renderCobranza();
 
@@ -81,29 +89,55 @@ describe('Cobranza — abono parcial fuerza pago en divisas', () => {
         const checkboxMens = await screen.findByLabelText('Mensualidad Enero 2026');
         await user.click(checkboxMens);
 
-        // Ir a Step 2 sin parcial todavía (monto completo) y elegir Efectivo Bs.
+        // Escribir un abono parcial (20 de 40) sobre la mensualidad vencida.
+        // Nota: DecimalInput no reenvía `aria-label` al <input> real (ver
+        // NOTAS_TECNICAS.md), así que se ubica por su valor mostrado en vez
+        // de por accesibilidad.
+        const inputParcial = screen.getByDisplayValue('40.00');
+        fireEvent.change(inputParcial, { target: { value: '2000' } }); // DecimalInput: centavos -> 20.00
+
+        // Al ser vencida (no adelanto), Efectivo Bs. debe seguir disponible
+        // pese a que abonos_parciales_requieren_usd está activo.
         await user.click(screen.getByLabelText('Ir a registrar pago'));
         const botonEfectivoBs = screen.getByRole('button', { name: /Efectivo Bs\./ });
         expect(botonEfectivoBs).not.toBeDisabled();
         await user.click(botonEfectivoBs);
         expect(screen.getByText(/Monto en Bolívares/)).toBeInTheDocument();
+    });
+
+    it('convierte automáticamente una línea "Efectivo Bs." a USD para un ADELANTO en cuanto se escribe un monto parcial', async () => {
+        // Se aísla adelantos_requieren_usd para que la conversión forzada se
+        // deba exclusivamente a abonos_parciales_requieren_usd (el abono
+        // parcial del adelanto), no a la restricción general de adelantos.
+        mockConfig.adelantos_requieren_usd = false;
+        const user = userEvent.setup();
+        renderCobranza();
+
+        fireEvent.change(screen.getByLabelText('Cédula del representante'), {
+            target: { value: '12345678' },
+        });
+        await waitFor(() => screen.getByText('Rep Test'), { timeout: 2000 });
+        const checkboxAdelanto = await screen.findByLabelText('Adelanto Diciembre 2026');
+        await user.click(checkboxAdelanto);
+
+        // Con monto completo (sin abono parcial) y adelantos_requieren_usd
+        // desactivado, Efectivo Bs. debe seguir disponible.
+        await user.click(screen.getByLabelText('Ir a registrar pago'));
+        expect(screen.getByRole('button', { name: /Efectivo Bs\./ })).not.toBeDisabled();
 
         // Volver a Step 1 y escribir un abono parcial (20 de 40).
-        // Nota: DecimalInput no reenvía `aria-label` al <input> real (ver
-        // NOTAS_TECNICAS.md), así que se ubica por su valor mostrado en vez
-        // de por accesibilidad.
         await user.click(screen.getByLabelText('Volver a buscar alumno'));
         const inputParcial = screen.getByDisplayValue('40.00');
-        fireEvent.change(inputParcial, { target: { value: '2000' } }); // DecimalInput: centavos -> 20.00
+        fireEvent.change(inputParcial, { target: { value: '2000' } });
 
-        // Volver a Step 2: la línea debe haberse forzado a USD y el botón de
-        // Efectivo Bs. debe quedar bloqueado mientras la restricción esté activa.
+        // Ahora sí debe forzarse a USD por el abono parcial del adelanto.
         await user.click(screen.getByLabelText('Ir a registrar pago'));
         expect(screen.getByText(/Monto en USD/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Efectivo Bs\./ })).toBeDisabled();
     });
 
-    it('con "abonos_parciales_requieren_usd" desactivado, un abono parcial NO fuerza divisas', async () => {
+    it('con "abonos_parciales_requieren_usd" desactivado, un abono parcial de un adelanto NO fuerza divisas', async () => {
+        mockConfig.adelantos_requieren_usd = false;
         mockConfig.abonos_parciales_requieren_usd = false;
         const user = userEvent.setup();
         renderCobranza();
@@ -112,14 +146,14 @@ describe('Cobranza — abono parcial fuerza pago en divisas', () => {
             target: { value: '12345678' },
         });
         await waitFor(() => screen.getByText('Rep Test'), { timeout: 2000 });
-        const checkboxMens = await screen.findByLabelText('Mensualidad Enero 2026');
-        await user.click(checkboxMens);
+        const checkboxAdelanto = await screen.findByLabelText('Adelanto Diciembre 2026');
+        await user.click(checkboxAdelanto);
 
         const inputParcial = screen.getByDisplayValue('40.00');
         fireEvent.change(inputParcial, { target: { value: '2000' } }); // 20.00 de 40.00 -> parcial
 
         await user.click(screen.getByLabelText('Ir a registrar pago'));
-        // Con el flag apagado, Efectivo Bs. debe seguir disponible y elegible.
+        // Con ambos flags apagados, Efectivo Bs. debe seguir disponible y elegible.
         const botonEfectivoBs = screen.getByRole('button', { name: /Efectivo Bs\./ });
         expect(botonEfectivoBs).not.toBeDisabled();
         await user.click(botonEfectivoBs);

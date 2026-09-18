@@ -2293,13 +2293,38 @@ class DobleAbonoSucesivoTest(AbonoParcialMensualidadBase):
 
 class AbonoParcialRequiereUSDFlagTest(AbonoParcialMensualidadBase):
     """ConfiguracionSistema.abonos_parciales_requieren_usd — independiente
-    de adelantos_requieren_usd."""
+    de adelantos_requieren_usd.
 
-    def test_abono_parcial_en_bs_con_flag_activo_es_rechazado(self):
+    Desde 2026-09-17 esta restricción SOLO aplica a abonos parciales de
+    ADELANTOS de meses futuros — una mensualidad YA VENCIDA admite abono
+    parcial en cualquier moneda sin importar el flag, porque bloquear la
+    recuperación de deuda real ya vencida no tiene el mismo respaldo de
+    negocio que bloquear un adelanto (dinero que el colegio ni siquiera
+    necesita todavía). Ver NOTAS_TECNICAS.md.
+    """
+
+    def test_abono_parcial_de_mensualidad_vencida_en_bs_se_acepta_sin_importar_el_flag(self):
         self.assertTrue(self.config.abonos_parciales_requieren_usd)
-        m = self._mensualidad(6, 2025, monto='30.00')
+        m = self._mensualidad(6, 2025, monto='30.00')  # ya vencida
         payload = self._payload(
-            m, '10.00', metodo_pago='transferencia', referencia='TRANSF-PARCIAL-001',
+            m, '10.00', metodo_pago='transferencia', referencia='TRANSF-PARCIAL-VENCIDA-001',
+        )
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('10.00'))
+
+    def test_abono_parcial_de_adelanto_en_bs_con_flag_activo_es_rechazado(self):
+        # Se aísla adelantos_requieren_usd (restringe CUALQUIER adelanto,
+        # parcial o completo) para que el 400 se deba específicamente a
+        # abonos_parciales_requieren_usd, no a la otra regla independiente.
+        ConfiguracionSistema.objects.filter(id=self.config.id).update(adelantos_requieren_usd=False)
+        self.assertTrue(self.config.abonos_parciales_requieren_usd)
+        m = self._mensualidad(12, 2099, monto='30.00')  # mes futuro (adelanto)
+        payload = self._payload(
+            m, '10.00', metodo_pago='transferencia', referencia='TRANSF-PARCIAL-ADELANTO-001',
+            adelanto=True,
         )
         resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
         self.assertEqual(resp.status_code, 400)
