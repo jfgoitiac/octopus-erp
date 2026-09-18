@@ -25,19 +25,3 @@ export function calcPrimaDocente(sueldoBase, categoria) {
     return { primaDoc, primaGeo };
 }
 
-// Sueldo base docente AVEC. Acepta sueldo_mensual (nuevo) o costo_hora (legado).
-// sueldo_mensual ÷ horas_sem_referencia = costo_hora → × horas_semanales del empleado
-export function calcSueldoBase(config, categoriaDocente, horasSemanales) {
-    const catCfg = config.categorias?.[categoriaDocente] || {};
-    let costoHora;
-    if (parseFloat(catCfg.sueldo_mensual) > 0) {
-        const horasRef = parseFloat(config.horas_sem_referencia) || 44;
-        costoHora = parseFloat(catCfg.sueldo_mensual) / horasRef;
-    } else {
-        costoHora = parseFloat(catCfg.costo_hora) || 0;
-    }
-    return costoHora * (parseFloat(horasSemanales) || 0);
-}
-
-export const buildCategoriasDefault = () =>
-    Object.fromEntries(CATEGORIAS_DOCENTE.map(c => [c, { sueldo_mensual: '' }]));

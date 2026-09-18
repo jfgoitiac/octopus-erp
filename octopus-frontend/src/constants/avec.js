@@ -16,10 +16,9 @@ export const FAOV_PCT               = 0.01;
 export const PRIMA_ASISTENCIAL_FIJA = 17.50;   // 4E — monto fijo
 export const PRIMA_HIJO_FIJA        = 12.50;   // 4F — por hijo
 
-// Re-exportados desde el plugin AVEC para no romper a los importadores actuales
-// (EmpleadoForm.jsx, Pagos.jsx). Solo tienen sentido cuando convenio_nomina='avec_ve'.
+// Re-exportado desde el plugin AVEC para no romper a los importadores actuales
+// (EmpleadoForm.jsx). Solo tiene sentido cuando convenio_nomina='avec_ve'.
 export const CATEGORIAS_DOCENTE = avecVe.CATEGORIAS_DOCENTE;
-export const calcSueldoBase     = avecVe.calcSueldoBase;
 
 // 4D Postgrado / Complemento Académico — % sobre sueldo base por título
 export const POSTGRADO_PCT = {
@@ -97,10 +96,8 @@ export function validarCedula(cedula) {
 // Considerar agregar un campo `fecha_config` y mostrar aviso si tiene más de 30 días.
 
 export const CESTA_DEFAULT = {
-    categorias:           avecVe.buildCategoriasDefault(),
     tasa_bcv:             '',
     tarifa_hora:          '0.20',  // USD/hora — para descontar horas de inasistencia del cestaticket
-    horas_sem_referencia: '44',    // h/semana de referencia para derivar costo/hora del sueldo mensual
     docente:              { monto_usd: '' },
     apoyo:                { monto_usd: '' },
     administrativo:       { monto_usd: '' },
@@ -110,8 +107,7 @@ export async function loadCestaConfig() {
     try {
         const { data } = await axiosInstance.get('cobranza/config-nomina/');
         if (data && Object.keys(data).length > 0) {
-            const categorias = { ...avecVe.buildCategoriasDefault(), ...(data.categorias || {}) };
-            return { ...CESTA_DEFAULT, ...data, categorias };
+            return { ...CESTA_DEFAULT, ...data };
         }
     } catch { /* sin configuración guardada aún o error de red — usar default */ }
     return structuredClone(CESTA_DEFAULT);
