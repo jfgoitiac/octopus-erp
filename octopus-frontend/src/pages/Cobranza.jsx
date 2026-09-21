@@ -526,6 +526,21 @@ const Cobranza = () => {
             // menor al saldo en "Monto a abonar" (CobranzaStep1) — sin este
             // envío, ese override se perdía y el backend saldaba la cuota
             // completa aunque se cobró menos (ver diagnóstico del bug).
+            // Abono parcial de inscripción: mismo contrato que solvencia. Sin
+            // este envío el backend saldaba la cuota completa aunque se
+            // hubiera cobrado menos.
+            const montosCuotaInscripcion = {};
+            alumnosSeleccionados.forEach(id => {
+                const sel = seleccion[id];
+                if (!sel) return;
+                sel.selectedCuotas.forEach(cid => {
+                    const ov = sel.montosParciales[`cuota_${cid}`];
+                    if (ov !== undefined && ov !== '') {
+                        montosCuotaInscripcion[cid] = parseFloat(ov) || 0;
+                    }
+                });
+            });
+
             const montosCuotaSolvencia = {};
             alumnosSeleccionados.forEach(id => {
                 const sel = seleccion[id];
@@ -545,6 +560,7 @@ const Cobranza = () => {
                 representante_nombre: representanteNombre,
                 proyecto_inversion_ids: selectedProyectos,
                 montos_mensualidades: montosMensualidades,
+                montos_cuota_inscripcion: montosCuotaInscripcion,
                 montos_cuota_solvencia: montosCuotaSolvencia,
                 montos_proyecto_inversion: Object.fromEntries(
                     selectedProyectos
