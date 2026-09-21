@@ -167,6 +167,7 @@ export function useNomina() {
             tipo_personal:     emp.tipo_personal     || 'docente',
             fecha_ingreso:     emp.fecha_ingreso     || '',
             titulo:            emp.titulo            || '',
+            postgrado:         emp.postgrado         || '',
             categoria_docente: emp.categoria_docente || '',
             anos_servicio:     emp.anos_servicio     || '',
             numero_hijos:      emp.numero_hijos      ?? '0',

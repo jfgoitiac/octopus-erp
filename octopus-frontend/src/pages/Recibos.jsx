@@ -314,8 +314,21 @@ const Recibos = () => {
                 <NumInput value={info.numeroHijos} onChange={e => setInfoField('numeroHijos', e.target.value)} placeholder="0" step="1" />
               </Field>
             </div>
+            <Field label="Postgrado">
+              <select
+                value={info.postgrado}
+                onChange={e => setInfoField('postgrado', e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              >
+                <option value="">Ninguno</option>
+                <option value="ESPE">Especialización (30%)</option>
+                <option value="MAES">Maestría (35%)</option>
+                <option value="DOCT">Doctorado (40%)</option>
+              </select>
+            </Field>
             <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
-              Con el sueldo, los años, los hijos y el título se llenan solos: otras asignaciones, FAOV, SSO y SPF.
+              Con el sueldo, los años, los hijos y el postgrado se llenan solos: otras asignaciones, FAOV, SSO y SPF.
             </p>
           </Card>
 

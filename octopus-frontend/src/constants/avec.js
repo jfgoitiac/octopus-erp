@@ -152,7 +152,7 @@ export const EMPTY_RECIBO = {
 export const EMPTY_EMP = {
     nombre: '', apellido: '', cedula: '', cargo: '',
     tipo_personal:     'docente',
-    fecha_ingreso:     '', titulo: '', categoria_docente: '',
+    fecha_ingreso:     '', titulo: '', postgrado: '', categoria_docente: '',
     anos_servicio:     '', numero_hijos: '0', nivel: '',
     horas_semanales:   '',
     sueldo_base:       '',

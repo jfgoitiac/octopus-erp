@@ -52,6 +52,10 @@ class Empleado(models.Model):
     fecha_ingreso = models.DateField(null=True, blank=True)
     titulo = models.CharField(max_length=100, blank=True, default='')
     categoria_docente = models.CharField(max_length=50, blank=True, default='')
+    POSTGRADO_CHOICES = [
+        ('', 'Ninguno'), ('ESPE', 'Especialización'), ('MAES', 'Maestría'), ('DOCT', 'Doctorado'),
+    ]
+    postgrado = models.CharField(max_length=4, choices=POSTGRADO_CHOICES, blank=True, default='')
     anos_servicio = models.PositiveIntegerField(null=True, blank=True, default=0)
     numero_hijos = models.PositiveIntegerField(default=0)
     nivel = models.CharField(max_length=100, blank=True, default='')

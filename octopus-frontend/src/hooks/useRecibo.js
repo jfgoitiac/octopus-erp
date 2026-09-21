@@ -13,7 +13,7 @@ import { getLogosInstitucionales } from '../utils/logosInstitucionales';
 
 const initInfo = () => ({
   nombre: '', cedula: '', cargo: '',
-  sueldoBase: '', anosServicio: '', numeroHijos: '',
+  sueldoBase: '', anosServicio: '', numeroHijos: '', postgrado: '',
   fechaIngreso: '', titulo: '', categoriaDocente: '', nivel: '',
   mes:        MESES[getMonth(new Date())],
   año:        String(getYear(new Date())),
@@ -68,7 +68,7 @@ export function useRecibo() {
   // solas las otras asignaciones y las retenciones FAOV / SSO / SPF. Los demás
   // renglones (DEDUCCIONES, filas agregadas) quedan editables a mano.
   const claveCalculo = [
-    info.sueldoBase, info.anosServicio, info.numeroHijos, info.titulo,
+    info.sueldoBase, info.anosServicio, info.numeroHijos, info.postgrado,
     JSON.stringify(conceptosUniversales),
   ].join('|');
   const [claveAplicada, setClaveAplicada] = useState(claveCalculo);
@@ -76,7 +76,7 @@ export function useRecibo() {
     setClaveAplicada(claveCalculo);
     const sb = parseFloat(info.sueldoBase) || 0;
     if (sb > 0) {
-      const r = calcAVEC(sb, info.anosServicio, info.numeroHijos, info.titulo, 'avec_ve', conceptosUniversales);
+      const r = calcAVEC(sb, info.anosServicio, info.numeroHijos, info.postgrado, 'avec_ve', conceptosUniversales);
       const dos = n => n.toFixed(2);
       setAsignaciones(rows => rows.map(row =>
         row.id === 1 ? { ...row, value: dos(sb) }

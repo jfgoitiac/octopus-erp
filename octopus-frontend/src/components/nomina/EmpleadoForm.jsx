@@ -147,6 +147,16 @@ export function EmpleadoForm({ data, onChange, bancosNomina, errors = {}, showTi
                                 <input name="titulo" value={data.titulo} onChange={onChange}
                                     placeholder="LEM / TSU / Prof." className={inputCls} style={inputStyle} />
                             </div>
+                            <div>
+                                <label className={labelCls} style={labelStyle}>Postgrado</label>
+                                <select name="postgrado" value={data.postgrado || ''}
+                                    onChange={onChange} className={inputCls} style={inputStyle}>
+                                    <option value="">Ninguno</option>
+                                    <option value="ESPE">Especialización (30%)</option>
+                                    <option value="MAES">Maestría (35%)</option>
+                                    <option value="DOCT">Doctorado (40%)</option>
+                                </select>
+                            </div>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
