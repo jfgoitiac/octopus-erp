@@ -276,14 +276,9 @@ const Recibos = () => {
             <Field label="Apellidos y Nombres">
               <TextInput value={info.nombre}    onChange={e => setInfoField('nombre', e.target.value)}    placeholder="PÉREZ JUAN" />
             </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="C.I Nº">
-                <TextInput value={info.cedula}       onChange={e => setInfoField('cedula', e.target.value)}       placeholder="V-12.345.678" />
-              </Field>
-              <Field label="Nº H/Sem">
-                <TextInput value={info.horasSemana}  onChange={e => setInfoField('horasSemana', e.target.value)}  placeholder="36" />
-              </Field>
-            </div>
+            <Field label="C.I Nº">
+              <TextInput value={info.cedula}       onChange={e => setInfoField('cedula', e.target.value)}       placeholder="V-12.345.678" />
+            </Field>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Cargo">
                 <TextInput value={info.cargo}        onChange={e => setInfoField('cargo', e.target.value)}        placeholder="PPH" />
@@ -303,6 +298,25 @@ const Recibos = () => {
             <Field label="Categoría Docente">
               <TextInput value={info.categoriaDocente} onChange={e => setInfoField('categoriaDocente', e.target.value)} placeholder="Docente" />
             </Field>
+          </Card>
+
+          {/* Sueldo AVEC: de aquí se calculan asignaciones y retenciones */}
+          <Card className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--jet)' }}>Sueldo AVEC</p>
+            <Field label="Sueldo base mensual (Bs)">
+              <NumInput value={info.sueldoBase} onChange={e => setInfoField('sueldoBase', e.target.value)} />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Años de servicio">
+                <NumInput value={info.anosServicio} onChange={e => setInfoField('anosServicio', e.target.value)} placeholder="0" step="1" />
+              </Field>
+              <Field label="N° de hijos">
+                <NumInput value={info.numeroHijos} onChange={e => setInfoField('numeroHijos', e.target.value)} placeholder="0" step="1" />
+              </Field>
+            </div>
+            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+              Con el sueldo, los años, los hijos y el título se llenan solos: otras asignaciones, FAOV, SSO y SPF.
+            </p>
           </Card>
 
           {/* Asignaciones */}

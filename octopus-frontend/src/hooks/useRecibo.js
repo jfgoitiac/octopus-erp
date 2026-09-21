@@ -8,11 +8,12 @@ import {
   DEFAULT_RETENCIONES,
   LOGO_MAX_BYTES,
 } from '../constants/recibo';
-import { loadCestaConfig } from '../constants/avec';
+import { loadCestaConfig, loadConceptosUniversales, calcAVEC } from '../constants/avec';
 import { getLogosInstitucionales } from '../utils/logosInstitucionales';
 
 const initInfo = () => ({
-  nombre: '', cedula: '', horasSemana: '', cargo: '',
+  nombre: '', cedula: '', cargo: '',
+  sueldoBase: '', anosServicio: '', numeroHijos: '',
   fechaIngreso: '', titulo: '', categoriaDocente: '', nivel: '',
   mes:        MESES[getMonth(new Date())],
   año:        String(getYear(new Date())),
@@ -57,6 +58,37 @@ export function useRecibo() {
   useEffect(() => {
     loadCestaConfig().then(setCestaConfig);
   }, []);
+
+  const [conceptosUniversales, setConceptosUniversales] = useState({});
+  useEffect(() => {
+    loadConceptosUniversales().then(setConceptosUniversales);
+  }, []);
+
+  // A partir del sueldo base (más años de servicio, hijos y título) se llenan
+  // solas las otras asignaciones y las retenciones FAOV / SSO / SPF. Los demás
+  // renglones (DEDUCCIONES, filas agregadas) quedan editables a mano.
+  const claveCalculo = [
+    info.sueldoBase, info.anosServicio, info.numeroHijos, info.titulo,
+    JSON.stringify(conceptosUniversales),
+  ].join('|');
+  const [claveAplicada, setClaveAplicada] = useState(claveCalculo);
+  if (claveCalculo !== claveAplicada) {
+    setClaveAplicada(claveCalculo);
+    const sb = parseFloat(info.sueldoBase) || 0;
+    if (sb > 0) {
+      const r = calcAVEC(sb, info.anosServicio, info.numeroHijos, info.titulo, 'avec_ve', conceptosUniversales);
+      const dos = n => n.toFixed(2);
+      setAsignaciones(rows => rows.map(row =>
+        row.id === 1 ? { ...row, value: dos(sb) }
+        : row.id === 2 ? { ...row, value: dos(r.otrasAsig) }
+        : row));
+      setRetenciones(rows => rows.map(row =>
+        row.id === 1 ? { ...row, value: dos(r.faov) }
+        : row.id === 2 ? { ...row, value: dos(r.sso) }
+        : row.id === 3 ? { ...row, value: dos(r.spf) }
+        : row));
+    }
+  }
 
   // ── Handlers genéricos ────────────────────────────────────────────────────
   const setInfoField = useCallback(

@@ -87,15 +87,13 @@ const ReceiptPreview = ({ info, institucion = {}, asignaciones, retenciones, ali
     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
       <tbody>
         <tr>
-          <td style={{ ...subH, width: '32%' }}>Apellidos y Nombres</td>
-          <td style={{ ...subH, width: '18%' }}>C.I Nº</td>
-          <td style={{ ...subH, width: '32%' }}>Nº H /Sem</td>
-          <td style={{ ...subH, width: '18%' }}>Cargo</td>
+          <td style={{ ...subH, width: '40%' }}>Apellidos y Nombres</td>
+          <td style={{ ...subH, width: '25%' }}>C.I Nº</td>
+          <td style={{ ...subH, width: '35%' }}>Cargo</td>
         </tr>
         <tr>
           <td style={c}>{info.nombre}</td>
           <td style={c}>{info.cedula}</td>
-          <td style={c}>{info.horasSemana}</td>
           <td style={c}>{info.cargo}</td>
         </tr>
         <tr>

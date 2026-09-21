@@ -108,14 +108,12 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
     // Fila 1 encabezados
     cell('APELLIDOS Y NOMBRES', LM,           y, cW * 1.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
     cell('C.I Nº',              LM + cW*1.6,  y, cW * 0.8, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
-    cell('Nº H /Sem',           LM + cW*2.4,  y, cW * 0.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
-    cell('Cargo',               LM + cW*3.0,  y, cW * 1.0, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
+    cell('Cargo',               LM + cW*2.4,  y, cW * 1.6, rH, { bold: true, bg: hdrBg, fontSize: 7, align: 'center', textColor: BLUE });
     y += rH;
 
     cell(`${emp.apellido?.toUpperCase() ?? ''} ${emp.nombre?.toUpperCase() ?? ''}`, LM, y, cW*1.6, rH, { fontSize: 7 });
     cell(emp.cedula || '',                    LM + cW*1.6, y, cW*0.8, rH, { fontSize: 7, align: 'center' });
-    cell(String(emp.horas_semanales || ''),   LM + cW*2.4, y, cW*0.6, rH, { align: 'center', fontSize: 7 });
-    cell((emp.cargo || '').toUpperCase(),     LM + cW*3.0, y, cW*1.0, rH, { fontSize: 7 });
+    cell((emp.cargo || '').toUpperCase(),     LM + cW*2.4, y, cW*1.6, rH, { fontSize: 7 });
     y += rH;
 
     // Fila 2 encabezados
@@ -155,7 +153,7 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
         { label: 'F.A.O.V',           val: fmtBs(faov),    bold: false },
         { label: 'S.S.O',             val: fmtBs(sso),     bold: true  },
         { label: 'S.P.F',             val: fmtBs(spf),     bold: false },
-        { label: 'DEDUCCIONES',       val: '',              bold: false },
+        { label: 'DEDUCCIONES',       val: fmtBs(0),        bold: false },
         { label: 'TOTAL RETENCIONES', val: fmtBs(totalRet),bold: true, color: RED },
     ];
 
