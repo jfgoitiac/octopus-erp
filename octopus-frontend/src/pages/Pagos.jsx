@@ -94,7 +94,7 @@ function calcMontoNomina(emp, periodo, convenioNomina = 'avec_ve', conceptosUniv
     if (esDocente) {
         const sb = parseFloat(emp.sueldo_base) || 0;
         if (sb > 0) {
-            const avec = calcAVEC(sb, emp.categoria_docente, emp.anos_servicio, emp.numero_hijos, emp.titulo, convenioNomina, conceptosUniversales);
+            const avec = calcAVEC(sb, emp.anos_servicio, emp.numero_hijos, emp.titulo, convenioNomina, conceptosUniversales);
             neto = avec.neto;
             ok   = true;
         }
@@ -500,7 +500,7 @@ const Pagos = () => {
                 if (esDocente) {
                     const sb = parseFloat(row.sueldo_base) || 0;
                     if (sb > 0) {
-                        const avec = calcAVEC(sb, row.categoria_docente, row.anos_servicio, row.numero_hijos, row.titulo, convenioNomina, conceptosUniversales);
+                        const avec = calcAVEC(sb, row.anos_servicio, row.numero_hijos, row.titulo, convenioNomina, conceptosUniversales);
                         const data = { mes: mesLabel.replace(/_/g, ' '), sueldo_base: String(sb) };
                         carpeta.file(nombreArchivo, reciboAVECBytes(row, data, avec, cestaObj, institucion));
                     }

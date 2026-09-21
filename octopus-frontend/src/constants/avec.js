@@ -56,15 +56,19 @@ export function calcPrimaPostgrado(sueldoBase, titulo) {
 // tasas/montos configurados por el colegio vía ConceptoNomina (ver
 // loadConceptosUniversales), keyeado por `codigo`. Si un código no está
 // presente, se usa la constante hardcodeada de siempre.
-export function calcAVEC(sueldoBase, categoria, anosServicio, numeroHijos, titulo, convenioNomina = 'avec_ve', conceptosUniversales = {}) {
+export function calcAVEC(sueldoBase, anosServicio, numeroHijos, titulo, convenioNomina = 'avec_ve', conceptosUniversales = {}) {
     const sb         = parseFloat(sueldoBase) || 0;
     const hijos      = parseInt(numeroHijos)  || 0;
-    const pctAntiguedad = parseFloat(conceptosUniversales.ANTIGUEDAD_PCT_ANIO?.porcentaje) || 0.01;
-    const primaAnt   = calcPrimaAntiguedad(sb, anosServicio, pctAntiguedad);
+    const pctAntiguedadConfigurado = parseFloat(conceptosUniversales.ANTIGUEDAD_PCT_ANIO?.porcentaje);
+    const primaAnt   = convenioNomina === 'avec_ve' && !pctAntiguedadConfigurado
+        ? avecVe.calcPrimaAntiguedad(sb, anosServicio)
+        : calcPrimaAntiguedad(sb, anosServicio, pctAntiguedadConfigurado || 0.01);
     const { primaDoc, primaGeo } = convenioNomina === 'avec_ve'
-        ? avecVe.calcPrimaDocente(sb, categoria)
+        ? avecVe.calcPrimaDocente(sb)
         : { primaDoc: 0, primaGeo: 0 };
-    const primaPos   = calcPrimaPostgrado(sb, titulo);
+    const primaPos   = convenioNomina === 'avec_ve'
+        ? sb * avecVe.pctPostgrado(titulo)
+        : calcPrimaPostgrado(sb, titulo);
     const montoAsistencial = parseFloat(conceptosUniversales.ASISTENCIAL_FIJO?.monto) || PRIMA_ASISTENCIAL_FIJA;
     const montoHijo         = parseFloat(conceptosUniversales.HIJO_FIJO?.monto) || PRIMA_HIJO_FIJA;
     const primaAsis  = sb > 0 ? montoAsistencial : 0;
