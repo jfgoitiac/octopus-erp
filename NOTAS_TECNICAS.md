@@ -2,6 +2,30 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## VALIDACIÓN calcAVEC VS EXCEL NP-1 AGOSTO 2026 (2026-09-21)
+
+Se compararon las 33 filas de docentes de la NP-1 (I quincena agosto 2026) contra
+`calcAVEC`. Corregido: antigüedad AVEC escalonada (1.0/1.2/1.4/1.6/1.8 % por año
+por tramos de 5 años, tope 30%) y prima docente 4B + geográfica 4C = 10% fijo.
+Tras eso 24/33 filas coinciden al centavo. **Pendiente, sin implementar:**
+
+- **Compensación académica 4D (docentes):** resuelto — según el reporte sistavec
+  solo el postgrado la da (ESPE 30%, MAES 35%, DOCT 40%). Queda como deuda que
+  el código de postgrado se lee del campo `titulo` (donde hoy dice LEM/LEI); un
+  campo `postgrado` aparte requeriría migración en `rrhh.Empleado`.
+- **4B (10%) y asistencial (17,50):** están en la NP-1 del Excel del colegio pero
+  no aparecen en el reporte sistavec; se mantuvieron como en el Excel.
+- **Administrativos y obreros (NP2-A / NP2-O):** decisión del usuario: se registra
+  como sueldo el monto que da AVEC y solo se calcula SSO/SPF/FAOV; no se modelan
+  las primas por persona.
+- **Deducciones (col. J):** el Excel permite descuentos manuales (ej. 66,66% del
+  bruto en un caso); el sistema no los modela.
+- **Inconsistencias del Excel (no del sistema):** SSO con tope 26,00
+  (`=5*130*4%`) aplicado solo en 3 filas; Barrios, Falcón, Fontalba y González
+  superan el tope y quedaron sin topar. Filas con valores tipeados a mano
+  (Bravo Chirinos, Goitia José, Pereira, Prieto) tampoco reproducibles. En NP2-A
+  la retención total (K) suma solo SSO (omite SPF y FAOV) y SPF se calcula al 4%.
+
 ## SIMPLIFICACIÓN CESTA TICKET — SUELDO BASE AVEC POR EMPLEADO (2026-09-18)
 
 Contexto: se retiró del modal "Configuración de Cesta Ticket" (`Pagos.jsx`) la
