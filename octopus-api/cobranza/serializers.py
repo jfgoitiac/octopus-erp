@@ -572,6 +572,14 @@ class PagoCreateSerializer(serializers.Serializer):
         required=False,
         default=dict,
     )
+    # Abono parcial de CuotaInscripcion: {id_cuota: monto_abonado}. Mismo
+    # contrato que montos_cuota_solvencia (se rechaza un abono que exceda el
+    # saldo; si un id seleccionado no aparece aquí se paga el saldo completo).
+    montos_cuota_inscripcion = serializers.DictField(
+        child=serializers.DecimalField(max_digits=10, decimal_places=2),
+        required=False,
+        default=dict,
+    )
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
@@ -651,6 +659,30 @@ class PagoCreateSerializer(serializers.Serializer):
                     f"La cuota de inscripción de {ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} "
                     "ya está pagada. Actualice la página antes de continuar (posible doble envío)."
                 )
+
+            # Abono parcial de inscripción: mismo criterio que solvencia, un
+            # abono por encima del saldo pendiente se rechaza explícitamente.
+            montos_cuota_inscripcion = data.get('montos_cuota_inscripcion') or {}
+            if montos_cuota_inscripcion:
+                cuotas_inscripcion_map = {
+                    c.id: c for c in CuotaInscripcion.objects.select_related('alumno').filter(
+                        id__in=todos_cuota_inscripcion_ids
+                    )
+                }
+                for clave, monto_abonado in montos_cuota_inscripcion.items():
+                    try:
+                        cuota_id = int(clave)
+                    except (TypeError, ValueError):
+                        continue
+                    cuota = cuotas_inscripcion_map.get(cuota_id)
+                    if not cuota:
+                        continue
+                    saldo_pendiente = cuota.monto_usd - cuota.monto_pagado
+                    if Decimal(str(monto_abonado)) > saldo_pendiente + Decimal('0.01'):
+                        raise serializers.ValidationError(
+                            f"El abono de inscripción de {cuota.alumno.nombre} {cuota.alumno.apellido} "
+                            f"(${monto_abonado}) excede el saldo pendiente (${saldo_pendiente})."
+                        )
 
         if todos_cuota_solvencia_ids:
             ya_pagada = CuotaSolvencia.objects.select_related('alumno').select_for_update().filter(

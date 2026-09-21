@@ -1250,7 +1250,7 @@ class CorregirPagoMontoTests(TestCase):
         self.assertEqual(cuota.monto_pagado, Decimal('20.00'))
         self.assertFalse(cuota.pagado)
 
-    def test_pago_ligado_a_cuota_inscripcion_admite_editar_monto_pero_no_abono(self):
+    def test_pago_ligado_a_cuota_inscripcion_admite_editar_monto_y_abono(self):
         from cobranza.models import CuotaInscripcion
 
         cuota = CuotaInscripcion.objects.create(
@@ -1273,12 +1273,15 @@ class CorregirPagoMontoTests(TestCase):
         pago.refresh_from_db()
         self.assertEqual(pago.monto_usd, Decimal('45.00'))
 
-        # Pero no hay abono parcial que editar — es todo-o-nada.
-        resp_rechazado = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+        # La inscripción ya admite abono parcial: corregirlo la reabre.
+        resp_abono = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
             'cuota_monto_pagado': '25.00',
-            'motivo': 'Intento de abono parcial en cuota de inscripción',
+            'motivo': 'Corrección del abono parcial en cuota de inscripción',
         }, format='json')
-        self.assertEqual(resp_rechazado.status_code, 400, resp_rechazado.content)
+        self.assertEqual(resp_abono.status_code, 200, resp_abono.content)
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_pagado, Decimal('25.00'))
+        self.assertFalse(cuota.pagado)
 
     def test_pago_ligado_a_mensualidad_y_solvencia_a_la_vez_rechaza_edicion(self):
         """Mezclar tipos también cuenta para la regla de 'a lo sumo UNA cuota en total'."""
@@ -2428,3 +2431,85 @@ class RecargoConAbonoParcialTest(AbonoParcialMensualidadBase):
 
         m.refresh_from_db()
         self.assertTrue(m.pagado)
+
+
+class RegistrarPagoInscripcionAbonoTest(TestCase):
+    """Regresión: un abono parcial de inscripción (ej. 15 de 20) la marcaba
+    pagada y el saldo restante desaparecía de la búsqueda de deuda."""
+
+    def setUp(self):
+        from .models import CuotaInscripcion
+        self.user = User.objects.create_superuser(
+            username='cajero_insc', password='password123', email='ci@example.com'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.representante = Representante.objects.create(
+            cedula='V20000003', nombre='Luis', apellido='Mora', correo='luis@example.com'
+        )
+        self.alumno = Alumno.objects.create(
+            nombre='Derwin', apellido='Mora', cedula_escolar='E92000003',
+            fecha_nacimiento=date(2016, 5, 20), representante=self.representante,
+        )
+        self.cuota = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026', monto_usd=Decimal('20.00')
+        )
+
+    def _pagar(self, monto, ref, con_monto=True):
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "cuota_inscripcion_ids": [self.cuota.id]}],
+            "concepto": "inscripcion",
+            "pagos": [{"metodo_pago": "efectivo", "monto_usd": monto, "referencia": ref}],
+        }
+        if con_monto:
+            payload["montos_cuota_inscripcion"] = {str(self.cuota.id): monto}
+        return self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+
+    def test_pago_completo_sin_monto_explicito_la_salda(self):
+        response = self._pagar("20.00", "EFEC-INSC-1", con_monto=False)
+        self.assertEqual(response.status_code, 201, response.content)
+        self.cuota.refresh_from_db()
+        self.assertTrue(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('20.00'))
+        self.assertIsNotNone(self.cuota.fecha_pago)
+
+    def test_abono_parcial_deja_saldo_visible_en_la_busqueda_de_deuda(self):
+        response = self._pagar("15.00", "EFEC-INSC-2")
+        self.assertEqual(response.status_code, 201, response.content)
+
+        self.cuota.refresh_from_db()
+        self.assertFalse(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('15.00'))
+        self.assertIsNone(self.cuota.fecha_pago)
+
+        deuda = self.client.get(f'/api/cobranza/cuota-inscripcion-alumno/{self.alumno.id}/')
+        self.assertEqual(deuda.status_code, 200, deuda.content)
+        pendientes = deuda.json()['cuotas_inscripcion_pendientes']
+        self.assertEqual(len(pendientes), 1)
+        self.assertEqual(Decimal(str(pendientes[0]['saldo'])), Decimal('5.00'))
+
+    def test_segundo_abono_completa_la_cuota(self):
+        self.assertEqual(self._pagar("15.00", "EFEC-INSC-3A").status_code, 201)
+        self.assertEqual(self._pagar("5.00", "EFEC-INSC-3B").status_code, 201)
+        self.cuota.refresh_from_db()
+        self.assertTrue(self.cuota.pagado)
+        self.assertEqual(self.cuota.monto_pagado, Decimal('20.00'))
+
+    def test_abono_mayor_al_saldo_es_rechazado(self):
+        response = self._pagar("50.00", "EFEC-INSC-4")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.cuota.refresh_from_db()
+        self.assertEqual(self.cuota.monto_pagado, Decimal('0.00'))
+        self.assertFalse(self.cuota.pagado)
+
+    def test_cuota_creada_como_pagada_se_interpreta_saldada(self):
+        """Compatibilidad: pagado=True sin monto_pagado (datos/tests previos)."""
+        from .models import CuotaInscripcion
+        c = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2024-2025',
+            monto_usd=Decimal('10.00'), pagado=True,
+        )
+        c.refresh_from_db()
+        self.assertTrue(c.pagado)
+        self.assertEqual(c.monto_pagado, Decimal('10.00'))

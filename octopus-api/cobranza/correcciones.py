@@ -117,8 +117,9 @@ def fecha_dentro_periodo_activo(fecha):
     return True, None
 
 
-TIPOS_CUOTA_ABONO_PARCIAL = ('solvencia', 'mensualidad', 'proyecto_inversion')
-TIPOS_CUOTA_TODO_O_NADA = ('inscripcion',)
+TIPOS_CUOTA_ABONO_PARCIAL = ('solvencia', 'mensualidad', 'proyecto_inversion', 'inscripcion')
+# Ningún tipo es todo-o-nada desde que CuotaInscripcion tiene monto_pagado.
+TIPOS_CUOTA_TODO_O_NADA = ()
 
 
 def elegibilidad_monto(pago: Pago) -> dict:
@@ -131,10 +132,8 @@ def elegibilidad_monto(pago: Pago) -> dict:
     pago, ver CuotaSolvencia.pagos), así que no hay forma segura de repartir
     un cambio de monto entre varias, sin importar si son del mismo tipo o no.
 
-    CuotaInscripcion es un caso especial: no tiene `monto_pagado` (solo un
-    booleano `pagado`, todo-o-nada) — cuando la única cuota ligada es de ese
-    tipo, se puede corregir `monto_usd` del pago pero NO hay campo de abono
-    que editar (ver TIPOS_CUOTA_TODO_O_NADA).
+    CuotaInscripcion ya tiene `monto_pagado` (abono parcial), igual que las
+    demás, así que su abono también es editable.
 
     Devuelve {'editable': bool, 'razon': str|None, 'cuota': dict|None}, donde
     'cuota' es {'tipo': 'solvencia'|'mensualidad'|'proyecto_inversion'|'inscripcion',
@@ -210,14 +209,6 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
                 raise ValidationError({
                     'cuota_monto_pagado': 'Este pago no está ligado a ninguna cuota con abono editable.'
                 })
-            if cuota_info['tipo'] in TIPOS_CUOTA_TODO_O_NADA:
-                raise ValidationError({
-                    'cuota_monto_pagado': (
-                        'La cuota de inscripción es todo-o-nada (no tiene abono parcial) — '
-                        'no hay nada que corregir ahí, solo el monto del pago.'
-                    )
-                })
-
     if monto_usd_nuevo is not None:
         if monto_usd_nuevo <= 0:
             raise ValidationError({'monto_usd': 'El monto debe ser mayor a 0.'})
@@ -234,7 +225,7 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
                     f'{cuota_afectada.monto_usd} (monto total de la cuota).'
                 )
             })
-        if cuota_info['tipo'] == 'mensualidad':
+        if cuota_info['tipo'] in ('mensualidad', 'inscripcion'):
             # Mensualidad.save() tiene una compatibilidad especial (ver su
             # docstring): si `pagado` ya estaba en True y el monto_pagado
             # nuevo es menor a monto_usd, lo interpreta como "se pagó por el
@@ -384,7 +375,14 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         pago.mensualidades_pagadas.all().update(
             pagado=False, fecha_pago=None, monto_pagado=Decimal('0.00')
         )
-        pago.cuotas_inscripcion_pagadas.all().update(pagado=False, fecha_pago=None)
+        # Misma limitación que mensualidades: si la cuota recibió abonos de
+        # varios pagos, anular uno la deja en 0. `pagado=False` explícito
+        # porque CuotaInscripcion.save() interpreta pagado=True con
+        # monto_pagado=0 como "pagada por completo".
+        for cuota in pago.cuotas_inscripcion_pagadas.all():
+            cuota.pagado = False
+            cuota.monto_pagado = Decimal('0.00')
+            cuota.save()
 
         # Recargo por pago tardío: las líneas (snapshot inmutable, ver
         # LineaRecargoPago) se BORRAN, no se restauran como deuda fija. La

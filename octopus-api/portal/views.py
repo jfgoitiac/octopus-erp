@@ -340,13 +340,15 @@ class PortalDashboardView(APIView):
             # Cuota de inscripción: no tiene fecha límite propia, se considera
             # vencida desde que se genera (mismo criterio que cobranza/mora.py).
             for c in inscripcion_por_alumno.get(alumno.id, []):
-                total_deuda_usd += float(c.monto_usd)
+                total_deuda_usd += float(c.saldo)
                 otros_conceptos_pendientes.append({
                     'id': c.id,
                     'tipo': 'inscripcion',
                     'concepto': f'Inscripción {c.periodo_escolar}',
                     'periodo_escolar': c.periodo_escolar,
-                    'monto_usd': str(c.monto_usd),
+                    # Saldo pendiente (no el monto bruto): tras un abono
+                    # parcial el representante debe ver lo que aún falta.
+                    'monto_usd': str(c.saldo),
                     'alumno_nombre': alumno_nombre,
                     'alumno_id': alumno.id,
                 })

@@ -322,11 +322,14 @@ class BuscarAlumnoCobranzaView(APIView):
             .values('id', 'mes', 'anio', 'monto_usd', 'monto_pagado')
             .order_by('anio', 'mes')
         )
-        cuotas_inscripcion = list(
-            CuotaInscripcion.objects.filter(alumno=alumno, pagado=False)
-            .values('id', 'periodo_escolar', 'monto_usd')
+        # Igual que solvencia: se expone `saldo` para que, tras un abono
+        # parcial, la cuota siga apareciendo por lo que realmente falta.
+        cuotas_inscripcion = [
+            {**c, 'saldo': c['monto_usd'] - c['monto_pagado']}
+            for c in CuotaInscripcion.objects.filter(alumno=alumno, pagado=False)
+            .values('id', 'periodo_escolar', 'monto_usd', 'monto_pagado')
             .order_by('-periodo_escolar')
-        )
+        ]
         # Se expone `saldo` (monto_usd - monto_pagado), igual que ya hace
         # cuotas_proyecto_inversion más abajo: tras un abono parcial la cuota
         # sigue pendiente pero por menos del monto original, y el frontend
@@ -708,13 +711,21 @@ class RegistrarPagoView(APIView):
                             'al representante: %s', pago.id, exc
                         )
 
+        montos_cuota_inscripcion = data.get('montos_cuota_inscripcion') or {}
         todas_cuotas_inscripcion_qs = CuotaInscripcion.objects.none()
         for a in alumnos_resueltos:
             if not a['cuota_inscripcion_ids']:
                 continue
-            CuotaInscripcion.objects.filter(
+            # Instancia por instancia (no .update() masivo) para que save()
+            # derive pagado/fecha_pago de monto_pagado — ver
+            # CuotaInscripcion.save(). Sin monto explícito se paga el saldo
+            # completo; el serializer ya rechazó abonos que excedan el saldo.
+            for cuota in CuotaInscripcion.objects.filter(
                 id__in=a['cuota_inscripcion_ids'], alumno=a['alumno']
-            ).update(pagado=True, fecha_pago=timezone.now())
+            ):
+                abono = montos_cuota_inscripcion.get(str(cuota.id), cuota.saldo)
+                cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
+                cuota.save()
             todas_cuotas_inscripcion_qs |= CuotaInscripcion.objects.filter(
                 id__in=a['cuota_inscripcion_ids'], alumno=a['alumno']
             )
@@ -1250,11 +1261,12 @@ class CuotaInscripcionAlumnoView(APIView):
         except Alumno.DoesNotExist:
             return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-        cuotas = list(
-            CuotaInscripcion.objects.filter(alumno=alumno, pagado=False)
-            .values('id', 'periodo_escolar', 'monto_usd')
+        cuotas = [
+            {**c, 'saldo': c['monto_usd'] - c['monto_pagado']}
+            for c in CuotaInscripcion.objects.filter(alumno=alumno, pagado=False)
+            .values('id', 'periodo_escolar', 'monto_usd', 'monto_pagado')
             .order_by('-periodo_escolar')
-        )
+        ]
         return Response({'cuotas_inscripcion_pendientes': cuotas})
 
 
@@ -1279,9 +1291,13 @@ class ActualizarCuotaInscripcionView(APIView):
             cuota_id = item.get('id')
             monto = item.get('monto_usd')
             if cuota_id and monto is not None:
-                actualizadas += cuotas_permitidas.filter(id=cuota_id).update(
-                    monto_usd=Decimal(str(monto))
-                )
+                # save() (no .update()) para que pagado se re-derive si el
+                # nuevo monto queda por debajo/encima de lo ya abonado.
+                cuota = cuotas_permitidas.filter(id=cuota_id).first()
+                if cuota:
+                    cuota.monto_usd = Decimal(str(monto))
+                    cuota.save()
+                    actualizadas += 1
 
         return Response({'actualizadas': actualizadas})
 
@@ -2044,8 +2060,7 @@ class ElegibilidadMontoCorreccionView(APIView):
                 'tipo': cuota_info['tipo'],
                 'id': obj.id,
                 'monto_usd': str(obj.monto_usd),
-                # CuotaInscripcion no tiene monto_pagado (es todo-o-nada).
-                'monto_pagado': str(obj.monto_pagado) if cuota_info['tipo'] not in correcciones.TIPOS_CUOTA_TODO_O_NADA else None,
+                'monto_pagado': str(obj.monto_pagado),
             }
         return Response({
             'editable_monto': info['editable'],

@@ -54,7 +54,7 @@ def _sin_permiso(request):
 
 CONCEPTOS_FIJOS = [
     {'clave': 'mensualidad', 'nombre': 'Mensualidad', 'nivel': 'alumno', 'admite_parcial': False, 'periodico': True},
-    {'clave': 'inscripcion', 'nombre': 'Inscripción', 'nivel': 'alumno', 'admite_parcial': False, 'periodico': False},
+    {'clave': 'inscripcion', 'nombre': 'Inscripción', 'nivel': 'alumno', 'admite_parcial': True, 'periodico': False},
     {'clave': 'solvencia', 'nombre': 'Solvencia', 'nivel': 'alumno', 'admite_parcial': True, 'periodico': False},
 ]
 
@@ -790,7 +790,7 @@ class EstadoCuentaRepresentanteView(APIView):
         if inscripciones:
             items, subtotal, subtotal_pagado, pendientes = [], Decimal('0.00'), Decimal('0.00'), 0
             for c in inscripciones:
-                monto_pagado = c.monto_usd if c.pagado else Decimal('0.00')
+                monto_pagado = c.monto_pagado
                 saldo = c.monto_usd - monto_pagado
                 items.append({
                     'descripcion': f"Inscripción {c.periodo_escolar}",

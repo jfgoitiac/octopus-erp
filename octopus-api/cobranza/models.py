@@ -401,6 +401,9 @@ class CuotaInscripcion(models.Model):
     alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE, related_name='cuotas_inscripcion')
     periodo_escolar = models.CharField(max_length=20)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    # Abono acumulado (mismo patrón que CuotaSolvencia/CuotaProyectoInversion).
+    # `pagado`/`fecha_pago` se derivan en save() — ver más abajo.
+    monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     # True cuando el monto fue editado a mano en vez de heredado de
@@ -416,6 +419,39 @@ class CuotaInscripcion(models.Model):
 
     def __str__(self):
         return f"{self.alumno.nombre} - Inscripción {self.periodo_escolar} - {'Pagada' if self.pagado else 'Pendiente'}"
+
+    @property
+    def saldo(self):
+        return self.monto_usd - self.monto_pagado
+
+    def save(self, *args, **kwargs):
+        """
+        Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd`, igual
+        que CuotaSolvencia. Antes la inscripción era todo-o-nada: un abono de
+        $15 sobre $20 la marcaba pagada y el saldo de $5 desaparecía de la
+        búsqueda de deuda.
+
+        Compatibilidad: quien crea/marca una cuota con `pagado=True` sin
+        indicar `monto_pagado` (tests, scripts, datos previos al campo)
+        espera una cuota saldada — se interpreta como pagada por completo.
+        """
+        if self.pagado and self.monto_pagado == 0 and self.monto_usd > 0:
+            self.monto_pagado = self.monto_usd
+
+        if self.monto_pagado >= self.monto_usd:
+            if not self.pagado or self.fecha_pago is None:
+                from django.utils import timezone
+                self.fecha_pago = self.fecha_pago or timezone.now()
+            self.pagado = True
+        else:
+            self.pagado = False
+            self.fecha_pago = None
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'pagado', 'fecha_pago', 'monto_pagado'}
+
+        super().save(*args, **kwargs)
 
 
 class CuotaSolvencia(models.Model):

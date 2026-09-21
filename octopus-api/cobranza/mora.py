@@ -163,7 +163,7 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
     )
     inscripcion_subq = (
         CuotaInscripcion.objects.filter(alumno=OuterRef('pk'), pagado=False)
-        .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
+        .values('alumno').annotate(t=Sum(F('monto_usd') - F('monto_pagado'))).values('t')[:1]
     )
     solvencia_subq = (
         CuotaSolvencia.objects.filter(alumno=OuterRef('pk'), pagado=False, monto_usd__gt=0)
