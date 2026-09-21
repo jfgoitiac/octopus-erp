@@ -86,6 +86,26 @@ class EmpleadoViewSetTest(TestCase):
         self.assertFalse(self.emp.activo)
         self.assertTrue(Empleado.objects.filter(pk=self.emp.id).exists())
 
+    def test_registrar_cedula_dada_de_baja_reactiva_la_ficha(self):
+        self.client.post(f'/api/rrhh/empleados/{self.emp.id}/desactivar/')
+        resp = self.client.post('/api/rrhh/empleados/', {
+            'nombre': 'Rosa', 'apellido': 'Fermín Nuevo', 'cedula': 'V-10000005',
+            'cargo': 'Secretaria', 'tipo_personal': 'administrativo', 'sueldo_base': '400.00',
+        }, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(Empleado.objects.filter(cedula='V-10000005').count(), 1)
+        self.emp.refresh_from_db()
+        self.assertTrue(self.emp.activo)
+        self.assertEqual(self.emp.apellido, 'Fermín Nuevo')
+        self.assertEqual(self.emp.sueldo_base, Decimal('400.00'))
+
+    def test_registrar_cedula_activa_sigue_fallando(self):
+        resp = self.client.post('/api/rrhh/empleados/', {
+            'nombre': 'Otra', 'apellido': 'Persona', 'cedula': 'V-10000005',
+            'cargo': 'Secretaria', 'tipo_personal': 'administrativo',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+
     def test_desactivado_no_aparece_en_listado(self):
         self.emp.activo = False
         self.emp.save(update_fields=['activo'])

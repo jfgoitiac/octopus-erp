@@ -40,6 +40,20 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
             return Empleado.objects.none()
         return Empleado.objects.filter(activo=True).select_related('banco')
 
+    def create(self, request, *args, **kwargs):
+        # La baja es lógica (activo=False) y la cédula es única: si se vuelve a
+        # registrar una cédula dada de baja, se reactiva esa ficha con los datos
+        # nuevos en vez de fallar con "ya existe" (y sin perder su historial).
+        cedula = str(request.data.get('cedula') or '').strip()
+        inactivo = Empleado.objects.filter(cedula=cedula, activo=False).first() if cedula else None
+        if inactivo is None:
+            return super().create(request, *args, **kwargs)
+
+        serializer = self.get_serializer(inactivo, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(activo=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'])
     def preview_bancaribe(self, request):
         from django.db import models as db_models
