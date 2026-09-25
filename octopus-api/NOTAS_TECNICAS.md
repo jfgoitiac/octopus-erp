@@ -67,6 +67,37 @@ promovido sin generarles la `CuotaInscripcion`/`CuotaProyectoInversion` correspo
 cobertura automática: si vuelve a ocurrir, hay que crear las cuotas a mano (Django admin/shell) o escribir un
 comando puntual, ya que ninguno de los dos puntos de entrada actuales las genera para alumnos con grado asignado.
 
+## Módulo "Cobros por WhatsApp" — el flujo de email de mora queda huérfano funcionalmente
+
+Con WhatsApp como canal principal de cobranza, `notificar_mora()` (notificaciones/services.py) sigue enviando el
+correo de mora día 0/5/10/15 tal cual estaba (no se tocó, para no ampliar el alcance de este cambio). Si el
+colegio decide desactivar por completo el email de cobranza, ese código y las plantillas `mora_dia_*.html`
+quedarían sin uso real — no se eliminó porque `ConfiguracionNotificaciones.dias_recordatorio_1/2` /
+`dias_alerta_director` siguen siendo la fuente de verdad del cronograma y también los usa el envío WhatsApp
+legado en `notificar_mora()` (distinto del nuevo `cobro_whatsapp.py`, que es on-demand y no corre por Celery).
+
+## `enviar_whatsapp(..., template_data=...)` (Modo B) no se probó contra la API real de Meta/Twilio
+
+El payload `type: template` de `_wa_meta` y el `content_sid`/`content_variables` de `_wa_twilio` se construyeron
+siguiendo la documentación oficial, pero no hay forma de verificarlos end-to-end sin una cuenta de WhatsApp
+Business API con una plantilla aprobada real. Los tests (`notificaciones/tests_cobro_whatsapp.py`) solo verifican
+que se llame a `requests.post` con `type='template'`, no la respuesta real de Meta. Antes de activar Modo B en
+producción, probar con `ProbarNotificacionView` (o un envío real) contra una plantilla aprobada.
+
+## Selección múltiple / envío masivo de cobros WhatsApp no se implementó
+
+Quedó fuera de alcance de esta fase (solo tendría sentido en Modo B, con plantilla Meta aprobada, ya que Modo A
+requiere que la secretaria abra `wa.me` una vez por representante). Si se activa Modo B a futuro, `Morosos.jsx`
+necesitaría selección de filas + un endpoint que reciba una lista de `representante_cedula` en vez de uno solo.
+
+## Dev DB local traía migraciones de `cobranza` sin aplicar (0044/0045)
+
+Durante la verificación en navegador de este módulo se detectó que el SQLite de desarrollo no tenía aplicadas
+`cobranza.0044_reglarecargopago_dia_desde_and_more` y `cobranza.0045_cuotainscripcion_monto_pagado`, lo que rompía
+con 500 tanto `/api/cobranza/morosos/` (ya existente) como el nuevo `previsualizar-cobro-whatsapp` (ambos usan
+`cobranza/mora.py`). Se aplicaron sobre el DB local de este entorno; no es un problema del código nuevo, pero vale
+la pena confirmar que no ocurra lo mismo en staging/producción antes de desplegar.
+
 ## `CuotaInscripcion.pagado` sigue siendo un booleano no derivado (a diferencia de `CuotaSolvencia`)
 
 Se agregó `CuotaSolvencia.monto_pagado` y `save()` deriva `pagado`/`fecha_pago` automáticamente a partir de
