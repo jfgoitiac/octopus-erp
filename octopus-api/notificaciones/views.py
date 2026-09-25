@@ -4,6 +4,7 @@ from rest_framework import permissions, status
 import logging
 
 from portal.authentication import PortalJWTAuthentication
+from authentication.views import EsPersonalCobranza
 
 logger = logging.getLogger(__name__)
 
@@ -290,3 +291,277 @@ class TiposPushView(APIView):
             )
         SuscripcionPush.objects.filter(usuario_portal=rep_user, activa=True).update(tipos_activos=tipos)
         return Response({'tipos_activos': tipos})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# COBROS POR WHATSAPP
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _sede_del_representante(cedula):
+    """Devuelve la sede (id) de cualquier alumno activo de ese representante,
+    o None si no se encuentra -- usada para aplicar filtrar_por_sede sobre un
+    representante puntual (los endpoints de cobro trabajan por representante,
+    no por alumno)."""
+    from secretaria.models import Alumno
+    alumno = Alumno.objects.filter(
+        representante__cedula=cedula, activo=True,
+    ).values_list('sede', flat=True).first()
+    return alumno
+
+
+def _grupo_moroso_de(request, representante_cedula):
+    """Busca al representante entre los morosos agrupados, respetando
+    filtrar_por_sede. Devuelve el dict del grupo o None si no está en mora
+    o no es accesible para el usuario (otra sede)."""
+    from datetime import date
+    from cobranza.views import ListaMorososView
+    from .cobro_whatsapp import agrupar_morosos_por_representante
+
+    hoy = date.today()
+    qs = ListaMorososView._build_qs(hoy, buscar=representante_cedula, user=request.user)
+    grupos = agrupar_morosos_por_representante(qs, hoy)
+    for g in grupos:
+        if g['representante_cedula'] == representante_cedula:
+            return g
+    return None
+
+
+class PlantillasWhatsAppView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    @staticmethod
+    def _serializar(p):
+        return {
+            'id': p.id, 'nombre': p.nombre, 'tipo': p.tipo, 'cuerpo': p.cuerpo,
+            'predeterminada': p.predeterminada, 'activa': p.activa,
+            'nombre_plantilla_meta': p.nombre_plantilla_meta,
+            'idioma_meta': p.idioma_meta, 'orden_parametros_meta': p.orden_parametros_meta,
+            'creada_en': p.creada_en, 'actualizada_en': p.actualizada_en,
+        }
+
+    def get(self, request):
+        from .models import PlantillaWhatsApp
+        plantillas = PlantillaWhatsApp.objects.all()
+        return Response([self._serializar(p) for p in plantillas])
+
+    def post(self, request):
+        from .models import PlantillaWhatsApp
+        nombre = (request.data.get('nombre') or '').strip()
+        cuerpo = (request.data.get('cuerpo') or '').strip()
+        if not nombre or not cuerpo:
+            return Response({'error': 'nombre y cuerpo son requeridos.'}, status=400)
+        plantilla = PlantillaWhatsApp.objects.create(
+            nombre=nombre,
+            tipo=request.data.get('tipo', 'personalizada'),
+            cuerpo=cuerpo,
+            predeterminada=bool(request.data.get('predeterminada', False)),
+            activa=bool(request.data.get('activa', True)),
+            nombre_plantilla_meta=request.data.get('nombre_plantilla_meta', ''),
+            idioma_meta=request.data.get('idioma_meta', 'es'),
+            orden_parametros_meta=request.data.get('orden_parametros_meta', []),
+        )
+        return Response(self._serializar(plantilla), status=status.HTTP_201_CREATED)
+
+
+class PlantillaWhatsAppDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def _get(self, pk):
+        from .models import PlantillaWhatsApp
+        return PlantillaWhatsApp.objects.filter(pk=pk).first()
+
+    def get(self, request, pk):
+        plantilla = self._get(pk)
+        if not plantilla:
+            return Response({'error': 'Plantilla no encontrada.'}, status=404)
+        return Response(PlantillasWhatsAppView._serializar(plantilla))
+
+    def patch(self, request, pk):
+        plantilla = self._get(pk)
+        if not plantilla:
+            return Response({'error': 'Plantilla no encontrada.'}, status=404)
+        campos = ['nombre', 'tipo', 'cuerpo', 'predeterminada', 'activa',
+                  'nombre_plantilla_meta', 'idioma_meta', 'orden_parametros_meta']
+        for campo in campos:
+            if campo in request.data:
+                setattr(plantilla, campo, request.data[campo])
+        if not (plantilla.nombre or '').strip() or not (plantilla.cuerpo or '').strip():
+            return Response({'error': 'nombre y cuerpo no pueden quedar vacíos.'}, status=400)
+        plantilla.save()
+        return Response(PlantillasWhatsAppView._serializar(plantilla))
+
+    def delete(self, request, pk):
+        plantilla = self._get(pk)
+        if not plantilla:
+            return Response({'error': 'Plantilla no encontrada.'}, status=404)
+        plantilla.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VariablesPlantillaWhatsAppView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request):
+        from .cobro_whatsapp import TOKENS_DISPONIBLES
+        return Response(TOKENS_DISPONIBLES)
+
+
+class PrevisualizarCobroWhatsAppView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request):
+        from .models import PlantillaWhatsApp
+        from .services import _normalizar_telefono
+        from .cobro_whatsapp import renderizar_mensaje_cobro, hubo_envio_reciente, ultimo_envio
+
+        cedula = (request.data.get('representante_cedula') or '').strip()
+        plantilla_id = request.data.get('plantilla_id')
+        if not cedula or not plantilla_id:
+            return Response({'error': 'representante_cedula y plantilla_id son requeridos.'}, status=400)
+
+        plantilla = PlantillaWhatsApp.objects.filter(pk=plantilla_id).first()
+        if not plantilla:
+            return Response({'error': 'Plantilla no encontrada.'}, status=404)
+
+        grupo = _grupo_moroso_de(request, cedula)
+        if not grupo:
+            return Response(
+                {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
+                status=404,
+            )
+
+        mensaje = renderizar_mensaje_cobro(grupo, plantilla)
+        telefono = _normalizar_telefono(grupo['representante_telefono'])
+        log = ultimo_envio(cedula)
+
+        return Response({
+            'mensaje': mensaje,
+            'telefono': telefono,
+            'telefono_valido': bool(telefono),
+            'monto_total': str(grupo['monto_total']),
+            'meses_total': grupo['meses_total'],
+            'dias_atraso_max': grupo['dias_atraso_max'],
+            'alumnos': [
+                {
+                    'nombre': a['nombre'],
+                    'monto_adeudado': str(a['monto_adeudado']),
+                    'meses_adeudados': a['meses_adeudados'],
+                    'dias_atraso': a['dias_atraso'],
+                }
+                for a in grupo['alumnos']
+            ],
+            'envio_reciente': hubo_envio_reciente(cedula),
+            'ultimo_envio_fecha': log.fecha_envio if log else None,
+        })
+
+
+class RegistrarEnvioManualCobroWhatsAppView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request):
+        from .models import NotificacionLog
+        from .services import _normalizar_telefono
+        from .cobro_whatsapp import hubo_envio_reciente
+
+        cedula = (request.data.get('representante_cedula') or '').strip()
+        mensaje = (request.data.get('mensaje') or '').strip()
+        confirmar = bool(request.data.get('confirmar', False))
+        if not cedula or not mensaje:
+            return Response({'error': 'representante_cedula y mensaje son requeridos.'}, status=400)
+
+        grupo = _grupo_moroso_de(request, cedula)
+        if not grupo:
+            return Response(
+                {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
+                status=404,
+            )
+        telefono = _normalizar_telefono(grupo['representante_telefono'])
+        if not telefono:
+            return Response({'error': 'El representante no tiene un teléfono válido registrado.'}, status=400)
+
+        if hubo_envio_reciente(cedula) and not confirmar:
+            return Response(
+                {'error': 'Ya se envió un cobro a este representante en las últimas 24 horas.',
+                 'requiere_confirmacion': True},
+                status=409,
+            )
+
+        log = NotificacionLog.objects.create(
+            canal='whatsapp', tipo='cobro_whatsapp', modo='manual', estado='enviado',
+            destinatario=telefono, mensaje=mensaje[:500],
+            representante_cedula=cedula,
+            alumno_nombre=', '.join(a['nombre'] for a in grupo['alumnos']),
+            proveedor='wa.me',
+        )
+        return Response({'id': log.id, 'fecha_envio': log.fecha_envio}, status=status.HTTP_201_CREATED)
+
+
+class EnviarCobroWhatsAppView(APIView):
+    """Modo B: envío automático vía API con plantilla aprobada por Meta.
+    Solo funciona si WhatsApp está activo en la configuración Y la plantilla
+    elegida tiene `nombre_plantilla_meta` cargado -- si no, el frontend debe
+    usar el envío manual (RegistrarEnvioManualCobroWhatsAppView)."""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request):
+        from .models import PlantillaWhatsApp, ConfiguracionNotificaciones, NotificacionLog
+        from .services import enviar_whatsapp
+        from .cobro_whatsapp import renderizar_mensaje_cobro, hubo_envio_reciente
+
+        cedula = (request.data.get('representante_cedula') or '').strip()
+        plantilla_id = request.data.get('plantilla_id')
+        confirmar = bool(request.data.get('confirmar', False))
+        if not cedula or not plantilla_id:
+            return Response({'error': 'representante_cedula y plantilla_id son requeridos.'}, status=400)
+
+        cfg = ConfiguracionNotificaciones.objects.filter(pk=1).first()
+        if not (cfg and cfg.whatsapp_activo):
+            return Response(
+                {'error': 'WhatsApp automático no está activo. Use el envío manual (enlace wa.me).'},
+                status=400,
+            )
+        plantilla = PlantillaWhatsApp.objects.filter(pk=plantilla_id).first()
+        if not plantilla:
+            return Response({'error': 'Plantilla no encontrada.'}, status=404)
+        if not plantilla.nombre_plantilla_meta:
+            return Response(
+                {'error': 'Esta plantilla no tiene una plantilla de Meta aprobada asociada. '
+                          'Use el envío manual (enlace wa.me).'},
+                status=400,
+            )
+
+        grupo = _grupo_moroso_de(request, cedula)
+        if not grupo:
+            return Response(
+                {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
+                status=404,
+            )
+        if hubo_envio_reciente(cedula) and not confirmar:
+            return Response(
+                {'error': 'Ya se envió un cobro a este representante en las últimas 24 horas.',
+                 'requiere_confirmacion': True},
+                status=409,
+            )
+
+        mensaje = renderizar_mensaje_cobro(grupo, plantilla)
+        ok = enviar_whatsapp(
+            grupo['representante_telefono'], mensaje, tipo='cobro_whatsapp',
+            representante_cedula=cedula,
+            alumno_nombre=', '.join(a['nombre'] for a in grupo['alumnos']),
+            template_data={
+                'nombre': plantilla.nombre_plantilla_meta,
+                'idioma': plantilla.idioma_meta,
+                'parametros': [grupo['representante_nombre'], str(grupo['monto_total'])],
+            },
+        )
+        if not ok:
+            return Response({'error': 'No se pudo enviar el mensaje. Revise la configuración de WhatsApp.'},
+                             status=502)
+
+        log = NotificacionLog.objects.filter(
+            canal='whatsapp', tipo='cobro_whatsapp', representante_cedula=cedula,
+        ).order_by('-fecha_envio').first()
+        if log:
+            log.modo = 'automatico'
+            log.save(update_fields=['modo'])
+        return Response({'id': log.id if log else None, 'estado': 'enviado'})
