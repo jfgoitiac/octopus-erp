@@ -38,6 +38,8 @@ const ConsultaInscripcion      = lazy(() => import('./pages/ConsultaInscripcion'
 const Preinscripcion           = lazy(() => import('./pages/Preinscripcion'));
 const Grados                   = lazy(() => import('./pages/Grados'));
 const Morosos                  = lazy(() => import('./pages/Morosos'));
+const PlantillasWhatsApp       = lazy(() => import('./pages/PlantillasWhatsApp'));
+const HistorialMensajesWhatsApp = lazy(() => import('./pages/HistorialMensajesWhatsApp'));
 const Representantes           = lazy(() => import('./pages/Representantes'));
 const Reportes                 = lazy(() => import('./pages/Reportes'));
 const Sistemas                 = lazy(() => import('./pages/Sistemas'));
@@ -230,6 +232,16 @@ function App() {
               <Route path="morosos" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.MORA}>
                   <Morosos />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/plantillas-whatsapp" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.MORA}>
+                  <PlantillasWhatsApp />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/historial-whatsapp" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.MORA}>
+                  <HistorialMensajesWhatsApp />
                 </ProtectedRoute>
               } />
 

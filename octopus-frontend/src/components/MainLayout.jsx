@@ -29,6 +29,8 @@ const PAGE_TITLES = {
   '/auditoria':          'Auditoría',
   '/representantes':     'Representantes',
   '/morosos':            'Alumnos en mora',
+  '/cobranza/plantillas-whatsapp': 'Cobros por WhatsApp',
+  '/cobranza/historial-whatsapp':  'Historial de mensajes WhatsApp',
   '/gestion-sitio':      'Sitio Institucional',
   '/notas':              'Registro de Notas',
   '/boletin':            'Boletines',

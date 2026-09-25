@@ -12,7 +12,7 @@ import {
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
-  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature
+  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
@@ -52,6 +52,8 @@ const navSections = [
       { name: 'Pagos',         path: '/pagos',         icon: CreditCard,        roles: ['director','administrador'] },
       { name: 'Recibos',       path: '/recibos',       icon: FileText,          roles: ['director','administrador'] },
       { name: 'Conciliador',  path: '/conciliador',   icon: GitCompareArrows,  roles: ['director','administrador','cobranza'] },
+      { name: 'Cobros WhatsApp', path: '/cobranza/plantillas-whatsapp', icon: MessageCircle, roles: ['director','administrador','secretaria','cajero','cobranza'] },
+      { name: 'Historial WhatsApp', path: '/cobranza/historial-whatsapp', icon: History, roles: ['director','administrador','secretaria','cajero','cobranza'] },
     ],
   },
   {
