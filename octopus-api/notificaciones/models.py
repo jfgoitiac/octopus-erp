@@ -109,6 +109,7 @@ class SuscripcionPush(models.Model):
 class NotificacionLog(models.Model):
     CANALES = (('email', 'Email'), ('whatsapp', 'WhatsApp'), ('push', 'Push'))
     ESTADOS = (('enviado', 'Enviado'), ('fallido', 'Fallido'), ('pendiente', 'Pendiente'))
+    MODOS = (('', ''), ('manual', 'Enlace manual (wa.me)'), ('automatico', 'API automática'))
     TIPOS = (
         ('mora_dia_0',   'Aviso factura (Dia 0)'),
         ('mora_dia_5',   'Recordatorio (Dia 5)'),
@@ -120,6 +121,7 @@ class NotificacionLog(models.Model):
         ('reset_password', 'Recuperación de contraseña'),
         ('pago_exitoso', 'Pago confirmado'),
         ('prueba',       'Mensaje de prueba'),
+        ('cobro_whatsapp', 'Cobro por WhatsApp'),
         ('otro',         'Otro'),
     )
 
@@ -134,6 +136,10 @@ class NotificacionLog(models.Model):
     representante_cedula = models.CharField(max_length=20, blank=True)
     alumno_nombre        = models.CharField(max_length=200, blank=True)
     proveedor            = models.CharField(max_length=20, blank=True)
+    # Solo aplica a canal='whatsapp': si el envío fue un enlace wa.me abierto
+    # manualmente por la secretaria (Modo A) o una llamada de API con
+    # plantilla aprobada (Modo B). Vacío para el resto de canales/tipos.
+    modo                 = models.CharField(max_length=10, choices=MODOS, blank=True, default='')
 
     class Meta:
         ordering = ['-fecha_envio']
@@ -142,3 +148,46 @@ class NotificacionLog(models.Model):
 
     def __str__(self):
         return f'[{self.canal}] {self.tipo} - {self.destinatario} ({self.estado})'
+
+
+class PlantillaWhatsApp(models.Model):
+    """Plantilla de mensaje de cobranza por WhatsApp, en texto plano con
+    tokens `{{grupo.campo}}` (ver notificaciones/cobro_whatsapp.py para el
+    renderizado). Los campos de Modo B (`nombre_plantilla_meta` etc.) solo
+    se usan si se activa el envío automático vía API con plantilla aprobada
+    por Meta; el envío manual (Modo A, enlace wa.me) no los necesita."""
+
+    TIPOS = (
+        ('recordatorio',  'Recordatorio amable'),
+        ('segundo_aviso', 'Segundo aviso'),
+        ('aviso_final',   'Aviso final'),
+        ('personalizada', 'Personalizada'),
+    )
+
+    nombre         = models.CharField(max_length=100)
+    tipo           = models.CharField(max_length=20, choices=TIPOS, default='personalizada')
+    cuerpo         = models.TextField(
+        help_text='Texto plano con tokens {{grupo.campo}}. Máximo recomendado ~1000 caracteres.')
+    predeterminada = models.BooleanField(default=False)
+    activa         = models.BooleanField(default=True)
+
+    # ── Modo B (opcional) ──────────────────────────────────────────────────
+    nombre_plantilla_meta = models.CharField(max_length=100, blank=True, default='')
+    idioma_meta           = models.CharField(max_length=10, blank=True, default='es')
+    orden_parametros_meta = models.JSONField(default=list, blank=True)
+
+    creada_en      = models.DateTimeField(auto_now_add=True)
+    actualizada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-predeterminada', 'nombre']
+        verbose_name = 'Plantilla de WhatsApp'
+        verbose_name_plural = 'Plantillas de WhatsApp'
+
+    def __str__(self):
+        return f'{self.nombre}{" (predeterminada)" if self.predeterminada else ""}'
+
+    def save(self, *args, **kwargs):
+        if self.predeterminada:
+            PlantillaWhatsApp.objects.exclude(pk=self.pk).update(predeterminada=False)
+        super().save(*args, **kwargs)
