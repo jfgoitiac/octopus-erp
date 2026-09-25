@@ -142,8 +142,17 @@ def _normalizar_telefono(tel):
     return None
 
 
-def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alumno_nombre=''):
-    """Envia WhatsApp segun proveedor configurado en BD o fallback a settings."""
+def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alumno_nombre='',
+                     template_data=None):
+    """Envia WhatsApp segun proveedor configurado en BD o fallback a settings.
+
+    `template_data`, si viene, envia un mensaje de plantilla aprobada por Meta
+    (`type: template`) en vez de texto libre -- necesario para iniciar una
+    conversacion fuera de la ventana de 24h que exige WhatsApp Business API.
+    Forma esperada: {'nombre': str, 'idioma': str, 'parametros': [str, ...]}.
+    Si es None (comportamiento por defecto, usado por notificar_mora,
+    notificar_bienvenida_portal, notificar_pago_exitoso), se manda texto
+    libre exactamente como antes."""
     numero = _normalizar_telefono(telefono)
     if not numero:
         return False
@@ -152,9 +161,9 @@ def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alu
         or getattr(settings, 'WHATSAPP_PROVIDER', '')
     proveedor = (proveedor or '').lower()
     if proveedor == 'twilio':
-        return _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre)
+        return _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data)
     elif proveedor == 'meta':
-        return _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre)
+        return _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data)
     else:
         _log('whatsapp', tipo, numero, '', mensaje, 'pendiente',
              error='WHATSAPP_PROVIDER no configurado',
@@ -162,7 +171,7 @@ def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alu
         return False
 
 
-def _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre):
+def _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data=None):
     cfg   = _notif_cfg()
     sid   = (cfg.twilio_account_sid   if cfg else '') or getattr(settings, 'TWILIO_ACCOUNT_SID', '')
     token = (cfg.twilio_auth_token    if cfg else '') or getattr(settings, 'TWILIO_AUTH_TOKEN', '')
@@ -177,7 +186,21 @@ def _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre):
         from twilio.rest import Client
         client = Client(sid, token)
         wa_from = from_ if from_.startswith('whatsapp:') else f'whatsapp:{from_}'
-        msg = client.messages.create(body=mensaje, from_=wa_from, to=f'whatsapp:{numero}')
+        if template_data:
+            # Plantilla de contenido aprobada (Twilio Content API): el
+            # 'nombre' de template_data se usa como content_sid y los
+            # parametros posicionales como content_variables.
+            import json
+            content_variables = json.dumps(
+                {str(i + 1): v for i, v in enumerate(template_data.get('parametros', []))}
+            )
+            msg = client.messages.create(
+                content_sid=template_data['nombre'],
+                content_variables=content_variables,
+                from_=wa_from, to=f'whatsapp:{numero}',
+            )
+        else:
+            msg = client.messages.create(body=mensaje, from_=wa_from, to=f'whatsapp:{numero}')
         _log('whatsapp', tipo, numero, '', mensaje, 'enviado',
              representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='twilio')
         logger.info(f'WhatsApp Twilio [{tipo}] -> {numero} SID={msg.sid}')
@@ -195,7 +218,7 @@ def _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre):
         return False
 
 
-def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre):
+def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data=None):
     cfg      = _notif_cfg()
     token    = (cfg.meta_whatsapp_token    if cfg else '') or getattr(settings, 'META_WHATSAPP_TOKEN', '')
     phone_id = (cfg.meta_whatsapp_phone_id if cfg else '') or getattr(settings, 'META_WHATSAPP_PHONE_ID', '')
@@ -205,17 +228,36 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre):
              representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='meta')
         logger.warning('Meta WhatsApp: faltan META_WHATSAPP_TOKEN o META_WHATSAPP_PHONE_ID')
         return False
+    if template_data:
+        payload = {
+            'messaging_product': 'whatsapp',
+            'to': numero.lstrip('+'),
+            'type': 'template',
+            'template': {
+                'name': template_data['nombre'],
+                'language': {'code': template_data.get('idioma', 'es')},
+                'components': [{
+                    'type': 'body',
+                    'parameters': [
+                        {'type': 'text', 'text': str(v)}
+                        for v in template_data.get('parametros', [])
+                    ],
+                }] if template_data.get('parametros') else [],
+            },
+        }
+    else:
+        payload = {
+            'messaging_product': 'whatsapp',
+            'to': numero.lstrip('+'),
+            'type': 'text',
+            'text': {'body': mensaje},
+        }
     try:
         import requests as req
         resp = req.post(
             f'https://graph.facebook.com/v19.0/{phone_id}/messages',
             headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
-            json={
-                'messaging_product': 'whatsapp',
-                'to': numero.lstrip('+'),
-                'type': 'text',
-                'text': {'body': mensaje},
-            },
+            json=payload,
             timeout=10,
         )
         resp.raise_for_status()
