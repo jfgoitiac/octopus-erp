@@ -60,6 +60,9 @@ function buildPayload(datos) {
         nombre:           datos.alumno.nombre,
         apellido:         datos.alumno.apellido,
         cedula_escolar:   datos.alumno.cedula_escolar || '',
+        // Conservar la dirección ya registrada al reinscribir. Esta es la
+        // fuente del campo "Dirección de habitación" del comprobante.
+        direccion:        datos.alumno.direccion || '',
         fecha_nacimiento: datos.alumno.fecha_nacimiento || null,
         genero:           datos.alumno.genero,
         // El parentesco se captura durante el paso del representante (datos.representante.parentesco),

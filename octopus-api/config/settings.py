@@ -339,8 +339,9 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cantina.tasks.verificar_saldos_negativos_cantina',
         'schedule': crontab(hour=7, minute=0),
     },
-    # Respaldo automático de la BD, diario a las 3am (baja actividad) — local
-    # al servidor, con rotación de volcados >14 días (ver usuarios/tasks.py).
+    # Respaldo diario PostgreSQL + media a Google Drive, conservando copia local
+    # con rotación. Requiere variables GOOGLE_DRIVE_* y BACKUP_ALERT_EMAILS;
+    # ver RESTAURACION_EMERGENCIA.md.
     'respaldo-diario-bd': {
         'task': 'usuarios.tasks.respaldo_diario_automatico',
         'schedule': crontab(hour=3, minute=0),
@@ -397,3 +398,42 @@ if 'test' in _sys.argv or 'pytest' in _sys.modules:
     import tempfile as _tempfile
 
     MEDIA_ROOT = _tempfile.mkdtemp(prefix='octopus_test_media_')
+
+    # ── Broker de Celery en memoria durante los tests ───────────────────────
+    # Causa raíz de la lentitud de `manage.py test`: CELERY_BROKER_URL apunta
+    # a redis://localhost:6379/0 (línea de arriba, y también en el .env real
+    # vía CELERY_BROKER_URL/CELERY_RESULT_BACKEND) y la mayoría de las vistas
+    # llaman a `.delay()`/`.apply_async()` sin mockear (solo unos pocos tests
+    # puntuales mockean la tarea concreta que verifican, ver cobranza/tests.py,
+    # cantina/tests_recargas.py, multisede/tests.py). Sin un Redis local,
+    # kombu reintenta la conexión con backoff antes de fallar — varios minutos
+    # multiplicados por cada `.delay()` no mockeado de toda la suite.
+    #
+    # No basta con reasignar las constantes CELERY_BROKER_URL/
+    # CELERY_RESULT_BACKEND de este módulo: `Settings.broker_url` y
+    # `Settings.result_backend`, en celery/app/utils.py, leen primero
+    # `os.environ.get('CELERY_BROKER_URL')` / `os.environ.get(
+    # 'CELERY_RESULT_BACKEND')` directamente y solo caen a la configuración
+    # (namespace CELERY_* de Django settings) si esa variable de entorno no
+    # está definida. Como `load_dotenv()` (arriba, línea 7) ya cargó esas dos
+    # claves desde `.env` a `os.environ`, cualquier override que solo toque
+    # estas constantes del módulo settings.py es ignorado por Celery en tests
+    # -- hay que pisar `os.environ` mismo.
+    #
+    # El transporte "memory://" de kombu resuelve el problema sin cambiar
+    # semántica: sigue sin haber un worker consumiendo la cola en los tests
+    # (igual que hoy), así que las tareas no mockeadas siguen sin ejecutarse
+    # de verdad -- simplemente el encolado ya no intenta una conexión de red
+    # real y es instantáneo. Los tests que verifican el manejo de una caída
+    # de Celery/Redis (try/except alrededor de `.delay()`) siguen cubiertos
+    # porque mockean la tarea explícitamente (con `side_effect`),
+    # independiente del transporte configurado aquí.
+    #
+    # No afecta producción: solo se activa bajo la misma detección por
+    # sys.argv de arriba, y el `.env` real (fuera de tests) sigue apuntando a
+    # Redis real (ver validación al inicio del bloque de Celery Beat).
+    os.environ['CELERY_BROKER_URL'] = 'memory://'
+    os.environ['CELERY_RESULT_BACKEND'] = 'cache+memory://'
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+    CELERY_TASK_EAGER_PROPAGATES = False

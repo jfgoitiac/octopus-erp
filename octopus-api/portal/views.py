@@ -1253,6 +1253,54 @@ class PortalBancosView(APIView):
         return Response(data)
 
 
+class PortalMetodosPagoView(APIView):
+    """Métodos de pago que el colegio decidió publicar a representantes.
+
+    Cada registro contiene únicamente los datos pertinentes al método; así un
+    teléfono de Pago Móvil nunca se presenta como si fuera una cuenta bancaria.
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    _NOMBRES = {
+        'transferencia': 'Transferencia bancaria',
+        'pago_movil': 'Pago Móvil',
+        'zelle': 'Zelle',
+        'punto_de_venta': 'Punto de venta',
+    }
+    _CAMPOS = {
+        'transferencia': ('titular', 'identificacion', 'numero_cuenta'),
+        'pago_movil': ('titular', 'identificacion', 'telefono'),
+        'zelle': ('titular', 'correo'),
+        'punto_de_venta': ('instrucciones',),
+    }
+
+    def get(self, request):
+        from cobranza.models import BancoInstitucional
+
+        metodos = []
+        for banco in BancoInstitucional.objects.filter(activo=True).order_by('nombre'):
+            configuracion = banco.portal_metodos or {}
+            for metodo in banco.tipos or []:
+                datos = configuracion.get(metodo) or {}
+                if not datos.get('visible'):
+                    continue
+                publicos = {campo: datos.get(campo, '') for campo in self._CAMPOS.get(metodo, ())}
+                # Facilita migrar los bancos existentes: al activar una
+                # transferencia, su cuenta ya cargada se propone en el portal.
+                if metodo == 'transferencia' and not publicos['numero_cuenta']:
+                    publicos['numero_cuenta'] = banco.numero_cuenta or ''
+                metodos.append({
+                    'id': f'{banco.id}-{metodo}',
+                    'banco_id': banco.id,
+                    'banco': banco.nombre,
+                    'metodo': metodo,
+                    'nombre': self._NOMBRES.get(metodo, metodo),
+                    'datos': publicos,
+                })
+        return Response(metodos)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # ADMIN — GESTIÓN DE COMPROBANTES PENDIENTES
 # ──────────────────────────────────────────────────────────────────────────────

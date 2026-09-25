@@ -13,8 +13,8 @@ const ITEMS = [
 
 const RepresentanteRail = () => {
   return (
-  <nav className="hidden md:flex fixed left-0 top-0 bottom-0 w-20 flex-col items-center bg-white border-r border-gray-100 py-4 z-20">
-    <div className="mb-6" style={{ color: 'var(--portal-primary, #0fa3b1)' }}>
+  <nav className="hidden md:flex fixed left-0 top-0 bottom-0 w-20 flex-col items-center bg-white/90 backdrop-blur-xl border-r border-slate-200/80 py-5 z-20">
+    <div className="mb-7 w-10 h-10 rounded-2xl flex items-center justify-center" style={{ color: 'var(--portal-primary, #0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary, #0fa3b1) 10%, white)' }}>
       <GraduationCap size={26} />
     </div>
     <div className="flex flex-col items-center gap-2 w-full">
@@ -24,10 +24,11 @@ const RepresentanteRail = () => {
           to={to}
           end={end}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 py-2.5 px-2 w-16 rounded-xl transition-colors ${
-              isActive ? 'bg-[var(--portal-primary,#0fa3b1)]/10 text-[var(--portal-primary,#0fa3b1)]' : 'text-gray-400 hover:text-gray-600'
+            `portal-rail-link flex flex-col items-center gap-1 py-2.5 px-2 w-16 rounded-2xl ${
+              isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-slate-400 hover:text-slate-700'
             }`
           }
+          style={({ isActive }) => isActive ? { background: 'color-mix(in srgb, var(--portal-primary, #0fa3b1) 11%, white)' } : undefined}
         >
           <Icon size={20} />
           <span className="text-[10px] font-medium">{label}</span>

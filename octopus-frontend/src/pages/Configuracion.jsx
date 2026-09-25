@@ -1587,6 +1587,32 @@ const Configuracion = () => {
                                 })}
                             </div>
                         </div>
+                        {(bancoForm.tipos || []).length > 0 && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Datos para el portal de representantes</label>
+                                    <p className="text-xs" style={{ color: 'var(--ash)' }}>Muestra solo los métodos que el representante puede usar. Cada uno tiene datos propios.</p>
+                                </div>
+                                {(bancoForm.tipos || []).map(tipo => {
+                                    const datos = bancoForm.portal_metodos?.[tipo] || {};
+                                    const actualizar = (campo, valor) => setBancoForm(p => ({ ...p, portal_metodos: { ...(p.portal_metodos || {}), [tipo]: { ...(p.portal_metodos?.[tipo] || {}), [campo]: valor } } }));
+                                    const campos = tipo === 'transferencia'
+                                        ? [['titular', 'Titular'], ['identificacion', 'Cédula / RIF'], ['numero_cuenta', 'Número de cuenta']]
+                                        : tipo === 'pago_movil'
+                                        ? [['titular', 'Titular'], ['identificacion', 'Cédula'], ['telefono', 'Teléfono']]
+                                        : tipo === 'zelle'
+                                        ? [['titular', 'Titular'], ['correo', 'Correo Zelle']]
+                                        : [['instrucciones', 'Instrucciones para el representante']];
+                                    return <div key={tipo} className="rounded-lg p-3 space-y-2" style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
+                                        <label className="flex items-center justify-between text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                                            {TIPO_LABELS[tipo] || tipo}
+                                            <span className="flex items-center gap-2 text-xs font-normal" style={{ color: 'var(--ash)' }}>Mostrar en portal <input type="checkbox" checked={Boolean(datos.visible)} onChange={e => actualizar('visible', e.target.checked)} /></span>
+                                        </label>
+                                        {datos.visible && campos.map(([campo, etiqueta]) => <input key={campo} type={campo === 'correo' ? 'email' : 'text'} value={datos[campo] || ''} onChange={e => actualizar(campo, e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} placeholder={etiqueta} />)}
+                                    </div>;
+                                })}
+                            </div>
+                        )}
                         {bancoEditando && (
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>

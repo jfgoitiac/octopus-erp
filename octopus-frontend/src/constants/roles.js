@@ -7,6 +7,7 @@ export const ROLES = {
   SECRETARIA:    'secretaria',
   DIRECTIVO_RED: 'directivo_red',
   DOCENTE:       'docente',
+  COORDINADOR:   'coordinador',
 };
 
 export const ROL_OPTIONS = [
@@ -18,6 +19,7 @@ export const ROL_OPTIONS = [
   { value: 'secretaria',    label: 'Secretaria' },
   { value: 'directivo_red', label: 'Directivo de Red' },
   { value: 'docente',       label: 'Docente' },
+  { value: 'coordinador',   label: 'Coordinador Académico' },
 ];
 
 // Roles con acceso al panel de Sistemas
@@ -42,6 +44,7 @@ export const FIRST_ACCESSIBLE_ROUTE = {
   'cajero': '/cobranza',
   'directivo_red': '/multisede',
   'docente': '/portal-docente',
+  'coordinador': '/alumnos',
 };
 
 // Ruta de aterrizaje justo después del login — antes de esto cada portal
@@ -66,6 +69,7 @@ export const getRolStyle = (rol) => {
     case 'secretaria':    return 'bg-teal-100 text-teal-700';
     case 'directivo_red': return 'bg-indigo-100 text-indigo-700';
     case 'docente':       return 'bg-yellow-100 text-yellow-700';
+    case 'coordinador':   return 'bg-pink-100 text-pink-700';
     default:              return 'bg-gray-100 text-gray-500';
   }
 };

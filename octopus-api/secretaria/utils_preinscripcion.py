@@ -227,9 +227,10 @@ def _resolver_valores(alumno, inscripcion, campos_seleccionados):
         'lugar_nacimiento': alumno.lugar_nacimiento,
         'pais_nacimiento': alumno.pais_nacimiento,
         'estado_nacimiento': alumno.estado_nacimiento,
-        # No existe cédula de identidad del alumno en el modelo (solo
-        # cedula_escolar, que es matrícula interna) — decisión: queda en blanco.
-        'cedula_estudiante': '',
+        # La planilla pide la cédula de identidad. Para expedientes anteriores
+        # al campo ``Alumno.cedula``, se conserva como respaldo la cédula
+        # escolar, en vez de dejar el comprobante incompleto.
+        'cedula_estudiante': alumno.cedula or alumno.cedula_escolar or '',
         'sexo': alumno.get_genero_display() if alumno.genero else '',
         'peso': str(alumno.peso) if alumno.peso is not None else '',
         'estatura': str(alumno.estatura) if alumno.estatura is not None else '',

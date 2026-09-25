@@ -127,9 +127,9 @@ class DocenteCambiarContrasenaView(APIView):
 # PERMISOS PERSONALIZADOS
 # ─────────────────────────────────────────────
 class IsAdminOrAbove(permissions.BasePermission):
-    """Permite acceso a director, sistemas y administrador."""
+    """Permite acceso a director, sistemas, administrador y coordinador académico."""
 
-    ROLES_PERMITIDOS = ['director', 'sistemas', 'administrador']
+    ROLES_PERMITIDOS = ['director', 'sistemas', 'administrador', 'coordinador']
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -146,9 +146,9 @@ class IsAdminOrAbove(permissions.BasePermission):
 
 
 class IsSecretariaOrAbove(permissions.BasePermission):
-    """Permite acceso a secretaria, director, sistemas y administrador."""
+    """Permite acceso a secretaria, director, sistemas, administrador y coordinador académico."""
 
-    ROLES_PERMITIDOS = ['director', 'sistemas', 'administrador', 'secretaria']
+    ROLES_PERMITIDOS = ['director', 'sistemas', 'administrador', 'secretaria', 'coordinador']
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:

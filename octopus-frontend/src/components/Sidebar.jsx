@@ -15,7 +15,7 @@ import {
   Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle
 } from 'lucide-react';
 
-const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente'];
+const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente', 'coordinador'];
 const TODOS_MENOS_SISTEMAS = TODOS_LOS_ROLES.filter(r => r !== 'sistemas');
 
 const navSections = [
@@ -23,9 +23,9 @@ const navSections = [
     label: 'Principal',
     items: [
       { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['director','cobranza','administrador'] },
-      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','administrador','cobranza','secretaria'] },
+      { name: 'Alumnos',        path: '/alumnos',        icon: Users,           roles: ['director','administrador','cobranza','secretaria','cajero','coordinador'] },
       { name: 'Morosos',        path: '/morosos',        icon: AlertTriangle,   roles: ['director','administrador','secretaria','cajero','cobranza'] },
-      { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza'] },
+      { name: 'Representantes', path: '/representantes', icon: Contact,         roles: ['director','administrador','secretaria','cajero','cobranza','sistemas'] },
       { name: 'Inscripciones', path: '/inscripciones', icon: UserPlus,        roles: ['director','administrador','secretaria','cobranza'] },
       { name: 'Grados',        path: '/grados',        icon: GraduationCap,   roles: ['director','administrador','secretaria'] },
       { name: 'Consulta de Inscripción', path: '/consulta-inscripcion', icon: FileSearch, roles: TODOS_MENOS_SISTEMAS },
@@ -46,6 +46,7 @@ const navSections = [
     items: [
       { name: 'Cobranza',      path: '/cobranza',      icon: Calculator,   roles: ['director','cobranza','administrador','cajero'] },
       { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero'] },
+      { name: 'Revisar pagos', path: '/comprobantes/revision', icon: ReceiptText, roles: ['director','sistemas','cobranza','administrador'] },
       { name: 'Solvencia',     path: '/cobranza/solvencia', icon: BadgeCheck, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
       { name: 'Nómina',        path: '/nomina',        icon: Banknote,          roles: ['director','administrador'] },
@@ -59,14 +60,14 @@ const navSections = [
   {
     label: 'Académico',
     items: [
-      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'secretaria'] },
-      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director'] },
-      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'secretaria'] },
-      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'secretaria'] },
-      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director'] },
-      { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director'] },
-      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,     roles: ['director'] },
-      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'administrador'] },
+      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'secretaria', 'coordinador'] },
+      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director', 'coordinador'] },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'secretaria', 'coordinador'] },
+      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'secretaria', 'coordinador'] },
+      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'coordinador'] },
+      { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director', 'coordinador'] },
+      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,     roles: ['director', 'coordinador'] },
+      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'administrador', 'coordinador'] },
     ],
   },
   {

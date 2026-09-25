@@ -11,15 +11,6 @@ export const secretariaService = {
     return response.data;
   },
 
-  // TODO-TEMPORAL: quitar junto con LimpiezaDatosTab tras limpieza de datos de prueba
-  async eliminarAlumnoDefinitivo(id) {
-    await apiClient.delete(`secretaria/alumnos/${id}/eliminar_definitivo/`);
-  },
-
-  async eliminarRepresentanteDefinitivo(id) {
-    await apiClient.delete(`secretaria/representantes/${id}/eliminar_definitivo/`);
-  },
-
   // Eliminación definitiva manual desde el módulo Representantes (no
   // Limpieza de Datos): solo para representantes sin ningún alumno
   // vinculado, ver secretaria/views.py::RepresentanteViewSet.eliminar_definitivo_manual.
@@ -27,10 +18,6 @@ export const secretariaService = {
     await apiClient.delete(`secretaria/representantes/${id}/eliminar_definitivo_manual/`);
   },
 
-  async eliminarTodosLosAlumnos() {
-    const response = await apiClient.delete('secretaria/alumnos/eliminar_todos/');
-    return response.data;
-  },
 };
 
 export const buscarAlumnos = (termino, signal) =>

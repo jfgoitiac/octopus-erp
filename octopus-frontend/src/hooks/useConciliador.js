@@ -4,6 +4,9 @@ import { toast } from 'react-toastify';
 import { BANKS, parseStatement } from '../utils/bankParsers';
 import apiClient from '../api/apiClient';
 
+const MAX_STATEMENT_FILE_SIZE = 10 * 1024 * 1024;
+const STATEMENT_FILE_PATTERN = /\.(pdf|xls|xlsx|csv)$/i;
+
 // Recorta bytes de espacio en blanco (\t \n \r espacio) al inicio del buffer
 // para que XLSX.read detecte correctamente formatos como HTML (<table>)
 // cuya firma de bytes cae en el mismo caso que "texto plano" si hay padding.
@@ -72,6 +75,14 @@ export function useConciliador() {
   const processFile = useCallback(async (file) => {
     if (!bank) {
       toast.error('Selecciona un banco antes de cargar el archivo.');
+      return;
+    }
+    if (!STATEMENT_FILE_PATTERN.test(file.name)) {
+      toast.error('Selecciona un archivo PDF, XLS, XLSX o CSV.');
+      return;
+    }
+    if (file.size > MAX_STATEMENT_FILE_SIZE) {
+      toast.error('El estado de cuenta no puede superar 10 MiB.');
       return;
     }
     setLoading(true);

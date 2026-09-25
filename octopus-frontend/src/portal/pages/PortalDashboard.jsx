@@ -70,7 +70,7 @@ const PortalDashboard = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Selector de estudiantes */}
       {loading ? (
         <div className="flex gap-2">
@@ -96,7 +96,7 @@ const PortalDashboard = () => {
         </p>
       )}
 
-      <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 md:items-stretch">
+      <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-5 md:items-stretch">
         <div className="md:col-span-12">
           <WidgetHeroPortal
             nombre={user?.nombre}

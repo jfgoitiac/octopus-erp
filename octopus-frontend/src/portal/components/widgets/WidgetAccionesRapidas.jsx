@@ -2,47 +2,47 @@ import { Link } from 'react-router-dom';
 import { Banknote, Receipt, TrendingUp, Megaphone } from 'lucide-react';
 
 const WidgetAccionesRapidas = ({ onPagar, className = '' }) => (
-  <div className={`grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 ${className}`}>
+  <section className={`grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 ${className}`} aria-label="Acciones rápidas">
     <button
       onClick={onPagar}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+      className="portal-action rounded-2xl p-4 flex flex-col items-start gap-2 text-left"
     >
-      <div className="w-9 h-9 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center">
+      <div className="w-10 h-10 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center shadow-sm">
         <Banknote size={17} />
       </div>
-      <p className="text-[11px] font-medium text-gray-600 leading-tight">Pagar por transferencia</p>
+      <p className="text-xs font-semibold text-slate-700 leading-tight">Pagar por transferencia</p>
     </button>
 
     <Link
       to="/portal/historial"
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+      className="portal-action rounded-2xl p-4 flex flex-col items-start gap-2 text-left"
     >
-      <div className="w-9 h-9 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ color: 'var(--portal-primary,#0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary,#0fa3b1) 12%, white)' }}>
         <Receipt size={17} />
       </div>
-      <p className="text-[11px] font-medium text-gray-600 leading-tight">Ver historial</p>
+      <p className="text-xs font-semibold text-slate-700 leading-tight">Ver historial</p>
     </Link>
 
     <Link
       to="/portal/rendimiento"
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+      className="portal-action rounded-2xl p-4 flex flex-col items-start gap-2 text-left"
     >
-      <div className="w-9 h-9 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ color: 'var(--portal-primary,#0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary,#0fa3b1) 12%, white)' }}>
         <TrendingUp size={17} />
       </div>
-      <p className="text-[11px] font-medium text-gray-600 leading-tight">Rendimiento</p>
+      <p className="text-xs font-semibold text-slate-700 leading-tight">Rendimiento</p>
     </Link>
 
     <Link
       to="/portal/comunicaciones"
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+      className="portal-action rounded-2xl p-4 flex flex-col items-start gap-2 text-left"
     >
-      <div className="w-9 h-9 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ color: 'var(--portal-primary,#0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary,#0fa3b1) 12%, white)' }}>
         <Megaphone size={17} />
       </div>
-      <p className="text-[11px] font-medium text-gray-600 leading-tight">Comunicaciones</p>
+      <p className="text-xs font-semibold text-slate-700 leading-tight">Comunicaciones</p>
     </Link>
-  </div>
+  </section>
 );
 
 export default WidgetAccionesRapidas;

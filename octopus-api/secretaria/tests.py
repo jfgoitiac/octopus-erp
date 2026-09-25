@@ -594,25 +594,12 @@ class EliminacionRepresentanteTest(TestCase):
             ).exists()
         )
 
-    # ── eliminar_definitivo (histórico, Limpieza de Datos) sigue igual ──
-
-    def test_eliminar_definitivo_historico_sigue_sin_restriccion_de_alumnos(self):
+    def test_eliminar_definitivo_temporal_no_esta_expuesto(self):
         rep = self._crear_representante()
         Alumno.objects.create(nombre='Activo', apellido='Uno', representante=rep)
         client = self._client_como('director')
-
         resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo/')
-        self.assertEqual(resp.status_code, 204, resp.data)
-        self.assertFalse(Representante.objects.filter(pk=rep.pk).exists())
-
-    def test_eliminar_definitivo_historico_denegado_a_cobranza(self):
-        # eliminar_definitivo (Limpieza de Datos) sigue exigiendo
-        # IsSystemAdminOrDirector — cobranza NO debe poder invocarlo, a
-        # diferencia de eliminar_definitivo_manual.
-        rep = self._crear_representante()
-        client = self._client_como('cobranza')
-        resp = client.delete(f'/api/secretaria/representantes/{rep.id}/eliminar_definitivo/')
-        self.assertEqual(resp.status_code, 403, resp.data)
+        self.assertEqual(resp.status_code, 404, resp.content)
         self.assertTrue(Representante.objects.filter(pk=rep.pk).exists())
 
 

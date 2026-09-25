@@ -1,20 +1,17 @@
 import { useState, useContext } from 'react';
 import { Navigate } from 'react-router-dom';
-import { User, Bell, MessageSquare, AlertTriangle } from 'lucide-react';
+import { User, Bell, MessageSquare } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { ROLES_SISTEMAS } from '../constants/roles';
 import UsuariosTab      from '../components/sistemas/UsuariosTab';
 import NotificacionesTab from '../components/sistemas/NotificacionesTab';
 import LogsTab          from '../components/sistemas/LogsTab';
-import LimpiezaDatosTab  from '../components/sistemas/LimpiezaDatosTab';
 import { PageHeader } from '../components/ui/PageHeader';
 
 const TABS = [
     { id: 'usuarios',       label: 'Usuarios',       icon: User },
     { id: 'notificaciones', label: 'Notificaciones',  icon: Bell },
     { id: 'logs',           label: 'Log de envíos',   icon: MessageSquare },
-    // TODO-TEMPORAL: quitar este tab (y LimpiezaDatosTab.jsx) tras la limpieza de datos de prueba
-    { id: 'limpieza',       label: '⚠ Limpieza de datos', icon: AlertTriangle },
 ];
 
 const Sistemas = () => {
@@ -64,7 +61,6 @@ const SistemasInner = () => {
             {activeTab === 'usuarios'       && <UsuariosTab />}
             {activeTab === 'notificaciones' && <NotificacionesTab />}
             {activeTab === 'logs'           && <LogsTab />}
-            {activeTab === 'limpieza'       && <LimpiezaDatosTab />}
         </div>
     );
 };

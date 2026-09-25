@@ -57,6 +57,11 @@ class BancoInstitucional(models.Model):
     # Un mismo banco puede aceptar varios métodos de pago a la vez
     # (ej. Banesco con Punto de Venta y Transferencia).
     tipos         = models.JSONField(default=list, blank=True)
+    # Instrucciones que se publican en el portal, separadas por método.
+    # Ej.: {"pago_movil": {"visible": true, "telefono": "..."}}.
+    # No se reutiliza ``activo``: un banco puede seguir disponible para caja
+    # interna sin exponerse a los representantes.
+    portal_metodos = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.nombre

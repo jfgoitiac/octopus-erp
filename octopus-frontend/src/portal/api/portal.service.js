@@ -93,6 +93,9 @@ export const verificarReferencia = (ref, metodo, bancoId) => {
  */
 export const getBancos = () => portalClient.get('bancos/');
 
+/** Métodos e instrucciones de pago publicados para el portal. */
+export const getMetodosPago = () => portalClient.get('metodos-pago/');
+
 /**
  * Cambia la contraseña del representante autenticado.
  * @param {{ contrasena_actual: string, contrasena_nueva: string, confirmar: string }} data

@@ -20,6 +20,7 @@ class PerfilUsuario(models.Model):
         ('secretaria',    'Secretaria'),
         ('cobranza',      'Cobranza'),
         ('docente',       'Docente'),
+        ('coordinador',   'Coordinador Académico'),
         # Rol sin privilegios administrativos: usuarios del portal de representantes.
         # AdminJWTAuthentication rechaza este rol en todos los endpoints del panel.
         ('representante', 'Representante (Portal)'),

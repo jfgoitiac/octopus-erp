@@ -65,7 +65,7 @@ class IsDocenteOrAbove(permissions.BasePermission):
         try:
             return (
                 request.user.perfil.esta_activo and
-                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'docente', 'cobranza']
+                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'docente', 'cobranza', 'coordinador']
             )
         except Exception:
             return False
@@ -90,8 +90,10 @@ class IsFinanzasOrAbove(permissions.BasePermission):
 
 
 class IsSecretariaOrCobranzaOrAbove(permissions.BasePermission):
-    """Igual que IsSecretariaOrAbove pero también permite a cobranza y docente
-    editar los datos del alumno (incluyendo campos financieros, ver update_info)."""
+    """Igual que IsSecretariaOrAbove pero también permite a cobranza, docente y
+    coordinador académico editar los datos del alumno (el monto/concepto de
+    solvencia queda bloqueado aparte para quien no sea IsFinanzasOrAbove, ver
+    update_info más abajo)."""
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
@@ -102,7 +104,7 @@ class IsSecretariaOrCobranzaOrAbove(permissions.BasePermission):
         try:
             return (
                 request.user.perfil.esta_activo and
-                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'cobranza', 'docente']
+                request.user.perfil.rol in ['director', 'sistemas', 'administrador', 'secretaria', 'cobranza', 'docente', 'coordinador']
             )
         except Exception:
             return False
@@ -685,8 +687,6 @@ class AlumnoListView(viewsets.ModelViewSet):
         # Editar info del alumno (update/partial_update/update_info): también cobranza y docente
         # Listar/ver: docente o superior
         # Eliminación definitiva (temporal): solo director/sistemas/admin
-        if self.action in ['eliminar_definitivo', 'eliminar_todos']:
-            return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
         if self.action in ['update', 'partial_update', 'update_info']:
             return [IsSecretariaOrCobranzaOrAbove()]
         if self.action in ['create', 'destroy', 'quitar_grado']:
@@ -912,35 +912,6 @@ class AlumnoListView(viewsets.ModelViewSet):
             {"mensaje": f"Alumno {alumno.nombre} {alumno.apellido} reactivado."},
             status=status.HTTP_200_OK
         )
-
-    @action(detail=True, methods=['delete'])  # TODO-TEMPORAL: quitar tras limpieza de datos de prueba
-    @transaction.atomic
-    def eliminar_definitivo(self, request, pk=None):
-        """Borrado físico real (no soft-delete) del alumno. Irreversible."""
-        try:
-            alumno = Alumno.todos.get(pk=pk)
-        except Alumno.DoesNotExist:
-            return Response({"error": "Alumno no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        _eliminar_alumno_definitivo(alumno, request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=['delete'])  # TODO-TEMPORAL: quitar tras limpieza de datos de prueba
-    @transaction.atomic
-    def eliminar_todos(self, request):
-        """Borrado físico real de TODOS los alumnos. Irreversible."""
-        alumnos = list(Alumno.todos.all())
-        total = len(alumnos)
-
-        LogAuditoria.objects.create(
-            usuario=request.user,
-            accion="ELIMINACION_DEFINITIVA_TODOS_ALUMNOS",
-            modulo="SECRETARIA",
-            detalles={"total": total}
-        )
-        for alumno in alumnos:
-            _eliminar_alumno_definitivo(alumno, request.user)
-        return Response({"eliminados": total}, status=status.HTTP_200_OK)
 
     def perform_destroy(self, instance):
         """Sobreescribir DELETE para usar soft delete."""
@@ -1862,7 +1833,7 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         # Datos) siguen exigiendo IsSystemAdminOrDirector, sin cambios.
         if self.action in ['destroy', 'eliminar_definitivo_manual']:
             return [permissions.IsAuthenticated(), IsFinanzasOrAbove()]
-        if self.action in ['create', 'update', 'partial_update', 'eliminar_definitivo', 'cargar_proyecto_inversion']:
+        if self.action in ['create', 'update', 'partial_update', 'cargar_proyecto_inversion']:
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
         return [permissions.IsAuthenticated()]
 
@@ -1969,23 +1940,6 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
             "monto_usd": str(cuota.monto_usd),
             "periodo_escolar": periodo,
         })
-
-    @action(detail=True, methods=['delete'])  # TODO-TEMPORAL: quitar tras limpieza de datos de prueba
-    @transaction.atomic
-    def eliminar_definitivo(self, request, pk=None):
-        """
-        Borrado físico real (no soft-delete) del representante, de todos sus
-        alumnos (con su historial financiero/académico) y de su cuenta de
-        acceso al portal si la tiene. Irreversible.
-
-        Usado hoy solo por Sistemas → Limpieza de Datos, sin restricción de
-        "0 alumnos" a propósito: ahí sirve para arrasar datos de prueba con
-        alumnos y todo. Para el borrado manual de un representante duplicado
-        sin alumnos desde el módulo Representantes, ver `eliminar_definitivo_manual`.
-        """
-        rep = get_object_or_404(Representante, pk=pk)
-        _eliminar_representante_fisicamente(rep, request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['delete'])
     @transaction.atomic

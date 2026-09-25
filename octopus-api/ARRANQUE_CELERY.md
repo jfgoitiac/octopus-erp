@@ -2,11 +2,11 @@
 
 ## Instalacion (una sola vez)
 
-pip install django-celery-beat
-python manage.py migrate django_celery_beat
+celery, django-celery-beat y redis ya estan en octopus-api/requirements.txt
+(pip install -r requirements.txt los instala junto con el resto). Falta
+unicamente aplicar sus migraciones:
 
-NOTA: django-celery-beat NO estaba en el venv al momento de la integracion.
-Debe instalarse antes de levantar los procesos.
+python manage.py migrate django_celery_beat
 
 ## Desarrollo (3 terminales)
 
@@ -95,15 +95,47 @@ Activar:
   sudo systemctl enable octopus-celery-worker octopus-celery-beat
   sudo systemctl start octopus-celery-worker octopus-celery-beat
 
+Para un ambiente de staging con otro nombre de servicio (mismo patron que
+usa deploy.sh via la variable SERVICE), duplicar las dos unidades con el
+prefijo correspondiente, p.ej. octopus-staging-celery-worker.service y
+octopus-staging-celery-beat.service, ajustando WorkingDirectory a la ruta
+de ese REPO.
+
+## Integracion con deploy.sh
+
+deploy.sh reinicia backend, Celery Worker y Celery Beat como tres unidades
+systemd independientes: $SERVICE, $SERVICE-celery-worker y
+$SERVICE-celery-beat (SERVICE=octopus por defecto). Tras reiniciarlas
+corre `manage.py verificar_celery` (ver abajo) para confirmar que todo
+quedo operativo, sin volver a reiniciar nada.
+
+## Verificar estado sin reiniciar nada
+
+Comando de Django, de solo lectura (no reinicia procesos ni toca datos):
+
+  python manage.py verificar_celery
+
+Revisa: PING a Redis (via CELERY_BROKER_URL), PING de broadcast a los
+workers de Celery (`celery control inspect ping`, no interrumpe tareas en
+curso) y si hay tareas periodicas habilitadas para Beat en la base de
+datos. Termina con exit code 1 si Redis o el worker no responden.
+
+Para revisar los *procesos* systemd en el servidor sin reiniciarlos:
+
+  systemctl is-active octopus-celery-worker octopus-celery-beat
+  systemctl status --no-pager octopus-celery-worker octopus-celery-beat
+  journalctl -u octopus-celery-worker -n 50 --no-pager
+  journalctl -u octopus-celery-beat -n 50 --no-pager
+  redis-cli ping
+
 ## Variables de entorno requeridas
 
   CELERY_BROKER_URL       URL de Redis               redis://localhost:6379/0
   CELERY_RESULT_BACKEND   Backend de resultados      redis://localhost:6379/0
 
-## Nota sobre cobranza/celery.py
+## Nota sobre config/celery.py
 
-El archivo cobranza/celery.py es la configuracion Celery original del proyecto
-(apunta a octopus.settings). El nuevo config/celery.py es la instancia canonica
-que usa config.settings y es el punto de entrada correcto para -A config.
-La instancia de cobranza/celery.py puede eliminarse una vez confirmado que
-ningun otro proceso la referencia directamente.
+config/celery.py es la unica instancia de Celery del proyecto (usa
+config.settings) y el punto de entrada correcto para -A config en todos
+los comandos de este documento. La configuracion original en
+cobranza/celery.py (que apuntaba a octopus.settings) ya fue eliminada.

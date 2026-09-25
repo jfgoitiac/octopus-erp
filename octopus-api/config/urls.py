@@ -4,8 +4,10 @@ from django.contrib import admin
 from django.urls import path, include
 from authentication.cookie_views import CookieTokenObtainPairView, CookieTokenRefreshView
 from pagos_comunes.media_views import ComprobanteProtegidoView
+from .views import healthcheck
 
 urlpatterns = [
+    path('api/health/', healthcheck, name='healthcheck'),
     path('admin/', admin.site.urls),
     path('api/token/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),

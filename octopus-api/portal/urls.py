@@ -54,6 +54,7 @@ from .views import (
     PortalComprobantePagoView,
     ActivarPortalRepresentanteView,
     PortalBancosView,
+    PortalMetodosPagoView,
     AdminComprobantesView,
     VerificarReferenciaView,
     ConfiguracionColegioPublicaView,
@@ -104,6 +105,7 @@ urlpatterns = [
 
     # Datos bancarios del colegio para transferencias
     path('bancos/', PortalBancosView.as_view(), name='portal_bancos'),
+    path('metodos-pago/', PortalMetodosPagoView.as_view(), name='portal_metodos_pago'),
 
     # Admin — Listar comprobantes pendientes: GET /api/portal/admin/comprobantes/?estatus=pendiente
     path('admin/comprobantes/', AdminComprobantesView.as_view(), name='portal_admin_comprobantes'),

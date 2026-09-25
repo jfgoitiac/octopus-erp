@@ -42,7 +42,7 @@ const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
   if (!ultimosPagos?.length) return null;
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <section className="portal-card portal-card--soft p-5 h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-[var(--portal-primary,#0fa3b1)]" />
@@ -57,7 +57,7 @@ const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
       </div>
       <div className="space-y-2">
         {ultimosPagos.slice(0, 3).map((pago) => (
-          <div key={pago.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+          <div key={pago.id} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
             <div>
               <p className="text-sm text-gray-700">{pago.concepto}</p>
               <p className="text-xs text-gray-400">{formatFechaConAnio(pago.fecha_pago)}</p>
@@ -69,7 +69,7 @@ const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 

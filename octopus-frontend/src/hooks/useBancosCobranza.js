@@ -7,7 +7,7 @@ export function useBancosCobranza() {
     const [bancosLoading, setBancosLoading] = useState(false);
     const [showBancoModal, setShowBancoModal] = useState(false);
     const [bancoEditando, setBancoEditando] = useState(null);
-    const [bancoForm, setBancoForm] = useState({ nombre: '', numero_cuenta: '', tipos: [], activo: true });
+    const [bancoForm, setBancoForm] = useState({ nombre: '', numero_cuenta: '', tipos: [], portal_metodos: {}, activo: true });
     const [bancoSaving, setBancoSaving] = useState(false);
     const [showDeleteBancoModal, setShowDeleteBancoModal] = useState(false);
     const [bancoAEliminar, setBancoAEliminar] = useState(null);
@@ -28,13 +28,13 @@ export function useBancosCobranza() {
 
     const openCreateModal = () => {
         setBancoEditando(null);
-        setBancoForm({ nombre: '', numero_cuenta: '', tipos: [], activo: true });
+        setBancoForm({ nombre: '', numero_cuenta: '', tipos: [], portal_metodos: {}, activo: true });
         setShowBancoModal(true);
     };
 
     const openEditModal = (banco) => {
         setBancoEditando(banco);
-        setBancoForm({ nombre: banco.nombre, numero_cuenta: banco.numero_cuenta || '', tipos: banco.tipos || [], activo: banco.activo });
+        setBancoForm({ nombre: banco.nombre, numero_cuenta: banco.numero_cuenta || '', tipos: banco.tipos || [], portal_metodos: banco.portal_metodos || {}, activo: banco.activo });
         setShowBancoModal(true);
     };
 

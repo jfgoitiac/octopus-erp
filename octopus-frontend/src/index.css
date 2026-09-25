@@ -65,6 +65,12 @@
 
   --portal-primary:   var(--pb);
   --portal-secondary: var(--pb-mid);
+  --portal-ink:       #1e293b;
+  --portal-muted:     #64748b;
+  --portal-canvas:    #f5f7fb;
+  --portal-surface:   rgba(255,255,255,0.94);
+  --portal-line:      rgba(30,41,59,0.09);
+  --portal-shadow:    0 12px 30px rgba(15,23,42,0.07), 0 2px 7px rgba(15,23,42,0.035);
 }
 
 html { scroll-behavior: smooth; }
@@ -73,6 +79,58 @@ html { scroll-behavior: smooth; }
    respaldo. El contenedor culpable de cualquier desborde real debe
    corregirse en su propio componente. */
 html, body { overflow-x: hidden; }
+
+/* Portal de representantes: una capa visual propia, alineada con el nivel
+   de detalle del panel administrativo sin perder la marca de cada colegio. */
+.portal-shell { background: var(--portal-canvas); color: var(--portal-ink); }
+.portal-topbar {
+  background: color-mix(in srgb, var(--portal-surface) 92%, transparent);
+  border-color: var(--portal-line);
+  backdrop-filter: blur(16px);
+}
+.portal-card {
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-line);
+  border-radius: 18px;
+  box-shadow: var(--portal-shadow);
+}
+.portal-card--soft { box-shadow: 0 5px 16px rgba(15,23,42,0.045); }
+.portal-kicker {
+  color: var(--portal-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+.portal-page-title { color: var(--portal-ink); letter-spacing: -.025em; }
+.portal-amount { color: var(--portal-ink); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.portal-action {
+  border: 1px solid var(--portal-line);
+  background: var(--portal-surface);
+  box-shadow: 0 4px 12px rgba(15,23,42,0.035);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.portal-action:hover { transform: translateY(-2px); box-shadow: var(--portal-shadow); border-color: color-mix(in srgb, var(--portal-primary) 25%, white); }
+.portal-rail-link { transition: color .16s ease, background .16s ease, transform .16s ease; }
+.portal-rail-link:hover { transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .portal-action, .portal-rail-link { transition: none; }
+  .portal-action:hover, .portal-rail-link:hover { transform: none; }
+}
+
+/* ── PlaceholderRichEditor (constancias) — píldoras de datos ── */
+.pc-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--pb-light);
+  color: var(--pb-mid);
+  padding: 1px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+}
 
 /* ── react-datepicker — experiencia premium Octopus ── */
 .react-datepicker-wrapper { width: 100%; }

@@ -9,7 +9,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar }) => {
   if (!resumen) return null;
 
   return (
-    <div className={`rounded-2xl p-4 border ${tieneDeuda ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
+    <section className={`portal-card p-5 h-full ${tieneDeuda ? 'bg-red-50/70' : 'bg-emerald-50/70'}`}>
       <div className="flex items-center gap-2 mb-3">
         {tieneDeuda ? (
           <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
@@ -95,7 +95,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar }) => {
           </p>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

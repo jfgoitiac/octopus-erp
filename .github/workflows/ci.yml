@@ -66,5 +66,10 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      # Bloqueante: octopus-frontend tiene suite de Vitest (39 tests).
+      # octopus-sitio no define script "test" — --if-present lo omite sin fallar.
+      - name: Tests
+        run: npm test --if-present
+
       - name: Build
         run: npm run build

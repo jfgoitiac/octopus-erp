@@ -1,0 +1,2 @@
+# Los scripts se ejecutan en servidores Linux; CRLF rompe su sintaxis en bash.
+*.sh text eol=lf

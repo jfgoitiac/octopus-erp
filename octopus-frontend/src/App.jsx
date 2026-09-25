@@ -32,6 +32,7 @@ const Inscripciones            = lazy(() => import('./pages/Inscripciones'));
 const CobranzaDashboard        = lazy(() => import('./pages/CobranzaDashboard'));
 const Cobranza                 = lazy(() => import('./pages/Cobranza'));
 const Comprobantes             = lazy(() => import('./pages/Comprobantes'));
+const RevisionComprobantes     = lazy(() => import('./pages/RevisionComprobantes'));
 const ConsultaSolvencia        = lazy(() => import('./pages/ConsultaSolvencia'));
 const ListaAlumnos             = lazy(() => import('./pages/ListaAlumnos'));
 const ConsultaInscripcion      = lazy(() => import('./pages/ConsultaInscripcion'));
@@ -51,6 +52,7 @@ const Auditoria                = lazy(() => import('./pages/Auditoria'));
 const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
 const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
+const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/PlantillaEditorConstancia'));
 const EmisionConstancias       = lazy(() => import('./pages/constancias/EmisionConstancias'));
 const HistoricoConstancias     = lazy(() => import('./pages/constancias/HistoricoConstancias'));
 const FirmanteConstancias      = lazy(() => import('./pages/constancias/FirmanteConstancias'));
@@ -205,7 +207,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="alumnos" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.STAFF_SEDE}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.STAFF_SEDE, ROLES.COORDINADOR]}>
                   <ListaAlumnos />
                 </ProtectedRoute>
               } />
@@ -225,7 +227,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="representantes" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ATENCION_FAMILIAS}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.ATENCION_FAMILIAS, ROLES.SISTEMAS]}>
                   <Representantes />
                 </ProtectedRoute>
               } />
@@ -261,6 +263,11 @@ function App() {
                   <Comprobantes />
                 </ProtectedRoute>
               } />
+              <Route path="comprobantes/revision" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.COBRANZA]}>
+                  <RevisionComprobantes />
+                </ProtectedRoute>
+              } />
               <Route path="cobranza/solvencia" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.TODOS.filter(r => r !== ROLES.SISTEMAS)}>
                   <ConsultaSolvencia />
@@ -281,6 +288,16 @@ function App() {
               <Route path="constancias/plantillas" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.SECRETARIA_ADMIN}>
                   <PlantillasConstancias />
+                </ProtectedRoute>
+              } />
+              <Route path="constancias/plantillas/nueva" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <PlantillaEditorConstancia />
+                </ProtectedRoute>
+              } />
+              <Route path="constancias/plantillas/:id/editar" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <PlantillaEditorConstancia />
                 </ProtectedRoute>
               } />
               <Route path="constancias/emitir" element={
@@ -341,47 +358,47 @@ function App() {
 
               {/* Módulo Académico */}
               <Route path="notas" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Notas />
                 </ProtectedRoute>
               } />
               <Route path="boletin" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
                   <Boletin />
                 </ProtectedRoute>
               } />
               <Route path="asistencia" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Asistencia />
                 </ProtectedRoute>
               } />
               <Route path="horarios" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
                   <Horarios />
                 </ProtectedRoute>
               } />
               <Route path="horarios/paquetes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
                   <PaquetesHorario />
                 </ProtectedRoute>
               } />
               <Route path="materias" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
                   <Materias />
                 </ProtectedRoute>
               } />
               <Route path="docentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
                   <Docentes />
                 </ProtectedRoute>
               } />
               <Route path="incidentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Incidentes />
                 </ProtectedRoute>
               } />
               <Route path="rendimiento" element={
-                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.ADMIN_CENTRAL, ROLES.COORDINADOR]}>
                   <Rendimiento />
                 </ProtectedRoute>
               } />
