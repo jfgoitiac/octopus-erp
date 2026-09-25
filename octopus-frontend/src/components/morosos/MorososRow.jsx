@@ -1,14 +1,22 @@
+import { useState } from 'react';
 import { GraduationCap, Phone, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 import InitialsAvatar from '../shared/InitialsAvatar';
+import WhatsAppIcon from '../ui/WhatsAppIcon';
+import ModalCobroWhatsApp from '../whatsapp/ModalCobroWhatsApp';
 import { fmt } from '../../utils/format';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
 
-const MorososRow = ({ alu, animDelay }) => {
+const MorososRow = ({ alu, animDelay, ultimoAviso = null }) => {
     const navigate = useNavigate();
+    const [modalWhatsAppAbierto, setModalWhatsAppAbierto] = useState(false);
 
     const handleCobrar = () =>
         navigate(`/cobranza?cedula=${alu.representante?.cedula ?? ''}`);
+
+    const tieneTelefono = Boolean(alu.representante?.telefono?.trim());
 
     const deuda        = parseFloat(alu.monto_adeudado || 0);
     const solvencia    = parseFloat(alu.monto_solvencia_adeudado || 0);
@@ -71,6 +79,11 @@ const MorososRow = ({ alu, animDelay }) => {
                         {alu.representante.cedula}
                     </p>
                 )}
+                {ultimoAviso && (
+                    <p className="text-[10px]" style={{ color: 'var(--pb-mid)' }}>
+                        Último aviso: {formatDistanceToNow(new Date(ultimoAviso), { addSuffix: true, locale: es })}
+                    </p>
+                )}
             </td>
 
             {/* Teléfono */}
@@ -120,20 +133,44 @@ const MorososRow = ({ alu, animDelay }) => {
 
             {/* Acción */}
             <td className="px-4 py-3">
-                <button
-                    onClick={handleCobrar}
-                    className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--pb)] hover:text-white"
-                    style={{
-                        background: 'var(--pb-light)',
-                        color: 'var(--pb-mid)',
-                        border: '0.5px solid var(--pb)',
-                    }}
-                    title={`Ir a cobranza de ${alu.nombre} ${alu.apellido}`}
-                >
-                    <ExternalLink size={11} />
-                    Cobrar
-                </button>
+                <div className="flex flex-col gap-1.5 sm:flex-row">
+                    <button
+                        onClick={handleCobrar}
+                        className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--pb)] hover:text-white"
+                        style={{
+                            background: 'var(--pb-light)',
+                            color: 'var(--pb-mid)',
+                            border: '0.5px solid var(--pb)',
+                        }}
+                        title={`Ir a cobranza de ${alu.nombre} ${alu.apellido}`}
+                    >
+                        <ExternalLink size={11} />
+                        Cobrar
+                    </button>
+                    <button
+                        onClick={() => setModalWhatsAppAbierto(true)}
+                        disabled={!tieneTelefono}
+                        className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{
+                            background: '#eafaf0',
+                            color: '#166534',
+                            border: '0.5px solid #25D366',
+                        }}
+                        title={tieneTelefono ? 'Enviar cobro por WhatsApp' : 'Sin teléfono registrado'}
+                    >
+                        <WhatsAppIcon size={12} />
+                        WhatsApp
+                    </button>
+                </div>
             </td>
+
+            {modalWhatsAppAbierto && (
+                <ModalCobroWhatsApp
+                    open={modalWhatsAppAbierto}
+                    onClose={() => setModalWhatsAppAbierto(false)}
+                    representante={alu.representante}
+                />
+            )}
         </tr>
     );
 };

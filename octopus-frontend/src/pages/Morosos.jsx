@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, AlertTriangle, Loader2, RefreshCcw, Download } from 'lucide-react';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useMorosos } from '../hooks/useMorosos';
@@ -9,10 +9,12 @@ import Pagination from '../components/shared/Pagination';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
+import { listarLogsCobroWhatsApp } from '../api/notificaciones.service';
 
 const Morosos = () => {
     const [busqueda, setBusqueda] = useState('');
     const [ordenDiasAtraso, setOrdenDiasAtraso] = useState(null); // null | 'asc' | 'desc'
+    const [ultimosAvisos, setUltimosAvisos] = useState({});
     const { tasa } = useTasaBCV();
     const {
         alumnos,
@@ -39,6 +41,24 @@ const Morosos = () => {
 
     const toggleOrdenDiasAtraso = () =>
         setOrdenDiasAtraso(prev => (prev === 'desc' ? 'asc' : 'desc'));
+
+    useEffect(() => {
+        let cancelado = false;
+        listarLogsCobroWhatsApp({ page: 1, pageSize: 100 })
+            .then(({ data }) => {
+                if (cancelado) return;
+                const mapa = {};
+                for (const log of data.results) {
+                    const actual = mapa[log.representante_cedula];
+                    if (!actual || new Date(log.fecha_envio) > new Date(actual)) {
+                        mapa[log.representante_cedula] = log.fecha_envio;
+                    }
+                }
+                setUltimosAvisos(mapa);
+            })
+            .catch(() => {});
+        return () => { cancelado = true; };
+    }, [alumnos]);
 
     const columnas = [
         { key: 'alumno',      label: 'Alumno' },
@@ -160,6 +180,7 @@ const Morosos = () => {
                             key={alu.id}
                             alu={alu}
                             animDelay={idx * 30}
+                            ultimoAviso={ultimosAvisos[alu.representante?.cedula] || null}
                         />
                     ))}
                 </Tabla>
