@@ -187,34 +187,44 @@ def generar_respaldo_completo(backup_dir=None):
 
 
 def _configuracion_drive():
-    archivo = os.environ.get('GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE', '').strip()
+    token_file = os.environ.get('GOOGLE_DRIVE_TOKEN_FILE', '').strip()
     carpeta = os.environ.get('GOOGLE_DRIVE_BACKUP_FOLDER_ID', '').strip()
-    if not archivo or not carpeta:
+    if not token_file or not carpeta:
         raise RuntimeError('Faltan variables de configuración de Google Drive para el respaldo.')
-    if not Path(archivo).is_file():
-        raise RuntimeError('No se encuentra el archivo de cuenta de servicio de Google Drive.')
-    return archivo, carpeta
+    if not Path(token_file).is_file():
+        raise RuntimeError('No se encuentra el archivo de token OAuth de Google Drive.')
+    return token_file, carpeta
 
 
 def subir_respaldo_a_google_drive(ruta, nombre):
-    """Carga reanudable; no registra contenido, credenciales ni ID remoto."""
+    """
+    Carga reanudable con credenciales OAuth de un usuario (no cuenta de
+    servicio): las cuentas de servicio no tienen cuota de almacenamiento en
+    Drive personal, así que el archivo queda en el Drive del usuario dueño
+    del token. No registra contenido, credenciales ni ID remoto.
+    """
     try:
-        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request
+        from google.oauth2.credentials import Credentials
         from googleapiclient.discovery import build
         from googleapiclient.http import MediaFileUpload
     except ImportError as exc:
         raise RuntimeError('Faltan dependencias de Google Drive en el entorno.') from exc
 
-    archivo_credenciales, carpeta = _configuracion_drive()
-    credenciales = service_account.Credentials.from_service_account_file(
-        archivo_credenciales,
+    token_file, carpeta = _configuracion_drive()
+    credenciales = Credentials.from_authorized_user_file(
+        token_file,
         scopes=['https://www.googleapis.com/auth/drive.file'],
     )
+    if credenciales.expired and credenciales.refresh_token:
+        credenciales.refresh(Request())
+        Path(token_file).write_text(credenciales.to_json(), encoding='utf-8')
+
     servicio = build('drive', 'v3', credentials=credenciales, cache_discovery=False)
     media = MediaFileUpload(ruta, mimetype='application/gzip', resumable=True, chunksize=8 * MIB)
     respuesta = servicio.files().create(
         body={'name': nombre, 'parents': [carpeta]}, media_body=media,
-        fields='id, name, md5Checksum, size', supportsAllDrives=True,
+        fields='id, name, md5Checksum, size',
     ).execute(num_retries=3)
     if not respuesta.get('id'):
         raise RuntimeError('Google Drive no confirmó la carga del respaldo.')

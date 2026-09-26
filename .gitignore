@@ -33,6 +33,9 @@ Thumbs.db
 # Archivos de configuración local
 *.local
 
+# Credenciales OAuth de Google Drive generadas localmente (nunca a git)
+token.json
+
 # Uploads de usuarios/tests (MEDIA_ROOT) — no son código, no van a git
 octopus-api/media/comprobantes/
 octopus-api/media/incidentes/
