@@ -167,16 +167,39 @@ python manage.py respaldo_externo
 Debe terminar con `Respaldo externo completado: octopus_backup_<fecha>.tar.gz`
 y un correo de confirmación.
 
-## Pendiente para que corra automático (no solo manual)
+## Automatización diaria con Celery (ya configurado en `srv1765770`)
 
-Actualmente el comando se corre a mano. Para que se ejecute solo todos los
-días falta:
-- Configurar `CELERY_BROKER_URL` en el `.env` (Redis)
-- Crear las unidades systemd `<service>-celery-worker` y
-  `<service>-celery-beat` (ver `ARRANQUE_CELERY.md`)
-- Registrar `usuarios.tasks.respaldo_diario_automatico` (o el nombre que
-  tenga la tarea en `tasks.py`) en `django-celery-beat` con el horario
-  deseado
+El respaldo corre solo todos los días a las **3:00 AM hora de Caracas** vía
+la tarea periódica `respaldo-diario-bd` (`usuarios.tasks.respaldo_diario_automatico`),
+ya registrada en `django-celery-beat` (crontab `0 3 * * * America/Caracas`).
 
-Esto está pendiente de configurar en el VPS actual (`srv1765770`) al
-momento de escribir este documento (2026-09-26).
+Para replicar esto en un VPS nuevo:
+
+1. Agregar al `.env`:
+   ```bash
+   CELERY_BROKER_URL=redis://localhost:6379/0
+   CELERY_RESULT_BACKEND=redis://localhost:6379/0
+   ```
+2. `python manage.py migrate django_celery_beat`
+3. Crear las unidades systemd `<service>-celery-worker` y
+   `<service>-celery-beat` — ver `ARRANQUE_CELERY.md`. La tarea
+   `respaldo-diario-bd` ya se crea con una migración de datos de `usuarios`,
+   no hay que crearla a mano.
+
+### Gotcha con `Type=forking` + `--detach`
+
+Si el unit de `octopus-celery-worker.service` usa `--detach` (para que el
+`ExecStart` no bloquee), **hace falta la directiva `PIDFile=`** apuntando al
+mismo pidfile que se le pasa a `celery --pidfile=...`. Sin `PIDFile=`,
+systemd no logra rastrear el proceso desprendido, lo declara fallido segundos
+después de arrancar, y entra en un loop de reinicio con el error
+`Error: No nodes replied within time constraint` en el `ExecStop`.
+
+### Gotcha de nodename duplicado
+
+Si ves `DuplicateNodenameWarning` en `verificar_celery`, hay **dos** procesos
+de worker corriendo con el mismo nombre de nodo — típicamente porque ya
+existía una unidad systemd de Celery con otro nombre (ej. `celery.service`
+genérico) además de la que se acaba de crear. Buscar con
+`systemctl list-units --type=service --all | grep -i celery` y desactivar/
+eliminar la unidad duplicada.
