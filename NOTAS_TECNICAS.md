@@ -3820,3 +3820,26 @@ corrigieron en `academico/serializers.py` y `academico/views.py`:
   `PanelDisponibilidadDocente.jsx` sin un helper compartido.
 - `PanelDisponibilidadDocente.jsx` quedó sin punto de montaje real en la UI
   (no hay vista de "ficha de docente" hoy) — construido como standalone.
+
+## Recibo de cobranza: panel vs portal (detectado al unificar el recibo)
+
+- El recibo al registrar un cobro (`Cobranza.jsx`) se arma en el cliente con el
+  estado del formulario (`construirItemsRecibo`), mientras que la reimpresión y
+  el portal lo arman desde `ComprobanteSerializer`. Comparten layout
+  (`printReciboCobranza`) pero no la fuente de datos; conviene que el cobro
+  también lo genere desde el serializer.
+- El fallback del N° de recibo cuando falta `factura_id` difiere: el cobro usa
+  el id con ceros a la izquierda y la reimpresión/portal usan `#id`.
+- `ComprobanteSerializer` no envía `tasa_bcv`; el panel reimprime con tasa 0 y
+  el endpoint del portal la inyecta desde `pago.tasa_aplicada`. Solo cambia el
+  resultado si un pago tiene `monto_ves` en 0. Pendiente aparte: la deuda debe
+  marcarse a la tasa del día (fuera del alcance del recibo).
+- `PortalReciboPagoView` (PDF de servidor, `generar_pdf_recibo`) quedó sin uso
+  en el frontend tras usar el recibo del panel; sigue expuesto en
+  `/api/portal/recibo/<id>/`.
+- "Descargar recibo" abre el diálogo de impresión (iframe + `print()`); no hay
+  archivo con nombre propio. El título del documento sugiere el nombre al
+  "Guardar como PDF".
+- Los eslint de `Cobranza.jsx`, `Comprobantes.jsx`, `PortalHistorialPagos.jsx` y
+  `printReciboCobranza.jsx` ya tenían errores previos (`set-state-in-effect`,
+  imports sin usar, `only-export-components`).
