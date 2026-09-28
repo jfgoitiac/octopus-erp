@@ -745,3 +745,93 @@ class ConfiguracionColegioPublicaCacheTest(TestCase):
         resp2 = self.client.get('/api/portal/config-colegio/')
         self.assertEqual(resp2.data['titulo_web'], 'Título Nuevo')
         self.assertEqual(resp2.data['favicon_url'], 'https://ejemplo.com/nuevo-favicon.png')
+
+
+class PortalReciboPagoDatosTests(PortalTestBase):
+    """GET /api/portal/recibo/<id>/datos/ — datos del recibo de cobranza + membrete."""
+
+    def setUp(self):
+        super().setUp()
+        self.rep2, self.user2, _ = crear_representante_con_portal(
+            'V33333333', 'rep2@example.com', 'otra-clave-456'
+        )
+        self.alumno2 = crear_alumno(self.rep2, 'E84000002')
+        self.cajero = User.objects.create_user(username='cajero1', password='x')
+
+    def _pago(self, alumno, estatus='completado'):
+        return Pago.objects.create(
+            alumno=alumno, metodo_pago='efectivo', concepto='mensualidad',
+            monto_usd=Decimal('50.00'), tasa_aplicada=Decimal('40.00'),
+            usuario_receptor=self.cajero, estatus=estatus,
+        )
+
+    def _url(self, pago_id):
+        return f'/api/portal/recibo/{pago_id}/datos/'
+
+    def _config(self, **kw):
+        from secretaria.models import ConfiguracionSistema
+        return ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+            fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(), **kw
+        )
+
+    def test_exito_devuelve_pago_y_membrete(self):
+        self._config(nombre_colegio='Colegio Demo', rif='J-1', direccion_colegio='Av. 1',
+                     municipio='Baruta', estado_colegio='Miranda')
+        pago = self._pago(self.alumno)
+        self.auth_portal()
+        resp = self.client.get(self._url(pago.id))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['id'], pago.id)
+        self.assertEqual(resp.data['nombre_alumno'], self.alumno.nombre)
+        m = resp.data['membrete']
+        self.assertEqual(m['nombre'], 'Colegio Demo')
+        self.assertEqual(m['municipio_estado'], 'Baruta, Miranda')
+        self.assertIsNone(m['encabezado_personalizado'])
+
+    def test_sin_autenticacion_devuelve_401(self):
+        pago = self._pago(self.alumno)
+        self.assertEqual(self.client.get(self._url(pago.id)).status_code, 401)
+
+    def test_token_del_panel_admin_devuelve_401(self):
+        from rest_framework_simplejwt.tokens import AccessToken
+        admin = User.objects.create_user(username='admin1', password='x')
+        asignar_rol(admin, 'administrador')
+        pago = self._pago(self.alumno)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {AccessToken.for_user(admin)}')
+        self.assertEqual(self.client.get(self._url(pago.id)).status_code, 401)
+
+    def test_pago_ajeno_devuelve_404(self):
+        pago = self._pago(self.alumno2)
+        self.auth_portal()
+        self.assertEqual(self.client.get(self._url(pago.id)).status_code, 404)
+
+    def test_pago_no_confirmado_devuelve_404(self):
+        pago = self._pago(self.alumno, estatus='en_revision')
+        self.auth_portal()
+        self.assertEqual(self.client.get(self._url(pago.id)).status_code, 404)
+
+    def test_id_inexistente_devuelve_404(self):
+        self.auth_portal()
+        self.assertEqual(self.client.get(self._url(999999)).status_code, 404)
+
+    def test_404_no_distingue_entre_ajeno_no_confirmado_e_inexistente(self):
+        ajeno = self._pago(self.alumno2)
+        pendiente = self._pago(self.alumno, estatus='en_revision')
+        self.auth_portal()
+        cuerpos = {
+            str(self.client.get(self._url(i)).content)
+            for i in (ajeno.id, pendiente.id, 999999)
+        }
+        self.assertEqual(len(cuerpos), 1)
+
+    def test_colegio_sin_recortes_devuelve_membrete_vacio(self):
+        pago = self._pago(self.alumno)  # sin ConfiguracionSistema
+        self.auth_portal()
+        resp = self.client.get(self._url(pago.id))
+        self.assertEqual(resp.status_code, 200)
+        m = resp.data['membrete']
+        self.assertIsNone(m['encabezado_personalizado'])
+        self.assertIsNone(m['pie_pagina_personalizado'])
+        self.assertIsNone(m['logo_colegio'])
+        self.assertEqual(m['nombre'], '')
