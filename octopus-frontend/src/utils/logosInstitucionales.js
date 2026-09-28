@@ -53,3 +53,20 @@ export async function getLogosInstitucionales() {
 export function invalidateLogosInstitucionalesCache() {
     cache = null;
 }
+
+// Membrete con las mismas claves que devuelve el backend del portal
+// (PortalReciboPagoDatosView), para pasarlo tal cual a printReciboCobranza.
+export async function getMembrete() {
+    const l = await getLogosInstitucionales();
+    return {
+        nombre: l.nombre,
+        rif: l.rif,
+        direccion: l.direccion,
+        telefono: l.telefono,
+        municipio_estado: l.municipioEstado,
+        logo_colegio: l.logoColegio,
+        afiliacion_nombre: l.afiliacionNombre,
+        encabezado_personalizado: l.encabezadoPersonalizado,
+        pie_pagina_personalizado: l.piePaginaPersonalizado,
+    };
+}

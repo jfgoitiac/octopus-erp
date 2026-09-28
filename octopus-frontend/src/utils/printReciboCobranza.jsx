@@ -1,7 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { fmtN, fmtZ } from './formato';
-import { getLogosInstitucionales } from './logosInstitucionales';
 
 const NAVY   = '#003366';
 const RED    = '#CC0000';
@@ -259,23 +258,25 @@ const ReciboCobranzaDoc = ({ data }) => {
   );
 };
 
+/**
+ * Función pura respecto a la configuración: recibe TODO por parámetro, incluido
+ * `membrete` (datos del colegio y recortes de encabezado/pie, con las claves
+ * que devuelve el backend). No lee Configuración, contexto ni localStorage.
+ * Sin recortes, ReciboCobranzaDoc aplica el fallback (logo + datos / dirección).
+ */
 export const printReciboCobranza = async (data) => {
-  // El portal entrega el membrete ya embebido (su token no accede a la
-  // configuración del panel); el panel lo obtiene de la API como siempre.
-  const { membrete, ...datosRecibo } = data;
-  const storedLogos = membrete
-    ? {
-        logoColegio:             membrete.logo_colegio,
-        afiliacionNombre:        membrete.afiliacion_nombre,
-        encabezadoPersonalizado: membrete.encabezado_personalizado,
-        piePaginaPersonalizado:  membrete.pie_pagina_personalizado,
-        nombre:                  membrete.nombre,
-        rif:                     membrete.rif,
-        direccion:               membrete.direccion,
-        telefono:                membrete.telefono,
-        municipioEstado:         membrete.municipio_estado,
-      }
-    : await getLogosInstitucionales();
+  const { membrete = {}, ...datosRecibo } = data;
+  const storedLogos = {
+    logoColegio:             membrete.logo_colegio,
+    afiliacionNombre:        membrete.afiliacion_nombre,
+    encabezadoPersonalizado: membrete.encabezado_personalizado,
+    piePaginaPersonalizado:  membrete.pie_pagina_personalizado,
+    nombre:                  membrete.nombre,
+    rif:                     membrete.rif,
+    direccion:               membrete.direccion,
+    telefono:                membrete.telefono,
+    municipioEstado:         membrete.municipio_estado,
+  };
 
   const fullData = {
     ...datosRecibo,

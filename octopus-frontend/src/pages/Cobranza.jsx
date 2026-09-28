@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useTasaPorFecha } from '../hooks/useTasaPorFecha';
 import { printReciboCobranza } from '../utils/printReciboCobranza';
+import { getMembrete } from '../utils/logosInstitucionales';
 import { construirItemsRecibo } from '../utils/construirItemsRecibo';
 import { fmt } from '../utils/formato';
 import { esDivisa, esBolivares, requiereBanco } from '../utils/metodosPago';
@@ -658,6 +659,7 @@ const Cobranza = () => {
                     items:            itemsRecibo,
                     pagos:            pagosRecibo,
                     numeroSolvencia:  res.data.numero_solvencia || null,
+                    membrete:         await getMembrete(),
                 });
 
                 setCedula(''); setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);

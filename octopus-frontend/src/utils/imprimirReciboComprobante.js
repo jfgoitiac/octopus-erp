@@ -8,8 +8,8 @@ import { printReciboCobranza } from './printReciboCobranza';
  * (Comprobantes) y el portal de representantes, para que ambos emitan
  * exactamente el mismo modelo de recibo.
  *
- * `membrete` es opcional: el portal lo recibe embebido en la respuesta porque
- * no puede pedir la configuración del colegio con su token.
+ * `membrete` es obligatorio: el panel lo obtiene con getMembrete() y el portal
+ * lo recibe embebido en la respuesta (su token no accede a la configuración).
  */
 export const imprimirReciboComprobante = (c, membrete) => {
     const fecha = new Date(c.fecha_pago);

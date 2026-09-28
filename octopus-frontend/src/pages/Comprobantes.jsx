@@ -9,6 +9,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import apiClient from '../api/apiClient';
 import { imprimirReciboComprobante } from '../utils/imprimirReciboComprobante';
+import { getMembrete } from '../utils/logosInstitucionales';
 import { printComprobanteCompacto } from '../utils/printComprobanteCompacto';
 import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -242,11 +243,11 @@ export default function Comprobantes() {
     setPage(1);
   };
 
-  const handlePrintRecibo = (c) => {
+  const handlePrintRecibo = async (c) => {
     if (c.estatus === 'anulado') {
       toast.warning('Este comprobante está anulado.');
     }
-    imprimirReciboComprobante(c);
+    imprimirReciboComprobante(c, await getMembrete());
   };
 
   const handlePrintCompacto = (c) => {
