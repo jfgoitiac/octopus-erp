@@ -21,8 +21,7 @@ export const imprimirReciboComprobante = (c, membrete) => {
 
     // Periodo legible: "Julio 2026"
     const mesStr = format(fecha, 'MMMM', { locale: es });
-    const mes = mesStr.charAt(0).toUpperCase() + mesStr.slice(1);
-    const periodoLabel = `${mes} ${fecha.getFullYear()}`;
+    const periodoLabel = `${mesStr.charAt(0).toUpperCase() + mesStr.slice(1)} ${fecha.getFullYear()}`;
 
     const items = c.desglose_conceptos && c.desglose_conceptos.length > 0
         ? c.desglose_conceptos.map(dc => ({
@@ -30,6 +29,7 @@ export const imprimirReciboComprobante = (c, membrete) => {
             descripcion: dc.descripcion || periodoLabel,
             monto_usd:   0,
             monto_ves:   toVes(dc.monto_ves, dc.monto_usd),
+            alumno:      dc.alumno || null,
         }))
         : [{
             concepto:    c.concepto_display || '',
@@ -72,12 +72,19 @@ export const imprimirReciboComprobante = (c, membrete) => {
             monto:      toVes(c.total_ves || c.monto_ves, c.total_usd || c.monto_usd),
         }];
 
+    // Igual que al cobrar: si la operación cubrió a varios hermanos, el recibo
+    // lista a todos (y muestra la columna ESTUDIANTE por línea).
+    const alumnosOperacion = [...new Set(items.map(it => it.alumno).filter(Boolean))];
+    const nombreEstudiante = alumnosOperacion.length > 1
+        ? alumnosOperacion.join(', ')
+        : `${c.nombre_alumno || ''} ${c.apellido_alumno || ''}`.trim();
+
     return printReciboCobranza({
         nroControl:       c.factura_id || `#${c.id}`,
-        mes,
+        mes:              mesStr.toUpperCase(),
         año:              fecha.getFullYear(),
         fechaPago:        format(fecha, 'dd/MM/yyyy', { locale: es }),
-        nombreEstudiante: `${c.nombre_alumno || ''} ${c.apellido_alumno || ''}`.trim(),
+        nombreEstudiante,
         grado:            c.grado || '',
         representante:    c.representante_nombre ||
                           c.nombre_completo_representante ||
