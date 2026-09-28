@@ -1,5 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { getLogosInstitucionales } from './logosInstitucionales';
 
 const fmt = n =>
   isNaN(n) || n === '' || n === null
@@ -18,7 +19,7 @@ const ComprobanteCard = ({ data }) => {
     nroControl, fechaPago,
     nombreEstudiante, grado, representante,
     items = [], pagos = [],
-    observaciones,
+    observaciones, institucion = {},
   } = data;
 
   const total = items.reduce((s, it) => s + (parseFloat(it.monto_ves) || 0), 0);
@@ -32,8 +33,10 @@ const ComprobanteCard = ({ data }) => {
         {/* Header */}
         <div style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}`, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: NAVY }}>U.E. Colegio Los Hijos de María Auxiliadora</p>
-            <p style={{ margin: '2px 0 0', fontSize: '10px', color: GRAY }}>Yaracal, Edo. Falcón · RIF J-085222910</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: NAVY }}>{institucion.nombre || ''}</p>
+            <p style={{ margin: '2px 0 0', fontSize: '10px', color: GRAY }}>
+              {[institucion.municipioEstado, institucion.rif && `RIF ${institucion.rif}`].filter(Boolean).join(' · ')}
+            </p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontSize: '10px', fontWeight: '700', color: GREEN, background: '#dcfce7', padding: '3px 9px', borderRadius: '20px', display: 'inline-block' }}>
@@ -93,11 +96,13 @@ const ComprobanteCard = ({ data }) => {
         )}
 
         {/* Footer */}
-        <div style={{ background: LIGHT, borderTop: `1px solid ${BORDER}`, padding: '7px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: '10px', color: GRAY }}>
-            Tel: 0259 938 1347 · 0426 563 1569
-          </p>
-        </div>
+        {institucion.telefono && (
+          <div style={{ background: LIGHT, borderTop: `1px solid ${BORDER}`, padding: '7px 16px', textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '10px', color: GRAY }}>
+              Tel: {institucion.telefono}
+            </p>
+          </div>
+        )}
 
       </div>
 
@@ -110,9 +115,16 @@ const ComprobanteCard = ({ data }) => {
   );
 };
 
-export const printComprobanteCompacto = (data) => {
+export const printComprobanteCompacto = async (data) => {
+  const logos = await getLogosInstitucionales();
+  const institucion = {
+    nombre:          logos.nombre          || '',
+    rif:             logos.rif             || '',
+    telefono:        logos.telefono        || '',
+    municipioEstado: logos.municipioEstado || '',
+  };
   try {
-    const html = renderToStaticMarkup(<ComprobanteCard data={data} />);
+    const html = renderToStaticMarkup(<ComprobanteCard data={{ ...data, institucion }} />);
 
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
