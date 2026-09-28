@@ -20,6 +20,7 @@ const ComprobanteCard = ({ data }) => {
     nombreEstudiante, grado, representante,
     items = [], pagos = [],
     observaciones, institucion = {},
+    encabezadoPersonalizado, piePaginaPersonalizado,
   } = data;
 
   const total = items.reduce((s, it) => s + (parseFloat(it.monto_ves) || 0), 0);
@@ -30,14 +31,21 @@ const ComprobanteCard = ({ data }) => {
       {/* Card */}
       <div style={{ border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'hidden', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-        {/* Header */}
-        <div style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}`, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: NAVY }}>{institucion.nombre || ''}</p>
-            <p style={{ margin: '2px 0 0', fontSize: '10px', color: GRAY }}>
-              {[institucion.municipioEstado, institucion.rif && `RIF ${institucion.rif}`].filter(Boolean).join(' · ')}
-            </p>
+        {/* Encabezado: el recorte de Configuración reemplaza el bloque de texto */}
+        {encabezadoPersonalizado && (
+          <div style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <img src={encabezadoPersonalizado} alt="encabezado" style={{ width: '100%', display: 'block' }} />
           </div>
+        )}
+        <div style={{ background: LIGHT, borderBottom: `1px solid ${BORDER}`, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {encabezadoPersonalizado ? <div /> : (
+            <div>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: NAVY }}>{institucion.nombre || ''}</p>
+              <p style={{ margin: '2px 0 0', fontSize: '10px', color: GRAY }}>
+                {[institucion.municipioEstado, institucion.rif && `RIF ${institucion.rif}`].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          )}
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontSize: '10px', fontWeight: '700', color: GREEN, background: '#dcfce7', padding: '3px 9px', borderRadius: '20px', display: 'inline-block' }}>
               PAGADO
@@ -96,7 +104,11 @@ const ComprobanteCard = ({ data }) => {
         )}
 
         {/* Footer */}
-        {institucion.telefono && (
+        {piePaginaPersonalizado ? (
+          <div style={{ borderTop: `1px solid ${BORDER}` }}>
+            <img src={piePaginaPersonalizado} alt="pie de página" style={{ width: '100%', display: 'block' }} />
+          </div>
+        ) : institucion.telefono && (
           <div style={{ background: LIGHT, borderTop: `1px solid ${BORDER}`, padding: '7px 16px', textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: '10px', color: GRAY }}>
               Tel: {institucion.telefono}
@@ -124,7 +136,7 @@ export const printComprobanteCompacto = async (data) => {
     municipioEstado: logos.municipioEstado || '',
   };
   try {
-    const html = renderToStaticMarkup(<ComprobanteCard data={{ ...data, institucion }} />);
+    const html = renderToStaticMarkup(<ComprobanteCard data={{ ...data, institucion, encabezadoPersonalizado: logos.encabezadoPersonalizado, piePaginaPersonalizado: logos.piePaginaPersonalizado }} />);
 
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
