@@ -453,6 +453,35 @@ class PortalHistorialPagosView(APIView):
         })
 
 
+def _pago_confirmado_del_representante(representante, pago_id):
+    """Pago 'completado' en el que participó algún alumno del representante
+    (titular o hermano de una operación conjunta), o None si no existe o no
+    le pertenece."""
+    from django.db.models import Q
+    return Pago.objects.filter(
+        Q(alumno__representante=representante)
+        | Q(mensualidades_pagadas__alumno__representante=representante)
+        | Q(cuotas_inscripcion_pagadas__alumno__representante=representante)
+        | Q(cuotas_solvencia_pagadas__alumno__representante=representante)
+    ).distinct().filter(id=pago_id, estatus='completado').first()
+
+
+def _imagen_a_data_uri(campo_imagen):
+    """ImageField -> data URI (o None). El portal no puede pedir estas imágenes
+    con su token: los media del admin exigen otra autenticación."""
+    import base64
+    import mimetypes
+    if not campo_imagen:
+        return None
+    try:
+        with campo_imagen.open('rb') as f:
+            contenido = f.read()
+        mime = mimetypes.guess_type(campo_imagen.name)[0] or 'image/png'
+    except (OSError, ValueError):
+        return None
+    return f"data:{mime};base64,{base64.b64encode(contenido).decode('ascii')}"
+
+
 class PortalReciboPagoView(APIView):
     """
     GET /api/portal/recibo/<pago_id>/
@@ -466,20 +495,13 @@ class PortalReciboPagoView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pago_id):
-        from django.db.models import Q
         from django.http import FileResponse
         from cobranza.utils import generar_pdf_recibo
 
         representante = _get_representante(request)
 
-        try:
-            pago = Pago.objects.filter(
-                Q(alumno__representante=representante)
-                | Q(mensualidades_pagadas__alumno__representante=representante)
-                | Q(cuotas_inscripcion_pagadas__alumno__representante=representante)
-                | Q(cuotas_solvencia_pagadas__alumno__representante=representante)
-            ).distinct().get(id=pago_id, estatus='completado')
-        except Pago.DoesNotExist:
+        pago = _pago_confirmado_del_representante(representante, pago_id)
+        if pago is None:
             return Response(
                 {'error': 'Pago no encontrado, no está confirmado, o no pertenece a sus alumnos.'},
                 status=status.HTTP_404_NOT_FOUND
@@ -507,6 +529,54 @@ class PortalReciboPagoView(APIView):
             filename=f"Recibo_{factura_label}.pdf",
             content_type='application/pdf'
         )
+
+
+class PortalReciboPagoDatosView(APIView):
+    """
+    GET /api/portal/recibo/<pago_id>/datos/
+    Mismos datos que usa el panel admin para reimprimir un comprobante
+    (ComprobanteSerializer) más el membrete institucional embebido, para que
+    el portal dibuje el recibo con el MISMO modelo que el recibo de cobranza
+    (frontend utils/printReciboCobranza).
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pago_id):
+        from cobranza.serializers import ComprobanteSerializer
+        from secretaria.models import ConfiguracionSistema
+
+        representante = _get_representante(request)
+        pago = _pago_confirmado_del_representante(representante, pago_id)
+        if pago is None:
+            return Response(
+                {'error': 'Pago no encontrado, no está confirmado, o no pertenece a sus alumnos.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        pago = Pago.objects.select_related(
+            'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
+        ).prefetch_related('solvencias_generadas').get(pk=pago.pk)
+
+        cfg = ConfiguracionSistema.objects.order_by('id').first()
+        membrete = {
+            'nombre': (cfg.nombre_colegio if cfg else '') or '',
+            'rif': (cfg.rif if cfg else '') or '',
+            'direccion': (cfg.direccion_colegio if cfg else '') or '',
+            'telefono': (cfg.telefono_colegio if cfg else '') or '',
+            'municipio_estado': ', '.join(
+                x for x in ((cfg.municipio, cfg.estado_colegio) if cfg else ()) if x
+            ),
+            'logo_colegio': _imagen_a_data_uri(cfg.logo_colegio) if cfg else None,
+            'afiliacion_nombre': (cfg.afiliacion_nombre if cfg else '') or '',
+            'encabezado_personalizado': _imagen_a_data_uri(cfg.encabezado_personalizado) if cfg else None,
+            'pie_pagina_personalizado': _imagen_a_data_uri(cfg.pie_pagina_personalizado) if cfg else None,
+        }
+
+        data = ComprobanteSerializer(pago).data
+        data['tasa_bcv'] = str(pago.tasa_aplicada or '0')
+        data['membrete'] = membrete
+        return Response(data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
