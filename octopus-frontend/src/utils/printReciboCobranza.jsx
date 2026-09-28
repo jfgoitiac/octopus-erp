@@ -49,6 +49,7 @@ const ReciboCobranzaDoc = ({ data }) => {
     nombreEstudiante, grado, representante, ciRepresentante,
     tasa, items = [], observaciones,
     logoColegio, afiliacionNombre, encabezadoPersonalizado, piePaginaPersonalizado, numeroSolvencia,
+    institucion = {},
   } = data;
 
   const tasaNum = parseFloat(tasa) || 0;
@@ -92,12 +93,11 @@ const ReciboCobranzaDoc = ({ data }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5px' }}>
                 <span style={{ fontSize: '7.5px', color: TEXT }}>REPÚBLICA BOLIVARIANA DE VENEZUELA</span>
                 <span style={{ fontSize: '7.5px', color: TEXT }}>MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN</span>
-                <span style={{ fontSize: '8px', fontWeight: '700', color: TEXT }}>U.E. COLEGIO LOS HIJOS DE MARÍA AUXILIADORA</span>
+                {institucion.nombre && <span style={{ fontSize: '8px', fontWeight: '700', color: TEXT, textTransform: 'uppercase' }}>{institucion.nombre}</span>}
                 {afiliacionNombre && <span style={{ fontSize: '7px', color: TEXT }}>AFILIADO A {afiliacionNombre}</span>}
-                <span style={{ fontSize: '7px', color: TEXT }}>YARACAL ESTADO FALCÓN</span>
-                <span style={{ fontSize: '7px', color: TEXT }}>TELÉFONO 0259 938 1347 - 0426 563 1569</span>
-                <span style={{ fontSize: '7px', color: TEXT }}>CÓDIGO DEA PD00131104</span>
-                <span style={{ fontSize: '7px', color: TEXT }}>RIF-J-085222910</span>
+                {institucion.municipioEstado && <span style={{ fontSize: '7px', color: TEXT, textTransform: 'uppercase' }}>{institucion.municipioEstado}</span>}
+                {institucion.telefono && <span style={{ fontSize: '7px', color: TEXT }}>TELÉFONO {institucion.telefono}</span>}
+                {institucion.rif && <span style={{ fontSize: '7px', color: TEXT }}>RIF {institucion.rif}</span>}
               </div>
             </td>
           </tr>
@@ -251,7 +251,7 @@ const ReciboCobranzaDoc = ({ data }) => {
         borderTop: `1px solid ${BORDER}`,
         paddingTop: '8px',
       }}>
-        Calle el Samán, detrás de la Guardia Nacional en el Municipio Cacique Manaure, Yaracal, Estado Falcon.
+        {institucion.direccion || ''}
       </div>
       )}
 
@@ -260,10 +260,32 @@ const ReciboCobranzaDoc = ({ data }) => {
 };
 
 export const printReciboCobranza = async (data) => {
-  const storedLogos = await getLogosInstitucionales();
+  // El portal entrega el membrete ya embebido (su token no accede a la
+  // configuración del panel); el panel lo obtiene de la API como siempre.
+  const { membrete, ...datosRecibo } = data;
+  const storedLogos = membrete
+    ? {
+        logoColegio:             membrete.logo_colegio,
+        afiliacionNombre:        membrete.afiliacion_nombre,
+        encabezadoPersonalizado: membrete.encabezado_personalizado,
+        piePaginaPersonalizado:  membrete.pie_pagina_personalizado,
+        nombre:                  membrete.nombre,
+        rif:                     membrete.rif,
+        direccion:               membrete.direccion,
+        telefono:                membrete.telefono,
+        municipioEstado:         membrete.municipio_estado,
+      }
+    : await getLogosInstitucionales();
 
   const fullData = {
-    ...data,
+    ...datosRecibo,
+    institucion: {
+      nombre:          storedLogos.nombre          || '',
+      rif:             storedLogos.rif             || '',
+      direccion:       storedLogos.direccion       || '',
+      telefono:        storedLogos.telefono        || '',
+      municipioEstado: storedLogos.municipioEstado || '',
+    },
     logoColegio:             storedLogos.logoColegio             || null,
     afiliacionNombre:        storedLogos.afiliacionNombre        || '',
     encabezadoPersonalizado: storedLogos.encabezadoPersonalizado || null,

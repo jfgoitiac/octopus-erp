@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Receipt, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getDashboard, getHistorial, getReciboPago } from '../api/portal.service';
+import { getDashboard, getHistorial, getReciboPagoDatos } from '../api/portal.service';
+import { imprimirReciboComprobante } from '../../utils/imprimirReciboComprobante';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SkeletonCard from '../components/SkeletonCard';
@@ -108,18 +109,12 @@ const PortalHistorialPagos = () => {
   const handleDescargarRecibo = async (pago) => {
     setDescargandoId(pago.id);
     try {
-      const res = await getReciboPago(pago.id);
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Recibo_${pago.factura_id || pago.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      // Mismo modelo de recibo que el de cobranza del panel.
+      const res = await getReciboPagoDatos(pago.id);
+      const { membrete, ...comprobante } = res.data;
+      await imprimirReciboComprobante(comprobante, membrete);
     } catch {
-      toast.error('No se pudo descargar el recibo. Intenta más tarde.');
+      toast.error('No se pudo cargar el recibo. Intenta más tarde.');
     } finally {
       setDescargandoId(null);
     }
@@ -201,7 +196,7 @@ const PortalHistorialPagos = () => {
                       ) : (
                         <Download size={13} aria-hidden="true" />
                       )}
-                      Recibo
+                      Ver recibo
                     </button>
                   )}
                 </div>

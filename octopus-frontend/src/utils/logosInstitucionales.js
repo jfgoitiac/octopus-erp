@@ -31,7 +31,13 @@ export async function getLogosInstitucionales() {
                 urlToDataUri(res.data?.encabezado_personalizado),
                 urlToDataUri(res.data?.pie_pagina_personalizado),
             ]);
+            const d = res.data || {};
             cache = {
+                nombre: d.nombre_colegio || '',
+                rif: d.rif || '',
+                direccion: d.direccion_colegio || '',
+                telefono: d.telefono_colegio || '',
+                municipioEstado: [d.municipio, d.estado_colegio].filter(Boolean).join(', '),
                 logoColegio,
                 afiliacionNombre: res.data?.afiliacion_nombre || '',
                 encabezadoPersonalizado,
@@ -39,7 +45,7 @@ export async function getLogosInstitucionales() {
             };
             return cache;
         })
-        .catch(() => ({ logoColegio: null, afiliacionNombre: '', encabezadoPersonalizado: null, piePaginaPersonalizado: null }))
+        .catch(() => ({ nombre: '', rif: '', direccion: '', telefono: '', municipioEstado: '', logoColegio: null, afiliacionNombre: '', encabezadoPersonalizado: null, piePaginaPersonalizado: null }))
         .finally(() => { inflight = null; });
     return inflight;
 }

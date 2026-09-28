@@ -8,7 +8,7 @@ import { toast } from 'react-toastify';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import apiClient from '../api/apiClient';
-import { printReciboCobranza } from '../utils/printReciboCobranza';
+import { imprimirReciboComprobante } from '../utils/imprimirReciboComprobante';
 import { printComprobanteCompacto } from '../utils/printComprobanteCompacto';
 import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -246,65 +246,7 @@ export default function Comprobantes() {
     if (c.estatus === 'anulado') {
       toast.warning('Este comprobante está anulado.');
     }
-
-    const fecha = new Date(c.fecha_pago);
-    const tasa = parseFloat(c.tasa_bcv || 0);
-    const toVes = (ves, usd) => {
-      const v = parseFloat(ves) || 0;
-      return v > 0 ? v : (parseFloat(usd) || 0) * tasa;
-    };
-
-    // Periodo legible: "Julio 2026"
-    const mesStr = format(fecha, 'MMMM', { locale: es });
-    const periodoLabel = `${mesStr.charAt(0).toUpperCase() + mesStr.slice(1)} ${fecha.getFullYear()}`;
-
-    const items = c.desglose_conceptos && c.desglose_conceptos.length > 0
-      ? c.desglose_conceptos.map(dc => ({
-          concepto:    dc.concepto_display || dc.concepto || c.concepto_display,
-          descripcion: dc.descripcion || periodoLabel,
-          monto_usd:   0,
-          monto_ves:   toVes(dc.monto_ves, dc.monto_usd),
-        }))
-      : [{
-          concepto:    c.concepto_display || '',
-          descripcion: periodoLabel,
-          monto_usd:   0,
-          monto_ves:   toVes(c.total_ves || c.monto_ves, c.total_usd || c.monto_usd),
-        }];
-
-    const pagos = c.desglose_pagos && c.desglose_pagos.length > 0
-      ? c.desglose_pagos.map(dp => ({
-          metodo:     dp.metodo_pago_display || dp.metodo_pago || '',
-          banco:      dp.banco_nombre || '',
-          referencia: dp.referencia   || '',
-          monto:      toVes(dp.monto_ves, dp.monto_usd),
-        }))
-      : [{
-          metodo:     c.metodo_pago_display || c.metodo_pago || '',
-          banco:      c.banco_nombre || '',
-          referencia: c.referencia   || '',
-          monto:      toVes(c.total_ves || c.monto_ves, c.total_usd || c.monto_usd),
-        }];
-
-    printReciboCobranza({
-      nroControl:      c.factura_id || `#${c.id}`,
-      mes:             mesStr.charAt(0).toUpperCase() + mesStr.slice(1),
-      año:             fecha.getFullYear(),
-      fechaPago:       format(fecha, 'dd/MM/yyyy', { locale: es }),
-      nombreEstudiante:`${c.nombre_alumno || ''} ${c.apellido_alumno || ''}`.trim(),
-      grado:           c.grado             || '',
-      representante:   c.representante_nombre ||
-                       c.nombre_completo_representante ||
-                       `${c.nombre_representante || ''} ${c.apellido_representante || ''}`.trim() ||
-                       c.representante || '',
-      ciRepresentante: c.cedula_representante || c.cedula_escolar || '',
-      cajero:          c.cajero            || '',
-      tasa:            0,
-      items,
-      pagos,
-      observaciones:   c.observaciones     || '',
-      numeroSolvencia: c.numero_solvencia  || null,
-    });
+    imprimirReciboComprobante(c);
   };
 
   const handlePrintCompacto = (c) => {

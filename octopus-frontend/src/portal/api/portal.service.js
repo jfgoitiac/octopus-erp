@@ -53,6 +53,14 @@ export const getReciboPago = (pagoId) =>
   portalClient.get(`recibo/${pagoId}/`, { responseType: 'blob' });
 
 /**
+ * Datos del recibo de un pago confirmado (mismo formato que el comprobante del
+ * panel + membrete institucional embebido) para dibujar el recibo de cobranza.
+ * @param {number|string} pagoId
+ */
+export const getReciboPagoDatos = (pagoId) =>
+  portalClient.get(`recibo/${pagoId}/datos/`);
+
+/**
  * Solicita el envío del email de recuperación de contraseña.
  * La respuesta es siempre 200 con el mismo mensaje (exista o no la cuenta),
  * así que el frontend no debe intentar distinguir "no existe" de "enviado".
