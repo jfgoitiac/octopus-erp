@@ -113,6 +113,7 @@ const PortalHistorialPagos = () => {
       const res = await getReciboPagoDatos(pago.id);
       const { membrete, ...comprobante } = res.data;
       await imprimirReciboComprobante(comprobante, membrete);
+      toast.success('Recibo listo. Elige "Guardar como PDF" para descargarlo.');
     } catch {
       toast.error('No se pudo cargar el recibo. Intenta más tarde.');
     } finally {
@@ -189,14 +190,14 @@ const PortalHistorialPagos = () => {
                       type="button"
                       onClick={() => handleDescargarRecibo(pago)}
                       disabled={descargandoId === pago.id}
-                      className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary,#0fa3b1)] hover:underline disabled:opacity-50 min-h-[32px]"
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary,#0fa3b1)] hover:underline disabled:opacity-50 min-h-[44px] sm:min-h-[32px]"
                     >
                       {descargandoId === pago.id ? (
                         <span className="animate-spin inline-block w-3 h-3 border-2 border-[var(--portal-primary,#0fa3b1)] border-t-transparent rounded-full" aria-hidden="true" />
                       ) : (
                         <Download size={13} aria-hidden="true" />
                       )}
-                      Ver recibo
+                      Descargar recibo
                     </button>
                   )}
                 </div>
