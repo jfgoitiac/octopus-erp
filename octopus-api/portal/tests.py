@@ -789,6 +789,24 @@ class PortalReciboPagoDatosTests(PortalTestBase):
         self.assertEqual(m['municipio_estado'], 'Baruta, Miranda')
         self.assertIsNone(m['encabezado_personalizado'])
 
+    def test_operacion_multipago_usa_el_numero_de_recibo_del_primer_pago(self):
+        """Cualquier fila de la operación devuelve el N° de recibo que imprimió
+        el panel al cobrar (factura_id del primer pago)."""
+        primero = self._pago(self.alumno)
+        segundo = Pago.objects.create(
+            alumno=self.alumno, metodo_pago='transferencia', concepto='mensualidad',
+            monto_usd=Decimal('20.00'), tasa_aplicada=Decimal('40.00'),
+            usuario_receptor=self.cajero, estatus='completado',
+            operacion_uuid=primero.operacion_uuid,
+        )
+        self.assertNotEqual(primero.factura_id, segundo.factura_id)
+        self.auth_portal()
+        for pago_id in (primero.id, segundo.id):
+            resp = self.client.get(self._url(pago_id))
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.data['factura_id'], primero.factura_id)
+            self.assertEqual(len(resp.data['desglose_pagos']), 2)
+
     def test_sin_autenticacion_devuelve_401(self):
         pago = self._pago(self.alumno)
         self.assertEqual(self.client.get(self._url(pago.id)).status_code, 401)

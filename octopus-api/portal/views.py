@@ -554,9 +554,14 @@ class PortalReciboPagoDatosView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        pago = Pago.objects.select_related(
+        # El recibo se emite por operación, no por fila Pago: al cobrar y al
+        # reimprimir desde Comprobantes, el panel usa el PRIMER pago de la
+        # operación (su factura_id es el N° de recibo). Si el representante
+        # abre otra fila de la misma operación (pago mixto o de un hermano),
+        # debe salir ese mismo número, no el de la fila.
+        pago = Pago.objects.filter(operacion_uuid=pago.operacion_uuid).select_related(
             'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-        ).prefetch_related('solvencias_generadas').get(pk=pago.pk)
+        ).prefetch_related('solvencias_generadas').order_by('id').first()
 
         cfg = ConfiguracionSistema.objects.order_by('id').first()
         membrete = {
