@@ -18,7 +18,11 @@ from .services import propagar_monto_global, reporte_costo_becas
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
 from .conciliacion import extraer_tabla_pdf, PdfSinTablaError
-from .utils import generar_pdf_recibo
+from urllib.parse import quote
+from .recibo_cobranza import (
+    DIAS_VIGENCIA_ENLACE, firmar_enlace_recibo, generar_pdf_recibo, leer_enlace_recibo,
+    nombre_archivo_recibo, numero_recibo,
+)
 from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, IsDirector
 from usuarios.models import LogAuditoria
 from config.pagination import StandardResultsPagination
@@ -693,8 +697,11 @@ class RegistrarPagoView(APIView):
                 if a['mensualidad_ids'] or a['mensualidad_adelanto_ids']:
                     sincronizar_estatus_alumno(a['alumno'])
 
-            # Correo de "pago confirmado" al representante, uno por cada pago
-            # que quedó vinculado a una mensualidad (con recibo PDF adjunto).
+            # Correo de "pago confirmado" al representante, con el recibo PDF
+            # adjunto: UNO por operación. El recibo cubre la operación entera
+            # (todas sus filas Pago y hermanos) y las mensualidades se enlazan
+            # a todas las filas, así que avisar por cada fila mandaba el mismo
+            # recibo repetido en pagos mixtos.
             # El pago ya quedó guardado en BD — si Celery/Redis está caído,
             # no debe fallar el registro del pago solo porque no se pudo
             # encolar el aviso (mismo patrón que portal/views.py, ver
@@ -710,6 +717,7 @@ class RegistrarPagoView(APIView):
                             'Pago #%s registrado pero falló el encolado de la notificación '
                             'al representante: %s', pago.id, exc
                         )
+                    break
 
         montos_cuota_inscripcion = data.get('montos_cuota_inscripcion') or {}
         todas_cuotas_inscripcion_qs = CuotaInscripcion.objects.none()
@@ -832,36 +840,109 @@ class RegistrarPagoView(APIView):
 # RECIBO PDF
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _respuesta_recibo_pdf(pago, as_attachment=False):
+    """FileResponse con el recibo de cobranza (motor único, recibo_cobranza.py)."""
+    try:
+        pdf_buffer = generar_pdf_recibo(pago)
+    except Exception as e:
+        logger.error(f"Error generando PDF de recibo {pago.id}: {e}")
+        return Response(
+            {"error": "No se pudo generar el recibo PDF."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    return FileResponse(
+        pdf_buffer,
+        as_attachment=as_attachment,
+        filename=nombre_archivo_recibo(pago),
+        content_type='application/pdf'
+    )
+
+
 class ReciboView(APIView):
+    """GET /api/cobranza/recibo/<pago_id>/ — recibo de cobranza en PDF (panel)."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pago_id):
         try:
-            pago_ref = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(id=pago_id)
+            pago = filtrar_por_sede(request.user, Pago.objects.all(), campo='sede').get(id=pago_id)
         except Pago.DoesNotExist:
             return Response({"error": "Pago no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return _respuesta_recibo_pdf(pago)
 
-        pagos = list(
-            Pago.objects.filter(operacion_uuid=pago_ref.operacion_uuid).select_related(
-                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-            ).order_by('id')
-        )
+
+class ReciboPublicoView(APIView):
+    """
+    GET /api/cobranza/recibo/publico/<token>/ — el recibo que se comparte por
+    WhatsApp. Sin sesión: el representante lo abre desde el enlace del mensaje.
+    El token está firmado y vence a los DIAS_VIGENCIA_ENLACE días; un token
+    alterado, vencido o de un pago anulado responde 404 sin dar detalles.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        pago_id = leer_enlace_recibo(token)
+        pago = Pago.objects.filter(id=pago_id).exclude(estatus='anulado').first() if pago_id else None
+        if pago is None:
+            return Response({"error": "El enlace no es válido o ya venció."}, status=status.HTTP_404_NOT_FOUND)
+        return _respuesta_recibo_pdf(pago)
+
+
+class ReciboWhatsAppView(APIView):
+    """
+    POST /api/cobranza/recibo/<pago_id>/whatsapp/ — prepara el envío manual
+    del recibo por WhatsApp Web (mismo patrón que el cobro por WhatsApp:
+    el panel abre wa.me con el mensaje). WhatsApp Web no permite adjuntar
+    archivos desde un enlace, así que el mensaje lleva el enlace firmado al
+    PDF. Registra el envío en el historial de notificaciones.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request, pago_id):
+        from django.urls import reverse
+        from notificaciones.models import NotificacionLog
+        from notificaciones.services import _config_colegio, _normalizar_telefono
 
         try:
-            pdf_buffer = generar_pdf_recibo(pagos)
-            factura_label = pagos[0].factura_id or f"{pago_id:06d}"
-            return FileResponse(
-                pdf_buffer,
-                as_attachment=False,
-                filename=f"Recibo_{factura_label}.pdf",
-                content_type='application/pdf'
-            )
-        except Exception as e:
-            logger.error(f"Error generando PDF de recibo {pago_id}: {e}")
+            pago = filtrar_por_sede(request.user, Pago.objects.select_related(
+                'alumno', 'alumno__representante'
+            ), campo='sede').get(id=pago_id)
+        except Pago.DoesNotExist:
+            return Response({"error": "Pago no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        if pago.estatus == 'anulado':
+            return Response({"error": "El pago está anulado."}, status=status.HTTP_400_BAD_REQUEST)
+
+        rep = pago.alumno.representante
+        telefono = _normalizar_telefono(getattr(rep, 'telefono', ''))
+        if not telefono:
             return Response(
-                {"error": "No se pudo generar el recibo PDF."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "El representante no tiene un teléfono válido registrado."},
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+        enlace = request.build_absolute_uri(
+            reverse('recibo-publico', args=[firmar_enlace_recibo(pago)])
+        )
+        nro = numero_recibo(pago)
+        mensaje = (
+            f"*{_config_colegio()['nombre_colegio']}*\n\n"
+            f"Hola {rep.nombre}, le enviamos el recibo de pago N° {nro}.\n\n"
+            f"Descárguelo aquí: {enlace}\n\n"
+            f"El enlace vence en {DIAS_VIGENCIA_ENLACE} días. También puede descargarlo "
+            f"desde el portal de representantes."
+        )
+        NotificacionLog.objects.create(
+            canal='whatsapp', tipo='pago_exitoso', modo='manual', estado='enviado',
+            destinatario=telefono, mensaje=mensaje[:500],
+            representante_cedula=rep.cedula,
+            alumno_nombre=f"{pago.alumno.nombre} {pago.alumno.apellido}",
+            proveedor='wa.me',
+        )
+        return Response({
+            'telefono': telefono,
+            'mensaje': mensaje,
+            'url': f"https://wa.me/{telefono.lstrip('+')}?text={quote(mensaje)}",
+        })
 
 
 # ──────────────────────────────────────────────────────────────────────────────

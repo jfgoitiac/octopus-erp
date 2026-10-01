@@ -19,7 +19,7 @@ from secretaria.models import Alumno, ConfiguracionSistema, Representante
 from . import correcciones
 from .models import BancoInstitucional, LineaDescuentoPago, Mensualidad, Pago, ReglaRecargoPago, TasaCambio
 from .serializers import calcular_desglose_automatico
-from .utils_pdf import generar_recibo_pdf
+from .recibo_cobranza import generar_pdf_recibo
 
 
 def _crear_alumno(cedula, representante, **kwargs):
@@ -218,8 +218,8 @@ class DesgloseReciboTest(DescuentoIntegracionBase):
         self.assertEqual(response.status_code, 201, response.content)
 
         pago = Pago.objects.get(alumno=self.alumno)
-        pdf_bytes = generar_recibo_pdf(pago)
-        self.assertTrue(bytes(pdf_bytes).startswith(b'%PDF'))
+        pdf_bytes = generar_pdf_recibo(pago).getvalue()
+        self.assertTrue(pdf_bytes.startswith(b'%PDF'))
 
 
 class PantallaDeCobroAdminTest(DescuentoIntegracionBase):
