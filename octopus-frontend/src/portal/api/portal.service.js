@@ -46,19 +46,12 @@ export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = ''
 };
 
 /**
- * Descarga el recibo PDF de un pago confirmado del historial (blob).
+ * Descarga el recibo de cobranza en PDF de un pago confirmado del historial
+ * (blob). Es el mismo PDF que imprime el panel y llega por correo.
  * @param {number|string} pagoId
  */
 export const getReciboPago = (pagoId) =>
   portalClient.get(`recibo/${pagoId}/`, { responseType: 'blob' });
-
-/**
- * Datos del recibo de un pago confirmado (mismo formato que el comprobante del
- * panel + membrete institucional embebido) para dibujar el recibo de cobranza.
- * @param {number|string} pagoId
- */
-export const getReciboPagoDatos = (pagoId) =>
-  portalClient.get(`recibo/${pagoId}/datos/`);
 
 /**
  * Solicita el envío del email de recuperación de contraseña.

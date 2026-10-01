@@ -1,19 +1,15 @@
-import { useState, useEffect, useMemo, useRef, useContext, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     DollarSign, Building2, Smartphone, CreditCard, Banknote,
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import axiosInstance from '../api/apiClient';
 import { getBancos } from '../api/cobranza.service';
-import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useTasaPorFecha } from '../hooks/useTasaPorFecha';
-import { printReciboCobranza } from '../utils/printReciboCobranza';
-import { getMembrete } from '../utils/logosInstitucionales';
-import { construirItemsRecibo } from '../utils/construirItemsRecibo';
+import { imprimirReciboPago, enviarReciboPorWhatsApp } from '../utils/reciboCobranza';
+import WhatsAppIcon from '../components/ui/WhatsAppIcon';
 import { fmt } from '../utils/formato';
 import { esDivisa, esBolivares, requiereBanco } from '../utils/metodosPago';
 import { today } from '../constants/reportes';
@@ -25,25 +21,6 @@ import Stepper from '../components/shared/Stepper';
 const MOTIVO_MIN_LEN = 10;
 
 const COBRANZA_STEPS = ['Buscar y seleccionar deuda', 'Registrar pago'];
-
-const METODOS_PAGO = [
-    { value: 'transferencia',  label: 'Transferencia Bancaria' },
-    { value: 'pago_movil',     label: 'Pago Móvil' },
-    { value: 'punto_de_venta', label: 'Punto de Venta' },
-    { value: 'zelle',          label: 'Zelle' },
-    { value: 'efectivo',       label: 'Efectivo USD' },
-    { value: 'efectivo_ves',   label: 'Efectivo Bs.' },
-];
-
-const CONCEPTOS = [
-    { value: 'mensualidad', label: 'Mensualidad' },
-    { value: 'inscripcion',  label: 'Inscripción' },
-    { value: 'solvencia',    label: 'Solvencia' },
-    { value: 'materiales',   label: 'Materiales' },
-    { value: 'proyecto_inversion', label: 'Proyecto de Inversión' },
-    { value: 'multa',        label: 'Multa' },
-    { value: 'otro',         label: 'Otro' },
-];
 
 const crearLinea = () => ({
     id: Date.now() + Math.random(),
@@ -73,7 +50,6 @@ const metodoPagoIcons = {
 };
 
 const Cobranza = () => {
-    const { user } = useContext(AuthContext);
     const location = useLocation();
     const navigate = useNavigate();
     const { tasa: tasaBCV, error: tasaError, ultimaActualizacion, refetch: refetchTasa } = useTasaBCV();
@@ -591,76 +567,23 @@ const Cobranza = () => {
 
             if (res.status === 201) {
                 toast.success('¡Pago registrado correctamente!');
-                const pagosCreados = res.data.pagos;
-                // Con pago retroactivo, el recibo impreso debe reflejar la fecha real
-                // en que se recibió el dinero, no la fecha de hoy en que se digitó.
-                const ahora = retroActivo && fechaPagoRetro
-                    ? (() => { const [y, m, d] = fechaPagoRetro.split('-').map(Number); return new Date(y, m - 1, d); })()
-                    : new Date();
-
-                const bloques = alumnosSeleccionados.map(id => {
-                    const datos = datosAlumnos[id];
-                    const sel   = seleccion[id];
-                    return {
-                        nombreAlumno: datos.nombre_completo || datos.nombre,
-                        mensualidades: datos.mensualidades_pendientes,
-                        mensualidadesFuturas: datos.mensualidades_futuras,
-                        cuotasInscripcion: datos.cuotas_inscripcion_pendientes,
-                        cuotasSolvencia: datos.cuotas_solvencia_pendientes,
-                        selectedMens: sel.selectedMens,
-                        selectedFuturas: sel.selectedFuturas,
-                        selectedCuotas: sel.selectedCuotas,
-                        selectedSolvencias: sel.selectedSolvencias,
-                        montosParciales: sel.montosParciales,
-                    };
-                });
-
-                const itemsRecibo = construirItemsRecibo({
-                    bloques,
-                    selectedProyectos,
-                    cuotasProyectoInversion,
-                    montosParcialesProyectos,
-                    tasa,
-                    CONCEPTOS,
-                    totalUSD,
-                    totalVES,
-                });
-
-                // Construir formas de pago (siempre en Bs.)
-                const pagosRecibo = lineas.map(l => ({
-                    metodo: METODOS_PAGO.find(m => m.value === l.metodo_pago)?.label || l.metodo_pago,
-                    banco:  bancos.find(b => String(b.id) === String(l.banco_receptor_id))?.nombre || '',
-                    referencia: l.referencia || '',
-                    monto: esDivisa(l.metodo_pago)
-                        ? (tasa > 0 ? (parseFloat(l.monto_usd) * tasa).toFixed(2) : '')
-                        : l.monto_ves,
-                }));
-
-                const nombresAlumnos = alumnosSeleccionados
-                    .map(id => datosAlumnos[id]?.nombre_completo || datosAlumnos[id]?.nombre)
-                    .filter(Boolean)
-                    .join(', ');
-                const gradosAlumnos = alumnosSeleccionados
-                    .map(id => datosAlumnos[id]?.grado)
-                    .filter(Boolean)
-                    .join(', ');
-
-                printReciboCobranza({
-                    nroControl:       pagosCreados?.[0]?.factura_id || (pagosCreados?.[0]?.id ? String(pagosCreados[0].id).padStart(6, '0') : '—'),
-                    mes:              format(ahora, 'MMMM', { locale: es }).toUpperCase(),
-                    año:              format(ahora, 'yyyy'),
-                    fechaPago:        format(ahora, 'dd/MM/yyyy', { locale: es }),
-                    nombreEstudiante: nombresAlumnos,
-                    grado:            gradosAlumnos,
-                    representante:    representanteNombre,
-                    ciRepresentante:  representanteCedula || cedula,
-                    cajero:           user?.username || '',
-                    tasa,
-                    items:            itemsRecibo,
-                    pagos:            pagosRecibo,
-                    numeroSolvencia:  res.data.numero_solvencia || null,
-                    membrete:         await getMembrete(),
-                });
+                // Recibo: el mismo PDF que descarga el portal y llega por correo,
+                // generado en el backend con el N° del primer pago de la operación.
+                const pagoPrincipalId = res.data.pagos?.[0]?.id;
+                if (pagoPrincipalId) {
+                    imprimirReciboPago(pagoPrincipalId);
+                    toast.info(
+                        <button
+                            type="button"
+                            onClick={() => enviarReciboPorWhatsApp(pagoPrincipalId)}
+                            className="flex items-center gap-2 text-sm font-medium text-left"
+                        >
+                            <WhatsAppIcon size={16} />
+                            Enviar recibo por WhatsApp
+                        </button>,
+                        { autoClose: 15000 },
+                    );
+                }
 
                 setCedula(''); setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
                 setLineas([crearLinea()]);

@@ -22,6 +22,14 @@ export const exportarMorososExcel = (busqueda, signal) => {
 export const getBancos = (signal) =>
     apiClient.get('cobranza/bancos/', signal ? { signal } : undefined);
 
+/* ── Recibo de cobranza (motor único en el backend) ── */
+
+export const getReciboPdf = (pagoId, signal) =>
+    apiClient.get(`cobranza/recibo/${pagoId}/`, { responseType: 'blob', signal });
+
+export const prepararReciboWhatsApp = (pagoId) =>
+    apiClient.post(`cobranza/recibo/${pagoId}/whatsapp/`);
+
 export const sincronizarTasa = (signal) =>
     apiClient.post('cobranza/sincronizar-tasa/', {}, signal ? { signal } : undefined);
 

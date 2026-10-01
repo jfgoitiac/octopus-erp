@@ -3,8 +3,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Receipt, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getDashboard, getHistorial, getReciboPagoDatos } from '../api/portal.service';
-import { imprimirReciboComprobante } from '../../utils/imprimirReciboComprobante';
+import { getDashboard, getHistorial, getReciboPago } from '../api/portal.service';
+import { descargarPdf, nombreArchivoPdf } from '../../utils/pdfArchivo';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SkeletonCard from '../components/SkeletonCard';
@@ -109,11 +109,10 @@ const PortalHistorialPagos = () => {
   const handleDescargarRecibo = async (pago) => {
     setDescargandoId(pago.id);
     try {
-      // Mismo modelo de recibo que el de cobranza del panel.
-      const res = await getReciboPagoDatos(pago.id);
-      const { membrete, ...comprobante } = res.data;
-      await imprimirReciboComprobante(comprobante, membrete);
-      toast.success('Recibo listo. Elige "Guardar como PDF" para descargarlo.');
+      // Mismo PDF que imprime el panel al cobrar y que llega por correo.
+      const res = await getReciboPago(pago.id);
+      descargarPdf(res.data, nombreArchivoPdf(res.headers, `Recibo_${pago.factura_id || pago.id}.pdf`));
+      toast.success('Recibo descargado.');
     } catch {
       toast.error('No se pudo cargar el recibo. Intenta más tarde.');
     } finally {

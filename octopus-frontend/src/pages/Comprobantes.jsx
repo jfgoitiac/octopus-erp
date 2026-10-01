@@ -8,8 +8,8 @@ import { toast } from 'react-toastify';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import apiClient from '../api/apiClient';
-import { imprimirReciboComprobante } from '../utils/imprimirReciboComprobante';
-import { getMembrete } from '../utils/logosInstitucionales';
+import { imprimirReciboPago, enviarReciboPorWhatsApp } from '../utils/reciboCobranza';
+import WhatsAppIcon from '../components/ui/WhatsAppIcon';
 import { printComprobanteCompacto } from '../utils/printComprobanteCompacto';
 import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -243,11 +243,13 @@ export default function Comprobantes() {
     setPage(1);
   };
 
-  const handlePrintRecibo = async (c) => {
+  // Mismo PDF que imprime la pantalla de cobro, descarga el portal y llega
+  // por correo (motor único del recibo en el backend).
+  const handlePrintRecibo = (c) => {
     if (c.estatus === 'anulado') {
       toast.warning('Este comprobante está anulado.');
     }
-    imprimirReciboComprobante(c, await getMembrete());
+    imprimirReciboPago(c.id);
   };
 
   const handlePrintCompacto = (c) => {
@@ -592,6 +594,14 @@ export default function Comprobantes() {
                       >
                         <Printer size={13} /> Compacto
                       </button>
+                      <button
+                        onClick={() => enviarReciboPorWhatsApp(c.id)}
+                        disabled={c.estatus === 'anulado'}
+                        aria-label={`Enviar recibo ${c.factura_id || c.id} por WhatsApp`}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 transition-all duration-150 disabled:opacity-40"
+                      >
+                        <WhatsAppIcon size={13} /> WhatsApp
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -717,6 +727,16 @@ export default function Comprobantes() {
                             >
                               <Printer size={12} />
                               Compacto
+                            </button>
+                            <button
+                              onClick={() => enviarReciboPorWhatsApp(c.id)}
+                              disabled={c.estatus === 'anulado'}
+                              aria-label={`Enviar recibo ${c.factura_id || c.id} por WhatsApp`}
+                              title="Enviar el recibo al representante por WhatsApp"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 transition-all duration-150 disabled:opacity-40"
+                            >
+                              <WhatsAppIcon size={12} />
+                              WhatsApp
                             </button>
                           </div>
                         </td>
