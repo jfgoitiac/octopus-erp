@@ -29,6 +29,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Handlers de 'push'/'notificationclick' (public/push-sw.js): generateSW
+        // no los incluye, sin esto el push llega pero no se muestra.
+        importScripts: ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,ico,svg}'],
         // Imágenes de perfil/logo del colegio (ej. favicon.png fuente, logos
         // subidos) pueden pesar varios MB -- se sirven vía runtime caching

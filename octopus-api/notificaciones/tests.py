@@ -13,7 +13,7 @@ Cubren:
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from portal.models import RepresentanteUser, asignar_rol_portal
@@ -164,3 +164,47 @@ class EnviarPushTests(TestCase):
         self.assertTrue(resultado)
         self.suscripcion.refresh_from_db()
         self.assertTrue(self.suscripcion.activa)
+
+
+class PushRepresentanteContratoTests(TestCase):
+    """Contrato backend -> Service Worker (public/push-sw.js): el payload es
+    JSON con title/body/url, y `_push_representante` respeta VAPID y los
+    tipos activos de cada suscripcion."""
+
+    def setUp(self):
+        _, self.user, self.rep_user = crear_representante_con_portal('V8888', 'rep8@example.com')
+        self.con_factura = SuscripcionPush.objects.create(
+            usuario_portal=self.rep_user,
+            endpoint='https://fcm.googleapis.com/fcm/send/con-factura',
+            p256dh='clave-p256dh', auth='clave-auth',
+            tipos_activos=['factura', 'circular'],
+        )
+        self.sin_factura = SuscripcionPush.objects.create(
+            usuario_portal=self.rep_user,
+            endpoint='https://fcm.googleapis.com/fcm/send/sin-factura',
+            p256dh='clave-p256dh', auth='clave-auth',
+            tipos_activos=['circular'],
+        )
+
+    def test_payload_es_json_con_title_body_url(self):
+        import json
+        from .services import enviar_push
+        with patch('pywebpush.webpush') as mock_webpush:
+            enviar_push(self.con_factura, 'Título', 'Cuerpo', url='/portal/pagos')
+        datos = json.loads(mock_webpush.call_args.kwargs['data'])
+        self.assertEqual(datos, {'title': 'Título', 'body': 'Cuerpo', 'url': '/portal/pagos'})
+
+    @override_settings(VAPID_PUBLIC_KEY='pub', VAPID_PRIVATE_KEY='priv')
+    def test_solo_envia_a_suscripciones_con_el_tipo_activo(self):
+        from .services import _push_representante
+        with patch('notificaciones.services.enviar_push') as mock_enviar:
+            _push_representante(self.rep_user, 'factura', 'Título', 'Cuerpo')
+        enviados = [c.args[0].endpoint for c in mock_enviar.call_args_list]
+        self.assertEqual(enviados, [self.con_factura.endpoint])
+
+    @override_settings(VAPID_PUBLIC_KEY='', VAPID_PRIVATE_KEY='')
+    def test_sin_vapid_no_intenta_enviar(self):
+        from .services import _push_representante
+        with patch('notificaciones.services.enviar_push') as mock_enviar:
+            _push_representante(self.rep_user, 'circular', 'Título', 'Cuerpo')
+        mock_enviar.assert_not_called()
