@@ -3933,6 +3933,5 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    - `cobranza.test_descuento_integracion.PantallaDeCobroAdminTest.test_buscar_alumno_muestra_descuento_disponible_hoy`
    - `cobranza.test_descuento_pago.PortalCotizacionDescuentoTest.test_portal_muestra_descuento_disponible_hoy`
    - `cobranza.test_descuento_pago.PortalCotizacionDescuentoTest.test_no_repite_query_de_la_regla_al_serializar_varias_mensualidades`
-9. **Base de desarrollo con migraciones pendientes**: la BD sqlite local no
-   tiene la columna `cobranza_bancoinstitucional.portal_metodos`; hay que
-   correr `migrate` antes de probar a mano.
+9. ~~**Base de desarrollo con migraciones pendientes**~~ Resuelto el 30/09/2026: se aplicaron
+   `authentication.0007`, `cobranza.0046` y `rrhh.0010` en la sqlite local.
