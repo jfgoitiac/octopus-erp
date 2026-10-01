@@ -301,7 +301,12 @@ class PortalDashboardView(APIView):
         # PortalDashboardNPlusOneTest).
         cache_reglas_recargo = {}
 
+        # Subtotal de deuda por hijo: el total de arriba es la suma de todos
+        # los hijos; esto le permite al portal mostrar cuánto debe cada uno.
+        deuda_por_alumno = []
+
         for alumno in alumnos:
+            deuda_alumno_antes = total_deuda_usd
             pendientes = pendientes_por_alumno.get(alumno.id, [])
 
             # Mensualidades no pagadas y ya vencidas (mes <= mes actual)
@@ -353,6 +358,12 @@ class PortalDashboardView(APIView):
                     'alumno_id': alumno.id,
                 })
 
+            deuda_por_alumno.append({
+                'alumno_id': alumno.id,
+                'alumno_nombre': alumno_nombre,
+                'deuda_usd': round(total_deuda_usd - deuda_alumno_antes, 2),
+            })
+
         # El proyecto de inversión se cobra una sola vez por representante,
         # aunque tenga varios hijos: se agrega una sola vez al total.
         for p in proyectos_inversion:
@@ -366,6 +377,15 @@ class PortalDashboardView(APIView):
                 'alumno_nombre': None,
                 'alumno_id': None,
             })
+
+        # Tasa BCV vigente (la misma que usa caja al cobrar): el portal muestra
+        # los montos como REF. en dólares y su equivalente en bolívares.
+        from cobranza.models import TasaCambio
+        tasa = TasaCambio.objects.order_by('-fecha').first()
+        tasa_bcv = {
+            'valor': str(tasa.valor_bs),
+            'fecha': tasa.fecha.isoformat(),
+        } if tasa else None
 
         # Últimos 3 pagos de todos los alumnos del representante
         ultimos_pagos = Pago.objects.filter(
@@ -384,6 +404,8 @@ class PortalDashboardView(APIView):
             'alumnos': AlumnoDashboardSerializer(alumnos, many=True).data,
             'resumen_financiero': {
                 'total_deuda_usd': round(total_deuda_usd, 2),
+                'deuda_por_alumno': deuda_por_alumno,
+                'tasa_bcv': tasa_bcv,
                 'mensualidades_vencidas': mensualidades_vencidas,
                 'proximos_vencimientos': proximos_vencimientos,
                 'otros_conceptos_pendientes': otros_conceptos_pendientes,

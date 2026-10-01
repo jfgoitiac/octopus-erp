@@ -5,6 +5,7 @@ import {
   GraduationCap, CheckCircle, Megaphone, TrendingDown,
   ChevronLeft, ChevronRight, Play, Pause,
 } from 'lucide-react';
+import MontoRef from '../MontoRef';
 
 const AUTOPLAY_MS = 6000;
 
@@ -32,7 +33,7 @@ const SlideSaludo = ({ nombre, hoy, pendientes, loading }) => (
 );
 
 // Slide 2 — resumen financiero
-const SlideResumenFinanciero = ({ resumen, loading }) => {
+const SlideResumenFinanciero = ({ resumen, loading, variosAlumnos }) => {
   if (loading) return <SkeletonLineas lineas={2} />;
 
   const tieneDeuda = resumen && Number(resumen.total_deuda_usd) > 0;
@@ -52,8 +53,16 @@ const SlideResumenFinanciero = ({ resumen, loading }) => {
 
   return (
     <div className="relative h-full flex flex-col justify-center">
-      <p className="text-xs text-white/70">Deuda pendiente</p>
-      <h2 className="text-2xl font-bold mt-1">${Number(resumen.total_deuda_usd).toFixed(2)} USD</h2>
+      <p className="text-xs text-white/70">{variosAlumnos ? 'Deuda total de tus hijos' : 'Deuda pendiente'}</p>
+      <MontoRef
+        usd={resumen.total_deuda_usd}
+        tasaBcv={resumen.tasa_bcv}
+        size="lg"
+        align="left"
+        colorRef="text-white"
+        colorBs="text-white/80"
+        className="mt-1"
+      />
       {masVencida && (
         <div className="mt-3 inline-flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2 text-xs font-medium backdrop-blur-sm self-start">
           {masVencida.mes_nombre} {masVencida.anio} · {masVencida.dias_mora} días de mora
@@ -143,7 +152,7 @@ const SlideAlertaRendimiento = ({ alertaRendimiento, loading }) => {
 };
 
 const WidgetHeroPortal = ({
-  nombre, resumen, avisosSinLeer = 0, alertaRendimiento = [], logoColegio = null,
+  nombre, resumen, avisosSinLeer = 0, alertaRendimiento = [], logoColegio = null, variosAlumnos = false,
   loadingResumen = false, loadingAvisos = false, loadingRendimiento = false,
 }) => {
   const hoy = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
@@ -159,7 +168,7 @@ const WidgetHeroPortal = ({
 
   const slides = [
     <SlideSaludo key="saludo" nombre={nombre} hoy={hoy} pendientes={pendientes} loading={loadingResumen || loadingAvisos} />,
-    <SlideResumenFinanciero key="resumen-financiero" resumen={resumen} loading={loadingResumen} />,
+    <SlideResumenFinanciero key="resumen-financiero" resumen={resumen} loading={loadingResumen} variosAlumnos={variosAlumnos} />,
     <SlideAvisos key="avisos" avisosSinLeer={avisosSinLeer} loading={loadingAvisos} />,
     <SlideAlertaRendimiento key="alerta-rendimiento" alertaRendimiento={alertaRendimiento} loading={loadingRendimiento} />,
   ];

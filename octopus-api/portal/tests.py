@@ -293,6 +293,29 @@ class PortalDashboardTests(PortalTestBase):
             float(resp.data['resumen_financiero']['total_deuda_usd']), 35.0
         )
 
+    def test_deuda_total_suma_a_todos_los_hijos_y_trae_el_desglose(self):
+        hermana = crear_alumno(self.rep, 'E84000099', nombre='Ana')
+        hoy = date.today()
+        crear_mensualidad(hermana, hoy.month, hoy.year)
+        self.auth_portal()
+        resumen = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
+        self.assertEqual(float(resumen['total_deuda_usd']), 70.0)
+        por_alumno = {d['alumno_id']: d['deuda_usd'] for d in resumen['deuda_por_alumno']}
+        self.assertEqual(por_alumno, {self.alumno.id: 35.0, hermana.id: 35.0})
+
+    def test_trae_la_tasa_bcv_vigente(self):
+        TasaCambio.objects.create(valor_bs=Decimal('40.5000'))
+        self.auth_portal()
+        tasa = self.client.get('/api/portal/dashboard/').data['resumen_financiero']['tasa_bcv']
+        self.assertEqual(Decimal(tasa['valor']), Decimal('40.5'))
+        self.assertTrue(tasa['fecha'])
+
+    def test_sin_tasa_registrada_tasa_bcv_es_none(self):
+        TasaCambio.objects.all().delete()
+        self.auth_portal()
+        resumen = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
+        self.assertIsNone(resumen['tasa_bcv'])
+
     def test_token_admin_no_sirve_en_portal(self):
         """Un usuario administrativo (sin RepresentanteUser) no puede usar el portal."""
         admin = User.objects.create_user(username='admin1', password='clave123456')

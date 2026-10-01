@@ -53,6 +53,7 @@ const PortalDashboard = () => {
     : (dashboardData?.ultimos_pagos || []);
 
   const resumen = dashboardData?.resumen_financiero;
+  const variosAlumnos = (dashboardData?.alumnos?.length || 0) > 1;
   const tieneDeuda = resumen && Number(resumen.total_deuda_usd) > 0;
 
   const abrirModalComprobante = (mensualidad) => {
@@ -85,10 +86,11 @@ const PortalDashboard = () => {
         />
       )}
 
-      {/* Nombre del alumno activo (si hay varios) */}
-      {alumnoActivo && dashboardData?.alumnos?.length > 1 && (
+      {/* Con varios hijos la deuda suma a todos; el hijo seleccionado solo
+          filtra los últimos pagos. */}
+      {alumnoActivo && variosAlumnos && (
         <p className="text-sm text-gray-500">
-          Mostrando información de{' '}
+          La deuda incluye a todos tus hijos. Últimos pagos de{' '}
           <span className="font-medium text-gray-700">
             {alumnoActivo.nombre} {alumnoActivo.apellido}
           </span>
@@ -104,6 +106,7 @@ const PortalDashboard = () => {
             avisosSinLeer={avisosSinLeer}
             alertaRendimiento={alertaRendimiento}
             logoColegio={logoColegio}
+            variosAlumnos={variosAlumnos}
             loadingResumen={loading}
             loadingAvisos={loadingAvisos}
             loadingRendimiento={loadingRendimiento}
@@ -120,11 +123,12 @@ const PortalDashboard = () => {
             tieneDeuda={tieneDeuda}
             loading={loading}
             onPagar={abrirModalComprobante}
+            variosAlumnos={variosAlumnos}
           />
         </div>
 
         <div className="md:col-span-4">
-          <WidgetProximosVencimientos resumen={resumen} loading={loading} />
+          <WidgetProximosVencimientos resumen={resumen} loading={loading} variosAlumnos={variosAlumnos} />
         </div>
 
         <div className="md:col-span-4">
@@ -161,6 +165,7 @@ const PortalDashboard = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         mensualidad={mensualidadSeleccionada}
+        tasaBcv={resumen?.tasa_bcv}
         onSuccess={() => {
           setModalOpen(false);
           cargarDashboard();
