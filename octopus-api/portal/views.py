@@ -1662,6 +1662,7 @@ class ConfiguracionColegioPublicaView(APIView):
         from django.conf import settings
         from django.core.cache import cache
         from secretaria.signals import CACHE_KEY_CONFIG_COLEGIO_PUBLICA
+        from .app_instalable import nombre_corto, url_icono_app
 
         data = cache.get(CACHE_KEY_CONFIG_COLEGIO_PUBLICA)
         if data is None:
@@ -1676,6 +1677,8 @@ class ConfiguracionColegioPublicaView(APIView):
                     'titulo_web': '',
                     'descripcion_web': '',
                     'favicon_url': '',
+                    'nombre_app': 'Mi Colegio',
+                    'icono_app_url': '',
                 }
             else:
                 # logo_url (URL externa) tiene prioridad si está configurada;
@@ -1696,6 +1699,10 @@ class ConfiguracionColegioPublicaView(APIView):
                     'titulo_web': config.titulo_web or '',
                     'descripcion_web': config.descripcion_web or '',
                     'favicon_url': favicon,
+                    # Nombre bajo el ícono y apple-touch-icon del portal
+                    # instalado (ver portal/app_instalable.py).
+                    'nombre_app': nombre_corto(config.nombre_colegio or 'Mi Colegio'),
+                    'icono_app_url': url_icono_app(config, 180),
                 }
             # TTL de 5 min como red de seguridad además de la invalidación por
             # señal (secretaria/signals.py), por si corre con varios workers.

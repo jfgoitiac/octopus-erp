@@ -14,20 +14,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null, // registro manual desde useWebPush.js (virtual:pwa-register)
-      manifest: {
-        name: 'Octopus — Portal Educativo',
-        short_name: 'Octopus',
-        description: 'Portal de representantes — saldo, pagos, comunicaciones y rendimiento académico.',
-        start_url: '/portal',
-        scope: '/',
-        display: 'standalone',
-        background_color: '#f9fafb',
-        theme_color: '#0fa3b1',
-        icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-        ],
-      },
+      // El manifest NO sale del build: lo genera el backend con el nombre,
+      // color e ícono de cada colegio (/api/portal/manifest.webmanifest) y se
+      // enlaza en runtime desde src/portal/utils/instalarApp.js.
+      manifest: false,
       workbox: {
         // Handlers de 'push'/'notificationclick' (public/push-sw.js): generateSW
         // no los incluye, sin esto el push llega pero no se muestra.

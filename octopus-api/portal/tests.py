@@ -876,3 +876,67 @@ class PortalReciboPagoTests(PortalTestBase):
         self.assertIn('República Bolivariana de Venezuela', self._texto_pdf(resp))
 
 
+
+
+class PortalAppInstalableTest(TestCase):
+    """Manifest e íconos del portal instalable con la identidad del colegio
+    (portal/app_instalable.py)."""
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def _config(self, **extra):
+        from secretaria.models import ConfiguracionSistema
+        return ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+            fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(),
+            **extra,
+        )
+
+    def _logo_png(self, ancho=300, alto=100):
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new('RGBA', (ancho, alto), (200, 0, 0, 255)).save(buf, format='PNG')
+        return SimpleUploadedFile('logo.png', buf.getvalue(), content_type='image/png')
+
+    def test_nombre_corto_usa_iniciales_si_es_largo(self):
+        from .app_instalable import nombre_corto
+        self.assertEqual(nombre_corto('Colegio La Hora de María Auxiliadora'), 'CLHMA')
+        self.assertEqual(nombre_corto('San José'), 'San José')
+
+    def test_manifest_sin_logo_usa_nombre_y_color_del_colegio_con_iconos_genericos(self):
+        self._config(nombre_colegio='Colegio La Hora de María Auxiliadora', color_primario='#123456')
+        resp = self.client.get('/api/portal/manifest.webmanifest')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/manifest+json')
+        data = resp.json()
+        self.assertEqual(data['name'], 'Colegio La Hora de María Auxiliadora')
+        self.assertEqual(data['short_name'], 'CLHMA')
+        self.assertEqual(data['theme_color'], '#123456')
+        self.assertEqual(data['start_url'], '/portal')
+        self.assertEqual(data['icons'][0]['src'], '/icons/icon-192.png')
+        self.assertEqual(self.client.get('/api/portal/icono-app/192.png').status_code, 404)
+
+    def test_con_logo_genera_iconos_cuadrados_del_colegio(self):
+        import io
+        import tempfile
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            self._config(nombre_colegio='San José', logo_colegio=self._logo_png())
+            data = self.client.get('/api/portal/manifest.webmanifest').json()
+            self.assertTrue(data['icons'][0]['src'].startswith('icono-app/192.png?v='))
+
+            resp = self.client.get('/api/portal/icono-app/512.png')
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp['Content-Type'], 'image/png')
+            self.assertEqual(Image.open(io.BytesIO(resp.content)).size, (512, 512))
+
+            branding = self.client.get('/api/portal/config-colegio/').data
+            self.assertEqual(branding['nombre_app'], 'San José')
+            self.assertTrue(branding['icono_app_url'].startswith('/api/portal/icono-app/180.png?v='))
+
+    def test_tamano_no_permitido_da_404(self):
+        self._config(nombre_colegio='X')
+        self.assertEqual(self.client.get('/api/portal/icono-app/64.png').status_code, 404)

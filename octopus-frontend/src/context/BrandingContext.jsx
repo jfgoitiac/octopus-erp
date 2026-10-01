@@ -33,6 +33,8 @@ const DEFAULTS = {
   descripcionWeb: '',
   faviconUrl: '',
   vapidPublicKey: '',
+  nombreApp: '',
+  iconoAppUrl: '',
 };
 
 const BrandingContext = createContext({ ...DEFAULTS, loading: true, refreshBranding: () => {} });
@@ -54,6 +56,8 @@ export const BrandingProvider = ({ children }) => {
         descripcionWeb: data.descripcion_web || '',
         faviconUrl: resolverUrl(data.favicon_url),
         vapidPublicKey: data.vapid_public_key || '',
+        nombreApp: data.nombre_app || '',
+        iconoAppUrl: resolverUrl(data.icono_app_url),
       };
       setBranding(next);
 

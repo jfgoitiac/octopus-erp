@@ -3935,3 +3935,20 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    - `cobranza.test_descuento_pago.PortalCotizacionDescuentoTest.test_no_repite_query_de_la_regla_al_serializar_varias_mensualidades`
 9. ~~**Base de desarrollo con migraciones pendientes**~~ Resuelto el 30/09/2026: se aplicaron
    `authentication.0007`, `cobranza.0046` y `rrhh.0010` en la sqlite local.
+
+## Portal instalable con la identidad del colegio (30/09/2026)
+
+1. **API en otro dominio que el frontend**: el manifest sale de
+   `/api/portal/manifest.webmanifest` con `start_url: "/portal"` y `scope: "/"`
+   relativos. Funciona en el despliegue actual (nginx sirve `/api/` en el mismo
+   dominio). Si un colegio usa la API en un dominio aparte, el navegador ignora
+   `start_url`/`scope` (quedan de otro origen) y el acceso directo abre la URL
+   donde se instaló; habría que pasarle al backend el origen del frontend.
+2. **Solo `logo_colegio` subido genera el ícono**: si el colegio solo tiene
+   `logo_url` externo, se usan los íconos genéricos (no se descarga la imagen
+   desde el servidor para evitar SSRF).
+3. **Ícono de las notificaciones push** (`public/push-sw.js`) sigue siendo el
+   genérico `/icons/icon-192.png`; podría usar `/api/portal/icono-app/192.png`.
+4. **Lint preexistente en `src/context/BrandingContext.jsx`**: 2 errores
+   (`react-hooks/set-state-in-effect` en el fetch del efecto y
+   `react-refresh/only-export-components` por exportar `useBranding`).

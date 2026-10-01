@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .app_instalable import IconoAppPortalView, ManifestPortalView
 from .views import PORTAL_REFRESH_COOKIE, _portal_cookie_settings
 
 
@@ -120,6 +121,11 @@ urlpatterns = [
 
     # Configuración visual pública del colegio (sin auth): GET /api/portal/config-colegio/
     path('config-colegio/', ConfiguracionColegioPublicaView.as_view(), name='portal_config_colegio'),
+
+    # Portal instalable con la identidad del colegio (sin auth): manifest + íconos
+    # GET /api/portal/manifest.webmanifest — GET /api/portal/icono-app/<192>.png
+    path('manifest.webmanifest', ManifestPortalView.as_view(), name='portal_manifest'),
+    path('icono-app/<int:tamano>.png', IconoAppPortalView.as_view(), name='portal_icono_app'),
 
     # Cambio de contraseña del representante: POST /api/portal/cambiar-contrasena/
     path('cambiar-contrasena/', CambiarContrasenaPortalView.as_view(), name='portal_cambiar_contrasena'),

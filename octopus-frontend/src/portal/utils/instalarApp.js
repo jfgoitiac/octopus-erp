@@ -9,6 +9,8 @@
 // iOS/Safari no tiene ese evento: la única vía es "Compartir → Agregar a
 // pantalla de inicio", así que para iPhone/iPad se muestran instrucciones.
 
+import { API_BASE } from '../../api/apiClient';
+
 const CLAVE_DESCARTE = 'portal_instalar_descartado';
 const DIAS_SILENCIO = 7;
 
@@ -18,7 +20,19 @@ const suscriptores = new Set();
 
 const notificar = () => suscriptores.forEach((fn) => fn());
 
+// El manifest lo arma el backend con el nombre, color e ícono del colegio
+// (portal/app_instalable.py) — el build es el mismo para todos los colegios.
+function enlazarManifest() {
+  if (document.querySelector('link[rel="manifest"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = `${API_BASE}/api/portal/manifest.webmanifest`;
+  document.head.appendChild(link);
+}
+
 if (typeof window !== 'undefined') {
+  enlazarManifest();
+
   window.addEventListener('beforeinstallprompt', (event) => {
     // Evita la mini-barra automática de Chrome: el banner propio la reemplaza.
     event.preventDefault();
