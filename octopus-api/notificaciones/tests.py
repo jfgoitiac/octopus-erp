@@ -194,6 +194,30 @@ class PushRepresentanteContratoTests(TestCase):
         datos = json.loads(mock_webpush.call_args.kwargs['data'])
         self.assertEqual(datos, {'title': 'Título', 'body': 'Cuerpo', 'url': '/portal/pagos'})
 
+    def test_payload_incluye_icono_del_colegio_si_tiene_logo(self):
+        import io
+        import json
+        import tempfile
+        from datetime import date
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        from secretaria.models import ConfiguracionSistema
+        from .services import enviar_push
+
+        buf = io.BytesIO()
+        Image.new('RGB', (50, 50), (0, 0, 200)).save(buf, format='PNG')
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            ConfiguracionSistema.objects.create(
+                nombre_colegio='Colegio Test',
+                logo_colegio=SimpleUploadedFile('logo.png', buf.getvalue(), content_type='image/png'),
+                fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
+                fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(),
+            )
+            with patch('pywebpush.webpush') as mock_webpush:
+                enviar_push(self.con_factura, 'Título', 'Cuerpo', url='/portal/pagos')
+        datos = json.loads(mock_webpush.call_args.kwargs['data'])
+        self.assertTrue(datos['icon'].startswith('/api/portal/icono-app/192.png?v='))
+
     @override_settings(VAPID_PUBLIC_KEY='pub', VAPID_PRIVATE_KEY='priv')
     def test_solo_envia_a_suscripciones_con_el_tipo_activo(self):
         from .services import _push_representante

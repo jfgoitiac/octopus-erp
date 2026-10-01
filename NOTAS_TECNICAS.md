@@ -3947,8 +3947,9 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 2. **Solo `logo_colegio` subido genera el ícono**: si el colegio solo tiene
    `logo_url` externo, se usan los íconos genéricos (no se descarga la imagen
    desde el servidor para evitar SSRF).
-3. **Ícono de las notificaciones push** (`public/push-sw.js`) sigue siendo el
-   genérico `/icons/icon-192.png`; podría usar `/api/portal/icono-app/192.png`.
+3. ~~**Ícono de las notificaciones push**~~ Resuelto el 30/09/2026: el payload
+   trae `icon` con el logo del colegio. El `badge` sigue genérico a propósito
+   (Android lo pinta como silueta monocroma).
 4. **Lint preexistente en `src/context/BrandingContext.jsx`**: 2 errores
    (`react-hooks/set-state-in-effect` en el fetch del efecto y
    `react-refresh/only-export-components` por exportar `useBranding`).

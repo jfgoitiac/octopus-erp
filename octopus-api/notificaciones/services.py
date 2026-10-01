@@ -380,6 +380,23 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, templat
 
 # ── WEB PUSH ──────────────────────────────────────────────────────────────────
 
+def _payload_push(titulo, cuerpo, url):
+    """JSON que lee public/push-sw.js. `icon` (opcional) es el logo del
+    colegio en cuadrado (portal/app_instalable.py); si el colegio no subio
+    logo se omite y el Service Worker usa el icono generico."""
+    payload = {'title': titulo, 'body': cuerpo, 'url': url}
+    try:
+        from secretaria.models import ConfiguracionSistema
+        from portal.app_instalable import url_icono_app
+        icono = url_icono_app(ConfiguracionSistema.objects.first(), 192)
+    except Exception:
+        logger.warning('No se pudo resolver el icono del colegio para el push', exc_info=True)
+        icono = ''
+    if icono:
+        payload['icon'] = icono
+    return payload
+
+
 def enviar_push(suscripcion, titulo, cuerpo, url='/portal', tipo='otro',
                  representante_cedula='', alumno_nombre=''):
     """Envia una notificacion Web Push a una SuscripcionPush especifica.
@@ -402,7 +419,7 @@ def enviar_push(suscripcion, titulo, cuerpo, url='/portal', tipo='otro',
                 'endpoint': suscripcion.endpoint,
                 'keys': {'p256dh': suscripcion.p256dh, 'auth': suscripcion.auth},
             },
-            data=json.dumps({'title': titulo, 'body': cuerpo, 'url': url}),
+            data=json.dumps(_payload_push(titulo, cuerpo, url)),
             vapid_private_key=settings.VAPID_PRIVATE_KEY,
             vapid_claims={'sub': f'mailto:{settings.VAPID_EMAIL}'},
         )

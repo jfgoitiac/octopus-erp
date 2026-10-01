@@ -7,7 +7,8 @@
 // el navegador recibe el push pero no muestra nada.
 //
 // Payload que envía el backend (notificaciones/services.py → enviar_push):
-//   { "title": "...", "body": "...", "url": "/portal/..." }
+//   { "title": "...", "body": "...", "url": "/portal/...", "icon": "/api/portal/icono-app/192.png?v=..." }
+// `icon` es el logo del colegio y solo viene si el colegio subió uno.
 
 const ICONO = '/icons/icon-192.png';
 const URL_POR_DEFECTO = '/portal';
@@ -25,7 +26,10 @@ self.addEventListener('push', (event) => {
   const titulo = datos.title || 'Octopus';
   const opciones = {
     body: datos.body || '',
-    icon: ICONO,
+    icon: datos.icon || ICONO,
+    // El badge (barra de estado de Android) se pinta como silueta monocroma:
+    // el ícono del colegio sobre fondo blanco saldría como un cuadrado lleno,
+    // así que se mantiene el genérico.
     badge: ICONO,
     data: { url: datos.url || URL_POR_DEFECTO },
   };
