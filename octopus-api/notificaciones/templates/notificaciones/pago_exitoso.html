@@ -10,16 +10,19 @@
   Hemos registrado su pago correctamente. A continuacion el resumen de la transaccion:
 </p>
 
-<div class="monto">${{ monto_usd }} USD</div>
+<div class="monto">{{ monto_ref }}</div>
+{% if monto_bs %}<p class="monto-label" style="font-size:16px;color:#555;margin:0 0 4px;">{{ monto_bs }}</p>{% endif %}
 <p class="monto-label">Pago confirmado — {{ mes_nombre }} {{ anio }}</p>
 
 <table class="data">
   <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
   <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
-  <tr><th>Monto pagado</th><td><strong>${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Monto pagado</th><td><strong>{{ monto_ref }}</strong>{% if monto_bs %}<br><span style="color:#555;">{{ monto_bs }}</span>{% endif %}</td></tr>
   <tr><th>Metodo de pago</th><td>{{ metodo_pago }}</td></tr>
+  <tr><th>Recibo N°</th><td>{{ numero_recibo }}</td></tr>
   <tr><th>Numero de referencia</th><td><code style="background:#f1f5f9;padding:2px 6px;border-radius:3px;">{{ referencia }}</code></td></tr>
 </table>
+{% if nota_tasa %}<p style="font-size:12px;color:#888;margin:-8px 0 16px;">{{ nota_tasa }}</p>{% endif %}
 
 <p style="font-size:14px; color:#555; line-height:1.7;">
   Puede consultar el historial completo de sus pagos en el portal de representantes.

@@ -70,3 +70,42 @@ class AvisoMoraRefTests(TestCase):
     def test_token_monto_del_cobro_manual(self):
         from .cobro_whatsapp import _monto_cobro
         self.assertEqual(_monto_cobro(Decimal('100')), 'REF. 100,00 (Bs. 4.000,00)')
+
+
+class AvisoPagoConfirmadoRefTests(AvisoMoraRefTests):
+    """El pago confirmado usa la tasa con la que se cobró, no la de hoy:
+    el monto en Bs. no debe cambiar según el día en que se lea el aviso."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth import get_user_model
+        from cobranza.models import Pago
+        cajero = get_user_model().objects.create_user(username='cajero-ref', password='x')
+        self.pago = Pago.objects.create(
+            alumno=self.mensualidad.alumno, usuario_receptor=cajero, metodo_pago='efectivo',
+            concepto='mensualidad', monto_usd=Decimal('45.00'), tasa_aplicada=Decimal('36.00'),
+        )
+        self.mensualidad.pagos.add(self.pago)
+        # Tasa de hoy distinta (40) a la del cobro (36).
+
+    def _notificar(self):
+        from .services import notificar_pago_exitoso
+        with patch('notificaciones.services.enviar_whatsapp') as wa:
+            notificar_pago_exitoso(self.mensualidad, self.pago)
+        return wa
+
+    def test_correo_de_pago_confirmado_usa_la_tasa_del_cobro(self):
+        self._notificar()
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertIn('REF. 45,00', html)
+        self.assertIn('Bs. 1.620,00', html)
+        self.assertNotIn('Bs. 1.800,00', html)
+        self.assertIn('aplicada al pago del día', html)
+        self.assertIn(self.pago.factura_id, html)
+        self.assertNotIn('USD', html)
+
+    def test_whatsapp_de_pago_confirmado_usa_la_tasa_del_cobro(self):
+        texto = self._notificar().call_args.args[1]
+        self.assertIn('*REF. 45,00* (Bs. 1.620,00)', texto)
+        self.assertIn('aplicada al pago del día', texto)
+        self.assertNotIn('USD', texto)

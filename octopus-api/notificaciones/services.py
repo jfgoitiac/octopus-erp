@@ -59,11 +59,15 @@ def _config_colegio():
     }
 
 
-def montos_ref(monto_usd):
-    """Monto a pagar como REF. en dólares y su equivalente en bolívares a la
-    tasa BCV vigente (la misma que usa caja al cobrar y que muestra el
-    portal), más la nota con la fecha de esa tasa. Sin tasa registrada,
-    monto_bs y nota_tasa quedan vacíos."""
+def montos_ref(monto_usd, tasa_aplicada=None, fecha_pago=None):
+    """Monto como REF. en dólares y su equivalente en bolívares, más la nota
+    con la fecha de la tasa.
+
+    Sin `tasa_aplicada` (montos por pagar: mora, cobro): tasa BCV vigente, la
+    misma que usa caja al cobrar y que muestra el portal. Con `tasa_aplicada`
+    y `fecha_pago` (pago ya confirmado): la tasa con la que se cobró, para
+    que el monto en Bs. no cambie según el día en que se lea el aviso.
+    Sin tasa disponible, monto_bs y nota_tasa quedan vacíos."""
     from decimal import Decimal
     from django.utils import timezone
     from cobranza.models import TasaCambio
@@ -71,14 +75,19 @@ def montos_ref(monto_usd):
 
     monto = Decimal(str(monto_usd or 0))
     datos = {'monto_ref': f'REF. {fmt_bs(monto)}', 'monto_bs': '', 'nota_tasa': ''}
-    tasa = TasaCambio.objects.order_by('-fecha').first()
-    if tasa:
+    if tasa_aplicada and fecha_pago:
+        valor = Decimal(str(tasa_aplicada))
+        fecha = timezone.localtime(fecha_pago).strftime('%d/%m/%Y')
+        nota = f'El monto en bolívares corresponde a la tasa del dólar BCV aplicada al pago del día {fecha}'
+    else:
+        tasa = TasaCambio.objects.order_by('-fecha').first()
+        if not tasa:
+            return datos
+        valor = tasa.valor_bs
         fecha = timezone.localtime(tasa.fecha).strftime('%d/%m/%Y')
-        datos['monto_bs'] = f'Bs. {fmt_bs(monto * tasa.valor_bs)}'
-        datos['nota_tasa'] = (
-            f'El monto en bolívares corresponde a la tasa del dólar BCV del día {fecha} '
-            f'(Bs. {fmt_bs(tasa.valor_bs)} por dólar).'
-        )
+        nota = f'El monto en bolívares corresponde a la tasa del dólar BCV del día {fecha}'
+    datos['monto_bs'] = f'Bs. {fmt_bs(monto * valor)}'
+    datos['nota_tasa'] = f'{nota} (Bs. {fmt_bs(valor)} por dólar).'
     return datos
 
 
@@ -708,6 +717,8 @@ def notificar_pago_exitoso(mensualidad, pago):
         'monto_usd': str(mensualidad.monto_usd),
         'metodo_pago': pago.get_metodo_pago_display(),
         'referencia': pago.referencia or str(pago.id),
+        # REF. + Bs. a la tasa con la que se cobró este pago.
+        **montos_ref(mensualidad.monto_usd, pago.tasa_aplicada, pago.fecha_pago),
     }
     # Mismo recibo que imprime el panel y descarga el portal (motor único).
     from cobranza.recibo_cobranza import generar_pdf_recibo, nombre_archivo_recibo, numero_recibo
@@ -735,9 +746,10 @@ def notificar_pago_exitoso(mensualidad, pago):
     if rep.telefono:
         msg = (
             f'Pago confirmado\n\n'
-            f'Hola {rep.nombre}, su pago de *${mensualidad.monto_usd} USD* '
+            f'Hola {rep.nombre}, su pago de {_monto_whatsapp(ctx)} '
             f'para {alumno.nombre} ({mensualidad.get_mes_display()} {mensualidad.anio}) fue procesado.\n'
             f'Recibo N° {ctx["numero_recibo"]}'
+            + (f"\n_{ctx['nota_tasa']}_" if ctx['nota_tasa'] else '')
         )
         # Con Meta se manda el PDF del recibo; si no se puede (otro proveedor
         # o falla del envío), queda el aviso de texto de siempre.
@@ -754,7 +766,7 @@ def notificar_pago_exitoso(mensualidad, pago):
     if usuario_portal:
         _push_representante(
             usuario_portal, 'factura', 'Pago confirmado',
-            f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- ${ctx["monto_usd"]} USD',
+            f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- {ctx["monto_ref"]}',
             url='/portal/historial', tipo_log='pago_exitoso',
             representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
         )
