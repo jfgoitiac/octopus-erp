@@ -5,6 +5,7 @@ import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/PortalAuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import BannerInstalarApp from '../components/BannerInstalarApp';
 
 const PortalLogin = () => {
   const { login, isAuthenticated, loading } = useContext(PortalAuthContext);
@@ -136,6 +137,8 @@ const PortalLogin = () => {
             </Link>
           </form>
         </div>
+
+        <BannerInstalarApp className="mt-4" />
 
         <p className="text-center text-xs text-gray-400 mt-6">
           ¿Problemas para acceder? Contacta a la administración del colegio.

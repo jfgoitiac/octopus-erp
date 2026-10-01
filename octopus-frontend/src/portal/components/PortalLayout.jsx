@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, Menu, X } from 'lucide-react';
+import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, Menu, X, Download } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
 import { useBranding } from '../../context/BrandingContext';
 import NotificacionesModal from './NotificacionesModal';
 import RepresentanteRail from './RepresentanteRail';
+import BannerInstalarApp from './BannerInstalarApp';
+import useAccionInstalar from '../hooks/useAccionInstalar';
 
 const PortalLayout = () => {
   const { logout } = usePortalAuth();
+  const { puedeInstalar, accionar: instalarApp, modal: modalInstalar } = useAccionInstalar();
   const navigate = useNavigate();
   const location = useLocation();
   const { nombreColegio, logoUrl } = useBranding();
@@ -61,6 +64,7 @@ const PortalLayout = () => {
 
       {/* Contenido principal — pb-32 para que el botón flotante y la bottom nav no tapen contenido */}
       <main className="max-w-[480px] md:max-w-7xl mx-auto px-4 py-5 pb-32 sm:pb-10 md:pl-20">
+        <BannerInstalarApp className="mb-4" />
         <AlumnoActivoProvider>
           <Outlet context={{ logoColegio: logoUrl }} />
         </AlumnoActivoProvider>
@@ -124,11 +128,21 @@ const PortalLayout = () => {
                 <Icon size={18} /> {label}
               </NavLink>
             ))}
+            {puedeInstalar && (
+              <button
+                type="button"
+                onClick={() => { setMenuAbierto(false); instalarApp(); }}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-[var(--portal-primary,#0fa3b1)] text-left"
+              >
+                <Download size={18} /> Instalar app
+              </button>
+            )}
           </div>
         </div>
       )}
 
       <NotificacionesModal />
+      {modalInstalar}
     </div>
   );
 };

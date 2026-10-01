@@ -6,6 +6,8 @@ import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider } from './context/AuthContext'
 import { BrandingProvider } from './context/BrandingContext'
 import { iniciarActualizacionAutomatica } from './pwaUpdate.jsx'
+// Captura `beforeinstallprompt` antes de que React monte (se dispara una vez).
+import './portal/utils/instalarApp'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
