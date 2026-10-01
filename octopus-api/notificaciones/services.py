@@ -142,6 +142,77 @@ def _normalizar_telefono(tel):
     return None
 
 
+def _proveedor_whatsapp():
+    """'twilio', 'meta' o '' según ConfiguracionNotificaciones (BD) o settings."""
+    cfg = _notif_cfg()
+    proveedor = (cfg.whatsapp_proveedor if (cfg and cfg.whatsapp_activo) else None) \
+        or getattr(settings, 'WHATSAPP_PROVIDER', '')
+    return (proveedor or '').lower()
+
+
+def enviar_whatsapp_documento(telefono, contenido, nombre_archivo, caption, tipo='otro',
+                              representante_cedula='', alumno_nombre='', parametros_plantilla=None):
+    """Envía un PDF como documento de WhatsApp (solo Meta Cloud API: sube el
+    archivo a /media y lo manda por su id; Twilio exigiría una URL pública).
+
+    Si settings.WHATSAPP_PLANTILLA_RECIBO tiene el nombre de una plantilla
+    aprobada por Meta (encabezado de tipo DOCUMENTO), se usa esa plantilla con
+    `parametros_plantilla` en el cuerpo: es lo que permite escribirle al
+    representante fuera de la ventana de 24h. Sin plantilla se manda el
+    documento libre, que Meta solo entrega dentro de esa ventana.
+
+    Devuelve True si Meta aceptó el envío; False si el proveedor no es Meta,
+    faltan credenciales o falló (el caller puede caer al texto)."""
+    numero = _normalizar_telefono(telefono)
+    if not numero or _proveedor_whatsapp() != 'meta':
+        return False
+    cfg      = _notif_cfg()
+    token    = (cfg.meta_whatsapp_token    if cfg else '') or getattr(settings, 'META_WHATSAPP_TOKEN', '')
+    phone_id = (cfg.meta_whatsapp_phone_id if cfg else '') or getattr(settings, 'META_WHATSAPP_PHONE_ID', '')
+    if not all([token, phone_id]):
+        return False
+    plantilla = getattr(settings, 'WHATSAPP_PLANTILLA_RECIBO', '')
+    try:
+        import requests as req
+        base = f'https://graph.facebook.com/v19.0/{phone_id}'
+        auth = {'Authorization': f'Bearer {token}'}
+        subida = req.post(
+            f'{base}/media', headers=auth,
+            data={'messaging_product': 'whatsapp', 'type': 'application/pdf'},
+            files={'file': (nombre_archivo, contenido, 'application/pdf')},
+            timeout=20,
+        )
+        subida.raise_for_status()
+        documento = {'id': subida.json()['id'], 'filename': nombre_archivo}
+        if plantilla:
+            componentes = [{'type': 'header', 'parameters': [{'type': 'document', 'document': documento}]}]
+            if parametros_plantilla:
+                componentes.append({'type': 'body', 'parameters': [
+                    {'type': 'text', 'text': str(v)} for v in parametros_plantilla
+                ]})
+            payload = {
+                'messaging_product': 'whatsapp', 'to': numero.lstrip('+'), 'type': 'template',
+                'template': {'name': plantilla, 'language': {'code': 'es'}, 'components': componentes},
+            }
+        else:
+            payload = {
+                'messaging_product': 'whatsapp', 'to': numero.lstrip('+'), 'type': 'document',
+                'document': {**documento, 'caption': caption},
+            }
+        resp = req.post(f'{base}/messages', headers={**auth, 'Content-Type': 'application/json'},
+                        json=payload, timeout=10)
+        resp.raise_for_status()
+        _log('whatsapp', tipo, numero, '', caption, 'enviado',
+             representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='meta')
+        logger.info(f'WhatsApp Meta documento [{tipo}] -> {numero}')
+        return True
+    except Exception as e:
+        _log('whatsapp', tipo, numero, '', caption, 'fallido', error=str(e),
+             representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='meta')
+        logger.error(f'Error Meta documento -> {numero}: {e}')
+        return False
+
+
 def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alumno_nombre='',
                      template_data=None):
     """Envia WhatsApp segun proveedor configurado en BD o fallback a settings.
@@ -156,10 +227,7 @@ def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alu
     numero = _normalizar_telefono(telefono)
     if not numero:
         return False
-    cfg = _notif_cfg()
-    proveedor = (cfg.whatsapp_proveedor if (cfg and cfg.whatsapp_activo) else None) \
-        or getattr(settings, 'WHATSAPP_PROVIDER', '')
-    proveedor = (proveedor or '').lower()
+    proveedor = _proveedor_whatsapp()
     if proveedor == 'twilio':
         return _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data)
     elif proveedor == 'meta':
@@ -608,13 +676,17 @@ def notificar_pago_exitoso(mensualidad, pago):
         'metodo_pago': pago.get_metodo_pago_display(),
         'referencia': pago.referencia or str(pago.id),
     }
+    # Mismo recibo que imprime el panel y descarga el portal (motor único).
+    from cobranza.recibo_cobranza import generar_pdf_recibo, nombre_archivo_recibo, numero_recibo
+    ctx['numero_recibo'] = numero_recibo(pago)
     html = _render_email('pago_exitoso.html', ctx)
 
     adjuntos = None
+    pdf_bytes = None
+    nombre_pdf = nombre_archivo_recibo(pago)
     try:
-        from cobranza.utils_pdf import generar_recibo_pdf
-        pdf_bytes = bytes(generar_recibo_pdf(pago))
-        adjuntos = [(f'recibo_pago_{pago.id}.pdf', pdf_bytes, 'application/pdf')]
+        pdf_bytes = generar_pdf_recibo(pago).getvalue()
+        adjuntos = [(nombre_pdf, pdf_bytes, 'application/pdf')]
     except Exception as e:
         logger.error(f'No se pudo generar el PDF del recibo para el pago #{pago.id}: {e}')
 
@@ -632,10 +704,18 @@ def notificar_pago_exitoso(mensualidad, pago):
             f'Pago confirmado\n\n'
             f'Hola {rep.nombre}, su pago de *${mensualidad.monto_usd} USD* '
             f'para {alumno.nombre} ({mensualidad.get_mes_display()} {mensualidad.anio}) fue procesado.\n'
-            f'Ref: {ctx["referencia"]}'
+            f'Recibo N° {ctx["numero_recibo"]}'
         )
-        enviar_whatsapp(rep.telefono, msg, tipo='pago_exitoso',
-                        representante_cedula=rep.cedula)
+        # Con Meta se manda el PDF del recibo; si no se puede (otro proveedor
+        # o falla del envío), queda el aviso de texto de siempre.
+        enviado_pdf = pdf_bytes is not None and enviar_whatsapp_documento(
+            rep.telefono, pdf_bytes, nombre_pdf, msg, tipo='pago_exitoso',
+            representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
+            parametros_plantilla=[rep.nombre, ctx['numero_recibo']],
+        )
+        if not enviado_pdf:
+            enviar_whatsapp(rep.telefono, msg, tipo='pago_exitoso',
+                            representante_cedula=rep.cedula)
 
     usuario_portal = _usuario_portal_de(rep)
     if usuario_portal:
