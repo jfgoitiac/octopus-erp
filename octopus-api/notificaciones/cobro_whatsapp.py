@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from .services import _config_colegio
+from .services import _config_colegio, montos_ref
 
 TOKENS_DISPONIBLES = [
     {'token': '{{representante.nombre}}', 'etiqueta': 'Nombre del representante',
@@ -81,6 +81,13 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     return [grupos[c] for c in orden]
 
 
+def _monto_cobro(monto_usd):
+    """'REF. 100,00 (Bs. 4.050,00)': mismo formato REF. + bolívares a la
+    tasa BCV vigente que el portal y los avisos de mora."""
+    m = montos_ref(monto_usd)
+    return f"{m['monto_ref']} ({m['monto_bs']})" if m['monto_bs'] else m['monto_ref']
+
+
 def renderizar_mensaje_cobro(grupo, plantilla):
     """
     Reemplaza los tokens de `plantilla.cuerpo` con los datos reales del
@@ -97,7 +104,7 @@ def renderizar_mensaje_cobro(grupo, plantilla):
     reemplazos = {
         '{{representante.nombre}}': grupo['representante_nombre'],
         '{{alumno.nombre}}': alumno_texto,
-        '{{monto}}': f"${grupo['monto_total']:.2f} USD",
+        '{{monto}}': _monto_cobro(grupo['monto_total']),
         '{{meses}}': str(grupo['meses_total']),
         '{{dias_atraso}}': str(grupo['dias_atraso_max']),
         '{{colegio.nombre}}': cfg['nombre_colegio'],

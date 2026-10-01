@@ -7,16 +7,18 @@
   ya ha sido generada y esta disponible para su pago.
 </p>
 
-<div class="monto">${{ monto_usd }} USD</div>
+<div class="monto">{{ monto_ref }}</div>
+{% if monto_bs %}<p class="monto-label" style="font-size:16px;color:#555;margin:0 0 4px;">{{ monto_bs }}</p>{% endif %}
 <p class="monto-label">Monto a cancelar — {{ mes_nombre }} {{ anio }}</p>
 
 <table class="data">
   <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
   <tr><th>Grado / Seccion</th><td>{{ grado }}</td></tr>
   <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
-  <tr><th>Monto</th><td><strong>${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Monto</th><td><strong>{{ monto_ref }}</strong>{% if monto_bs %}<br><span style="color:#555;">{{ monto_bs }}</span>{% endif %}</td></tr>
   <tr><th>Fecha limite</th><td>{{ fecha_limite }}</td></tr>
 </table>
+{% if nota_tasa %}<p style="font-size:12px;color:#888;margin:-8px 0 16px;">{{ nota_tasa }}</p>{% endif %}
 
 <div class="alert alert-blue">
   Puede realizar su pago de forma segura a traves del portal de representantes o

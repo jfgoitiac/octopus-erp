@@ -20,13 +20,14 @@
   <tr><th>Telefono</th><td>{{ telefono_representante }}</td></tr>
   <tr><th>Correo</th><td>{{ correo_representante }}</td></tr>
 </table>
+{% if nota_tasa %}<p style="font-size:12px;color:#888;margin:-8px 0 16px;">{{ nota_tasa }}</p>{% endif %}
 
 <table class="data">
   <tr><th colspan="2" style="background:#fef2f2; color:#991b1b;">Datos del Alumno y Deuda</th></tr>
   <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
   <tr><th>Grado / Seccion</th><td>{{ grado }}</td></tr>
   <tr><th>Periodo</th><td>{{ mes_nombre }} {{ anio }}</td></tr>
-  <tr><th>Monto adeudado</th><td><strong style="color:#ef4444;">${{ monto_usd }} USD</strong></td></tr>
+  <tr><th>Monto adeudado</th><td><strong style="color:#ef4444;">{{ monto_ref }}</strong>{% if monto_bs %}<br><span style="color:#555;">{{ monto_bs }}</span>{% endif %}</td></tr>
   <tr><th>Dias de mora</th><td><strong style="color:#ef4444;">{{ dias_mora }} dias</strong></td></tr>
 </table>
 

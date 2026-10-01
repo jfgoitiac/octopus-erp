@@ -59,6 +59,35 @@ def _config_colegio():
     }
 
 
+def montos_ref(monto_usd):
+    """Monto a pagar como REF. en dólares y su equivalente en bolívares a la
+    tasa BCV vigente (la misma que usa caja al cobrar y que muestra el
+    portal), más la nota con la fecha de esa tasa. Sin tasa registrada,
+    monto_bs y nota_tasa quedan vacíos."""
+    from decimal import Decimal
+    from django.utils import timezone
+    from cobranza.models import TasaCambio
+    from cobranza.recibo_cobranza import fmt_bs
+
+    monto = Decimal(str(monto_usd or 0))
+    datos = {'monto_ref': f'REF. {fmt_bs(monto)}', 'monto_bs': '', 'nota_tasa': ''}
+    tasa = TasaCambio.objects.order_by('-fecha').first()
+    if tasa:
+        fecha = timezone.localtime(tasa.fecha).strftime('%d/%m/%Y')
+        datos['monto_bs'] = f'Bs. {fmt_bs(monto * tasa.valor_bs)}'
+        datos['nota_tasa'] = (
+            f'El monto en bolívares corresponde a la tasa del dólar BCV del día {fecha} '
+            f'(Bs. {fmt_bs(tasa.valor_bs)} por dólar).'
+        )
+    return datos
+
+
+def _monto_whatsapp(montos):
+    """'*REF. 45,00* (Bs. 1.822,50)' para los mensajes de texto de WhatsApp."""
+    texto = f"*{montos['monto_ref']}*"
+    return f"{texto} ({montos['monto_bs']})" if montos['monto_bs'] else texto
+
+
 # ── EMAIL ─────────────────────────────────────────────────────────────────────
 
 def enviar_email(destinatario, asunto, html_body, texto_plano='',
@@ -429,7 +458,11 @@ def notificar_mora(mensualidad, dias_mora, tipo):
         'cedula_representante': rep.cedula,
         'telefono_representante': rep.telefono or '',
         'correo_representante': rep.correo or '',
+        # REF. + Bs. a la tasa BCV vigente, igual que el portal.
+        **montos_ref(mensualidad.monto_usd),
     }
+    monto_wa = _monto_whatsapp(ctx)
+    nota_wa = f"\n_{ctx['nota_tasa']}_" if ctx['nota_tasa'] else ''
 
     asuntos = {
         'mora_dia_0':  f'Nueva factura -- {ctx["mes_nombre"]} {ctx["anio"]}',
@@ -461,15 +494,15 @@ def notificar_mora(mensualidad, dias_mora, tipo):
         'mora_dia_5':  (
             f'*{cfg["nombre_colegio"]}*\n\n'
             f'Hola {rep.nombre}, tiene una mensualidad pendiente de '
-            f'*${mensualidad.monto_usd} USD* para {alumno.nombre} '
-            f'({mensualidad.get_mes_display()} {mensualidad.anio}).\n\n'
+            f'{monto_wa} para {alumno.nombre} '
+            f'({mensualidad.get_mes_display()} {mensualidad.anio}).{nota_wa}\n\n'
             f'Ingrese al portal: {cfg["portal_url"]}'
         ),
         'mora_dia_10': (
             f'Segundo aviso -- Pago vencido\n\n'
             f'Estimado/a {rep.nombre}, la mensualidad de {alumno.nombre} '
             f'tiene *{dias_mora} dias de mora*.\n\n'
-            f'Monto: *${mensualidad.monto_usd} USD*\n\n'
+            f'Monto: {monto_wa}{nota_wa}\n\n'
             f'Por favor regularice a la brevedad.'
         ),
         'mora_dia_15': (
@@ -477,7 +510,7 @@ def notificar_mora(mensualidad, dias_mora, tipo):
             f'Representante: {rep.nombre} {rep.apellido}\n'
             f'CI: {rep.cedula} | Tel: {rep.telefono}\n'
             f'Alumno: {alumno.nombre} {alumno.apellido} | Grado: {alumno.grado_seccion}\n'
-            f'Mora: {dias_mora} dias | Monto: ${mensualidad.monto_usd} USD'
+            f'Mora: {dias_mora} dias | Monto: {monto_wa}{nota_wa}'
         ),
     }
     if tipo in mensajes_wa and rep.telefono:
@@ -494,7 +527,7 @@ def notificar_mora(mensualidad, dias_mora, tipo):
         if usuario_portal:
             _push_representante(
                 usuario_portal, 'factura', asuntos.get(tipo, 'Aviso de pago'),
-                f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- ${ctx["monto_usd"]} USD',
+                f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- {ctx["monto_ref"]}',
                 url='/portal', tipo_log=tipo,
                 representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
             )
