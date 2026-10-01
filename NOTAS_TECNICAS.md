@@ -3843,3 +3843,96 @@ corrigieron en `academico/serializers.py` y `academico/views.py`:
 - Los eslint de `Cobranza.jsx`, `Comprobantes.jsx`, `PortalHistorialPagos.jsx` y
   `printReciboCobranza.jsx` ya tenían errores previos (`set-state-in-effect`,
   imports sin usar, `only-export-components`).
+
+## Notificaciones push (2026-09-30)
+
+Activación de punta a punta de Web Push en el Portal de Representantes. Lo que
+faltaba: el `sw.js` que genera vite-plugin-pwa (`generateSW`) no tenía
+listeners de `push` ni `notificationclick`, así que un push enviado por el
+backend llegaba al navegador pero no se mostraba. Se agregó
+`octopus-frontend/public/push-sw.js`, inyectado vía `workbox.importScripts` en
+`vite.config.js`. El resto ya estaba montado (prompt en `PortalLayout.jsx`,
+toggles en Ajustes, clave pública vía `config-colegio/`, claves VAPID en el
+`.env` local). Se documentaron las variables VAPID en `.env.example`.
+
+Deuda detectada, sin tocar:
+
+1. **El logout del portal no desuscribe el push del dispositivo**
+   (`PortalAuthContext.logout()`). En un teléfono compartido, el representante
+   anterior sigue recibiendo sus avisos (montos, mora) en ese dispositivo hasta
+   que otro representante active las notificaciones ahí mismo (el
+   `update_or_create` por `endpoint` reasigna la suscripción). Decidir si al
+   cerrar sesión se llama a `desuscribirPush` (costo: al volver a entrar, como
+   el permiso ya está `granted`, el prompt no reaparece y hay que reactivar
+   desde Ajustes).
+2. **Sin handler de `pushsubscriptionchange`** en `push-sw.js`: si el navegador
+   rota la suscripción, el backend la marca inactiva al primer 404/410 y el
+   representante deja de recibir push sin enterarse; `NotificacionesModal` no
+   reaparece porque `Notification.permission` ya es `granted`. Solo se recupera
+   entrando a Ajustes.
+3. **Rotar el par VAPID deja suscripciones "zombies"**: `useWebPush.subscribe()`
+   reutiliza `pushManager.getSubscription()` si existe, aunque se haya creado
+   con la clave pública anterior; el servicio push responde 401/403 (no
+   404/410) y `enviar_push()` no la desactiva. Al rotar claves habría que
+   comparar `subscription.options.applicationServerKey` con la clave actual y
+   re-suscribir, o desactivar en BD todas las `SuscripcionPush` existentes.
+4. **"Notas cargadas por los docentes" se ofrece en el prompt y en Ajustes pero
+   sigue sin evento que lo dispare** (ver punto 6 de FASE 6). Conectarlo exige
+   decidir el disparador (¿por nota individual, por lote de
+   `NotasGradoView`/`PlanEvaluacionNotasView`, o al publicar boletín?) para no
+   mandar un push por cada evaluación cargada.
+5. **Ícono y badge de la notificación usan `icons/icon-192.png`**, que ya es un
+   placeholder (punto 3 de FASE 6). Android espera un `badge` monocromo con
+   transparencia; con un PNG a color se ve como un cuadrado blanco en la barra
+   de estado.
+6. **Envío real aún sin probar en dispositivo**: verificado solo de forma
+   estática (build genera `importScripts("push-sw.js")`, par VAPID válido,
+   cifrado/firma de pywebpush OK offline, tests del contrato de payload).
+
+---
+
+## Recibo de cobranza: motor único (2026-09-30)
+
+Desde este cambio el recibo de cobranza se genera SOLO en el backend
+(`octopus-api/cobranza/recibo_cobranza.py`) y es el mismo PDF en el panel (al
+cobrar y en Comprobantes), el portal, el correo y WhatsApp. Se retiraron
+`printReciboCobranza.jsx`, `imprimirReciboComprobante.js`,
+`construirItemsRecibo.js`, `cobranza/utils_pdf.py` y el `generar_pdf_recibo`
+viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
+
+1. **El correo y WhatsApp automáticos solo salen si la operación incluye una
+   mensualidad** (`RegistrarPagoView` encola `task_notificar_pago_exitoso`
+   con una mensualidad de referencia). Un cobro solo de inscripción, solvencia
+   o proyecto de inversión no le envía el recibo al representante. La tarea
+   debería recibir el pago y no una mensualidad.
+2. **El asunto y el cuerpo del correo (`pago_exitoso.html`) hablan de una sola
+   mensualidad** (mes, año, monto) aunque el recibo adjunto cubra varias
+   mensualidades o hermanos.
+3. **Columna GRADO con varios hermanos**: el recibo muestra el grado del alumno
+   titular del pago (`ComprobanteSerializer.grado`), igual que la reimpresión
+   vieja; la impresión vieja al cobrar unía los grados de todos. Si se quiere
+   todos los grados, hay que exponer el grado por línea en
+   `calcular_desglose_automatico`.
+4. **El recibo dice "PAGADO" aunque el pago esté anulado** (igual que antes en
+   la reimpresión del panel, que solo mostraba un aviso). El enlace público y
+   el botón de WhatsApp sí rechazan pagos anulados.
+5. **Comentarios desactualizados**: `cantina/utils.py` y `nomina/utils.py`
+   citan `cobranza.utils._get_config_colegio` / `_draw_colegio_header`, que ya
+   no existen (se fueron con el recibo viejo). Las copias locales de esos
+   módulos siguen funcionando.
+6. **WhatsApp por Twilio no manda el PDF**: Twilio exige una URL pública del
+   archivo (`media_url`) y la tarea Celery no conoce el dominio público de la
+   API. Con Twilio queda el aviso de texto con el N° de recibo.
+7. **WhatsApp por Meta sin plantilla**: si `WHATSAPP_PLANTILLA_RECIBO` está
+   vacía, Meta solo entrega el documento dentro de la ventana de 24h; fuera de
+   ella la API responde error y se cae al aviso de texto, que tampoco llega
+   por la misma regla. Hay que crear y aprobar la plantilla en Meta.
+8. **Tests con fecha frágil (preexistentes)**: fallan a fin de mes (verificado
+   el 30/09 también en el commit `32d907f`, anterior a este cambio), porque la
+   regla de descuento que arman no cubre los últimos días del mes:
+   - `cobranza.test_descuento_integracion.PantallaDeCobroAdminTest.test_buscar_alumno_muestra_descuento_disponible_hoy`
+   - `cobranza.test_descuento_pago.PortalCotizacionDescuentoTest.test_portal_muestra_descuento_disponible_hoy`
+   - `cobranza.test_descuento_pago.PortalCotizacionDescuentoTest.test_no_repite_query_de_la_regla_al_serializar_varias_mensualidades`
+9. **Base de desarrollo con migraciones pendientes**: la BD sqlite local no
+   tiene la columna `cobranza_bancoinstitucional.portal_metodos`; hay que
+   correr `migrate` antes de probar a mano.
