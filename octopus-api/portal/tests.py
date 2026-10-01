@@ -747,8 +747,8 @@ class ConfiguracionColegioPublicaCacheTest(TestCase):
         self.assertEqual(resp2.data['favicon_url'], 'https://ejemplo.com/nuevo-favicon.png')
 
 
-class PortalReciboPagoDatosTests(PortalTestBase):
-    """GET /api/portal/recibo/<id>/datos/ — datos del recibo de cobranza + membrete."""
+class PortalReciboPagoTests(PortalTestBase):
+    """GET /api/portal/recibo/<id>/ — recibo de cobranza en PDF (motor único)."""
 
     def setUp(self):
         super().setUp()
@@ -758,15 +758,21 @@ class PortalReciboPagoDatosTests(PortalTestBase):
         self.alumno2 = crear_alumno(self.rep2, 'E84000002')
         self.cajero = User.objects.create_user(username='cajero1', password='x')
 
-    def _pago(self, alumno, estatus='completado'):
+    def _pago(self, alumno, estatus='completado', **kw):
         return Pago.objects.create(
             alumno=alumno, metodo_pago='efectivo', concepto='mensualidad',
             monto_usd=Decimal('50.00'), tasa_aplicada=Decimal('40.00'),
-            usuario_receptor=self.cajero, estatus=estatus,
+            usuario_receptor=self.cajero, estatus=estatus, **kw,
         )
 
     def _url(self, pago_id):
-        return f'/api/portal/recibo/{pago_id}/datos/'
+        return f'/api/portal/recibo/{pago_id}/'
+
+    def _texto_pdf(self, resp):
+        import io
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(b''.join(resp.streaming_content))) as pdf:
+            return ' '.join(page.extract_text() or '' for page in pdf.pages)
 
     def _config(self, **kw):
         from secretaria.models import ConfiguracionSistema
@@ -775,37 +781,33 @@ class PortalReciboPagoDatosTests(PortalTestBase):
             fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(), **kw
         )
 
-    def test_exito_devuelve_pago_y_membrete(self):
-        self._config(nombre_colegio='Colegio Demo', rif='J-1', direccion_colegio='Av. 1',
-                     municipio='Baruta', estado_colegio='Miranda')
+    def test_exito_devuelve_el_pdf_con_datos_del_colegio(self):
+        self._config(nombre_colegio='Colegio Demo', rif='J-1')
         pago = self._pago(self.alumno)
         self.auth_portal()
         resp = self.client.get(self._url(pago.id))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['id'], pago.id)
-        self.assertEqual(resp.data['nombre_alumno'], self.alumno.nombre)
-        m = resp.data['membrete']
-        self.assertEqual(m['nombre'], 'Colegio Demo')
-        self.assertEqual(m['municipio_estado'], 'Baruta, Miranda')
-        self.assertIsNone(m['encabezado_personalizado'])
+        self.assertEqual(resp['Content-Type'], 'application/pdf')
+        self.assertIn(f'Recibo_{pago.factura_id}.pdf', resp['Content-Disposition'])
+        texto = self._texto_pdf(resp)
+        self.assertIn('RECIBO DE PAGO - COBRANZA ESCOLAR', texto)
+        self.assertIn('Colegio Demo', texto)
+        self.assertIn(pago.factura_id, texto)
 
     def test_operacion_multipago_usa_el_numero_de_recibo_del_primer_pago(self):
-        """Cualquier fila de la operación devuelve el N° de recibo que imprimió
-        el panel al cobrar (factura_id del primer pago)."""
+        """Cualquier fila de la operación descarga el recibo con el N° que
+        imprimió el panel al cobrar (factura_id del primer pago)."""
         primero = self._pago(self.alumno)
-        segundo = Pago.objects.create(
-            alumno=self.alumno, metodo_pago='transferencia', concepto='mensualidad',
-            monto_usd=Decimal('20.00'), tasa_aplicada=Decimal('40.00'),
-            usuario_receptor=self.cajero, estatus='completado',
-            operacion_uuid=primero.operacion_uuid,
-        )
+        segundo = self._pago(self.alumno, operacion_uuid=primero.operacion_uuid)
         self.assertNotEqual(primero.factura_id, segundo.factura_id)
         self.auth_portal()
         for pago_id in (primero.id, segundo.id):
             resp = self.client.get(self._url(pago_id))
             self.assertEqual(resp.status_code, 200)
-            self.assertEqual(resp.data['factura_id'], primero.factura_id)
-            self.assertEqual(len(resp.data['desglose_pagos']), 2)
+            self.assertIn(f'Recibo_{primero.factura_id}.pdf', resp['Content-Disposition'])
+            texto = self._texto_pdf(resp)
+            self.assertIn(primero.factura_id, texto)
+            self.assertNotIn(segundo.factura_id, texto)
 
     def test_sin_autenticacion_devuelve_401(self):
         pago = self._pago(self.alumno)
@@ -843,13 +845,11 @@ class PortalReciboPagoDatosTests(PortalTestBase):
         }
         self.assertEqual(len(cuerpos), 1)
 
-    def test_colegio_sin_recortes_devuelve_membrete_vacio(self):
-        pago = self._pago(self.alumno)  # sin ConfiguracionSistema
+    def test_colegio_sin_configuracion_usa_el_membrete_por_defecto(self):
+        pago = self._pago(self.alumno)  # sin ConfiguracionSistema ni recortes
         self.auth_portal()
         resp = self.client.get(self._url(pago.id))
         self.assertEqual(resp.status_code, 200)
-        m = resp.data['membrete']
-        self.assertIsNone(m['encabezado_personalizado'])
-        self.assertIsNone(m['pie_pagina_personalizado'])
-        self.assertIsNone(m['logo_colegio'])
-        self.assertEqual(m['nombre'], '')
+        self.assertIn('República Bolivariana de Venezuela', self._texto_pdf(resp))
+
+

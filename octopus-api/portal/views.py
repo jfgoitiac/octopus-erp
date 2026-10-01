@@ -466,40 +466,22 @@ def _pago_confirmado_del_representante(representante, pago_id):
     ).distinct().filter(id=pago_id, estatus='completado').first()
 
 
-def _imagen_a_data_uri(campo_imagen):
-    """ImageField -> data URI (o None). El portal no puede pedir estas imágenes
-    con su token: los media del admin exigen otra autenticación."""
-    import base64
-    import mimetypes
-    if not campo_imagen:
-        return None
-    try:
-        with campo_imagen.open('rb') as f:
-            contenido = f.read()
-        mime = mimetypes.guess_type(campo_imagen.name)[0] or 'image/png'
-    except (OSError, ValueError):
-        return None
-    return f"data:{mime};base64,{base64.b64encode(contenido).decode('ascii')}"
-
-
 class PortalReciboPagoView(APIView):
     """
     GET /api/portal/recibo/<pago_id>/
-    Descarga el recibo PDF de un pago confirmado del representante autenticado.
-    Reusa cobranza.utils.generar_pdf_recibo — el mismo generador que
-    cobranza.views.ReciboView usa para el panel admin — para no duplicar el
-    formato del recibo ni el manejo de operaciones multipago (un Pago puede
-    saldar la deuda de varios hermanos a la vez, ver pagos_de_alumno).
+    Descarga el recibo de cobranza en PDF de un pago confirmado del
+    representante autenticado. Usa el motor único del recibo
+    (cobranza.recibo_cobranza): es el mismo documento, con el mismo N° de
+    recibo, que imprime el panel al cobrar y el que llega por correo.
     """
     authentication_classes = [PortalJWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pago_id):
         from django.http import FileResponse
-        from cobranza.utils import generar_pdf_recibo
+        from cobranza.recibo_cobranza import generar_pdf_recibo, nombre_archivo_recibo
 
         representante = _get_representante(request)
-
         pago = _pago_confirmado_del_representante(representante, pago_id)
         if pago is None:
             return Response(
@@ -507,14 +489,8 @@ class PortalReciboPagoView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        pagos = list(
-            Pago.objects.filter(operacion_uuid=pago.operacion_uuid).select_related(
-                'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-            ).order_by('id')
-        )
-
         try:
-            pdf_buffer = generar_pdf_recibo(pagos)
+            pdf_buffer = generar_pdf_recibo(pago)
         except Exception as e:
             logger.error(f'Error generando PDF de recibo {pago_id} (portal): {e}')
             return Response(
@@ -522,66 +498,12 @@ class PortalReciboPagoView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        factura_label = pago.factura_id or f"{pago.id:06d}"
         return FileResponse(
             pdf_buffer,
             as_attachment=True,
-            filename=f"Recibo_{factura_label}.pdf",
+            filename=nombre_archivo_recibo(pago),
             content_type='application/pdf'
         )
-
-
-class PortalReciboPagoDatosView(APIView):
-    """
-    GET /api/portal/recibo/<pago_id>/datos/
-    Mismos datos que usa el panel admin para reimprimir un comprobante
-    (ComprobanteSerializer) más el membrete institucional embebido, para que
-    el portal dibuje el recibo con el MISMO modelo que el recibo de cobranza
-    (frontend utils/printReciboCobranza).
-    """
-    authentication_classes = [PortalJWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, pago_id):
-        from cobranza.serializers import ComprobanteSerializer
-        from secretaria.models import ConfiguracionSistema
-
-        representante = _get_representante(request)
-        pago = _pago_confirmado_del_representante(representante, pago_id)
-        if pago is None:
-            return Response(
-                {'error': 'Pago no encontrado, no está confirmado, o no pertenece a sus alumnos.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # El recibo se emite por operación, no por fila Pago: al cobrar y al
-        # reimprimir desde Comprobantes, el panel usa el PRIMER pago de la
-        # operación (su factura_id es el N° de recibo). Si el representante
-        # abre otra fila de la misma operación (pago mixto o de un hermano),
-        # debe salir ese mismo número, no el de la fila.
-        pago = Pago.objects.filter(operacion_uuid=pago.operacion_uuid).select_related(
-            'alumno', 'alumno__representante', 'usuario_receptor', 'banco_receptor'
-        ).prefetch_related('solvencias_generadas').order_by('id').first()
-
-        cfg = ConfiguracionSistema.objects.order_by('id').first()
-        membrete = {
-            'nombre': (cfg.nombre_colegio if cfg else '') or '',
-            'rif': (cfg.rif if cfg else '') or '',
-            'direccion': (cfg.direccion_colegio if cfg else '') or '',
-            'telefono': (cfg.telefono_colegio if cfg else '') or '',
-            'municipio_estado': ', '.join(
-                x for x in ((cfg.municipio, cfg.estado_colegio) if cfg else ()) if x
-            ),
-            'logo_colegio': _imagen_a_data_uri(cfg.logo_colegio) if cfg else None,
-            'afiliacion_nombre': (cfg.afiliacion_nombre if cfg else '') or '',
-            'encabezado_personalizado': _imagen_a_data_uri(cfg.encabezado_personalizado) if cfg else None,
-            'pie_pagina_personalizado': _imagen_a_data_uri(cfg.pie_pagina_personalizado) if cfg else None,
-        }
-
-        data = ComprobanteSerializer(pago).data
-        data['tasa_bcv'] = str(pago.tasa_aplicada or '0')
-        data['membrete'] = membrete
-        return Response(data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

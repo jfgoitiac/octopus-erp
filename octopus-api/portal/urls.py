@@ -50,7 +50,6 @@ from .views import (
     PortalConfirmarResetView,
     PortalDashboardView,
     PortalHistorialPagosView,
-    PortalReciboPagoDatosView,
     PortalReciboPagoView,
     PortalComprobantePagoView,
     ActivarPortalRepresentanteView,
@@ -96,8 +95,6 @@ urlpatterns = [
 
     # Recibo PDF de un pago confirmado: GET /api/portal/recibo/<pago_id>/
     path('recibo/<int:pago_id>/', PortalReciboPagoView.as_view(), name='portal_recibo'),
-    # Datos del recibo (mismo modelo que el recibo de cobranza del panel)
-    path('recibo/<int:pago_id>/datos/', PortalReciboPagoDatosView.as_view(), name='portal_recibo_datos'),
 
     # Comprobantes: POST /api/portal/comprobante/ — GET /api/portal/comprobante/
     path('comprobante/', PortalComprobantePagoView.as_view(), name='portal_comprobante'),
