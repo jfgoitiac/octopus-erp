@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
-import { HandCoins, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HandCoins, Download, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../../context/AuthContext';
 import { listarCuentasCxc, exportarCuentasCxc, getTasaVigenteCantina } from '../../api/cantina.service';
@@ -31,6 +31,7 @@ export default function CantinaCuentasPorCobrar() {
   const [total, setTotal] = useState(0);
   const [hayMas, setHayMas] = useState(false);
   const [cargadoPara, setCargadoPara] = useState(null);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [tasa, setTasa] = useState(0);
   const [exportando, setExportando] = useState(false);
   const [seleccionado, setSeleccionado] = useState(null);
@@ -47,6 +48,7 @@ export default function CantinaCuentasPorCobrar() {
   const cargando = cargadoPara !== claveFiltros;
 
   const cargar = useCallback((signal) => {
+    setErrorCarga(false);
     return listarCuentasCxc({
       area: area || undefined,
       con_deuda: soloDeuda ? 1 : undefined,
@@ -60,6 +62,7 @@ export default function CantinaCuentasPorCobrar() {
       })
       .catch(async err => {
         if (esCancelacion(err)) return;
+        setErrorCarga(true);
         toast.error(await mensajeError(err, 'No se pudieron cargar las cuentas por cobrar.'));
       })
       .finally(() => { if (!signal?.aborted) setCargadoPara(claveFiltros); });
@@ -152,14 +155,28 @@ export default function CantinaCuentasPorCobrar() {
         </div>
       </div>
 
-      <ListaCuentasCxc
-        cuentas={cuentas}
-        cargando={cargando}
-        tasa={tasa}
-        onVer={c => setSeleccionado(c.id)}
-      />
+      {errorCarga && !cargando ? (
+        <div className="rounded-xl p-6 flex flex-col items-center gap-3 text-center" role="alert" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+          <p className="text-sm" style={{ color: '#dc2626' }}>No se pudieron cargar las cuentas por cobrar.</p>
+          <button
+            type="button"
+            onClick={() => { setCargadoPara(null); cargar(); }}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto"
+            style={{ background: 'var(--pb)' }}
+          >
+            <RefreshCw size={15} /> Reintentar
+          </button>
+        </div>
+      ) : (
+        <ListaCuentasCxc
+          cuentas={cuentas}
+          cargando={cargando}
+          tasa={tasa}
+          onVer={c => setSeleccionado(c.id)}
+        />
+      )}
 
-      {!cargando && (pagina > 1 || hayMas) && (
+      {!cargando && !errorCarga && (pagina > 1 || hayMas) && (
         <div className="flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--ash)' }}>
           <button
             type="button"
