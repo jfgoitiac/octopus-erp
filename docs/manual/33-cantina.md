@@ -297,3 +297,135 @@ ya se usó en otra recarga, en un comprobante del portal o en un pago del colegi
 
 ⚠️ **Eliminar un producto lo quita del POS.** Si solo se acabó, registra una
 salida de inventario en vez de borrarlo.
+
+---
+
+## 12. Dos cajas: Cantina y Librería
+
+El módulo maneja **dos cajas independientes**: **Cantina** y **Librería**. Cada
+producto, apertura, venta, cierre, cargo y abono pertenece a una de las dos. Los
+reportes y los cierres se separan por caja y por cajero, para saber qué vendió
+cada persona en cada una.
+
+### Abrir caja de Cantina o Librería
+
+1. Entra a **"POS"**. Aparece la ventana de apertura.
+2. Elige la caja: **Cantina** o **Librería**. Es obligatorio.
+3. Escribe el monto inicial de efectivo y confirma.
+
+Desde ese momento:
+
+- El POS solo muestra los productos de la caja que abriste.
+- Las ventas y el cierre quedan en esa caja; no se pueden cambiar después.
+- En la parte superior verás qué caja tienes abierta ("Caja: Cantina" o "Caja:
+  Librería").
+- Cada cajero tiene una sola apertura abierta a la vez, y cada caja admite hasta
+  3 aperturas simultáneas.
+
+Los productos y categorías que ya existían quedan en **Cantina**.
+
+---
+
+## 13. Vender a crédito
+
+Una venta puede **cargarse a la cuenta del representante**. La deuda queda a
+nombre del representante y se anota qué alumno consumió.
+
+1. En el POS agrega los productos.
+2. Elige el método de pago **"Cargar a cuenta"**.
+3. Busca al representante por su nombre, apellido o cédula, o por el nombre,
+   apellido o cédula escolar del alumno.
+4. Revisa su saldo y su límite, y elige el alumno que consume (opcional).
+5. Confirma la venta.
+
+Si la venta haría que el representante supere su **límite de crédito**, o si su
+cuenta está **bloqueada**, el sistema no la permite y muestra el motivo. El
+límite general es de 20 USD; el administrador puede fijar uno distinto o bloquear
+a un representante.
+
+Las ventas del POS también aceptan todos los métodos de cobranza (transferencia,
+pago móvil, punto de venta, Zelle, efectivo divisas y efectivo bolívares), además
+de tarjeta prepago. Una venta se paga con **un solo método**.
+
+---
+
+## 14. Cuentas por cobrar
+
+Entra a **"Cuentas por cobrar"** para ver quién debe y cuánto.
+
+- Busca al representante por nombre, apellido o cédula, o por el nombre, apellido
+  o cédula escolar de su hijo.
+- Filtra por caja (Cantina o Librería) o muestra solo a quienes tienen deuda.
+- Cada fila muestra la deuda en USD, su equivalente en bolívares a la tasa
+  vigente y los días de la deuda más antigua (en rojo si pasan de 7).
+- **"Ver cuenta"** abre el estado de cuenta: los cargos (con fecha, caja y
+  alumno) y los abonos.
+- El administrador y el director pueden exportar la lista a Excel y editar el
+  límite o el bloqueo del representante.
+
+El saldo siempre se calcula a partir de los cargos y los abonos; no se escribe a
+mano.
+
+---
+
+## 15. Registrar un abono
+
+1. Abre la cuenta del representante y elige registrar un abono.
+2. Agrega una línea por cada forma de pago. Un abono puede ser **mixto** (por
+   ejemplo, una parte en Zelle y otra en pago móvil).
+3. Completa los datos de cada línea según el método:
+   - **Transferencia, pago móvil, Zelle y punto de venta:** banco receptor y
+     referencia. El punto de venta además pide el lote de 4 dígitos.
+   - **Métodos en bolívares:** escribe el monto en bolívares; el sistema calcula
+     los dólares con la tasa BCV vigente.
+   - **Métodos en divisas:** escribe el monto en dólares; el sistema calcula los
+     bolívares.
+4. Revisa el total contra la deuda. **"Pagar todo"** completa el saldo.
+5. Guarda. Podrás imprimir el recibo.
+
+El abono se aplica a los cargos **del más antiguo al más reciente**. No puedes
+abonar más de lo que el representante debe, y una referencia bancaria que ya se
+usó en otro pago, recarga, venta o abono se rechaza.
+
+El abono entra al arqueo de la caja que tienes abierta. Si el representante
+también tiene deuda de la otra caja, se puede cancelar en el mismo abono.
+
+---
+
+## 16. Abono retroactivo
+
+Sirve para registrar un pago que se recibió en una fecha pasada. **Solo lo hacen
+el director y el administrador.**
+
+1. En el abono, activa **"Pago retroactivo"**.
+2. Elige la fecha del pago (no puede ser futura ni de un período ya cerrado).
+3. Revisa la tasa: el sistema sugiere la tasa BCV de esa fecha y puedes
+   corregirla. Si se aleja mucho de la sugerida, avisa.
+4. Escribe el **motivo** (obligatorio, mínimo 10 caracteres).
+
+Un abono retroactivo **no altera el arqueo** de ninguna caja abierta. Para anular
+un abono (solo director y administrador), indica el motivo: sus aplicaciones se
+revierten y la deuda vuelve a quedar pendiente. Una venta a crédito con abonos
+aplicados no se puede anular hasta anular antes esos abonos.
+
+---
+
+## 17. Cierre por área
+
+Al cerrar la caja, el cierre corresponde a la caja que abriste (Cantina o
+Librería) y muestra los **totales por método de pago**: ventas, abonos de cuentas
+por cobrar y recargas de esa apertura.
+
+- El efectivo esperado del arqueo suma el efectivo de las ventas, los abonos y las
+  recargas en efectivo de **esa** apertura (dólares y bolívares por separado).
+- Los **Reportes** se pueden filtrar por caja y por cajero.
+
+---
+
+## 18. Qué ve el representante en el portal
+
+En la sección **"Cantina"** del Portal de Familias, el representante ve en solo
+lectura su **cuenta de cantina y librería**: la deuda total y por caja, los
+consumos pendientes (con fecha y alumno) y sus últimos abonos. No puede pagar
+desde el portal; la deuda se cancela en la cantina o la librería. No se muestran
+los cargos ni los abonos anulados.
