@@ -1,4 +1,6 @@
 import { Package, Pencil, SlidersHorizontal, Trash2, AlertTriangle } from 'lucide-react';
+import { TablaScroll } from '../../ui/TablaScroll';
+import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 
 export default function ProductosTable({ productos, onEditar, onAjustar, onEliminar }) {
   if (productos.length === 0) {
@@ -14,11 +16,11 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
   }
 
   return (
-    <div className="rounded-xl overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
-      <table className="w-full text-sm border-collapse min-w-[760px]">
+    <TablaScroll className="rounded-xl" >
+      <table className="w-full text-sm border-collapse min-w-[840px]" style={{ border: '0.5px solid var(--border-md)' }}>
         <thead>
           <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-            {['Nombre', 'Categoría', 'Código de barras', 'Precio', 'Stock', 'Estado', 'Acciones'].map(h => (
+            {['Nombre', 'Caja', 'Categoría', 'Código de barras', 'Precio', 'Stock', 'Estado', 'Acciones'].map(h => (
               <th
                 key={h}
                 scope="col"
@@ -41,6 +43,7 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
               }}
             >
               <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{p.nombre}</td>
+              <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{ETIQUETA_AREA[p.area] ?? ETIQUETA_AREA.cantina}</td>
               <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{p.categoria_nombre ?? p.categoria?.nombre ?? '—'}</td>
               <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.codigo_barras || '—'}</td>
               <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>${Number(p.precio ?? 0).toFixed(2)}</td>
@@ -103,6 +106,6 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
           ))}
         </tbody>
       </table>
-    </div>
+    </TablaScroll>
   );
 }

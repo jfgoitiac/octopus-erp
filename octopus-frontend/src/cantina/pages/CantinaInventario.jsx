@@ -41,6 +41,7 @@ export default function CantinaInventario() {
   const [loading, setLoading]                 = useState(true);
   const [categorias, setCategorias]           = useState([]);
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
+  const [areaFiltro, setAreaFiltro]           = useState('');
   const [refreshKey, setRefreshKey]           = useState(0);
 
   const [modalProducto, setModalProducto]   = useState(null); // { modo: 'crear'|'editar', producto }
@@ -53,6 +54,7 @@ export default function CantinaInventario() {
     try {
       const params = {};
       if (categoriaFiltro) params.categoria = categoriaFiltro;
+      if (areaFiltro) params.area = areaFiltro;
       const res = await getProductos(params, signal);
       setProductos(res.data?.results ?? res.data ?? []);
     } catch (err) {
@@ -61,7 +63,7 @@ export default function CantinaInventario() {
     } finally {
       setLoading(false);
     }
-  }, [categoriaFiltro]);
+  }, [categoriaFiltro, areaFiltro]);
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -75,7 +77,7 @@ export default function CantinaInventario() {
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await getCategorias(controller.signal);
+        const res = await getCategorias(controller.signal, areaFiltro ? { area: areaFiltro } : undefined);
         setCategorias(res.data?.results ?? res.data ?? []);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -83,7 +85,12 @@ export default function CantinaInventario() {
       }
     })();
     return () => controller.abort();
-  }, [refreshKey]);
+  }, [refreshKey, areaFiltro]);
+
+  const cambiarArea = (valor) => {
+    setAreaFiltro(valor);
+    setCategoriaFiltro(''); // la categoría elegida puede ser de la otra caja
+  };
 
   const forzarRecarga = () => setRefreshKey(k => k + 1);
 
@@ -153,11 +160,11 @@ export default function CantinaInventario() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
             <Package size={20} style={{ color: 'var(--pb)' }} />
-            Inventario de Cantina
+            Inventario de Cantina y Librería
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
             {loading ? 'Cargando productos...' : `${productos.length} producto${productos.length !== 1 ? 's' : ''}`}
@@ -166,7 +173,7 @@ export default function CantinaInventario() {
 
         <button
           onClick={() => setModalProducto({ modo: 'crear', producto: null })}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px]"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px]"
           style={{ background: 'var(--pb)' }}
         >
           <Plus size={16} />
@@ -176,21 +183,40 @@ export default function CantinaInventario() {
 
       <AlertaStockBajo refreshKey={refreshKey} />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
-          Categoría
-        </label>
-        <select
-          value={categoriaFiltro}
-          onChange={e => setCategoriaFiltro(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm outline-none"
-          style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
-        >
-          <option value="">Todas</option>
-          {categorias.map(c => (
-            <option key={c.id} value={c.id}>{c.nombre}</option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-2">
+          <label htmlFor="inv-area" className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+            Caja
+          </label>
+          <select
+            id="inv-area"
+            value={areaFiltro}
+            onChange={e => cambiarArea(e.target.value)}
+            className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-sm outline-none min-h-[40px]"
+            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+          >
+            <option value="">Todas</option>
+            <option value="cantina">Cantina</option>
+            <option value="libreria">Librería</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="inv-categoria" className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+            Categoría
+          </label>
+          <select
+            id="inv-categoria"
+            value={categoriaFiltro}
+            onChange={e => setCategoriaFiltro(e.target.value)}
+            className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-sm outline-none min-h-[40px]"
+            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
+          >
+            <option value="">Todas</option>
+            {categorias.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading ? (

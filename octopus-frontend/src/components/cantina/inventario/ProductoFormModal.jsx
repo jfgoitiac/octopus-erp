@@ -17,6 +17,9 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
   const [stockActual, setStockActual]   = useState(producto?.stock_actual ?? 0);
   const [stockMinimo, setStockMinimo]   = useState(producto?.stock_minimo ?? 5);
   const [activo, setActivo]             = useState(producto?.activo ?? true);
+  // Caja a la que pertenece el producto (D1): por defecto 'cantina', igual
+  // que el default del backend para los datos existentes.
+  const [area, setArea]                 = useState(producto?.area ?? 'cantina');
 
   const [categorias, setCategorias]         = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(true);
@@ -47,12 +50,23 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
     return () => controller.abort();
   }, []);
 
+  // Las categorías también pertenecen a una caja: solo se ofrecen las del área
+  // elegida (las que no traen `area` se tratan como 'cantina').
+  const categoriasDelArea = categorias.filter(c => (c.area ?? 'cantina') === area);
+
+  const cambiarArea = (nueva) => {
+    if (nueva === area) return;
+    setArea(nueva);
+    // La categoría elegida puede ser de la otra caja.
+    setCategoriaId('');
+  };
+
   const handleCrearCategoria = async () => {
     const nombreCat = nuevaCategoria.trim();
     if (!nombreCat) return;
     setCreandoCategoria(true);
     try {
-      const res = await crearCategoria({ nombre: nombreCat, orden: categorias.length });
+      const res = await crearCategoria({ nombre: nombreCat, orden: categorias.length, area });
       const nueva = res.data;
       setCategorias(prev => [...prev, nueva]);
       setCategoriaId(nueva.id);
@@ -99,6 +113,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
       stock_actual: Number(stockActual),
       stock_minimo: Number(stockMinimo),
       activo,
+      area,
     };
 
     setGuardando(true);
@@ -154,6 +169,26 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[['cantina', 'Cantina'], ['libreria', 'Librería']].map(([valor, etiqueta]) => (
+              <button
+                key={valor}
+                type="button"
+                onClick={() => cambiarArea(valor)}
+                aria-pressed={area === valor}
+                className="py-2 rounded-lg text-sm font-medium min-h-[44px]"
+                style={area === valor
+                  ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' }
+                  : { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Categoría</label>
           {loadingCategorias ? (
             <div className="h-11 rounded-lg animate-pulse" style={{ background: 'var(--border-md)' }} />
@@ -165,7 +200,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               onChange={e => setCategoriaId(e.target.value)}
             >
               <option value="">Selecciona una categoría</option>
-              {categorias.map(c => (
+              {categoriasDelArea.map(c => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>

@@ -38,11 +38,11 @@ const TARJETAS = [
 
 export default function ResumenCierreCaja({ resumen }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {TARJETAS.map(({ key, label, icon: Icon, color, bg }) => (
         <div
           key={key}
-          className="rounded-2xl p-5 flex flex-col gap-3"
+          className="rounded-2xl p-4 sm:p-5 flex flex-col gap-3"
           style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
         >
           <div

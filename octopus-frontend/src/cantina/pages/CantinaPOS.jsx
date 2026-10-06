@@ -5,10 +5,17 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   getProductos, getTasaVigenteCantina, registrarVenta, descargarReciboVenta,
-  getAperturaCajaActual,
+  getAperturaCajaActual, getBancosCantina,
 } from '../../api/cantina.service';
 import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
+import { notificarAperturaCambiada, ETIQUETA_AREA } from '../aperturaEvento';
+import MetodoPagoFields from '../../components/cantina/MetodoPagoFields';
+import {
+  esMetodoBancario, esMetodoVes, validarMetodoPago, valorInicialMetodo, camposMetodoVenta,
+} from '../../components/cantina/metodoPagoUtils';
+import CargoCuentaPanel from '../../components/cantina/pos/CargoCuentaPanel';
+import { evaluarCredito } from '../../components/cantina/pos/evaluarCredito';
 import CarritoVenta from '../../components/cantina/pos/CarritoVenta';
 import ScannerProducto from '../../components/cantina/pos/ScannerProducto';
 import ScannerTarjeta from '../../components/cantina/pos/ScannerTarjeta';
@@ -68,6 +75,15 @@ export default function CantinaPOS() {
   const [carrito, setCarrito] = useState([]); // [{ producto, cantidad }]
   const [metodoPago, setMetodoPago] = useState('efectivo');
 
+  // Datos del método bancario (banco, referencia, lote) — solo aplican si
+  // `esMetodoBancario(metodoPago)`; el método en sí vive en `metodoPago`.
+  const [datosPago, setDatosPago] = useState(() => valorInicialMetodo('efectivo'));
+  const [bancos, setBancos] = useState([]);
+
+  // "Cargar a cuenta" (CxC): representante elegido y alumno que consumió.
+  const [representante, setRepresentante] = useState(null);
+  const [alumnoId, setAlumnoId] = useState('');
+
   const [tarjeta, setTarjeta] = useState(null);
   const [identidadConfirmada, setIdentidadConfirmada] = useState(false);
   const [confirmarSaldoNegativo, setConfirmarSaldoNegativo] = useState(false);
@@ -91,11 +107,16 @@ export default function CantinaPOS() {
     return () => controller.abort();
   }, []);
 
+  // El POS solo muestra productos del área de la apertura (D2): se espera a
+  // conocerla antes de pedir el catálogo.
+  const areaCaja = apertura?.area ?? null;
   useEffect(() => {
+    if (!areaCaja) return undefined;
     const controller = new AbortController();
     (async () => {
+      setLoadingProductos(true);
       try {
-        const res = await getProductos({ activo: true }, controller.signal);
+        const res = await getProductos({ activo: true, area: areaCaja }, controller.signal);
         setProductos(res.data?.results ?? res.data ?? []);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -104,6 +125,17 @@ export default function CantinaPOS() {
         setLoadingProductos(false);
       }
     })();
+    return () => controller.abort();
+  }, [areaCaja]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getBancosCantina(controller.signal)
+      .then(res => setBancos(res.data || []))
+      .catch(err => {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo cargar el catálogo de bancos.');
+      });
     return () => controller.abort();
   }, []);
 
@@ -122,6 +154,12 @@ export default function CantinaPOS() {
   /* ── Carrito ── */
 
   const agregarProducto = useCallback((producto) => {
+    // Un producto escaneado de la otra caja se rechaza acá (el backend
+    // también responde 400, pero mejor avisar antes de armar el carrito).
+    if (producto.area && areaCaja && producto.area !== areaCaja) {
+      toast.warning(`"${producto.nombre}" pertenece a ${ETIQUETA_AREA[producto.area] ?? producto.area}; tu caja abierta es ${ETIQUETA_AREA[areaCaja] ?? areaCaja}.`);
+      return;
+    }
     setCarrito(prev => {
       const existente = prev.find(l => l.producto.id === producto.id);
       const cantidadDeseada = (existente?.cantidad ?? 0) + 1;
@@ -134,7 +172,7 @@ export default function CantinaPOS() {
       }
       return [...prev, { producto, cantidad: 1 }];
     });
-  }, []);
+  }, [areaCaja]);
 
   const cambiarCantidad = useCallback((productoId, nuevaCantidad) => {
     setCarrito(prev => {
@@ -158,6 +196,9 @@ export default function CantinaPOS() {
   const limpiarVenta = useCallback(() => {
     setCarrito([]);
     setMetodoPago('efectivo');
+    setDatosPago(valorInicialMetodo('efectivo'));
+    setRepresentante(null);
+    setAlumnoId('');
     setTarjeta(null);
     setIdentidadConfirmada(false);
     setConfirmarSaldoNegativo(false);
@@ -165,11 +206,29 @@ export default function CantinaPOS() {
 
   const cambiarMetodo = (m) => {
     setMetodoPago(m);
+    // Los datos bancarios no se arrastran entre métodos (cada uno tiene su
+    // formato de referencia).
+    setDatosPago(valorInicialMetodo(m));
+    if (m !== 'credito_representante') {
+      setRepresentante(null);
+      setAlumnoId('');
+    }
     if (m !== 'tarjeta_prepago') {
       setTarjeta(null);
       setIdentidadConfirmada(false);
       setConfirmarSaldoNegativo(false);
     }
+  };
+
+  const seleccionarRepresentante = (rep) => {
+    setRepresentante(rep);
+    // Con un solo hijo no hace falta que el cajero lo elija.
+    setAlumnoId(rep?.alumnos?.length === 1 ? String(rep.alumnos[0].id) : '');
+  };
+
+  const cambiarRepresentante = () => {
+    setRepresentante(null);
+    setAlumnoId('');
   };
 
   const resolverTarjeta = (data) => {
@@ -188,7 +247,8 @@ export default function CantinaPOS() {
      congela el backend en la respuesta de la venta, ver §7.2 cantina.md) ── */
   const totalUsd = carrito.reduce((acc, l) => acc + Number(l.producto.precio) * l.cantidad, 0);
   const totalVes = totalUsd * tasaVigente;
-  const resaltarMoneda = metodoPago === 'efectivo_ves' ? 'ves' : 'usd';
+  const resaltarMoneda = esMetodoVes(metodoPago) ? 'ves' : 'usd';
+  const valorPago = { ...datosPago, metodo_pago: metodoPago };
 
   /* ── Reglas de habilitación de "Cobrar" (§7.2 cantina.md) ── */
   let cobrarDisabled = false;
@@ -217,6 +277,15 @@ export default function CantinaPOS() {
         cobrarDisabledMotivo = 'Confirma que el saldo quedará en negativo.';
       }
     }
+  } else if (metodoPago === 'credito_representante') {
+    const ev = evaluarCredito(representante, totalUsd);
+    cobrarDisabled = !ev.ok;
+    cobrarDisabledMotivo = ev.motivo;
+  } else if (esMetodoBancario(metodoPago)) {
+    if (Object.keys(validarMetodoPago(valorPago, { conMonto: false })).length > 0) {
+      cobrarDisabled = true;
+      cobrarDisabledMotivo = 'Completa banco y referencia del pago.';
+    }
   }
 
   /* ── Cobrar ── */
@@ -228,17 +297,35 @@ export default function CantinaPOS() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // El área NO se envía: la venta la hereda de la apertura (D2).
     const payload = {
       items: carrito.map(l => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
       metodo_pago: metodoPago,
     };
     if (metodoPago === 'tarjeta_prepago') payload.tarjeta_codigo = tarjeta.codigo;
+    if (esMetodoBancario(metodoPago)) Object.assign(payload, camposMetodoVenta(valorPago));
+    if (metodoPago === 'credito_representante') {
+      payload.representante_id = representante.id;
+      if (alumnoId) payload.alumno_id = Number(alumnoId);
+    }
+    const repVenta = representante;
+    const alumnoVenta = repVenta?.alumnos?.find(a => String(a.id) === alumnoId);
 
     setCobrando(true);
     try {
       const res = await registrarVenta(payload, controller.signal);
       toast.success(`Venta #${res.data.id} cobrada correctamente.`);
-      setVentaActual(res.data);
+      // El ticket en pantalla muestra a quién se le cargó (el serializer de
+      // la venta no necesariamente trae el nombre del representante).
+      setVentaActual(metodoPago === 'credito_representante'
+        ? {
+          ...res.data,
+          representante_nombre: res.data.representante_nombre
+            ?? `${repVenta.nombre ?? ''} ${repVenta.apellido ?? ''}`.trim(),
+          alumno_nombre: res.data.alumno_nombre
+            ?? (alumnoVenta ? `${alumnoVenta.nombre} ${alumnoVenta.apellido}`.trim() : undefined),
+        }
+        : res.data);
       limpiarVenta();
       // Descarga/apertura automática del ticket al cobrar (§7.2 checklist).
       handleDescargarRecibo(res.data.id);
@@ -278,9 +365,14 @@ export default function CantinaPOS() {
   const cerrarTicket = () => setVentaActual(null);
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-64px-4rem)]">
+    // Desde `lg` el POS ocupa la altura de la ventana (dvh) con dos columnas;
+    // debajo de `lg` (tablet 768×1024, celular) la página scrollea y el botón
+    // COBRAR queda fijo al pie del carrito (ver CarritoVenta).
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-64px-4rem)]">
       {!cargandoApertura && apertura === false && (
-        <AperturaCajaModal onAbierta={data => setApertura(data)} />
+        <AperturaCajaModal
+          onAbierta={data => { setApertura(data); notificarAperturaCambiada(); }}
+        />
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -289,18 +381,19 @@ export default function CantinaPOS() {
             Punto de venta
           </h1>
           <p className="text-sm" style={{ color: 'var(--ash)' }}>
+            {areaCaja && <>Caja de {ETIQUETA_AREA[areaCaja] ?? areaCaja} · </>}
             Cajero: {nombreUsuario(user)} · {format(new Date(), "d 'de' MMMM, HH:mm", { locale: es })}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
         {/* Columna izquierda: escaneo + grid de productos */}
-        <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
+        <div className="lg:col-span-2 flex flex-col gap-3 lg:min-h-0">
           <ScannerProducto onProductoEncontrado={agregarProducto} disabled={Boolean(ventaActual)} />
           <BuscadorProductoManual productos={productos} onSeleccionar={agregarProducto} />
 
-          <div className="flex-1 overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
+          <div className="max-h-[45dvh] lg:max-h-none lg:flex-1 overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
             <p className="text-[11px] uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
               <Package size={13} /> Productos
             </p>
@@ -332,7 +425,7 @@ export default function CantinaPOS() {
         </div>
 
         {/* Columna derecha: carrito */}
-        <div className="min-h-0">
+        <div className="lg:min-h-0">
           <CarritoVenta
             items={carrito}
             onCambiarCantidad={cambiarCantidad}
@@ -366,6 +459,31 @@ export default function CantinaPOS() {
                   />
                 )}
               </div>
+            )}
+
+            {esMetodoBancario(metodoPago) && (
+              <MetodoPagoFields
+                value={valorPago}
+                onChange={setDatosPago}
+                bancos={bancos}
+                tasa={tasaVigente}
+                metodosPermitidos={[metodoPago]}
+                ocultarMonto
+                ocultarSelector
+                disabled={cobrando}
+              />
+            )}
+
+            {metodoPago === 'credito_representante' && (
+              <CargoCuentaPanel
+                representante={representante}
+                onSeleccionar={seleccionarRepresentante}
+                onCambiar={cambiarRepresentante}
+                alumnoId={alumnoId}
+                onCambiarAlumno={setAlumnoId}
+                totalUsd={totalUsd}
+                disabled={cobrando}
+              />
             )}
           </CarritoVenta>
         </div>

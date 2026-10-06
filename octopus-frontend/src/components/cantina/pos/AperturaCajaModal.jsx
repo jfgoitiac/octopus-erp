@@ -1,22 +1,39 @@
 import { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { Loader2, Wallet } from 'lucide-react';
+import { Loader2, Wallet, Store, BookOpen } from 'lucide-react';
 import { abrirCajaCantina } from '../../../api/cantina.service';
+import { Modal } from '../../ui/Modal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const LABEL_STYLE = { color: 'var(--ash)' };
+const ACTIVE_STYLE = { border: '2px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' };
+const IDLE_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' };
+
+// Dos cajas (D1/D2 del prompt CxC): el cajero elige el área AL ABRIR; la
+// venta y el cierre la heredan de la apertura en el backend.
+const AREAS = [
+  { value: 'cantina', label: 'Cantina', icon: Store },
+  { value: 'libreria', label: 'Librería', icon: BookOpen },
+];
+
+const noop = () => {};
 
 // Apertura de caja del cajero autenticado — se muestra ANTES de la primera
-// venta del turno (bloqueante, sin botón "cerrar"): el colegio puede tener
-// hasta 3 cajeros vendiendo a la vez, cada uno con su propia sesión de caja
-// independiente (nunca una caja global), así que cada cajero debe declarar
-// su monto inicial una sola vez por turno antes de poder cobrar.
+// venta del turno (bloqueante: no se puede cerrar con Escape ni con el
+// overlay, por eso `onClose` es un no-op y el encabezado va en el cuerpo, sin
+// botón X). El colegio puede tener hasta 3 cajeros por área vendiendo a la
+// vez, cada uno con su propia sesión de caja independiente.
 export default function AperturaCajaModal({ onAbierta }) {
+  const [area, setArea] = useState('');
   const [montoInicial, setMontoInicial] = useState('');
   const [abriendo, setAbriendo] = useState(false);
   const abortRef = useRef(null);
 
   const validar = () => {
+    if (!area) {
+      toast.warning('Elige la caja que vas a abrir: Cantina o Librería.');
+      return false;
+    }
     const n = parseFloat(montoInicial);
     if (montoInicial === '' || Number.isNaN(n) || n < 0) {
       toast.warning('Ingresa el monto inicial de caja (0 o mayor).');
@@ -26,7 +43,7 @@ export default function AperturaCajaModal({ onAbierta }) {
   };
 
   const handleAbrir = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!validar() || abriendo) return;
 
     setAbriendo(true);
@@ -36,36 +53,62 @@ export default function AperturaCajaModal({ onAbierta }) {
 
     try {
       const n = parseFloat(montoInicial);
-      const res = await abrirCajaCantina(n.toFixed(2), controller.signal);
+      const res = await abrirCajaCantina(n.toFixed(2), area, controller.signal);
       toast.success('Caja abierta correctamente.');
       onAbierta?.(res.data);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      const msg = err.response?.data?.detail || 'No se pudo abrir la caja. Intenta de nuevo.';
+      const msg = err.response?.data?.detail || err.response?.data?.area?.[0] || 'No se pudo abrir la caja. Intenta de nuevo.';
       toast.error(msg);
     } finally {
       setAbriendo(false);
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-apertura-caja-titulo"
-      tabIndex={-1}
+  const footer = (
+    <button
+      type="submit"
+      form="form-apertura-caja"
+      disabled={abriendo}
+      className="w-full text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+      style={{ background: 'var(--pb)' }}
     >
-      <form onSubmit={handleAbrir} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center gap-2 mb-1">
-          <Wallet size={18} style={{ color: 'var(--pb)' }} />
-          <h3 id="modal-apertura-caja-titulo" className="font-bold" style={{ color: 'var(--jet)' }}>
-            Abrir caja
-          </h3>
+      {abriendo ? <><Loader2 size={14} className="animate-spin" /> Abriendo...</> : 'Abrir caja y empezar a vender'}
+    </button>
+  );
+
+  return (
+    <Modal open onClose={noop} footer={footer} size="sm">
+      <form id="form-apertura-caja" onSubmit={handleAbrir} className="space-y-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Wallet size={18} style={{ color: 'var(--pb)' }} />
+            <h3 className="font-bold" style={{ color: 'var(--jet)' }}>Abrir caja</h3>
+          </div>
+          <p className="text-sm" style={{ color: 'var(--ash)' }}>
+            Elige la caja y declara el monto inicial con el que empiezas tu turno.
+          </p>
         </div>
-        <p className="text-sm mt-1 mb-4" style={{ color: 'var(--ash)' }}>
-          Declara el monto inicial con el que empiezas tu turno para poder registrar ventas.
-        </p>
+
+        <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</label>
+          <div className="grid grid-cols-2 gap-2">
+            {AREAS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setArea(value)}
+                disabled={abriendo}
+                aria-pressed={area === value}
+                className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-4 text-sm font-semibold min-h-[88px]"
+                style={area === value ? ACTIVE_STYLE : IDLE_STYLE}
+              >
+                <Icon size={24} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div>
           <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
@@ -87,16 +130,7 @@ export default function AperturaCajaModal({ onAbierta }) {
             />
           </div>
         </div>
-
-        <button
-          type="submit"
-          disabled={abriendo}
-          className="w-full mt-6 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
-          style={{ background: 'var(--pb)' }}
-        >
-          {abriendo ? <><Loader2 size={14} className="animate-spin" /> Abriendo...</> : 'Abrir caja y empezar a vender'}
-        </button>
       </form>
-    </div>
+    </Modal>
   );
 }

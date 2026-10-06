@@ -5,11 +5,13 @@ import { es } from 'date-fns/locale';
 import { Wallet, CheckCircle2, Loader2 } from 'lucide-react';
 import { getCierreCajaHoy, cerrarCajaCantina } from '../../api/cantina.service';
 import ResumenCierreCaja from '../../components/cantina/cierre/ResumenCierreCaja';
+import TotalesPorMetodo from '../../components/cantina/cierre/TotalesPorMetodo';
+import { notificarAperturaCambiada, ETIQUETA_AREA } from '../aperturaEvento';
 
 function SkeletonCierre() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando cierre de caja">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
@@ -86,6 +88,7 @@ export default function CantinaCierreCaja() {
         observaciones: observaciones || undefined,
       });
       setCierre(res.data);
+      notificarAperturaCambiada(); // el chip "Caja: …" del layout ya no aplica
       toast.success('Caja cerrada correctamente.');
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -138,7 +141,7 @@ export default function CantinaCierreCaja() {
       <div>
         <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
           <Wallet size={20} style={{ color: 'var(--pb)' }} />
-          Cierre de Caja
+          Cierre de Caja{cierre?.area ? ` — ${ETIQUETA_AREA[cierre.area] ?? cierre.area}` : ''}
         </h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
           {yaCerrado
@@ -148,6 +151,8 @@ export default function CantinaCierreCaja() {
       </div>
 
       <ResumenCierreCaja resumen={cierre} />
+
+      <TotalesPorMetodo totales={cierre?.totales_por_metodo} />
 
       {yaCerrado ? (
         <div
@@ -159,7 +164,7 @@ export default function CantinaCierreCaja() {
             <h2 className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Caja cerrada</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
               <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Conteo físico</p>
               <p className="text-xl font-bold font-mono mt-1" style={{ color: 'var(--jet)' }}>
