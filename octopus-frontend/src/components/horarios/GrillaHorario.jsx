@@ -135,6 +135,8 @@ export const GrillaHorario = ({
   onEditarClase,
   onTogglePin,
   onMoverClase,
+  materiaActiva,
+  onAsignarRapido,
 }) => {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -203,6 +205,8 @@ export const GrillaHorario = ({
                             onCeldaClick={onCeldaClick}
                             onEditarClase={onEditarClase}
                             onTogglePin={onTogglePin}
+                            materiaActiva={materiaActiva}
+                            onAsignarRapido={onAsignarRapido}
                           />
                         </td>
                       );

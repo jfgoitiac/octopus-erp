@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Pencil, BookOpen, User, UserX } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, BookOpen, User, UserX, X } from 'lucide-react';
 import { getColor } from '../../constants/horarios';
 import { ModalMateria } from './ModalMateria';
 
-export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar }) => {
+export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria }) => {
   const [abierto, setAbierto]   = useState(true);
   const [modal, setModal]       = useState(null); // null | { materia: obj|null }
 
@@ -48,6 +48,12 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
         {/* Contenido */}
         {abierto && (
           <div className="px-4 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+              <p className="text-xs" style={{ color: materiaActiva ? 'var(--pb-mid)' : 'var(--ash)' }}>
+                {materiaActiva ? <>Modo rápido: toca celdas vacías para ubicar <strong>{materiaActiva.nombre}</strong>.</> : 'Selecciona una materia para ubicarla con un toque en varias celdas.'}
+              </p>
+              {materiaActiva && <button type="button" onClick={() => onSeleccionarMateria(null)} className="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-xs font-medium" style={{ color: 'var(--ash)' }}><X size={13} /> Salir del modo rápido</button>}
+            </div>
             {materias.length === 0 ? (
               <p className="text-xs py-2" style={{ color: 'var(--ash)' }}>
                 Este grado no tiene materias. Agrega la primera para poder generar el horario.
@@ -60,12 +66,14 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => abrirEditar(m)}
-                      title={docenteNombre ? `Editar ${m.nombre} — docente: ${docenteNombre}` : `Editar ${m.nombre} — sin docente asignado`}
+                      onClick={() => onSeleccionarMateria(materiaActiva?.id === m.id ? null : m)}
+                      onDoubleClick={() => abrirEditar(m)}
+                      title={`Seleccionar ${m.nombre} para colocación rápida`}
+                      aria-pressed={materiaActiva?.id === m.id}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
                       style={{
                         background: getColor(m.id),
-                        border: docenteNombre ? '1px solid rgba(0,0,0,0.07)' : '1px dashed var(--red)',
+                        border: materiaActiva?.id === m.id ? '2px solid var(--pb)' : docenteNombre ? '1px solid rgba(0,0,0,0.07)' : '1px dashed var(--red)',
                         color: 'var(--jet)',
                       }}
                     >
@@ -86,7 +94,6 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                           Sin docente
                         </span>
                       )}
-                      <Pencil size={10} className="opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60 transition-opacity" />
                     </button>
                   );
                 })}

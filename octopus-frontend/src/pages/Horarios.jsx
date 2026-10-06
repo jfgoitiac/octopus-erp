@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useSearchParams, Link } from 'react-router-dom';
-import { GraduationCap, Printer, Wand2, Settings2, Package, ChevronLeft } from 'lucide-react';
+import { GraduationCap, Printer, Wand2, Settings2, Package, ChevronLeft, Plus } from 'lucide-react';
 import { useHorarios } from '../hooks/useHorarios';
 import { usePaquetesHorario, useGradosPaquete } from '../hooks/usePaquetesHorario';
 import { INPUT_STYLE } from '../constants/styles';
@@ -13,6 +13,7 @@ import { EditorBloques } from '../components/horarios/EditorBloques';
 import { PanelMaterias } from '../components/horarios/PanelMaterias';
 import { ModalImprimirHorario } from '../components/horarios/ModalImprimirHorario';
 import { VistaImpresionHorario } from '../components/horarios/VistaImpresionHorario';
+import { ResumenHorario } from '../components/horarios/ResumenHorario';
 import { PageHeader } from '../components/ui/PageHeader';
 import { getHorariosDocente, listarDocentes } from '../api/academico.service';
 
@@ -47,6 +48,7 @@ const Horarios = () => {
   const [docentes, setDocentes] = useState([]);
   const [loadingDocentes, setLoadingDocentes] = useState(false);
   const [impresion, setImpresion] = useState(null);
+  const [materiaActiva, setMateriaActiva] = useState(null);
 
   const seleccionarPaquete = (id) => {
     setGrado('');
@@ -55,6 +57,26 @@ const Horarios = () => {
 
   const abrirCelda = (bloque) => {
     setModal({ clase: null, bloque });
+  };
+
+  const agregarClase = () => {
+    const bloqueLibre = bloques.find(bloque => bloque.tipo === 'clase' && !getClaseEnBloque(bloque.id));
+    if (!bloqueLibre) {
+      toast.info('No hay bloques libres. Mueve o elimina una clase para crear espacio.');
+      return;
+    }
+    abrirCelda(bloqueLibre);
+  };
+
+  const asignarRapido = async (bloque) => {
+    if (!materiaActiva) return abrirCelda(bloque);
+    const ok = await guardar({
+      materia_id: materiaActiva.id,
+      dia_semana: bloque.dia_semana,
+      bloque_id: bloque.id,
+      aula: '',
+    });
+    if (!ok) return;
   };
 
   const editarClase = (clase) => {
@@ -193,6 +215,15 @@ const Horarios = () => {
                 Editar bloques
               </button>
               <button
+                onClick={agregarClase}
+                disabled={!grado || !bloques.length}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
+                style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
+              >
+                <Plus size={16} />
+                Agregar clase
+              </button>
+              <button
                 onClick={() => setShowGenerador(true)}
                 disabled={!grado}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
@@ -239,7 +270,7 @@ const Horarios = () => {
         ) : (
           <select
             value={grado}
-            onChange={e => setGrado(e.target.value)}
+            onChange={e => { setGrado(e.target.value); setMateriaActiva(null); }}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
             style={INPUT_STYLE}
           >
@@ -253,13 +284,18 @@ const Horarios = () => {
 
       {/* Panel de materias — solo cuando hay grado seleccionado */}
       {grado && (
-        <PanelMaterias
-          materias={materias}
-          savingMateria={savingMateria}
-          onCrear={crearMateria}
-          onActualizar={actualizarMateria}
-          onEliminar={eliminarMateria}
-        />
+        <>
+          <ResumenHorario bloques={bloques} horarios={horarios} materias={materias} />
+          <PanelMaterias
+            materias={materias}
+            savingMateria={savingMateria}
+            materiaActiva={materiaActiva}
+            onSeleccionarMateria={setMateriaActiva}
+            onCrear={crearMateria}
+            onActualizar={actualizarMateria}
+            onEliminar={eliminarMateria}
+          />
+        </>
       )}
 
       {/* Título visible solo al imprimir */}
@@ -281,12 +317,14 @@ const Horarios = () => {
           onEditarClase={editarClase}
           onTogglePin={(clase) => pinear(clase.id, !clase.pineado)}
           onMoverClase={handleMoverClase}
+          materiaActiva={materiaActiva}
+          onAsignarRapido={asignarRapido}
         /></div>
       )}
 
       {grado && !loading && !!bloques.length && (
         <p className="mt-3 text-xs print:hidden" style={{ color: 'var(--ash)' }}>
-          Haz clic en una celda vacía para agregar clase, en una existente para editarla, o arrástrala a otro bloque para moverla.
+          Selecciona una materia para colocarla en varios bloques con un toque. Haz doble clic en una materia para editarla; arrastra una clase para moverla.
         </p>
       )}
 
