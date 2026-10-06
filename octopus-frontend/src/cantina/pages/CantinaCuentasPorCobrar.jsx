@@ -171,7 +171,6 @@ export default function CantinaCuentasPorCobrar() {
         <ListaCuentasCxc
           cuentas={cuentas}
           cargando={cargando}
-          tasa={tasa}
           onVer={c => setSeleccionado(c.id)}
         />
       )}

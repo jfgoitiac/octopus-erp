@@ -8,7 +8,7 @@ import RegistrarAbonoModal from './RegistrarAbonoModal';
 import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
 import {
-  AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
+  AREA_LABELS, detalleCargoTexto, fmtUsd, fmtFecha, nombreCompleto, num,
   esCancelacion, mensajeError, abrirReciboAbono,
 } from './utilsCxc';
 
@@ -103,7 +103,6 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
   const bloqueado = Boolean(data?.bloqueado ?? rep.bloqueado);
   const cargos = data?.cargos || [];
   const abonos = data?.abonos || [];
-  const saldoVes = data?.saldo_ves_tasa_vigente ?? (tasa > 0 ? saldo * tasa : null);
 
   const tabBtn = (id, texto, n) => (
     <button
@@ -147,7 +146,6 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
               <div className="sm:text-right">
                 <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Deuda pendiente</p>
                 <p className="text-2xl sm:text-3xl font-bold" style={{ color: saldo > 0 ? '#dc2626' : '#16a34a' }}>{fmtUsd(saldo)}</p>
-                {saldoVes != null && <p className="text-xs" style={{ color: 'var(--ash)' }}>{fmtVes(saldoVes)} a tasa vigente</p>}
               </div>
             </div>
 
