@@ -4,7 +4,7 @@ import { ShoppingCart, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
-  getProductos, getTasaVigenteCantina, registrarVenta, descargarReciboVenta,
+  getProductos, getTasaVigenteCantina, registrarVenta,
   getAperturaCajaActual, getBancosCantina,
 } from '../../api/cantina.service';
 import { AuthContext } from '../../context/AuthContext';
@@ -33,28 +33,6 @@ function SkeletonGrid() {
       ))}
     </div>
   );
-}
-
-// Extrae un nombre de archivo del header Content-Disposition si el backend
-// lo manda — mismo helper que usa GenerarLoteModal para descargas de blob.
-function nombreArchivoDesdeHeader(headers, fallback) {
-  const disposition = headers?.['content-disposition'];
-  if (!disposition) return fallback;
-  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-  return match?.[1] ? decodeURIComponent(match[1]) : fallback;
-}
-
-async function mensajeErrorBlob(err, fallback) {
-  if (err.response?.data instanceof Blob) {
-    try {
-      const texto = await err.response.data.text();
-      const data = JSON.parse(texto);
-      return data?.error || data?.detail || fallback;
-    } catch {
-      return fallback;
-    }
-  }
-  return err.response?.data?.error || err.response?.data?.detail || fallback;
 }
 
 export default function CantinaPOS() {
@@ -90,7 +68,6 @@ export default function CantinaPOS() {
 
   const [cobrando, setCobrando] = useState(false);
   const [ventaActual, setVentaActual] = useState(null);
-  const [descargandoRecibo, setDescargandoRecibo] = useState(false);
 
   const abortRef = useRef(null);
 
@@ -327,40 +304,15 @@ export default function CantinaPOS() {
         }
         : res.data);
       limpiarVenta();
-      // Descarga/apertura automática del ticket al cobrar (§7.2 checklist).
-      // Una venta cargada a cuenta NO abre el recibo aquí: se descarga después
-      // desde Cuentas por cobrar o desde el historial de ventas.
-      if (metodoPago !== 'credito_representante') handleDescargarRecibo(res.data.id);
+      // El POS no abre ni ofrece el ticket PDF al cobrar (ninguna venta): el
+      // recibo se descarga después desde el historial de ventas o, para ventas
+      // a cuenta, desde Cuentas por cobrar.
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo registrar la venta.';
       toast.error(msg);
     } finally {
       setCobrando(false);
-    }
-  };
-
-  const handleDescargarRecibo = async (ventaId) => {
-    setDescargandoRecibo(true);
-    try {
-      const res = await descargarReciboVenta(ventaId);
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const nombre = nombreArchivoDesdeHeader(res.headers, `Ticket_${ventaId}.pdf`);
-      const ventana = window.open(url, '_blank');
-      if (!ventana) {
-        // Popup bloqueado por el navegador — fallback a descarga directa.
-        const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      const msg = await mensajeErrorBlob(err, 'No se pudo abrir el ticket PDF.');
-      toast.error(msg);
-    } finally {
-      setDescargandoRecibo(false);
     }
   };
 
@@ -495,10 +447,6 @@ export default function CantinaPOS() {
         <TicketVenta
           venta={ventaActual}
           onCerrar={cerrarTicket}
-          onDescargarPdf={ventaActual.metodo_pago === 'credito_representante'
-            ? undefined
-            : () => handleDescargarRecibo(ventaActual.id)}
-          descargando={descargandoRecibo}
         />
       )}
     </div>
