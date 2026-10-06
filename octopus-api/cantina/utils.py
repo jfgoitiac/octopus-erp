@@ -216,18 +216,12 @@ def generar_pdf_ticket(venta):
     c.setFillColor(octopus_blue)
     c.setFont('Helvetica-Bold', 11)
     c.drawString(col_prod + 0.1 * inch, fila_y + 0.09 * inch, 'TOTAL (USD):')
-    es_credito = venta.metodo_pago == 'credito_representante'
-    # La deuda cargada a cuenta se muestra solo en REF., sin equivalente en Bs.
-    c.drawRightString(
-        col_subtotal, fila_y + 0.09 * inch,
-        f'REF. {venta.total_usd:,.2f}' if es_credito else f'$ {venta.total_usd:,.2f}',
-    )
+    c.drawRightString(col_subtotal, fila_y + 0.09 * inch, f'$ {venta.total_usd:,.2f}')
 
     c.setFont('Helvetica', 9)
     c.setFillColor(ash)
-    if not es_credito:
-        c.drawString(col_prod + 0.1 * inch, fila_y - fila_h + 0.09 * inch, f'Equivalente (Bs. — tasa {venta.tasa_aplicada}):')
-        c.drawRightString(col_subtotal, fila_y - fila_h + 0.09 * inch, f'Bs. {venta.total_ves:,.2f}')
+    c.drawString(col_prod + 0.1 * inch, fila_y - fila_h + 0.09 * inch, f'Equivalente (Bs. — tasa {venta.tasa_aplicada}):')
+    c.drawRightString(col_subtotal, fila_y - fila_h + 0.09 * inch, f'Bs. {venta.total_ves:,.2f}')
 
     y_saldo = fila_y - fila_h - 0.3 * inch
     if venta.metodo_pago == 'tarjeta_prepago' and venta.saldo_tarjeta_despues is not None:
@@ -239,8 +233,7 @@ def generar_pdf_ticket(venta):
     # ── Nota de tasa ──────────────────────────────────────────────────
     c.setFont('Helvetica-Oblique', 8)
     c.setFillColor(ash)
-    if not es_credito:
-        c.drawString(margin, y_saldo, f'* Tasa BCV aplicada: Bs. {venta.tasa_aplicada} — El monto en Bs. es referencial.')
+    c.drawString(margin, y_saldo, f'* Tasa BCV aplicada: Bs. {venta.tasa_aplicada} — El monto en Bs. es referencial.')
 
     # ── Marca de "ANULADA" (§5.6 de cantina.md) ──────────────────────
     if venta.estado == 'anulada':

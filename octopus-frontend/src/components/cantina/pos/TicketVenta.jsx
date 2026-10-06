@@ -65,15 +65,12 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
       <div className="rounded-xl px-3 py-3 mb-4 space-y-1" style={{ background: 'var(--pb-light, #e6f7f9)' }}>
         <div className="flex justify-between font-semibold" style={{ color: 'var(--jet)' }}>
           <span>Total</span>
-          <span>{venta.metodo_pago === 'credito_representante' ? 'REF. ' : '$'}{Number(venta.total_usd).toFixed(2)}</span>
+          <span>${Number(venta.total_usd).toFixed(2)}</span>
         </div>
-        {/* La deuda cargada a cuenta se muestra solo en REF., sin Bs. */}
-        {venta.metodo_pago !== 'credito_representante' && (
-          <div className="flex justify-between text-sm" style={{ color: 'var(--ash)' }}>
-            <span>Equivalente</span>
-            <span>Bs. {Number(venta.total_ves).toFixed(2)}</span>
-          </div>
-        )}
+        <div className="flex justify-between text-sm" style={{ color: 'var(--ash)' }}>
+          <span>Equivalente</span>
+          <span>Bs. {Number(venta.total_ves).toFixed(2)}</span>
+        </div>
         <div className="flex justify-between text-xs pt-1" style={{ color: 'var(--ash)', borderTop: '0.5px solid var(--border-md)' }}>
           <span>Método</span>
           <span>{venta.metodo_pago === 'credito_representante' ? 'Cargo a cuenta' : etiquetaMetodo(venta.metodo_pago)}</span>
