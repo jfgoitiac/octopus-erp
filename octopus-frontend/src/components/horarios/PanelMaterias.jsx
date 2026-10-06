@@ -79,6 +79,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                       }}
                     >
                       <span>{m.nombre}</span>
+                      {!mostrarDocente && m.grado_seccion && <span className="text-[10px] font-medium" style={{ color: 'var(--jet-mid)' }}>{m.grado_seccion}</span>}
                       {m.horas_academicas != null && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,0,0,0.08)' }}>{horasAsignadas != null ? `${horasAsignadas}/${m.horas_academicas}h` : `${m.horas_academicas}h`}</span>}
                       {/* Indicador de docente asignado — jerarquía visual clara para grados sin cubrir */}
                       {mostrarDocente && (docenteNombre ? (

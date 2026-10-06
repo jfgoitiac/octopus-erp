@@ -16,7 +16,7 @@ import { VistaImpresionHorario } from '../components/horarios/VistaImpresionHora
 import { ResumenHorario } from '../components/horarios/ResumenHorario';
 import { ModalConfirmarIntercambio } from '../components/horarios/ModalConfirmarIntercambio';
 import { PageHeader } from '../components/ui/PageHeader';
-import { getHorariosDocente, listarDocentes } from '../api/academico.service';
+import { getHorariosDocente, getHorarios, getMaterias, listarDocentes } from '../api/academico.service';
 
 const Horarios = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,6 +34,8 @@ const Horarios = () => {
   const [docenteId, setDocenteId] = useState('');
   const [horariosDocente, setHorariosDocente] = useState([]);
   const [loadingHorarioDocente, setLoadingHorarioDocente] = useState(false);
+  const [grillasParalelas, setGrillasParalelas] = useState([]);
+  const [loadingParalelas, setLoadingParalelas] = useState(false);
 
   const {
     bloques, horarios, materias,
@@ -61,6 +63,7 @@ const Horarios = () => {
     [docentes, docenteId]
   );
   const usandoVistaDocente = vista === 'docente';
+  const usandoVistaParalela = vista === 'paralelo';
   const horariosVisibles = usandoVistaDocente ? horariosDocente : horarios;
   const materiasVisibles = usandoVistaDocente ? (docenteActivo?.materias || []) : materias;
   const claseVisiblePorBloque = useMemo(() => {
@@ -118,10 +121,29 @@ const Horarios = () => {
     }
   };
 
+  const cargarGrillasParalelas = async () => {
+    if (!paqueteId || !gradosPaquete.length) { setGrillasParalelas([]); return; }
+    setLoadingParalelas(true);
+    try {
+      const datos = await Promise.all(gradosPaquete.map(async ({ grado_seccion: gradoParalelo }) => {
+        const [horariosRespuesta, materiasRespuesta] = await Promise.all([
+          getHorarios(paqueteId, gradoParalelo), getMaterias(gradoParalelo),
+        ]);
+        return { grado: gradoParalelo, horarios: horariosRespuesta.data || [], materias: materiasRespuesta.data || [] };
+      }));
+      setGrillasParalelas(datos);
+    } catch {
+      toast.error('No se pudieron cargar las grillas paralelas.');
+    } finally {
+      setLoadingParalelas(false);
+    }
+  };
+
   const cambiarVista = async (nuevaVista) => {
     setVista(nuevaVista);
     setMateriaActiva(null);
     if (nuevaVista === 'docente') await cargarDocentes();
+    if (nuevaVista === 'paralelo') await cargarGrillasParalelas();
   };
 
   const seleccionarDocente = async (id) => {
@@ -130,8 +152,8 @@ const Horarios = () => {
     await cargarHorarioDocente(id);
   };
 
-  const abrirCelda = (bloque) => {
-    setModal({ clase: null, bloque });
+  const abrirCelda = (bloque, materiasContexto = null) => {
+    setModal({ clase: null, bloque, materiasContexto });
   };
 
   const agregarClase = () => {
@@ -165,6 +187,7 @@ const Horarios = () => {
     const ok = await guardar(form);
     if (ok) {
       if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
+      if (usandoVistaParalela) await cargarGrillasParalelas();
       cerrarModal();
     }
   };
@@ -173,6 +196,7 @@ const Horarios = () => {
     const ok = await eliminar(id);
     if (ok) {
       if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
+      if (usandoVistaParalela) await cargarGrillasParalelas();
       cerrarModal();
     }
   };
@@ -187,6 +211,7 @@ const Horarios = () => {
       aula: clase.aula,
     });
     if (ok && usandoVistaDocente) await cargarHorarioDocente(docenteId);
+    if (ok && usandoVistaParalela) await cargarGrillasParalelas();
   };
 
   const handleIntercambiarClase = async (origen, destino) => {
@@ -198,6 +223,7 @@ const Horarios = () => {
     const ok = await intercambiar(intercambioPendiente.origen.id, intercambioPendiente.destino.id);
     if (ok) {
       if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
+      if (usandoVistaParalela) await cargarGrillasParalelas();
       setIntercambioPendiente(null);
     }
   };
@@ -290,7 +316,7 @@ const Horarios = () => {
       <div className="print:hidden">
         <PageHeader
           titulo={paqueteActual ? paqueteActual.nombre : 'Horarios de Clases'}
-          descripcion={usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : 'Visualiza y edita la grilla horaria por grado'}
+          descripcion={usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : usandoVistaParalela ? 'Compara y ajusta los grados del paquete lado a lado' : 'Visualiza y edita la grilla horaria por grado'}
           acciones={
             <div className="flex items-center gap-2 flex-wrap">
               <button
@@ -303,7 +329,7 @@ const Horarios = () => {
               </button>
               <button
                 onClick={agregarClase}
-                disabled={!(usandoVistaDocente ? docenteId : grado) || !bloques.length}
+                disabled={usandoVistaParalela || !(usandoVistaDocente ? docenteId : grado) || !bloques.length}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
               >
@@ -312,10 +338,10 @@ const Horarios = () => {
               </button>
               <button
                 onClick={() => setShowGenerador(true)}
-                disabled={!grado}
+                disabled={!bloques.length}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
                 style={{ background: 'var(--pb)' }}
-                title={!grado ? 'Selecciona un grado primero' : 'Generar horario automáticamente'}
+                title={!bloques.length ? 'Configura bloques primero' : 'Generar horario automáticamente para todo el paquete'}
               >
                 <Wand2 size={16} />
                 Generar automático
@@ -345,14 +371,17 @@ const Horarios = () => {
       {/* Elegir la forma de cuadrar el horario — oculto al imprimir */}
       <div className="mb-6 print:hidden">
         <div className="inline-flex rounded-lg p-1 mb-4" style={{ background: 'var(--ash-light)' }}>
-          <button type="button" onClick={() => cambiarVista('grado')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: !usandoVistaDocente ? 'var(--porcelain)' : 'transparent', color: !usandoVistaDocente ? 'var(--pb)' : 'var(--ash)', boxShadow: !usandoVistaDocente ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por grado</button>
+          <button type="button" onClick={() => cambiarVista('grado')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: vista === 'grado' ? 'var(--porcelain)' : 'transparent', color: vista === 'grado' ? 'var(--pb)' : 'var(--ash)', boxShadow: vista === 'grado' ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por grado</button>
           <button type="button" onClick={() => cambiarVista('docente')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaDocente ? 'var(--porcelain)' : 'transparent', color: usandoVistaDocente ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaDocente ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por profesor</button>
+          <button type="button" onClick={() => cambiarVista('paralelo')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaParalela ? 'var(--porcelain)' : 'transparent', color: usandoVistaParalela ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaParalela ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Grillas paralelas</button>
         </div>
         <div className="max-w-xs">
         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-          {usandoVistaDocente ? 'Profesor' : 'Grado / Año'}
+          {usandoVistaDocente ? 'Profesor' : usandoVistaParalela ? 'Grados del paquete' : 'Grado / Año'}
         </label>
-        {usandoVistaDocente ? (
+        {usandoVistaParalela ? (
+          <p className="text-sm" style={{ color: 'var(--ash)' }}>Se muestran {gradosPaquete.length} grillas a la vez. Selecciona una celda para editar ese grado.</p>
+        ) : usandoVistaDocente ? (
           <select value={docenteId} onChange={e => seleccionarDocente(e.target.value)} disabled={loadingDocentes} className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60" style={INPUT_STYLE}>
             <option value="">{loadingDocentes ? 'Cargando profesores...' : 'Seleccionar profesor...'}</option>
             {docentes.map(docente => <option key={docente.user_id} value={docente.user_id}>{docente.nombre_completo || docente.username}</option>)}
@@ -381,7 +410,7 @@ const Horarios = () => {
       </div>
 
       {/* Materias disponibles para el grado o profesor seleccionado */}
-      {(usandoVistaDocente ? docenteId : grado) && (
+      {(usandoVistaDocente ? docenteId : grado) && !usandoVistaParalela && (
         <>
           <ResumenHorario bloques={bloques} horarios={horariosVisibles} materias={materiasVisibles} modoDocente={usandoVistaDocente} />
           <PanelMaterias
@@ -406,7 +435,21 @@ const Horarios = () => {
       {impresion && <VistaImpresionHorario bloques={bloques} horarios={impresion.horarios} encabezado={impresion.encabezado} />}
 
       {/* Contenido principal */}
-      {!(usandoVistaDocente ? docenteId : grado) ? (
+      {usandoVistaParalela ? (
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4 print:hidden">
+          {grillasParalelas.map(grilla => {
+            const clasesPorBloque = new Map(grilla.horarios.filter(clase => clase.bloque_id != null).map(clase => [clase.bloque_id, clase]));
+            return <section key={grilla.grado} className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+              <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--jet)' }}>{grilla.grado}</h2>
+              <GrillaHorario loading={loadingParalelas} bloques={bloques} getClaseEnBloque={id => clasesPorBloque.get(id) || null}
+                onCeldaClick={bloque => abrirCelda(bloque, grilla.materias)} onEditarClase={clase => setModal({ clase, bloque: null, materiasContexto: grilla.materias })}
+                onTogglePin={async clase => { const ok = await pinear(clase.id, !clase.pineado); if (ok) cargarGrillasParalelas(); }}
+                onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} />
+            </section>;
+          })}
+          {!loadingParalelas && !grillasParalelas.length && <p className="text-sm" style={{ color: 'var(--ash)' }}>Este paquete todavía no tiene grados para mostrar.</p>}
+        </div>
+      ) : !(usandoVistaDocente ? docenteId : grado) ? (
         <div className="rounded-xl p-16 text-center"
           style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
           <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
@@ -436,7 +479,7 @@ const Horarios = () => {
       {/* Modal clase (crear / editar) */}
       {modal && (
         <ModalClase
-          materias={materiasVisibles}
+          materias={modal.materiasContexto || materiasVisibles}
           claseInicial={modal.clase}
           bloque={modal.bloque}
           saving={saving}
