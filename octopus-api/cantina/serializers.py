@@ -3,7 +3,6 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from cobranza.models import Pago
-from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
 
 from .models import (
     AperturaCajaCantina,
@@ -18,30 +17,18 @@ from .models import (
     TarjetaPrepago,
     VentaCantina,
 )
+from .utils import validar_datos_bancarios
 
 # Mismos métodos que cobranza.Pago.METODOS, MENOS 'stripe' (§5.2/§5.9 de
 # cantina.md) — no se define una lista propia a mano para no tener que
 # mantener dos catálogos sincronizados.
 METODOS_RECARGA = tuple(m for m in Pago.METODOS if m[0] != 'stripe')
 
-# Métodos que requieren número de referencia obligatorio (mismo criterio
-# que portal._METODOS_CON_REFERENCIA_OBLIGATORIA).
-_METODOS_CON_REFERENCIA_OBLIGATORIA = {'transferencia', 'pago_movil', 'punto_de_venta', 'zelle'}
-
-# Regla NUEVA, propia de cantina (§5.9 punto 3 de cantina.md): Pago Móvil y
-# Transferencia exigen referencia numérica de 6 dígitos. Cobranza hoy NO
-# exige esto para esos métodos — no se toca su validación existente.
-_METODOS_REFERENCIA_6_DIGITOS = {'pago_movil', 'transferencia'}
-
-# Métodos que requieren banco receptor obligatorio (mismo criterio que
-# RecargaCajeroModal.jsx:29 en el frontend — no uniforme con cobranza).
-_METODOS_CON_BANCO_OBLIGATORIO = {'transferencia', 'pago_movil'}
-
 
 class CategoriaProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaProducto
-        fields = ('id', 'nombre', 'orden')
+        fields = ('id', 'nombre', 'orden', 'area')
 
 
 class ProductoCantinaSerializer(serializers.ModelSerializer):
@@ -53,7 +40,7 @@ class ProductoCantinaSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'nombre', 'categoria', 'categoria_nombre', 'codigo_barras',
             'precio', 'stock_actual', 'stock_minimo', 'imagen', 'activo',
-            'creado_en', 'stock_bajo',
+            'creado_en', 'stock_bajo', 'area',
         )
 
     def validate_precio(self, value):
@@ -204,53 +191,17 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         metodo = data.get('metodo_pago', getattr(self.instance, 'metodo_pago', None))
-        referencia_raw = (data.get('referencia') or '').strip()
-        numero_lote_raw = (data.get('numero_lote') or '').strip()
-
-        if metodo == 'punto_de_venta':
-            if not referencia_raw.isdigit() or len(referencia_raw) != 4:
-                raise serializers.ValidationError(
-                    {'referencia': 'Punto de Venta requiere un número de referencia de 4 dígitos.'}
-                )
-            if not numero_lote_raw.isdigit() or len(numero_lote_raw) != 4:
-                raise serializers.ValidationError(
-                    {'numero_lote': 'Punto de Venta requiere un número de lote de 4 dígitos.'}
-                )
-        elif metodo in _METODOS_REFERENCIA_6_DIGITOS:
-            if not referencia_raw.isdigit() or len(referencia_raw) != 6:
-                raise serializers.ValidationError(
-                    {'referencia': 'Este método requiere un número de referencia de 6 dígitos.'}
-                )
-        elif metodo in _METODOS_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
-            raise serializers.ValidationError(
-                {'referencia': 'Este método de pago requiere número de referencia.'}
-            )
-
-        if metodo in _METODOS_CON_BANCO_OBLIGATORIO and not data.get('banco_receptor'):
-            raise serializers.ValidationError(
-                {'banco_receptor': 'Este método de pago requiere indicar el banco receptor.'}
-            )
-
-        if referencia_raw:
-            ref_normalizada = normalizar_referencia(referencia_raw)
-            excluir_recarga_id = self.instance.pk if self.instance else None
-            banco_receptor = data.get('banco_receptor')
-            duplicado = buscar_referencia_duplicada(
-                ref_normalizada,
-                excluir_recarga_id=excluir_recarga_id,
-                metodo_pago=metodo,
-                banco_receptor_id=(banco_receptor.id if banco_receptor else None),
-            )
-            if duplicado:
-                raise serializers.ValidationError({
-                    'referencia': (
-                        f"La referencia '{ref_normalizada}' ya está en uso en "
-                        f"{duplicado['origen']} (#{duplicado['id']}, {duplicado['detalle']}). "
-                        "Si cree que es un error, contacte al administrador."
-                    )
-                })
+        errores, ref_normalizada = validar_datos_bancarios(
+            metodo,
+            data.get('referencia'),
+            data.get('numero_lote'),
+            data.get('banco_receptor'),
+            excluir_recarga_id=(self.instance.pk if self.instance else None),
+        )
+        if errores:
+            raise serializers.ValidationError(errores)
+        if ref_normalizada:
             data['referencia'] = ref_normalizada
-
         return data
 
     def create(self, validated_data):
@@ -312,6 +263,7 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
     cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     anulada_por_username = serializers.CharField(source='anulada_por.username', read_only=True, default=None)
     anulada_por_nombre = serializers.CharField(source='anulada_por.nombre_completo', read_only=True, default=None)
+    representante_nombre = serializers.SerializerMethodField()
     detalles = DetalleVentaCantinaSerializer(many=True, read_only=True)
 
     class Meta:
@@ -320,7 +272,8 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
             'id', 'alumno', 'alumno_nombre', 'tarjeta', 'tarjeta_serial',
             'cajero', 'cajero_username', 'cajero_nombre', 'metodo_pago', 'total_usd',
             'tasa_aplicada', 'total_ves', 'estado', 'saldo_tarjeta_despues',
-            'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
+            'area', 'banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote',
+            'representante', 'representante_nombre', 'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
         )
         read_only_fields = fields
 
@@ -328,6 +281,11 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
         if not obj.alumno_id:
             return None
         return f'{obj.alumno.nombre} {obj.alumno.apellido}'
+
+    def get_representante_nombre(self, obj):
+        if not obj.representante_id:
+            return None
+        return f'{obj.representante.nombre} {obj.representante.apellido}'
 
 
 # ─────────────────────────────────────────────
@@ -348,7 +306,7 @@ class AperturaCajaCantinaSerializer(serializers.ModelSerializer):
         model = AperturaCajaCantina
         fields = (
             'id', 'cajero', 'cajero_username', 'cajero_nombre', 'fecha_hora_apertura',
-            'monto_inicial', 'estado', 'cerrada_en',
+            'monto_inicial', 'estado', 'cerrada_en', 'area',
         )
         read_only_fields = fields
 
@@ -372,7 +330,7 @@ class CierreCajaCantinaSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'cajero', 'cajero_username', 'cajero_nombre', 'apertura', 'monto_inicial', 'fecha', 'total_ventas',
             'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo',
-            'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
+            'area', 'totales_por_metodo', 'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
         )
         read_only_fields = fields
 

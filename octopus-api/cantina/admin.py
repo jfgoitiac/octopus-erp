@@ -1,9 +1,13 @@
 from django.contrib import admin
 
 from .models import (
+    AbonoCantina,
     AperturaCajaCantina,
+    AplicacionAbonoCantina,
+    CargoCantina,
     CategoriaProducto,
     CierreCajaCantina,
+    CreditoRepresentanteCantina,
     DetalleVentaCantina,
     HistorialCodigoTarjeta,
     LoteTarjetas,
@@ -19,7 +23,7 @@ from .models import (
 
 @admin.register(ParametroCantina)
 class ParametroCantinaAdmin(admin.ModelAdmin):
-    list_display = ('limite_credito_default', 'dias_alerta_saldo_negativo')
+    list_display = ('limite_credito_default', 'limite_credito_representante_default', 'dias_alerta_saldo_negativo')
 
 
 @admin.register(LoteTarjetas)
@@ -56,13 +60,14 @@ class RecargaTarjetaAdmin(admin.ModelAdmin):
 
 @admin.register(CategoriaProducto)
 class CategoriaProductoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'orden')
+    list_display = ('nombre', 'orden', 'area')
+    list_filter = ('area',)
 
 
 @admin.register(ProductoCantina)
 class ProductoCantinaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'categoria', 'codigo_barras', 'precio', 'stock_actual', 'stock_minimo', 'activo')
-    list_filter = ('categoria', 'activo')
+    list_display = ('nombre', 'area', 'categoria', 'codigo_barras', 'precio', 'stock_actual', 'stock_minimo', 'activo')
+    list_filter = ('area', 'categoria', 'activo')
     search_fields = ('nombre', 'codigo_barras')
 
 
@@ -79,19 +84,52 @@ class DetalleVentaCantinaInline(admin.TabularInline):
 
 @admin.register(VentaCantina)
 class VentaCantinaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'alumno', 'cajero', 'metodo_pago', 'total_usd', 'total_ves', 'estado', 'creado_en')
-    list_filter = ('metodo_pago', 'estado')
-    search_fields = ('alumno__nombre', 'alumno__apellido')
+    list_display = ('id', 'area', 'alumno', 'representante', 'cajero', 'metodo_pago', 'total_usd', 'total_ves', 'estado', 'creado_en')
+    list_filter = ('area', 'metodo_pago', 'estado')
+    search_fields = ('alumno__nombre', 'alumno__apellido', 'representante__nombre', 'representante__apellido', 'representante__cedula')
     inlines = (DetalleVentaCantinaInline,)
 
 
 @admin.register(AperturaCajaCantina)
 class AperturaCajaCantinaAdmin(admin.ModelAdmin):
-    list_display = ('cajero', 'fecha_hora_apertura', 'monto_inicial', 'estado', 'cerrada_en')
-    list_filter = ('estado',)
+    list_display = ('cajero', 'area', 'fecha_hora_apertura', 'monto_inicial', 'estado', 'cerrada_en')
+    list_filter = ('area', 'estado')
 
 
 @admin.register(CierreCajaCantina)
 class CierreCajaCantinaAdmin(admin.ModelAdmin):
-    list_display = ('cajero', 'fecha', 'total_ventas', 'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo', 'diferencia')
-    list_filter = ('fecha',)
+    list_display = ('cajero', 'area', 'fecha', 'total_ventas', 'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo', 'diferencia')
+    list_filter = ('area', 'fecha')
+
+
+# ─────────────────────────────────────────────
+# Cuentas por cobrar a representantes (CxC)
+# ─────────────────────────────────────────────
+@admin.register(CreditoRepresentanteCantina)
+class CreditoRepresentanteCantinaAdmin(admin.ModelAdmin):
+    list_display = ('representante', 'limite_usd', 'bloqueado', 'actualizado_en')
+    list_filter = ('bloqueado',)
+    search_fields = ('representante__cedula', 'representante__nombre', 'representante__apellido')
+    raw_id_fields = ('representante',)
+
+
+@admin.register(CargoCantina)
+class CargoCantinaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'representante', 'alumno', 'area', 'monto_usd', 'monto_pagado', 'estado', 'creado_en')
+    list_filter = ('area', 'estado')
+    search_fields = ('representante__cedula', 'representante__nombre', 'representante__apellido')
+    raw_id_fields = ('representante', 'alumno', 'venta')
+
+
+@admin.register(AbonoCantina)
+class AbonoCantinaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'operacion_uuid', 'representante', 'area', 'metodo_pago', 'monto_usd', 'estatus', 'es_retroactivo', 'fecha_pago')
+    list_filter = ('area', 'metodo_pago', 'estatus', 'es_retroactivo')
+    search_fields = ('representante__cedula', 'representante__nombre', 'representante__apellido', 'referencia')
+    raw_id_fields = ('representante', 'apertura')
+
+
+@admin.register(AplicacionAbonoCantina)
+class AplicacionAbonoCantinaAdmin(admin.ModelAdmin):
+    list_display = ('abono', 'cargo', 'monto_usd')
+    raw_id_fields = ('abono', 'cargo')
