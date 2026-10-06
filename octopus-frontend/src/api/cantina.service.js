@@ -23,8 +23,10 @@ export const buscarProductoPorCodigo = (codigo, signal) =>
 
 /* ── Categorías ── */
 
-export const getCategorias = (signal) =>
-  cantinaApiClient.get('categorias/', { signal });
+// `params.area` ('cantina' | 'libreria') filtra las categorías por caja; las
+// categorías y los productos llevan `area` en create/update (default 'cantina').
+export const getCategorias = (signal, params) =>
+  cantinaApiClient.get('categorias/', { params, signal });
 
 export const crearCategoria = (payload, signal) =>
   cantinaApiClient.post('categorias/', payload, { signal });

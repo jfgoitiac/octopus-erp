@@ -58,6 +58,11 @@ export default function CantinaReportes() {
   const [fechaInicio, setFechaInicio] = useState(haceNDiasISO(30));
   const [fechaFin, setFechaFin] = useState(hoyISO());
   const [alumnoId, setAlumnoId] = useState('');
+  const [area, setArea] = useState('');
+  const [cajeroId, setCajeroId] = useState('');
+  // No hay endpoint de cajeros: se acumulan los que aparecen en las ventas
+  // devueltas, así el selector no se vacía al filtrar por uno.
+  const [cajeros, setCajeros] = useState({});
   const [reporte, setReporte] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
@@ -69,8 +74,17 @@ export default function CantinaReportes() {
     try {
       const params = { fecha_inicio: fechaInicio, fecha_fin: fechaFin };
       if (alumnoId.trim()) params.alumno_id = alumnoId.trim();
+      if (area) params.area = area;
+      if (cajeroId) params.cajero = cajeroId;
       const res = await getReporteVentas(params, signal);
       setReporte(res.data ?? null);
+      setCajeros(prev => {
+        const next = { ...prev };
+        (res.data?.ventas ?? []).forEach(v => {
+          if (v.cajero != null) next[v.cajero] = v.cajero_username ?? `Cajero ${v.cajero}`;
+        });
+        return next;
+      });
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       toast.error(err.response?.data?.detail || 'No se pudo cargar el reporte de ventas.');
@@ -78,7 +92,7 @@ export default function CantinaReportes() {
     } finally {
       setLoading(false);
     }
-  }, [fechaInicio, fechaFin, alumnoId]);
+  }, [fechaInicio, fechaFin, alumnoId, area, cajeroId]);
 
   useEffect(() => {
     if (!fechaInicio || !fechaFin) return;
@@ -95,6 +109,8 @@ export default function CantinaReportes() {
     try {
       const params = { fecha_inicio: fechaInicio, fecha_fin: fechaFin };
       if (alumnoId.trim()) params.alumno_id = alumnoId.trim();
+      if (area) params.area = area;
+      if (cajeroId) params.cajero = cajeroId;
       const res = await exportarVentasExcel(params);
       const url = URL.createObjectURL(new Blob([res.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -136,7 +152,7 @@ export default function CantinaReportes() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
             <BarChart3 size={20} style={{ color: 'var(--pb)' }} />
@@ -150,7 +166,7 @@ export default function CantinaReportes() {
         <button
           onClick={handleExportar}
           disabled={exportando || loading}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] disabled:opacity-50"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] disabled:opacity-50"
           style={{ background: 'var(--pb)' }}
         >
           {exportando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
@@ -158,7 +174,7 @@ export default function CantinaReportes() {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4 rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
         <div>
           <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Desde
@@ -203,20 +219,51 @@ export default function CantinaReportes() {
             style={FIELD_STYLE}
           />
         </div>
-        <p className="text-xs ml-auto" style={{ color: 'var(--ash)' }}>
+        <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+            Caja
+          </label>
+          <select
+            value={area}
+            onChange={e => setArea(e.target.value)}
+            className="w-full sm:w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
+            style={FIELD_STYLE}
+          >
+            <option value="">Todas</option>
+            <option value="cantina">Cantina</option>
+            <option value="libreria">Librería</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+            Cajero
+          </label>
+          <select
+            value={cajeroId}
+            onChange={e => setCajeroId(e.target.value)}
+            className="w-full sm:w-40 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
+            style={FIELD_STYLE}
+          >
+            <option value="">Todos</option>
+            {Object.entries(cajeros).map(([id, nombre]) => (
+              <option key={id} value={id}>{nombre}</option>
+            ))}
+          </select>
+        </div>
+        <p className="text-xs sm:ml-auto" style={{ color: 'var(--ash)' }}>
           {loading ? 'Cargando…' : `${ventas.length} venta${ventas.length !== 1 ? 's' : ''} en el rango`}
         </p>
       </div>
 
       {/* Totales agregados */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SkeletonBloque altura={80} />
           <SkeletonBloque altura={80} />
           <SkeletonBloque altura={80} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
             <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Ventas</p>
             <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>{totales.cantidad_ventas ?? ventas.length}</p>

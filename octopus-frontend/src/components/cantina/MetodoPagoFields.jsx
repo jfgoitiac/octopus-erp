@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import {
-  METODOS_COBRANZA, esMetodoBancario, esMetodoVes, esPuntoDeVenta,
+  METODOS_COBRANZA, montoDeValor, esMetodoBancario, esMetodoVes, esPuntoDeVenta,
   normalizarReferencia, normalizarLote, validarMetodoPago, valorInicialMetodo,
 } from './metodoPagoUtils';
 
 // Campos de un método de pago de cobranza. Lo usan el modal de abono CxC y
 // el POS. Controlado: `value` tiene la forma de `valorInicialMetodo()`
-// ({ metodo_pago, monto, banco_receptor, banco_procedencia, referencia,
-// numero_lote }) y `onChange(nuevoValue)` recibe el objeto completo.
+// ({ metodo_pago, monto_usd, monto_ves, banco_receptor, banco_procedencia,
+// referencia, numero_lote }; mismos nombres que una línea de cxc/abonos/) y `onChange(nuevoValue)` recibe el objeto completo.
 //
 // Props fijas del contrato: { value, onChange, bancos, tasa, metodosPermitidos }
 //  - bancos: catálogo de GET cantina/bancos/ ([{ id, nombre, tipos }]); se
@@ -51,18 +51,25 @@ export default function MetodoPagoFields({
   const errores = validarMetodoPago(v, { conMonto: !ocultarMonto });
   const err = (campo) => (mostrarErrores || tocado[campo] ? errores[campo] : undefined);
   const tocar = (campo) => () => setTocado(p => ({ ...p, [campo]: true }));
-  const set = (cambios) => onChange({ ...v, ...cambios });
+  // Emite SIEMPRE la línea completa (value parcial + defaults + cambios).
+  const set = (cambios) => onChange({ ...valorInicialMetodo(metodo), ...v, ...cambios });
 
   const cambiarMetodo = (nuevo) => {
     if (nuevo === metodo) return;
     setTocado({});
     // Cambiar de moneda invalida el monto tipeado; los datos bancarios
     // tampoco se arrastran entre métodos (cada uno tiene su formato).
-    onChange({ ...valorInicialMetodo(nuevo), monto: esMetodoVes(nuevo) === esMetodoVes(metodo) ? v.monto : '' });
+    const base = valorInicialMetodo(nuevo);
+    // Si la moneda no cambia se conserva el monto tipeado.
+    if (esMetodoVes(nuevo) === esMetodoVes(metodo)) {
+      base.monto_usd = v.monto_usd ?? '';
+      base.monto_ves = v.monto_ves ?? '';
+    }
+    onChange(base);
   };
 
   const enVes = esMetodoVes(metodo);
-  const montoNum = parseFloat(v.monto);
+  const montoNum = parseFloat(montoDeValor(v));
   const equivalente = !Number.isNaN(montoNum) && montoNum > 0 && tasa > 0
     ? (enVes ? `≈ $${(montoNum / tasa).toFixed(2)} USD` : `≈ Bs. ${(montoNum * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
     : null;
@@ -103,8 +110,8 @@ export default function MetodoPagoFields({
               inputMode="decimal"
               className={`${INPUT_CLASS} pl-10 font-semibold`}
               style={estiloCampo(err('monto'))}
-              value={v.monto}
-              onChange={e => set({ monto: e.target.value })}
+              value={montoDeValor(v)}
+              onChange={e => set(enVes ? { monto_ves: e.target.value, monto_usd: '' } : { monto_usd: e.target.value, monto_ves: '' })}
               onBlur={tocar('monto')}
               placeholder="0.00"
               disabled={disabled}

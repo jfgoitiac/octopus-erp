@@ -5,11 +5,9 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 import { descargarReciboVenta } from '../../../api/cantina.service';
 
-const METODO_LABELS = {
-  efectivo: 'Efectivo USD',
-  efectivo_ves: 'Efectivo VES',
-  tarjeta_prepago: 'Tarjeta prepago',
-};
+import { TablaScroll } from '../../ui/TablaScroll';
+import { etiquetaMetodo } from '../metodoPagoUtils';
+import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 
 function formatFechaHora(iso) {
   if (!iso) return '—';
@@ -81,12 +79,14 @@ export default function HistorialVentasTable({ ventas = [] }) {
         />
       </div>
 
-      <div className="rounded-xl overflow-hidden overflow-x-auto" style={{ border: '0.5px solid var(--border-md)' }}>
-        <table className="w-full text-sm min-w-[720px]">
+      <TablaScroll>
+        <table className="w-full text-sm min-w-[900px]">
           <thead>
             <tr style={{ background: 'var(--porcelain)' }}>
               <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>N°</th>
               <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Fecha</th>
+              <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Caja</th>
+              <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Cajero</th>
               <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Alumno</th>
               <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Método</th>
               <th className="text-right px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Total USD</th>
@@ -97,7 +97,7 @@ export default function HistorialVentasTable({ ventas = [] }) {
           <tbody>
             {ventasFiltradas.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--ash)' }}>
+                <td colSpan={9} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--ash)' }}>
                   {ventas.length === 0 ? 'No hay ventas en el rango seleccionado.' : 'Ninguna venta coincide con la búsqueda.'}
                 </td>
               </tr>
@@ -108,9 +108,11 @@ export default function HistorialVentasTable({ ventas = [] }) {
                 <tr key={v.id} style={{ borderTop: '0.5px solid var(--border-md)' }}>
                   <td className="px-4 py-2.5 font-mono" style={{ color: 'var(--jet)' }}>#{v.id}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{formatFechaHora(v.creado_en)}</td>
+                  <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{ETIQUETA_AREA[v.area] ?? '—'}</td>
+                  <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{v.cajero_username ?? '—'}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{v.alumno_nombre ?? '—'}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>
-                    {METODO_LABELS[v.metodo_pago] ?? v.metodo_pago ?? '—'}
+                    {etiquetaMetodo(v.metodo_pago)}
                   </td>
                   <td className="px-4 py-2.5 text-right font-medium" style={{ color: 'var(--jet)' }}>
                     ${Number(v.total_usd ?? 0).toFixed(2)}
@@ -144,7 +146,7 @@ export default function HistorialVentasTable({ ventas = [] }) {
             })}
           </tbody>
         </table>
-      </div>
+      </TablaScroll>
     </div>
   );
 }

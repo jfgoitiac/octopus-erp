@@ -35,17 +35,25 @@ export const esPuntoDeVenta = (m) => m === 'punto_de_venta';
 
 /**
  * Forma del `value` que maneja MetodoPagoFields:
- * { metodo_pago, monto, banco_receptor, banco_procedencia, referencia, numero_lote }
- * `monto` es string en la moneda del método (USD o VES, ver esMetodoVes).
+ * { metodo_pago, monto_usd, monto_ves, banco_receptor, banco_procedencia,
+ *   referencia, numero_lote }  (mismos nombres que una línea de cxc/abonos/).
+ * Solo se captura el monto de la moneda del método (monto_ves si
+ * esMetodoVes, si no monto_usd); el otro queda ''. Acepta valores parciales.
  */
 export const valorInicialMetodo = (metodo = 'efectivo') => ({
   metodo_pago: metodo,
-  monto: '',
+  monto_usd: '',
+  monto_ves: '',
   banco_receptor: '',
   banco_procedencia: '',
   referencia: '',
   numero_lote: '',
 });
+
+// Monto capturado (string) en la moneda propia del método.
+export const montoDeValor = (value) => (
+  (esMetodoVes(value?.metodo_pago) ? value?.monto_ves : value?.monto_usd) ?? ''
+);
 
 const digitos = (s, n) => (s || '').replace(/\D/g, '').slice(0, n);
 export const normalizarReferencia = (metodo, ref) => {
@@ -65,8 +73,9 @@ export const validarMetodoPago = (value, { conMonto = true } = {}) => {
   if (!m) { errores.metodo_pago = 'Selecciona el método de pago.'; return errores; }
 
   if (conMonto) {
-    const n = parseFloat(value.monto);
-    if (!value.monto || Number.isNaN(n) || n <= 0) errores.monto = 'Ingresa un monto mayor a 0.';
+    const monto = montoDeValor(value);
+    const n = parseFloat(monto);
+    if (!monto || Number.isNaN(n) || n <= 0) errores.monto = 'Ingresa un monto mayor a 0.';
   }
   if (esMetodoBancario(m)) {
     if (!value.banco_receptor) errores.banco_receptor = 'Selecciona el banco receptor.';
@@ -86,7 +95,7 @@ export const validarMetodoPago = (value, { conMonto = true } = {}) => {
 // Monto de la línea expresado en USD (para totales en vivo). 0 si no hay
 // monto válido o falta la tasa para un método en bolívares.
 export const montoUsdDeValor = (value, tasa) => {
-  const n = parseFloat(value?.monto);
+  const n = parseFloat(montoDeValor(value));
   if (Number.isNaN(n) || n <= 0) return 0;
   if (!esMetodoVes(value.metodo_pago)) return n;
   return tasa > 0 ? n / tasa : 0;
@@ -113,7 +122,7 @@ export const camposMetodoVenta = (value) => {
 
 export const lineaAbono = (value, { tasa } = {}) => {
   const linea = camposMetodoVenta(value);
-  const n = parseFloat(value.monto);
+  const n = parseFloat(montoDeValor(value));
   if (esMetodoVes(value.metodo_pago)) {
     linea.monto_ves = n.toFixed(2);
     if (tasa > 0) linea.tasa_aplicada = String(tasa);
