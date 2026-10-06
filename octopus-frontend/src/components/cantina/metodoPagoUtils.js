@@ -15,9 +15,13 @@ export const METODOS_COBRANZA = [
   { value: 'efectivo_ves', label: 'Efectivo bolívares' },
 ];
 
+// Incluye los métodos propios de cantina que no son de cobranza.
+const EXTRA_ETIQUETAS = { tarjeta_prepago: 'Tarjeta prepago', credito_representante: 'Cargo a cuenta' };
+
 export const etiquetaMetodo = (valor) => (
   METODOS_COBRANZA.find(m => m.value === valor)?.label
-  ?? (valor || '').replace(/_/g, ' ')
+  ?? EXTRA_ETIQUETAS[valor]
+  ?? (valor || '—').replace(/_/g, ' ')
 );
 
 const METODOS_VES = ['transferencia', 'pago_movil', 'punto_de_venta', 'efectivo_ves'];

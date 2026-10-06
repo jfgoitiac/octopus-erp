@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   METODOS_COBRANZA, esMetodoBancario, esMetodoVes, esPuntoDeVenta,
   normalizarReferencia, normalizarLote, validarMetodoPago, valorInicialMetodo,
@@ -15,7 +15,8 @@ import {
 //  - tasa: tasa BCV (número) para el equivalente USD⇄VES.
 //  - metodosPermitidos: lista de values; por defecto los 6 de cobranza.
 // Props opcionales (no cambian el contrato): `ocultarMonto` (POS: el monto es
-// el total del carrito), `mostrarErrores` (fuerza mostrar errores sin esperar
+// el total del carrito), `ocultarSelector` (POS: el método ya se eligió en el
+// carrito), `mostrarErrores` (fuerza mostrar errores sin esperar
 // el blur) y `disabled`.
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
@@ -38,20 +39,14 @@ const estiloCampo = (error) => (error ? { ...FIELD_STYLE, border: '1px solid #ef
 
 export default function MetodoPagoFields({
   value, onChange, bancos = [], tasa = 0, metodosPermitidos,
-  ocultarMonto = false, mostrarErrores = false, disabled = false,
+  ocultarMonto = false, ocultarSelector = false, mostrarErrores = false, disabled = false,
 }) {
   const [tocado, setTocado] = useState({});
   const v = value ?? valorInicialMetodo();
   const metodo = v.metodo_pago;
 
-  const metodos = useMemo(
-    () => METODOS_COBRANZA.filter(m => !metodosPermitidos || metodosPermitidos.includes(m.value)),
-    [metodosPermitidos],
-  );
-  const bancosDelMetodo = useMemo(
-    () => bancos.filter(b => Array.isArray(b.tipos) && b.tipos.includes(metodo)),
-    [bancos, metodo],
-  );
+  const metodos = METODOS_COBRANZA.filter(m => !metodosPermitidos || metodosPermitidos.includes(m.value));
+  const bancosDelMetodo = bancos.filter(b => Array.isArray(b.tipos) && b.tipos.includes(metodo));
 
   const errores = validarMetodoPago(v, { conMonto: !ocultarMonto });
   const err = (campo) => (mostrarErrores || tocado[campo] ? errores[campo] : undefined);
@@ -74,24 +69,26 @@ export default function MetodoPagoFields({
 
   return (
     <div className="space-y-3">
-      <div>
-        <label className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>Método de pago</label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-          {metodos.map(m => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => cambiarMetodo(m.value)}
-              disabled={disabled}
-              aria-pressed={metodo === m.value}
-              className="py-2 px-2 rounded-lg text-xs font-medium min-h-[44px] disabled:opacity-50"
-              style={metodo === m.value ? ACTIVE_STYLE : IDLE_STYLE}
-            >
-              {m.label}
-            </button>
-          ))}
+      {!ocultarSelector && (
+        <div>
+          <label className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>Método de pago</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {metodos.map(m => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => cambiarMetodo(m.value)}
+                disabled={disabled}
+                aria-pressed={metodo === m.value}
+                className="py-2 px-2 rounded-lg text-xs font-medium min-h-[44px] disabled:opacity-50"
+                style={metodo === m.value ? ACTIVE_STYLE : IDLE_STYLE}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {!ocultarMonto && (
         <Campo label={enVes ? 'Monto (Bs.)' : 'Monto (USD)'} error={err('monto')}>

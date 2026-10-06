@@ -1,9 +1,19 @@
-import { Minus, Plus, Trash2, ShoppingCart, Loader2, Banknote, CreditCard as CreditCardIcon } from 'lucide-react';
+import {
+  Minus, Plus, Trash2, ShoppingCart, Loader2, Banknote, CreditCard as CreditCardIcon,
+  Landmark, Smartphone, Receipt, Globe, HandCoins,
+} from 'lucide-react';
 
+// Métodos de la VENTA (una venta = un método): tarjeta prepago, los 6 de
+// cobranza (cobranza.Pago.METODOS) y "Cargar a cuenta" (CxC del representante).
 const METODOS = [
   { value: 'efectivo', label: 'Efectivo USD', icon: Banknote },
   { value: 'efectivo_ves', label: 'Efectivo Bs.', icon: Banknote },
   { value: 'tarjeta_prepago', label: 'Tarjeta prepago', icon: CreditCardIcon },
+  { value: 'transferencia', label: 'Transferencia', icon: Landmark },
+  { value: 'pago_movil', label: 'Pago móvil', icon: Smartphone },
+  { value: 'punto_de_venta', label: 'Punto de venta', icon: Receipt },
+  { value: 'zelle', label: 'Zelle', icon: Globe },
+  { value: 'credito_representante', label: 'Cargar a cuenta', icon: HandCoins },
 ];
 
 /**
@@ -29,7 +39,10 @@ export default function CarritoVenta({
   children,
 }) {
   return (
-    <div className="flex flex-col h-full rounded-2xl bg-white" style={{ border: '0.5px solid var(--border-md)' }}>
+    // Desde `lg` el POS tiene altura fija y la tarjeta scrollea por dentro;
+    // debajo de `lg` la página scrollea. En ambos casos el pie con COBRAR es
+    // sticky para que el botón de confirmar nunca quede fuera de alcance.
+    <div className="flex flex-col lg:h-full lg:overflow-y-auto rounded-2xl bg-white" style={{ border: '0.5px solid var(--border-md)' }}>
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
         <ShoppingCart size={18} style={{ color: 'var(--pb, #0fa3b1)' }} />
         <h2 className="font-semibold" style={{ color: 'var(--jet)' }}>Carrito</h2>
@@ -38,7 +51,7 @@ export default function CarritoVenta({
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-[120px]">
+      <div className="flex-1 px-4 py-3 space-y-2 min-h-[120px]">
         {items.length === 0 ? (
           <p className="text-sm text-center py-8" style={{ color: 'var(--ash)' }}>
             Escanea o busca un producto para empezar la venta.
@@ -88,7 +101,7 @@ export default function CarritoVenta({
         )}
       </div>
 
-      <div className="px-4 py-3 space-y-3" style={{ borderTop: '0.5px solid var(--border-md)' }}>
+      <div className="px-4 pt-3 space-y-3" style={{ borderTop: '0.5px solid var(--border-md)' }}>
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-medium" style={{ color: 'var(--ash)' }}>Total</span>
           <div className="text-right">
@@ -109,7 +122,7 @@ export default function CarritoVenta({
 
         <div>
           <p className="text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Método de pago</p>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
             {METODOS.map(m => {
               const Icon = m.icon;
               const activo = metodoPago === m.value;
@@ -132,7 +145,12 @@ export default function CarritoVenta({
         </div>
 
         {children}
+      </div>
 
+      <div
+        className="sticky bottom-0 z-10 bg-white rounded-b-2xl px-4 py-3 space-y-2"
+        style={{ borderTop: '0.5px solid var(--border-md)' }}
+      >
         {cobrarDisabled && cobrarDisabledMotivo && (
           <p className="text-xs text-center" style={{ color: 'var(--ash)' }}>{cobrarDisabledMotivo}</p>
         )}

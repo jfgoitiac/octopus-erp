@@ -2,6 +2,8 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Printer, Loader2, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
+import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
+import { etiquetaMetodo } from '../metodoPagoUtils';
 
 /**
  * Vista previa en pantalla del ticket recién cobrado (§6 cantina.md,
@@ -71,8 +73,28 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
         </div>
         <div className="flex justify-between text-xs pt-1" style={{ color: 'var(--ash)', borderTop: '0.5px solid var(--border-md)' }}>
           <span>Método</span>
-          <span className="capitalize">{(venta.metodo_pago || '').replace(/_/g, ' ')}</span>
+          <span>{venta.metodo_pago === 'credito_representante' ? 'Cargo a cuenta' : etiquetaMetodo(venta.metodo_pago)}</span>
         </div>
+        {venta.area && (
+          <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
+            <span>Caja</span>
+            <span>{ETIQUETA_AREA[venta.area] ?? venta.area}</span>
+          </div>
+        )}
+        {venta.referencia && (
+          <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
+            <span>Referencia</span>
+            <span className="font-mono">{venta.referencia}</span>
+          </div>
+        )}
+        {venta.representante_nombre && (
+          <div className="flex justify-between gap-3 text-xs" style={{ color: 'var(--ash)' }}>
+            <span>Cargado a</span>
+            <span className="text-right">
+              {venta.representante_nombre}{venta.alumno_nombre ? ` (${venta.alumno_nombre})` : ''}
+            </span>
+          </div>
+        )}
         {venta.tarjeta_serial && (
           <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
             <span>Tarjeta / Alumno</span>
