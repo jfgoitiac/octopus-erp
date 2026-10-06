@@ -424,10 +424,19 @@ def _tabla_conceptos(pag, d):
     return Table(filas, colWidths=anchos, rowHeights=altos, repeatRows=2, style=_estilo_tabla(extra))
 
 
+# Por ahora las observaciones no se imprimen en el recibo (pueden incomodar al
+# cliente). Poner en True para volver a mostrarlas.
+MOSTRAR_OBSERVACIONES = False
+
+
 def _tabla_observaciones(pag, d):
     ancho_izq = pag.ancho * 0.714
-    celda_izq = [_p('OBSERVACIONES:', EST_OBS_TITULO), _p(d['observaciones'], EST_OBS)]
-    _, alto_obs = celda_izq[1].wrap(ancho_izq - 6, ALTO_PAGINA)
+    if MOSTRAR_OBSERVACIONES:
+        celda_izq = [_p('OBSERVACIONES:', EST_OBS_TITULO), _p(d['observaciones'], EST_OBS)]
+        _, alto_obs = celda_izq[1].wrap(ancho_izq - 6, ALTO_PAGINA)
+    else:
+        celda_izq = ''
+        alto_obs = 0
     return Table(
         [[celda_izq, _SelloPagado()]],
         colWidths=[ancho_izq, pag.ancho - ancho_izq],
