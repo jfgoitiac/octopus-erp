@@ -1324,9 +1324,23 @@ class ActualizarMensualidadesView(APIView):
                 # monto_personalizado=True marca esta fila como override manual:
                 # propagar_monto_global() (cobranza/services.py) la excluye de
                 # cualquier sincronización futura con el monto por defecto.
-                actualizadas += mensualidades_permitidas.filter(id=mensualidad_id).update(
-                    monto_usd=Decimal(str(monto)), monto_personalizado=True
-                )
+                mensualidad = mensualidades_permitidas.filter(id=mensualidad_id).first()
+                if mensualidad is None:
+                    continue
+                monto_nuevo = Decimal(str(monto))
+                # Un .update() directo dejaba `pagado=True` con monto_pagado menor
+                # al nuevo monto (la deuda restante nunca aparecía), y un save()
+                # ingenuo lo "sanaba" subiendo monto_pagado al total (Mensualidad.
+                # save() lo interpreta como pago completo). Se fija el abono real
+                # y se deja que save() derive pagado: si el monto sube, queda saldo.
+                if mensualidad.pagado and mensualidad.monto_pagado <= 0:
+                    # Fila legada: marcada pagada sin abono registrado.
+                    mensualidad.monto_pagado = mensualidad.monto_usd
+                mensualidad.monto_usd = monto_nuevo
+                mensualidad.monto_personalizado = True
+                mensualidad.pagado = mensualidad.monto_pagado >= monto_nuevo
+                mensualidad.save()
+                actualizadas += 1
 
         return Response({'actualizadas': actualizadas})
 
