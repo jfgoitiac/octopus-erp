@@ -381,25 +381,7 @@ const Horarios = () => {
           {usandoVistaDocente ? 'Profesor' : usandoVistaParalela ? 'Grados del paquete' : 'Grado / Año'}
         </label>
         {usandoVistaParalela ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="text-sm" style={{ color: 'var(--ash)' }}>Se muestran {gradosPaquete.length} grillas lado a lado. Selecciona una celda para editar ese grado.</p>
-            <label className="inline-flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--ash)' }}>
-              <ZoomOut size={14} aria-hidden="true" />
-              <span className="sr-only">Escala de las grillas</span>
-              <input
-                type="range"
-                min="70"
-                max="100"
-                step="5"
-                value={escalaParalelas}
-                onChange={event => setEscalaParalelas(Number(event.target.value))}
-                className="w-24 accent-[var(--pb)]"
-                aria-label="Escala de las grillas paralelas"
-              />
-              <ZoomIn size={14} aria-hidden="true" />
-              <span className="tabular-nums">{escalaParalelas}%</span>
-            </label>
-          </div>
+          <p className="text-sm" style={{ color: 'var(--ash)' }}>Se muestran {gradosPaquete.length} grillas lado a lado. Selecciona una celda para editar ese grado.</p>
         ) : usandoVistaDocente ? (
           <select value={docenteId} onChange={e => seleccionarDocente(e.target.value)} disabled={loadingDocentes} className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60" style={INPUT_STYLE}>
             <option value="">{loadingDocentes ? 'Cargando profesores...' : 'Seleccionar profesor...'}</option>
@@ -455,20 +437,34 @@ const Horarios = () => {
 
       {/* Contenido principal */}
       {usandoVistaParalela ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:hidden">
-          {grillasParalelas.map(grilla => {
-            const clasesPorBloque = new Map(grilla.horarios.filter(clase => clase.bloque_id != null).map(clase => [clase.bloque_id, clase]));
-            return <section key={grilla.grado} className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--jet)' }}>{grilla.grado}</h2>
-              <div style={{ zoom: escalaParalelas / 100 }}>
-                <GrillaHorario loading={loadingParalelas} bloques={bloques} getClaseEnBloque={id => clasesPorBloque.get(id) || null}
-                  onCeldaClick={bloque => abrirCelda(bloque, grilla.materias)} onEditarClase={clase => setModal({ clase, bloque: null, materiasContexto: grilla.materias })}
-                  onTogglePin={async clase => { const ok = await pinear(clase.id, !clase.pineado); if (ok) cargarGrillasParalelas(); }}
-                  onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} />
-              </div>
-            </section>;
-          })}
-          {!loadingParalelas && !grillasParalelas.length && <p className="text-sm" style={{ color: 'var(--ash)' }}>Este paquete todavía no tiene grados para mostrar.</p>}
+        <div className="print:hidden">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Tamaño de las grillas</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>Reduce el tamaño para comparar más fácilmente los horarios.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setEscalaParalelas(valor => Math.max(70, valor - 5))} disabled={escalaParalelas <= 70} className="p-2 rounded-lg disabled:opacity-40" style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }} aria-label="Reducir tamaño de las grillas"><ZoomOut size={16} /></button>
+              <input type="range" min="70" max="100" step="5" value={escalaParalelas} onChange={event => setEscalaParalelas(Number(event.target.value))} className="w-28 accent-[var(--pb)]" aria-label="Tamaño de las grillas paralelas" />
+              <button type="button" onClick={() => setEscalaParalelas(valor => Math.min(100, valor + 5))} disabled={escalaParalelas >= 100} className="p-2 rounded-lg disabled:opacity-40" style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }} aria-label="Aumentar tamaño de las grillas"><ZoomIn size={16} /></button>
+              <span className="w-10 text-right text-sm font-semibold tabular-nums" style={{ color: 'var(--pb)' }}>{escalaParalelas}%</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {grillasParalelas.map(grilla => {
+              const clasesPorBloque = new Map(grilla.horarios.filter(clase => clase.bloque_id != null).map(clase => [clase.bloque_id, clase]));
+              return <section key={grilla.grado} className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--jet)' }}>{grilla.grado}</h2>
+                <div style={{ zoom: escalaParalelas / 100 }}>
+                  <GrillaHorario loading={loadingParalelas} bloques={bloques} getClaseEnBloque={id => clasesPorBloque.get(id) || null}
+                    onCeldaClick={bloque => abrirCelda(bloque, grilla.materias)} onEditarClase={clase => setModal({ clase, bloque: null, materiasContexto: grilla.materias })}
+                    onTogglePin={async clase => { const ok = await pinear(clase.id, !clase.pineado); if (ok) cargarGrillasParalelas(); }}
+                    onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} />
+                </div>
+              </section>;
+            })}
+            {!loadingParalelas && !grillasParalelas.length && <p className="text-sm" style={{ color: 'var(--ash)' }}>Este paquete todavía no tiene grados para mostrar.</p>}
+          </div>
         </div>
       ) : !(usandoVistaDocente ? docenteId : grado) ? (
         <div className="rounded-xl p-16 text-center"
