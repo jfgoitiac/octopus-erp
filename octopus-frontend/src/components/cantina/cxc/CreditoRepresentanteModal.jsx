@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Modal } from '../../ui/Modal';
 import { actualizarCreditoCxc } from '../../../api/cantina.service';
-import { mensajeError } from './utilsCxc';
+import { mensajeError, fmtUsd } from './utilsCxc';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '15px' };
 
 // Edita el límite de crédito (vacío = usa el default del colegio) y el bloqueo.
 // Solo se monta para administrador/director.
-const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, bloqueado, onGuardado }) => {
-  const [limite, setLimite] = useState(limiteUsd != null ? String(limiteUsd) : '');
+const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, limitePersonalizado, bloqueado, onGuardado }) => {
+  const inicial = limitePersonalizado && limiteUsd != null ? String(limiteUsd) : '';
+  const [limite, setLimite] = useState(inicial);
   const [bloq, setBloq] = useState(Boolean(bloqueado));
   const [guardando, setGuardando] = useState(false);
 
@@ -21,10 +22,12 @@ const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, 
     }
     setGuardando(true);
     try {
-      await actualizarCreditoCxc(representanteId, {
-        limite_usd: texto === '' ? null : Number(texto).toFixed(2),
-        bloqueado: bloq,
-      });
+      const payload = { bloqueado: bloq };
+      // Solo se envía el límite si cambió (null = volver al límite general).
+      if (limite.trim().replace(',', '.') !== inicial) {
+        payload.limite_usd = texto === '' ? null : Number(texto).toFixed(2);
+      }
+      await actualizarCreditoCxc(representanteId, payload);
       toast.success('Crédito del representante actualizado.');
       onGuardado?.();
       onClose();
@@ -63,7 +66,7 @@ const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, 
             inputMode="decimal"
             value={limite}
             onChange={e => setLimite(e.target.value)}
-            placeholder="Vacío = límite por defecto"
+            placeholder={!limitePersonalizado && limiteUsd != null ? `Usa el límite general: ${fmtUsd(limiteUsd)}` : 'Usa el límite general'}
             className="w-full px-3 py-2 rounded-lg outline-none min-h-[40px]"
             style={FIELD_STYLE}
           />

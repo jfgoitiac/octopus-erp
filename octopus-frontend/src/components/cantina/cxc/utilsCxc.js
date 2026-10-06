@@ -23,6 +23,24 @@ export const fmtFecha = (valor, patron = "dd/MM/yyyy HH:mm") => {
   return isValid(d) ? format(d, patron, { locale: es }) : '—';
 };
 
+// El backend devuelve `detalle` de un cargo como arreglo
+// [{ producto, cantidad, subtotal }]; se muestra como texto corrido.
+export const detalleCargoTexto = (c) => {
+  const d = c?.detalle;
+  if (Array.isArray(d) && d.length > 0) {
+    return d.map(i => `${i.cantidad}× ${i.producto}`).join(', ');
+  }
+  if (typeof d === 'string' && d.trim()) return d;
+  return c?.venta_id ? `Venta #${c.venta_id}` : '—';
+};
+
+// Fecha local de hoy (YYYY-MM-DD), sin pasar por UTC. `offsetDias` = -1 → ayer.
+export const fechaLocalISO = (offsetDias = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDias);
+  return format(d, 'yyyy-MM-dd');
+};
+
 export const nombreCompleto = (r) =>
   [r?.nombre, r?.apellido].filter(Boolean).join(' ') || '—';
 

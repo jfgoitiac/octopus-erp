@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock } from 'lucide-react';
+import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { estadoCuentaCxc } from '../../../api/cantina.service';
 import { TablaScroll } from '../../ui/TablaScroll';
@@ -8,7 +8,7 @@ import RegistrarAbonoModal from './RegistrarAbonoModal';
 import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
 import {
-  AREA_LABELS, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
+  AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
   esCancelacion, mensajeError, abrirReciboAbono,
 } from './utilsCxc';
 
@@ -50,6 +50,8 @@ const metodosDe = (abono) =>
 
 const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCambio }) => {
   const [data, setData] = useState(null);
+  const [saldoTotal, setSaldoTotal] = useState(null);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [cargadoPara, setCargadoPara] = useState(null);
   const [pestana, setPestana] = useState('cargos');
   const [abonoAbierto, setAbonoAbierto] = useState(false);
@@ -57,10 +59,20 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
   const [abonoAAnular, setAbonoAAnular] = useState(null);
 
   const cargar = useCallback((signal) => {
-    return estadoCuentaCxc(representanteId, { area: area || undefined }, signal)
-      .then(res => setData(res.data))
+    setErrorCarga(false);
+    // El abono se aplica FIFO a toda la deuda: con filtro de área se pide también
+    // el saldo total (sin área) para el modal de abono.
+    const total = area
+      ? estadoCuentaCxc(representanteId, {}, signal).then(res => num(res.data?.saldo_usd))
+      : Promise.resolve(null);
+    return Promise.all([estadoCuentaCxc(representanteId, { area: area || undefined }, signal), total])
+      .then(([res, saldoGlobal]) => {
+        setData(res.data);
+        setSaldoTotal(saldoGlobal ?? num(res.data?.saldo_usd));
+      })
       .catch(async err => {
         if (esCancelacion(err)) return;
+        setErrorCarga(true);
         toast.error(await mensajeError(err, 'No se pudo cargar el estado de cuenta.'));
       })
       .finally(() => { if (!signal?.aborted) setCargadoPara(`${representanteId}|${area}`); });
@@ -113,7 +125,16 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
         <ArrowLeft size={16} /> Volver a la lista
       </button>
 
-      {cargando && data?.representante?.id !== representanteId ? <Skeleton /> : data && (
+      {errorCarga && !cargando && (
+        <div className="rounded-xl p-6 flex flex-col items-center gap-3 text-center" role="alert" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+          <p className="text-sm" style={{ color: '#dc2626' }}>No se pudo cargar el estado de cuenta.</p>
+          <button type="button" onClick={() => { setCargadoPara(null); cargar(); }} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto" style={{ background: 'var(--pb)' }}>
+            <RefreshCw size={15} /> Reintentar
+          </button>
+        </div>
+      )}
+
+      {errorCarga ? null : cargando && data?.representante?.id !== representanteId ? <Skeleton /> : data && (
         <>
           <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -145,7 +166,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                     <Settings2 size={15} /> Límite y bloqueo
                   </button>
                 )}
-                <button type="button" onClick={() => setAbonoAbierto(true)} disabled={saldo <= 0} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto disabled:opacity-60" style={{ background: 'var(--pb)' }}>
+                <button type="button" onClick={() => setAbonoAbierto(true)} disabled={(saldoTotal ?? saldo) <= 0} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto disabled:opacity-60" style={{ background: 'var(--pb)' }}>
                   <HandCoins size={16} /> Registrar abono
                 </button>
               </div>
@@ -172,7 +193,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                       <p className="text-sm" style={{ color: 'var(--jet)' }}>
                         {AREA_LABELS[c.area] || c.area} · {alumnoDe(c)}
                       </p>
-                      {c.detalle && <p className="text-xs break-words" style={{ color: 'var(--ash)' }}>{c.detalle}</p>}
+                      <p className="text-xs break-words" style={{ color: 'var(--ash)' }}>{detalleCargoTexto(c)}</p>
                       <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
                         {fmtUsd(c.monto_usd)} <span className="font-normal text-xs" style={{ color: 'var(--ash)' }}>· pagado {fmtUsd(c.monto_pagado)}</span>
                       </p>
@@ -199,7 +220,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                             <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--ash)' }}>{fmtFecha(c.creado_en || c.fecha)}</td>
                             <td className="px-4 py-3">{AREA_LABELS[c.area] || c.area}</td>
                             <td className="px-4 py-3">{alumnoDe(c)}</td>
-                            <td className="px-4 py-3 max-w-[16rem]" style={{ color: 'var(--ash)' }}>{c.detalle || (c.venta_id ? `Venta #${c.venta_id}` : '—')}</td>
+                            <td className="px-4 py-3 max-w-[16rem]" style={{ color: 'var(--ash)' }}>{detalleCargoTexto(c)}</td>
                             <td className="px-4 py-3 text-right font-semibold">{fmtUsd(c.monto_usd)}</td>
                             <td className="px-4 py-3 text-right">{fmtUsd(c.monto_pagado)}</td>
                             <td className="px-4 py-3"><Chip estado={c.estado} /></td>
@@ -256,7 +277,8 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
               open
               onClose={() => setAbonoAbierto(false)}
               representante={rep}
-              saldoUsd={saldo}
+              saldoUsd={saldoTotal ?? saldo}
+              areaFiltrada={Boolean(area)}
               tasaVigente={tasa}
               esAdmin={esAdmin}
               onGuardado={refrescar}
@@ -268,6 +290,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
               onClose={() => setCreditoAbierto(false)}
               representanteId={representanteId}
               limiteUsd={data.limite_usd}
+              limitePersonalizado={Boolean(data.limite_personalizado)}
               bloqueado={bloqueado}
               onGuardado={refrescar}
             />

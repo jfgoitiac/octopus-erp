@@ -7,8 +7,8 @@ import MetodoPagoFields from '../MetodoPagoFields';
 import { getBancosCantina, registrarAbonoCxc } from '../../../api/cantina.service';
 import { useTasaPorFecha } from '../../../hooks/useTasaPorFecha';
 import { esBolivares } from '../../../utils/metodosPago';
-import { today } from '../../../constants/reportes';
-import { fmtUsd, fmtVes, num, listaDe, esCancelacion, mensajeError, abrirReciboAbono } from './utilsCxc';
+import { validarMetodoPago } from '../metodoPagoUtils';
+import { fechaLocalISO, fmtUsd, fmtVes, num, listaDe, esCancelacion, mensajeError, abrirReciboAbono } from './utilsCxc';
 
 const MOTIVO_MIN = 10;
 const DESVIACION_MAX = 0.2;
@@ -40,11 +40,12 @@ const usdDeLinea = (linea, tasa) => {
   return redondear(num(linea.monto_usd));
 };
 
-const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigente, esAdmin, onGuardado }) => {
+const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltrada, tasaVigente, esAdmin, onGuardado }) => {
   const [lineas, setLineas] = useState(() => [lineaVacia()]);
   const [bancos, setBancos] = useState([]);
   const [retro, setRetro] = useState(false);
-  const [fecha, setFecha] = useState(today);
+  const [fecha, setFecha] = useState(() => fechaLocalISO(-1));
+  const [intentado, setIntentado] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [tasaManual, setTasaManual] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -109,10 +110,13 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
     for (const [i, l] of lineas.entries()) {
       if (!l.metodo_pago) return `Elige el método de pago de la línea ${i + 1}.`;
       if (usdDeLinea(l, tasaUsada) <= 0) return `Indica un monto válido en la línea ${i + 1}.`;
+      // Banco, referencia y lote (el monto ya se validó arriba).
+      const errores = Object.values(validarMetodoPago(l, { conMonto: false }));
+      if (errores.length > 0) return `Línea ${i + 1}: ${errores[0]}`;
     }
     if (excede) return 'El total del abono supera la deuda pendiente.';
     if (retro) {
-      if (!fecha || fecha > today()) return 'La fecha del pago retroactivo no puede ser futura.';
+      if (!fecha || fecha >= fechaLocalISO()) return 'La fecha del pago retroactivo debe ser anterior a hoy.';
       if (hayBolivares && !(tasaUsada > 0)) return 'Indica la tasa aplicada para los pagos en bolívares.';
       if (motivo.trim().length < MOTIVO_MIN) return `Explica el motivo (mínimo ${MOTIVO_MIN} caracteres).`;
     } else if (hayBolivares && !(tasaUsada > 0)) {
@@ -129,7 +133,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
         const linea = { metodo_pago: l.metodo_pago };
         if (bs) linea.monto_ves = num(l.monto_ves).toFixed(2);
         else linea.monto_usd = num(l.monto_usd).toFixed(2);
-        if (retro && bs) linea.tasa_aplicada = tasaUsada;
+        if (retro && tasaUsada > 0) linea.tasa_aplicada = tasaUsada;
         ['banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote'].forEach(campo => {
           const v = typeof l[campo] === 'string' ? l[campo].trim() : l[campo];
           if (v) linea[campo] = v;
@@ -145,6 +149,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
   };
 
   const guardar = async () => {
+    setIntentado(true);
     const problema = validar();
     if (problema) {
       toast.warning(problema);
@@ -177,6 +182,9 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
       setImprimiendo(false);
     }
   };
+
+  // Mientras se guarda, Escape/overlay no cierran el modal.
+  const cerrar = () => { if (!guardando) onClose(); };
 
   const btnSecundario = 'px-4 py-2.5 rounded-xl text-sm min-h-[40px]';
   const nombre = [representante?.nombre, representante?.apellido].filter(Boolean).join(' ');
@@ -215,12 +223,12 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={cerrar}
       titulo="Registrar abono"
       size="lg"
       footer={(
         <>
-          <button type="button" onClick={onClose} className={btnSecundario} style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+          <button type="button" onClick={cerrar} className={btnSecundario} style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
             Cancelar
           </button>
           <button
@@ -251,6 +259,11 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
             <p className="font-bold" style={{ color: 'var(--jet)' }}>{fmtUsd(Math.max(restante, 0))}</p>
           </div>
         </div>
+        {areaFiltrada && (
+          <p className="text-xs flex items-start gap-1" style={{ color: '#b45309' }}>
+            <AlertTriangle size={12} className="mt-0.5 shrink-0" /> El abono se aplica a la deuda más antigua, sin importar el área.
+          </p>
+        )}
         {excede && (
           <p className="text-xs flex items-center gap-1" style={{ color: '#dc2626' }}>
             <AlertTriangle size={12} /> El total supera la deuda; no se admite saldo a favor.
@@ -273,7 +286,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
                   <DatePickerES
                     value={fecha}
                     onChange={cambiarFecha}
-                    maxDate={today()}
+                    maxDate={fechaLocalISO(-1)}
                     className="w-full px-3 py-2 rounded-lg outline-none min-h-[40px]"
                     style={FIELD_STYLE}
                   />
@@ -347,6 +360,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, tasaVigen
               onChange={nueva => cambiarLinea(l.key, nueva)}
               bancos={bancos}
               tasa={tasaUsada}
+              mostrarErrores={intentado}
               metodosPermitidos={undefined}
             />
           </div>
