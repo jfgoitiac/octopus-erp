@@ -35,12 +35,16 @@ def buscar_referencia_duplicada(
     excluir_recarga_id=None,
     metodo_pago=_SIN_FILTRO,
     banco_receptor_id=_SIN_FILTRO,
+    excluir_abono_id=None,
+    excluir_venta_id=None,
 ):
     """
     Busca `ref_normalizada` (ya normalizada por `normalizar_referencia`) en
-    los tres lugares del sistema donde una referencia bancaria puede quedar
-    registrada como "en uso": cobranza.Pago, portal.ComprobantePago y
-    cantina.RecargaTarjeta.
+    los lugares del sistema donde una referencia bancaria puede quedar
+    registrada como "en uso": cobranza.Pago, portal.ComprobantePago,
+    cantina.RecargaTarjeta, cantina.AbonoCantina (estatus completado) y
+    cantina.VentaCantina (estado completada). `excluir_abono_id` /
+    `excluir_venta_id` omiten un registro propio (ej. al editarlo).
 
     `metodo_pago` y `banco_receptor_id` acotan la búsqueda a la clave
     compuesta (referencia, metodo_pago, banco_receptor): la misma referencia
@@ -65,7 +69,7 @@ def buscar_referencia_duplicada(
 
     from cobranza.models import Pago
     from portal.models import ComprobantePago
-    from cantina.models import RecargaTarjeta
+    from cantina.models import AbonoCantina, RecargaTarjeta, VentaCantina
 
     con_filtro_compuesto = metodo_pago is not _SIN_FILTRO or banco_receptor_id is not _SIN_FILTRO
 
@@ -131,6 +135,34 @@ def buscar_referencia_duplicada(
             'origen': 'cantina.RecargaTarjeta',
             'id': dup_recarga.pk,
             'detalle': f'estatus {dup_recarga.estatus}{_detalle_banco()}',
+        }
+
+    abono_qs = AbonoCantina.objects.filter(
+        referencia=ref_normalizada, estatus='completado',
+    ).exclude(pk=excluir_abono_id)
+    if metodo_pago is not _SIN_FILTRO:
+        abono_qs = abono_qs.filter(metodo_pago=metodo_pago)
+    abono_qs = _filtro_banco(abono_qs)
+    dup_abono = abono_qs.first()
+    if dup_abono:
+        return {
+            'origen': 'cantina.AbonoCantina',
+            'id': dup_abono.pk,
+            'detalle': f'abono de cuenta por cobrar{_detalle_banco()}',
+        }
+
+    venta_qs = VentaCantina.objects.filter(
+        referencia=ref_normalizada, estado='completada',
+    ).exclude(pk=excluir_venta_id)
+    if metodo_pago is not _SIN_FILTRO:
+        venta_qs = venta_qs.filter(metodo_pago=metodo_pago)
+    venta_qs = _filtro_banco(venta_qs)
+    dup_venta = venta_qs.first()
+    if dup_venta:
+        return {
+            'origen': 'cantina.VentaCantina',
+            'id': dup_venta.pk,
+            'detalle': f'venta de {dup_venta.get_area_display()}{_detalle_banco()}',
         }
 
     return None
