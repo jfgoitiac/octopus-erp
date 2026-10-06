@@ -1,8 +1,10 @@
-import { useContext } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useContext, useEffect, useState } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX, HandCoins } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
+import { getAperturaCajaActual } from '../../api/cantina.service';
+import { EVENTO_APERTURA_CAMBIADA, ETIQUETA_AREA } from '../aperturaEvento';
 
 // Nav de cantina.md — todas las fases (0-7) ya están implementadas:
 // Inventario (Fase 1), Tarjetas (Fase 2), POS (Fase 4), Cierre de caja
@@ -36,6 +38,27 @@ const CantinaLayout = () => {
   const navigate = useNavigate();
   const rol = (user?.rol || '').toLowerCase().trim();
   const navItems = NAV_ITEMS.filter(item => item.roles.includes(rol));
+  const { pathname } = useLocation();
+
+  // Área de la caja abierta del cajero (chip "Caja: Cantina/Librería"). Se
+  // refresca al navegar y cuando el POS/cierre avisan que la apertura cambió.
+  const [areaCaja, setAreaCaja] = useState(null);
+  useEffect(() => {
+    let controller = new AbortController();
+    const cargar = () => {
+      controller.abort();
+      controller = new AbortController();
+      getAperturaCajaActual(controller.signal)
+        .then(res => setAreaCaja(res.data?.apertura?.area ?? null))
+        .catch(() => { /* el chip es informativo: sin toast si falla */ });
+    };
+    cargar();
+    window.addEventListener(EVENTO_APERTURA_CAMBIADA, cargar);
+    return () => {
+      controller.abort();
+      window.removeEventListener(EVENTO_APERTURA_CAMBIADA, cargar);
+    };
+  }, [pathname]);
 
   const handleLogout = () => {
     logout();
@@ -43,13 +66,25 @@ const CantinaLayout = () => {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--porcelain, #f5f5f4)' }}>
+    <div className="min-h-dvh flex" style={{ background: 'var(--porcelain, #f5f5f4)' }}>
       {/* Sidebar */}
       <aside className="w-60 shrink-0 bg-white border-r border-gray-100 flex flex-col">
         <div className="h-16 flex items-center gap-2 px-5 border-b border-gray-100">
           <ShoppingCart size={22} style={{ color: 'var(--pb, #0fa3b1)' }} />
           <span className="font-semibold text-gray-800">Cantina</span>
         </div>
+
+        {areaCaja && (
+          <div className="px-5 pt-3">
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+              style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}
+            >
+              <Wallet size={13} />
+              Caja: {ETIQUETA_AREA[areaCaja] ?? areaCaja}
+            </span>
+          </div>
+        )}
 
         <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (

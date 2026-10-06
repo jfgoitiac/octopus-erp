@@ -124,11 +124,18 @@ export const rechazarRecarga = (id, signal) =>
  *   POST ventas/registrar/
  *   Body: {
  *     items: [{ producto_id, cantidad }, ...],
- *     metodo_pago: 'efectivo' | 'efectivo_ves' | 'tarjeta_prepago',
+ *     metodo_pago: 'tarjeta_prepago' | 'credito_representante' | uno de cobranza.Pago.METODOS
+ *       ('transferencia' | 'pago_movil' | 'punto_de_venta' | 'zelle' | 'efectivo' | 'efectivo_ves'),
  *     tarjeta_codigo: 'CANT-XXXXXXXXXX',   // solo si metodo_pago === 'tarjeta_prepago'
+ *     // Métodos bancarios (transferencia/pago_movil/punto_de_venta/zelle):
+ *     banco_receptor, banco_procedencia, referencia, numero_lote (solo punto_de_venta),
+ *     // Cargo a cuenta (CxC, §3.3 PROMPT_CANTINA_CXC.md):
+ *     representante_id, alumno_id?,
  *   }
+ *   El área de la venta la hereda el backend de la apertura del cajero (el
+ *   frontend NO la envía); productos de otra área → 400.
  *   201 → VentaCantinaSerializer: {
- *     id, alumno, alumno_nombre, tarjeta, tarjeta_serial, cajero,
+ *     id, area, alumno, alumno_nombre, tarjeta, tarjeta_serial, cajero,
  *     cajero_username, metodo_pago, total_usd, tasa_aplicada, total_ves,
  *     estado, saldo_tarjeta_despues,
  *     detalles: [{ id, producto: { id, nombre }, cantidad, precio_unitario, subtotal }],
@@ -147,29 +154,33 @@ export const registrarVenta = (payload, signal) =>
 export const descargarReciboVenta = (ventaId, signal) =>
   cantinaApiClient.get(`ventas/${ventaId}/recibo/`, { signal, responseType: 'blob' });
 
-/* ── Apertura de caja por cajero (hasta 3 simultáneas) ──
+/* ── Apertura de caja por cajero (hasta 3 simultáneas POR ÁREA) ──
  *
  * GET apertura-caja/ → { apertura: null } si el cajero autenticado no tiene
- *   ninguna apertura 'abierta', o { apertura: { id, cajero, cajero_username,
- *   fecha_hora_apertura, monto_inicial, estado, cerrada_en } } si sí.
+ *   ninguna apertura 'abierta', o { apertura: { id, area: 'cantina'|'libreria',
+ *   cajero, cajero_username, fecha_hora_apertura, monto_inicial, estado,
+ *   cerrada_en } } si sí.
  *
- * POST apertura-caja/ con { monto_inicial } → 201 con la apertura creada, o
- *   400 { detail: 'mensaje' } si el cajero ya tiene una abierta, o si ya hay
- *   3 aperturas abiertas simultáneamente en el sistema.
+ * POST apertura-caja/ con { monto_inicial, area } (area obligatoria) → 201 con
+ *   la apertura creada, o 400 { detail: 'mensaje' } si el cajero ya tiene una
+ *   abierta, o si ya hay 3 aperturas abiertas en esa área.
  */
 export const getAperturaCajaActual = (signal) =>
   cantinaApiClient.get('apertura-caja/', { signal });
 
-export const abrirCajaCantina = (montoInicial, signal) =>
-  cantinaApiClient.post('apertura-caja/', { monto_inicial: montoInicial }, { signal });
+export const abrirCajaCantina = (montoInicial, area, signal) =>
+  cantinaApiClient.post('apertura-caja/', { monto_inicial: montoInicial, area }, { signal });
 
 /* ── Cierre de caja (§5.6/§8 FASE 5 cantina.md) ──
  *
- * GET cierre-caja/ → { ya_cerrado: true, id, fecha, total_ventas,
+ * GET cierre-caja/ → { ya_cerrado: true, id, area, fecha, total_ventas,
  *   total_tarjeta, total_efectivo, total_recargas_efectivo, conteo_fisico,
- *   diferencia, observaciones, cerrado_en, cajero } si el cajero autenticado
- *   ya cerró caja hoy, o { ya_cerrado: false, total_ventas, total_tarjeta,
- *   total_efectivo, total_recargas_efectivo } (resumen preliminar) si no.
+ *   diferencia, observaciones, cerrado_en, cajero, totales_por_metodo } si el
+ *   cajero autenticado ya cerró caja hoy, o { ya_cerrado: false, area,
+ *   total_ventas, total_tarjeta, total_efectivo, total_recargas_efectivo,
+ *   totales_por_metodo } (resumen preliminar) si no.
+ *   totales_por_metodo: JSON { <metodo_pago>: <monto USD string> } con
+ *   ventas + abonos CxC + recargas de ESA apertura (D11 del prompt CxC).
  *   Todos los montos vienen como string decimal — se formatean en la UI.
  *
  * POST cierre-caja/ con { conteo_fisico, observaciones } → 201 con el mismo
@@ -186,11 +197,11 @@ export const cerrarCajaCantina = (payload, signal) =>
  *
  * Contrato real confirmado de `ReporteVentasView` (cantina/views.py):
  *
- *   GET reportes/ventas/?fecha_inicio=YYYY-MM-DD&fecha_fin=YYYY-MM-DD&alumno_id=<opcional>
+ *   GET reportes/ventas/?fecha_inicio=YYYY-MM-DD&fecha_fin=YYYY-MM-DD&alumno_id=<opcional>&area=<opcional>&cajero=<id opcional>
  *   200 → {
  *     fecha_inicio, fecha_fin,
  *     ventas: [ /* VentaCantinaSerializer — incluye TODAS las ventas del
- *                 rango sin importar estado (id, alumno, alumno_nombre,
+ *                 rango sin importar estado (id, area, alumno, alumno_nombre,
  *                 tarjeta, tarjeta_serial, cajero, cajero_username,
  *                 metodo_pago, total_usd, tasa_aplicada, total_ves, estado,
  *                 saldo_tarjeta_despues, detalles, creado_en, anulada_en,
