@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useSearchParams, Link } from 'react-router-dom';
-import { GraduationCap, Printer, Wand2, Settings2, Package, ChevronLeft, Plus } from 'lucide-react';
+import { GraduationCap, Printer, Wand2, Settings2, Package, ChevronLeft, Plus, ZoomIn, ZoomOut } from 'lucide-react';
 import { useHorarios } from '../hooks/useHorarios';
 import { usePaquetesHorario, useGradosPaquete } from '../hooks/usePaquetesHorario';
 import { INPUT_STYLE } from '../constants/styles';
@@ -36,6 +36,7 @@ const Horarios = () => {
   const [loadingHorarioDocente, setLoadingHorarioDocente] = useState(false);
   const [grillasParalelas, setGrillasParalelas] = useState([]);
   const [loadingParalelas, setLoadingParalelas] = useState(false);
+  const [escalaParalelas, setEscalaParalelas] = useState(90);
 
   const {
     bloques, horarios, materias,
@@ -380,7 +381,25 @@ const Horarios = () => {
           {usandoVistaDocente ? 'Profesor' : usandoVistaParalela ? 'Grados del paquete' : 'Grado / Año'}
         </label>
         {usandoVistaParalela ? (
-          <p className="text-sm" style={{ color: 'var(--ash)' }}>Se muestran {gradosPaquete.length} grillas a la vez. Selecciona una celda para editar ese grado.</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="text-sm" style={{ color: 'var(--ash)' }}>Se muestran {gradosPaquete.length} grillas lado a lado. Selecciona una celda para editar ese grado.</p>
+            <label className="inline-flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--ash)' }}>
+              <ZoomOut size={14} aria-hidden="true" />
+              <span className="sr-only">Escala de las grillas</span>
+              <input
+                type="range"
+                min="70"
+                max="100"
+                step="5"
+                value={escalaParalelas}
+                onChange={event => setEscalaParalelas(Number(event.target.value))}
+                className="w-24 accent-[var(--pb)]"
+                aria-label="Escala de las grillas paralelas"
+              />
+              <ZoomIn size={14} aria-hidden="true" />
+              <span className="tabular-nums">{escalaParalelas}%</span>
+            </label>
+          </div>
         ) : usandoVistaDocente ? (
           <select value={docenteId} onChange={e => seleccionarDocente(e.target.value)} disabled={loadingDocentes} className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60" style={INPUT_STYLE}>
             <option value="">{loadingDocentes ? 'Cargando profesores...' : 'Seleccionar profesor...'}</option>
@@ -436,15 +455,17 @@ const Horarios = () => {
 
       {/* Contenido principal */}
       {usandoVistaParalela ? (
-        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4 print:hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:hidden">
           {grillasParalelas.map(grilla => {
             const clasesPorBloque = new Map(grilla.horarios.filter(clase => clase.bloque_id != null).map(clase => [clase.bloque_id, clase]));
             return <section key={grilla.grado} className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
               <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--jet)' }}>{grilla.grado}</h2>
-              <GrillaHorario loading={loadingParalelas} bloques={bloques} getClaseEnBloque={id => clasesPorBloque.get(id) || null}
-                onCeldaClick={bloque => abrirCelda(bloque, grilla.materias)} onEditarClase={clase => setModal({ clase, bloque: null, materiasContexto: grilla.materias })}
-                onTogglePin={async clase => { const ok = await pinear(clase.id, !clase.pineado); if (ok) cargarGrillasParalelas(); }}
-                onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} />
+              <div style={{ zoom: escalaParalelas / 100 }}>
+                <GrillaHorario loading={loadingParalelas} bloques={bloques} getClaseEnBloque={id => clasesPorBloque.get(id) || null}
+                  onCeldaClick={bloque => abrirCelda(bloque, grilla.materias)} onEditarClase={clase => setModal({ clase, bloque: null, materiasContexto: grilla.materias })}
+                  onTogglePin={async clase => { const ok = await pinear(clase.id, !clase.pineado); if (ok) cargarGrillasParalelas(); }}
+                  onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} />
+              </div>
             </section>;
           })}
           {!loadingParalelas && !grillasParalelas.length && <p className="text-sm" style={{ color: 'var(--ash)' }}>Este paquete todavía no tiene grados para mostrar.</p>}
