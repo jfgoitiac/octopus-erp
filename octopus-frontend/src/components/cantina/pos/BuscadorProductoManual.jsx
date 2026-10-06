@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
+import { coincideBusqueda } from '../../../utils/busqueda';
 
 /**
  * Búsqueda manual de respaldo por nombre (§6 cantina.md) — si el código de
@@ -12,9 +13,8 @@ export default function BuscadorProductoManual({ productos, onSeleccionar }) {
   const [busqueda, setBusqueda] = useState('');
 
   const resultados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return [];
-    return productos.filter(p => p.nombre.toLowerCase().includes(q)).slice(0, 8);
+    if (!busqueda.trim()) return [];
+    return productos.filter(p => coincideBusqueda(p.nombre, busqueda)).slice(0, 8);
   }, [busqueda, productos]);
 
   const seleccionar = (producto) => {

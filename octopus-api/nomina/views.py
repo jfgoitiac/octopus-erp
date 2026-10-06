@@ -18,6 +18,7 @@ from .serializers import (
 )
 from .utils import GeneradorReciboNomina
 from authentication.views import IsSystemAdminOrDirector
+from common.busqueda import filtrar_busqueda
 
 
 class ParametroLegalNominaViewSet(viewsets.ModelViewSet):
@@ -159,14 +160,11 @@ class BuscarEmpleadosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        buscar = request.query_params.get('buscar', '').strip()
         qs = Empleado.objects.all().order_by('apellido', 'nombre')
-        if buscar:
-            qs = qs.filter(
-                Q(nombre__icontains=buscar) |
-                Q(apellido__icontains=buscar) |
-                Q(cedula__icontains=buscar)
-            )
+        qs = filtrar_busqueda(
+            qs, request.query_params.get('buscar', ''),
+            ('nombre', 'apellido', 'cedula'),
+        )
         qs = qs[:10]
         return Response(EmpleadoBusquedaSerializer(qs, many=True).data)
 

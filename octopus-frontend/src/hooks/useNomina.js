@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 import { EMPTY_EMP, validarCedula } from '../constants/avec';
+import { coincideBusqueda } from '../utils/busqueda';
 
 function parseApiError(err) {
     if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return null;
@@ -100,12 +101,8 @@ export function useNomina() {
     // ── Filtro client-side ────────────────────────────────────────────────────
     const empleadosPorTab = useMemo(() => {
         const result = { docente: [], apoyo: [], administrativo: [] };
-        const filtro = busqueda.toLowerCase().trim();
         empleados.forEach(e => {
-            if (filtro) {
-                const texto = `${e.nombre} ${e.apellido} ${e.cedula} ${e.cargo}`.toLowerCase();
-                if (!texto.includes(filtro)) return;
-            }
+            if (!coincideBusqueda(`${e.nombre} ${e.apellido} ${e.cedula} ${e.cargo}`, busqueda)) return;
             const t = e.tipo_personal || 'docente';
             if (result[t]) result[t].push(e);
             else result.docente.push(e);

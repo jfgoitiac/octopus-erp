@@ -8,6 +8,7 @@ import { useDocentesAdmin } from '../hooks/useDocentesAdmin';
 import { fmtFecha } from '../utils/format';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
+import { coincideBusqueda } from '../utils/busqueda';
 
 const Docentes = () => {
   const { docentes, loading, saving, crear, actualizar, eliminar, asignarMaterias } = useDocentesAdmin();
@@ -30,11 +31,8 @@ const Docentes = () => {
   }, [usuariosDocentes, docentes]);
 
   const docentesFiltrados = useMemo(() => {
-    const termino = filtro.trim().toLowerCase();
     return docentes.filter(docente => {
-      if (!termino) return true;
-      const texto = `${docente.nombre_completo} ${docente.especialidad || ''}`.toLowerCase();
-      return texto.includes(termino);
+      return coincideBusqueda(`${docente.nombre_completo} ${docente.especialidad || ''}`, filtro);
     });
   }, [filtro, docentes]);
 

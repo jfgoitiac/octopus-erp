@@ -6,6 +6,7 @@ import { INPUT_STYLE } from '../constants/styles';
 import { useMaterias } from '../hooks/useMaterias';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
+import { coincideBusqueda } from '../utils/busqueda';
 
 const Materias = () => {
   const { materias, loading, saving, crear, actualizar, eliminar } = useMaterias();
@@ -14,10 +15,12 @@ const Materias = () => {
   const [modal, setModal] = useState(null);
 
   const materiasFiltradas = useMemo(() => {
-    const termino = filtro.trim().toLowerCase();
     return materias.filter(materia => {
       const coincideGrado = !grado || materia.grado_seccion === grado;
-      const coincideTexto = !termino || `${materia.nombre} ${materia.grado_seccion} ${materia.docente_nombre || materia.docente_username || ''}`.toLowerCase().includes(termino);
+      const coincideTexto = coincideBusqueda(
+        `${materia.nombre} ${materia.grado_seccion} ${materia.docente_nombre || materia.docente_username || ''}`,
+        filtro,
+      );
       return coincideGrado && coincideTexto;
     });
   }, [filtro, grado, materias]);

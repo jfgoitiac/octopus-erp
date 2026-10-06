@@ -25,6 +25,7 @@ from authentication.views import IsSystemAdminOrDirector
 from usuarios.models import LogAuditoria
 from django.db.models import Count
 from config.pagination import StandardResultsPagination
+from common.busqueda import filtrar_busqueda
 from .serializers import (
     AlumnoRetirarSerializer, AlumnoSerializer, AlumnoUpdateSerializer,
     AsignarGradoSerializer, BecaSerializer, BienNacionalSerializer, ConfiguracionGradoSerializer,
@@ -671,15 +672,11 @@ class AlumnoListView(viewsets.ModelViewSet):
             qs = qs.filter(estatus_financiero='becado')
 
         # Búsqueda por nombre, cédula o representante
-        buscar = self.request.query_params.get('buscar', '')
-        if buscar:
-            qs = qs.filter(
-                models.Q(nombre__icontains=buscar) |
-                models.Q(apellido__icontains=buscar) |
-                models.Q(cedula_escolar__icontains=buscar) |
-                models.Q(representante__nombre__icontains=buscar) |
-                models.Q(representante__cedula__icontains=buscar)
-            )
+        qs = filtrar_busqueda(
+            qs,
+            self.request.query_params.get('buscar', ''),
+            ('nombre', 'apellido', 'cedula_escolar', 'representante__nombre', 'representante__apellido', 'representante__cedula'),
+        )
         return qs
 
     def get_permissions(self):
@@ -980,12 +977,11 @@ class InscripcionListView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = Inscripcion.objects.select_related('alumno', 'alumno__representante').order_by('-fecha_inscripcion')
-        buscar = self.request.query_params.get('buscar', '')
-        if buscar:
-            qs = qs.filter(
-                models.Q(alumno__nombre__icontains=buscar) |
-                models.Q(alumno__apellido__icontains=buscar)
-            )
+        qs = filtrar_busqueda(
+            qs,
+            self.request.query_params.get('buscar', ''),
+            ('alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar'),
+        )
         return qs
 
 
@@ -1424,13 +1420,10 @@ class LogAuditoriaListView(APIView):
             logs = logs.filter(fecha_hora__date__lte=parse_date(fecha_fin))
         if modulo and modulo.upper() != 'TODOS':
             logs = logs.filter(modulo__iexact=modulo)
-        if busqueda:
-            logs = logs.filter(
-                Q(accion__icontains=busqueda) |
-                Q(usuario__username__icontains=busqueda) |
-                Q(usuario__first_name__icontains=busqueda) |
-                Q(usuario__last_name__icontains=busqueda)
-            )
+        logs = filtrar_busqueda(
+            logs, busqueda,
+            ('accion', 'usuario__username', 'usuario__first_name', 'usuario__last_name'),
+        )
 
         total = logs.count()
 
@@ -1810,14 +1803,11 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
                 to_attr='_cuota_proyecto_periodo_activo',
             )
         )
-        buscar = self.request.query_params.get('buscar', '').strip()
-        if buscar:
-            qs = qs.filter(
-                models.Q(cedula__icontains=buscar) |
-                models.Q(nombre__icontains=buscar)  |
-                models.Q(apellido__icontains=buscar) |
-                models.Q(correo__icontains=buscar)
-            )
+        qs = filtrar_busqueda(
+            qs,
+            self.request.query_params.get('buscar', ''),
+            ('cedula', 'nombre', 'apellido', 'correo'),
+        )
         min_hijos = self.request.query_params.get('min_hijos')
         if min_hijos is not None:
             qs = qs.filter(cantidad_alumnos__gte=int(min_hijos))
@@ -2000,13 +1990,11 @@ class BecaViewSet(
         if estado:
             qs = qs.filter(estado=estado)
 
-        buscar = self.request.query_params.get('buscar', '').strip()
-        if buscar:
-            qs = qs.filter(
-                models.Q(alumno__nombre__icontains=buscar) |
-                models.Q(alumno__apellido__icontains=buscar) |
-                models.Q(alumno__cedula_escolar__icontains=buscar)
-            )
+        qs = filtrar_busqueda(
+            qs,
+            self.request.query_params.get('buscar', ''),
+            ('alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar'),
+        )
 
         return qs
 

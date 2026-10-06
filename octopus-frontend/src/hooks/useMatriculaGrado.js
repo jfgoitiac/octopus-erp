@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import apiClient from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { coincideBusqueda } from '../utils/busqueda';
 
 const ORDEN_GRADO = [
   '1er Grado', '2do Grado', '3er Grado', '4to Grado', '5to Grado', '6to Grado',
@@ -142,12 +143,10 @@ export function useMatriculaGrado() {
 
   const alumnosFiltrados = useMemo(() => {
     if (!buscar.trim()) return alumnos;
-    const q = buscar.toLowerCase();
-    return alumnos.filter(a =>
-      a.nombre.toLowerCase().includes(q) ||
-      a.apellido.toLowerCase().includes(q) ||
-      (a.cedula_escolar || '').toLowerCase().includes(q)
-    );
+    return alumnos.filter(a => coincideBusqueda(
+      `${a.nombre} ${a.apellido} ${a.cedula_escolar || ''}`,
+      buscar,
+    ));
   }, [alumnos, buscar]);
 
   const totalAlumnos = useMemo(
