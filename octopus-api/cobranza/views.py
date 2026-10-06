@@ -796,9 +796,21 @@ class RegistrarPagoView(APIView):
             # Al completar el proyecto de inversión, si el representante ya no
             # tiene deuda pendiente (inscripción + sin mora), se emite (o se
             # confirma) su número de solvencia, ligado a esta factura.
-            solvencia = generar_o_verificar_solvencia(
-                alumno_titular.representante, pago=pagos_creados[-1]
-            )
+            # La emisión corre en su propio savepoint (transaction.atomic en
+            # solvencia.py): si falla, el pago NO debe perderse — antes un
+            # IntegrityError de numeración devolvía 500 y deshacía toda la
+            # operación. Se registra el error y la solvencia puede emitirse
+            # después (manual o en el próximo pago).
+            try:
+                solvencia = generar_o_verificar_solvencia(
+                    alumno_titular.representante, pago=pagos_creados[-1]
+                )
+            except Exception:
+                logger.exception(
+                    'Pago registrado pero falló la emisión de la solvencia del representante #%s',
+                    alumno_titular.representante_id,
+                )
+                solvencia = None
             if solvencia:
                 numero_solvencia = solvencia.numero
 

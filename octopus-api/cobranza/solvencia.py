@@ -7,11 +7,14 @@ Esta es un número identificador único e intransferible por representante,
 que certifica que al momento de completar inscripción + proyecto de
 inversión no tenía deuda pendiente en ninguno de sus alumnos.
 """
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from .mora import annotate_en_mora
 from .models import CuotaInscripcion, CuotaProyectoInversion, SolvenciaRepresentante
+
+# Clave del advisory lock (PostgreSQL) que serializa la numeración de solvencias.
+_LOCK_NUMERO_SOLVENCIA = 7_315_001
 
 
 def periodo_activo():
@@ -61,16 +64,33 @@ def representante_es_elegible(representante, periodo):
 
 
 def _generar_numero(periodo):
+    """
+    Siguiente número SLV-AAAA-NNNN del año del período.
+
+    Se calcula como (mayor correlativo existente + 1), NO como cantidad + 1:
+    con huecos (una solvencia borrada o cargada a mano, numeración que no
+    empezó en 0001) la cantidad coincide con un número que ya existe y el
+    `create` revienta con IntegrityError en `numero` — eso tumbaba todo
+    `registrar-pago`. En PostgreSQL se toma un advisory lock de transacción
+    para que dos emisiones simultáneas no calculen el mismo número (el
+    select_for_update anterior sobre un count() no bloqueaba nada).
+    """
     anio = periodo.split('-')[0] if periodo and '-' in periodo else str(timezone.now().year)
     prefijo = f"SLV-{anio}-"
     with transaction.atomic():
-        count = (
+        if connection.vendor == 'postgresql':
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT pg_advisory_xact_lock(%s)', [_LOCK_NUMERO_SOLVENCIA])
+        mayor = 0
+        for numero in (
             SolvenciaRepresentante.objects
-            .select_for_update()
             .filter(numero__startswith=prefijo)
-            .count()
-        )
-        return f"{prefijo}{count + 1:04d}"
+            .values_list('numero', flat=True)
+        ):
+            sufijo = numero[len(prefijo):]
+            if sufijo.isdigit():
+                mayor = max(mayor, int(sufijo))
+        return f"{prefijo}{mayor + 1:04d}"
 
 
 def generar_o_verificar_solvencia(representante, periodo=None, pago=None):
