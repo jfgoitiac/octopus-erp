@@ -1224,6 +1224,53 @@ class CorregirPagoMontoTests(TestCase):
         self.assertEqual(mensualidad.monto_pagado, Decimal('50.00'))
         self.assertFalse(mensualidad.pagado)
 
+    def test_ajustar_monto_total_de_mensualidad_deja_la_diferencia_como_deuda(self):
+        # Caso real: se cobró a 30 pero la tarifa correcta era 50.
+        from usuarios.models import LogAuditoria
+
+        mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno, mes=9, anio=2025, monto_usd=Decimal('30.00'),
+            monto_pagado=Decimal('30.00'), pagado=True,
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='mensualidad', monto_usd=Decimal('30.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-MENS-AJUSTE-1', estatus='completado',
+        )
+        mensualidad.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_monto_usd': '50.00',
+            'motivo': 'La tarifa de la mensualidad no se había actualizado',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        pago.refresh_from_db()
+        mensualidad.refresh_from_db()
+        self.assertEqual(pago.monto_usd, Decimal('30.00'))
+        self.assertEqual(mensualidad.monto_usd, Decimal('50.00'))
+        self.assertEqual(mensualidad.monto_pagado, Decimal('30.00'))
+        self.assertFalse(mensualidad.pagado)
+        self.assertTrue(mensualidad.monto_personalizado)
+
+        log = LogAuditoria.objects.get(accion='CORREGIR_PAGO_MONTO', detalles__pago_id=pago.id)
+        self.assertEqual(log.detalles['cuota_monto_usd_anterior'], '30.00')
+        self.assertEqual(log.detalles['cuota_monto_usd_nuevo'], '50.00')
+
+    def test_ajustar_monto_total_solo_aplica_a_mensualidades(self):
+        pago, cuota = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_monto_usd': '150.00',
+            'motivo': 'Intento de ajustar el total de una solvencia',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_usd, Decimal('100.00'))
+
     def test_pago_ligado_a_proyecto_inversion_admite_editar_monto_y_abono(self):
         from cobranza.services import tipo_cargo_proyecto_inversion
 

@@ -49,6 +49,7 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
     const [cargandoElegibilidad, setCargandoElegibilidad] = useState(puedeEditarMonto);
     const [montoUsd, setMontoUsd] = useState(String(pago.monto_usd ?? ''));
     const [cuotaMontoPagado, setCuotaMontoPagado] = useState('');
+    const [cuotaMontoUsd, setCuotaMontoUsd] = useState('');
 
     useEffect(() => {
         if (!puedeEditarMonto) return;
@@ -58,6 +59,9 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                 setElegibilidad(data);
                 if (data.cuota?.monto_pagado != null) {
                     setCuotaMontoPagado(String(data.cuota.monto_pagado));
+                }
+                if (data.cuota?.monto_usd != null) {
+                    setCuotaMontoUsd(String(data.cuota.monto_usd));
                 }
             })
             .catch(err => {
@@ -78,10 +82,17 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
     const motivoInvalido = motivo.trim().length < MOTIVO_MIN_LEN;
     const montoUsdInvalido = puedeEditarMonto && elegibilidad?.editable_monto
         && (montoUsd === '' || Number(montoUsd) <= 0);
+    // Solo mensualidades admiten ajustar el monto total (tarifa mal cargada).
+    const puedeAjustarTotalCuota = cuotaConAbono?.tipo === 'mensualidad';
+    const totalCuotaEfectivo = puedeAjustarTotalCuota && cuotaMontoUsd !== ''
+        ? Number(cuotaMontoUsd)
+        : Number(cuotaConAbono?.monto_usd);
+    const cuotaTotalInvalido = puedeEditarMonto && puedeAjustarTotalCuota
+        && (cuotaMontoUsd === '' || Number(cuotaMontoUsd) <= 0);
     const cuotaMontoInvalido = puedeEditarMonto && cuotaConAbono
         && (cuotaMontoPagado === ''
             || Number(cuotaMontoPagado) < 0
-            || Number(cuotaMontoPagado) > Number(cuotaConAbono.monto_usd));
+            || Number(cuotaMontoPagado) > totalCuotaEfectivo);
 
     const handleGuardar = async () => {
         setTouched(true);
@@ -95,6 +106,10 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
         }
         if (montoUsdInvalido) {
             toast.warning('El monto del pago debe ser mayor a 0.');
+            return;
+        }
+        if (cuotaTotalInvalido) {
+            toast.warning('El monto de la mensualidad debe ser mayor a 0.');
             return;
         }
         if (cuotaMontoInvalido) {
@@ -114,6 +129,9 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
             if (puedeEditarMonto && elegibilidad?.editable_monto) {
                 if (Number(montoUsd) !== Number(pago.monto_usd)) {
                     payload.monto_usd = montoUsd;
+                }
+                if (puedeAjustarTotalCuota && Number(cuotaMontoUsd) !== Number(cuotaConAbono.monto_usd)) {
+                    payload.cuota_monto_usd = cuotaMontoUsd;
                 }
                 if (cuotaConAbono && Number(cuotaMontoPagado) !== Number(cuotaConAbono.monto_pagado)) {
                     payload.cuota_monto_pagado = cuotaMontoPagado;
@@ -269,8 +287,8 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                     </p>
                 )}
                 {puedeEditarMonto && !cargandoElegibilidad && elegibilidad?.editable_monto && (
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <div className="flex-1">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                        <div className="flex-1 sm:min-w-[11rem]">
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
                                 Monto del pago (USD)
                             </label>
@@ -287,16 +305,35 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                                 <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>Debe ser mayor a 0.</p>
                             )}
                         </div>
-                        {cuotaConAbono && (
-                            <div className="flex-1">
+                        {puedeAjustarTotalCuota && (
+                            <div className="flex-1 sm:min-w-[11rem]">
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
-                                    {CUOTA_ABONO_LABEL[cuotaConAbono.tipo] || 'Abono a cuota'} (de ${fmt(cuotaConAbono.monto_usd)})
+                                    Monto total de la mensualidad (USD)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={cuotaMontoUsd}
+                                    onChange={e => setCuotaMontoUsd(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                    style={{ border: `0.5px solid ${touched && cuotaTotalInvalido ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                />
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    Si sube, lo abonado se conserva y la diferencia queda como deuda.
+                                </p>
+                            </div>
+                        )}
+                        {cuotaConAbono && (
+                            <div className="flex-1 sm:min-w-[11rem]">
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                                    {CUOTA_ABONO_LABEL[cuotaConAbono.tipo] || 'Abono a cuota'} (de ${fmt(totalCuotaEfectivo)})
                                 </label>
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    max={cuotaConAbono.monto_usd}
+                                    max={totalCuotaEfectivo}
                                     value={cuotaMontoPagado}
                                     onChange={e => setCuotaMontoPagado(e.target.value)}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
@@ -304,7 +341,7 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                                 />
                                 {touched && cuotaMontoInvalido && (
                                     <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
-                                        Debe estar entre 0 y {fmt(cuotaConAbono.monto_usd)}.
+                                        Debe estar entre 0 y {fmt(totalCuotaEfectivo)}.
                                     </p>
                                 )}
                             </div>

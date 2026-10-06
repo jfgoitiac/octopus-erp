@@ -43,7 +43,7 @@ CAMPOS_EDITABLES_CORRECCION = ('metodo_pago', 'referencia', 'numero_lote', 'banc
 # Campos de monto: requieren rol admin/director/sistemas (chequeado en la vista
 # vía IsSystemAdminOrDirector) y solo se pueden tocar si el pago está ligado a
 # lo sumo a UNA "cuota" en total, contando las 4 M2M — ver `elegibilidad_monto()`.
-CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_monto_pagado')
+CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_monto_pagado', 'cuota_monto_usd')
 
 
 def fecha_en_cierre_validado(usuario, fecha):
@@ -195,9 +195,11 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
 
     monto_usd_nuevo = cambios.get('monto_usd')
     cuota_monto_pagado_nuevo = cambios.get('cuota_monto_pagado')
+    cuota_monto_usd_nuevo = cambios.get('cuota_monto_usd')
     cuota_afectada = None
 
-    if monto_usd_nuevo is not None or cuota_monto_pagado_nuevo is not None:
+    if (monto_usd_nuevo is not None or cuota_monto_pagado_nuevo is not None
+            or cuota_monto_usd_nuevo is not None):
         info = elegibilidad_monto(pago)
         if not info['editable']:
             raise ValidationError({'monto_usd': info['razon']})
@@ -209,6 +211,13 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
                 raise ValidationError({
                     'cuota_monto_pagado': 'Este pago no está ligado a ninguna cuota con abono editable.'
                 })
+        if cuota_monto_usd_nuevo is not None:
+            if cuota_afectada is None or cuota_info['tipo'] != 'mensualidad':
+                raise ValidationError({
+                    'cuota_monto_usd': 'Este pago no está ligado a una mensualidad cuyo monto se pueda ajustar.'
+                })
+            if cuota_monto_usd_nuevo <= 0:
+                raise ValidationError({'cuota_monto_usd': 'El monto de la mensualidad debe ser mayor a 0.'})
     if monto_usd_nuevo is not None:
         if monto_usd_nuevo <= 0:
             raise ValidationError({'monto_usd': 'El monto debe ser mayor a 0.'})
@@ -217,14 +226,28 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
         # digitación no debe re-expresar el pago a la tasa de hoy.
         pago.monto_ves = (monto_usd_nuevo * pago.tasa_aplicada).quantize(Decimal('0.01'))
 
-    if cuota_monto_pagado_nuevo is not None:
-        if cuota_monto_pagado_nuevo < 0 or cuota_monto_pagado_nuevo > cuota_afectada.monto_usd:
+    if cuota_monto_pagado_nuevo is not None or cuota_monto_usd_nuevo is not None:
+        total_nuevo = cuota_monto_usd_nuevo if cuota_monto_usd_nuevo is not None else cuota_afectada.monto_usd
+        if cuota_monto_pagado_nuevo is not None:
+            abono_nuevo = cuota_monto_pagado_nuevo
+        elif cuota_afectada.pagado and cuota_afectada.monto_pagado <= 0:
+            # Fila legada: marcada pagada sin abono registrado — se conserva
+            # lo cobrado (el monto anterior) para que, si el total sube, quede
+            # el saldo pendiente en vez de asumir pago completo.
+            abono_nuevo = cuota_afectada.monto_usd
+        else:
+            abono_nuevo = cuota_afectada.monto_pagado
+        if abono_nuevo < 0 or abono_nuevo > total_nuevo:
             raise ValidationError({
                 'cuota_monto_pagado': (
                     f'El monto pagado de la cuota debe estar entre 0 y '
-                    f'{cuota_afectada.monto_usd} (monto total de la cuota).'
+                    f'{total_nuevo} (monto total de la cuota).'
                 )
             })
+        if cuota_monto_usd_nuevo is not None:
+            # Override manual: propagar_monto_global() no debe pisarlo luego.
+            cuota_afectada.monto_usd = cuota_monto_usd_nuevo
+            cuota_afectada.monto_personalizado = True
         if cuota_info['tipo'] in ('mensualidad', 'inscripcion'):
             # Mensualidad.save() tiene una compatibilidad especial (ver su
             # docstring): si `pagado` ya estaba en True y el monto_pagado
@@ -234,7 +257,7 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
             # derive el estado real a partir del monto_pagado que sí estamos
             # corrigiendo explícitamente.
             cuota_afectada.pagado = False
-        cuota_afectada.monto_pagado = cuota_monto_pagado_nuevo
+        cuota_afectada.monto_pagado = abono_nuevo
         cuota_afectada.save()
 
     # Se antepone el motivo a las observaciones. Si vinieron observaciones

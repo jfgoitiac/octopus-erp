@@ -2227,6 +2227,8 @@ class CorregirPagoView(APIView):
             else None
         )
 
+        cuota_monto_usd_anterior = cuota_obj_previa.monto_usd if cuota_obj_previa is not None else None
+
         try:
             pago_actualizado = correcciones.corregir_pago(pago, cambios, request.user, motivo)
         except DjangoValidationError as e:
@@ -2250,6 +2252,10 @@ class CorregirPagoView(APIView):
                 # con su propia consulta a elegibilidad_monto()).
                 detalles['cuota_tipo'] = cuota_info_previa['tipo']
                 detalles['cuota_id'] = cuota_obj_previa.id
+                if 'cuota_monto_usd' in cambios:
+                    cuota_obj_previa.refresh_from_db()
+                    detalles['cuota_monto_usd_anterior'] = str(cuota_monto_usd_anterior)
+                    detalles['cuota_monto_usd_nuevo'] = str(cuota_obj_previa.monto_usd)
                 if cuota_monto_pagado_anterior is not None:
                     cuota_obj_previa.refresh_from_db()
                     detalles['cuota_monto_pagado_anterior'] = str(cuota_monto_pagado_anterior)
