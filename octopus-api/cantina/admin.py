@@ -113,8 +113,21 @@ class CreditoRepresentanteCantinaAdmin(admin.ModelAdmin):
     raw_id_fields = ('representante',)
 
 
+class SoloLecturaAdmin(admin.ModelAdmin):
+    """Registros contables: solo se consultan; se crean/modifican por el servicio de CxC."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(CargoCantina)
-class CargoCantinaAdmin(admin.ModelAdmin):
+class CargoCantinaAdmin(SoloLecturaAdmin):
     list_display = ('id', 'representante', 'alumno', 'area', 'monto_usd', 'monto_pagado', 'estado', 'creado_en')
     list_filter = ('area', 'estado')
     search_fields = ('representante__cedula', 'representante__nombre', 'representante__apellido')
@@ -122,7 +135,7 @@ class CargoCantinaAdmin(admin.ModelAdmin):
 
 
 @admin.register(AbonoCantina)
-class AbonoCantinaAdmin(admin.ModelAdmin):
+class AbonoCantinaAdmin(SoloLecturaAdmin):
     list_display = ('id', 'operacion_uuid', 'representante', 'area', 'metodo_pago', 'monto_usd', 'estatus', 'es_retroactivo', 'fecha_pago')
     list_filter = ('area', 'metodo_pago', 'estatus', 'es_retroactivo')
     search_fields = ('representante__cedula', 'representante__nombre', 'representante__apellido', 'referencia')
@@ -130,6 +143,6 @@ class AbonoCantinaAdmin(admin.ModelAdmin):
 
 
 @admin.register(AplicacionAbonoCantina)
-class AplicacionAbonoCantinaAdmin(admin.ModelAdmin):
+class AplicacionAbonoCantinaAdmin(SoloLecturaAdmin):
     list_display = ('abono', 'cargo', 'monto_usd')
     raw_id_fields = ('abono', 'cargo')

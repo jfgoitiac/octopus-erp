@@ -295,6 +295,7 @@ class VentaCantina(models.Model):
 
     class Meta:
         ordering = ['-creado_en']
+        indexes = [models.Index(fields=['referencia', 'metodo_pago'])]
 
 
 class DetalleVentaCantina(models.Model):
@@ -360,7 +361,17 @@ class CargoCantina(models.Model):
 
     class Meta:
         ordering = ['creado_en']
-        indexes = [models.Index(fields=['representante', 'estado'])]
+        indexes = [
+            models.Index(fields=['representante', 'estado']),
+            models.Index(fields=['representante', 'area', 'estado']),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='cargo_cantina_monto_positivo'),
+            models.CheckConstraint(
+                condition=models.Q(monto_pagado__gte=0, monto_pagado__lte=models.F('monto_usd')),
+                name='cargo_cantina_pagado_en_rango',
+            ),
+        ]
 
     @property
     def saldo_usd(self):
@@ -402,10 +413,21 @@ class AbonoCantina(models.Model):
 
     class Meta:
         ordering = ['-fecha_pago', '-id']
-        indexes = [models.Index(fields=['representante', 'estatus'])]
+        indexes = [
+            models.Index(fields=['representante', 'estatus']),
+            models.Index(fields=['referencia', 'metodo_pago']),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='abono_cantina_monto_positivo'),
+        ]
 
 
 class AplicacionAbonoCantina(models.Model):
-    abono = models.ForeignKey(AbonoCantina, on_delete=models.CASCADE, related_name='aplicaciones')
+    abono = models.ForeignKey(AbonoCantina, on_delete=models.PROTECT, related_name='aplicaciones')
     cargo = models.ForeignKey(CargoCantina, on_delete=models.PROTECT, related_name='aplicaciones')
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='aplicacion_abono_monto_positivo'),
+        ]
