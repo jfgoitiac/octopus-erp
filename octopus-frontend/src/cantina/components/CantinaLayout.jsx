@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX } from 'lucide-react';
+import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX, HandCoins } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { name: 'Tarjetas',   path: '/cantina/tarjetas',    icon: CreditCard, disabled: false, roles: ROLES_CANTINA },
   { name: 'Cierre de caja', path: '/cantina/cierre',  icon: Wallet, disabled: false, roles: ROLES_CANTINA },
   { name: 'Reportes',   path: '/cantina/reportes',    icon: BarChart3, disabled: false, roles: ROLES_CANTINA },
+  { name: 'Cuentas por cobrar', path: '/cantina/cuentas', icon: HandCoins, disabled: false, roles: ROLES_CANTINA },
   { name: 'Morosos',    path: '/cantina/morosos',     icon: UserX, disabled: false, roles: ROLES_CANTINA },
 ];
 

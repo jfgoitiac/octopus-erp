@@ -2,8 +2,14 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
+from cobranza.models import Pago
 from secretaria.models import Alumno
+
+# Cantina y Librería son dos cajas sobre la misma app (D1). Default 'cantina'
+# para que los datos existentes queden en Cantina.
+AREAS = (('cantina', 'Cantina'), ('libreria', 'Librería'))
 
 
 class ParametroCantina(models.Model):
@@ -12,6 +18,10 @@ class ParametroCantina(models.Model):
     dias_alerta_saldo_negativo = models.CharField(
         max_length=50, default='1,3,7',
         help_text='Días de saldo negativo sostenido en que se envía recordatorio, separados por coma.'
+    )
+    limite_credito_representante_default = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('20.00'),
+        help_text='Límite de crédito (USD) por representante para ventas cargadas a cuenta (CxC).'
     )
 
     class Meta:
@@ -146,6 +156,7 @@ class RecargaTarjeta(models.Model):
 class CategoriaProducto(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
     orden = models.PositiveSmallIntegerField(default=0)
+    area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
 
     class Meta:
         ordering = ['orden', 'nombre']
@@ -163,6 +174,7 @@ class ProductoCantina(models.Model):
     stock_minimo = models.IntegerField(default=5)
     imagen = models.ImageField(upload_to='cantina/productos/', null=True, blank=True)
     activo = models.BooleanField(default=True)
+    area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -216,6 +228,9 @@ class AperturaCajaCantina(models.Model):
     MAX_APERTURAS_SIMULTANEAS = 3
 
     cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='aperturas_cantina')
+    # El área se elige al abrir y la venta/cierre la heredan (D2). El límite
+    # MAX_APERTURAS_SIMULTANEAS se cuenta por área (D3).
+    area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
     fecha_hora_apertura = models.DateTimeField(auto_now_add=True)
     monto_inicial = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=10, choices=ESTADOS, default='abierta')
@@ -236,10 +251,12 @@ class AperturaCajaCantina(models.Model):
 
 
 class VentaCantina(models.Model):
+    # D7: tarjeta prepago + los métodos de cobranza (importados, no copiados)
+    # + cargo a la cuenta del representante.
     METODOS_PAGO = (
-        ('tarjeta_prepago', 'Tarjeta Prepago'),
-        ('efectivo', 'Efectivo Divisas (USD)'),
-        ('efectivo_ves', 'Efectivo Bolívares (VES)'),
+        (('tarjeta_prepago', 'Tarjeta Prepago'),)
+        + tuple(Pago.METODOS)
+        + (('credito_representante', 'Cargo a cuenta del representante'),)
     )
     ESTADOS = (
         ('completada', 'Completada'),
@@ -258,7 +275,15 @@ class VentaCantina(models.Model):
     # exige una apertura abierta (ver RegistrarVentaView).
     apertura = models.ForeignKey('AperturaCajaCantina', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas')
     cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='ventas_cantina')
-    metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO)
+    metodo_pago = models.CharField(max_length=25, choices=METODOS_PAGO)
+    area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
+    # Datos bancarios (solo métodos bancarios) — mismas reglas que RecargaTarjeta.
+    banco_receptor = models.ForeignKey('cobranza.BancoInstitucional', on_delete=models.PROTECT, null=True, blank=True, related_name='+')
+    banco_procedencia = models.CharField(max_length=100, blank=True, null=True)
+    referencia = models.CharField(max_length=100, blank=True, null=True)
+    numero_lote = models.CharField(max_length=10, blank=True, null=True)
+    # Solo para metodo_pago='credito_representante'.
+    representante = models.ForeignKey('secretaria.Representante', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas_cantina_credito')
     total_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Total canónico en USD (el precio de cada producto vive en USD)')
     tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa BCV vigente al momento de la venta (snapshot de cobranza.TasaCambio) — se usa para imprimir el ticket en VES si se cobró en efectivo_ves')
     total_ves = models.DecimalField(max_digits=20, decimal_places=2, editable=False)
@@ -291,6 +316,9 @@ class CierreCajaCantina(models.Model):
         AperturaCajaCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='cierre',
     )
     fecha = models.DateField()
+    area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
+    # D11: totales por método (ventas + abonos + recargas) de la apertura.
+    totales_por_metodo = models.JSONField(default=dict, blank=True)
     total_ventas = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total_tarjeta = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total_efectivo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -302,3 +330,82 @@ class CierreCajaCantina(models.Model):
 
     class Meta:
         ordering = ['-fecha']
+
+
+# ─────────────────────────────────────────────
+# Cuentas por cobrar a representantes (CxC)
+# ─────────────────────────────────────────────
+class CreditoRepresentanteCantina(models.Model):
+    """Override del límite de crédito de un representante (D6)."""
+    representante = models.OneToOneField('secretaria.Representante', on_delete=models.CASCADE, related_name='credito_cantina')
+    limite_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text='null = usa ParametroCantina.limite_credito_representante_default')
+    bloqueado = models.BooleanField(default=False)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+
+class CargoCantina(models.Model):
+    """Deuda generada por una venta cargada a la cuenta del representante (D4).
+    monto_pagado/estado se derivan en save() (patrón de cobranza.Mensualidad)."""
+    ESTADOS = (('pendiente', 'Pendiente'), ('pagado', 'Pagado'), ('anulado', 'Anulado'))
+
+    representante = models.ForeignKey('secretaria.Representante', on_delete=models.PROTECT, related_name='cargos_cantina')
+    alumno = models.ForeignKey(Alumno, null=True, blank=True, on_delete=models.SET_NULL, related_name='cargos_cantina')
+    venta = models.OneToOneField(VentaCantina, on_delete=models.PROTECT, related_name='cargo')
+    area = models.CharField(max_length=10, choices=AREAS)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='pendiente')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creado_en']
+        indexes = [models.Index(fields=['representante', 'estado'])]
+
+    @property
+    def saldo_usd(self):
+        return self.monto_usd - self.monto_pagado
+
+    def save(self, *args, **kwargs):
+        if self.estado != 'anulado':
+            self.estado = 'pagado' if self.monto_pagado >= self.monto_usd else 'pendiente'
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'estado'}
+        super().save(*args, **kwargs)
+
+
+class AbonoCantina(models.Model):
+    """Una LÍNEA de abono; las de una misma operación comparten operacion_uuid."""
+    ESTATUS = (('completado', 'Completado'), ('anulado', 'Anulado'))
+
+    operacion_uuid = models.UUIDField(db_index=True)
+    representante = models.ForeignKey('secretaria.Representante', on_delete=models.PROTECT, related_name='abonos_cantina')
+    area = models.CharField(max_length=10, choices=AREAS)
+    apertura = models.ForeignKey(AperturaCajaCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='abonos')  # None = retroactivo
+    metodo_pago = models.CharField(max_length=20, choices=Pago.METODOS)
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4)
+    monto_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    banco_receptor = models.ForeignKey('cobranza.BancoInstitucional', null=True, blank=True, on_delete=models.PROTECT, related_name='+')
+    banco_procedencia = models.CharField(max_length=100, blank=True, null=True)
+    referencia = models.CharField(max_length=100, blank=True, null=True)
+    numero_lote = models.CharField(max_length=10, blank=True, null=True)
+    fecha_pago = models.DateTimeField(default=timezone.now, db_index=True)
+    es_retroactivo = models.BooleanField(default=False)
+    motivo = models.TextField(blank=True)
+    estatus = models.CharField(max_length=12, choices=ESTATUS, default='completado')
+    cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='abonos_cantina')
+    anulado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='abonos_cantina_anulados')
+    anulado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_pago', '-id']
+        indexes = [models.Index(fields=['representante', 'estatus'])]
+
+
+class AplicacionAbonoCantina(models.Model):
+    abono = models.ForeignKey(AbonoCantina, on_delete=models.CASCADE, related_name='aplicaciones')
+    cargo = models.ForeignKey(CargoCantina, on_delete=models.PROTECT, related_name='aplicaciones')
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)

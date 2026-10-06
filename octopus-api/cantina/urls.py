@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from .views import (
     AjustarCreditoTarjetaView,
@@ -85,4 +85,7 @@ urlpatterns = [
     path('parametros/', ParametroCantinaView.as_view(), name='cantina-parametros'),
     path('tarjetas/<int:tarjeta_id>/credito/', AjustarCreditoTarjetaView.as_view(), name='cantina-ajustar-credito'),
     path('reportes/morosos/', ReporteMorosidadView.as_view(), name='cantina-reporte-morosos'),
+
+    # Cuentas por cobrar a representantes (CxC)
+    path('cxc/', include('cantina.urls_cxc')),
 ]

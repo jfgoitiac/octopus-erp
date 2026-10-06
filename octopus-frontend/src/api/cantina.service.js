@@ -241,3 +241,38 @@ export const getReporteMorosos = ({ diasMin } = {}, signal) =>
     params: diasMin ? { dias_min: diasMin } : undefined,
     signal,
   });
+
+/* ── Cuentas por cobrar a representantes (CxC) ──
+ *
+ * Contrato: PROMPT_CANTINA_CXC.md §3.3. Todas las rutas cuelgan de cxc/.
+ *
+ * GET cxc/buscar/?q=  → [{ id, cedula, nombre, apellido, telefono, saldo_usd,
+ *   limite_usd, bloqueado, alumnos: [{ id, nombre, apellido, grado_seccion }] }]
+ * POST cxc/abonos/ body { representante_id, fecha_pago?, motivo?, lineas: [{
+ *   metodo_pago, monto_usd?, monto_ves?, tasa_aplicada?, banco_receptor?,
+ *   banco_procedencia?, referencia?, numero_lote? }] }
+ */
+export const buscarRepresentantesCxc = (q, signal) =>
+  cantinaApiClient.get('cxc/buscar/', { params: { q }, signal });
+
+export const listarCuentasCxc = (params, signal) =>
+  cantinaApiClient.get('cxc/cuentas/', { params, signal });
+
+export const exportarCuentasCxc = (params, signal) =>
+  cantinaApiClient.get('cxc/cuentas/excel/', { params, signal, responseType: 'blob' });
+
+export const estadoCuentaCxc = (representanteId, params, signal) =>
+  cantinaApiClient.get(`cxc/representantes/${representanteId}/estado-cuenta/`, { params, signal });
+
+export const actualizarCreditoCxc = (representanteId, payload, signal) =>
+  cantinaApiClient.patch(`cxc/representantes/${representanteId}/credito/`, payload, { signal });
+
+export const registrarAbonoCxc = (payload, signal) =>
+  cantinaApiClient.post('cxc/abonos/', payload, { signal });
+
+export const anularAbonoCxc = (operacionUuid, motivo, signal) =>
+  cantinaApiClient.post(`cxc/abonos/${operacionUuid}/anular/`, { motivo }, { signal });
+
+// PDF del recibo del abono — se pide como blob, igual que descargarReciboVenta.
+export const reciboAbonoCxcUrl = (operacionUuid, signal) =>
+  cantinaApiClient.get(`cxc/abonos/${operacionUuid}/recibo/`, { signal, responseType: 'blob' });

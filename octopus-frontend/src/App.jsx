@@ -90,6 +90,7 @@ const CantinaTarjetas          = lazy(() => import('./cantina/pages/CantinaTarje
 const CantinaCierreCaja        = lazy(() => import('./cantina/pages/CantinaCierreCaja'));
 const CantinaReportes          = lazy(() => import('./cantina/pages/CantinaReportes'));
 const CantinaMorosos           = lazy(() => import('./cantina/pages/CantinaMorosos'));
+const CantinaCuentasPorCobrar  = lazy(() => import('./cantina/pages/CantinaCuentasPorCobrar'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -180,6 +181,7 @@ function App() {
               <Route path="cierre" element={<CantinaCierreCaja />} />
               <Route path="reportes" element={<CantinaReportes />} />
               <Route path="morosos" element={<CantinaMorosos />} />
+              <Route path="cuentas" element={<CantinaCuentasPorCobrar />} />
             </Route>
 
             {/* ── Autenticación admin ── */}
