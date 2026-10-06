@@ -27,7 +27,7 @@ export function useHorarios(paqueteId, grado) {
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const recargar = useCallback(() => {
-    if (!paqueteId || !grado) { setBloques([]); setHorarios([]); setMaterias([]); return; }
+    if (!paqueteId) { setBloques([]); setHorarios([]); setMaterias([]); return; }
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -35,16 +35,16 @@ export function useHorarios(paqueteId, grado) {
     const { signal } = controller;
 
     setLoading(true);
-    Promise.all([
-      getBloquesPaquete(paqueteId, signal),
-      getHorarios(paqueteId, grado, signal),
-      getMaterias(grado, signal),
-    ])
+    const solicitudes = grado
+      ? [getBloquesPaquete(paqueteId, signal), getHorarios(paqueteId, grado, signal), getMaterias(grado, signal)]
+      : [getBloquesPaquete(paqueteId, signal)];
+
+    Promise.all(solicitudes)
       .then(([resB, resH, resM]) => {
         if (signal.aborted) return;
         setBloques(resB.data || []);
-        setHorarios(resH.data || []);
-        setMaterias(resM.data || []);
+        setHorarios(resH?.data || []);
+        setMaterias(resM?.data || []);
       })
       .catch(err => {
         if (err.code === 'ERR_CANCELED' || signal.aborted) return;

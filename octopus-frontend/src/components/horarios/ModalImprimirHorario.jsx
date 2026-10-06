@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { INPUT_STYLE } from '../../constants/styles';
 
 export const ModalImprimirHorario = ({ grado, docentes, loadingDocentes, onClose, onPrint }) => {
-  const [tipo, setTipo] = useState('grado');
+  const [tipo, setTipo] = useState(grado ? 'grado' : 'docente');
   const [docenteId, setDocenteId] = useState('');
   const [titulo, setTitulo] = useState('Horario de clases');
   const [subtitulo, setSubtitulo] = useState('');
@@ -16,7 +16,7 @@ export const ModalImprimirHorario = ({ grado, docentes, loadingDocentes, onClose
   };
 
   const imprimir = async () => {
-    if (tipo === 'docente' && !docenteId) return;
+    if ((tipo === 'docente' && !docenteId) || (tipo === 'grado' && !grado)) return;
     setImprimiendo(true);
     const ok = await onPrint({ tipo, docenteId, titulo: titulo.trim() || 'Horario', subtitulo: subtitulo.trim() });
     setImprimiendo(false);
@@ -25,14 +25,14 @@ export const ModalImprimirHorario = ({ grado, docentes, loadingDocentes, onClose
 
   return <Modal open onClose={onClose} titulo="Preparar impresión" size="sm" footer={<>
     <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm" style={{ border: '0.5px solid var(--border-md)' }}>Cancelar</button>
-    <button type="button" onClick={imprimir} disabled={imprimiendo || (tipo === 'docente' && !docenteId)} className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: 'var(--pb)' }}>
+    <button type="button" onClick={imprimir} disabled={imprimiendo || (tipo === 'docente' && !docenteId) || (tipo === 'grado' && !grado)} className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm text-white inline-flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: 'var(--pb)' }}>
       {imprimiendo ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />} Imprimir
     </button>
   </>}>
     <div className="space-y-4">
       <fieldset><legend className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Qué horario imprimir</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <label className="rounded-lg p-3 text-sm cursor-pointer" style={{ border: '0.5px solid var(--border-md)' }}><input type="radio" name="tipo-impresion" checked={tipo === 'grado'} onChange={() => seleccionarTipo('grado')} /> <span className="ml-2">Grado: {grado}</span></label>
+          <label className="rounded-lg p-3 text-sm cursor-pointer" style={{ border: '0.5px solid var(--border-md)', opacity: grado ? 1 : .5 }}><input type="radio" name="tipo-impresion" checked={tipo === 'grado'} disabled={!grado} onChange={() => seleccionarTipo('grado')} /> <span className="ml-2">Grado: {grado || 'sin seleccionar'}</span></label>
           <label className="rounded-lg p-3 text-sm cursor-pointer" style={{ border: '0.5px solid var(--border-md)' }}><input type="radio" name="tipo-impresion" checked={tipo === 'docente'} onChange={() => seleccionarTipo('docente')} /> <span className="ml-2">Profesor</span></label>
         </div>
       </fieldset>

@@ -30,6 +30,10 @@ const Horarios = () => {
   const { grados: gradosPaquete, loading: loadingGrados } = useGradosPaquete(paqueteId);
 
   const [grado, setGrado] = useState('');
+  const [vista, setVista] = useState('grado');
+  const [docenteId, setDocenteId] = useState('');
+  const [horariosDocente, setHorariosDocente] = useState([]);
+  const [loadingHorarioDocente, setLoadingHorarioDocente] = useState(false);
 
   const {
     bloques, horarios, materias,
@@ -52,9 +56,73 @@ const Horarios = () => {
   const [materiaActiva, setMateriaActiva] = useState(null);
   const [intercambioPendiente, setIntercambioPendiente] = useState(null);
 
+  const docenteActivo = useMemo(
+    () => docentes.find(item => String(item.user_id) === String(docenteId)),
+    [docentes, docenteId]
+  );
+  const usandoVistaDocente = vista === 'docente';
+  const horariosVisibles = usandoVistaDocente ? horariosDocente : horarios;
+  const materiasVisibles = usandoVistaDocente ? (docenteActivo?.materias || []) : materias;
+  const claseVisiblePorBloque = useMemo(() => {
+    const indice = new Map();
+    horariosVisibles.forEach(clase => {
+      if (clase.bloque_id != null) indice.set(clase.bloque_id, clase);
+    });
+    return indice;
+  }, [horariosVisibles]);
+  const getClaseVisibleEnBloque = (bloqueId) => claseVisiblePorBloque.get(bloqueId) || null;
+  const tieneConflictoVisible = (form) => {
+    if (!usandoVistaDocente) return tieneConflicto(form);
+    const existente = claseVisiblePorBloque.get(form.bloque_id);
+    return !!existente && existente.id !== form.id;
+  };
+
   const seleccionarPaquete = (id) => {
     setGrado('');
+    setDocenteId('');
+    setHorariosDocente([]);
     setSearchParams(id ? { paquete: id } : {});
+  };
+
+  const cargarDocentes = async () => {
+    if (docentes.length) return docentes;
+    setLoadingDocentes(true);
+    try {
+      const respuesta = await listarDocentes({ activo: true });
+      const lista = respuesta.data || [];
+      setDocentes(lista);
+      return lista;
+    } catch {
+      toast.error('No se pudo cargar la lista de profesores.');
+      return [];
+    } finally {
+      setLoadingDocentes(false);
+    }
+  };
+
+  const cargarHorarioDocente = async (id) => {
+    if (!id || !paqueteId) { setHorariosDocente([]); return; }
+    setLoadingHorarioDocente(true);
+    try {
+      const respuesta = await getHorariosDocente(paqueteId, id);
+      setHorariosDocente(respuesta.data || []);
+    } catch {
+      toast.error('No se pudo cargar el horario del profesor.');
+    } finally {
+      setLoadingHorarioDocente(false);
+    }
+  };
+
+  const cambiarVista = async (nuevaVista) => {
+    setVista(nuevaVista);
+    setMateriaActiva(null);
+    if (nuevaVista === 'docente') await cargarDocentes();
+  };
+
+  const seleccionarDocente = async (id) => {
+    setDocenteId(id);
+    setMateriaActiva(null);
+    await cargarHorarioDocente(id);
   };
 
   const abrirCelda = (bloque) => {
@@ -62,7 +130,7 @@ const Horarios = () => {
   };
 
   const agregarClase = () => {
-    const bloqueLibre = bloques.find(bloque => bloque.tipo === 'clase' && !getClaseEnBloque(bloque.id));
+    const bloqueLibre = bloques.find(bloque => bloque.tipo === 'clase' && !getClaseVisibleEnBloque(bloque.id));
     if (!bloqueLibre) {
       toast.info('No hay bloques libres. Mueve o elimina una clase para crear espacio.');
       return;
@@ -79,6 +147,7 @@ const Horarios = () => {
       aula: '',
     });
     if (!ok) return;
+    if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
   };
 
   const editarClase = (clase) => {
@@ -89,23 +158,30 @@ const Horarios = () => {
 
   const handleGuardar = async (form) => {
     const ok = await guardar(form);
-    if (ok) cerrarModal();
+    if (ok) {
+      if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
+      cerrarModal();
+    }
   };
 
   const handleEliminar = async (id) => {
     const ok = await eliminar(id);
-    if (ok) cerrarModal();
+    if (ok) {
+      if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
+      cerrarModal();
+    }
   };
 
   // Drag & drop: mover una clase existente a otro bloque (mismo día u otro)
   const handleMoverClase = async (clase, bloqueDestino) => {
-    await guardar({
+    const ok = await guardar({
       id: clase.id,
       materia_id: clase.materia?.id,
       dia_semana: bloqueDestino.dia_semana,
       bloque_id: bloqueDestino.id,
       aula: clase.aula,
     });
+    if (ok && usandoVistaDocente) await cargarHorarioDocente(docenteId);
   };
 
   const handleIntercambiarClase = async (origen, destino) => {
@@ -115,23 +191,17 @@ const Horarios = () => {
   const confirmarIntercambio = async () => {
     if (!intercambioPendiente) return;
     const ok = await intercambiar(intercambioPendiente.origen.id, intercambioPendiente.destino.id);
-    if (ok) setIntercambioPendiente(null);
+    if (ok) {
+      if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
+      setIntercambioPendiente(null);
+    }
   };
 
   const handleGenerar = async (config) => generar(config);
 
   const abrirImpresion = async () => {
     setShowImprimir(true);
-    if (docentes.length) return;
-    setLoadingDocentes(true);
-    try {
-      const respuesta = await listarDocentes({ activo: true });
-      setDocentes(respuesta.data || []);
-    } catch {
-      toast.error('No se pudo cargar la lista de profesores.');
-    } finally {
-      setLoadingDocentes(false);
-    }
+    await cargarDocentes();
   };
 
   const imprimir = async ({ tipo, docenteId, titulo, subtitulo }) => {
@@ -215,7 +285,7 @@ const Horarios = () => {
       <div className="print:hidden">
         <PageHeader
           titulo={paqueteActual ? paqueteActual.nombre : 'Horarios de Clases'}
-          descripcion="Visualiza y edita la grilla horaria por grado"
+          descripcion={usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : 'Visualiza y edita la grilla horaria por grado'}
           acciones={
             <div className="flex items-center gap-2 flex-wrap">
               <button
@@ -228,7 +298,7 @@ const Horarios = () => {
               </button>
               <button
                 onClick={agregarClase}
-                disabled={!grado || !bloques.length}
+                disabled={!(usandoVistaDocente ? docenteId : grado) || !bloques.length}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
               >
@@ -247,7 +317,7 @@ const Horarios = () => {
               </button>
               <button
                 onClick={abrirImpresion}
-                disabled={!grado || !bloques.length}
+                disabled={!(usandoVistaDocente ? docenteId : grado) || !bloques.length}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
               >
@@ -267,12 +337,22 @@ const Horarios = () => {
         </button>
       </div>
 
-      {/* Selector de grado (dentro del paquete) — oculto al imprimir */}
-      <div className="mb-6 max-w-xs print:hidden">
+      {/* Elegir la forma de cuadrar el horario — oculto al imprimir */}
+      <div className="mb-6 print:hidden">
+        <div className="inline-flex rounded-lg p-1 mb-4" style={{ background: 'var(--ash-light)' }}>
+          <button type="button" onClick={() => cambiarVista('grado')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: !usandoVistaDocente ? 'var(--porcelain)' : 'transparent', color: !usandoVistaDocente ? 'var(--pb)' : 'var(--ash)', boxShadow: !usandoVistaDocente ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por grado</button>
+          <button type="button" onClick={() => cambiarVista('docente')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaDocente ? 'var(--porcelain)' : 'transparent', color: usandoVistaDocente ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaDocente ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por profesor</button>
+        </div>
+        <div className="max-w-xs">
         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-          Grado / Año
+          {usandoVistaDocente ? 'Profesor' : 'Grado / Año'}
         </label>
-        {loadingGrados ? (
+        {usandoVistaDocente ? (
+          <select value={docenteId} onChange={e => seleccionarDocente(e.target.value)} disabled={loadingDocentes} className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60" style={INPUT_STYLE}>
+            <option value="">{loadingDocentes ? 'Cargando profesores...' : 'Seleccionar profesor...'}</option>
+            {docentes.map(docente => <option key={docente.user_id} value={docente.user_id}>{docente.nombre_completo || docente.username}</option>)}
+          </select>
+        ) : loadingGrados ? (
           <p className="text-sm" style={{ color: 'var(--ash)' }}>Cargando grados...</p>
         ) : gradosPaquete.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--ash)' }}>
@@ -292,20 +372,25 @@ const Horarios = () => {
             ))}
           </select>
         )}
+        </div>
       </div>
 
-      {/* Panel de materias — solo cuando hay grado seleccionado */}
-      {grado && (
+      {/* Materias disponibles para el grado o profesor seleccionado */}
+      {(usandoVistaDocente ? docenteId : grado) && (
         <>
-          <ResumenHorario bloques={bloques} horarios={horarios} materias={materias} />
+          <ResumenHorario bloques={bloques} horarios={horariosVisibles} materias={materiasVisibles} modoDocente={usandoVistaDocente} />
           <PanelMaterias
-            materias={materias}
+            materias={materiasVisibles}
             savingMateria={savingMateria}
             materiaActiva={materiaActiva}
             onSeleccionarMateria={setMateriaActiva}
             onCrear={crearMateria}
             onActualizar={actualizarMateria}
             onEliminar={eliminarMateria}
+            titulo={usandoVistaDocente ? `Materias de ${docenteActivo?.nombre_completo || 'este profesor'}` : undefined}
+            permitirGestion={!usandoVistaDocente}
+            mostrarDocente={!usandoVistaDocente}
+            mensajeVacio={usandoVistaDocente ? 'Este profesor todavía no tiene materias asignadas.' : undefined}
           />
         </>
       )}
@@ -314,20 +399,20 @@ const Horarios = () => {
       {impresion && <VistaImpresionHorario bloques={bloques} horarios={impresion.horarios} encabezado={impresion.encabezado} />}
 
       {/* Contenido principal */}
-      {!grado ? (
+      {!(usandoVistaDocente ? docenteId : grado) ? (
         <div className="rounded-xl p-16 text-center"
           style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
           <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Selecciona un grado para ver el horario.</p>
+          <p className="text-sm">{usandoVistaDocente ? 'Selecciona un profesor para cuadrar su horario.' : 'Selecciona un grado para ver el horario.'}</p>
         </div>
       ) : (
         <div className="print:hidden"><GrillaHorario
-          loading={loading}
+          loading={usandoVistaDocente ? loadingHorarioDocente : loading}
           bloques={bloques}
-          getClaseEnBloque={getClaseEnBloque}
+          getClaseEnBloque={usandoVistaDocente ? getClaseVisibleEnBloque : getClaseEnBloque}
           onCeldaClick={abrirCelda}
           onEditarClase={editarClase}
-          onTogglePin={(clase) => pinear(clase.id, !clase.pineado)}
+          onTogglePin={async (clase) => { const ok = await pinear(clase.id, !clase.pineado); if (ok && usandoVistaDocente) cargarHorarioDocente(docenteId); }}
           onMoverClase={handleMoverClase}
           onIntercambiarClase={handleIntercambiarClase}
           materiaActiva={materiaActiva}
@@ -335,7 +420,7 @@ const Horarios = () => {
         /></div>
       )}
 
-      {grado && !loading && !!bloques.length && (
+      {(usandoVistaDocente ? docenteId : grado) && !(usandoVistaDocente ? loadingHorarioDocente : loading) && !!bloques.length && (
         <p className="mt-3 text-xs print:hidden" style={{ color: 'var(--ash)' }}>
           Selecciona una materia para colocarla en varios bloques con un toque. Haz doble clic en una materia para editarla; arrastra una clase para moverla.
         </p>
@@ -344,11 +429,11 @@ const Horarios = () => {
       {/* Modal clase (crear / editar) */}
       {modal && (
         <ModalClase
-          materias={materias}
+          materias={materiasVisibles}
           claseInicial={modal.clase}
           bloque={modal.bloque}
           saving={saving}
-          tieneConflicto={tieneConflicto}
+          tieneConflicto={tieneConflictoVisible}
           onClose={cerrarModal}
           onSave={handleGuardar}
           onDelete={handleEliminar}

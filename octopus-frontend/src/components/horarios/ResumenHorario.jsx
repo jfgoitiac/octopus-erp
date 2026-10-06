@@ -1,11 +1,15 @@
 import { AlertTriangle, CalendarCheck2, CircleAlert, UserRound } from 'lucide-react';
 
-export const ResumenHorario = ({ bloques, horarios, materias }) => {
+export const ResumenHorario = ({ bloques, horarios, materias, modoDocente = false }) => {
   const bloquesClase = bloques.filter(bloque => bloque.tipo === 'clase');
   const planificados = materias.reduce((total, materia) => total + Number(materia.horas_academicas || 0), 0);
   const pendientes = Math.max(0, planificados - horarios.length);
   const sinDocente = materias.filter(materia => !materia.docente_id && !materia.docente?.id).length;
-  const tarjetas = [
+  const tarjetas = modoDocente ? [
+    { etiqueta: 'Bloques asignados', valor: `${horarios.length}/${bloquesClase.length}`, icono: CalendarCheck2, tono: 'var(--pb)' },
+    { etiqueta: 'Bloques libres', valor: Math.max(0, bloquesClase.length - horarios.length), icono: CircleAlert, tono: 'var(--ash)' },
+    { etiqueta: 'Materias a cuadrar', valor: materias.length, icono: UserRound, tono: 'var(--pb)' },
+  ] : [
     { etiqueta: 'Bloques asignados', valor: `${horarios.length}/${bloquesClase.length}`, icono: CalendarCheck2, tono: 'var(--pb)' },
     { etiqueta: 'Horas por ubicar', valor: pendientes, icono: CircleAlert, tono: pendientes ? '#b45309' : '#16a34a' },
     { etiqueta: 'Materias sin docente', valor: sinDocente, icono: UserRound, tono: sinDocente ? 'var(--red)' : '#16a34a' },
@@ -15,6 +19,6 @@ export const ResumenHorario = ({ bloques, horarios, materias }) => {
       <span className="p-1.5 rounded-lg" style={{ background: 'var(--ash-light)', color: tono }}><Icono size={15} /></span>
       <div><p className="text-sm font-bold" style={{ color: 'var(--jet)' }}>{valor}</p><p className="text-[11px]" style={{ color: 'var(--ash)' }}>{etiqueta}</p></div>
     </div>)}
-    {pendientes > 0 && <p className="sm:col-span-3 flex items-center gap-1.5 text-xs px-1" style={{ color: '#92400e' }}><AlertTriangle size={13} /> Quedan horas por ubicar según la carga semanal de las materias.</p>}
+    {!modoDocente && pendientes > 0 && <p className="sm:col-span-3 flex items-center gap-1.5 text-xs px-1" style={{ color: '#92400e' }}><AlertTriangle size={13} /> Quedan horas por ubicar según la carga semanal de las materias.</p>}
   </section>;
 };

@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Plus, BookOpen, User, UserX, X } from 'lucide-r
 import { getColor } from '../../constants/horarios';
 import { ModalMateria } from './ModalMateria';
 
-export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria }) => {
+export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria, titulo = 'Materias del grado', permitirGestion = true, mostrarDocente = true, mensajeVacio }) => {
   const [abierto, setAbierto]   = useState(true);
   const [modal, setModal]       = useState(null); // null | { materia: obj|null }
 
@@ -36,7 +36,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
         >
           <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--jet)' }}>
             <BookOpen size={15} style={{ color: 'var(--pb)' }} />
-            Materias del grado
+            {titulo}
             <span className="text-[11px] font-normal px-2 py-0.5 rounded-full"
               style={{ background: 'var(--border-md)', color: 'var(--ash)' }}>
               {materias.length}
@@ -56,7 +56,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
             </div>
             {materias.length === 0 ? (
               <p className="text-xs py-2" style={{ color: 'var(--ash)' }}>
-                Este grado no tiene materias. Agrega la primera para poder generar el horario.
+                {mensajeVacio || 'Este grado no tiene materias. Agrega la primera para poder generar el horario.'}
               </p>
             ) : (
               <div className="flex flex-wrap gap-2 mb-3">
@@ -73,17 +73,14 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
                       style={{
                         background: getColor(m.id),
-                        border: materiaActiva?.id === m.id ? '2px solid var(--pb)' : docenteNombre ? '1px solid rgba(0,0,0,0.07)' : '1px dashed var(--red)',
+                        border: materiaActiva?.id === m.id ? '2px solid var(--pb)' : !mostrarDocente || docenteNombre ? '1px solid rgba(0,0,0,0.07)' : '1px dashed var(--red)',
                         color: 'var(--jet)',
                       }}
                     >
                       <span>{m.nombre}</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                        style={{ background: 'rgba(0,0,0,0.08)' }}>
-                        {m.horas_academicas}h
-                      </span>
+                      {m.horas_academicas != null && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,0,0,0.08)' }}>{m.horas_academicas}h</span>}
                       {/* Indicador de docente asignado — jerarquía visual clara para grados sin cubrir */}
-                      {docenteNombre ? (
+                      {mostrarDocente && (docenteNombre ? (
                         <span className="flex items-center gap-1 text-[10px] font-normal" style={{ color: 'var(--jet-mid)' }}>
                           <User size={10} />
                           {docenteNombre}
@@ -93,14 +90,14 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                           <UserX size={10} />
                           Sin docente
                         </span>
-                      )}
+                      ))}
                     </button>
                   );
                 })}
               </div>
             )}
 
-            <button
+            {permitirGestion && <button
               type="button"
               onClick={abrirNueva}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--pb-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
@@ -112,7 +109,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
             >
               <Plus size={13} />
               Agregar materia
-            </button>
+            </button>}
           </div>
         )}
       </div>
