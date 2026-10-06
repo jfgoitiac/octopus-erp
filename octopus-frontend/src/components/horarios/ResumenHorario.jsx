@@ -7,9 +7,9 @@ export const ResumenHorario = ({ bloques, horarios, materias, modoDocente = fals
   const sinEspacio = pendientes > 0 && horarios.length >= bloquesClase.length;
   const sinDocente = materias.filter(materia => !materia.docente_id && !materia.docente?.id).length;
   const tarjetas = modoDocente ? [
-    { etiqueta: 'Bloques asignados', valor: `${horarios.length}/${bloquesClase.length}`, icono: CalendarCheck2, tono: 'var(--pb)' },
-    { etiqueta: 'Bloques libres', valor: Math.max(0, bloquesClase.length - horarios.length), icono: CircleAlert, tono: 'var(--ash)' },
-    { etiqueta: 'Materias a cuadrar', valor: materias.length, icono: UserRound, tono: 'var(--pb)' },
+    { etiqueta: 'Horas asignadas', valor: `${horarios.length}/${planificados} h`, icono: CalendarCheck2, tono: 'var(--pb)' },
+    { etiqueta: 'Horas por asignar', valor: `${pendientes} h`, icono: CircleAlert, tono: pendientes ? '#b45309' : '#16a34a' },
+    { etiqueta: 'Bloques libres', valor: Math.max(0, bloquesClase.length - horarios.length), icono: UserRound, tono: 'var(--ash)' },
   ] : [
     { etiqueta: 'Bloques asignados', valor: `${horarios.length}/${bloquesClase.length}`, icono: CalendarCheck2, tono: 'var(--pb)' },
     { etiqueta: sinEspacio ? 'Horas sin espacio' : 'Horas por ubicar', valor: pendientes, icono: CircleAlert, tono: pendientes ? '#b45309' : '#16a34a' },

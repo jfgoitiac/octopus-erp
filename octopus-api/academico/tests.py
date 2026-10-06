@@ -1652,6 +1652,23 @@ class DocentesViewListTests(TestCase):
         self.assertIn('profe_activa', usernames)
         self.assertNotIn('profe_borrado', usernames)
 
+    def test_lista_expone_carga_horaria_de_las_materias_del_docente(self):
+        admin = crear_usuario('directora_carga_docente', 'director')
+        profesor = crear_usuario('profe_carga_docente', 'docente')
+        Docente.objects.create(user=profesor)
+        Materia.objects.create(
+            nombre='Ciencias', grado_seccion='6to A', docente=profesor,
+            horas_academicas=6,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=admin)
+        response = client.get('/api/academico/docentes/')
+
+        self.assertEqual(response.status_code, 200)
+        docente = next(item for item in response.data if item['user_id'] == profesor.id)
+        self.assertEqual(docente['materias'][0]['horas_academicas'], 6)
+
 
 class DocenteAsignarMateriasViewTests(TestCase):
     def setUp(self):
@@ -1816,6 +1833,49 @@ class GeneradorHorarioMultiGradoTests(TestCase):
         self.assertEqual(
             len(resp.data['no_colocadas']) + resp.data['clases_creadas'], 2,
         )
+
+
+class GeneradorHorarioEntrePaquetesTests(TestCase):
+    """El generador no debe solapar a un docente en Primaria/Secundaria."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_generador_entre_paquetes', 'director')
+        self.docente = crear_usuario('docente_generador_entre_paquetes', 'docente')
+        self.client.force_authenticate(user=self.admin)
+
+        self.grado_otro = 'Primaria - cruce generador'
+        self.grado_actual = 'Secundaria - cruce generador'
+        self.paquete_otro = crear_paquete_horario(
+            'Primaria cruce generador', '2026-2027', [self.grado_otro],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=60,
+        )
+        self.paquete_actual = crear_paquete_horario(
+            'Secundaria cruce generador', '2026-2027', [self.grado_actual],
+            bloques_por_dia=1, dias=['lunes'], duracion_min=60,
+        )
+        materia_otro = Materia.objects.create(
+            nombre='Primaria ocupada', grado_seccion=self.grado_otro,
+            docente=self.docente, horas_academicas=1,
+        )
+        bloque_otro = BloqueHorario.objects.get(paquete=self.paquete_otro)
+        HorarioClase.objects.create(
+            materia=materia_otro, bloque=bloque_otro, dia_semana='lunes',
+            hora_inicio='07:00', hora_fin='08:00',
+        )
+        self.materia_actual = Materia.objects.create(
+            nombre='Secundaria pendiente', grado_seccion=self.grado_actual,
+            docente=self.docente, horas_academicas=1,
+        )
+
+    def test_no_asigna_docente_ya_ocupado_en_otro_paquete(self):
+        respuesta = self.client.post('/api/academico/horarios/generar/', {
+            'paquete_id': self.paquete_actual.id, 'semilla': 1,
+        }, format='json')
+
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+        self.assertEqual(respuesta.data['clases_creadas'], 0)
+        self.assertEqual(respuesta.data['no_colocadas'][0]['materia_id'], self.materia_actual.id)
 
 
 class GeneradorHorarioDisponibilidadTests(TestCase):

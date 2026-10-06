@@ -98,7 +98,12 @@ class DocenteSerializer(serializers.ModelSerializer):
 
     def get_materias(self, obj):
         return [
-            {'id': m.id, 'nombre': m.nombre, 'grado_seccion': m.grado_seccion}
+            {
+                'id': m.id,
+                'nombre': m.nombre,
+                'grado_seccion': m.grado_seccion,
+                'horas_academicas': m.horas_academicas,
+            }
             for m in obj.materias_asignadas
         ]
 

@@ -70,6 +70,11 @@ const Horarios = () => {
     });
     return indice;
   }, [horariosVisibles]);
+  const horasAsignadasPorMateria = useMemo(() => horariosVisibles.reduce((totales, clase) => {
+    const materiaId = clase.materia?.id;
+    if (materiaId) totales[materiaId] = (totales[materiaId] || 0) + 1;
+    return totales;
+  }, {}), [horariosVisibles]);
   const getClaseVisibleEnBloque = (bloqueId) => claseVisiblePorBloque.get(bloqueId) || null;
   const tieneConflictoVisible = (form) => {
     if (!usandoVistaDocente) return tieneConflicto(form);
@@ -387,10 +392,12 @@ const Horarios = () => {
             onCrear={crearMateria}
             onActualizar={actualizarMateria}
             onEliminar={eliminarMateria}
-            titulo={usandoVistaDocente ? `Materias de ${docenteActivo?.nombre_completo || 'este profesor'}` : undefined}
+            titulo={usandoVistaDocente ? `Organiza por profesor: ${docenteActivo?.nombre_completo || ''}` : undefined}
             permitirGestion={!usandoVistaDocente}
             mostrarDocente={!usandoVistaDocente}
             mensajeVacio={usandoVistaDocente ? 'Este profesor todavía no tiene materias asignadas.' : undefined}
+            horasAsignadasPorMateria={usandoVistaDocente ? horasAsignadasPorMateria : undefined}
+            instruccion={usandoVistaDocente ? 'Cada materia muestra horas asignadas / horas requeridas. Selecciona una para ubicarla rápidamente.' : undefined}
           />
         </>
       )}

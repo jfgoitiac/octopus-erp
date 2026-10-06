@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Plus, BookOpen, User, UserX, X } from 'lucide-r
 import { getColor } from '../../constants/horarios';
 import { ModalMateria } from './ModalMateria';
 
-export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria, titulo = 'Materias del grado', permitirGestion = true, mostrarDocente = true, mensajeVacio }) => {
+export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria, titulo = 'Materias del grado', permitirGestion = true, mostrarDocente = true, mensajeVacio, horasAsignadasPorMateria, instruccion }) => {
   const [abierto, setAbierto]   = useState(true);
   const [modal, setModal]       = useState(null); // null | { materia: obj|null }
 
@@ -50,7 +50,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
           <div className="px-4 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
               <p className="text-xs" style={{ color: materiaActiva ? 'var(--pb-mid)' : 'var(--ash)' }}>
-                {materiaActiva ? <>Modo rápido: toca celdas vacías para ubicar <strong>{materiaActiva.nombre}</strong>.</> : 'Selecciona una materia para ubicarla con un toque en varias celdas.'}
+                {materiaActiva ? <>Modo rápido: toca celdas vacías para ubicar <strong>{materiaActiva.nombre}</strong>.</> : (instruccion || 'Selecciona una materia para ubicarla con un toque en varias celdas.')}
               </p>
               {materiaActiva && <button type="button" onClick={() => onSeleccionarMateria(null)} className="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-xs font-medium" style={{ color: 'var(--ash)' }}><X size={13} /> Salir del modo rápido</button>}
             </div>
@@ -62,6 +62,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
               <div className="flex flex-wrap gap-2 mb-3">
                 {materias.map(m => {
                   const docenteNombre = m.docente_nombre || m.docente_username || m.docente?.username || null;
+                  const horasAsignadas = horasAsignadasPorMateria?.[m.id];
                   return (
                     <button
                       key={m.id}
@@ -78,7 +79,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                       }}
                     >
                       <span>{m.nombre}</span>
-                      {m.horas_academicas != null && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,0,0,0.08)' }}>{m.horas_academicas}h</span>}
+                      {m.horas_academicas != null && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,0,0,0.08)' }}>{horasAsignadas != null ? `${horasAsignadas}/${m.horas_academicas}h` : `${m.horas_academicas}h`}</span>}
                       {/* Indicador de docente asignado — jerarquía visual clara para grados sin cubrir */}
                       {mostrarDocente && (docenteNombre ? (
                         <span className="flex items-center gap-1 text-[10px] font-normal" style={{ color: 'var(--jet-mid)' }}>

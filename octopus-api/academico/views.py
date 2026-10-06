@@ -1576,6 +1576,25 @@ def _ejecutar_algoritmo_paquete(paquete, semilla=None):
     docentes_ids = {m.docente_id for m in materias if m.docente_id}
     disponibilidad_map = _armar_disponibilidad_map(docentes_ids)
 
+    # Las clases de otros paquetes del mismo período también ocupan al
+    # docente. Sin este índice el generador podía crear, por ejemplo, una
+    # clase de Primaria y otra de Secundaria a la misma hora y dejar que la
+    # validación manual descubriera el choque después.
+    ocupacion_docente = defaultdict(list)
+    horarios_otros_paquetes = HorarioClase.objects.filter(
+        bloque__paquete__periodo_escolar=paquete.periodo_escolar,
+        materia__docente_id__in=docentes_ids,
+    ).exclude(bloque__paquete=paquete).select_related('materia')
+    for horario in horarios_otros_paquetes:
+        ocupacion_docente[(horario.materia.docente_id, horario.dia_semana)].append((
+            horario.hora_inicio.strftime('%H:%M'), horario.hora_fin.strftime('%H:%M'),
+        ))
+    for horario in pineadas:
+        if horario.materia.docente_id:
+            ocupacion_docente[(horario.materia.docente_id, horario.dia_semana)].append((
+                horario.hora_inicio.strftime('%H:%M'), horario.hora_fin.strftime('%H:%M'),
+            ))
+
     # Cola de "unidades de bloque" a colocar: una por cada hora académica
     # pendiente (ya descontando lo que quedó pineado).
     cola = []
@@ -1583,6 +1602,13 @@ def _ejecutar_algoritmo_paquete(paquete, semilla=None):
         faltan = max(0, m.horas_academicas - pineadas_por_materia.get(m.id, 0))
         cola.extend([m] * faltan)
     random.shuffle(cola)
+    # Primero se ubican las materias más difíciles: docentes con franjas de
+    # disponibilidad y cargas altas. El orden aleatorio previo mantiene una
+    # distribución equilibrada cuando tienen la misma prioridad.
+    cola.sort(key=lambda materia: (
+        0 if materia.docente_id and disponibilidad_map.get(materia.docente_id) else 1,
+        -materia.horas_academicas,
+    ))
 
     materia_dias = {m.id: set() for m in materias}
     colocadas = []
@@ -1605,6 +1631,14 @@ def _ejecutar_algoritmo_paquete(paquete, semilla=None):
                     continue
                 if materia.docente_id and materia.docente_id in ocupacion[bloque.id]['docentes']:
                     continue
+                if materia.docente_id and any(
+                    _rangos_se_solapan(
+                        bloque.hora_inicio.strftime('%H:%M'), bloque.hora_fin.strftime('%H:%M'),
+                        inicio, fin,
+                    )
+                    for inicio, fin in ocupacion_docente.get((materia.docente_id, bloque.dia_semana), [])
+                ):
+                    continue
                 if materia.docente_id and not _docente_disponible_en_bloque(
                     disponibilidad_map, materia.docente_id, bloque
                 ):
@@ -1615,6 +1649,9 @@ def _ejecutar_algoritmo_paquete(paquete, semilla=None):
                 ocupacion[bloque.id]['grados'].add(grado)
                 if materia.docente_id:
                     ocupacion[bloque.id]['docentes'].add(materia.docente_id)
+                    ocupacion_docente[(materia.docente_id, bloque.dia_semana)].append((
+                        bloque.hora_inicio.strftime('%H:%M'), bloque.hora_fin.strftime('%H:%M'),
+                    ))
                 if aula_grado:
                     ocupacion[bloque.id]['aulas'].add(aula_grado)
                 materia_dias[materia.id].add(bloque.dia_semana)
