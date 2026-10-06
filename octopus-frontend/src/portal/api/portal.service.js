@@ -108,6 +108,16 @@ export const cambiarContrasena = (data) =>
 // PortalSaldoTarjetaView / PortalHistorialConsumoCantinaView / PortalRecargarTarjetaView) ──
 
 /**
+ * Cuenta por cobrar de cantina/librería del representante (solo lectura).
+ * Respuesta: { saldo_usd, por_area: [{ area, area_display, saldo_usd }],
+ *   cargos: [{ id, fecha, area, area_display, alumno_nombre, monto_usd, monto_pagado, saldo_usd }],
+ *   abonos: [{ operacion_uuid, fecha_pago, total_usd, metodos }] }
+ * @param {AbortSignal} [signal]
+ */
+export const getCuentaCantina = (signal) =>
+  portalClient.get('cantina/cuenta/', signal ? { signal } : undefined);
+
+/**
  * Obtiene el saldo y estado de la tarjeta de cantina de los hijos del
  * representante. Si se pasa alumnoId, el backend filtra y devuelve un
  * arreglo de 1 elemento (la respuesta SIEMPRE es un arreglo, uno por alumno).

@@ -1820,3 +1820,90 @@ class PortalFotoPerfilView(APIView):
             serializer.save()
             return Response(PortalPerfilSerializer(request.user).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CANTINA / LIBRERÍA — CUENTA POR COBRAR DEL REPRESENTANTE (solo lectura)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalCuentaCantinaView(APIView):
+    """
+    GET /api/portal/cantina/cuenta/
+    Deuda de cantina/librería del representante autenticado (D12: solo lectura,
+    sin pago online). Solo cargos/abonos no anulados y sin datos del cajero.
+
+    El saldo se calcula con una consulta propia mínima sobre CargoCantina
+    (Σ monto_usd − monto_pagado, mismo criterio que
+    cantina.services_cxc.saldo_representante) para no depender de ese servicio.
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    MAX_CARGOS = 50
+    MAX_ABONOS = 10
+
+    def get(self, request):
+        from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+        from cantina.models import AREAS, AbonoCantina, CargoCantina
+
+        representante = _get_representante(request)
+        areas = dict(AREAS)
+
+        cargos_qs = CargoCantina.objects.filter(representante=representante).exclude(estado='anulado')
+        saldo_expr = ExpressionWrapper(
+            F('monto_usd') - F('monto_pagado'),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+        por_area = {codigo: Decimal('0.00') for codigo in areas}
+        for fila in cargos_qs.values('area').annotate(saldo=Sum(saldo_expr)):
+            por_area[fila['area']] = fila['saldo'] or Decimal('0.00')
+        saldo_total = sum(por_area.values(), Decimal('0.00'))
+
+        pendientes = (
+            cargos_qs.filter(estado='pendiente')
+            .select_related('alumno')
+            .order_by('creado_en')[:self.MAX_CARGOS]
+        )
+        cargos = [{
+            'id': c.id,
+            'fecha': c.creado_en,
+            'area': c.area,
+            'area_display': areas.get(c.area, c.area),
+            'alumno_nombre': f'{c.alumno.nombre} {c.alumno.apellido}' if c.alumno else None,
+            'monto_usd': str(c.monto_usd),
+            'monto_pagado': str(c.monto_pagado),
+            'saldo_usd': str(c.saldo_usd),
+        } for c in pendientes]
+
+        # Abonos agrupados por operación (las líneas de un pago mixto comparten uuid).
+        lineas = (
+            AbonoCantina.objects.filter(representante=representante, estatus='completado')
+            .order_by('-fecha_pago', '-id')[:self.MAX_ABONOS * 10]
+        )
+        operaciones = {}
+        for linea in lineas:
+            op = operaciones.get(linea.operacion_uuid)
+            if op is None:
+                if len(operaciones) >= self.MAX_ABONOS:
+                    continue
+                op = operaciones[linea.operacion_uuid] = {
+                    'operacion_uuid': str(linea.operacion_uuid),
+                    'fecha_pago': linea.fecha_pago,
+                    'total_usd': Decimal('0.00'),
+                    'metodos': [],
+                }
+            op['total_usd'] += linea.monto_usd
+            metodo = linea.get_metodo_pago_display()
+            if metodo not in op['metodos']:
+                op['metodos'].append(metodo)
+        abonos = [{**op, 'total_usd': str(op['total_usd'])} for op in operaciones.values()]
+
+        return Response({
+            'saldo_usd': str(saldo_total),
+            'por_area': [
+                {'area': codigo, 'area_display': nombre, 'saldo_usd': str(por_area[codigo])}
+                for codigo, nombre in AREAS
+            ],
+            'cargos': cargos,
+            'abonos': abonos,
+        })

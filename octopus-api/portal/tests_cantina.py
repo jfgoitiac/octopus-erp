@@ -319,3 +319,75 @@ class PortalRecargarTarjetaTests(PortalCantinaTestBase):
             format='multipart',
         )
         self.assertEqual(resp.status_code, 201, resp.content)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CUENTA POR COBRAR (CxC) — solo lectura
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalCuentaCantinaTests(PortalCantinaTestBase):
+    URL = '/api/portal/cantina/cuenta/'
+
+    def _cargo(self, rep, alumno, monto, area='cantina', estado='pendiente', pagado='0.00'):
+        from cantina.models import CargoCantina, VentaCantina
+        venta = VentaCantina.objects.create(
+            alumno=alumno, cajero=self.user, metodo_pago='credito_representante',
+            area=area, representante=rep, total_usd=Decimal(monto),
+            tasa_aplicada=Decimal('40.0000'), total_ves=Decimal(monto) * 40,
+        )
+        return CargoCantina.objects.create(
+            representante=rep, alumno=alumno, venta=venta, area=area,
+            monto_usd=Decimal(monto), monto_pagado=Decimal(pagado), estado=estado,
+        )
+
+    def _abono(self, rep, uuid_, monto, metodo='zelle', estatus='completado'):
+        from cantina.models import AbonoCantina
+        return AbonoCantina.objects.create(
+            operacion_uuid=uuid_, representante=rep, area='cantina', metodo_pago=metodo,
+            monto_usd=Decimal(monto), tasa_aplicada=Decimal('40.0000'),
+            monto_ves=Decimal(monto) * 40, cajero=self.user, estatus=estatus,
+        )
+
+    def test_requiere_autenticacion(self):
+        self.assertEqual(self.client.get(self.URL).status_code, 401)
+
+    def test_devuelve_saldo_por_area_y_excluye_anulados(self):
+        self._cargo(self.rep, self.alumno, '3.00', area='cantina')
+        self._cargo(self.rep, self.alumno, '4.00', area='libreria', pagado='1.00')
+        self._cargo(self.rep, self.alumno, '9.00', estado='anulado')
+        self.auth_portal()
+        resp = self.client.get(self.URL)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Decimal(resp.data['saldo_usd']), Decimal('6.00'))
+        por_area = {a['area']: Decimal(a['saldo_usd']) for a in resp.data['por_area']}
+        self.assertEqual(por_area, {'cantina': Decimal('3.00'), 'libreria': Decimal('3.00')})
+        self.assertEqual(len(resp.data['cargos']), 2)
+
+    def test_abonos_agrupados_sin_anulados_ni_cajero(self):
+        import uuid
+        op = uuid.uuid4()
+        self._abono(self.rep, op, '2.00', 'zelle')
+        self._abono(self.rep, op, '1.00', 'pago_movil')
+        self._abono(self.rep, uuid.uuid4(), '5.00', estatus='anulado')
+        self.auth_portal()
+        resp = self.client.get(self.URL)
+        self.assertEqual(len(resp.data['abonos']), 1)
+        abono = resp.data['abonos'][0]
+        self.assertEqual(Decimal(abono['total_usd']), Decimal('3.00'))
+        self.assertNotIn('cajero', abono)
+
+    def test_representante_no_ve_la_cuenta_de_otro(self):
+        import uuid
+        self._cargo(self.rep2, self.alumno2, '7.00')
+        self._abono(self.rep2, uuid.uuid4(), '1.00')
+        self.auth_portal()  # rep1, sin deuda propia
+        resp = self.client.get(self.URL)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Decimal(resp.data['saldo_usd']), Decimal('0.00'))
+        self.assertEqual(resp.data['cargos'], [])
+        self.assertEqual(resp.data['abonos'], [])
+        # y rep2 sí ve lo suyo
+        self.client.credentials()
+        self.auth_portal(cedula=self.rep2.cedula, password='otra-clave-456')
+        resp2 = self.client.get(self.URL)
+        self.assertEqual(Decimal(resp2.data['saldo_usd']), Decimal('7.00'))
