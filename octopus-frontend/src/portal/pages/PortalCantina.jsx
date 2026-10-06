@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { getDashboard, getSaldoTarjetaCantina, getHistorialConsumoCantina } from '../api/portal.service';
+import { getDashboard, getSaldoTarjetaCantina, getHistorialConsumoCantina, getCuentaCantina } from '../api/portal.service';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
 import HistorialConsumoList from '../components/HistorialConsumoList';
 import RecargarTarjetaModal from '../components/RecargarTarjetaModal';
+import CuentaCantinaCard from '../components/CuentaCantinaCard';
 
 const PortalCantina = () => {
   const [alumnos, setAlumnos] = useState([]);
@@ -21,6 +22,28 @@ const PortalCantina = () => {
   const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Cuenta por cobrar de cantina/librería (es del representante, no de un alumno)
+  const [cuenta, setCuenta] = useState(null);
+  const [loadingCuenta, setLoadingCuenta] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const cargarCuenta = async () => {
+      setLoadingCuenta(true);
+      try {
+        const res = await getCuentaCantina(controller.signal);
+        setCuenta(res.data);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo cargar la cuenta de cantina y librería.');
+      } finally {
+        setLoadingCuenta(false);
+      }
+    };
+    cargarCuenta();
+    return () => controller.abort();
+  }, []);
 
   // Cargar alumnos del representante al montar
   useEffect(() => {
@@ -112,6 +135,9 @@ const PortalCantina = () => {
         <h1 className="text-lg font-bold text-gray-800">Cantina</h1>
         <p className="text-xs text-gray-400 mt-0.5">Saldo y consumo de la tarjeta de cantina</p>
       </div>
+
+      {/* Cuenta de cantina y librería (deuda del representante) */}
+      <CuentaCantinaCard cuenta={cuenta} loading={loadingCuenta} />
 
       {/* Selector de estudiante */}
       {loadingAlumnos ? (
