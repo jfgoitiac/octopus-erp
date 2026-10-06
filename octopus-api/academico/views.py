@@ -790,7 +790,8 @@ class ResumenAsistenciaView(APIView):
 # ─────────────────────────────────────────────
 # HORARIOS
 # ─────────────────────────────────────────────
-def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula, excluir_pk=None):
+def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula,
+                           excluir_pk=None, paquete_id=None):
     """
     Verifica si el bloque propuesto (dia_semana, hora_inicio-hora_fin) choca con
     otro HorarioClase existente para el MISMO docente (en cualquier grado_seccion,
@@ -822,6 +823,12 @@ def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula, exc
     ).select_related('materia')
     if excluir_pk is not None:
         candidatos = candidatos.exclude(pk=excluir_pk)
+    # Un grado se reutiliza entre años escolares y, en multi-sede, puede
+    # repetirse en otra jornada. Si la clase se está creando desde un bloque,
+    # su paquete es el contexto inequívoco: horarios de otros paquetes no son
+    # simultáneos y no deben producir falsos positivos.
+    if paquete_id is not None:
+        candidatos = candidatos.filter(bloque__paquete_id=paquete_id)
 
     docente_id = materia.docente_id if materia else None
     grado_seccion = materia.grado_seccion if materia else None
@@ -921,8 +928,9 @@ class HorariosView(APIView):
                     materia,
                     serializer.validated_data.get('dia_semana'),
                     serializer.validated_data.get('hora_inicio'),
-                    serializer.validated_data.get('hora_fin'),
-                    serializer.validated_data.get('aula'),
+                serializer.validated_data.get('hora_fin'),
+                serializer.validated_data.get('aula'),
+                paquete_id=getattr(serializer.validated_data.get('bloque'), 'paquete_id', None),
                 )
                 if otro:
                     return Response(
@@ -969,6 +977,7 @@ class HorarioDetailView(APIView):
                 otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
                     materia, dia_semana, hora_inicio, hora_fin, aula,
                     excluir_pk=horario.pk,
+                    paquete_id=getattr(datos.get('bloque', horario.bloque), 'paquete_id', None),
                 )
                 if otro:
                     return Response(

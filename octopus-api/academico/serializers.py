@@ -277,6 +277,7 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
             # se manda ningún bloque.
             'hora_inicio': {'required': False},
             'hora_fin': {'required': False},
+            'dia_semana': {'required': False},
         }
 
     def get_dia_semana_label(self, obj):
@@ -290,6 +291,10 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
             attrs['hora_fin'] = bloque.hora_fin
         else:
             actuales = self.instance
+            if attrs.get('dia_semana') is None and not (actuales and actuales.dia_semana):
+                raise serializers.ValidationError({
+                    'dia_semana': 'Este campo es requerido si no se especifica un bloque.'
+                })
             faltantes = [
                 campo for campo in ('hora_inicio', 'hora_fin')
                 if attrs.get(campo) is None and not (actuales and getattr(actuales, campo, None))

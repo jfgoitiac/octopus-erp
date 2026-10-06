@@ -1443,6 +1443,48 @@ class HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests(TestCase):
         )
 
 
+class HorariosPaqueteAislaChoquesTests(TestCase):
+    """Una jornada no debe chocar contra el mismo grado de otro paquete."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_aislamiento_choques', 'director')
+        self.grado = '5to A - aislamiento'
+        self.materia_anterior = Materia.objects.create(
+            nombre='Historia anterior', grado_seccion=self.grado, horas_academicas=1,
+        )
+        self.materia_actual = Materia.objects.create(
+            nombre='Historia actual', grado_seccion=self.grado, horas_academicas=1,
+        )
+        self.paquete_anterior = PaqueteHorario.objects.create(
+            nombre='Horario 2025-2026', periodo_escolar='2025-2026',
+        )
+        self.paquete_actual = PaqueteHorario.objects.create(
+            nombre='Horario 2026-2027', periodo_escolar='2026-2027',
+        )
+        self.bloque_anterior = BloqueHorario.objects.create(
+            paquete=self.paquete_anterior, dia_semana='lunes', orden=1,
+            hora_inicio='07:00', hora_fin='08:00', tipo='clase',
+        )
+        self.bloque_actual = BloqueHorario.objects.create(
+            paquete=self.paquete_actual, dia_semana='lunes', orden=1,
+            hora_inicio='07:00', hora_fin='08:00', tipo='clase',
+        )
+        HorarioClase.objects.create(
+            materia=self.materia_anterior, bloque=self.bloque_anterior,
+            dia_semana='lunes', hora_inicio='07:00', hora_fin='08:00',
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_permite_mismo_grado_y_hora_en_otro_paquete(self):
+        respuesta = self.client.post('/api/academico/horarios/', {
+            'materia_id': self.materia_actual.id,
+            'bloque_id': self.bloque_actual.id,
+            'aula': '',
+        }, format='json')
+        self.assertEqual(respuesta.status_code, 201, respuesta.content)
+
+
 # ─────────────────────────────────────────────
 # GENERADOR DE HORARIOS — BUG: el algoritmo nunca considera el aula
 # (auditoría 2026-09-15). `_ejecutar_algoritmo` solo evita choques de
