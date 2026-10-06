@@ -1,6 +1,5 @@
 """Vistas de cuentas por cobrar (CxC) a representantes — PROMPT_CANTINA_CXC.md §3.3."""
 import logging
-import uuid as uuid_lib
 from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
