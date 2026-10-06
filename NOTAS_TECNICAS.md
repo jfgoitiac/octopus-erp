@@ -2,6 +2,49 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## Cantina/Librería: cuentas por cobrar y dos cajas (06/10/2026)
+
+Deuda detectada durante la revisión; solo se anota, no se implementa.
+
+1. **Anular un abono o una venta cuya caja ya cerró** deja el
+   `CierreCajaCantina` desfasado (`totales_por_metodo` y efectivo esperado
+   siguen contando el movimiento). Falta bloquear la anulación si la apertura
+   tiene cierre, o registrar un ajuste en el cierre.
+2. **Área del abono vs. deuda que paga (D9)**: el abono toma el área de la
+   caja pero se aplica FIFO a cualquier cargo del representante, así que
+   `saldo_libreria` puede bajar con un abono etiquetado "cantina". Es decisión
+   del plan; si el negocio quiere cuadre por área hay que aplicar FIFO por área.
+3. **Buscador de representantes sin índice trigram**: `icontains` sobre
+   cédula/nombre/apellido de Representante y Alumno hace seq scan. En
+   PostgreSQL convendría `pg_trgm` + `GinIndex` (condicionado al vendor).
+4. **Migraciones con `db_index` sobre tablas con datos**: en PostgreSQL el
+   `CREATE INDEX` no es `CONCURRENTLY` y bloquea escrituras durante el
+   despliegue; los índices de una sola columna `area` (2 valores) aportan poco.
+5. **Referencias duplicadas sin restricción única**: la verificación es a nivel
+   de aplicación (clave multi-tabla); se re-verifica dentro del lock, pero no
+   hay `UniqueConstraint` posible. Ya existía en recargas.
+6. **Estado de cuenta sin paginar**: `estado-cuenta/` devuelve todos los cargos
+   y abonos del representante.
+7. **Apertura de caja leída fuera del `atomic`** en `RegistrarAbonoView`: si el
+   cajero cierra caja en otra pestaña durante el POST, el abono queda ligado a
+   una apertura cerrada y no entra en el cierre.
+8. **Cajero ve cualquier estado de cuenta y recibo**: coherente con la decisión
+   del cliente (cajero = mismo acceso que admin en cantina); revisar si se
+   separan roles.
+9. **Lint preexistente** (`react-hooks/set-state-in-effect`): patrón `cargar()`
+   en `useEffect` de `CantinaCierreCaja`, `CantinaInventario`, `CantinaMorosos`,
+   `CantinaReportes`, `CantinaTarjetas`, `RecargasPendientesList` y
+   `portal/pages/PortalCantina.jsx`. `CantinaInventario` usa `window.confirm`.
+10. **Migración pendiente ajena**: `makemigrations --check` detecta
+    `notificaciones.0010_alter_plantillawhatsapp_id`, anterior a esta entrega.
+11. **Selector de cajero en reportes**: se arma con los cajeros de las ventas ya
+    cargadas; no hay endpoint de cajeros.
+12. **Recargas en el cierre**: `RecargaTarjeta` no tiene FK a la apertura; se
+    atribuyen por cajero y `creado_en >= apertura` (antes por día calendario) y
+    `total_recargas_efectivo` ahora solo suma efectivo.
+13. **Suite de tests muy lenta** (~22 min con base nueva en sqlite): usar
+    `--keepdb`. `--parallel` oculta los errores ("cannot pickle traceback").
+
 ## VALIDACIÓN calcAVEC VS EXCEL NP-1 AGOSTO 2026 (2026-09-21)
 
 Se compararon las 33 filas de docentes de la NP-1 (I quincena agosto 2026) contra
