@@ -11,10 +11,8 @@ export const num = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// Las deudas de cantina/librería se muestran solo en dólares de referencia
-// ("REF. 12.00"), sin equivalente en bolívares.
 export const fmtUsd = (v) =>
-  `REF. ${num(v).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `$ ${num(v).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const fmtVes = (v) =>
   `Bs. ${num(v).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

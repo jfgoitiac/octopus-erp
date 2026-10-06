@@ -1,6 +1,6 @@
 import { Eye } from 'lucide-react';
 import { TablaScroll } from '../../ui/TablaScroll';
-import { fmtUsd, nombreCompleto, num } from './utilsCxc';
+import { fmtUsd, fmtVes, nombreCompleto, num } from './utilsCxc';
 
 const DIAS_ALERTA = 7;
 
@@ -28,7 +28,7 @@ const SkeletonFilas = () => (
 );
 
 // Lista de cuentas por cobrar: tarjetas en móvil, tabla (TablaScroll) desde md.
-const ListaCuentasCxc = ({ cuentas, cargando, onVer }) => {
+const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
   if (cargando) return <SkeletonFilas />;
 
   if (cuentas.length === 0) {
@@ -73,6 +73,9 @@ const ListaCuentasCxc = ({ cuentas, cargando, onVer }) => {
                 <p className="text-base font-bold" style={{ color: num(c.saldo_usd) > 0 ? '#dc2626' : 'var(--jet)' }}>
                   {fmtUsd(c.saldo_usd)}
                 </p>
+                {tasa > 0 && (
+                  <p className="text-xs" style={{ color: 'var(--ash)' }}>{fmtVes(num(c.saldo_usd) * tasa)}</p>
+                )}
               </div>
             </div>
             <p className="text-xs break-words" style={{ color: 'var(--ash)' }}>
@@ -94,7 +97,8 @@ const ListaCuentasCxc = ({ cuentas, cargando, onVer }) => {
                 <th className="px-4 py-3 font-medium">Representante</th>
                 <th className="px-4 py-3 font-medium">Cédula</th>
                 <th className="px-4 py-3 font-medium">Alumnos</th>
-                <th className="px-4 py-3 font-medium text-right">Deuda (REF.)</th>
+                <th className="px-4 py-3 font-medium text-right">Deuda USD</th>
+                <th className="px-4 py-3 font-medium text-right">Equiv. Bs.</th>
                 <th className="px-4 py-3 font-medium">Días deuda</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -107,6 +111,9 @@ const ListaCuentasCxc = ({ cuentas, cargando, onVer }) => {
                   <td className="px-4 py-3 max-w-[16rem]" style={{ color: 'var(--ash)' }}>{alumnosTexto(c)}</td>
                   <td className="px-4 py-3 text-right font-semibold" style={{ color: num(c.saldo_usd) > 0 ? '#dc2626' : 'var(--jet)' }}>
                     {fmtUsd(c.saldo_usd)}
+                  </td>
+                  <td className="px-4 py-3 text-right" style={{ color: 'var(--ash)' }}>
+                    {tasa > 0 ? fmtVes(num(c.saldo_usd) * tasa) : '—'}
                   </td>
                   <td className="px-4 py-3"><DiasDeuda dias={c.dias_deuda_mas_antigua} /></td>
                   <td className="px-4 py-3 text-right">{botonVer(c)}</td>
