@@ -86,6 +86,9 @@ export const updateHorario = (id, data) =>
 export const deleteHorario = (id) =>
   apiClient.delete(`academico/horarios/${id}/`);
 
+export const intercambiarHorarios = (origenId, destinoId) =>
+  apiClient.post('academico/horarios/intercambiar/', { origen_id: origenId, destino_id: destinoId });
+
 // Paquetes de Horario
 export const getPaquetesHorario = (filtros, signal) => {
   const params = new URLSearchParams(filtros || {});

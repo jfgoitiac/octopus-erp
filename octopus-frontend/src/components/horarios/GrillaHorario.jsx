@@ -135,6 +135,7 @@ export const GrillaHorario = ({
   onEditarClase,
   onTogglePin,
   onMoverClase,
+  onIntercambiarClase,
   materiaActiva,
   onAsignarRapido,
 }) => {
@@ -155,7 +156,11 @@ export const GrillaHorario = ({
     if (!clase || !bloqueDestino) return;
     if (bloqueDestino.tipo !== 'clase') return;
     if (bloqueDestino.id === clase.bloque_id) return; // soltó en el mismo lugar
-    if (getClaseEnBloque?.(bloqueDestino.id)) return; // celda destino ya ocupada
+    const claseDestino = getClaseEnBloque?.(bloqueDestino.id);
+    if (claseDestino) {
+      if (!claseDestino.pineado) onIntercambiarClase?.(clase, claseDestino);
+      return;
+    }
     onMoverClase?.(clase, bloqueDestino);
   };
 

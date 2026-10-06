@@ -1485,6 +1485,30 @@ class HorariosPaqueteAislaChoquesTests(TestCase):
         self.assertEqual(respuesta.status_code, 201, respuesta.content)
 
 
+class HorariosIntercambiarTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = crear_usuario('admin_intercambio_horarios', 'director')
+        self.client.force_authenticate(user=self.admin)
+        self.paquete = PaqueteHorario.objects.create(nombre='Paquete intercambio', periodo_escolar='2026-2027')
+        self.bloque_1 = BloqueHorario.objects.create(paquete=self.paquete, dia_semana='lunes', orden=1, hora_inicio='07:00', hora_fin='08:00', tipo='clase')
+        self.bloque_2 = BloqueHorario.objects.create(paquete=self.paquete, dia_semana='lunes', orden=2, hora_inicio='08:00', hora_fin='09:00', tipo='clase')
+        materia_1 = Materia.objects.create(nombre='Castellano intercambio', grado_seccion='Intercambio A', horas_academicas=1)
+        materia_2 = Materia.objects.create(nombre='Inglés intercambio', grado_seccion='Intercambio B', horas_academicas=1)
+        self.castellano = HorarioClase.objects.create(materia=materia_1, bloque=self.bloque_1, dia_semana='lunes', hora_inicio='07:00', hora_fin='08:00')
+        self.ingles = HorarioClase.objects.create(materia=materia_2, bloque=self.bloque_2, dia_semana='lunes', hora_inicio='08:00', hora_fin='09:00')
+
+    def test_intercambia_dos_clases_ocupadas(self):
+        respuesta = self.client.post('/api/academico/horarios/intercambiar/', {
+            'origen_id': self.castellano.id, 'destino_id': self.ingles.id,
+        }, format='json')
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.castellano.refresh_from_db()
+        self.ingles.refresh_from_db()
+        self.assertEqual(self.castellano.bloque_id, self.bloque_2.id)
+        self.assertEqual(self.ingles.bloque_id, self.bloque_1.id)
+
+
 # ─────────────────────────────────────────────
 # GENERADOR DE HORARIOS — BUG: el algoritmo nunca considera el aula
 # (auditoría 2026-09-15). `_ejecutar_algoritmo` solo evita choques de

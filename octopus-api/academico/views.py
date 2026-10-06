@@ -1002,6 +1002,50 @@ class HorarioDetailView(APIView):
         return Response({'mensaje': 'Horario eliminado correctamente.'}, status=status.HTTP_200_OK)
 
 
+class HorarioIntercambiarView(APIView):
+    """Intercambia dos clases de una misma jornada en una única transacción."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'No tienes permisos para editar horarios.'}, status=status.HTTP_403_FORBIDDEN)
+        origen_id = request.data.get('origen_id')
+        destino_id = request.data.get('destino_id')
+        if not origen_id or not destino_id or str(origen_id) == str(destino_id):
+            return Response({'error': 'Selecciona dos clases distintas para intercambiar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            clases = list(HorarioClase.objects.select_for_update().select_related('materia', 'bloque').filter(pk__in=[origen_id, destino_id]))
+            if len(clases) != 2:
+                return Response({'error': 'Una de las clases ya no existe.'}, status=status.HTTP_404_NOT_FOUND)
+            origen = next(clase for clase in clases if str(clase.pk) == str(origen_id))
+            destino = next(clase for clase in clases if str(clase.pk) == str(destino_id))
+            if origen.pineado or destino.pineado:
+                return Response({'error': 'No se puede intercambiar una clase bloqueada.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not origen.bloque_id or not destino.bloque_id or origen.bloque.paquete_id != destino.bloque.paquete_id:
+                return Response({'error': 'Solo se pueden intercambiar clases del mismo paquete de horario.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Se verifica cada ubicación final ignorando las dos clases del
+            # intercambio. Así no se rechaza por un choque temporal entre
+            # ellas, pero se mantienen las reglas reales de docente/aula/grado.
+            for clase, bloque in ((origen, destino.bloque), (destino, origen.bloque)):
+                otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
+                    clase.materia, bloque.dia_semana, bloque.hora_inicio, bloque.hora_fin,
+                    clase.aula, excluir_pk=origen.pk if clase.pk == destino.pk else destino.pk,
+                    paquete_id=bloque.paquete_id,
+                )
+                if otro:
+                    return Response({'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)}, status=status.HTTP_400_BAD_REQUEST)
+
+            origen_bloque, destino_bloque = origen.bloque, destino.bloque
+            origen.bloque, origen.dia_semana, origen.hora_inicio, origen.hora_fin = destino_bloque, destino_bloque.dia_semana, destino_bloque.hora_inicio, destino_bloque.hora_fin
+            destino.bloque, destino.dia_semana, destino.hora_inicio, destino.hora_fin = origen_bloque, origen_bloque.dia_semana, origen_bloque.hora_inicio, origen_bloque.hora_fin
+            origen.save()
+            destino.save()
+
+        return Response(HorarioClaseSerializer([origen, destino], many=True).data)
+
+
 # ─────────────────────────────────────────────
 # BOLETÍN
 # ─────────────────────────────────────────────

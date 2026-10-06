@@ -14,6 +14,7 @@ import { PanelMaterias } from '../components/horarios/PanelMaterias';
 import { ModalImprimirHorario } from '../components/horarios/ModalImprimirHorario';
 import { VistaImpresionHorario } from '../components/horarios/VistaImpresionHorario';
 import { ResumenHorario } from '../components/horarios/ResumenHorario';
+import { ModalConfirmarIntercambio } from '../components/horarios/ModalConfirmarIntercambio';
 import { PageHeader } from '../components/ui/PageHeader';
 import { getHorariosDocente, listarDocentes } from '../api/academico.service';
 
@@ -35,7 +36,7 @@ const Horarios = () => {
     loading, saving, savingMateria, generando,
     getClaseEnBloque,
     tieneConflicto,
-    guardar, eliminar, pinear, generar, deshacerGeneracion, recargar,
+    guardar, eliminar, intercambiar, pinear, generar, deshacerGeneracion, recargar,
     crearMateria, actualizarMateria, eliminarMateria,
   } = useHorarios(paqueteId, grado);
 
@@ -49,6 +50,7 @@ const Horarios = () => {
   const [loadingDocentes, setLoadingDocentes] = useState(false);
   const [impresion, setImpresion] = useState(null);
   const [materiaActiva, setMateriaActiva] = useState(null);
+  const [intercambioPendiente, setIntercambioPendiente] = useState(null);
 
   const seleccionarPaquete = (id) => {
     setGrado('');
@@ -104,6 +106,16 @@ const Horarios = () => {
       bloque_id: bloqueDestino.id,
       aula: clase.aula,
     });
+  };
+
+  const handleIntercambiarClase = async (origen, destino) => {
+    setIntercambioPendiente({ origen, destino });
+  };
+
+  const confirmarIntercambio = async () => {
+    if (!intercambioPendiente) return;
+    const ok = await intercambiar(intercambioPendiente.origen.id, intercambioPendiente.destino.id);
+    if (ok) setIntercambioPendiente(null);
   };
 
   const handleGenerar = async (config) => generar(config);
@@ -317,6 +329,7 @@ const Horarios = () => {
           onEditarClase={editarClase}
           onTogglePin={(clase) => pinear(clase.id, !clase.pineado)}
           onMoverClase={handleMoverClase}
+          onIntercambiarClase={handleIntercambiarClase}
           materiaActiva={materiaActiva}
           onAsignarRapido={asignarRapido}
         /></div>
@@ -377,6 +390,16 @@ const Horarios = () => {
           loadingDocentes={loadingDocentes}
           onClose={() => setShowImprimir(false)}
           onPrint={imprimir}
+        />
+      )}
+
+      {intercambioPendiente && (
+        <ModalConfirmarIntercambio
+          origen={intercambioPendiente.origen}
+          destino={intercambioPendiente.destino}
+          saving={saving}
+          onClose={() => setIntercambioPendiente(null)}
+          onConfirmar={confirmarIntercambio}
         />
       )}
 

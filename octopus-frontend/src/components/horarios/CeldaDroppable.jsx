@@ -19,7 +19,7 @@ export const CeldaDroppable = ({ bloque, clase, cellKey, onCeldaClick, onEditarC
   }
 
   const { setNodeRef, isOver } = droppable;
-  const puedeSoltar = bloque.tipo === 'clase' && !clase;
+  const puedeSoltar = bloque.tipo === 'clase' && (!clase || !clase.pineado);
 
   return (
     <div
@@ -31,7 +31,10 @@ export const CeldaDroppable = ({ bloque, clase, cellKey, onCeldaClick, onEditarC
       }}
     >
       {clase ? (
-        <BloqueDraggable clase={clase} onClick={onEditarClase} onTogglePin={onTogglePin} />
+        <div className="relative">
+          <BloqueDraggable clase={clase} onClick={onEditarClase} onTogglePin={onTogglePin} />
+          {isOver && puedeSoltar && <span className="absolute inset-x-1 bottom-1 rounded bg-[var(--pb)] px-1 py-0.5 text-[9px] font-bold text-white pointer-events-none">Intercambiar</span>}
+        </div>
       ) : bloque.tipo !== 'clase' ? (
         // Actividad general "suelta" (no forma parte de la fila unificada
         // porque la jornada varía por día) — nunca abre ModalClase.

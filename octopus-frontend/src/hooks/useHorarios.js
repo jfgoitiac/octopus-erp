@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import {
   getMaterias, getHorarios,
   saveHorario, updateHorario, deleteHorario,
+  intercambiarHorarios,
   generarHorario, deshacerGenerarHorario,
   createMateria, updateMateria, deleteMateria,
   getBloquesPaquete,
@@ -117,6 +118,22 @@ export function useHorarios(paqueteId, grado) {
     }
   }, [recargar]);
 
+  const intercambiar = useCallback(async (origenId, destinoId) => {
+    setSaving(true);
+    try {
+      const respuesta = await intercambiarHorarios(origenId, destinoId);
+      const actualizadas = new Map(respuesta.data.map(horario => [horario.id, horario]));
+      setHorarios(prev => prev.map(horario => actualizadas.get(horario.id) || horario));
+      toast.success('Clases intercambiadas.');
+      return true;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudieron intercambiar las clases.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
   // Pinear/despinear una clase — el generador automático respeta las clases
   // pineado=true y no las mueve. Reemplaza el antiguo Set local `lockedIds`:
   // ahora el estado vive en el backend (persiste entre sesiones y lo usa el
@@ -226,7 +243,7 @@ export function useHorarios(paqueteId, grado) {
     loading, saving, savingMateria, generando,
     getClaseEnBloque,
     tieneConflicto,
-    guardar, eliminar, pinear, generar, deshacerGeneracion, recargar,
+    guardar, eliminar, intercambiar, pinear, generar, deshacerGeneracion, recargar,
     crearMateria, actualizarMateria, eliminarMateria,
   };
 }
