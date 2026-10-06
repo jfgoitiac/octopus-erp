@@ -66,16 +66,16 @@ const CantinaLayout = () => {
   };
 
   return (
-    <div className="min-h-dvh flex" style={{ background: 'var(--porcelain, #f5f5f4)' }}>
+    <div className="min-h-dvh flex flex-col lg:flex-row" style={{ background: 'var(--porcelain, #f5f5f4)' }}>
       {/* Sidebar */}
-      <aside className="w-60 shrink-0 bg-white border-r border-gray-100 flex flex-col">
-        <div className="h-16 flex items-center gap-2 px-5 border-b border-gray-100">
+      <aside className="w-full lg:w-60 lg:shrink-0 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 flex flex-row items-center overflow-x-auto lg:overflow-visible lg:flex-col lg:items-stretch">
+        <div className="h-14 lg:h-16 shrink-0 flex items-center gap-2 px-3 lg:px-5 lg:border-b border-gray-100 lg:w-full">
           <ShoppingCart size={22} style={{ color: 'var(--pb, #0fa3b1)' }} />
           <span className="font-semibold text-gray-800">Cantina</span>
         </div>
 
         {areaCaja && (
-          <div className="px-5 pt-3">
+          <div className="shrink-0 px-1 lg:px-5 lg:pt-3 lg:w-full">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
               style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}
@@ -86,12 +86,12 @@ const CantinaLayout = () => {
           </div>
         )}
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex flex-row gap-1 px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
             disabled ? (
               <div
                 key={name}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 cursor-not-allowed select-none"
+                className="shrink-0 whitespace-nowrap flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 cursor-not-allowed select-none"
                 title="Próximamente"
               >
                 <Icon size={18} />
@@ -102,7 +102,7 @@ const CantinaLayout = () => {
                 key={name}
                 to={path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  `shrink-0 whitespace-nowrap flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-[var(--pb,#0fa3b1)]/10 text-[var(--pb,#0fa3b1)]'
                       : 'text-gray-600 hover:bg-gray-50'
@@ -116,8 +116,8 @@ const CantinaLayout = () => {
           ))}
         </nav>
 
-        <div className="px-3 py-4 border-t border-gray-100">
-          <div className="px-3 py-2 mb-1">
+        <div className="shrink-0 px-2 py-2 lg:px-3 lg:py-4 lg:border-t border-gray-100 lg:w-full">
+          <div className="hidden lg:block px-3 py-2 mb-1">
             <p className="text-sm font-medium text-gray-800 truncate">
               {nombreUsuario(user)}
             </p>
@@ -127,7 +127,7 @@ const CantinaLayout = () => {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors"
+            className="whitespace-nowrap lg:w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors"
           >
             <LogOut size={16} />
             Cerrar sesión
@@ -136,7 +136,7 @@ const CantinaLayout = () => {
       </aside>
 
       {/* Contenido principal */}
-      <main className="flex-1 min-w-0 px-8 py-8">
+      <main className="flex-1 min-w-0 px-3 py-4 sm:px-8 sm:py-8">
         <Outlet />
       </main>
     </div>
