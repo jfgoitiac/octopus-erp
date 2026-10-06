@@ -26,15 +26,18 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
       >
         Nueva venta
       </button>
-      <button
-        onClick={onDescargarPdf}
-        disabled={descargando}
-        className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
-        style={{ background: 'var(--pb)' }}
-      >
-        {descargando ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
-        Ticket PDF
-      </button>
+      {/* Sin onDescargarPdf (venta a cuenta) no se ofrece el recibo aquí. */}
+      {onDescargarPdf && (
+        <button
+          onClick={onDescargarPdf}
+          disabled={descargando}
+          className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+          style={{ background: 'var(--pb)' }}
+        >
+          {descargando ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+          Ticket PDF
+        </button>
+      )}
     </>
   );
 

@@ -328,7 +328,9 @@ export default function CantinaPOS() {
         : res.data);
       limpiarVenta();
       // Descarga/apertura automática del ticket al cobrar (§7.2 checklist).
-      handleDescargarRecibo(res.data.id);
+      // Una venta cargada a cuenta NO abre el recibo aquí: se descarga después
+      // desde Cuentas por cobrar o desde el historial de ventas.
+      if (metodoPago !== 'credito_representante') handleDescargarRecibo(res.data.id);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo registrar la venta.';
@@ -493,7 +495,9 @@ export default function CantinaPOS() {
         <TicketVenta
           venta={ventaActual}
           onCerrar={cerrarTicket}
-          onDescargarPdf={() => handleDescargarRecibo(ventaActual.id)}
+          onDescargarPdf={ventaActual.metodo_pago === 'credito_representante'
+            ? undefined
+            : () => handleDescargarRecibo(ventaActual.id)}
           descargando={descargandoRecibo}
         />
       )}

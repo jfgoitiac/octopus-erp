@@ -1,6 +1,6 @@
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { reciboAbonoCxcUrl } from '../../../api/cantina.service';
+import { reciboAbonoCxcUrl, descargarReciboVenta } from '../../../api/cantina.service';
 
 export const ROLES_ADMIN_CANTINA = ['administrador', 'director'];
 
@@ -79,6 +79,16 @@ export const descargarBlob = (blob, nombre) => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+};
+
+// Recibo de la venta a cuenta (se pide desde el cargo, no al cobrar en el POS).
+export const abrirReciboVenta = async (ventaId) => {
+  const res = await descargarReciboVenta(ventaId);
+  const blob = new Blob([res.data], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const ventana = window.open(url, '_blank');
+  if (!ventana) descargarBlob(blob, `Ticket_${ventaId}.pdf`);
   window.setTimeout(() => URL.revokeObjectURL(url), 30000);
 };
 

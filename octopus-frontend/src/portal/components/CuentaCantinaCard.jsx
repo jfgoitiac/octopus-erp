@@ -12,7 +12,8 @@ const formatFecha = (fechaStr) => {
   }
 };
 
-const usd = (valor) => `$${Number(valor ?? 0).toFixed(2)}`;
+// Del lado del representante solo dólares de referencia, sin bolívares.
+const usd = (valor) => `REF. ${Number(valor ?? 0).toFixed(2)}`;
 
 /**
  * CuentaCantinaCard — deuda de cantina/librería del representante (solo lectura).

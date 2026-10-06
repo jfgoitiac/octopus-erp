@@ -9,7 +9,7 @@ import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
 import {
   AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
-  esCancelacion, mensajeError, abrirReciboAbono,
+  esCancelacion, mensajeError, abrirReciboAbono, abrirReciboVenta,
 } from './utilsCxc';
 
 const ESTADO_STYLE = {
@@ -94,6 +94,14 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
       await abrirReciboAbono(uuid);
     } catch (err) {
       toast.error(await mensajeError(err, 'No se pudo abrir el recibo.'));
+    }
+  };
+
+  const imprimirVenta = async (ventaId) => {
+    try {
+      await abrirReciboVenta(ventaId);
+    } catch (err) {
+      toast.error(await mensajeError(err, 'No se pudo abrir el recibo de la venta.'));
     }
   };
 
@@ -197,6 +205,16 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                       <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
                         {fmtUsd(c.monto_usd)} <span className="font-normal text-xs" style={{ color: 'var(--ash)' }}>· pagado {fmtUsd(c.monto_pagado)}</span>
                       </p>
+                      {c.venta_id && (
+                        <button
+                          type="button"
+                          onClick={() => imprimirVenta(c.venta_id)}
+                          className="self-start inline-flex items-center gap-1 text-xs min-h-[44px]"
+                          style={{ color: 'var(--pb)' }}
+                        >
+                          <Printer size={14} /> Recibo
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -212,6 +230,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                           <th className="px-4 py-3 font-medium text-right">Monto</th>
                           <th className="px-4 py-3 font-medium text-right">Pagado</th>
                           <th className="px-4 py-3 font-medium">Estado</th>
+                          <th className="px-4 py-3" />
                         </tr>
                       </thead>
                       <tbody>
@@ -224,6 +243,18 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                             <td className="px-4 py-3 text-right font-semibold">{fmtUsd(c.monto_usd)}</td>
                             <td className="px-4 py-3 text-right">{fmtUsd(c.monto_pagado)}</td>
                             <td className="px-4 py-3"><Chip estado={c.estado} /></td>
+                            <td className="px-4 py-3 text-right">
+                              {c.venta_id && (
+                                <button
+                                  type="button"
+                                  onClick={() => imprimirVenta(c.venta_id)}
+                                  className="inline-flex items-center gap-1 text-xs"
+                                  style={{ color: 'var(--pb)' }}
+                                >
+                                  <Printer size={14} /> Recibo
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
