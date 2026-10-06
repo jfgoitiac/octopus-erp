@@ -52,6 +52,7 @@ from .serializers import (
 )
 from .services_inventario import aplicar_movimiento_inventario
 from .services_tarjeta import aplicar_movimiento_tarjeta, generar_codigo_tarjeta
+from pagos_comunes.referencias import buscar_referencia_duplicada
 from .utils import generar_pdf_ticket, validar_datos_bancarios
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,26 @@ AREAS_VALIDAS = dict(AREAS)
 # Métodos de cobranza en los que se guardan los datos bancarios de la venta.
 METODOS_VENTA_BANCARIOS = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')
 METODOS_EFECTIVO = ('efectivo', 'efectivo_ves')
+
+
+def _entero_o_none(valor):
+    """Entero estricto o None (para ids que llegan del request: 'abc', {}, [] -> None)."""
+    if valor is None or isinstance(valor, (bool, dict, list)):
+        return None
+    try:
+        d = Decimal(str(valor).strip())
+    except Exception:
+        return None
+    if not d.is_finite() or d != d.to_integral_value() or abs(d) > 2**62:
+        return None
+    return int(d)
+
+
+def _texto_seguro(valor):
+    """str() recortado de un escalar ('' para None/dict/list)."""
+    if valor is None or isinstance(valor, (dict, list)):
+        return ''
+    return str(valor).strip()
 
 
 def _mensaje_error(exc):
@@ -915,7 +936,7 @@ class RegistrarVentaView(APIView):
             )
 
         metodo_pago = request.data.get('metodo_pago')
-        if metodo_pago not in dict(VentaCantina.METODOS_PAGO):
+        if not isinstance(metodo_pago, str) or metodo_pago not in dict(VentaCantina.METODOS_PAGO):
             return Response(
                 {'error': f"'metodo_pago' debe ser uno de: {', '.join(dict(VentaCantina.METODOS_PAGO))}."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -929,16 +950,29 @@ class RegistrarVentaView(APIView):
         if metodo_pago in dict(Pago.METODOS):
             banco_id = request.data.get('banco_receptor')
             if banco_id not in (None, ''):
-                banco_receptor = BancoInstitucional.objects.filter(pk=banco_id, activo=True).first()
+                banco_pk = _entero_o_none(banco_id)
+                if banco_pk is not None:
+                    banco_receptor = BancoInstitucional.objects.filter(pk=banco_pk, activo=True).first()
                 if banco_receptor is None:
                     return Response(
-                        {'error': f"No se encontró ningún banco receptor activo con id '{banco_id}'."},
+                        {'error': f"No se encontró ningún banco receptor activo con id '{_texto_seguro(banco_id)}'."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+            # Sin banco (efectivo, efectivo_ves, ...) la referencia/lote se ignoran:
+            # no deben participar del chequeo de duplicados.
+            con_banco = metodo_pago in METODOS_VENTA_BANCARIOS
+            campos_texto = {}
+            for campo in ('referencia', 'numero_lote', 'banco_procedencia'):
+                valor = request.data.get(campo)
+                if isinstance(valor, (dict, list)):
+                    return Response(
+                        {'error': f"'{campo}' debe ser un texto."}, status=status.HTTP_400_BAD_REQUEST,
+                    )
+                campos_texto[campo] = _texto_seguro(valor)
             errores, ref_normalizada = validar_datos_bancarios(
                 metodo_pago,
-                request.data.get('referencia'),
-                request.data.get('numero_lote'),
+                campos_texto['referencia'] if con_banco else '',
+                campos_texto['numero_lote'] if con_banco else '',
                 banco_receptor,
             )
             if errores:
@@ -948,8 +982,8 @@ class RegistrarVentaView(APIView):
                 )
             if metodo_pago in METODOS_VENTA_BANCARIOS:
                 referencia = ref_normalizada or None
-                numero_lote = (request.data.get('numero_lote') or '').strip() or None
-                banco_procedencia = (request.data.get('banco_procedencia') or '').strip() or None
+                numero_lote = campos_texto['numero_lote'] or None
+                banco_procedencia = campos_texto['banco_procedencia'] or None
             else:
                 banco_receptor = None
 
@@ -960,13 +994,17 @@ class RegistrarVentaView(APIView):
         if metodo_pago == 'tarjeta_prepago':
             tarjeta_codigo = request.data.get('tarjeta_codigo')
             tarjeta_id = request.data.get('tarjeta_id')
+            if isinstance(tarjeta_codigo, (dict, list)):
+                tarjeta_codigo = None
+            if tarjeta_id is not None:
+                tarjeta_id = _entero_o_none(tarjeta_id)
             if not tarjeta_codigo and not tarjeta_id:
                 return Response(
                     {'error': "El pago con tarjeta prepago requiere 'tarjeta_codigo' (o 'tarjeta_id')."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             tarjetas_activas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
-            tarjeta = tarjetas_activas.filter(codigo=tarjeta_codigo).first() if tarjeta_codigo \
+            tarjeta = tarjetas_activas.filter(codigo=str(tarjeta_codigo)).first() if tarjeta_codigo \
                 else tarjetas_activas.filter(pk=tarjeta_id).first()
             if not tarjeta:
                 return Response(
@@ -983,15 +1021,23 @@ class RegistrarVentaView(APIView):
                     {'error': "El cargo a cuenta requiere 'representante_id'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            representante = Representante.objects.filter(pk=representante_id, activo=True).first()
+            representante_pk = _entero_o_none(representante_id)
+            representante = (
+                Representante.objects.filter(pk=representante_pk, activo=True).first()
+                if representante_pk is not None else None
+            )
             if not representante:
                 return Response(
-                    {'error': f"No se encontró ningún representante activo con id '{representante_id}'."},
+                    {'error': f"No se encontró ningún representante activo con id '{_texto_seguro(representante_id)}'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             alumno_id = request.data.get('alumno_id')
             if alumno_id:
-                alumno = Alumno.objects.filter(pk=alumno_id, representante=representante).first()
+                alumno_pk = _entero_o_none(alumno_id)
+                alumno = (
+                    Alumno.objects.filter(pk=alumno_pk, representante=representante).first()
+                    if alumno_pk is not None else None
+                )
                 if not alumno:
                     return Response(
                         {'error': 'El alumno indicado no es hijo del representante seleccionado.'},
@@ -1002,9 +1048,16 @@ class RegistrarVentaView(APIView):
         lineas = []
         total_usd = Decimal('0.00')
         for item in items:
-            producto_id = item.get('producto_id')
+            if not isinstance(item, dict):
+                return Response(
+                    {'error': "Cada línea del carrito debe ser un objeto {producto_id, cantidad}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            producto_id = _entero_o_none(item.get('producto_id'))
             cantidad = item.get('cantidad')
             try:
+                if isinstance(cantidad, (bool, dict, list)):
+                    raise TypeError
                 cantidad = int(cantidad)
             except (TypeError, ValueError):
                 return Response(
@@ -1017,10 +1070,13 @@ class RegistrarVentaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            producto = ProductoCantina.objects.filter(pk=producto_id, activo=True).first()
+            producto = (
+                ProductoCantina.objects.filter(pk=producto_id, activo=True).first()
+                if producto_id is not None else None
+            )
             if not producto:
                 return Response(
-                    {'error': f"No se encontró ningún producto activo con id '{producto_id}'."},
+                    {'error': f"No se encontró ningún producto activo con id '{_texto_seguro(item.get('producto_id'))}'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if producto.area != apertura.area:
@@ -1043,6 +1099,8 @@ class RegistrarVentaView(APIView):
 
         if not lineas:
             return Response({'error': "El carrito no puede estar vacío."}, status=status.HTTP_400_BAD_REQUEST)
+        if total_usd > Decimal('99999999.99'):
+            return Response({'error': 'El total de la venta es demasiado grande.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             tasa = TasaCambio.objects.latest('fecha')
@@ -1071,6 +1129,20 @@ class RegistrarVentaView(APIView):
         # ── Transacción: todo o nada ─────────────────────────────────────────
         try:
             with transaction.atomic():
+                # Orden global de locks: representante → cargos → productos.
+                if representante is not None:
+                    services_cxc.lock_representante(representante)
+                if referencia:
+                    # Repite el chequeo de duplicados dentro de la transacción (carrera entre cajas).
+                    dup = buscar_referencia_duplicada(
+                        referencia, metodo_pago=metodo_pago,
+                        banco_receptor_id=(banco_receptor.id if banco_receptor else None),
+                    )
+                    if dup:
+                        raise drf_serializers.ValidationError({'referencia': (
+                            f"La referencia '{referencia}' ya está en uso en {dup['origen']} "
+                            f"(#{dup['id']}, {dup['detalle']}). Si cree que es un error, contacte al administrador."
+                        )})
                 venta = VentaCantina.objects.create(
                     alumno=alumno,
                     tarjeta=tarjeta,
@@ -1163,6 +1235,9 @@ class AnularVentaView(APIView):
         try:
             with transaction.atomic():
                 if es_credito:
+                    # Orden global: representante → cargos → productos.
+                    if venta.representante_id:
+                        services_cxc.lock_representante(venta.representante_id)
                     # Falla (400) si el cargo ya tiene abonos aplicados.
                     services_cxc.anular_cargo_por_venta(venta, request.user)
 

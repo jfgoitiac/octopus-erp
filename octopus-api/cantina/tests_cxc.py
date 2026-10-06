@@ -426,7 +426,7 @@ class RetroactivoTests(CxcBase):
         return (timezone.localdate() - timedelta(days=dias)).isoformat()
 
     def test_retroactivo_por_cajero_es_403(self):
-        self.crear_cargo('10.00')
+        self.crear_cargo('10.00', creado_hace_dias=20)
         resp = self.post_abono(
             self.client_cajero, [self.linea_usd('2')],
             fecha_pago=self.fecha_pasada(), motivo='Pago recibido la semana pasada',
@@ -435,7 +435,7 @@ class RetroactivoTests(CxcBase):
         self.assertFalse(AbonoCantina.objects.exists())
 
     def test_retroactivo_admin_ok_sin_apertura(self):
-        self.crear_cargo('10.00')
+        self.crear_cargo('10.00', creado_hace_dias=20)
         resp = self.post_abono(
             self.client_admin, [self.linea_usd('2')],
             fecha_pago=self.fecha_pasada(), motivo='Pago recibido la semana pasada',
@@ -448,7 +448,7 @@ class RetroactivoTests(CxcBase):
         self.assertEqual(timezone.localtime(ab.fecha_pago).date().isoformat(), self.fecha_pasada())
 
     def test_retroactivo_sin_motivo_o_motivo_corto_es_400(self):
-        self.crear_cargo('10.00')
+        self.crear_cargo('10.00', creado_hace_dias=20)
         for motivo in ('', 'corto'):
             resp = self.post_abono(
                 self.client_admin, [self.linea_usd('2')], fecha_pago=self.fecha_pasada(), motivo=motivo,
@@ -456,7 +456,7 @@ class RetroactivoTests(CxcBase):
             self.assertEqual(resp.status_code, 400, motivo)
 
     def test_retroactivo_en_bolivares_sin_tasa_es_400_y_con_tasa_usa_la_tasa(self):
-        self.crear_cargo('10.00')
+        self.crear_cargo('10.00', creado_hace_dias=20)
         linea = {'metodo_pago': 'efectivo_ves', 'monto_ves': '100'}
         kw = dict(fecha_pago=self.fecha_pasada(), motivo='Pago retroactivo en bolívares')
         self.assertEqual(self.post_abono(self.client_admin, [linea], **kw).status_code, 400)
@@ -467,7 +467,7 @@ class RetroactivoTests(CxcBase):
         self.assertEqual(ab.monto_usd, Decimal('4.00'))
 
     def test_retroactivo_fuera_de_periodo_es_400(self):
-        self.crear_cargo('10.00')
+        self.crear_cargo('10.00', creado_hace_dias=20)
         ConfiguracionSistema.objects.all().update(periodo_escolar_activo='2019-2020')
         resp = self.post_abono(
             self.client_admin, [self.linea_usd('2')],
@@ -485,7 +485,7 @@ class RetroactivoTests(CxcBase):
         self.assertFalse(AbonoCantina.objects.get().es_retroactivo)
 
     def test_retroactivo_no_altera_aperturas(self):
-        self.crear_cargo('10.00')
+        self.crear_cargo('10.00', creado_hace_dias=20)
         self.post_abono(
             self.client_admin, [self.linea_usd('2')],
             fecha_pago=self.fecha_pasada(), motivo='Pago retroactivo sin caja',

@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
 
+from django.db import IntegrityError
 from django.db.models import Exists, OuterRef, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -64,7 +65,7 @@ def _area_param(request):
 
 
 def _representante_anotado(pk, area=None):
-    qs = anotar_saldos(Representante.objects.filter(pk=pk, activo=True), area).prefetch_related(prefetch_alumnos())
+    qs = anotar_saldos(Representante.objects.filter(pk=pk), area).prefetch_related(prefetch_alumnos())
     rep = qs.first()
     if rep is None:
         from django.http import Http404
@@ -85,7 +86,9 @@ class BuscarRepresentanteCxcView(APIView):
         if len(q) < LONGITUD_MINIMA_BUSQUEDA:
             raise ValidationError({'q': f'Escriba al menos {LONGITUD_MINIMA_BUSQUEDA} caracteres.'})
 
-        qs = Representante.objects.filter(activo=True)
+        # Activos, más cualquier inactivo que todavía tenga saldo pendiente.
+        con_saldo = Exists(CargoCantina.objects.filter(representante=OuterRef('pk'), estado='pendiente'))
+        qs = Representante.objects.filter(Q(activo=True) | con_saldo)
         for palabra in q.split():
             qs = qs.filter(
                 Q(cedula__icontains=palabra)
@@ -117,7 +120,7 @@ def _cuentas_queryset(request):
     cargos_rep = CargoCantina.objects.filter(representante=OuterRef('pk')).exclude(estado='anulado')
     if area:
         cargos_rep = cargos_rep.filter(area=area)
-    qs = Representante.objects.filter(activo=True).annotate(tiene_cargos=Exists(cargos_rep)).filter(tiene_cargos=True)
+    qs = Representante.objects.annotate(tiene_cargos=Exists(cargos_rep)).filter(tiene_cargos=True)
     qs = anotar_saldos(qs, area)
     if request.query_params.get('con_deuda') in ('1', 'true', 'True'):
         qs = qs.filter(saldo_total__gt=0)
@@ -183,6 +186,7 @@ class EstadoCuentaCxcView(APIView):
             'saldo_usd': str(rep.saldo_total),
             'saldo_ves_tasa_vigente': a_ves(rep.saldo_total, tasa),
             'limite_usd': resumen['limite_usd'],
+            'limite_personalizado': rep.limite_override is not None,
             'bloqueado': resumen['bloqueado'],
             'cargos': [serializar_cargo(c) for c in cargos],
             'abonos': agrupar_abonos(abonos),
@@ -194,14 +198,18 @@ class CreditoRepresentanteView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsAdminCantina]
 
     def patch(self, request, representante_id):
-        rep = get_object_or_404(Representante, pk=representante_id, activo=True)
+        rep = get_object_or_404(Representante, pk=representante_id)
         ser = CreditoInputSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         datos = ser.validated_data
         if not datos:
             raise ValidationError({'detail': "Indique 'limite_usd' y/o 'bloqueado'."})
 
-        credito, _ = CreditoRepresentanteCantina.objects.get_or_create(representante=rep)
+        try:
+            credito, _ = CreditoRepresentanteCantina.objects.get_or_create(representante=rep)
+        except IntegrityError:
+            # Carrera: otra petición lo creó entre el get y el create.
+            credito = CreditoRepresentanteCantina.objects.get(representante=rep)
         if 'limite_usd' in datos:
             credito.limite_usd = datos['limite_usd']
         if 'bloqueado' in datos:
@@ -266,7 +274,7 @@ class RegistrarAbonoView(APIView):
         ser = AbonoInputSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         datos = ser.validated_data
-        representante = get_object_or_404(Representante, pk=datos['representante_id'], activo=True)
+        representante = get_object_or_404(Representante, pk=datos['representante_id'])
 
         fecha_pago = _parsear_fecha_pago(datos.get('fecha_pago'))
         retroactivo = _es_fecha_pasada(fecha_pago)
