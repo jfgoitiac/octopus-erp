@@ -74,6 +74,9 @@ export const getHorarios = (paqueteId, gradoSeccion, signal) => {
   return apiClient.get(`academico/horarios/?${params.toString()}`, signal ? { signal } : undefined);
 };
 
+export const getHorariosDocente = (paqueteId, docenteId, signal) =>
+  apiClient.get(`academico/horarios/?paquete=${encodeURIComponent(paqueteId)}&docente_id=${encodeURIComponent(docenteId)}`, signal ? { signal } : undefined);
+
 export const saveHorario = (data) =>
   apiClient.post('academico/horarios/', data);
 

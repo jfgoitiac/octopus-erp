@@ -674,6 +674,7 @@ class BloqueHorario(models.Model):
     TIPO_CHOICES = (
         ('clase',  'Clase'),
         ('receso', 'Receso'),
+        ('inicio', 'Inicio / entonación del himno'),
     )
 
     paquete     = models.ForeignKey(

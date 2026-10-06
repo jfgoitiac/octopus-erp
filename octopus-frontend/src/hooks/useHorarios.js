@@ -83,13 +83,14 @@ export function useHorarios(paqueteId, grado) {
         aula:          form.aula,
       };
       if (form.id) {
-        await updateHorario(form.id, payload);
+        const respuesta = await updateHorario(form.id, payload);
+        setHorarios(prev => prev.map(horario => horario.id === form.id ? respuesta.data : horario));
         toast.success('Clase actualizada.');
       } else {
-        await saveHorario(payload);
+        const respuesta = await saveHorario(payload);
+        setHorarios(prev => [...prev, respuesta.data]);
         toast.success('Clase agregada al horario.');
       }
-      recargar();
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al guardar la clase.';
@@ -104,8 +105,8 @@ export function useHorarios(paqueteId, grado) {
     setSaving(true);
     try {
       await deleteHorario(id);
+      setHorarios(prev => prev.filter(horario => horario.id !== id));
       toast.success('Clase eliminada.');
-      recargar();
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al eliminar la clase.';
@@ -134,9 +135,9 @@ export function useHorarios(paqueteId, grado) {
   const crearMateria = useCallback(async (form) => {
     setSavingMateria(true);
     try {
-      await createMateria({ ...form, grado_seccion: grado });
+      const respuesta = await createMateria({ ...form, grado_seccion: grado });
+      setMaterias(prev => [...prev, respuesta.data]);
       toast.success('Materia agregada.');
-      recargar();
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.nombre?.[0] || 'Error al crear la materia.';
@@ -150,7 +151,7 @@ export function useHorarios(paqueteId, grado) {
   const actualizarMateria = useCallback(async (form) => {
     setSavingMateria(true);
     try {
-      await updateMateria(form.id, {
+      const respuesta = await updateMateria(form.id, {
         nombre: form.nombre,
         grado_seccion: form.grado_seccion,
         horas_academicas: form.horas_academicas,
@@ -159,8 +160,8 @@ export function useHorarios(paqueteId, grado) {
         aporta_a_todas_las_materias: form.aporta_a_todas_las_materias,
         docente_id: form.docente_id,
       });
+      setMaterias(prev => prev.map(materia => materia.id === form.id ? respuesta.data : materia));
       toast.success('Materia actualizada.');
-      recargar();
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.nombre?.[0] || 'Error al actualizar la materia.';
@@ -175,8 +176,8 @@ export function useHorarios(paqueteId, grado) {
     setSavingMateria(true);
     try {
       await deleteMateria(id);
+      setMaterias(prev => prev.filter(materia => materia.id !== id));
       toast.success('Materia desactivada.');
-      recargar();
       return true;
     } catch (err) {
       const msg = err.response?.data?.error || 'Error al eliminar la materia.';

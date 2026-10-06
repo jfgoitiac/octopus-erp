@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Loader2, Clock3, Coffee, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Loader2, Clock3, Coffee, BookOpen, Flag } from 'lucide-react';
 import { DIAS_GENERADOR } from '../../constants/horarios';
 import { INPUT_STYLE } from '../../constants/styles';
 import { Modal } from '../ui/Modal';
@@ -68,6 +68,7 @@ export const EditorBloques = ({ paqueteId, onClose }) => {
               value={tipoNuevo} onChange={e => setTipoNuevo(e.target.value)}>
               <option value="clase">Clase</option>
               <option value="receso">Receso</option>
+              <option value="inicio">Inicio / himno</option>
             </select>
           </div>
           <button type="button" onClick={handleAgregar} disabled={saving}
@@ -98,9 +99,9 @@ export const EditorBloques = ({ paqueteId, onClose }) => {
                   <ul className="space-y-1.5">
                     {items.map(b => (
                       <li key={b.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs"
-                        style={{ background: b.tipo === 'receso' ? '#f4f4f5' : 'var(--pb-light)' }}>
+                        style={{ background: b.tipo === 'clase' ? 'var(--pb-light)' : '#f4f4f5' }}>
                         <span className="flex items-center gap-1.5" style={{ color: 'var(--jet)' }}>
-                          {b.tipo === 'receso' ? <Coffee size={11} /> : <BookOpen size={11} />}
+                          {b.tipo === 'receso' ? <Coffee size={11} /> : b.tipo === 'inicio' ? <Flag size={11} /> : <BookOpen size={11} />}
                           {b.hora_inicio}–{b.hora_fin}
                         </span>
                         <button type="button" onClick={() => eliminar(b.id)} disabled={saving}

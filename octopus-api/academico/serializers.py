@@ -246,7 +246,7 @@ class AsistenciaBulkSerializer(serializers.Serializer):
 class MateriaMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Materia
-        fields = ['id', 'nombre']
+        fields = ['id', 'nombre', 'grado_seccion']
 
 
 class HorarioClaseSerializer(serializers.ModelSerializer):

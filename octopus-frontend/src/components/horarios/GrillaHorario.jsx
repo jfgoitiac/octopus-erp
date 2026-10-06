@@ -1,5 +1,5 @@
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { CalendarX, Coffee } from 'lucide-react';
+import { CalendarX, Coffee, Flag } from 'lucide-react';
 import { DIAS, DIAS_GENERADOR } from '../../constants/horarios';
 import { TablaScroll } from '../ui/TablaScroll';
 import { CeldaDroppable } from './CeldaDroppable';
@@ -38,8 +38,8 @@ const CELL_STYLE = {
 // hora de inicio distinta; cada columna busca el bloque de ese día que
 // empieza a esa hora. Si un día no tiene bloque a esa hora, la celda queda
 // como hueco (jornadas pueden diferir ligeramente entre días).
-// Si TODOS los bloques presentes en una fila son tipo 'receso', se pinta
-// como una fila de receso unificada.
+// Si TODOS los bloques presentes en una fila son una actividad general
+// (receso o inicio/himno), se pinta como una fila unificada.
 const buildFilas = (bloques) => {
   const porDia = {};
   DIAS_GENERADOR.forEach(d => {
@@ -53,9 +53,11 @@ const buildFilas = (bloques) => {
   return horas.map(hora => {
     const celdas = DIAS_GENERADOR.map(d => porDia[d.value].find(b => b.hora_inicio === hora) ?? null);
     const existentes = celdas.filter(Boolean);
-    const esReceso = existentes.length > 0 && existentes.every(b => b.tipo === 'receso');
+    const tipoGeneral = existentes.length > 0 && existentes.every(b => b.tipo === existentes[0].tipo) && existentes[0].tipo !== 'clase'
+      ? existentes[0].tipo
+      : null;
     const horaFin = existentes[0]?.hora_fin ?? '';
-    return { hora, horaFin, celdas, esReceso };
+    return { hora, horaFin, celdas, tipoGeneral };
   });
 };
 
@@ -181,11 +183,11 @@ export const GrillaHorario = ({
                   <td className="px-3 py-2 text-xs font-medium" style={HORA_CELL_STYLE}>
                     {fila.hora}{fila.horaFin ? `–${fila.horaFin}` : ''}
                   </td>
-                  {fila.esReceso ? (
+                  {fila.tipoGeneral ? (
                     <td colSpan={DIAS.length} className="px-2 py-1.5 text-center" style={{ ...CELL_STYLE, background: 'var(--ash-light, #f4f4f5)' }}>
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--ash)' }}>
-                        <Coffee size={12} />
-                        Receso
+                        {fila.tipoGeneral === 'inicio' ? <Flag size={12} /> : <Coffee size={12} />}
+                        {fila.tipoGeneral === 'inicio' ? 'Inicio / entonación del himno' : 'Receso'}
                       </span>
                     </td>
                   ) : (

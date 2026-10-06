@@ -380,6 +380,15 @@ button, a {
   transition-timing-function: ease-in-out;
 }
 
+/* Horarios: la versión de papel se construye aparte para que el scroll y los
+   controles de edición no entren al documento. */
+@media print {
+  @page { size: landscape; margin: 12mm; }
+  body { background: #fff !important; }
+  .horario-impresion { color: #111 !important; }
+  .horario-impresion table { page-break-inside: avoid; }
+}
+
 /* ── Glass morphism ── */
 .glass {
   background: rgba(255,255,255,0.55) !important;

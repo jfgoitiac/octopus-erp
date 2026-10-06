@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import { useSearchParams, Link } from 'react-router-dom';
 import { GraduationCap, Printer, Wand2, Settings2, Package, ChevronLeft } from 'lucide-react';
 import { useHorarios } from '../hooks/useHorarios';
@@ -10,7 +11,10 @@ import { ModalGenerador } from '../components/horarios/ModalGenerador';
 import { ResumenGeneracion } from '../components/horarios/ResumenGeneracion';
 import { EditorBloques } from '../components/horarios/EditorBloques';
 import { PanelMaterias } from '../components/horarios/PanelMaterias';
+import { ModalImprimirHorario } from '../components/horarios/ModalImprimirHorario';
+import { VistaImpresionHorario } from '../components/horarios/VistaImpresionHorario';
 import { PageHeader } from '../components/ui/PageHeader';
+import { getHorariosDocente, listarDocentes } from '../api/academico.service';
 
 const Horarios = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,7 +30,7 @@ const Horarios = () => {
   const [grado, setGrado] = useState('');
 
   const {
-    bloques, materias,
+    bloques, horarios, materias,
     loading, saving, savingMateria, generando,
     getClaseEnBloque,
     tieneConflicto,
@@ -39,6 +43,10 @@ const Horarios = () => {
   const [showGenerador, setShowGenerador]  = useState(false);
   const [resultadoGeneracion, setResultadoGeneracion] = useState(null);
   const [showEditorBloques, setShowEditorBloques]     = useState(false);
+  const [showImprimir, setShowImprimir] = useState(false);
+  const [docentes, setDocentes] = useState([]);
+  const [loadingDocentes, setLoadingDocentes] = useState(false);
+  const [impresion, setImpresion] = useState(null);
 
   const seleccionarPaquete = (id) => {
     setGrado('');
@@ -77,6 +85,39 @@ const Horarios = () => {
   };
 
   const handleGenerar = async (config) => generar(config);
+
+  const abrirImpresion = async () => {
+    setShowImprimir(true);
+    if (docentes.length) return;
+    setLoadingDocentes(true);
+    try {
+      const respuesta = await listarDocentes({ activo: true });
+      setDocentes(respuesta.data || []);
+    } catch {
+      toast.error('No se pudo cargar la lista de profesores.');
+    } finally {
+      setLoadingDocentes(false);
+    }
+  };
+
+  const imprimir = async ({ tipo, docenteId, titulo, subtitulo }) => {
+    let horariosParaImprimir = horarios;
+    let detalle = `Grado: ${grado} · ${paqueteActual?.nombre || ''}`;
+    if (tipo === 'docente') {
+      try {
+        const respuesta = await getHorariosDocente(paqueteId, docenteId);
+        horariosParaImprimir = respuesta.data || [];
+        const docente = docentes.find(item => String(item.user_id) === String(docenteId));
+        detalle = `Profesor: ${docente?.nombre_completo || ''} · ${paqueteActual?.nombre || ''}`;
+      } catch {
+        toast.error('No se pudo cargar el horario del profesor.');
+        return false;
+      }
+    }
+    setImpresion({ horarios: horariosParaImprimir, encabezado: { titulo, subtitulo, detalle } });
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+    return true;
+  };
 
   const handleGeneradoOk = (data) => {
     setShowGenerador(false);
@@ -162,7 +203,7 @@ const Horarios = () => {
                 Generar automático
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={abrirImpresion}
                 disabled={!grado || !bloques.length}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
@@ -222,11 +263,7 @@ const Horarios = () => {
       )}
 
       {/* Título visible solo al imprimir */}
-      {grado && (
-        <h2 className="hidden print:block text-lg font-bold mb-4" style={{ color: 'var(--jet)' }}>
-          Horario de Clases — {grado}
-        </h2>
-      )}
+      {impresion && <VistaImpresionHorario bloques={bloques} horarios={impresion.horarios} encabezado={impresion.encabezado} />}
 
       {/* Contenido principal */}
       {!grado ? (
@@ -236,7 +273,7 @@ const Horarios = () => {
           <p className="text-sm">Selecciona un grado para ver el horario.</p>
         </div>
       ) : (
-        <GrillaHorario
+        <div className="print:hidden"><GrillaHorario
           loading={loading}
           bloques={bloques}
           getClaseEnBloque={getClaseEnBloque}
@@ -244,7 +281,7 @@ const Horarios = () => {
           onEditarClase={editarClase}
           onTogglePin={(clase) => pinear(clase.id, !clase.pineado)}
           onMoverClase={handleMoverClase}
-        />
+        /></div>
       )}
 
       {grado && !loading && !!bloques.length && (
@@ -292,6 +329,16 @@ const Horarios = () => {
         <EditorBloques
           paqueteId={paqueteId}
           onClose={() => { setShowEditorBloques(false); recargar(); }}
+        />
+      )}
+
+      {showImprimir && (
+        <ModalImprimirHorario
+          grado={grado}
+          docentes={docentes}
+          loadingDocentes={loadingDocentes}
+          onClose={() => setShowImprimir(false)}
+          onPrint={imprimir}
         />
       )}
 

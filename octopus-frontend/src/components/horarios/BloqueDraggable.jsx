@@ -26,7 +26,7 @@ export const BloqueDraggable = ({ clase, onClick, onTogglePin }) => {
       style={style}
       {...(pineado ? {} : listeners)}
       {...(pineado ? {} : attributes)}
-      className="relative w-full rounded-lg px-2 py-2 text-left group touch-none"
+      className="relative w-full rounded-lg px-2 py-2 text-left group touch-none cursor-grab active:cursor-grabbing"
     >
       <button
         type="button"

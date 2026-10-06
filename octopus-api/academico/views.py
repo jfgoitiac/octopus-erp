@@ -881,16 +881,18 @@ class HorariosView(APIView):
         Parámetro requerido: ?grado_seccion=
         """
         grado = request.query_params.get('grado_seccion')
-        if not grado:
+        docente_id = request.query_params.get('docente_id')
+        if not grado and not docente_id:
             return Response(
-                {'error': 'Se requiere el parámetro grado_seccion.'},
+                {'error': 'Se requiere el parámetro grado_seccion o docente_id.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        horarios = HorarioClase.objects.filter(
-            materia__grado_seccion=grado,
-            materia__activa=True,
-        ).select_related('materia')
+        horarios = HorarioClase.objects.filter(materia__activa=True).select_related('materia')
+        if grado:
+            horarios = horarios.filter(materia__grado_seccion=grado)
+        if docente_id:
+            horarios = horarios.filter(materia__docente_id=docente_id)
 
         # Un mismo grado_seccion puede repetirse en distintos periodos/sedes
         # (paquetes distintos) — sin este filtro se mezclaban horarios de
@@ -1825,6 +1827,11 @@ class PaqueteHorarioBloqueDetailView(APIView):
         if tipo is not None:
             if tipo not in dict(BloqueHorario.TIPO_CHOICES):
                 return Response({'error': 'tipo inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            if tipo != 'clase' and bloque.tipo == 'clase' and bloque.clases.exists():
+                return Response(
+                    {'error': 'No se puede convertir un bloque con clases en receso o inicio. Mueve o elimina sus clases primero.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             bloque.tipo = tipo
 
         duracion_min = request.data.get('duracion_min')
@@ -1856,6 +1863,18 @@ class PaqueteHorarioBloqueDetailView(APIView):
                             sig.hora_inicio = (datetime.combine(date.today(), sig.hora_inicio) + desplazamiento).time()
                             sig.hora_fin = (datetime.combine(date.today(), sig.hora_fin) + desplazamiento).time()
                             sig.save()
+                    # HorarioClase duplica las horas del bloque para poder
+                    # detectar solapamientos. Sin esta sincronización, al
+                    # editar una duración el dato visible y el dato validado
+                    # podían divergir.
+                    for bloque_actualizado in BloqueHorario.objects.filter(
+                        paquete_id=pk, dia_semana=bloque.dia_semana, orden__gte=bloque.orden,
+                    ):
+                        bloque_actualizado.clases.update(
+                            dia_semana=bloque_actualizado.dia_semana,
+                            hora_inicio=bloque_actualizado.hora_inicio,
+                            hora_fin=bloque_actualizado.hora_fin,
+                        )
                 else:
                     bloque.save()
         except DjangoValidationError as e:
@@ -1869,6 +1888,11 @@ class PaqueteHorarioBloqueDetailView(APIView):
         bloque = self._get_bloque(pk, bloque_pk)
         if not bloque:
             return Response({'error': 'Bloque no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        if bloque.clases.exists():
+            return Response(
+                {'error': 'No se puede eliminar un bloque con clases asignadas. Mueve o elimina sus clases primero.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         bloque.delete()
         return Response({'mensaje': 'Bloque eliminado correctamente.'})
 
