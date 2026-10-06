@@ -823,22 +823,30 @@ def _buscar_choque_horario(materia, dia_semana, hora_inicio, hora_fin, aula,
     ).select_related('materia')
     if excluir_pk is not None:
         candidatos = candidatos.exclude(pk=excluir_pk)
-    # Un grado se reutiliza entre años escolares y, en multi-sede, puede
-    # repetirse en otra jornada. Si la clase se está creando desde un bloque,
-    # su paquete es el contexto inequívoco: horarios de otros paquetes no son
-    # simultáneos y no deben producir falsos positivos.
-    if paquete_id is not None:
-        candidatos = candidatos.filter(bloque__paquete_id=paquete_id)
-
     docente_id = materia.docente_id if materia else None
     grado_seccion = materia.grado_seccion if materia else None
     aula_normalizada = (aula or '').strip()
 
-    filtro_choque = Q(materia__grado_seccion=grado_seccion)
+    # Grado y aula pertenecen a una jornada concreta: no deben chocar con
+    # paquetes distintos. El docente, en cambio, puede dictar Primaria y
+    # Secundaria en paquetes separados durante el mismo período escolar;
+    # por eso su validación cruza todos los paquetes de ese período.
+    filtro_choque = Q()
+    paquete_actual = None
+    if paquete_id is not None:
+        paquete_actual = PaqueteHorario.objects.filter(pk=paquete_id).only('periodo_escolar').first()
+
+    if grado_seccion:
+        grado_q = Q(materia__grado_seccion=grado_seccion)
+        filtro_choque |= grado_q & (Q(bloque__paquete_id=paquete_id) if paquete_id is not None else Q())
     if docente_id:
-        filtro_choque |= Q(materia__docente_id=docente_id)
+        docente_q = Q(materia__docente_id=docente_id)
+        if paquete_actual:
+            docente_q &= Q(bloque__paquete__periodo_escolar=paquete_actual.periodo_escolar)
+        filtro_choque |= docente_q
     if aula_normalizada:
-        filtro_choque |= Q(aula=aula_normalizada)
+        aula_q = Q(aula=aula_normalizada)
+        filtro_choque |= aula_q & (Q(bloque__paquete_id=paquete_id) if paquete_id is not None else Q())
 
     candidatos = candidatos.filter(filtro_choque)
 

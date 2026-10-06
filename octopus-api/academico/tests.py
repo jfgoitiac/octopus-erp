@@ -1484,6 +1484,24 @@ class HorariosPaqueteAislaChoquesTests(TestCase):
         }, format='json')
         self.assertEqual(respuesta.status_code, 201, respuesta.content)
 
+    def test_rechaza_docente_en_dos_paquetes_del_mismo_periodo(self):
+        profesor = crear_usuario('profe_choque_entre_paquetes', 'docente')
+        self.materia_anterior.docente = profesor
+        self.materia_anterior.save(update_fields=['docente'])
+        self.materia_actual.docente = profesor
+        self.materia_actual.save(update_fields=['docente'])
+        self.paquete_actual.periodo_escolar = self.paquete_anterior.periodo_escolar
+        self.paquete_actual.save(update_fields=['periodo_escolar'])
+
+        respuesta = self.client.post('/api/academico/horarios/', {
+            'materia_id': self.materia_actual.id,
+            'bloque_id': self.bloque_actual.id,
+            'aula': '',
+        }, format='json')
+
+        self.assertEqual(respuesta.status_code, 400, respuesta.content)
+        self.assertIn('docente', respuesta.data['error'].lower())
+
 
 class HorariosIntercambiarTests(TestCase):
     def setUp(self):
