@@ -91,8 +91,8 @@ export default function AperturaCajaModal({ onAbierta }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</label>
-          <div className="grid grid-cols-2 gap-2">
+          <span id="apertura-caja-area" className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</span>
+          <div role="group" aria-labelledby="apertura-caja-area" className="grid grid-cols-2 gap-2">
             {AREAS.map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
@@ -111,12 +111,13 @@ export default function AperturaCajaModal({ onAbierta }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+          <label htmlFor="apertura-monto-inicial" className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
             Monto inicial de caja (USD)
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>$</span>
             <input
+              id="apertura-monto-inicial"
               type="number"
               min="0"
               step="0.01"

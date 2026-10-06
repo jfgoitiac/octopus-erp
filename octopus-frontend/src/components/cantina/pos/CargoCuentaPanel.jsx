@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { UserRound, AlertTriangle, RotateCcw } from 'lucide-react';
 import BuscadorRepresentanteCxc from '../cxc/BuscadorRepresentanteCxc';
 import { evaluarCredito } from './evaluarCredito';
@@ -12,6 +13,7 @@ import { evaluarCredito } from './evaluarCredito';
 export default function CargoCuentaPanel({
   representante, onSeleccionar, onCambiar, alumnoId, onCambiarAlumno, totalUsd, disabled,
 }) {
+  const selectId = useId();
   if (!representante) {
     return (
       <div className="space-y-2">
@@ -76,10 +78,11 @@ export default function CargoCuentaPanel({
       )}
 
       <div>
-        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+        <label htmlFor={selectId} className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
           Alumno que consumió
         </label>
         <select
+          id={selectId}
           value={alumnoId}
           onChange={e => onCambiarAlumno(e.target.value)}
           disabled={disabled}

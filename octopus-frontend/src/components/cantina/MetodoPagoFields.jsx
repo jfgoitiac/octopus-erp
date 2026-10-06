@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import {
   METODOS_COBRANZA, montoDeValor, esMetodoBancario, esMetodoVes, esPuntoDeVenta,
   normalizarReferencia, normalizarLote, validarMetodoPago, valorInicialMetodo,
@@ -25,11 +25,13 @@ const INPUT_CLASS = 'w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44p
 const ACTIVE_STYLE = { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' };
 const IDLE_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' };
 
+// `children` es una función que recibe el id para asociar label y control.
 function Campo({ label, error, children }) {
+  const id = useId();
   return (
     <div className="min-w-0">
-      <label className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>{label}</label>
-      {children}
+      <label htmlFor={id} className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>{label}</label>
+      {children(id)}
       {error && <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>{error}</p>}
     </div>
   );
@@ -41,6 +43,7 @@ export default function MetodoPagoFields({
   value, onChange, bancos = [], tasa = 0, metodosPermitidos,
   ocultarMonto = false, ocultarSelector = false, mostrarErrores = false, disabled = false,
 }) {
+  const grupoId = useId();
   const [tocado, setTocado] = useState({});
   const v = value ?? valorInicialMetodo();
   const metodo = v.metodo_pago;
@@ -78,8 +81,8 @@ export default function MetodoPagoFields({
     <div className="space-y-3">
       {!ocultarSelector && (
         <div>
-          <label className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>Método de pago</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+          <span id={grupoId} className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>Método de pago</span>
+          <div role="group" aria-labelledby={grupoId} className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
             {metodos.map(m => (
               <button
                 key={m.value}
@@ -99,11 +102,13 @@ export default function MetodoPagoFields({
 
       {!ocultarMonto && (
         <Campo label={enVes ? 'Monto (Bs.)' : 'Monto (USD)'} error={err('monto')}>
+          {(id) => (<>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>
               {enVes ? 'Bs.' : '$'}
             </span>
             <input
+              id={id}
               type="number"
               min="0.01"
               step="0.01"
@@ -122,6 +127,7 @@ export default function MetodoPagoFields({
           ) : equivalente && (
             <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>{equivalente} · tasa {Number(tasa).toFixed(2)}</p>
           )}
+          </>)}
         </Campo>
       )}
 
@@ -129,7 +135,9 @@ export default function MetodoPagoFields({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Campo label="Banco receptor" error={err('banco_receptor')}>
+              {(id) => (<>
               <select
+                id={id}
                 className={INPUT_CLASS}
                 style={estiloCampo(err('banco_receptor'))}
                 value={v.banco_receptor}
@@ -143,9 +151,12 @@ export default function MetodoPagoFields({
               {bancosDelMetodo.length === 0 && (
                 <p className="text-[11px] mt-1" style={{ color: '#b45309' }}>No hay bancos configurados para este método.</p>
               )}
+              </>)}
             </Campo>
             <Campo label="Banco de procedencia">
+              {(id) => (
               <input
+                id={id}
                 className={INPUT_CLASS}
                 style={FIELD_STYLE}
                 value={v.banco_procedencia}
@@ -154,6 +165,7 @@ export default function MetodoPagoFields({
                 maxLength={100}
                 disabled={disabled}
               />
+              )}
             </Campo>
           </div>
 
@@ -162,7 +174,9 @@ export default function MetodoPagoFields({
               label={metodo === 'zelle' ? 'Confirmación Zelle' : `Referencia (${esPuntoDeVenta(metodo) ? 4 : 6} dígitos)`}
               error={err('referencia')}
             >
+              {(id) => (
               <input
+                id={id}
                 type="text"
                 inputMode={metodo === 'zelle' ? 'text' : 'numeric'}
                 className={INPUT_CLASS}
@@ -173,10 +187,13 @@ export default function MetodoPagoFields({
                 placeholder={metodo === 'zelle' ? 'N.º de confirmación' : 'Ej: 123456'}
                 disabled={disabled}
               />
+              )}
             </Campo>
             {esPuntoDeVenta(metodo) && (
               <Campo label="Lote (4 dígitos)" error={err('numero_lote')}>
+                {(id) => (
                 <input
+                  id={id}
                   type="text"
                   inputMode="numeric"
                   className={INPUT_CLASS}
@@ -187,6 +204,7 @@ export default function MetodoPagoFields({
                   placeholder="0000"
                   disabled={disabled}
                 />
+                )}
               </Campo>
             )}
           </div>
