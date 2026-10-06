@@ -57,7 +57,7 @@ class AperturaCajaCantinaGetTests(AperturaCajaCantinaTestsBase):
 class AperturaCajaCantinaPostTests(AperturaCajaCantinaTestsBase):
     def test_abrir_caja_crea_apertura(self):
         self.client.force_authenticate(user=self.cajero1)
-        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '25.00'}, format='json')
+        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '25.00', 'area': 'cantina'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
         self.assertEqual(resp.data['estado'], 'abierta')
         self.assertEqual(Decimal(resp.data['monto_inicial']), Decimal('25.00'))
@@ -69,7 +69,7 @@ class AperturaCajaCantinaPostTests(AperturaCajaCantinaTestsBase):
     def test_tres_aperturas_simultaneas_son_permitidas(self):
         for cajero in (self.cajero1, self.cajero2, self.cajero3):
             self.client.force_authenticate(user=cajero)
-            resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00'}, format='json')
+            resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00', 'area': 'cantina'}, format='json')
             self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
 
         self.assertEqual(AperturaCajaCantina.objects.filter(estado='abierta').count(), 3)
@@ -79,7 +79,7 @@ class AperturaCajaCantinaPostTests(AperturaCajaCantinaTestsBase):
             AperturaCajaCantina.objects.create(cajero=cajero, monto_inicial=Decimal('10.00'))
 
         self.client.force_authenticate(user=self.cajero4)
-        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00'}, format='json')
+        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00', 'area': 'cantina'}, format='json')
 
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', resp.data)
@@ -95,17 +95,17 @@ class AperturaCajaCantinaPostTests(AperturaCajaCantinaTestsBase):
         aperturas[0].save(update_fields=['estado'])
 
         self.client.force_authenticate(user=self.cajero4)
-        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00'}, format='json')
+        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00', 'area': 'cantina'}, format='json')
 
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
         self.assertEqual(AperturaCajaCantina.objects.filter(estado='abierta').count(), 3)
 
     def test_un_cajero_no_puede_abrir_dos_veces(self):
         self.client.force_authenticate(user=self.cajero1)
-        resp1 = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00'}, format='json')
+        resp1 = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00', 'area': 'cantina'}, format='json')
         self.assertEqual(resp1.status_code, status.HTTP_201_CREATED, resp1.data)
 
-        resp2 = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '5.00'}, format='json')
+        resp2 = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '5.00', 'area': 'cantina'}, format='json')
         self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', resp2.data)
 
@@ -117,7 +117,7 @@ class AperturaCajaCantinaPostTests(AperturaCajaCantinaTestsBase):
         primera.save(update_fields=['estado'])
 
         self.client.force_authenticate(user=self.cajero1)
-        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '5.00'}, format='json')
+        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '5.00', 'area': 'cantina'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
         self.assertEqual(AperturaCajaCantina.objects.filter(cajero=self.cajero1, estado='abierta').count(), 1)
 
@@ -129,11 +129,11 @@ class AperturaCajaCantinaPostTests(AperturaCajaCantinaTestsBase):
 
     def test_monto_inicial_negativo_es_rechazado(self):
         self.client.force_authenticate(user=self.cajero1)
-        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '-5.00'}, format='json')
+        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '-5.00', 'area': 'cantina'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_no_autenticado_rechazado(self):
-        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00'}, format='json')
+        resp = self.client.post('/api/cantina/apertura-caja/', {'monto_inicial': '10.00', 'area': 'cantina'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

@@ -12,15 +12,18 @@ from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import permissions, status
+from rest_framework import permissions, serializers as drf_serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cobranza.exports import ExcelExporter
-from cobranza.models import BancoInstitucional, TasaCambio
+from cobranza.models import BancoInstitucional, Pago, TasaCambio
 from secretaria.models import Alumno, Representante
 from .mora_cantina import dias_en_negativo
+from . import services_cxc
 from .models import (
+    AREAS,
+    AbonoCantina,
     AperturaCajaCantina,
     CategoriaProducto,
     CierreCajaCantina,
@@ -33,7 +36,7 @@ from .models import (
     TarjetaPrepago,
     VentaCantina,
 )
-from .permissions import EsCajeroOAdmin
+from .permissions import EsAdminCantina, EsCajeroOAdmin
 from .serializers import (
     AjustarCreditoSerializer,
     AperturaCajaCantinaSerializer,
@@ -49,12 +52,34 @@ from .serializers import (
 )
 from .services_inventario import aplicar_movimiento_inventario
 from .services_tarjeta import aplicar_movimiento_tarjeta, generar_codigo_tarjeta
-from .utils import generar_pdf_ticket
+from .utils import generar_pdf_ticket, validar_datos_bancarios
 
 logger = logging.getLogger(__name__)
 
 CANTIDAD_MAXIMA_LOTE = 500
 MOTIVOS_REPOSICION = ('extravio', 'dano')
+AREAS_VALIDAS = dict(AREAS)
+# Métodos de cobranza en los que se guardan los datos bancarios de la venta.
+METODOS_VENTA_BANCARIOS = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')
+METODOS_EFECTIVO = ('efectivo', 'efectivo_ves')
+
+
+def _mensaje_error(exc):
+    """Mensaje legible de un ValidationError de Django o de DRF."""
+    if isinstance(exc, DjangoValidationError):
+        return exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
+    detail = exc.detail
+    while isinstance(detail, (dict, list)) and detail:
+        detail = next(iter(detail.values())) if isinstance(detail, dict) else detail[0]
+    return str(detail)
+
+
+def _filtrar_por_area(queryset, request):
+    """Aplica el filtro opcional ?area= (cantina|libreria)."""
+    area = request.query_params.get('area')
+    if area:
+        return queryset.filter(area=area)
+    return queryset
 
 
 # ─────────────────────────────────────────────
@@ -75,7 +100,7 @@ class CategoriasListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        categorias = CategoriaProducto.objects.all()
+        categorias = _filtrar_por_area(CategoriaProducto.objects.all(), request)
         return Response(CategoriaProductoSerializer(categorias, many=True).data)
 
     def post(self, request):
@@ -95,7 +120,7 @@ class ProductosListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        productos = ProductoCantina.objects.select_related('categoria').all()
+        productos = _filtrar_por_area(ProductoCantina.objects.select_related('categoria').all(), request)
 
         categoria_id = request.query_params.get('categoria')
         if categoria_id:
@@ -161,7 +186,7 @@ class ProductoBuscarPorCodigoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        producto = ProductoCantina.objects.filter(codigo_barras=codigo).first()
+        producto = _filtrar_por_area(ProductoCantina.objects.filter(codigo_barras=codigo), request).first()
         if not producto:
             return Response(
                 {'detail': f"No se encontró ningún producto con código de barras '{codigo}'."},
@@ -753,11 +778,11 @@ class AperturaCajaCantinaView(APIView):
     decidir si debe pedir el monto inicial antes de la primera venta del
     turno).
 
-    POST {monto_inicial}: abre una nueva apertura de caja para el cajero
-    autenticado. Un mismo cajero no puede abrir dos veces (rechazado con
-    400), y el sistema entero no permite más de
-    `AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS` aperturas 'abierta' a
-    la vez (rechazado con 400 y mensaje claro).
+    POST {monto_inicial, area}: abre una nueva apertura de caja para el
+    cajero autenticado en el área elegida ('cantina' o 'libreria', D2). Un
+    mismo cajero no puede abrir dos veces (rechazado con 400), y no se
+    permiten más de `AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS`
+    aperturas 'abierta' a la vez POR ÁREA (D3; rechazado con 400).
 
     El chequeo de "máximo 3 aperturas simultáneas" cruza filas de toda la
     tabla — ninguna constraint de una sola fila puede expresarlo — así que
@@ -775,6 +800,13 @@ class AperturaCajaCantinaView(APIView):
         return Response({'apertura': AperturaCajaCantinaSerializer(apertura).data})
 
     def post(self, request):
+        area = request.data.get('area')
+        if area not in AREAS_VALIDAS:
+            return Response(
+                {'detail': "El campo 'area' es obligatorio y debe ser 'cantina' o 'libreria'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         monto_inicial_raw = request.data.get('monto_inicial')
         if monto_inicial_raw in (None, ''):
             return Response(
@@ -806,19 +838,22 @@ class AperturaCajaCantinaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            abiertas_actuales = AperturaCajaCantina.objects.filter(estado='abierta').count()
+            abiertas_actuales = AperturaCajaCantina.objects.filter(estado='abierta', area=area).count()
             if abiertas_actuales >= AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS:
                 return Response(
                     {
                         'detail': (
                             f'Ya hay {AperturaCajaCantina.MAX_APERTURAS_SIMULTANEAS} cajas abiertas '
-                            'simultáneamente — un cajero debe cerrar su caja antes de que se pueda abrir otra.'
+                            f'simultáneamente en {AREAS_VALIDAS[area]} — un cajero debe cerrar su caja '
+                            'antes de que se pueda abrir otra.'
                         ),
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            apertura = AperturaCajaCantina.objects.create(cajero=request.user, monto_inicial=monto_inicial)
+            apertura = AperturaCajaCantina.objects.create(
+                cajero=request.user, monto_inicial=monto_inicial, area=area,
+            )
 
         return Response(AperturaCajaCantinaSerializer(apertura).data, status=status.HTTP_201_CREATED)
 
@@ -838,9 +873,14 @@ class RegistrarVentaView(APIView):
     Contrato de request (acordado con el frontend, ver reporte de la tarea):
         {
           "items": [{"producto_id": 1, "cantidad": 2}, ...],
-          "metodo_pago": "efectivo" | "efectivo_ves" | "tarjeta_prepago",
-          "tarjeta_codigo": "CANT-XXXXXXXXXX"   # solo si metodo_pago == "tarjeta_prepago"
+          "metodo_pago": "tarjeta_prepago" | <método de cobranza> | "credito_representante",
+          "tarjeta_codigo": "CANT-XXXXXXXXXX",   # solo si metodo_pago == "tarjeta_prepago"
+          "banco_receptor": id, "banco_procedencia", "referencia", "numero_lote",  # métodos bancarios
+          "representante_id": id, "alumno_id": id  # solo si metodo_pago == "credito_representante"
         }
+
+    El ÁREA de la venta sale SIEMPRE de la apertura del cajero (D2), nunca
+    del request; solo se pueden vender productos de esa área.
 
     Orden de validaciones (checklist §10 — "si falla el stock de cualquier
     línea, no se toca el saldo de tarjeta, y viceversa"):
@@ -881,9 +921,42 @@ class RegistrarVentaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # ── Datos bancarios (métodos de cobranza) ───────────────────────────
+        banco_receptor = None
+        banco_procedencia = None
+        referencia = None
+        numero_lote = None
+        if metodo_pago in dict(Pago.METODOS):
+            banco_id = request.data.get('banco_receptor')
+            if banco_id not in (None, ''):
+                banco_receptor = BancoInstitucional.objects.filter(pk=banco_id, activo=True).first()
+                if banco_receptor is None:
+                    return Response(
+                        {'error': f"No se encontró ningún banco receptor activo con id '{banco_id}'."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            errores, ref_normalizada = validar_datos_bancarios(
+                metodo_pago,
+                request.data.get('referencia'),
+                request.data.get('numero_lote'),
+                banco_receptor,
+            )
+            if errores:
+                return Response(
+                    {'error': next(iter(errores.values())), 'errores': errores},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if metodo_pago in METODOS_VENTA_BANCARIOS:
+                referencia = ref_normalizada or None
+                numero_lote = (request.data.get('numero_lote') or '').strip() or None
+                banco_procedencia = (request.data.get('banco_procedencia') or '').strip() or None
+            else:
+                banco_receptor = None
+
         # ── Resolver tarjeta/alumno (solo obligatorio con tarjeta_prepago) ──
         tarjeta = None
         alumno = None
+        representante = None
         if metodo_pago == 'tarjeta_prepago':
             tarjeta_codigo = request.data.get('tarjeta_codigo')
             tarjeta_id = request.data.get('tarjeta_id')
@@ -901,6 +974,29 @@ class RegistrarVentaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             alumno = tarjeta.alumno
+
+        # ── Cargo a cuenta del representante (CxC) ──────────────────────────
+        if metodo_pago == 'credito_representante':
+            representante_id = request.data.get('representante_id')
+            if not representante_id:
+                return Response(
+                    {'error': "El cargo a cuenta requiere 'representante_id'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            representante = Representante.objects.filter(pk=representante_id, activo=True).first()
+            if not representante:
+                return Response(
+                    {'error': f"No se encontró ningún representante activo con id '{representante_id}'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            alumno_id = request.data.get('alumno_id')
+            if alumno_id:
+                alumno = Alumno.objects.filter(pk=alumno_id, representante=representante).first()
+                if not alumno:
+                    return Response(
+                        {'error': 'El alumno indicado no es hijo del representante seleccionado.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
         # ── Resolver productos y calcular total (solo lectura) ──────────────
         lineas = []
@@ -925,6 +1021,14 @@ class RegistrarVentaView(APIView):
             if not producto:
                 return Response(
                     {'error': f"No se encontró ningún producto activo con id '{producto_id}'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if producto.area != apertura.area:
+                return Response(
+                    {'error': (
+                        f"El producto '{producto.nombre}' pertenece a {AREAS_VALIDAS.get(producto.area, producto.area)} "
+                        f"y tu caja es de {AREAS_VALIDAS.get(apertura.area, apertura.area)}."
+                    )},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if producto.stock_actual < cantidad:
@@ -971,8 +1075,14 @@ class RegistrarVentaView(APIView):
                     alumno=alumno,
                     tarjeta=tarjeta,
                     apertura=apertura,
+                    area=apertura.area,
                     cajero=request.user,
                     metodo_pago=metodo_pago,
+                    banco_receptor=banco_receptor,
+                    banco_procedencia=banco_procedencia,
+                    referencia=referencia,
+                    numero_lote=numero_lote,
+                    representante=representante,
                     total_usd=total_usd,
                     tasa_aplicada=tasa.valor_bs,
                     total_ves=total_ves,
@@ -994,6 +1104,13 @@ class RegistrarVentaView(APIView):
                     )
                     venta.saldo_tarjeta_despues = movimiento.saldo_despues
                     venta.save(update_fields=['saldo_tarjeta_despues'])
+
+                if metodo_pago == 'credito_representante':
+                    # Valida bloqueo y límite de crédito y crea el CargoCantina
+                    # dentro de ESTA transacción: si falla, se revierte todo.
+                    services_cxc.crear_cargo_por_venta(venta)
+        except drf_serializers.ValidationError as exc:
+            return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except DjangoValidationError as exc:
             # Cubre tanto el ValidationError de stock insuficiente
             # (`aplicar_movimiento_inventario`) como `SaldoInsuficienteError`
@@ -1003,7 +1120,7 @@ class RegistrarVentaView(APIView):
             mensaje = exc.messages[0] if hasattr(exc, 'messages') and exc.messages else str(exc)
             return Response({'error': mensaje}, status=status.HTTP_400_BAD_REQUEST)
 
-        venta = VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero').prefetch_related(
+        venta = VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero', 'representante').prefetch_related(
             'detalles__producto',
         ).get(pk=venta.pk)
         return Response(VentaCantinaSerializer(venta).data, status=status.HTTP_201_CREATED)
@@ -1019,7 +1136,9 @@ class AnularVentaView(APIView):
     DECISIÓN DE PERMISO: el cliente confirmó explícitamente que el cajero
     debe tener el mismo nivel de acceso que administrador/director en todo
     el módulo cantina (no se le restringe), así que esta vista usa
-    `EsCajeroOAdmin` como el resto — ya no `EsAdminCantina`.
+    `EsCajeroOAdmin` como el resto — ya no `EsAdminCantina`. Excepción (D10):
+    anular una venta cargada a cuenta del representante (anula su cargo de
+    CxC) es solo de administrador/director.
     """
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
@@ -1034,26 +1153,40 @@ class AnularVentaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        with transaction.atomic():
-            for detalle in venta.detalles.select_related('producto').all():
-                aplicar_movimiento_inventario(
-                    detalle.producto, 'entrada', detalle.cantidad,
-                    motivo=f'Anulación de venta #{venta.id}', venta=venta, usuario=request.user,
-                )
+        es_credito = venta.metodo_pago == 'credito_representante'
+        if es_credito and not EsAdminCantina().has_permission(request, self):
+            return Response(
+                {'error': 'Solo un administrador o director puede anular una venta cargada a cuenta.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-            if venta.tarjeta_id:
-                aplicar_movimiento_tarjeta(
-                    venta.tarjeta, 'reverso', venta.total_usd, venta=venta, usuario=request.user,
-                )
+        try:
+            with transaction.atomic():
+                if es_credito:
+                    # Falla (400) si el cargo ya tiene abonos aplicados.
+                    services_cxc.anular_cargo_por_venta(venta, request.user)
 
-            venta.estado = 'anulada'
-            venta.anulada_en = timezone.now()
-            venta.anulada_por = request.user
-            venta.save(update_fields=['estado', 'anulada_en', 'anulada_por'])
+                for detalle in venta.detalles.select_related('producto').all():
+                    aplicar_movimiento_inventario(
+                        detalle.producto, 'entrada', detalle.cantidad,
+                        motivo=f'Anulación de venta #{venta.id}', venta=venta, usuario=request.user,
+                    )
 
-        venta = VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero', 'anulada_por').prefetch_related(
-            'detalles__producto',
-        ).get(pk=venta.pk)
+                if venta.tarjeta_id:
+                    aplicar_movimiento_tarjeta(
+                        venta.tarjeta, 'reverso', venta.total_usd, venta=venta, usuario=request.user,
+                    )
+
+                venta.estado = 'anulada'
+                venta.anulada_en = timezone.now()
+                venta.anulada_por = request.user
+                venta.save(update_fields=['estado', 'anulada_en', 'anulada_por'])
+        except (drf_serializers.ValidationError, DjangoValidationError) as exc:
+            return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        venta = VentaCantina.objects.select_related(
+            'alumno', 'tarjeta', 'cajero', 'anulada_por', 'representante',
+        ).prefetch_related('detalles__producto').get(pk=venta.pk)
         return Response(VentaCantinaSerializer(venta).data, status=status.HTTP_200_OK)
 
 
@@ -1070,9 +1203,9 @@ class ReciboVentaPDFView(APIView):
 
     def get(self, request, venta_id):
         venta = get_object_or_404(
-            VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero', 'anulada_por').prefetch_related(
-                'detalles__producto',
-            ),
+            VentaCantina.objects.select_related(
+                'alumno', 'tarjeta', 'cajero', 'anulada_por', 'representante',
+            ).prefetch_related('detalles__producto'),
             pk=venta_id,
         )
 
@@ -1099,22 +1232,23 @@ class ReciboVentaPDFView(APIView):
 
 def _calcular_totales_apertura(cajero, apertura):
     """
-    Agrega las ventas registradas bajo la `apertura` del `cajero` dado —
-    NUNCA las de otros cajeros ni las de otras aperturas suyas (cerradas o
-    de otro turno), para que 3 cajeros con caja abierta a la vez no se
-    mezclen ni se bloqueen entre sí (§ apertura por cajero). Usada tanto
-    por el GET (resumen preliminar, nada se persiste) como por el POST
-    (recálculo server-side antes de crear el `CierreCajaCantina` — nunca se
-    confía en totales enviados por el cliente, mismo criterio que el resto
-    del módulo con dinero, ver `RegistrarVentaView`).
+    Agrega las ventas, abonos de CxC y recargas registrados bajo la
+    `apertura` del `cajero` dado — NUNCA los de otros cajeros ni los de
+    otras aperturas (cerradas, de otra área o de otro turno), para que
+    varios cajeros con caja abierta a la vez no se mezclen ni se bloqueen
+    entre sí. Usada tanto por el GET (resumen preliminar, nada se persiste)
+    como por el POST (recálculo server-side antes de crear el
+    `CierreCajaCantina` — nunca se confía en totales enviados por el
+    cliente).
 
-    Las recargas en efectivo del cajero, en cambio, se siguen agregando por
-    día calendario (no tienen concepto de apertura — fuera del alcance de
-    este cambio).
+    Las recargas de tarjeta no tienen FK a la apertura: se atribuyen a la
+    apertura por cajero y ventana de tiempo (desde que se abrió la caja).
 
-    Devuelve un dict con los 4 `Decimal` ya redondeados a 2 decimales
-    (`Decimal('0.00')` si `aggregate` no encuentra filas, para evitar
-    `None`).
+    Devuelve un dict con los 4 `Decimal` históricos (compatibilidad), más:
+      - `totales_por_metodo` (D11): `{metodo: {ventas, abonos, recargas,
+        total_usd, total_ves}}` (strings), solo para métodos con movimiento.
+      - `efectivo_esperado`: monto inicial + efectivo (USD y VES, en USD)
+        de ventas + abonos + recargas de ESTA apertura.
     """
     ventas_apertura = VentaCantina.objects.filter(
         cajero=cajero, estado='completada', apertura=apertura,
@@ -1124,19 +1258,59 @@ def _calcular_totales_apertura(cajero, apertura):
         total=Sum('total_usd'),
     )['total'] or Decimal('0.00')
     total_efectivo = ventas_apertura.filter(
-        metodo_pago__in=['efectivo', 'efectivo_ves'],
+        metodo_pago__in=METODOS_EFECTIVO,
     ).aggregate(total=Sum('total_usd'))['total'] or Decimal('0.00')
 
-    fecha = timezone.localtime(apertura.fecha_hora_apertura).date()
-    total_recargas_efectivo = RecargaTarjeta.objects.filter(
-        cajero=cajero, estatus='aprobado', registrado_por_portal=False, creado_en__date=fecha,
+    recargas = RecargaTarjeta.objects.filter(
+        cajero=cajero, estatus='aprobado', registrado_por_portal=False,
+        creado_en__gte=apertura.fecha_hora_apertura,
+    )
+    total_recargas_efectivo = recargas.filter(
+        metodo_pago__in=METODOS_EFECTIVO,
     ).aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
+
+    abonos = AbonoCantina.objects.filter(apertura=apertura, estatus='completado')
+    total_abonos_efectivo = abonos.filter(
+        metodo_pago__in=METODOS_EFECTIVO,
+    ).aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
+
+    cero = Decimal('0.00')
+    por_metodo = {}
+
+    def _acumular(queryset, campo_usd, campo_ves, clave):
+        for fila in queryset.values('metodo_pago').annotate(usd=Sum(campo_usd), ves=Sum(campo_ves)):
+            entrada = por_metodo.setdefault(
+                fila['metodo_pago'],
+                {'ventas': cero, 'abonos': cero, 'recargas': cero, 'total_ves': cero},
+            )
+            entrada[clave] += fila['usd'] or cero
+            entrada['total_ves'] += fila['ves'] or cero
+
+    _acumular(ventas_apertura, 'total_usd', 'total_ves', 'ventas')
+    _acumular(abonos, 'monto_usd', 'monto_ves', 'abonos')
+    _acumular(recargas, 'monto_usd', 'monto_ves', 'recargas')
+
+    totales_por_metodo = {
+        metodo: {
+            'ventas': str(v['ventas']),
+            'abonos': str(v['abonos']),
+            'recargas': str(v['recargas']),
+            'total_usd': str(v['ventas'] + v['abonos'] + v['recargas']),
+            'total_ves': str(v['total_ves']),
+        }
+        for metodo, v in sorted(por_metodo.items())
+    }
+
+    efectivo_esperado = apertura.monto_inicial + total_efectivo + total_abonos_efectivo + total_recargas_efectivo
 
     return {
         'total_ventas': total_ventas,
         'total_tarjeta': total_tarjeta,
         'total_efectivo': total_efectivo,
         'total_recargas_efectivo': total_recargas_efectivo,
+        'total_abonos_efectivo': total_abonos_efectivo,
+        'totales_por_metodo': totales_por_metodo,
+        'efectivo_esperado': efectivo_esperado,
     }
 
 
@@ -1193,6 +1367,10 @@ class CierreCajaCantinaView(APIView):
             'total_tarjeta': str(totales['total_tarjeta']),
             'total_efectivo': str(totales['total_efectivo']),
             'total_recargas_efectivo': str(totales['total_recargas_efectivo']),
+            'total_abonos_efectivo': str(totales['total_abonos_efectivo']),
+            'efectivo_esperado': str(totales['efectivo_esperado']),
+            'area': apertura.area,
+            'totales_por_metodo': totales['totales_por_metodo'],
         })
 
     def post(self, request):
@@ -1229,11 +1407,11 @@ class CierreCajaCantinaView(APIView):
 
         # La diferencia de caja se calcula contra el dinero que debería
         # estar FÍSICAMENTE en la caja de ESTE cajero: su monto inicial
-        # declarado al abrir + efectivo cobrado + recargas cobradas en
-        # efectivo bajo su turno. El total de tarjeta prepago NO es dinero
-        # físico (el saldo vive en la tarjeta, no en la caja), pero sí entra
-        # en `total_ventas`/el registro para contexto administrativo.
-        efectivo_esperado = apertura.monto_inicial + totales['total_efectivo'] + totales['total_recargas_efectivo']
+        # declarado al abrir + efectivo cobrado (ventas, abonos de CxC y
+        # recargas) bajo su turno. La tarjeta prepago y el cargo a cuenta NO
+        # son dinero físico, pero sí entran en `total_ventas`/el registro
+        # para contexto administrativo.
+        efectivo_esperado = totales['efectivo_esperado']
         diferencia = (conteo_fisico - efectivo_esperado).quantize(Decimal('0.01'))
 
         try:
@@ -1241,6 +1419,8 @@ class CierreCajaCantinaView(APIView):
                 cierre = CierreCajaCantina.objects.create(
                     cajero=request.user,
                     apertura=apertura,
+                    area=apertura.area,
+                    totales_por_metodo=totales['totales_por_metodo'],
                     fecha=timezone.localtime(apertura.fecha_hora_apertura).date(),
                     total_ventas=totales['total_ventas'],
                     total_tarjeta=totales['total_tarjeta'],
@@ -1289,7 +1469,7 @@ def _parsear_rango_fechas(request):
 def _ventas_del_rango(request):
     """
     Resuelve el queryset base de `VentaCantina` para el rango de fechas +
-    filtro opcional `alumno_id` — reutilizado por `ReporteVentasView` y
+    filtros opcionales `alumno_id`, `area` y `cajero` — reutilizado por `ReporteVentasView` y
     `ExportarVentasExcelView` para no duplicar el filtrado.
     """
     fi, ff = _parsear_rango_fechas(request)
@@ -1302,12 +1482,20 @@ def _ventas_del_rango(request):
     if alumno_id:
         ventas = ventas.filter(alumno_id=alumno_id)
 
+    area = request.query_params.get('area')
+    if area:
+        ventas = ventas.filter(area=area)
+
+    cajero_id = request.query_params.get('cajero')
+    if cajero_id:
+        ventas = ventas.filter(cajero_id=cajero_id)
+
     return fi, ff, ventas
 
 
 class ReporteVentasView(APIView):
     """
-    GET ?fecha_inicio=&fecha_fin=&alumno_id=: reporte de ventas del rango
+    GET ?fecha_inicio=&fecha_fin=&alumno_id=&area=&cajero=: reporte de ventas del rango
     (default: hoy si no se pasan fechas, mismo criterio que
     `ExportarAuditoriaExcelView` de cobranza). Alimenta
     `HistorialVentasTable.jsx`, los totales agregados y el gráfico de
@@ -1327,7 +1515,7 @@ class ReporteVentasView(APIView):
         except ValueError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        ventas_lista = ventas.select_related('alumno', 'tarjeta', 'cajero').prefetch_related(
+        ventas_lista = ventas.select_related('alumno', 'tarjeta', 'cajero', 'representante').prefetch_related(
             'detalles__producto',
         )
         ventas_completadas = ventas.filter(estado='completada')
@@ -1376,7 +1564,7 @@ class ReporteVentasView(APIView):
 
 class ExportarVentasExcelView(APIView):
     """
-    GET ?fecha_inicio=&fecha_fin=&alumno_id=: exporta a Excel las ventas del
+    GET ?fecha_inicio=&fecha_fin=&alumno_id=&area=&cajero=: exporta a Excel las ventas del
     rango (mismos filtros que `ReporteVentasView`), reutilizando el helper
     `cobranza.exports.ExcelExporter` — no se reimplementa exportación a
     Excel (mismo patrón que `ExportarAuditoriaExcelView` de cobranza).
@@ -1389,11 +1577,13 @@ class ExportarVentasExcelView(APIView):
         except ValueError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        ventas = ventas.select_related('alumno', 'cajero').order_by('-creado_en')
+        ventas = ventas.select_related('alumno', 'cajero', 'representante').order_by('-creado_en')
 
         columns = [
             ('Fecha',          lambda x: x.creado_en.strftime('%d/%m/%Y %H:%M')),
+            ('Área',           lambda x: x.get_area_display()),
             ('Alumno',         lambda x: f'{x.alumno.nombre} {x.alumno.apellido}' if x.alumno_id else 'Sin identificar'),
+            ('Representante',  lambda x: f'{x.representante.nombre} {x.representante.apellido}' if x.representante_id else ''),
             ('Método de pago', lambda x: x.get_metodo_pago_display()),
             ('Total USD',      'total_usd'),
             ('Total VES',      'total_ves'),

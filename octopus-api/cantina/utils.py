@@ -13,7 +13,69 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
+from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
+
 logger = logging.getLogger(__name__)
+
+
+# Métodos que requieren número de referencia obligatorio (mismo criterio
+# que portal._METODOS_CON_REFERENCIA_OBLIGATORIA).
+METODOS_CON_REFERENCIA_OBLIGATORIA = {'transferencia', 'pago_movil', 'punto_de_venta', 'zelle'}
+
+# Regla propia de cantina (§5.9 punto 3 de cantina.md): Pago Móvil y
+# Transferencia exigen referencia numérica de 6 dígitos.
+METODOS_REFERENCIA_6_DIGITOS = {'pago_movil', 'transferencia'}
+
+# Métodos que requieren banco receptor obligatorio.
+METODOS_CON_BANCO_OBLIGATORIO = {'transferencia', 'pago_movil'}
+
+
+def validar_datos_bancarios(metodo, referencia, numero_lote, banco_receptor, excluir_recarga_id=None):
+    """
+    Validación de los datos bancarios de un cobro (recargas y ventas del POS
+    con métodos de cobranza). Fuente única de las reglas: formato de
+    referencia por método, banco receptor obligatorio y duplicidad cruzada
+    vía `buscar_referencia_duplicada` (clave compuesta referencia + método +
+    banco receptor).
+
+    Devuelve `(errores, referencia_normalizada)`: `errores` es un dict
+    `{campo: mensaje}` (vacío si todo es válido) y `referencia_normalizada`
+    es la referencia lista para guardar ('' si no hay referencia).
+    """
+    referencia_raw = (referencia or '').strip()
+    numero_lote_raw = (numero_lote or '').strip()
+
+    if metodo == 'punto_de_venta':
+        if not referencia_raw.isdigit() or len(referencia_raw) != 4:
+            return {'referencia': 'Punto de Venta requiere un número de referencia de 4 dígitos.'}, ''
+        if not numero_lote_raw.isdigit() or len(numero_lote_raw) != 4:
+            return {'numero_lote': 'Punto de Venta requiere un número de lote de 4 dígitos.'}, ''
+    elif metodo in METODOS_REFERENCIA_6_DIGITOS:
+        if not referencia_raw.isdigit() or len(referencia_raw) != 6:
+            return {'referencia': 'Este método requiere un número de referencia de 6 dígitos.'}, ''
+    elif metodo in METODOS_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
+        return {'referencia': 'Este método de pago requiere número de referencia.'}, ''
+
+    if metodo in METODOS_CON_BANCO_OBLIGATORIO and not banco_receptor:
+        return {'banco_receptor': 'Este método de pago requiere indicar el banco receptor.'}, ''
+
+    ref_normalizada = ''
+    if referencia_raw:
+        ref_normalizada = normalizar_referencia(referencia_raw)
+        duplicado = buscar_referencia_duplicada(
+            ref_normalizada,
+            excluir_recarga_id=excluir_recarga_id,
+            metodo_pago=metodo,
+            banco_receptor_id=(banco_receptor.id if banco_receptor else None),
+        )
+        if duplicado:
+            return {'referencia': (
+                f"La referencia '{ref_normalizada}' ya está en uso en "
+                f"{duplicado['origen']} (#{duplicado['id']}, {duplicado['detalle']}). "
+                "Si cree que es un error, contacte al administrador."
+            )}, ''
+
+    return {}, ref_normalizada
 
 
 def _get_config_colegio():
@@ -71,7 +133,8 @@ def generar_pdf_ticket(venta):
 
     c.setFillColor(octopus_blue)
     c.setFont('Helvetica-Bold', 12)
-    c.drawRightString(width - margin, height - 1 * inch, 'TICKET DE VENTA — CANTINA')
+    area_label = venta.get_area_display().upper()
+    c.drawRightString(width - margin, height - 1 * inch, f'TICKET DE VENTA — {area_label}')
     c.setFont('Helvetica-Bold', 14)
     c.drawRightString(width - margin, height - 1.25 * inch, f'Nº {venta.id:06d}')
 
@@ -88,6 +151,9 @@ def generar_pdf_ticket(venta):
         y -= 0.22 * inch
     if venta.tarjeta_id:
         c.drawString(margin, y, f'Tarjeta: {venta.tarjeta.serial}')
+        y -= 0.22 * inch
+    if venta.representante_id:
+        c.drawString(margin, y, f'Cargado a la cuenta de: {venta.representante.nombre} {venta.representante.apellido}')
         y -= 0.22 * inch
 
     metodo_labels = dict(type(venta).METODOS_PAGO)
