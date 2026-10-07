@@ -44,3 +44,40 @@ El contrato se respeta tal cual. Detalles y adiciones:
 - `tolerancia_conciliacion_ves` (default 200.00) se lee/edita por
   `ConfiguracionSistemaView` (GET docente+, POST admin/director/sistemas). Si aun no
   existe configuracion, GET devuelve `{}` y el servidor usa 200.
+
+## Conciliacion masiva con filtro de fechas
+
+- `GET conciliacion/candidatos/` acepta `desde` y `hasta` (AAAA-MM-DD, inclusivos,
+  hora local). Filtran por `Pago.fecha_pago`; para comprobantes pendientes se usa
+  `ComprobantePago.fecha_subida` (el modelo no guarda otra fecha de pago). `ref`
+  (4-6 digitos) sigue obligatorio salvo que venga `desde` y/o `hasta`; si viene
+  junto al rango, se aplican ambos. Fechas invalidas o `desde > hasta` -> 400. El
+  tope de 50 resultados se mantiene (para volumen usar `auto/propuestas/`).
+- `POST conciliacion/auto/propuestas/` (solo lectura): body `{banco, desde, hasta,
+  tolerancia?, digitos? (4..8, def. 6), transacciones:[{referencia, fecha, monto}]}`
+  (max 5000 transacciones; duplicados referencia+fecha se descartan). Respuesta
+  `{propuestas, resumen, sin_operacion}` segun contrato. Detalles:
+  - Candidatas: operaciones (pagos `completado` agrupados por `operacion_uuid`) y
+    comprobantes `pendiente` del banco en el rango, no conciliadas. Lineas ya
+    usadas (banco+referencia+fecha) se ignoran y no salen en `sin_operacion`.
+  - Emparejamiento por ultimos `digitos` digitos (referencias normalizadas a solo
+    digitos; si alguna tiene menos digitos que `digitos`, igualdad completa).
+  - Asignacion uno-a-uno por acuerdo mutuo: operacion y linea se emparejan si cada
+    una elige a la otra de forma unica (unica opcion; o unica diferencia exacta;
+    o, sin exactas, unica dentro de tolerancia). Si no, `ambigua` con `candidatas`
+    (lineas aun libres). Una operacion cuyas lineas fueron tomadas por otras queda
+    `sin_banco`.
+  - `sin_operacion`: lineas sin ninguna operacion candidata por referencia.
+  - `id` = indice en el orden (fecha, tipo, uuid/comprobante); estable mientras no
+    cambien los datos. Comprobantes: `seleccionada_por_defecto` siempre false.
+  - Errores: 400 (banco/fechas/digitos/transacciones invalidos), 404 banco
+    inexistente, 403 rol sin permiso.
+- `POST conciliacion/auto/confirmar/`: body `{banco, tolerancia?, archivo?,
+  items:[{operacion_uuid|comprobante_id, transaccion, observacion?}]}`. Respuesta
+  `{conciliadas:[{indice, conciliacion_id, advertencias?}], errores:[{indice, error}],
+  lote:{id, total_operaciones}|null}` (`lote` es null si nada se concilio y no hay
+  lote abierto). Cada item pasa por `conciliar_item` (servicio compartido con
+  `conciliar/`: tolerancia recalculada, observacion obligatoria fuera de
+  tolerancia, unicidades, aprobacion de comprobantes) en su propio savepoint. Max
+  500 items (400 si excede o lista vacia). Banco inexistente 404; sede ajena o
+  comprobante/operacion inexistente -> el item va a `errores`.

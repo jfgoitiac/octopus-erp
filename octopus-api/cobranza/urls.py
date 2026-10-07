@@ -1,9 +1,11 @@
 from django.urls import path
 from .conciliacion_semiauto import (
     CandidatosConciliacionView,
+    ConfirmarMasivaView,
     ConciliarOperacionView,
     FinalizarLoteAbiertoView,
     LoteAbiertoView,
+    PropuestasConciliacionView,
 )
 from .views import (
     ActualizarCuotaInscripcionView,
@@ -100,6 +102,8 @@ urlpatterns = [
     path('conciliacion/lotes/<int:pk>/',    LoteRevisionCajaDetailView.as_view(),     name='conciliacion-lote-detalle'),
     path('conciliacion/candidatos/',        CandidatosConciliacionView.as_view(),     name='conciliacion-candidatos'),
     path('conciliacion/conciliar/',         ConciliarOperacionView.as_view(),         name='conciliacion-conciliar'),
+    path('conciliacion/auto/propuestas/',   PropuestasConciliacionView.as_view(),     name='conciliacion-auto-propuestas'),
+    path('conciliacion/auto/confirmar/',    ConfirmarMasivaView.as_view(),            name='conciliacion-auto-confirmar'),
     path('conciliacion/lotes/abierto/',     LoteAbiertoView.as_view(),                name='conciliacion-lote-abierto'),
     path('conciliacion/lotes/abierto/finalizar/', FinalizarLoteAbiertoView.as_view(), name='conciliacion-lote-abierto-finalizar'),
     path('conciliacion/extraer-pdf/',       ExtraerPdfConciliacionView.as_view(),     name='conciliacion-extraer-pdf'),

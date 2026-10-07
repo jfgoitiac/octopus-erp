@@ -526,3 +526,272 @@ class FinalizarLoteAbiertoView(APIView):
         lote.estado = 'finalizado'
         lote.save(update_fields=['estado'])
         return Response(serializar_lote(lote, con_conciliaciones=True))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Conciliación masiva: propuestas (solo lectura) y confirmación en lote
+# ─────────────────────────────────────────────────────────────────────────────
+
+MAX_ITEMS_CONFIRMAR = 500
+MAX_TRANSACCIONES_PROPUESTAS = 5000
+
+
+def _solo_digitos(texto):
+    return re.sub(r'\D', '', str(texto or ''))
+
+
+def _refs_coinciden(a, b, digitos):
+    """Últimos `digitos` dígitos iguales; si alguna referencia tiene menos
+    dígitos que `digitos`, se exige igualdad completa."""
+    da, db = _solo_digitos(a), _solo_digitos(b)
+    if not da or not db:
+        return False
+    if len(da) < digitos or len(db) < digitos:
+        return da == db
+    return da[-digitos:] == db[-digitos:]
+
+
+def _tx_json(t):
+    return {'referencia': t['referencia'], 'fecha': t['fecha'].isoformat(), 'monto': str(t['monto'])}
+
+
+def _elegir_unica(opciones, tolerancia):
+    """
+    opciones: [(clave, diferencia_abs)]. Devuelve la clave única que resuelve el
+    empate (única opción; o exacta única; o, sin exactas, única dentro de
+    tolerancia) o None si es ambiguo.
+    """
+    if len(opciones) == 1:
+        return opciones[0][0]
+    exactas = [k for k, d in opciones if d == 0]
+    if len(exactas) == 1:
+        return exactas[0]
+    if exactas:
+        return None
+    dentro = [k for k, d in opciones if d <= tolerancia]
+    return dentro[0] if len(dentro) == 1 else None
+
+
+def _parsear_transacciones(lista):
+    """Valida el arreglo de transacciones → lista de dicts (sin duplicados ref+fecha)."""
+    if not isinstance(lista, list):
+        raise ErrorConciliacion('transacciones debe ser una lista.')
+    if len(lista) > MAX_TRANSACCIONES_PROPUESTAS:
+        raise ErrorConciliacion(f'Máximo {MAX_TRANSACCIONES_PROPUESTAS} transacciones por petición.')
+    vistas, resultado = set(), []
+    for i, tx in enumerate(lista):
+        try:
+            ref, fecha, monto = parsear_transaccion(tx)
+        except ErrorConciliacion as exc:
+            raise ErrorConciliacion(f'transacciones[{i}]: {exc.mensaje}')
+        if (ref, fecha) in vistas:
+            continue  # la unicidad de la BD es banco+referencia+fecha
+        vistas.add((ref, fecha))
+        resultado.append({'referencia': ref, 'fecha': fecha, 'monto': monto})
+    return resultado
+
+
+def _asignar(ops, lineas, tolerancia):
+    """
+    Asignación uno-a-uno por rondas de acuerdo mutuo: una operación y una línea
+    se emparejan si cada una elige a la otra de forma única. Devuelve
+    (pares {i_op: i_linea}, pendientes {i_op: {i_linea,...}} sin resolver).
+    """
+    ady = {i: set(op['_lineas']) for i, op in enumerate(ops)}
+    pares = {}
+    while True:
+        elige_op = {}
+        for i, cand in ady.items():
+            if i in pares or not cand:
+                continue
+            k = _elegir_unica(
+                [(j, abs(lineas[j]['monto'] - ops[i]['_monto'])) for j in sorted(cand)], tolerancia,
+            )
+            if k is not None:
+                elige_op[i] = k
+        reclaman = {}
+        for i, cand in ady.items():
+            if i in pares:
+                continue
+            for j in cand:
+                reclaman.setdefault(j, []).append(i)
+        nuevos = {}
+        for i, j in elige_op.items():
+            k = _elegir_unica(
+                [(o, abs(lineas[j]['monto'] - ops[o]['_monto'])) for o in sorted(reclaman[j])], tolerancia,
+            )
+            if k == i:
+                nuevos[i] = j
+        if not nuevos:
+            break
+        pares.update(nuevos)
+        tomadas = set(nuevos.values())
+        for i in ady:
+            ady[i] -= tomadas
+    return pares, {i: c for i, c in ady.items() if i not in pares}
+
+
+class PropuestasConciliacionView(APIView):
+    """
+    POST cobranza/conciliacion/auto/propuestas/  (solo lectura)
+
+    Body: {banco, desde, hasta, tolerancia?, digitos? (4..8, def. 6),
+           transacciones: [{referencia, fecha, monto}]}
+    Cruza las líneas del estado de cuenta con las operaciones y comprobantes
+    pendientes del banco receptor en el rango, aún no conciliadas.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not _tiene_permiso(request.user):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        data = request.data
+        try:
+            try:
+                banco = BancoInstitucional.objects.get(id=int(data.get('banco')))
+            except (TypeError, ValueError):
+                raise ErrorConciliacion('Banco inválido.')
+            except BancoInstitucional.DoesNotExist:
+                raise ErrorConciliacion('Banco no encontrado.', status.HTTP_404_NOT_FOUND)
+            desde, hasta = _parsear_rango(data.get('desde'), data.get('hasta'))
+            if not desde or not hasta:
+                raise ErrorConciliacion('desde y hasta son requeridos.')
+            tolerancia = parsear_tolerancia(data.get('tolerancia'))
+            try:
+                digitos = 6 if data.get('digitos') in (None, '') else int(data.get('digitos'))
+            except (TypeError, ValueError):
+                raise ErrorConciliacion('digitos inválido (4 a 8).')
+            if not 4 <= digitos <= 8:
+                raise ErrorConciliacion('digitos inválido (4 a 8).')
+            transacciones = _parsear_transacciones(data.get('transacciones'))
+        except ErrorConciliacion as exc:
+            return Response({'error': exc.mensaje}, status=exc.http_status)
+
+        # Líneas ya usadas: se ignoran por completo.
+        usadas = set(ConciliacionBancaria.objects.filter(banco=banco).values_list(
+            'referencia_banco', 'fecha_banco',
+        ))
+        lineas = [t for t in transacciones if (t['referencia'], t['fecha']) not in usadas]
+
+        ops = listar_operaciones(
+            request.user, banco.id, desde=desde, hasta=hasta, solo_no_conciliadas=True,
+        )
+        ops.sort(key=lambda o: (o['fecha'], o['tipo'], o['operacion_uuid'] or '', o['comprobante_id'] or 0))
+        lineas_con_op = set()
+        for op in ops:
+            op['_monto'] = Decimal(op['monto_ves'])
+            op['_lineas'] = [
+                j for j, t in enumerate(lineas) if _refs_coinciden(op['referencia'], t['referencia'], digitos)
+            ]
+            lineas_con_op.update(op['_lineas'])
+
+        pares, pendientes = _asignar(ops, lineas, tolerancia)
+
+        propuestas = []
+        resumen = {
+            'total': 0, 'exactas': 0, 'dentro_tolerancia': 0,
+            'fuera_tolerancia': 0, 'ambiguas': 0, 'sin_banco': 0,
+        }
+        clave_resumen = {
+            'exacta': 'exactas', 'dentro_tolerancia': 'dentro_tolerancia',
+            'fuera_tolerancia': 'fuera_tolerancia', 'ambigua': 'ambiguas', 'sin_banco': 'sin_banco',
+        }
+        for i, op in enumerate(ops):
+            tx, candidatas, dif = None, [], None
+            if i in pares:
+                t = lineas[pares[i]]
+                tx = _tx_json(t)
+                d = (t['monto'] - op['_monto']).quantize(CENT)
+                dif = str(d)
+                estado = 'exacta' if d == 0 else 'dentro_tolerancia' if abs(d) <= tolerancia else 'fuera_tolerancia'
+            elif pendientes.get(i):
+                estado = 'ambigua'
+                candidatas = [_tx_json(lineas[j]) for j in sorted(pendientes[i])]
+            else:
+                estado = 'sin_banco'
+            propuestas.append({
+                'id': i,
+                'estado': estado,
+                'tipo': op['tipo'],
+                'operacion_uuid': op['operacion_uuid'],
+                'comprobante_id': op['comprobante_id'],
+                'representante': op['representante'],
+                'alumnos': op['alumnos'],
+                'fecha': op['fecha'],
+                'referencia_sistema': op['referencia'],
+                'monto_sistema_ves': op['monto_ves'],
+                'transaccion': tx,
+                'candidatas': candidatas,
+                'diferencia_ves': dif,
+                'seleccionada_por_defecto': estado in ('exacta', 'dentro_tolerancia') and op['tipo'] == 'pago',
+            })
+            resumen['total'] += 1
+            resumen[clave_resumen[estado]] += 1
+
+        # Líneas del banco sin ninguna operación asociada (ni siquiera candidata).
+        sin_operacion = [_tx_json(t) for j, t in enumerate(lineas) if j not in lineas_con_op]
+        return Response({'propuestas': propuestas, 'resumen': resumen, 'sin_operacion': sin_operacion})
+
+
+class ConfirmarMasivaView(APIView):
+    """
+    POST cobranza/conciliacion/auto/confirmar/
+
+    Body: {banco, tolerancia?, archivo?, items: [{operacion_uuid | comprobante_id,
+           transaccion: {referencia, fecha, monto}, observacion?}]}
+    Cada ítem usa `conciliar_item` (misma lógica que `conciliar/`) en su propio
+    savepoint: un error no revierte los demás. Máx. 500 ítems.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not _tiene_permiso(request.user):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        data = request.data
+        try:
+            banco = BancoInstitucional.objects.get(id=int(data.get('banco')))
+        except (TypeError, ValueError):
+            return Response({'error': 'Banco inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        except BancoInstitucional.DoesNotExist:
+            return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        items = data.get('items')
+        if not isinstance(items, list) or not items:
+            return Response({'error': 'items debe ser una lista no vacía.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(items) > MAX_ITEMS_CONFIRMAR:
+            return Response(
+                {'error': f'Máximo {MAX_ITEMS_CONFIRMAR} ítems por petición.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            tolerancia = parsear_tolerancia(data.get('tolerancia'))
+        except ErrorConciliacion as exc:
+            return Response({'error': exc.mensaje}, status=status.HTTP_400_BAD_REQUEST)
+        archivo = data.get('archivo')
+
+        conciliadas, errores = [], []
+        for indice, item in enumerate(items):
+            try:
+                if not isinstance(item, dict):
+                    raise ErrorConciliacion('Ítem inválido.')
+                ref, fecha, monto = parsear_transaccion(item.get('transaccion'))
+                with transaction.atomic():
+                    conciliacion, _lote, advertencias = conciliar_item(
+                        request.user, banco,
+                        operacion_uuid=item.get('operacion_uuid') or None,
+                        comprobante_id=item.get('comprobante_id') or None,
+                        referencia_banco=ref, fecha_banco=fecha, monto_banco=monto,
+                        tolerancia=tolerancia, observacion=item.get('observacion'), archivo=archivo,
+                    )
+                entrada = {'indice': indice, 'conciliacion_id': conciliacion.id}
+                if advertencias:
+                    entrada['advertencias'] = advertencias
+                conciliadas.append(entrada)
+            except ErrorConciliacion as exc:
+                errores.append({'indice': indice, 'error': exc.mensaje})
+
+        lote = _lote_abierto(request.user)
+        return Response({
+            'conciliadas': conciliadas,
+            'errores': errores,
+            'lote': {'id': lote.id, 'total_operaciones': lote.conciliaciones.count()} if lote else None,
+        })
