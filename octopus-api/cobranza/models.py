@@ -62,6 +62,25 @@ class BancoInstitucional(models.Model):
     # No se reutiliza ``activo``: un banco puede seguir disponible para caja
     # interna sin exponerse a los representantes.
     portal_metodos = models.JSONField(default=dict, blank=True)
+    # Formato del estado de cuenta que exporta este banco; el conciliador del
+    # frontend elige su parser según este valor (ver bankParsers.js).
+    FORMATOS_ESTADO_CUENTA = (
+        ('generico', 'Genérico'),
+        ('bancaribe', 'Bancaribe'),
+        ('banesco', 'Banesco'),
+        ('tesoro', 'Banco del Tesoro'),
+        ('bdt', 'Banco Digital de los Trabajadores'),
+    )
+    formato_estado_cuenta = models.CharField(
+        max_length=20, choices=FORMATOS_ESTADO_CUENTA, default='generico',
+    )
+    # Color hex opcional para la UI del conciliador (#RRGGBB).
+    color = models.CharField(max_length=7, blank=True, default='')
+    # Disponibilidad en el conciliador, independiente de ``activo`` (que
+    # gobierna caja y portal). Permite tener un banco solo para conciliar
+    # (p. ej. Banco Digital de los Trabajadores) hasta que el admin lo active
+    # para recibir pagos.
+    activo_conciliador = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nombre

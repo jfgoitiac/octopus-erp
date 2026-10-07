@@ -431,6 +431,12 @@ class BancosListView(APIView):
         from django.core.cache import cache
         from .signals import CACHE_KEY_BANCOS_ACTIVOS
 
+        # ?para=conciliador: bancos disponibles en el conciliador
+        # (activo_conciliador), que pueden incluir bancos inactivos para caja.
+        if request.query_params.get('para') == 'conciliador':
+            bancos = BancoInstitucional.objects.filter(activo_conciliador=True).order_by('nombre')
+            return Response(BancoInstitucionalSerializer(bancos, many=True).data)
+
         data = cache.get(CACHE_KEY_BANCOS_ACTIVOS)
         if data is None:
             bancos = BancoInstitucional.objects.filter(activo=True).order_by('nombre')
