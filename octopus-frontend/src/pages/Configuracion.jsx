@@ -19,6 +19,7 @@ import { useBancosCobranza } from '../hooks/useBancosCobranza';
 import { useBancosNomina } from '../hooks/useBancosNomina';
 import { useTiposCargo } from '../hooks/useTiposCargo';
 import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecialTab';
+import ConciliadorBancoCampos from '../components/configuracion/ConciliadorBancoCampos';
 import BecasTab from '../components/configuracion/BecasTab';
 import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
@@ -1556,7 +1557,7 @@ const Configuracion = () => {
                             </button>
                         </>
                     )}
-                    size="sm"
+                    size="lg"
                 >
                     <div className="space-y-4">
                         <div>
@@ -1620,6 +1621,7 @@ const Configuracion = () => {
                                 })}
                             </div>
                         )}
+                        <ConciliadorBancoCampos form={bancoForm} setForm={setBancoForm} />
                         {bancoEditando && (
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>
