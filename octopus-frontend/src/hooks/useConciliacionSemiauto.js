@@ -40,6 +40,9 @@ export const claveCandidato = (c) => c.operacion_uuid || `comprobante-${c.compro
  */
 export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   const [open, setOpen] = useState(false);
+  // Banco receptor de la búsqueda de candidatos: por defecto el del estado de
+  // cuenta, el operador puede cambiarlo dentro del modal.
+  const [bancoReceptor, setBancoReceptor] = useState('');
   const [ref, setRef] = useState('');
   const [buscado, setBuscado] = useState(false);
   const [matches, setMatches] = useState([]);
@@ -81,6 +84,8 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
 
   useEffect(() => { fetchLoteAbierto(); }, [fetchLoteAbierto]);
 
+  const bancoActivo = bancoReceptor || banco;
+
   const resetBusqueda = useCallback(() => {
     reqId.current += 1;
     setBuscado(false);
@@ -102,6 +107,7 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
       return;
     }
     setRef('');
+    setBancoReceptor(banco);
     resetBusqueda();
     setOpen(true);
     fetchToleranciaGlobal();
@@ -117,23 +123,14 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
 
   const refValida = ref.length >= 4 && ref.length <= 6;
 
-  const buscar = useCallback(async () => {
-    if (!refValida) return;
-    const n = ref.length;
-    const encontradas = transactions.filter(
-      tx => tx.tipo !== 'egreso' && tx.referencia.replace(/\D/g, '').slice(-n) === ref
-    );
-    setBuscado(true);
-    setMatches(encontradas);
-    setTxSel(encontradas.length === 1 ? encontradas[0] : null);
+  const consultarCandidatos = useCallback(async (bancoId, refBuscada) => {
+    const id = ++reqId.current;
     setCandSel(null);
     setCandidatos([]);
-
-    const id = ++reqId.current;
     setLoadingCand(true);
     try {
       const { data } = await apiClient.get('cobranza/conciliacion/candidatos/', {
-        params: { banco, ref },
+        params: { banco: bancoId, ref: refBuscada },
       });
       if (id !== reqId.current) return;
       const lista = data?.resultados || [];
@@ -146,7 +143,26 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     } finally {
       if (id === reqId.current) setLoadingCand(false);
     }
-  }, [refValida, ref, transactions, banco]);
+  }, []);
+
+  const buscar = useCallback(async () => {
+    if (!refValida) return;
+    const n = ref.length;
+    const encontradas = transactions.filter(
+      tx => tx.tipo !== 'egreso' && tx.referencia.replace(/\D/g, '').slice(-n) === ref
+    );
+    setBuscado(true);
+    setMatches(encontradas);
+    setTxSel(encontradas.length === 1 ? encontradas[0] : null);
+    await consultarCandidatos(bancoActivo, ref);
+  }, [refValida, ref, transactions, bancoActivo, consultarCandidatos]);
+
+  // Cambia el banco receptor; si ya hay una búsqueda, vuelve a consultar candidatos.
+  const cambiarBanco = useCallback((id) => {
+    if (!id || id === bancoActivo) return;
+    setBancoReceptor(id);
+    if (buscado && refValida) consultarCandidatos(id, ref);
+  }, [bancoActivo, buscado, refValida, ref, consultarCandidatos]);
 
   const cambiarTolerancia = useCallback((valor) => {
     setToleranciaInput(valor);
@@ -188,7 +204,7 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     setEnviando(true);
     try {
       const body = {
-        banco,
+        banco: bancoActivo,
         transaccion: {
           referencia: txSel.referencia,
           fecha: fechaBancoAISO(txSel.fecha),
@@ -216,12 +232,13 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
       setEnviando(false);
     }
   }, [
-    puedeConfirmar, banco, txSel, tolerancia, observacion, fileName,
+    puedeConfirmar, bancoActivo, txSel, tolerancia, observacion, fileName,
     candidatoSel, fetchLoteAbierto,
   ]);
 
   return {
     open, abrir, cerrar,
+    bancoActivo, cambiarBanco,
     ref, cambiarRef, refValida, buscar, buscado,
     matches, txSel, setTxSel,
     candidatos, loadingCand, candSel, setCandSel, candidatoSel,

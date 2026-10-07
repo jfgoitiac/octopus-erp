@@ -455,7 +455,7 @@ export default function Conciliador() {
         />
       )}
 
-      <ModalConciliarReferencia c={semiauto} bankInfo={bankInfo} transactions={transactions} />
+      <ModalConciliarReferencia c={semiauto} bankInfo={bankInfo} transactions={transactions} banks={banks} />
 
       {/* Confirmación de limpieza */}
       {showClearConfirm && (

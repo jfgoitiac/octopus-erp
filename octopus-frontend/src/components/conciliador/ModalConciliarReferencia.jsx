@@ -252,9 +252,9 @@ function Comparacion({ comparacion, c }) {
   );
 }
 
-function ModalConciliarReferenciaBase({ c, bankInfo, transactions }) {
+function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] }) {
   const {
-    open, cerrar, ref, cambiarRef, refValida, buscar, buscado,
+    open, cerrar, bancoActivo, cambiarBanco, ref, cambiarRef, refValida, buscar, buscado,
     matches, txSel, setTxSel,
     candidatos, loadingCand, candSel, setCandSel, candidatoSel,
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal, toleranciaValida,
@@ -304,6 +304,29 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions }) {
   return (
     <Modal open={open} onClose={cerrar} titulo={titulo} footer={footer} size="xl">
       <div className="space-y-5">
+        {banks.length > 1 && (
+          <div>
+            <label htmlFor="conciliar-banco" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>
+              Banco receptor
+            </label>
+            <select
+              id="conciliar-banco"
+              value={bancoActivo}
+              onChange={e => cambiarBanco(e.target.value)}
+              disabled={enviando}
+              className="w-full sm:w-72 px-3 py-2.5 rounded-lg text-sm outline-none"
+              style={inputBase}
+            >
+              {banks.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
+            </select>
+            {bancoActivo !== String(bankInfo?.id) && (
+              <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                Distinto al banco del estado de cuenta cargado: los candidatos se buscan en el banco elegido.
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <label htmlFor="conciliar-ref" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>
             Últimos 4 a 6 dígitos de la referencia
