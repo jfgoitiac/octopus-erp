@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import PaseListaTarjetas from './PaseListaTarjetas';
 import { ESTADO } from '../../constants/asistencia';
@@ -19,10 +19,11 @@ const ROSTER = [
   { alumno_id: 3, alumno_nombre: 'Sofía Ruiz', estado: null, observacion: '' },
 ];
 
-let ultimoEstado;
+// Último estado de `registros` del Harness, para aserciones.
+const espia = { registros: [] };
 function Harness({ inicial = ROSTER }) {
   const [registros, setRegistros] = useState(inicial);
-  ultimoEstado = registros;
+  useEffect(() => { espia.registros = registros; });
   const set = (id, cambios) => setRegistros(p => p.map(r => (r.alumno_id === id ? { ...r, ...cambios } : r)));
   return (
     <PaseListaTarjetas
@@ -64,14 +65,14 @@ describe('PaseListaTarjetas', () => {
     expect(anuncio()).toBe('Alumno 1 de 3: Ana Pérez');
 
     fireEvent.click(screen.getByRole('button', { name: 'Presente' }));
-    expect(ultimoEstado[0].estado).toBe(ESTADO.PRESENTE);
+    expect(espia.registros[0].estado).toBe(ESTADO.PRESENTE);
     await waitFor(() => expect(anuncio()).toBe('Alumno 2 de 3: Luis Gómez'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Ausente' }));
     const obs = screen.getByLabelText(/Observación/);
     fireEvent.change(obs, { target: { value: 'Avisó la mamá' } });
     expect(anuncio()).toBe('Alumno 2 de 3: Luis Gómez');
-    expect(ultimoEstado[1]).toMatchObject({ estado: ESTADO.AUSENTE, observacion: 'Avisó la mamá' });
+    expect(espia.registros[1]).toMatchObject({ estado: ESTADO.AUSENTE, observacion: 'Avisó la mamá' });
 
     fireEvent.click(screen.getAllByRole('button', { name: /^Siguiente/ })[0]);
     expect(anuncio()).toBe('Alumno 3 de 3: Sofía Ruiz');
@@ -85,7 +86,7 @@ describe('PaseListaTarjetas', () => {
     expect(anuncio()).toBe('Alumno 3 de 3: Sofía Ruiz');
 
     fireEvent.keyDown(window, { key: 't' });
-    expect(ultimoEstado[2].estado).toBe(ESTADO.RETARDADO);
+    expect(espia.registros[2].estado).toBe(ESTADO.RETARDADO);
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Resumen del pase' })).toBeInTheDocument());
     expect(screen.getByText(/2 sin marcar/)).toBeInTheDocument();
   });
@@ -100,7 +101,7 @@ describe('PaseListaTarjetas', () => {
     const { getByRole } = render(contenidoToast);
     act(() => { fireEvent.click(getByRole('button', { name: /Deshacer/ })); });
 
-    expect(ultimoEstado[0].estado).toBe(null);
+    expect(espia.registros[0].estado).toBe(null);
     expect(anuncio()).toBe('Alumno 1 de 3: Ana Pérez');
   });
 

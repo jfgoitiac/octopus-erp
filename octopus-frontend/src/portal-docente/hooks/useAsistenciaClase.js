@@ -81,14 +81,21 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     setRegistros(prev => prev.map(r => (r.alumno_id !== registroPrevio.alumno_id ? r : registroPrevio)));
   }, []);
 
+  const sinMarcar = useMemo(() => registros.reduce((n, r) => n + (r.estado ? 0 : 1), 0), [registros]);
+
   // Devuelve true si se guardó, para que el resumen pueda confirmar en pantalla.
+  // No se guarda con alumnos sin marcar: antes viajaban como 'A' sin aviso.
   const guardarAsistencia = async () => {
+    if (sinMarcar > 0) {
+      toast.warning(`Falta${sinMarcar === 1 ? '' : 'n'} ${sinMarcar} alumno${sinMarcar === 1 ? '' : 's'} por marcar.`);
+      return false;
+    }
     setSavingAsistencia(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
       const payload = registros.map(r => ({
         alumno_id: r.alumno_id,
-        estado: ESTADO_A_BACKEND[r.estado] || 'A',
+        estado: ESTADO_A_BACKEND[r.estado],
         observacion: r.observacion || '',
       }));
       await saveAsistencia(gradoSeccion, fechaStr, payload);
@@ -126,5 +133,6 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     restaurarRegistro,
     guardarAsistencia,
     conteos,
+    sinMarcar,
   };
 }

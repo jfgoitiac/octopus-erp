@@ -166,6 +166,7 @@ const DocenteMateriaDetalle = () => {
     restaurarRegistro,
     guardarAsistencia,
     conteos,
+    sinMarcar,
   } = useAsistenciaClase(materia?.grado_seccion, fechaAsistencia, tab === 'asistencia');
 
   const [vistaAsistencia, setVistaAsistencia] = useState(leerVistaAsistencia);
@@ -407,14 +408,21 @@ const DocenteMateriaDetalle = () => {
             </div>
 
             {dirtyAsistencia && registros.length > 0 && (
-              <button
-                onClick={guardarAsistencia}
-                disabled={savingAsistencia}
-                className="w-full flex items-center justify-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50 min-h-[44px]"
-              >
-                {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {savingAsistencia ? 'Guardando...' : 'Guardar asistencia'}
-              </button>
+              <div className="space-y-2">
+                {sinMarcar > 0 && (
+                  <p className="text-xs text-center text-gray-500">
+                    Falta{sinMarcar === 1 ? '' : 'n'} {sinMarcar} alumno{sinMarcar === 1 ? '' : 's'} por marcar para poder guardar.
+                  </p>
+                )}
+                <button
+                  onClick={guardarAsistencia}
+                  disabled={savingAsistencia || sinMarcar > 0}
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50 min-h-[44px]"
+                >
+                  {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {savingAsistencia ? 'Guardando...' : 'Guardar asistencia'}
+                </button>
+              </div>
             )}
             </>
           )}
@@ -514,7 +522,7 @@ const DocenteMateriaDetalle = () => {
             <button
               type="button"
               onClick={guardarYContinuar}
-              disabled={savingAsistencia}
+              disabled={savingAsistencia || sinMarcar > 0}
               className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50"
             >
               {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -526,6 +534,11 @@ const DocenteMateriaDetalle = () => {
         <p className="text-sm" style={{ color: 'var(--jet)' }}>
           Hay asistencia marcada que todavía no se guardó. Si continúas sin guardar, esos cambios se pierden.
         </p>
+        {sinMarcar > 0 && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--jet-mid)' }}>
+            Para guardar, primero marca a {sinMarcar === 1 ? 'el alumno que falta' : `los ${sinMarcar} alumnos que faltan`}.
+          </p>
+        )}
       </Modal>
 
       {modalMaterial && (

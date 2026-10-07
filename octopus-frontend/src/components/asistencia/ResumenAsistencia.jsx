@@ -109,7 +109,7 @@ const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMa
           <div className="mt-4 rounded-xl p-3 sm:p-4" style={{ background: 'var(--ash-light)' }}>
             <p className="text-sm" style={{ color: 'var(--jet)' }}>
               <strong className="font-semibold">{sinMarcar} sin marcar.</strong>{' '}
-              <span style={{ color: 'var(--jet-mid)' }}>Si guardas así, se registran como ausentes.</span>
+              <span style={{ color: 'var(--jet-mid)' }}>Márcalos para poder guardar.</span>
             </p>
             <button
               type="button"
@@ -171,7 +171,7 @@ const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMa
         <button
           type="button"
           onClick={guardar}
-          disabled={saving || !dirty}
+          disabled={saving || !dirty || sinMarcar > 0}
           className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-6 text-base font-semibold text-white transition-[transform,opacity] active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-2 sm:w-auto"
           style={{ background: 'var(--docente-primary)', boxShadow: '0 10px 24px -10px rgba(15,163,177,0.7)' }}
         >

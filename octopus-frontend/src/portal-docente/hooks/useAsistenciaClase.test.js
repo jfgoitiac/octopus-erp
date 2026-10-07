@@ -8,7 +8,7 @@ vi.mock('../api/academico.service', () => ({
   getAsistencia: vi.fn(),
   saveAsistencia: vi.fn(),
 }));
-vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
 const FECHA = new Date(2026, 9, 7);
 const ROSTER = [
@@ -57,15 +57,25 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
     expect(result.current.registros[1]).toBe(previo);
   });
 
-  it('guarda con letras del backend; los sin marcar viajan como "A"', async () => {
+  it('no guarda si quedan alumnos sin marcar', async () => {
     const { result } = await montar();
+    expect(result.current.sinMarcar).toBe(1);
+    let ok;
+    await act(async () => { ok = await result.current.guardarAsistencia(); });
+    expect(ok).toBe(false);
+    expect(saveAsistencia).not.toHaveBeenCalled();
+  });
+
+  it('guarda con letras del backend cuando todos están marcados', async () => {
+    const { result } = await montar();
+    act(() => result.current.marcar(3, ESTADO.RETARDADO));
     let ok;
     await act(async () => { ok = await result.current.guardarAsistencia(); });
     expect(ok).toBe(true);
     expect(saveAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', [
       { alumno_id: 1, estado: 'P', observacion: '' },
       { alumno_id: 2, estado: 'A', observacion: 'Enfermo' },
-      { alumno_id: 3, estado: 'A', observacion: '' },
+      { alumno_id: 3, estado: 'R', observacion: '' },
     ]);
     expect(result.current.dirtyAsistencia).toBe(false);
   });
@@ -73,6 +83,7 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
   it('devuelve false si el guardado falla', async () => {
     saveAsistencia.mockRejectedValue({ response: { data: { error: 'x' } } });
     const { result } = await montar();
+    act(() => result.current.marcar(3, ESTADO.PRESENTE));
     let ok;
     await act(async () => { ok = await result.current.guardarAsistencia(); });
     expect(ok).toBe(false);
