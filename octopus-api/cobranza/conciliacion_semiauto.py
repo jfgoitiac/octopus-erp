@@ -142,13 +142,128 @@ def _obtener_o_crear_lote_abierto(user):
 # GET candidatos
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _parsear_rango(desde, hasta):
+    """('yyyy-MM-dd' | None, idem) → (date|None, date|None). Lanza ErrorConciliacion."""
+    def una(valor, campo):
+        if valor in (None, ''):
+            return None
+        try:
+            return date.fromisoformat(str(valor).strip())
+        except ValueError:
+            raise ErrorConciliacion(f'{campo} inválida (use AAAA-MM-DD).')
+    d, h = una(desde, 'desde'), una(hasta, 'hasta')
+    if d and h and d > h:
+        raise ErrorConciliacion('desde no puede ser posterior a hasta.')
+    return d, h
+
+
+def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, solo_no_conciliadas=False):
+    """
+    Operaciones del banco receptor visibles para `user`: pagos `completado`
+    agrupados por operación + comprobantes `pendiente` del portal.
+
+    Fecha de filtro (desde/hasta, inclusivos, en hora local): `Pago.fecha_pago`
+    y `ComprobantePago.fecha_subida` (equivalente a la fecha de pago del
+    comprobante: el modelo no guarda otra). `sufijo` filtra por referencia
+    terminada en esos dígitos.
+    """
+    resultados = []
+
+    # ── Pagos registrados, agrupados por operación ──
+    filtros = {'banco_receptor_id': banco_id, 'estatus': 'completado'}
+    if sufijo:
+        filtros['referencia__endswith'] = sufijo
+    if desde:
+        filtros['fecha_pago__date__gte'] = desde
+    if hasta:
+        filtros['fecha_pago__date__lte'] = hasta
+    pagos = list(
+        filtrar_por_sede(user, Pago.objects.filter(**filtros), campo='sede')
+        .select_related('alumno__representante')
+        .order_by('-fecha_pago')
+    )
+    grupos = {}
+    for p in pagos:
+        grupos.setdefault(p.operacion_uuid, []).append(p)
+
+    conciliadas = {
+        c.operacion_uuid: c.lote_id
+        for c in ConciliacionBancaria.objects.filter(operacion_uuid__in=list(grupos))
+    }
+
+    for uuid_op, items in grupos.items():
+        if solo_no_conciliadas and uuid_op in conciliadas:
+            continue
+        primero = items[0]
+        rep = primero.alumno.representante
+        alumnos = []
+        for p in items:
+            nombre = f'{p.alumno.nombre} {p.alumno.apellido}'.strip()
+            if nombre not in alumnos:
+                alumnos.append(nombre)
+        resultados.append({
+            'operacion_uuid': str(uuid_op),
+            'comprobante_id': None,
+            'tipo': 'pago',
+            'referencia': primero.referencia,
+            'fecha': _fecha_pago(primero).isoformat(),
+            'monto_ves': str(sum((p.monto_ves for p in items), Decimal('0')).quantize(CENT)),
+            'representante': f'{rep.nombre} {rep.apellido}'.strip(),
+            'alumnos': alumnos,
+            'pagos_ids': [p.id for p in items],
+            'conciliado': uuid_op in conciliadas,
+            'lote_id': conciliadas.get(uuid_op),
+            'se_aprobara': False,
+        })
+
+    # ── Comprobantes pendientes del portal ──
+    from portal.models import ComprobantePago
+
+    filtros = {'banco_receptor_id': banco_id, 'estatus': 'pendiente'}
+    if sufijo:
+        filtros['referencia_bancaria__endswith'] = sufijo
+    if desde:
+        filtros['fecha_subida__date__gte'] = desde
+    if hasta:
+        filtros['fecha_subida__date__lte'] = hasta
+    comprobantes = (
+        filtrar_por_sede(user, ComprobantePago.objects.filter(**filtros), campo='mensualidad__alumno__sede')
+        .select_related('mensualidad__alumno__representante')
+        .order_by('-fecha_subida')
+    )
+    tasa = TasaCambio.objects.order_by('-fecha').first()
+    tasa_valor = tasa.valor_bs if tasa else Decimal('1')
+    for c in comprobantes:
+        alumno = c.mensualidad.alumno
+        rep = alumno.representante
+        resultados.append({
+            'operacion_uuid': None,
+            'comprobante_id': c.id,
+            'tipo': 'comprobante_pendiente',
+            'referencia': c.referencia_bancaria,
+            'fecha': timezone.localtime(c.fecha_subida).date().isoformat(),
+            'monto_ves': str((c.mensualidad.monto_usd * tasa_valor).quantize(CENT)),
+            'representante': f'{rep.nombre} {rep.apellido}'.strip(),
+            'alumnos': [f'{alumno.nombre} {alumno.apellido}'.strip()],
+            'pagos_ids': [],
+            'conciliado': False,
+            'lote_id': None,
+            'se_aprobara': True,
+        })
+    return resultados
+
+
 class CandidatosConciliacionView(APIView):
     """
-    GET cobranza/conciliacion/candidatos/?banco=<id>&ref=<4-6 dígitos>
+    GET cobranza/conciliacion/candidatos/?banco=<id>&ref=<4-6 dígitos>[&desde=&hasta=]
 
     Operaciones candidatas del banco receptor cuya referencia termina en los
     dígitos indicados: pagos `completado` agrupados por operación y
     comprobantes `pendiente` del portal (que se aprobarán al conciliar).
+
+    `desde`/`hasta` (AAAA-MM-DD, inclusivos) filtran por fecha de pago
+    (Pago.fecha_pago; comprobante: fecha_subida). `ref` es obligatorio salvo
+    que se indique desde y/o hasta.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -157,8 +272,16 @@ class CandidatosConciliacionView(APIView):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
         ref = (request.query_params.get('ref') or '').strip()
-        if not re.fullmatch(r'\d{4,6}', ref):
-            return Response({'error': 'ref debe tener entre 4 y 6 dígitos.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            desde, hasta = _parsear_rango(
+                request.query_params.get('desde'), request.query_params.get('hasta'),
+            )
+        except ErrorConciliacion as exc:
+            return Response({'error': exc.mensaje}, status=status.HTTP_400_BAD_REQUEST)
+        con_rango = bool(desde or hasta)
+        if ref or not con_rango:
+            if not re.fullmatch(r'\d{4,6}', ref):
+                return Response({'error': 'ref debe tener entre 4 y 6 dígitos.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             banco_id = int(request.query_params.get('banco'))
         except (TypeError, ValueError):
@@ -166,82 +289,9 @@ class CandidatosConciliacionView(APIView):
         if not BancoInstitucional.objects.filter(id=banco_id).exists():
             return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        resultados = []
-
-        # ── Pagos registrados, agrupados por operación ──
-        pagos = list(
-            filtrar_por_sede(request.user, Pago.objects.filter(
-                banco_receptor_id=banco_id,
-                estatus='completado',
-                referencia__endswith=ref,
-            ), campo='sede')
-            .select_related('alumno__representante')
-            .order_by('-fecha_pago')
+        resultados = listar_operaciones(
+            request.user, banco_id, sufijo=ref or None, desde=desde, hasta=hasta,
         )
-        grupos = {}
-        for p in pagos:
-            grupos.setdefault(p.operacion_uuid, []).append(p)
-
-        conciliadas = {
-            c.operacion_uuid: c.lote_id
-            for c in ConciliacionBancaria.objects.filter(operacion_uuid__in=list(grupos))
-        }
-
-        for uuid_op, items in grupos.items():
-            primero = items[0]
-            rep = primero.alumno.representante
-            alumnos = []
-            for p in items:
-                nombre = f'{p.alumno.nombre} {p.alumno.apellido}'.strip()
-                if nombre not in alumnos:
-                    alumnos.append(nombre)
-            resultados.append({
-                'operacion_uuid': str(uuid_op),
-                'comprobante_id': None,
-                'tipo': 'pago',
-                'referencia': primero.referencia,
-                'fecha': _fecha_pago(primero).isoformat(),
-                'monto_ves': str(sum((p.monto_ves for p in items), Decimal('0')).quantize(CENT)),
-                'representante': f'{rep.nombre} {rep.apellido}'.strip(),
-                'alumnos': alumnos,
-                'pagos_ids': [p.id for p in items],
-                'conciliado': uuid_op in conciliadas,
-                'lote_id': conciliadas.get(uuid_op),
-                'se_aprobara': False,
-            })
-
-        # ── Comprobantes pendientes del portal ──
-        from portal.models import ComprobantePago
-
-        comprobantes = (
-            filtrar_por_sede(request.user, ComprobantePago.objects.filter(
-                banco_receptor_id=banco_id,
-                estatus='pendiente',
-                referencia_bancaria__endswith=ref,
-            ), campo='mensualidad__alumno__sede')
-            .select_related('mensualidad__alumno__representante')
-            .order_by('-fecha_subida')
-        )
-        tasa = TasaCambio.objects.order_by('-fecha').first()
-        tasa_valor = tasa.valor_bs if tasa else Decimal('1')
-        for c in comprobantes:
-            alumno = c.mensualidad.alumno
-            rep = alumno.representante
-            resultados.append({
-                'operacion_uuid': None,
-                'comprobante_id': c.id,
-                'tipo': 'comprobante_pendiente',
-                'referencia': c.referencia_bancaria,
-                'fecha': timezone.localtime(c.fecha_subida).date().isoformat(),
-                'monto_ves': str((c.mensualidad.monto_usd * tasa_valor).quantize(CENT)),
-                'representante': f'{rep.nombre} {rep.apellido}'.strip(),
-                'alumnos': [f'{alumno.nombre} {alumno.apellido}'.strip()],
-                'pagos_ids': [],
-                'conciliado': False,
-                'lote_id': None,
-                'se_aprobara': True,
-            })
-
         return Response({'resultados': resultados[:MAX_RESULTADOS]})
 
 
