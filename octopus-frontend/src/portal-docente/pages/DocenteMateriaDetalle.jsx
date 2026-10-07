@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../utils/datepickerPortal';
-import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, Layers, List } from 'lucide-react';
 
 import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academico.service';
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
@@ -15,6 +16,8 @@ import { calcDefinitiva } from '../../utils/notas.utils';
 import { TablaNotas } from '../../components/notas/TablaNotas';
 import FilaAlumno from '../../components/asistencia/FilaAlumno';
 import SkeletonFila from '../../components/asistencia/SkeletonFila';
+import PaseListaTarjetas from '../../components/asistencia/PaseListaTarjetas';
+import { Modal } from '../../components/ui/Modal';
 import TarjetaMaterial from '../../components/materiales/TarjetaMaterial';
 import ModalNuevoMaterial from '../../components/materiales/ModalNuevoMaterial';
 import SkeletonCard from '../../portal/components/SkeletonCard';
@@ -28,6 +31,21 @@ const TABS = [
 ];
 
 const TAB_IDS = TABS.map(t => t.id);
+
+// Preferencia de vista del tab Asistencia ("tarjetas" | "lista"), por navegador.
+const VISTA_ASISTENCIA_KEY = 'docente_asistencia_vista';
+const VISTAS_ASISTENCIA = [
+  { id: 'tarjetas', label: 'Tarjetas', icon: Layers },
+  { id: 'lista', label: 'Lista', icon: List },
+];
+
+function leerVistaAsistencia() {
+  try {
+    return localStorage.getItem(VISTA_ASISTENCIA_KEY) === 'lista' ? 'lista' : 'tarjetas';
+  } catch {
+    return 'tarjetas';
+  }
+}
 
 const DocenteMateriaDetalle = () => {
   const { materiaId } = useParams();
@@ -145,9 +163,50 @@ const DocenteMateriaDetalle = () => {
     dirtyAsistencia,
     marcar,
     actualizarObservacion,
+    restaurarRegistro,
     guardarAsistencia,
     conteos,
   } = useAsistenciaClase(materia?.grado_seccion, fechaAsistencia, tab === 'asistencia');
+
+  const [vistaAsistencia, setVistaAsistencia] = useState(leerVistaAsistencia);
+  const cambiarVistaAsistencia = (vista) => {
+    setVistaAsistencia(vista);
+    try { localStorage.setItem(VISTA_ASISTENCIA_KEY, vista); } catch { /* storage bloqueado: solo no se recuerda */ }
+  };
+
+  // Protección de cambios sin guardar: salir, cambiar de pestaña o de fecha
+  // queda en espera hasta que el docente decide en el modal. Los links del
+  // layout (rail/bottom nav) no se pueden interceptar con BrowserRouter
+  // (ver NOTAS_TECNICAS.md); recargar o cerrar lo cubre `beforeunload`.
+  const [accionPendiente, setAccionPendiente] = useState(null);
+  const hayCambiosAsistencia = tab === 'asistencia' && dirtyAsistencia;
+  const confirmarSiHayCambios = (accion) => {
+    if (hayCambiosAsistencia) setAccionPendiente(() => accion);
+    else accion();
+  };
+  const cerrarConfirmacion = useCallback(() => setAccionPendiente(null), []);
+  const descartarYContinuar = () => {
+    const accion = accionPendiente;
+    setAccionPendiente(null);
+    accion?.();
+  };
+  const guardarYContinuar = async () => {
+    const accion = accionPendiente;
+    if (await guardarAsistencia()) {
+      setAccionPendiente(null);
+      accion?.();
+    }
+  };
+
+  useEffect(() => {
+    if (!hayCambiosAsistencia) return undefined;
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hayCambiosAsistencia]);
 
   // ── Tab Material ──────────────────────────────────────────────────────
   const { materiales, loading: loadingMateriales, publicarMaterial, eliminarMaterial } = useDocenteMateriales(materiaId);
@@ -156,7 +215,7 @@ const DocenteMateriaDetalle = () => {
   return (
     <div className="space-y-4 pb-20">
       <button
-        onClick={() => navigate('/portal-docente/materias')}
+        onClick={() => confirmarSiHayCambios(() => navigate('/portal-docente/materias'))}
         className="flex items-center gap-1.5 text-sm text-gray-500 min-h-[44px]"
       >
         <ArrowLeft size={16} /> Mis Materias
@@ -181,7 +240,7 @@ const DocenteMateriaDetalle = () => {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => { if (!activo) confirmarSiHayCambios(() => setTab(t.id)); }}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium min-h-[44px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
                 activo ? 'text-[var(--docente-primary)] border-[var(--docente-primary)]' : 'text-gray-400 border-transparent'
               }`}
@@ -253,71 +312,111 @@ const DocenteMateriaDetalle = () => {
 
       {tab === 'asistencia' && (
         <div className="space-y-4">
-          <div>
-            <label htmlFor="docente-fecha-asistencia" className="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
-            <DatePicker
-              selected={fechaAsistencia}
-              onChange={setFechaAsistencia}
-              locale={es}
-              dateFormat="dd/MM/yyyy"
-              maxDate={new Date()}
-              wrapperClassName="w-full"
-              popperContainer={datepickerPopperContainer}
-              customInput={
-                <input
-                  id="docente-fecha-asistencia"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
-                />
-              }
-            />
-          </div>
-
-          {!loadingAsistencia && registros.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {[
-                { key: 'presentes', label: 'Presentes', color: 'text-green-600', bg: 'bg-green-50' },
-                { key: 'ausentes', label: 'Ausentes', color: 'text-red-600', bg: 'bg-red-50' },
-                { key: 'justificados', label: 'Justif.', color: 'text-yellow-700', bg: 'bg-yellow-50' },
-              ].map(({ key, label, color, bg }) => (
-                <div key={key} className={`flex items-center gap-2 p-2.5 rounded-xl ${bg}`}>
-                  <Users size={15} className={color} />
-                  <div>
-                    <p className={`text-sm font-bold leading-none ${color}`}>{conteos[key]}</p>
-                    <p className={`text-[10px] ${color}`}>{label}</p>
-                  </div>
-                </div>
-              ))}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+            <div className="sm:w-56">
+              <label htmlFor="docente-fecha-asistencia" className="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
+              <DatePicker
+                selected={fechaAsistencia}
+                onChange={(fecha) => { if (fecha) confirmarSiHayCambios(() => setFechaAsistencia(fecha)); }}
+                locale={es}
+                dateFormat="dd/MM/yyyy"
+                maxDate={new Date()}
+                wrapperClassName="w-full"
+                popperContainer={datepickerPopperContainer}
+                customInput={
+                  <input
+                    id="docente-fecha-asistencia"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                  />
+                }
+              />
             </div>
-          )}
 
-          <div className="space-y-2">
-            {loadingAsistencia ? (
-              [...Array(5)].map((_, i) => <SkeletonFila key={i} />)
-            ) : registros.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
-                <p className="text-sm">No hay alumnos registrados en esta sección.</p>
-              </div>
-            ) : (
-              registros.map((r, i) => (
-                <FilaAlumno
-                  key={`${r.alumno_id}-${i}`}
-                  registro={r}
-                  onMarcar={marcar}
-                  onObservacion={actualizarObservacion}
-                />
-              ))
-            )}
+            {/* Excepción declarada del estándar: 2 botones cortos, caben en 360px */}
+            <div role="group" aria-label="Vista de asistencia" className="grid grid-cols-2 gap-1 rounded-xl p-1 sm:ml-auto sm:inline-grid" style={{ background: 'var(--ash-light)' }}>
+              {VISTAS_ASISTENCIA.map(({ id, label, icon: Icon }) => {
+                const activa = vistaAsistencia === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={activa}
+                    onClick={() => cambiarVistaAsistencia(id)}
+                    className={`flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-[background-color,color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--docente-primary)]/40 ${
+                      activa ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Icon size={15} aria-hidden="true" /> {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {dirtyAsistencia && registros.length > 0 && (
-            <button
-              onClick={guardarAsistencia}
-              disabled={savingAsistencia}
-              className="w-full flex items-center justify-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50 min-h-[44px]"
-            >
-              {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              {savingAsistencia ? 'Guardando...' : 'Guardar asistencia'}
-            </button>
+          {vistaAsistencia === 'tarjetas' ? (
+            <PaseListaTarjetas
+              key={`${materia?.grado_seccion}-${format(fechaAsistencia, 'yyyy-MM-dd')}`}
+              registros={registros}
+              loading={loadingAsistencia || loadingMateria}
+              materia={materia}
+              fecha={fechaAsistencia}
+              dirty={dirtyAsistencia}
+              saving={savingAsistencia}
+              onMarcar={marcar}
+              onObservacion={actualizarObservacion}
+              onRestaurar={restaurarRegistro}
+              onGuardar={guardarAsistencia}
+            />
+          ) : (
+            <>
+            {!loadingAsistencia && registros.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {[
+                  { key: 'presentes', label: 'Presentes', color: 'text-green-600', bg: 'bg-green-50' },
+                  { key: 'ausentes', label: 'Ausentes', color: 'text-red-600', bg: 'bg-red-50' },
+                  { key: 'justificados', label: 'Justif.', color: 'text-yellow-700', bg: 'bg-yellow-50' },
+                ].map(({ key, label, color, bg }) => (
+                  <div key={key} className={`flex items-center gap-2 p-2.5 rounded-xl ${bg}`}>
+                    <Users size={15} className={color} />
+                    <div>
+                      <p className={`text-sm font-bold leading-none ${color}`}>{conteos[key]}</p>
+                      <p className={`text-[10px] ${color}`}>{label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {loadingAsistencia ? (
+                [...Array(5)].map((_, i) => <SkeletonFila key={i} />)
+              ) : registros.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+                  <p className="text-sm">No hay alumnos registrados en esta sección.</p>
+                </div>
+              ) : (
+                registros.map((r, i) => (
+                  <FilaAlumno
+                    key={`${r.alumno_id}-${i}`}
+                    registro={r}
+                    onMarcar={marcar}
+                    onObservacion={actualizarObservacion}
+                  />
+                ))
+              )}
+            </div>
+
+            {dirtyAsistencia && registros.length > 0 && (
+              <button
+                onClick={guardarAsistencia}
+                disabled={savingAsistencia}
+                className="w-full flex items-center justify-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50 min-h-[44px]"
+              >
+                {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                {savingAsistencia ? 'Guardando...' : 'Guardar asistencia'}
+              </button>
+            )}
+            </>
           )}
         </div>
       )}
@@ -389,6 +488,45 @@ const DocenteMateriaDetalle = () => {
           )}
         </div>
       )}
+
+      <Modal
+        open={accionPendiente !== null}
+        onClose={cerrarConfirmacion}
+        size="sm"
+        titulo={<><AlertTriangle size={18} aria-hidden="true" /> Cambios sin guardar</>}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={cerrarConfirmacion}
+              className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Seguir editando
+            </button>
+            <button
+              type="button"
+              onClick={descartarYContinuar}
+              className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--red-light)]"
+              style={{ color: 'var(--red)', boxShadow: 'inset 0 0 0 1px var(--red-light)' }}
+            >
+              Descartar cambios
+            </button>
+            <button
+              type="button"
+              onClick={guardarYContinuar}
+              disabled={savingAsistencia}
+              className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50"
+            >
+              {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {savingAsistencia ? 'Guardando...' : 'Guardar y continuar'}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm" style={{ color: 'var(--jet)' }}>
+          Hay asistencia marcada que todavía no se guardó. Si continúas sin guardar, esos cambios se pierden.
+        </p>
+      </Modal>
 
       {modalMaterial && (
         <ModalNuevoMaterial onClose={() => setModalMaterial(false)} onSubmit={publicarMaterial} />
