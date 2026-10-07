@@ -6,6 +6,7 @@ import { useHorarios } from '../hooks/useHorarios';
 import { usePaquetesHorario, useGradosPaquete } from '../hooks/usePaquetesHorario';
 import { INPUT_STYLE } from '../constants/styles';
 import { GrillaHorario } from '../components/horarios/GrillaHorario';
+import { VistaHorariosPorDia } from '../components/horarios/VistaHorariosPorDia';
 import { ModalClase } from '../components/horarios/ModalClase';
 import { ModalGenerador } from '../components/horarios/ModalGenerador';
 import { ResumenGeneracion } from '../components/horarios/ResumenGeneracion';
@@ -65,6 +66,8 @@ const Horarios = () => {
   );
   const usandoVistaDocente = vista === 'docente';
   const usandoVistaParalela = vista === 'paralelo';
+  const usandoVistaPorDia = vista === 'dia';
+  const usandoVistaComparativa = usandoVistaParalela || usandoVistaPorDia;
   const horariosVisibles = usandoVistaDocente ? horariosDocente : horarios;
   const materiasVisibles = usandoVistaDocente ? (docenteActivo?.materias || []) : materias;
   const claseVisiblePorBloque = useMemo(() => {
@@ -144,7 +147,7 @@ const Horarios = () => {
     setVista(nuevaVista);
     setMateriaActiva(null);
     if (nuevaVista === 'docente') await cargarDocentes();
-    if (nuevaVista === 'paralelo') await cargarGrillasParalelas();
+    if (nuevaVista === 'paralelo' || nuevaVista === 'dia') await cargarGrillasParalelas();
   };
 
   const seleccionarDocente = async (id) => {
@@ -188,7 +191,7 @@ const Horarios = () => {
     const ok = await guardar(form);
     if (ok) {
       if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
-      if (usandoVistaParalela) await cargarGrillasParalelas();
+      if (usandoVistaComparativa) await cargarGrillasParalelas();
       cerrarModal();
     }
   };
@@ -197,7 +200,7 @@ const Horarios = () => {
     const ok = await eliminar(id);
     if (ok) {
       if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
-      if (usandoVistaParalela) await cargarGrillasParalelas();
+      if (usandoVistaComparativa) await cargarGrillasParalelas();
       cerrarModal();
     }
   };
@@ -212,7 +215,7 @@ const Horarios = () => {
       aula: clase.aula,
     });
     if (ok && usandoVistaDocente) await cargarHorarioDocente(docenteId);
-    if (ok && usandoVistaParalela) await cargarGrillasParalelas();
+    if (ok && usandoVistaComparativa) await cargarGrillasParalelas();
   };
 
   const handleIntercambiarClase = async (origen, destino) => {
@@ -224,7 +227,7 @@ const Horarios = () => {
     const ok = await intercambiar(intercambioPendiente.origen.id, intercambioPendiente.destino.id);
     if (ok) {
       if (usandoVistaDocente) await cargarHorarioDocente(docenteId);
-      if (usandoVistaParalela) await cargarGrillasParalelas();
+      if (usandoVistaComparativa) await cargarGrillasParalelas();
       setIntercambioPendiente(null);
     }
   };
@@ -317,7 +320,7 @@ const Horarios = () => {
       <div className="print:hidden">
         <PageHeader
           titulo={paqueteActual ? paqueteActual.nombre : 'Horarios de Clases'}
-          descripcion={usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : usandoVistaParalela ? 'Compara y ajusta los grados del paquete lado a lado' : 'Visualiza y edita la grilla horaria por grado'}
+          descripcion={usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : usandoVistaParalela ? 'Compara y ajusta los grados del paquete lado a lado' : usandoVistaPorDia ? 'Coordina todos los grados agrupados por día de la semana' : 'Visualiza y edita la grilla horaria por grado'}
           acciones={
             <div className="flex items-center gap-2 flex-wrap">
               <button
@@ -330,7 +333,7 @@ const Horarios = () => {
               </button>
               <button
                 onClick={agregarClase}
-                disabled={usandoVistaParalela || !(usandoVistaDocente ? docenteId : grado) || !bloques.length}
+                disabled={usandoVistaComparativa || !(usandoVistaDocente ? docenteId : grado) || !bloques.length}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
                 style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
               >
@@ -375,13 +378,14 @@ const Horarios = () => {
           <button type="button" onClick={() => cambiarVista('grado')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: vista === 'grado' ? 'var(--porcelain)' : 'transparent', color: vista === 'grado' ? 'var(--pb)' : 'var(--ash)', boxShadow: vista === 'grado' ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por grado</button>
           <button type="button" onClick={() => cambiarVista('docente')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaDocente ? 'var(--porcelain)' : 'transparent', color: usandoVistaDocente ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaDocente ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por profesor</button>
           <button type="button" onClick={() => cambiarVista('paralelo')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaParalela ? 'var(--porcelain)' : 'transparent', color: usandoVistaParalela ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaParalela ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Grillas paralelas</button>
+          <button type="button" onClick={() => cambiarVista('dia')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaPorDia ? 'var(--porcelain)' : 'transparent', color: usandoVistaPorDia ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaPorDia ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por día</button>
         </div>
         <div className="max-w-xs">
         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-          {usandoVistaDocente ? 'Profesor' : usandoVistaParalela ? 'Grados del paquete' : 'Grado / Año'}
+          {usandoVistaDocente ? 'Profesor' : usandoVistaComparativa ? 'Grados del paquete' : 'Grado / Año'}
         </label>
-        {usandoVistaParalela ? (
-          <p className="text-sm" style={{ color: 'var(--ash)' }}>Se muestran {gradosPaquete.length} grillas lado a lado. Selecciona una celda para editar ese grado.</p>
+        {usandoVistaComparativa ? (
+          <p className="text-sm" style={{ color: 'var(--ash)' }}>{usandoVistaPorDia ? 'Los grados se agrupan dentro de cada día para coordinar la jornada completa.' : `Se muestran ${gradosPaquete.length} grillas lado a lado. Selecciona una celda para editar ese grado.`}</p>
         ) : usandoVistaDocente ? (
           <select value={docenteId} onChange={e => seleccionarDocente(e.target.value)} disabled={loadingDocentes} className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60" style={INPUT_STYLE}>
             <option value="">{loadingDocentes ? 'Cargando profesores...' : 'Seleccionar profesor...'}</option>
@@ -411,7 +415,7 @@ const Horarios = () => {
       </div>
 
       {/* Materias disponibles para el grado o profesor seleccionado */}
-      {(usandoVistaDocente ? docenteId : grado) && !usandoVistaParalela && (
+      {(usandoVistaDocente ? docenteId : grado) && !usandoVistaComparativa && (
         <>
           <ResumenHorario bloques={bloques} horarios={horariosVisibles} materias={materiasVisibles} modoDocente={usandoVistaDocente} />
           <PanelMaterias
@@ -436,11 +440,11 @@ const Horarios = () => {
       {impresion && <VistaImpresionHorario bloques={bloques} horarios={impresion.horarios} encabezado={impresion.encabezado} />}
 
       {/* Contenido principal */}
-      {usandoVistaParalela ? (
+      {usandoVistaComparativa ? (
         <div className="print:hidden">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Tamaño de las grillas</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>{usandoVistaPorDia ? 'Tamaño de la vista por día' : 'Tamaño de las grillas'}</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>Reduce el tamaño para comparar más fácilmente los horarios.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -450,7 +454,15 @@ const Horarios = () => {
               <span className="w-10 text-right text-sm font-semibold tabular-nums" style={{ color: 'var(--pb)' }}>{escalaParalelas}%</span>
             </div>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {usandoVistaPorDia ? (
+            <VistaHorariosPorDia
+              bloques={bloques}
+              grillas={grillasParalelas}
+              escala={escalaParalelas}
+              onCeldaClick={abrirCelda}
+              onEditarClase={(clase, materiasContexto) => setModal({ clase, bloque: null, materiasContexto })}
+            />
+          ) : <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {grillasParalelas.map(grilla => {
               const clasesPorBloque = new Map(grilla.horarios.filter(clase => clase.bloque_id != null).map(clase => [clase.bloque_id, clase]));
               return <section key={grilla.grado} className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -464,7 +476,7 @@ const Horarios = () => {
               </section>;
             })}
             {!loadingParalelas && !grillasParalelas.length && <p className="text-sm" style={{ color: 'var(--ash)' }}>Este paquete todavía no tiene grados para mostrar.</p>}
-          </div>
+          </div>}
         </div>
       ) : !(usandoVistaDocente ? docenteId : grado) ? (
         <div className="rounded-xl p-16 text-center"
