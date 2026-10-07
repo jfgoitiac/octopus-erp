@@ -374,7 +374,7 @@ const Horarios = () => {
 
       {/* Elegir la forma de cuadrar el horario — oculto al imprimir */}
       <div className="mb-6 print:hidden">
-        <div className="inline-flex rounded-lg p-1 mb-4" style={{ background: 'var(--ash-light)' }}>
+        <div className="flex w-fit max-w-full flex-wrap rounded-lg p-1 mb-4" style={{ background: 'var(--ash-light)' }}>
           <button type="button" onClick={() => cambiarVista('grado')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: vista === 'grado' ? 'var(--porcelain)' : 'transparent', color: vista === 'grado' ? 'var(--pb)' : 'var(--ash)', boxShadow: vista === 'grado' ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por grado</button>
           <button type="button" onClick={() => cambiarVista('docente')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaDocente ? 'var(--porcelain)' : 'transparent', color: usandoVistaDocente ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaDocente ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Por profesor</button>
           <button type="button" onClick={() => cambiarVista('paralelo')} className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ background: usandoVistaParalela ? 'var(--porcelain)' : 'transparent', color: usandoVistaParalela ? 'var(--pb)' : 'var(--ash)', boxShadow: usandoVistaParalela ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>Grillas paralelas</button>
