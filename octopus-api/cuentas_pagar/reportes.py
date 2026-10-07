@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from django.db.models import Sum
 from django.utils import timezone
+from cobranza.permissions import filtrar_por_sede
 
 from .models import CuentaPorPagar, CuotaCuentaPagar, PagoCuentaPagar, PlantillaRecurrente
 
@@ -17,8 +18,10 @@ def _fecha(valor, predeterminado):
     return date.fromisoformat(str(valor)) if isinstance(valor, str) else valor
 
 
-def _cuentas(sede=None, desde=None, hasta=None, incluir_cerradas=False):
+def _cuentas(sede=None, desde=None, hasta=None, incluir_cerradas=False, usuario=None):
     qs = CuentaPorPagar.objects.select_related('proveedor', 'categoria', 'sede').all()
+    if usuario is not None:
+        qs = filtrar_por_sede(usuario, qs)
     if not incluir_cerradas:
         qs = qs.exclude(estado='anulada')
     if sede:
@@ -53,17 +56,19 @@ def _montos(cuentas):
     return {k: {m: str(v.quantize(Decimal('0.01'))) if m != 'cantidad' else v for m, v in d.items()} for k, d in totales.items()}
 
 
-def tablero(sede=None, desde=None, hasta=None, hoy=None):
-    cuentas = list(_cuentas(sede, desde, hasta))
+def tablero(sede=None, desde=None, hasta=None, hoy=None, usuario=None):
+    cuentas = list(_cuentas(sede, desde, hasta, usuario=usuario))
     return {'por_situacion': _montos(cuentas), 'total_cuentas': len(cuentas), 'fecha': str(hoy or timezone.localdate())}
 
 
-def calendario(sede=None, desde=None, hasta=None):
+def calendario(sede=None, desde=None, hasta=None, usuario=None):
     desde = _fecha(desde, timezone.localdate())
     hasta = _fecha(hasta, None) if hasta else None
-    cuentas = _cuentas(sede, desde, hasta).exclude(estado__in=['pagada', 'anulada'])
+    cuentas = _cuentas(sede, desde, hasta, usuario=usuario).exclude(estado__in=['pagada', 'anulada'])
     eventos = [{'tipo': 'cuenta', 'id': c.id, 'numero': c.numero, 'fecha': str(c.fecha_vencimiento), 'monto': str(c.saldo), 'moneda': c.moneda} for c in cuentas]
     cuotas = CuotaCuentaPagar.objects.select_related('cuenta').exclude(estado='anulada')
+    if usuario is not None:
+        cuotas = filtrar_por_sede(usuario, cuotas, 'cuenta__sede')
     if sede: cuotas = cuotas.filter(cuenta__sede_id=sede)
     if desde: cuotas = cuotas.filter(fecha_vencimiento__gte=desde)
     if hasta: cuotas = cuotas.filter(fecha_vencimiento__lte=hasta)
@@ -71,14 +76,17 @@ def calendario(sede=None, desde=None, hasta=None):
     return sorted(eventos, key=lambda e: (e['fecha'], e['tipo']))
 
 
-def proyeccion(sede=None, desde=None, hasta=None):
+def proyeccion(sede=None, desde=None, hasta=None, usuario=None):
     filas = defaultdict(lambda: {'usd': ZERO, 'ves': ZERO})
-    for c in _cuentas(sede, desde, hasta).exclude(estado__in=['pagada', 'anulada']):
+    for c in _cuentas(sede, desde, hasta, usuario=usuario).exclude(estado__in=['pagada', 'anulada']):
         factor = c.saldo / c.monto_documento if c.monto_documento else ZERO
         filas[str(c.fecha_vencimiento)]['usd'] += c.monto_usd * factor
         filas[str(c.fecha_vencimiento)]['ves'] += c.monto_ves * factor
     # Las plantillas son estimaciones futuras: no se confunden con una deuda creada.
-    for p in PlantillaRecurrente.objects.filter(activa=True):
+    plantillas = PlantillaRecurrente.objects.filter(activa=True)
+    if usuario is not None:
+        plantillas = filtrar_por_sede(usuario, plantillas)
+    for p in plantillas:
         if sede and p.sede_id != int(sede): continue
         clave = str(_fecha(desde, timezone.localdate()))[:7]
         if p.moneda == 'USD': filas[clave]['usd'] += p.monto
@@ -86,8 +94,8 @@ def proyeccion(sede=None, desde=None, hasta=None):
     return [{'fecha': fecha, 'usd': str(v['usd'].quantize(Decimal('0.01'))), 'ves': str(v['ves'].quantize(Decimal('0.01')))} for fecha, v in sorted(filas.items())]
 
 
-def estado_proveedor(proveedor_id, sede=None, hoy=None):
-    qs = _cuentas(sede).filter(proveedor_id=proveedor_id)
+def estado_proveedor(proveedor_id, sede=None, hoy=None, usuario=None):
+    qs = _cuentas(sede, usuario=usuario).filter(proveedor_id=proveedor_id)
     cuentas = list(qs)
     proximos = [
         {'id': c.id, 'numero': c.numero, 'fecha': str(c.fecha_vencimiento), 'monto': str(c.saldo), 'moneda': c.moneda}

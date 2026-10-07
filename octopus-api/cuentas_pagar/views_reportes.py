@@ -7,7 +7,8 @@ from .permissions import PuedeVerCxP
 
 class BaseReporteCxP(APIView):
     permission_classes = (PuedeVerCxP,)
-    def parametros(self): return {k: self.request.query_params.get(k) for k in ('sede', 'desde', 'hasta')}
+    def parametros(self):
+        return {**{k: self.request.query_params.get(k) for k in ('sede', 'desde', 'hasta')}, 'usuario': self.request.user}
 
 
 class TableroCxPView(BaseReporteCxP):
@@ -29,6 +30,7 @@ class EstadoProveedorCxPView(BaseReporteCxP):
 class ReporteCxPView(BaseReporteCxP):
     def get(self, request, nombre):
         try:
-            return Response(reportes.reporte(nombre, proveedor=request.query_params.get('proveedor'), corte=request.query_params.get('corte'), **self.parametros()))
+            parametros = self.parametros(); parametros.pop('usuario')
+            return Response(reportes.reporte(nombre, proveedor=request.query_params.get('proveedor'), corte=request.query_params.get('corte'), **parametros))
         except ValueError:
             return Response({'detalle': 'Informe no válido'}, status=404)
