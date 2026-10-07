@@ -1018,25 +1018,46 @@ class AnularPagoTests(TestCase):
         resp = self.client.post(f'/api/cobranza/pagos/{pago.id}/anular/', {'motivo': 'corto'}, format='json')
         self.assertEqual(resp.status_code, 400)
 
-    def test_anular_pago_vinculado_a_cargo_especial_sigue_rechazado(self):
-        """Límite conocido documentado en NOTAS_TECNICAS.md: no cambia con la
-        generalización a TipoCargoEspecial — sigue sin poder anularse
-        automáticamente un pago vinculado a CUALQUIER CuotaProyectoInversion."""
-        from django.core.exceptions import ValidationError as DjangoValidationError
-        from cobranza.correcciones import anular_pago
+    def _cuota_proyecto_con_pago(self, referencia, monto_pagado='30.00'):
         from cobranza.services import tipo_cargo_proyecto_inversion
 
-        tipo = tipo_cargo_proyecto_inversion()
         cuota = CuotaProyectoInversion.objects.create(
             representante=self.representante, periodo_escolar='2025-2026',
-            tipo_concepto=tipo, monto_usd=Decimal('30.00'), monto_pagado=Decimal('30.00'),
+            tipo_concepto=tipo_cargo_proyecto_inversion(), monto_usd=Decimal('30.00'),
+            monto_pagado=Decimal(monto_pagado),
         )
         pago = Pago.objects.create(
             alumno=self.alumno, usuario_receptor=self.user, metodo_pago='transferencia',
             concepto='proyecto_inversion', monto_usd=Decimal('30.00'), tasa_aplicada=Decimal('40.00'),
-            estatus='completado', referencia='TRF-PROYECTO-1',
+            estatus='completado', referencia=referencia,
         )
         cuota.pagos.add(pago)
+        return cuota, pago
+
+    def test_anular_pago_unico_de_cargo_especial_revierte_la_cuota(self):
+        from cobranza.correcciones import anular_pago
+
+        cuota, pago = self._cuota_proyecto_con_pago('TRF-PROYECTO-1')
+        anular_pago(pago, self.user, 'Reverso bancario confirmado por el banco')
+
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_pagado, Decimal('0.00'))
+        self.assertFalse(cuota.pagado)
+        self.assertIsNone(cuota.fecha_pago)
+
+    def test_anular_pago_con_cuota_compartida_sigue_rechazado(self):
+        """Límite conocido (NOTAS_TECNICAS.md): si otro pago vigente abonó a la
+        misma cuota no se puede saber cuánto restarle."""
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from cobranza.correcciones import anular_pago
+
+        cuota, pago = self._cuota_proyecto_con_pago('TRF-PROYECTO-1')
+        otro = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.user, metodo_pago='transferencia',
+            concepto='proyecto_inversion', monto_usd=Decimal('10.00'), tasa_aplicada=Decimal('40.00'),
+            estatus='completado', referencia='TRF-PROYECTO-2',
+        )
+        cuota.pagos.add(otro)
 
         with self.assertRaises(DjangoValidationError):
             anular_pago(pago, self.user, 'Reverso bancario confirmado por el banco')

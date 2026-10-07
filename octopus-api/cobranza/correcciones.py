@@ -356,16 +356,25 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
     mensualidad/cuota que había marcado como pagada. No borra el registro
     (auditoría) — solo cambia estatus, y HistoricalRecords deja constancia.
 
-    LIMITACIÓN CONOCIDA: no soporta pagos vinculados a CuotaProyectoInversion.
-    Esos abonos son parciales y no queda registrado, por pago, cuánto abonó
-    cada uno a cada cuota (solo el monto_pagado acumulado de la cuota) — no
-    hay forma segura de saber cuánto restarle sin arriesgar dejar la cuota
-    con un monto_pagado incorrecto. Ver NOTAS_TECNICAS.md.
+    LIMITACIÓN CONOCIDA: un pago vinculado a CuotaProyectoInversion solo se
+    anula si esa cuota no recibió abonos de otros pagos vigentes. Los abonos
+    son parciales y no queda registrado, por pago, cuánto abonó cada uno
+    (solo el monto_pagado acumulado de la cuota) — con varios pagos no hay
+    forma segura de saber cuánto restarle. Ver NOTAS_TECNICAS.md.
     """
     if pago.estatus == 'anulado':
         raise ValidationError({'estatus': 'Este pago ya fue anulado anteriormente.'})
 
-    if pago.proyectos_inversion_pagados.exists():
+    # Cargo especial: la anulación es exacta solo si ningún OTRO pago vigente
+    # abonó a la misma cuota (entonces todo su monto_pagado viene de este
+    # pago y revertirlo a 0 es seguro). Con abonos de varios pagos no hay
+    # snapshot por pago, así que se mantiene el bloqueo.
+    cuotas_proyecto = list(pago.proyectos_inversion_pagados.all())
+    cuotas_compartidas = [
+        c for c in cuotas_proyecto
+        if c.pagos.exclude(id=pago.id).exclude(estatus='anulado').exists()
+    ]
+    if cuotas_compartidas:
         raise ValidationError({
             'proyecto_inversion': (
                 'No se puede anular automáticamente un pago vinculado a un cargo '
@@ -413,6 +422,12 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         # de nuevo con la fecha real del nuevo pago (puede diferir del
         # recargo original si cambiaron las condiciones).
         pago.lineas_recargo.all().delete()
+
+        # Cargo especial (Proyecto de Inversión): validado arriba que la cuota
+        # solo tiene abonos de este pago. save() deriva pagado/fecha_pago.
+        for cuota in cuotas_proyecto:
+            cuota.monto_pagado = Decimal('0.00')
+            cuota.save()
 
         # Descuento por pago dentro de rango: mismo criterio que el recargo
         # — se BORRA el snapshot (LineaDescuentoPago). El reset en bloque de
