@@ -288,11 +288,11 @@ class PlaceholdersViewTests(TestCase):
         self.secretaria = _crear_usuario('secretaria3', 'secretaria')
         self.client.force_authenticate(user=self.secretaria)
 
-    def test_placeholders_alumno_incluye_institucion_y_documento(self):
+    def test_placeholders_alumno_incluye_datos_familiares_e_institucionales(self):
         resp = self.client.get('/api/constancias/placeholders/', {'destinatario': 'alumno'})
         self.assertEqual(resp.status_code, 200, resp.content)
         grupos = {g['grupo'] for g in resp.json()['grupos']}
-        self.assertEqual(grupos, {'alumno', 'institucion', 'documento'})
+        self.assertEqual(grupos, {'alumno', 'familia', 'institucion', 'documento'})
 
     def test_placeholders_destinatario_invalido_devuelve_400(self):
         resp = self.client.get('/api/constancias/placeholders/', {'destinatario': 'invalido'})

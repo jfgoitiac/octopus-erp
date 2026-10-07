@@ -39,6 +39,7 @@ const navSections = [
       { name: 'Emitir',     path: '/constancias/emitir',     icon: FileOutput,     roles: ['director','administrador','secretaria'] },
       { name: 'Histórico',  path: '/constancias/historico',  icon: History,        roles: ['director','administrador','secretaria'] },
       { name: 'Firmante',   path: '/constancias/firmante',   icon: FileSignature,  roles: ['director','administrador'] },
+      { name: 'Cobros',     path: '/constancias/cobros',     icon: FileSignature,  roles: ['director','administrador'] },
     ],
   },
   {

@@ -5,7 +5,8 @@ import {
   AlertTriangle, CheckCircle2, Loader2, X,
 } from 'lucide-react';
 import apiClient from '../../api/apiClient';
-import { getPlantillas, previsualizarConstancia, emitirConstancia } from '../../services/constancias';
+import { getPlantillas, previsualizarConstancia, emitirConstancia, getCobroConstanciaInfo } from '../../services/constancias';
+import { getBancos } from '../../api/cobranza.service';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Bone } from '../../components/shared/Skeleton';
@@ -15,7 +16,6 @@ const PASOS = ['Plantilla', 'Destinatario', 'Datos', 'Previsualización'];
 const DESTINATARIO_LABEL = {
   alumno: 'alumno',
   trabajador: 'trabajador',
-  representante: 'representante',
 };
 
 // Endpoints de búsqueda por destinatario, confirmados contra el backend real:
@@ -25,12 +25,9 @@ const DESTINATARIO_LABEL = {
 //   existía endpoint de búsqueda para nomina.Empleado, que es la fuente
 //   canónica según CONTRATO_CONSTANCIAS.md D4, distinta de rrhh.Empleado).
 //   Devuelve id/cedula/nombre/apellido/tipo_personal, sin sueldo.
-// - representante: secretaria/representantes/ (RepresentanteViewSet, ya
-//   soporta ?buscar= por cedula/nombre/apellido/correo).
 const BUSQUEDA_ENDPOINT = {
   alumno: 'secretaria/alumnos/',
   trabajador: 'nomina/empleados/buscar/',
-  representante: 'secretaria/representantes/',
 };
 
 // Los modelos reales usan nombre/apellido (singular), no nombres/apellidos.
@@ -104,7 +101,7 @@ export default function EmisionConstancias() {
   const [loadingPlantillas, setLoadingPlantillas] = useState(true);
   const [plantilla, setPlantilla] = useState(null);
 
-  // Paso 1: destinatario (alumno/trabajador/representante)
+  // Paso 1: destinatario (alumno/trabajador)
   const [busqueda, setBusqueda] = useState('');
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
@@ -124,6 +121,9 @@ export default function EmisionConstancias() {
   const [preview, setPreview] = useState(null); // { html_renderizado, advertencias }
   const [emitiendo, setEmitiendo] = useState(false);
   const [emitida, setEmitida] = useState(null);
+  const [cobro, setCobro] = useState(null);
+  const [bancos, setBancos] = useState([]);
+  const [pago, setPago] = useState({ metodo_pago: 'efectivo', banco_receptor_id: '', referencia: '', numero_lote: '' });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -144,21 +144,23 @@ export default function EmisionConstancias() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    getBancos().then((res) => setBancos(res.data || [])).catch(() => setBancos([]));
+  }, []);
+
   // Búsqueda de destinatario (debounced), según el tipo que exige la plantilla.
   useEffect(() => {
     if (!plantilla) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!busqueda.trim()) {
-      setResultados([]);
       return;
     }
     const endpoint = BUSQUEDA_ENDPOINT[plantilla.destinatario];
     if (!endpoint) {
-      setResultados([]);
       return;
     }
-    setBuscando(true);
     debounceRef.current = setTimeout(async () => {
+      setBuscando(true);
       try {
         const res = await apiClient.get(endpoint, { params: { buscar: busqueda.trim(), page_size: 10 } });
         const data = res.data;
@@ -177,8 +179,16 @@ export default function EmisionConstancias() {
     if (!plantilla || !persona) return null;
     const payload = { plantilla_id: plantilla.id, datos_capturados: datosCapturados };
     payload[`${plantilla.destinatario}_id`] = persona.id;
+    if (cobro?.requiere_pago) {
+      payload.pago = {
+        ...pago,
+        banco_receptor_id: pago.banco_receptor_id || undefined,
+        monto_usd: pago.metodo_pago === 'efectivo' || pago.metodo_pago === 'zelle' ? cobro.monto_usd : undefined,
+        monto_ves: pago.metodo_pago !== 'efectivo' && pago.metodo_pago !== 'zelle' ? cobro.monto_ves : undefined,
+      };
+    }
     return payload;
-  }, [plantilla, persona, datosCapturados]);
+  }, [plantilla, persona, datosCapturados, cobro, pago]);
 
   const handlePrevisualizar = async () => {
     const payload = buildPayload();
@@ -188,6 +198,12 @@ export default function EmisionConstancias() {
     try {
       const res = await previsualizarConstancia(payload);
       setPreview(res.data);
+      if (plantilla.destinatario === 'alumno') {
+        const cobroRes = await getCobroConstanciaInfo(plantilla.id, persona.id);
+        setCobro(cobroRes.data);
+      } else {
+        setCobro({ requiere_pago: false });
+      }
       setPaso(3);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'No se pudo generar la previsualización.');
@@ -223,6 +239,7 @@ export default function EmisionConstancias() {
     setPersona(null);
     setDatosCapturados({ horario: '', grado_promocion: '', nivel_promocion: '', anio_escolar_promocion: '' });
     setPreview(null);
+    setCobro(null);
     setEmitida(null);
   };
 
@@ -292,7 +309,7 @@ export default function EmisionConstancias() {
                   {plantillas.map((p) => (
                     <button
                       key={p.id}
-                      onClick={() => { setPlantilla(p); setPaso(1); }}
+                      onClick={() => { setPlantilla(p); setResultados([]); setBusqueda(''); setPersona(null); setPaso(1); }}
                       className="text-left flex items-start gap-3 p-3.5 rounded-lg transition-all duration-150"
                       style={{
                         border: `1px solid ${plantilla?.id === p.id ? 'var(--pb)' : 'var(--border-md)'}`,
@@ -327,7 +344,12 @@ export default function EmisionConstancias() {
                   style={{ ...inputStyle, paddingLeft: '2rem' }}
                   placeholder="Nombre, apellido o cédula…"
                   value={busqueda}
-                  onChange={(e) => { setBusqueda(e.target.value); setPersona(null); }}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    setBusqueda(valor);
+                    setPersona(null);
+                    if (!valor.trim()) setResultados([]);
+                  }}
                 />
                 {buscando && (
                   <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--ash)' }} />
@@ -473,6 +495,41 @@ export default function EmisionConstancias() {
                 style={{ border: '1px solid var(--border-md)', background: '#fff', color: '#111' }}
                 dangerouslySetInnerHTML={{ __html: preview.html_renderizado }}
               />
+
+              {cobro?.requiere_pago && (
+                <div className="mt-4 p-4 rounded-lg" style={{ background: 'var(--pb-light)', border: '1px solid var(--pb)' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Pago obligatorio antes de emitir</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
+                    USD {cobro.monto_usd} · Tasa BCV: {cobro.tasa_bcv} · Total: Bs. {cobro.monto_ves}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <select className={inputCls} style={inputStyle} value={pago.metodo_pago}
+                      onChange={(e) => setPago((v) => ({ ...v, metodo_pago: e.target.value, banco_receptor_id: '' }))}>
+                      <option value="efectivo">Efectivo divisas</option>
+                      <option value="efectivo_ves">Efectivo bolívares</option>
+                      <option value="transferencia">Transferencia</option>
+                      <option value="pago_movil">Pago móvil</option>
+                      <option value="punto_de_venta">Punto de venta</option>
+                      <option value="zelle">Zelle</option>
+                    </select>
+                    {!['efectivo', 'efectivo_ves'].includes(pago.metodo_pago) && (
+                      <select className={inputCls} style={inputStyle} value={pago.banco_receptor_id}
+                        onChange={(e) => setPago((v) => ({ ...v, banco_receptor_id: e.target.value }))}>
+                        <option value="">Selecciona banco receptor</option>
+                        {bancos.map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+                      </select>
+                    )}
+                    {!['efectivo', 'efectivo_ves'].includes(pago.metodo_pago) && (
+                      <input className={inputCls} style={inputStyle} placeholder="Referencia obligatoria" value={pago.referencia}
+                        onChange={(e) => setPago((v) => ({ ...v, referencia: e.target.value }))} />
+                    )}
+                    {pago.metodo_pago === 'punto_de_venta' && (
+                      <input className={inputCls} style={inputStyle} placeholder="Lote de 4 dígitos" value={pago.numero_lote}
+                        onChange={(e) => setPago((v) => ({ ...v, numero_lote: e.target.value }))} />
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between pt-4">
                 <button

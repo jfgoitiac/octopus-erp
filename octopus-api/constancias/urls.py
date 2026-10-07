@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ConstanciaEmitidaDetailView,
     ConstanciaEmitidaListView,
+    CobroConstanciaInfoView,
+    ConfiguracionCobrosConstanciasView,
     EmitirView,
     FirmaDelegadaListView,
     FirmaDelegadaMiembroView,
@@ -24,6 +26,8 @@ urlpatterns = [
     path('placeholders/', PlaceholdersView.as_view()),
     path('previsualizar/', PrevisualizarView.as_view()),
     path('emitir/', EmitirView.as_view()),
+    path('cobro-info/', CobroConstanciaInfoView.as_view()),
+    path('configuracion-cobros/', ConfiguracionCobrosConstanciasView.as_view()),
     path('emitidas/', ConstanciaEmitidaListView.as_view()),
     path('emitidas/<int:pk>/', ConstanciaEmitidaDetailView.as_view()),
     path('emitidas/<int:pk>/pdf/', PdfConstanciaView.as_view()),

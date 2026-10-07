@@ -63,9 +63,6 @@ export const getAsistencia = (gradoSeccion, fecha, signal) =>
 export const saveAsistencia = (gradoSeccion, fecha, registros) =>
   apiClient.post('academico/asistencia/', { grado_seccion: gradoSeccion, fecha, registros });
 
-export const getResumenAsistencia = (alumnoId, mes, anio) =>
-  apiClient.get(`academico/asistencia/resumen/?alumno_id=${alumnoId}&mes=${mes}&anio=${anio}`);
-
 // Horarios — ahora se filtran por paquete + grado_seccion (ver PaquetesHorario)
 export const getHorarios = (paqueteId, gradoSeccion, signal) => {
   const params = new URLSearchParams();
@@ -95,9 +92,6 @@ export const getPaquetesHorario = (filtros, signal) => {
   const qs = params.toString();
   return apiClient.get(`academico/paquetes-horario/${qs ? `?${qs}` : ''}`, signal ? { signal } : undefined);
 };
-
-export const getPaqueteHorario = (id, signal) =>
-  apiClient.get(`academico/paquetes-horario/${id}/`, signal ? { signal } : undefined);
 
 export const createPaqueteHorario = (data) =>
   apiClient.post('academico/paquetes-horario/', data);
@@ -157,9 +151,6 @@ export const generarHorario = (data) =>
   apiClient.post('academico/horarios/generar/', data);
 
 // Lapsos — CRUD completo
-export const getLapso = (id) =>
-  apiClient.get(`academico/lapsos/${id}/`);
-
 export const updateLapso = (id, data) =>
   apiClient.put(`academico/lapsos/${id}/`, data);
 
@@ -172,9 +163,6 @@ export const getIncidentes = (filtros, signal) => {
   const qs = params.toString();
   return apiClient.get(`academico/incidentes/${qs ? `?${qs}` : ''}`, signal ? { signal } : undefined);
 };
-
-export const getIncidente = (id) =>
-  apiClient.get(`academico/incidentes/${id}/`);
 
 export const createIncidente = (data) => {
   const formData = new FormData();

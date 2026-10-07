@@ -29,6 +29,74 @@ from .serializers import (
     PlantillaConstanciaSerializer,
 )
 
+CLAVE_TARIFAS = 'CONSTANCIAS_TARIFAS_USD'
+TIPOS_COBRABLES_ALUMNO = ('estudio', 'conducta', 'retiro')
+
+
+def _tarifas_constancias():
+    import json
+    from decimal import Decimal, InvalidOperation
+    from cobranza.models import ParametroGlobal
+    tarifas = {tipo: Decimal('0.00') for tipo in TIPOS_COBRABLES_ALUMNO}
+    config = ParametroGlobal.objects.filter(clave=CLAVE_TARIFAS).first()
+    if not config:
+        return tarifas
+    try:
+        valores = json.loads(config.valor)
+        for tipo in tarifas:
+            tarifas[tipo] = max(Decimal(str(valores.get(tipo, 0))).quantize(Decimal('0.01')), Decimal('0.00'))
+    except (ValueError, TypeError, InvalidOperation):
+        pass
+    return tarifas
+
+
+class ConfiguracionCobrosConstanciasView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsRolConstancias]
+
+    def get(self, request):
+        return Response({'tarifas_usd': {k: str(v) for k, v in _tarifas_constancias().items()}})
+
+    def put(self, request):
+        if not IsSystemAdminOrDirector().has_permission(request, self):
+            return Response({'detail': 'No tienes permiso para configurar tarifas.'}, status=status.HTTP_403_FORBIDDEN)
+        from decimal import Decimal, InvalidOperation
+        import json
+        recibido = request.data.get('tarifas_usd')
+        if not isinstance(recibido, dict):
+            return Response({'detail': 'tarifas_usd debe ser un objeto.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            tarifas = {tipo: str(Decimal(str(recibido.get(tipo, 0))).quantize(Decimal('0.01'))) for tipo in TIPOS_COBRABLES_ALUMNO}
+            if any(Decimal(monto) < 0 for monto in tarifas.values()):
+                raise ValueError
+        except (InvalidOperation, ValueError):
+            return Response({'detail': 'Cada tarifa debe ser un monto positivo con máximo dos decimales.'}, status=status.HTTP_400_BAD_REQUEST)
+        from cobranza.models import ParametroGlobal
+        ParametroGlobal.objects.update_or_create(clave=CLAVE_TARIFAS, defaults={
+            'valor': json.dumps(tarifas), 'descripcion': 'Tarifas USD de constancias para alumnos',
+        })
+        return Response({'tarifas_usd': tarifas})
+
+
+class CobroConstanciaInfoView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsRolConstancias]
+
+    def get(self, request):
+        from decimal import Decimal
+        from cobranza.models import TasaCambio
+        plantilla, alumno, _trabajador, error = _resolver_plantilla_y_objetivo(request.query_params)
+        if error:
+            return error
+        if alumno is None:
+            return Response({'requiere_pago': False, 'detalle': 'Las constancias laborales no tienen cobro.'})
+        monto_usd = _tarifas_constancias().get(plantilla.tipo, Decimal('0.00'))
+        if monto_usd <= 0:
+            return Response({'requiere_pago': False, 'monto_usd': str(monto_usd)})
+        tasa = TasaCambio.objects.order_by('-fecha').first()
+        if not tasa:
+            return Response({'detail': 'No hay una tasa BCV vigente configurada.'}, status=status.HTTP_409_CONFLICT)
+        return Response({'requiere_pago': True, 'monto_usd': str(monto_usd), 'tasa_bcv': str(tasa.valor_bs),
+                         'monto_ves': str((monto_usd * tasa.valor_bs).quantize(Decimal('0.01')))})
+
 
 # ---------------------------------------------------------------------------
 # Catálogo cerrado de placeholders (GET /constancias/placeholders/)
@@ -112,15 +180,18 @@ CATALOGO_PLACEHOLDERS = {
 # destinatario del query param -> grupo(s) específicos de ese destinatario
 # (institucion y documento se agregan siempre, ver PlaceholdersView).
 GRUPOS_POR_DESTINATARIO = {
-    'alumno': ['alumno'],
+    # La constancia de un alumno puede usar también los datos de su
+    # representante (madre/padre/representante). El resolver ya los
+    # proporciona bajo ``familia``; exponerlos aquí evita que queden
+    # utilizables solo por plantillas importadas o escritas a mano.
+    'alumno': ['alumno', 'familia'],
     'trabajador': ['trabajador'],
-    'representante': ['familia'],
 }
 
 
 class PlaceholdersView(APIView):
     """Catálogo CERRADO de placeholders disponibles, filtrado por
-    `?destinatario=alumno|trabajador|representante` + siempre institucion y
+    `?destinatario=alumno|trabajador` + siempre institucion y
     documento. Cualquier usuario logueado puede consultarlo."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -129,7 +200,7 @@ class PlaceholdersView(APIView):
         grupos_especificos = GRUPOS_POR_DESTINATARIO.get(destinatario)
         if grupos_especificos is None:
             return Response(
-                {'detail': "El parámetro 'destinatario' debe ser 'alumno', 'trabajador' o 'representante'."},
+                {'detail': "El parámetro 'destinatario' debe ser 'alumno' o 'trabajador'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -300,6 +371,50 @@ class EmitirView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        pago = None
+        if alumno is not None:
+            from decimal import Decimal, InvalidOperation
+            from cobranza.models import BancoInstitucional, Pago, TasaCambio
+            from pagos_comunes.referencias import buscar_referencia_duplicada
+            tarifa = _tarifas_constancias().get(plantilla.tipo, Decimal('0.00'))
+            if tarifa > 0:
+                datos_pago = request.data.get('pago') or {}
+                metodo = datos_pago.get('metodo_pago')
+                if metodo not in dict(Pago.METODOS):
+                    return Response({'detail': 'Debes indicar un método de pago válido.'}, status=status.HTTP_400_BAD_REQUEST)
+                tasa = TasaCambio.objects.order_by('-fecha').first()
+                if not tasa:
+                    return Response({'detail': 'No hay una tasa BCV vigente configurada.'}, status=status.HTTP_409_CONFLICT)
+                en_usd = metodo in ('efectivo', 'zelle')
+                try:
+                    recibido = Decimal(str(datos_pago.get('monto_usd' if en_usd else 'monto_ves'))).quantize(Decimal('0.01'))
+                except (InvalidOperation, TypeError, ValueError):
+                    return Response({'detail': 'Debes indicar el monto recibido.'}, status=status.HTTP_400_BAD_REQUEST)
+                esperado = tarifa if en_usd else (tarifa * tasa.valor_bs).quantize(Decimal('0.01'))
+                if abs(recibido - esperado) > Decimal('0.01'):
+                    return Response({'detail': f'El pago debe ser exactamente {esperado} {"USD" if en_usd else "Bs."}.'}, status=status.HTTP_400_BAD_REQUEST)
+                banco = None
+                banco_id = datos_pago.get('banco_receptor_id')
+                if metodo not in ('efectivo', 'efectivo_ves'):
+                    banco = BancoInstitucional.objects.filter(pk=banco_id, activo=True).first()
+                    if banco is None:
+                        return Response({'detail': 'Selecciona un banco receptor activo.'}, status=status.HTTP_400_BAD_REQUEST)
+                referencia = (datos_pago.get('referencia') or '').strip()
+                if metodo not in ('efectivo', 'efectivo_ves') and not referencia:
+                    return Response({'detail': 'La referencia del pago es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
+                if referencia and buscar_referencia_duplicada(referencia, metodo_pago=metodo, banco_receptor_id=banco_id):
+                    return Response({'detail': 'La referencia indicada ya fue utilizada.'}, status=status.HTTP_400_BAD_REQUEST)
+                pago = Pago.objects.create(
+                    alumno=alumno, usuario_receptor=request.user, banco_receptor=banco,
+                    metodo_pago=metodo, concepto='otro', monto_usd=tarifa,
+                    monto_ves=(tarifa * tasa.valor_bs).quantize(Decimal('0.01')),
+                    tasa_aplicada=tasa.valor_bs, referencia=referencia,
+                    numero_lote=(datos_pago.get('numero_lote') or '').strip(),
+                    representante_documento=getattr(alumno.representante, 'cedula', '') or '',
+                    representante_nombre=(f'{alumno.representante.nombre} {alumno.representante.apellido}'.strip() if alumno.representante else ''),
+                    observaciones=f'Constancia de {plantilla.get_tipo_display()} — {alumno.nombre} {alumno.apellido}',
+                )
+
         datos_capturados = request.data.get('datos_capturados') or {}
         datos, sexo = resolver_datos(
             plantilla, alumno=alumno, trabajador=trabajador,
@@ -337,6 +452,7 @@ class EmitirView(APIView):
             plantilla=plantilla,
             alumno=alumno,
             trabajador=trabajador,
+            pago=pago,
             html_renderizado=html_renderizado,
             datos_capturados=datos_capturados,
             salio_firmada=salio_firmada,

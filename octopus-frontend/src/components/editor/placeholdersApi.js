@@ -6,7 +6,7 @@ import apiClient from '../../api/apiClient';
  * a propósito, para no crear dependencia cruzada con el agente que lo construye
  * en paralelo).
  *
- * GET /api/constancias/placeholders/?destinatario=alumno|trabajador|representante
+ * GET /api/constancias/placeholders/?destinatario=alumno|trabajador
  *
  * Forma esperada de la respuesta (catálogo agrupado por entidad):
  * {

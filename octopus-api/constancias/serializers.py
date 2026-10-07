@@ -75,6 +75,7 @@ class ConstanciaEmitidaListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'numero', 'tipo', 'tipo_display', 'plantilla',
             'alumno', 'alumno_nombre', 'trabajador', 'trabajador_nombre',
+            'pago',
             'salio_firmada', 'emitida_por', 'emitida_por_nombre',
             'fecha_emision', 'periodo_escolar',
         ]

@@ -130,6 +130,10 @@ class ConstanciaEmitida(models.Model):
         'nomina.Empleado', on_delete=models.PROTECT,
         null=True, blank=True,
     )
+    pago = models.OneToOneField(
+        'cobranza.Pago', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='constancia_emitida',
+    )
 
     html_renderizado = models.TextField()
     datos_capturados = models.JSONField(default=dict, blank=True)

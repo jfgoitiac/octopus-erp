@@ -38,6 +38,15 @@ export const previsualizarConstancia = (payload, signal) =>
 export const emitirConstancia = (payload, signal) =>
   apiClient.post('constancias/emitir/', payload, { signal });
 
+export const getCobroConstanciaInfo = (plantillaId, alumnoId, signal) =>
+  apiClient.get('constancias/cobro-info/', { params: { plantilla_id: plantillaId, alumno_id: alumnoId }, signal });
+
+export const getConfiguracionCobrosConstancias = (signal) =>
+  apiClient.get('constancias/configuracion-cobros/', { signal });
+
+export const actualizarConfiguracionCobrosConstancias = (tarifas_usd, signal) =>
+  apiClient.put('constancias/configuracion-cobros/', { tarifas_usd }, { signal });
+
 /* ── Histórico de constancias emitidas ── */
 
 export const getConstanciasEmitidas = (params, signal) =>

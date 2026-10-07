@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { format, parseISO } from 'date-fns';
@@ -16,7 +16,6 @@ import { TableRowSkeleton } from '../../components/shared/Skeleton';
 const DESTINATARIO_LABEL = {
   alumno: 'Alumno',
   trabajador: 'Trabajador',
-  representante: 'Representante',
 };
 
 const TIPO_LABEL = {
@@ -48,26 +47,23 @@ export default function PlantillasConstancias() {
   const [aEliminar, setAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
 
-  const cargar = useCallback(async (signal) => {
-    setLoading(true);
-    try {
-      const res = await getPlantillas(undefined, signal);
-      const data = res.data;
-      setPlantillas(Array.isArray(data) ? data : (data?.results ?? []));
-    } catch (err) {
-      if (err.code === 'ERR_CANCELED' || err.name === 'AbortError' || err.name === 'CanceledError') return;
-      toast.error('No se pudieron cargar las plantillas de constancias.');
-      setPlantillas([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     const controller = new AbortController();
-    cargar(controller.signal);
+    (async () => {
+      try {
+        const res = await getPlantillas(undefined, controller.signal);
+        const data = res.data;
+        setPlantillas(Array.isArray(data) ? data : (data?.results ?? []));
+      } catch (err) {
+        if (err.code === 'ERR_CANCELED' || err.name === 'AbortError' || err.name === 'CanceledError') return;
+        toast.error('No se pudieron cargar las plantillas de constancias.');
+        setPlantillas([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
     return () => controller.abort();
-  }, [cargar]);
+  }, []);
 
   const handleToggleActiva = async (plantilla) => {
     setTogglingId(plantilla.id);

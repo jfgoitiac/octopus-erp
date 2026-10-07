@@ -56,6 +56,7 @@ const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/Plantil
 const EmisionConstancias       = lazy(() => import('./pages/constancias/EmisionConstancias'));
 const HistoricoConstancias     = lazy(() => import('./pages/constancias/HistoricoConstancias'));
 const FirmanteConstancias      = lazy(() => import('./pages/constancias/FirmanteConstancias'));
+const CobrosConstancias        = lazy(() => import('./pages/constancias/CobrosConstancias'));
 
 // ── Módulo Académico ──────────────────────────────────────────────────────────
 const Notas                    = lazy(() => import('./pages/Notas'));
@@ -315,6 +316,11 @@ function App() {
               <Route path="constancias/firmante" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
                   <FirmanteConstancias />
+                </ProtectedRoute>
+              } />
+              <Route path="constancias/cobros" element={
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
+                  <CobrosConstancias />
                 </ProtectedRoute>
               } />
 
