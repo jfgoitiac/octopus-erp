@@ -16,3 +16,4 @@ export const buscarArticulos = (params) => apiClient.get('egresos/articulos/', {
 export const subirComprobante = (id, formData) => apiClient.post(`egresos/${id}/comprobantes/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const listarComprobantes = (id) => apiClient.get(`egresos/${id}/comprobantes/`);
 export const eliminarComprobante = (id, comprobanteId) => apiClient.delete(`egresos/${id}/comprobantes/${comprobanteId}/`);
+export const obtenerConfiguracionEgresos = () => apiClient.get('egresos/configuracion/');
