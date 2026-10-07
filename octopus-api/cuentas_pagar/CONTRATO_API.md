@@ -1,6 +1,6 @@
 # Contrato API — Cuentas por Pagar
 
-Base `/api/cuentas-por-pagar/`. Autenticación obligatoria. F8: `administrador` y `director` pueden consultar, crear, editar, pagar, aplazar y anular; sólo `administrador`/`director` administran configuración y aprueban pagos cuando aplique. El filtro multisede responde `404` para una sede no autorizada. No existe borrado físico.
+Base `/api/cuentas-por-pagar/`. Autenticación obligatoria. F8: lectores: `administrador`, `director`, `directivo_red`, `sistemas` y `cajero`; crean, pagan y adjuntan: `administrador`, `cajero`; aplazan y posponen: `administrador`, `director`, `cajero`; confirmar monto, anular, editar y duplicar: `administrador`, `director`; plantillas y configuración: `administrador`, `director`. El filtro multisede responde `404` para una sede no autorizada. No existe borrado físico.
 
 Errores comunes: `400 {"detalle":"...","campos":{"campo":["..."]}}`, `401`, `403`, `404`, `409`. Montos y tasas son strings decimales; moneda es `USD` o `VES`. La tasa BCV se obtiene por fecha con `finanzas.monedas`; una tasa manual requiere `motivo_cambio_tasa`.
 
@@ -8,7 +8,7 @@ Errores comunes: `400 {"detalle":"...","campos":{"campo":["..."]}}`, `401`, `403
 
 `CuentaPorPagar` usa número `CXP-000001`, origen `factura|manual|recurrente`, estado `pendiente|parcial|pagada|anulada` y situación calculada `al_dia|por_vencer|vence_hoy|vencida`. `por_vencer` es los siete días previos. Cada cuenta conserva snapshots `monto_usd`, `monto_ves`, `tasa_aplicada` y saldo en la moneda documental.
 
-Al crear un pago parcial sólo se registra `PagoCuentaPagar`; nunca se crea Egreso. Al último pago válido que deja el saldo en cero, el servicio genera un único egreso usando `egresos.services.crear_desde_cuenta_pagada(cuenta_id, cuenta, abonos)`: fecha del último abono, suma total y detalle inmutable de cada pago, tasa, USD, VES y comprobantes. Al anular un abono se usa `revertir_pago`; al anular cuenta `anular_por_cuenta`.
+Al crear un pago parcial sólo se registra `PagoCuentaPagar`; nunca se crea Egreso. Al último pago válido que deja el saldo en cero, el flujo depende del origen: para `factura` llama `egresos.services.marcar_pagado(egreso_id, datos_pago)` con los comprobantes de todos los abonos; para `manual` y `recurrente` llama `egresos.services.crear_desde_cuenta_pagada(cuenta_id, cuenta, abonos)`. El egreso final tiene fecha del último abono, suma total y detalle inmutable de cada pago, tasa, USD, VES y comprobantes. Al anular el pago final de una `factura` llama `revertir_pago`; al anular una cuenta `manual` o `recurrente` llama `anular_por_cuenta`.
 
 Ejemplo completo de alta:
 ```json
@@ -41,7 +41,7 @@ Respuesta: `{"id":12,"numero":"CXP-000012","estado":"pendiente","situacion":"por
 | `GET /calendario/` | Vencimientos y cuotas; filtros `sede,desde,hasta`. |
 | `GET /proyeccion/` | Proyección de salida por fecha y moneda. |
 | `GET /proveedores/{id}/estado/` | Deuda, vencidas, historial y próximos vencimientos del proveedor. |
-| `GET /reportes/{nombre}/` | Ocho informes: `antiguedad-saldos`, `por-proveedor`, `por-categoria`, `vencimientos`, `pagos`, `flujo-proyectado`, `aplazamientos`, `recordatorios`. |
+| `GET /reportes/{nombre}/` | Ocho informes: `cuentas-pendientes-al-corte`, `antiguedad-saldos`, `pagos-realizados`, `vencimientos`, `aplazamientos`, `estado-cuenta-proveedor`, `proyeccion-pagos`, `recurrentes`. |
 
 ## Servicios internos
 
