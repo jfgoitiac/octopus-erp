@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle2, Loader2, X,
 } from 'lucide-react';
 import apiClient from '../../api/apiClient';
-import { getPlantillas, previsualizarConstancia, emitirConstancia, getCobroConstanciaInfo } from '../../services/constancias';
+import { abrirConstanciaPdf, getPlantillas, previsualizarConstancia, emitirConstancia, getCobroConstanciaInfo } from '../../services/constancias';
 import { getBancos } from '../../api/cobranza.service';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -268,15 +268,13 @@ export default function EmisionConstancias() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2">
               {emitida.pdf_url && (
-                <a
-                  href={emitida.pdf_url}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={() => abrirConstanciaPdf(emitida.pdf_url).catch(() => toast.error('No se pudo abrir el PDF.'))}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-white min-h-[44px]"
                   style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}
                 >
                   <FileText size={14} /> Ver PDF
-                </a>
+                </button>
               )}
               <button
                 onClick={reiniciar}

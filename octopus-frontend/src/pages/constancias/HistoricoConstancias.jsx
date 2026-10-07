@@ -5,7 +5,7 @@ import { es } from 'date-fns/locale';
 import {
   Search, FileText, Filter, X, ClipboardList, Loader2, ExternalLink,
 } from 'lucide-react';
-import { getConstanciasEmitidas } from '../../services/constancias';
+import { abrirConstanciaPdf, getConstanciasEmitidas } from '../../services/constancias';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Tabla } from '../../components/ui/Tabla';
@@ -210,16 +210,14 @@ export default function HistoricoConstancias() {
                 </td>
                 <td className="px-3 py-3 sm:px-4">
                   {c.pdf_url ? (
-                    <a
-                      href={c.pdf_url}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      onClick={() => abrirConstanciaPdf(c.pdf_url).catch(() => toast.error('No se pudo abrir el PDF.'))}
                       aria-label={`Ver PDF de la constancia ${c.numero}`}
                       className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
                       style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
                     >
                       <FileText size={12} /> PDF <ExternalLink size={11} />
-                    </a>
+                    </button>
                   ) : (
                     <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
                   )}

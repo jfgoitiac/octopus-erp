@@ -69,6 +69,7 @@ class ConstanciaEmitidaListSerializer(serializers.ModelSerializer):
     alumno_nombre = serializers.SerializerMethodField()
     trabajador_nombre = serializers.SerializerMethodField()
     emitida_por_nombre = serializers.SerializerMethodField()
+    pdf_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ConstanciaEmitida
@@ -77,7 +78,7 @@ class ConstanciaEmitidaListSerializer(serializers.ModelSerializer):
             'alumno', 'alumno_nombre', 'trabajador', 'trabajador_nombre',
             'pago',
             'salio_firmada', 'emitida_por', 'emitida_por_nombre',
-            'fecha_emision', 'periodo_escolar',
+            'fecha_emision', 'periodo_escolar', 'pdf_url',
         ]
 
     def get_alumno_nombre(self, obj):
@@ -95,6 +96,9 @@ class ConstanciaEmitidaListSerializer(serializers.ModelSerializer):
         if user is None:
             return None
         return f"{user.first_name} {user.last_name}".strip() or user.username
+
+    def get_pdf_url(self, obj):
+        return f'/api/constancias/emitidas/{obj.pk}/pdf/'
 
 
 class ConstanciaEmitidaDetailSerializer(ConstanciaEmitidaListSerializer):

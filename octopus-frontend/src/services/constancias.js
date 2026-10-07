@@ -61,7 +61,21 @@ export const getConstanciaEmitida = (id, signal) =>
  * (el cliente Axios ya envía el Authorization header via interceptor).
  */
 export const getConstanciaEmitidaPdfBlob = (pdfUrl, signal) =>
-  apiClient.get(pdfUrl, { responseType: 'blob', signal });
+  apiClient.get(pdfUrl.replace(/^\/api\//, ''), { responseType: 'blob', signal });
+
+export const abrirConstanciaPdf = async (pdfUrl) => {
+  const ventana = window.open('', '_blank', 'noopener,noreferrer');
+  try {
+    const response = await getConstanciaEmitidaPdfBlob(pdfUrl);
+    const url = URL.createObjectURL(response.data);
+    if (ventana) ventana.location.href = url;
+    else window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    ventana?.close();
+    throw error;
+  }
+};
 
 /* ── Configuración del firmante (singleton) ── */
 
