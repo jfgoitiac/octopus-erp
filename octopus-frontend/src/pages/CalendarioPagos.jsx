@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- actualización tras respuesta HTTP */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addDays, addMonths, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';

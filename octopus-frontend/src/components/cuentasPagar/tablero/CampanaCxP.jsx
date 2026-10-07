@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- actualización tras respuesta HTTP */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, Check, Clock3, CreditCard, ExternalLink } from 'lucide-react';
 import apiClient from '../../../api/apiClient';

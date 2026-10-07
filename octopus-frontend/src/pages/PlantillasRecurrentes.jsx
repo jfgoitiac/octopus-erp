@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- actualización tras respuesta HTTP */
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../components/ui/PageHeader';

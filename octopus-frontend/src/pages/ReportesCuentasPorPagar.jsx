@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- actualización tras respuesta HTTP */
 import { useCallback, useEffect, useState } from 'react';
 import { endOfMonth, format, startOfMonth } from 'date-fns';
 import { FileSpreadsheet, FileText, RefreshCw } from 'lucide-react';

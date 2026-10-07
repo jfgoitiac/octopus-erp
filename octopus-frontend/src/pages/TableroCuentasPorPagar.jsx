@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect -- actualización tras respuesta HTTP */
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CalendarClock, CircleDollarSign, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';

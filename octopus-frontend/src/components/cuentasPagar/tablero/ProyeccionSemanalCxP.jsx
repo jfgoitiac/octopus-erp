@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability -- acumulados derivados de una lista inmutable */
 import { TablaScroll } from '../../ui/TablaScroll';
 
 const dinero = (valor, moneda) => `${moneda === 'VES' ? 'Bs.' : '$'} ${Number(valor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
