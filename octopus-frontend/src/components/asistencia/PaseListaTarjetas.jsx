@@ -20,7 +20,9 @@ const DESTINO_SALIDA = {
   arriba: { '--pl-x1': '0px',   '--pl-y1': '-35%', '--pl-r1': '0deg' },
 };
 
-const MAZO_STYLE = { border: '0.5px solid var(--border-md)', boxShadow: '0 8px 24px -10px rgba(43,48,58,0.18)' };
+// Origen abajo: al escalar, la tarjeta de atrás conserva el borde inferior y
+// asoma por debajo de la actual (10px y 20px), como un mazo.
+const MAZO_STYLE = { border: '0.5px solid var(--border-md)', boxShadow: '0 8px 24px -10px rgba(43,48,58,0.18)', transformOrigin: '50% 100%' };
 
 const AvisoDeshacer = ({ nombre, estado, onDeshacer }) => (
   <div className="flex items-center justify-between gap-3">
