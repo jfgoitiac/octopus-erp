@@ -91,7 +91,7 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
             enterKeyHint="next"
             autoComplete="off"
             placeholder="Ej.: avisó el representante"
-            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
+            className="w-full select-text rounded-xl px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
             style={{ border: '0.5px solid var(--border-md)', background: 'var(--ash-light)', color: 'var(--jet)' }}
             value={observacion || ''}
             onChange={e => onObservacion(alumno_id, e.target.value)}
