@@ -78,6 +78,7 @@ def _requiere_aprobacion(cuenta, monto_usd):
 def registrar_pago(cuenta_id, datos, usuario=None):
     cuenta = CuentaPorPagar.objects.select_for_update().get(pk=cuenta_id)
     if cuenta.estado in ('pagada', 'anulada'): raise ValueError('La cuenta no admite pagos.')
+    if cuenta.monto_por_confirmar: raise ValueError('Confirma el monto antes de registrar un pago.')
     aplicado = redondear(_d(datos.get('monto_aplicado')))
     pagado = redondear(_d(datos.get('monto_pagado')))
     if aplicado <= 0 or pagado <= 0 or aplicado > cuenta.saldo:
@@ -117,6 +118,11 @@ def registrar_pago(cuenta_id, datos, usuario=None):
 
 @transaction.atomic
 def pago_multiple(pagos, usuario=None):
+    proveedor_id = None
+    for data in pagos:
+        cuenta = CuentaPorPagar.objects.only('proveedor_id').get(pk=data['cuenta'])
+        if proveedor_id is None: proveedor_id = cuenta.proveedor_id
+        elif proveedor_id != cuenta.proveedor_id: raise ValueError('El pago múltiple requiere cuentas del mismo proveedor.')
     grupo = uuid4(); resultado=[]
     for data in pagos:
         pago, cuenta, egreso = registrar_pago(data['cuenta'], data, usuario)
@@ -190,7 +196,8 @@ def anular(cuenta_id, motivo, usuario=None):
     if cuenta.estado == 'anulada': return cuenta
     if cuenta.estado == 'pagada':
         from egresos import services as egresos
-        egresos.anular_por_cuenta(cuenta.id, motivo)
+        if cuenta.origen == 'factura': egresos.revertir_pago(cuenta.egreso_id, None)
+        else: egresos.anular_por_cuenta(cuenta.id, motivo)
     cuenta.estado='anulada'; cuenta.motivo_anulacion=motivo; cuenta.anulada_por=usuario; cuenta.anulada_en=timezone.now()
     cuenta.save(update_fields=['estado','motivo_anulacion','anulada_por','anulada_en','actualizado_en']); _history(cuenta,'anulada',usuario,motivo=motivo); return cuenta
 
