@@ -3,10 +3,10 @@ import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import { fechaBancoAISO, filtrarPorFechas } from '../utils/conciliacionMasiva';
 
-const TOLERANCIA_KEY = 'conciliador_tolerancia_sesion';
-const TOLERANCIA_DEFECTO = 200;
+export const TOLERANCIA_KEY = 'conciliador_tolerancia_sesion';
+export const TOLERANCIA_DEFECTO = 200;
 
-const leerToleranciaSesion = () => {
+export const leerToleranciaSesion = () => {
   try {
     const v = sessionStorage.getItem(TOLERANCIA_KEY);
     return v === null || v === '' ? null : v;
@@ -15,7 +15,7 @@ const leerToleranciaSesion = () => {
   }
 };
 
-const guardarToleranciaSesion = (valor) => {
+export const guardarToleranciaSesion = (valor) => {
   try {
     sessionStorage.setItem(TOLERANCIA_KEY, String(valor));
   } catch {
@@ -23,7 +23,7 @@ const guardarToleranciaSesion = (valor) => {
   }
 };
 
-const msgError = (err, fallback) =>
+export const msgError = (err, fallback) =>
   err?.response?.data?.error || err?.response?.data?.detail || fallback;
 
 export { fechaBancoAISO };
@@ -259,6 +259,6 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     toleranciaValida, tolerancia,
     observacion, setObservacion, observacionRequerida,
     comparacion, puedeConfirmar, enviando, confirmar,
-    lote,
+    lote, refrescarLote: fetchLoteAbierto,
   };
 }

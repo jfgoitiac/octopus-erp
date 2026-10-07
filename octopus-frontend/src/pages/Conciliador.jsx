@@ -1,12 +1,14 @@
 import { useCallback } from 'react';
 import {
-  Upload, Search, FileSpreadsheet, Link2,
+  Upload, Search, FileSpreadsheet, Link2, ListChecks,
   CheckCircle, AlertCircle, Building2, Trash2,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useConciliador } from '../hooks/useConciliador';
 import { useConciliacionSemiauto } from '../hooks/useConciliacionSemiauto';
+import { useConciliacionMasiva } from '../hooks/useConciliacionMasiva';
 import ModalConciliarReferencia from '../components/conciliador/ModalConciliarReferencia';
+import ModalConciliarTodos from '../components/conciliador/ModalConciliarTodos';
 import LoteAbiertoBadge from '../components/conciliador/LoteAbiertoBadge';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { Modal } from '../components/ui/Modal';
@@ -365,6 +367,9 @@ export default function Conciliador() {
     handleSearch, openSearch, clearFile,
   } = useConciliador();
   const semiauto = useConciliacionSemiauto({ banco: bank, transactions, fileName });
+  const masiva = useConciliacionMasiva({
+    banco: bank, transactions, fileName, onConciliado: semiauto.refrescarLote,
+  });
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -422,6 +427,15 @@ export default function Conciliador() {
             </button>
             <button
               type="button"
+              onClick={masiva.abrir}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'transparent' }}
+            >
+              <ListChecks size={14} />
+              Conciliar todos
+            </button>
+            <button
+              type="button"
               onClick={openSearch}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
               style={{
@@ -456,6 +470,7 @@ export default function Conciliador() {
       )}
 
       <ModalConciliarReferencia c={semiauto} bankInfo={bankInfo} transactions={transactions} banks={banks} />
+      <ModalConciliarTodos c={masiva} bankInfo={bankInfo} transactions={transactions} banks={banks} />
 
       {/* Confirmación de limpieza */}
       {showClearConfirm && (
