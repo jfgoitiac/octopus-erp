@@ -7,6 +7,7 @@ Servicios de dominio del portal de representantes.
 (``cobranza.conciliacion_semiauto``) sin duplicarla.
 """
 import logging
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -165,7 +166,7 @@ def resolver_comprobante(comprobante_id, nuevo_estatus, usuario, observaciones='
                 concepto='mensualidad',
                 monto_usd=mensualidad.monto_usd,
                 tasa_aplicada=tasa_valor,
-                monto_ves=mensualidad.monto_usd * tasa_valor,
+                monto_ves=(mensualidad.monto_usd * tasa_valor).quantize(Decimal('0.01')),
                 referencia=referencia or f'COMP-{comprobante.id}',
                 observaciones=(
                     f'Pago aprobado desde comprobante del portal #{comprobante.id}'
