@@ -1,20 +1,22 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { parseStatement, formatoPorNombre, PARSERS, FORMATO_DEFECTO } from '../utils/bankParsers';
+import { parseStatement, PRESETS, FORMATO_DEFECTO } from '../utils/bankParsers';
 import apiClient from '../api/apiClient';
 
 const COLOR_NEUTRO = '#64748b';
 
-// Adapta un BancoInstitucional de la API al modelo del selector. Tolerante a
-// que el backend aún no exponga formato_estado_cuenta / color.
+// Adapta un BancoInstitucional de la API al modelo del selector. El formato
+// viene solo del banco (formato_estado_cuenta); si falta o es desconocido se
+// usa el genérico. config_estado_cuenta se conserva para el parser.
 function mapBanco(b) {
   const declarado = b.formato_estado_cuenta;
   return {
     id:      String(b.id),
     label:   b.nombre,
     color:   b.color || COLOR_NEUTRO,
-    formato: declarado && PARSERS[declarado] ? declarado : (formatoPorNombre(b.nombre) || FORMATO_DEFECTO),
+    formato: declarado && PRESETS[declarado] ? declarado : FORMATO_DEFECTO,
+    config:  b.config_estado_cuenta && typeof b.config_estado_cuenta === 'object' ? b.config_estado_cuenta : null,
   };
 }
 
@@ -127,7 +129,7 @@ export function useConciliador() {
     try {
       const isPdf = file.name.toLowerCase().endsWith('.pdf');
       const rows  = isPdf ? await extractRowsFromPdf(file) : await extractRowsFromExcel(file);
-      const txs   = parseStatement(rows, bankInfo?.formato, bankInfo?.label);
+      const txs   = parseStatement(rows, bankInfo?.formato, bankInfo?.config);
       if (txs.length === 0) {
         toast.warning('No se detectaron transacciones. Verifica que el banco seleccionado coincida con el archivo.');
       } else {
