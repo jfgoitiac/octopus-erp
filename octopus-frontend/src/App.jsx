@@ -47,6 +47,12 @@ const Sistemas                 = lazy(() => import('./pages/Sistemas'));
 const Nomina                   = lazy(() => import('./pages/Nomina'));
 const Pagos                    = lazy(() => import('./pages/Pagos'));
 const Recibos                  = lazy(() => import('./pages/Recibos'));
+const Egresos                  = lazy(() => import('./pages/Egresos'));
+const EgresoForm               = lazy(() => import('./pages/EgresoForm'));
+const EgresoDetalle            = lazy(() => import('./pages/EgresoDetalle'));
+const ReportesEgresos          = lazy(() => import('./pages/ReportesEgresos'));
+const TableroEgresos           = lazy(() => import('./pages/TableroEgresos'));
+const Proveedores              = lazy(() => import('./pages/Proveedores'));
 const Conciliador              = lazy(() => import('./pages/Conciliador'));
 const Auditoria                = lazy(() => import('./pages/Auditoria'));
 const Configuracion            = lazy(() => import('./pages/Configuracion'));
@@ -284,6 +290,38 @@ function App() {
               <Route path="recibos" element={
                 <ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}>
                   <Recibos />
+                </ProtectedRoute>
+              } />
+
+              {/* Egresos: acceso exclusivo de administrador y director */}
+              <Route path="egresos" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <Egresos />
+                </ProtectedRoute>
+              } />
+              <Route path="egresos/nuevo" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <EgresoForm />
+                </ProtectedRoute>
+              } />
+              <Route path="egresos/reportes" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <ReportesEgresos />
+                </ProtectedRoute>
+              } />
+              <Route path="egresos/tablero" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <TableroEgresos />
+                </ProtectedRoute>
+              } />
+              <Route path="egresos/:id" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <EgresoDetalle />
+                </ProtectedRoute>
+              } />
+              <Route path="proveedores" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <Proveedores />
                 </ProtectedRoute>
               } />
 

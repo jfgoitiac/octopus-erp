@@ -92,6 +92,8 @@ INSTALLED_APPS = [
     'cantina.apps.CantinaConfig',
     'sitio.apps.SitioConfig',
     'constancias.apps.ConstanciasConfig',
+    'finanzas.apps.FinanzasConfig',
+    'egresos.apps.EgresosConfig',
 
 ]
 

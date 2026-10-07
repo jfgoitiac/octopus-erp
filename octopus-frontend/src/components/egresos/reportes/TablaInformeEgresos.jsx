@@ -1,4 +1,4 @@
-import { TablaScroll } from '../../../ui/TablaScroll';
+import { TablaScroll } from '../../ui/TablaScroll';
 const dinero = (valor, moneda) => `${moneda === 'VES' ? 'Bs.' : '$'} ${Number(valor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function TablaInformeEgresos({ columnas, filas, cargando }) {
