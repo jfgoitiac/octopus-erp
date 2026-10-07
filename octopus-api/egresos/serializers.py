@@ -8,6 +8,13 @@ from .validators import validar_comprobante
 
 class RenglonEgresoSerializer(serializers.ModelSerializer):
     class Meta: model=RenglonEgreso; fields=('id','descripcion','articulo','cantidad','precio_unitario','descuento','total','orden'); read_only_fields=('total',)
+    def validate(self, attrs):
+        cantidad = attrs.get('cantidad', getattr(self.instance, 'cantidad', 1))
+        precio = attrs.get('precio_unitario', getattr(self.instance, 'precio_unitario', 0))
+        descuento = attrs.get('descuento', getattr(self.instance, 'descuento', 0))
+        if descuento < 0 or descuento > cantidad * precio:
+            raise serializers.ValidationError({'descuento': 'Debe estar entre cero y el importe del renglón.'})
+        return attrs
 
 class DetallePagoSerializer(serializers.ModelSerializer):
     class Meta: model=DetallePagoCuentaPorPagar; fields='__all__'

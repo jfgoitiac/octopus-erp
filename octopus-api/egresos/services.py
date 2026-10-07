@@ -15,7 +15,14 @@ def _d(valor, defecto='0'):
 def calcular_totales(datos):
     """Única fuente de totales para vista previa y persistencia, sin floats."""
     renglones = datos.get('renglones') or []
-    subtotal = sum((redondear(_d(x.get('cantidad'), 1) * _d(x.get('precio_unitario')) - _d(x.get('descuento'))) for x in renglones), Decimal('0'))
+    totales_renglones = []
+    for renglon in renglones:
+        bruto = _d(renglon.get('cantidad'), 1) * _d(renglon.get('precio_unitario'))
+        descuento = _d(renglon.get('descuento'))
+        if descuento < 0 or descuento > bruto:
+            raise ValueError('El descuento debe estar entre cero y el importe del renglón.')
+        totales_renglones.append(redondear(bruto - descuento))
+    subtotal = sum(totales_renglones, Decimal('0'))
     subtotal = redondear(subtotal if renglones else _d(datos.get('subtotal')))
     iva = redondear(subtotal * _d(datos.get('porcentaje_iva')) / Decimal('100'))
     igtf = redondear(subtotal * _d(datos.get('porcentaje_igtf')) / Decimal('100')) if datos.get('aplica_igtf') else Decimal('0')
@@ -60,6 +67,14 @@ def guardar_contado(egreso, datos=None, usuario=None):
         'retiene_iva': egreso.retiene_iva, 'porcentaje_retencion_iva': egreso.porcentaje_retencion_iva,
         'retiene_islr': egreso.retiene_islr, 'porcentaje_retencion_islr': egreso.porcentaje_retencion_islr})
     for campo, valor in totales.items(): setattr(egreso, campo, valor)
+    # Los reportes suman lo realmente desembolsado (después de retenciones),
+    # no el total documental. También se congelan ambos equivalentes aquí.
+    if egreso.moneda == 'USD':
+        egreso.monto_usd_pagado = totales['total_pagado']
+        egreso.monto_ves_pagado = convertir(totales['total_pagado'], 'USD', 'VES', egreso.tasa_aplicada)
+    else:
+        egreso.monto_ves_pagado = totales['total_pagado']
+        egreso.monto_usd_pagado = convertir(totales['total_pagado'], 'VES', 'USD', egreso.tasa_aplicada)
     egreso.estado = 'registrado'
     egreso.full_clean(); egreso.save()
     _actualizar_articulos(egreso, usuario)
@@ -114,7 +129,17 @@ def crear_desde_cuenta_pagada(cuenta_por_pagar_id, cuenta, abonos):
             monto_usd=redondear(usd), monto_ves=redondear(ves),
             total_documento=total_documento, total_pagado=total_documento,
         )
-        egreso = Egreso.objects.create(**defaults); creado=True
+        # Un savepoint permite recuperarse de la carrera de unicidad sin dejar
+        # marcada la transacción externa como rota.
+        try:
+            with transaction.atomic():
+                egreso = Egreso.objects.create(**defaults)
+            creado = True
+        except IntegrityError:
+            egreso = Egreso.objects.select_for_update().get(
+                cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar'
+            )
+            creado = False
     else: creado=False
     DetallePagoCuentaPorPagar.objects.filter(egreso=egreso).delete()
     for a in abonos:
