@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Loader2, Search, ListChecks, X, CheckSquare, Square,
     ChevronDown, ChevronUp, History, Lock, Save, ChevronLeft, ChevronRight,
-    Copy, Layers,
+    Copy, Layers, Landmark, AlertTriangle,
 } from 'lucide-react';
 import DatePickerES from '../DatePickerES';
 import axiosInstance from '../../api/apiClient';
@@ -14,8 +14,55 @@ import {
 } from '../../constants/reportes';
 import BancoSelect from './BancoSelect';
 import { Card } from '../ui/Card';
+import { Tabla } from '../ui/Tabla';
 
 const DETALLE_PAGE_SIZE = 15;
+
+const fmtBs = (v) =>
+    Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const CONCILIACIONES_COLUMNAS = [
+    { key: 'ref', label: 'Referencia del banco' },
+    { key: 'montoBanco', label: 'Monto banco (Bs.)', align: 'right' },
+    { key: 'dif', label: 'Diferencia (Bs.)', align: 'right' },
+    { key: 'obs', label: 'Observación' },
+];
+
+/* Tabla de conciliaciones bancarias (lote abierto o detalle del historial).
+   Las filas fuera de tolerancia se resaltan. */
+const ConciliacionesTabla = ({ conciliaciones, soloFuera }) => {
+    const filas = soloFuera ? conciliaciones.filter(c => c.fuera_tolerancia) : conciliaciones;
+    if (filas.length === 0) {
+        return (
+            <p className="text-xs py-2" style={{ color: 'var(--ash)' }}>
+                {soloFuera ? 'Ninguna conciliación fuera de tolerancia.' : 'Sin conciliaciones bancarias.'}
+            </p>
+        );
+    }
+    return (
+        <div className="rounded-lg overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
+            <Tabla columnas={CONCILIACIONES_COLUMNAS} minWidth={560}>
+                {filas.map(c => (
+                    <tr key={c.id} style={{ background: c.fuera_tolerancia ? 'var(--red-light)' : undefined }}>
+                        <td className="px-3 py-2 sm:px-4 font-mono text-xs" style={{ color: 'var(--jet)' }}>
+                            {c.referencia_banco}
+                        </td>
+                        <td className="px-3 py-2 sm:px-4 text-right text-xs tabular-nums" style={{ color: 'var(--jet)' }}>
+                            {fmtBs(c.monto_banco_ves)}
+                        </td>
+                        <td className="px-3 py-2 sm:px-4 text-right text-xs font-semibold tabular-nums"
+                            style={{ color: c.fuera_tolerancia ? 'var(--red)' : '#16a34a' }}>
+                            {fmtBs(c.diferencia_ves)}
+                        </td>
+                        <td className="px-3 py-2 sm:px-4 text-xs" style={{ color: 'var(--ash)' }}>
+                            {c.observacion || '—'}
+                        </td>
+                    </tr>
+                ))}
+            </Tabla>
+        </div>
+    );
+};
 
 const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPagoId }) => {
     /* Rango de fechas propio: por defecto trae los últimos 30 días, para que
@@ -35,6 +82,9 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
     const [detalleTotalPages, setDetalleTotalPages] = useState(1);
     const [detalleChecked, setDetalleChecked] = useState(() => new Set());
     const [finalizandoLote, setFinalizandoLote] = useState(false);
+    const [loteAbierto, setLoteAbierto] = useState(null);
+    const [finalizandoAbierto, setFinalizandoAbierto] = useState(false);
+    const [soloFueraTolerancia, setSoloFueraTolerancia] = useState(false);
     const [representantesExpandidos, setRepresentantesExpandidos] = useState(() => new Set());
     /* Todos los representados (hijos) de cada representante de la página actual,
        tal como los trae el backend — no solo los que tienen pagos en el rango
@@ -136,6 +186,17 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
 
     useEffect(() => { fetchLoteHistorial(); }, [fetchLoteHistorial]);
 
+    const fetchLoteAbierto = useCallback(async () => {
+        try {
+            const res = await axiosInstance.get('cobranza/conciliacion/lotes/abierto/');
+            setLoteAbierto(res.data?.lote || null);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'No se pudo consultar el lote abierto.'));
+        }
+    }, []);
+
+    useEffect(() => { fetchLoteAbierto(); }, [fetchLoteAbierto]);
+
     const toggleLoteExpandido = async (loteId) => {
         if (loteExpandidoId === loteId) {
             setLoteExpandidoId(null);
@@ -206,6 +267,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                     totalVes: 0,
                     revisado: false,
                     multiAlumno: false,
+                    conciliacionBancaria: null,
                 });
             }
             const op = representante.operaciones.get(clave);
@@ -214,6 +276,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
             op.totalUsd += parseFloat(p.monto_usd || 0);
             op.totalVes += parseFloat(p.monto_ves || 0);
             if (p.revisado) op.revisado = true;
+            if (p.conciliacion_bancaria && !op.conciliacionBancaria) op.conciliacionBancaria = p.conciliacion_bancaria;
             if (op.pagos.some(prev => prev.alumno !== p.alumno)) op.multiAlumno = true;
         });
         return Array.from(representantes.values())
@@ -226,9 +289,11 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                     ? representadosPorRepresentante[r.representanteKey]
                     : Array.from(r.representados.values()),
                 operaciones: Array.from(r.operaciones.values())
+                    .filter(op => !soloFueraTolerancia || op.conciliacionBancaria?.fuera_tolerancia)
                     .sort((x, y) => new Date(x.fecha) - new Date(y.fecha)), // orden de llegada
-            }));
-    }, [detallePagos, representadosPorRepresentante]);
+            }))
+            .filter(r => r.operaciones.length > 0);
+    }, [detallePagos, representadosPorRepresentante, soloFueraTolerancia]);
 
     const totalOperacionesPagina = useMemo(
         () => gruposPorRepresentante.reduce((s, r) => s + r.operaciones.length, 0),
@@ -297,6 +362,23 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
         setDetalleFechaFin(today());
     };
 
+    const handleFinalizarAbierto = async () => {
+        setFinalizandoAbierto(true);
+        try {
+            await axiosInstance.post('cobranza/conciliacion/lotes/abierto/finalizar/');
+            toast.success('Lote abierto finalizado correctamente.');
+            await Promise.all([
+                fetchLoteAbierto(),
+                fetchLoteHistorial(),
+                fetchDetallePagos(detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus, detalleBanco),
+            ]);
+        } catch (err) {
+            toast.error(getErrorMessage(err, 'No se pudo finalizar el lote abierto.'));
+        } finally {
+            setFinalizandoAbierto(false);
+        }
+    };
+
     const handleFinalizarLote = async () => {
         const pagoIds = [];
         detalleChecked.forEach(clave => {
@@ -321,6 +403,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
             await Promise.all([
                 fetchDetallePagos(detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus, detalleBanco),
                 fetchLoteHistorial(),
+                fetchLoteAbierto(),
             ]);
         } catch (err) {
             toast.error(getErrorMessage(err, 'No se pudo guardar el lote de conciliación.'));
@@ -344,6 +427,36 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                 </div>
                 {loadingDetalle && <Loader2 size={18} className="animate-spin" style={{ color: 'var(--pb)' }} />}
             </div>
+
+            {/* Banner de lote abierto */}
+            {loteAbierto && (loteAbierto.total_operaciones ?? 0) > 0 && (
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 rounded-xl p-3 sm:p-4"
+                    style={{ background: 'var(--pb-light)', border: '0.5px solid var(--border-md)' }}>
+                    <div className="min-w-0">
+                        <p className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+                            <Landmark size={16} style={{ color: 'var(--pb)' }} />
+                            Tienes un lote abierto con {loteAbierto.total_operaciones} {loteAbierto.total_operaciones === 1 ? 'operación' : 'operaciones'}
+                        </p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--ash)' }}>
+                            Conciliadas desde el Conciliador. Las que marques a mano también se suman a este lote.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleFinalizarAbierto}
+                        disabled={finalizandoAbierto}
+                        className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-40"
+                        style={{ background: 'var(--pb)' }}>
+                        {finalizandoAbierto ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        Finalizar lote abierto
+                    </button>
+                    {(loteAbierto.conciliaciones || []).length > 0 && (
+                        <div className="w-full">
+                            <ConciliacionesTabla conciliaciones={loteAbierto.conciliaciones} soloFuera={soloFueraTolerancia} />
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Filtros */}
             <div className="flex flex-wrap items-end gap-3 mb-4">
@@ -405,6 +518,15 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                         <option key={val} value={val}>{s.label}</option>
                     ))}
                 </select>
+                <label className="flex items-center gap-2 text-xs cursor-pointer px-1 py-2" style={{ color: 'var(--jet)' }}>
+                    <input
+                        type="checkbox"
+                        checked={soloFueraTolerancia}
+                        onChange={e => setSoloFueraTolerancia(e.target.checked)}
+                    />
+                    <AlertTriangle size={13} style={{ color: 'var(--red)' }} />
+                    Solo fuera de tolerancia
+                </label>
                 <BancoSelect
                     value={detalleBanco}
                     onChange={e => setDetalleBanco(e.target.value)}
@@ -564,6 +686,23 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                                                                 </span>
                                                             ))}
                                                         </div>
+                                                        {op.conciliacionBancaria && (
+                                                            <p className="mt-1.5">
+                                                                <span
+                                                                    className="inline-flex flex-wrap items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                                                    style={{
+                                                                        background: op.conciliacionBancaria.fuera_tolerancia ? 'var(--red-light)' : '#dcfce7',
+                                                                        color: op.conciliacionBancaria.fuera_tolerancia ? 'var(--red)' : '#16a34a',
+                                                                    }}
+                                                                    title={`Ref. banco ${op.conciliacionBancaria.referencia_banco} · Monto banco Bs. ${fmtBs(op.conciliacionBancaria.monto_banco_ves)} · Diferencia Bs. ${fmtBs(op.conciliacionBancaria.diferencia_ves)}${op.conciliacionBancaria.observacion ? ` · ${op.conciliacionBancaria.observacion}` : ''}`}>
+                                                                    <Landmark size={11} />
+                                                                    Conciliado con banco
+                                                                </span>
+                                                                <span className="ml-2 text-[11px] font-mono break-all" style={{ color: 'var(--ash)' }}>
+                                                                    Ref. {op.conciliacionBancaria.referencia_banco} · Banco Bs. {fmtBs(op.conciliacionBancaria.monto_banco_ves)} · Dif. Bs. {fmtBs(op.conciliacionBancaria.diferencia_ves)}
+                                                                </span>
+                                                            </p>
+                                                        )}
                                                         <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
                                                             {op.pagos[0]?.concepto_display || op.pagos[0]?.concepto} · Cajero: {op.pagos[0]?.cajero || '—'} · Banco: {op.pagos[0]?.banco_nombre || '—'}
                                                         </p>
@@ -655,6 +794,14 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
                                             </div>
                                         ) : (
                                             <div className="space-y-1.5 pt-2">
+                                                {(loteDetalle?.conciliaciones || []).length > 0 && (
+                                                    <div className="pb-2">
+                                                        <p className="text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: 'var(--ash)' }}>
+                                                            Conciliaciones bancarias
+                                                        </p>
+                                                        <ConciliacionesTabla conciliaciones={loteDetalle.conciliaciones} soloFuera={soloFueraTolerancia} />
+                                                    </div>
+                                                )}
                                                 {(loteDetalle?.pagos || []).map(p => (
                                                     <div key={p.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg" style={{ background: '#fff' }}>
                                                         <span className="inline-flex items-center gap-1" style={{ color: 'var(--jet)' }}>
