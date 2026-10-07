@@ -96,18 +96,31 @@ def marcar_pagado(cuenta_por_pagar_id, abono):
 def crear_desde_cuenta_pagada(cuenta_por_pagar_id, cuenta, abonos):
     """Crea/actualiza idempotentemente el único resumen final de una cuenta saldada."""
     defaults = dict(cuenta)
+    # Se calculan los snapshots antes de persistir: el constraint del modelo no
+    # admite un estado registrado sin fecha de egreso, ni siquiera transitoriamente.
+    if not abonos:
+        raise ValueError('Una cuenta saldada requiere al menos un abono.')
+    usd = sum((_d(a['monto_usd']) for a in abonos), Decimal('0'))
+    ves = sum((_d(a['monto_ves']) for a in abonos), Decimal('0'))
+    ultimo = max(a['fecha_pago'] for a in abonos)
+    moneda = defaults.get('moneda', 'USD')
+    total_documento = redondear(usd if moneda == 'USD' else ves)
     try: egreso = Egreso.objects.select_for_update().get(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar')
     except Egreso.DoesNotExist:
-        defaults.update(origen='cuenta_por_pagar', cuenta_por_pagar_id=cuenta_por_pagar_id, condicion='contado', estado='registrado')
+        defaults.update(
+            origen='cuenta_por_pagar', cuenta_por_pagar_id=cuenta_por_pagar_id,
+            condicion='contado', estado='registrado', fecha_egreso=ultimo,
+            monto_usd_pagado=redondear(usd), monto_ves_pagado=redondear(ves),
+            monto_usd=redondear(usd), monto_ves=redondear(ves),
+            total_documento=total_documento, total_pagado=total_documento,
+        )
         egreso = Egreso.objects.create(**defaults); creado=True
     else: creado=False
     DetallePagoCuentaPorPagar.objects.filter(egreso=egreso).delete()
-    usd=ves=Decimal('0'); ultimo=None
     for a in abonos:
-        usd += _d(a['monto_usd']); ves += _d(a['monto_ves']); ultimo=a['fecha_pago']
         DetallePagoCuentaPorPagar.objects.create(egreso=egreso, fecha_pago=a['fecha_pago'], moneda=a['moneda'], tasa_aplicada=a['tasa_aplicada'], metodo_pago=a['metodo_pago'], banco=a.get('banco',''), referencia=a.get('referencia',''), monto_documento=a['monto_documento'], monto_usd=a['monto_usd'], monto_ves=a['monto_ves'], comprobantes=a.get('comprobantes',[]))
     egreso.fecha_egreso=ultimo; egreso.monto_usd_pagado=redondear(usd); egreso.monto_ves_pagado=redondear(ves); egreso.monto_usd=redondear(usd); egreso.monto_ves=redondear(ves)
-    egreso.total_documento = egreso.monto_usd if egreso.moneda == 'USD' else egreso.monto_ves; egreso.total_pagado=egreso.total_documento; egreso.estado='registrado'; egreso.save()
+    egreso.total_documento = total_documento; egreso.total_pagado=total_documento; egreso.estado='registrado'; egreso.save()
     _bitacora(egreso, 'sincronizado_cxp', None, {}, {'abonos':len(abonos)})
     return {'egreso_id': egreso.id, 'creado': creado, 'monto_usd_pagado': str(egreso.monto_usd_pagado), 'monto_ves_pagado': str(egreso.monto_ves_pagado), 'abonos':len(abonos)}
 
