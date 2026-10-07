@@ -1,11 +1,13 @@
 import { useCallback } from 'react';
 import {
-  Upload, Search, FileSpreadsheet,
+  Upload, Search, FileSpreadsheet, Link2,
   CheckCircle, AlertCircle, Building2, Trash2,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { BANKS } from '../utils/bankParsers';
 import { useConciliador } from '../hooks/useConciliador';
+import { useConciliacionSemiauto } from '../hooks/useConciliacionSemiauto';
+import ModalConciliarReferencia from '../components/conciliador/ModalConciliarReferencia';
+import LoteAbiertoBadge from '../components/conciliador/LoteAbiertoBadge';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -17,7 +19,7 @@ const fmt = (v) =>
   Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // ─── Sub-componente: selector de banco ────────────────────────────────────────
-function BankSelector({ bank, onSelect }) {
+function BankSelector({ banks, loading, bank, onSelect }) {
   return (
     <Card>
       <p
@@ -26,8 +28,17 @@ function BankSelector({ bank, onSelect }) {
       >
         1 · Selecciona el banco
       </p>
+      {loading ? (
+        <div className="space-y-2" aria-busy="true" aria-label="Cargando bancos">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border-md)' }} />
+          ))}
+        </div>
+      ) : banks.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--ash)' }}>No hay bancos disponibles para el conciliador.</p>
+      ) : (
       <div className="space-y-2">
-        {BANKS.map(b => (
+        {banks.map(b => (
           <button
             key={b.id}
             type="button"
@@ -46,6 +57,7 @@ function BankSelector({ bank, onSelect }) {
           </button>
         ))}
       </div>
+      )}
     </Card>
   );
 }
@@ -348,10 +360,11 @@ export default function Conciliador() {
     results, setResults,
     showClearConfirm, setShowClearConfirm,
     page, setPage,
-    bankInfo, fileRef,
+    banks, banksLoading, bankInfo, fileRef,
     processFile, handleDrop, handleFileInput,
     handleSearch, openSearch, clearFile,
   } = useConciliador();
+  const semiauto = useConciliacionSemiauto({ banco: bank, transactions, fileName });
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -360,9 +373,11 @@ export default function Conciliador() {
         descripcion="Carga tu estado de cuenta para verificar transacciones por los últimos 4 a 6 dígitos de referencia."
       />
 
+      <LoteAbiertoBadge lote={semiauto.lote} />
+
       {/* Paso 1: selector de banco + zona de carga */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <BankSelector bank={bank} onSelect={selectBank} />
+        <BankSelector banks={banks} loading={banksLoading} bank={bank} onSelect={selectBank} />
         <DropZone
           dragging={dragging}
           loading={loading}
@@ -395,18 +410,29 @@ export default function Conciliador() {
               Limpiar
             </button>
           </div>
-          <button
-            type="button"
-            onClick={openSearch}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
-            style={{
-              background:  'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
-              boxShadow:   '0 4px 14px rgba(15,163,177,0.3)',
-            }}
-          >
-            <Search size={14} />
-            Buscar por referencia
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <button
+              type="button"
+              onClick={semiauto.abrir}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'transparent' }}
+            >
+              <Link2 size={14} />
+              Conciliar referencia
+            </button>
+            <button
+              type="button"
+              onClick={openSearch}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{
+                background:  'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)',
+                boxShadow:   '0 4px 14px rgba(15,163,177,0.3)',
+              }}
+            >
+              <Search size={14} />
+              Buscar por referencia
+            </button>
+          </div>
         </div>
       )}
 
@@ -428,6 +454,8 @@ export default function Conciliador() {
           onClose={() => setSearchOpen(false)}
         />
       )}
+
+      <ModalConciliarReferencia c={semiauto} bankInfo={bankInfo} transactions={transactions} />
 
       {/* Confirmación de limpieza */}
       {showClearConfirm && (

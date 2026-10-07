@@ -1,12 +1,6 @@
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export const BANKS = [
-  { id: 'bancaribe', label: 'Bancaribe',        color: '#005baa' },
-  { id: 'banesco',   label: 'Banesco',           color: '#c8102e' },
-  { id: 'tesoro',    label: 'Banco del Tesoro',  color: '#1a3a5c' },
-];
-
 // Algunos bancos (ej. Banco del Tesoro) exportan HTML donde SheetJS solo decodifica
 // un set reducido de entidades, dejando cosas como "D&eacute;bito" sin convertir.
 // Decodificamos las entidades acentuadas más comunes y luego quitamos tildes para
@@ -43,7 +37,7 @@ function findHeaderRow(rows) {
     if (!row) continue;
     const joined = row.map(c => n(c)).join(' ');
     const hasFecha = joined.includes('fecha');
-    const hasRef   = joined.includes('referencia') || joined.includes('ref.') || joined.includes('nro.') || joined.includes('comprobante') || joined.includes('documento');
+    const hasRef   = joined.includes('referencia') || joined.includes('ref.') || joined.includes('nro.') || joined.includes('comprobante') || joined.includes('documento') || joined.includes('operacion');
     if (hasFecha && hasRef) return i;
   }
   return 0;
@@ -75,7 +69,7 @@ function cleanReferencia(val) {
   return ref.replace(/^(\d+)(?:ND|NC)$/i, '$1');
 }
 
-function parseAmount(val) {
+function parseAmount(val, { puntoDecimal = false } = {}) {
   if (!val && val !== 0) return 0;
   // Las celdas numéricas de Excel ya traen el valor correcto; convertirlas a
   // texto y volver a parsear (como abajo) borra el punto decimal real y
@@ -86,7 +80,10 @@ function parseAmount(val) {
   let clean = str.replace(/[Bs$%]/g, '').replace(/\s/g, '');
   const lastComma = clean.lastIndexOf(',');
   const lastDot   = clean.lastIndexOf('.');
-  if (lastComma > lastDot) {
+  if (puntoDecimal && lastDot > lastComma && /\.\d{1,2}$/.test(clean)) {
+    // Formato con punto decimal (ej. 1,234.56 o 1234.56): se quitan las comas de miles
+    clean = clean.replace(/,/g, '');
+  } else if (lastComma > lastDot) {
     // La coma es el separador decimal (formato es-VE): 14.320,00 -> 14320.00
     clean = clean.replace(/\./g, '').replace(',', '.');
   } else if (lastDot > -1) {
@@ -109,7 +106,9 @@ function formatDate(val) {
 
   const str = cleanCell(val);
 
-  // Already formatted dd/MM/yyyy
+  // Already formatted dd/MM/yyyy (se descarta la hora si viene, ej. "05/03/2026 14:32:10")
+  const conHora = str.match(/^(\d{2}\/\d{2}\/\d{4})\s+\d{1,2}:\d{2}/);
+  if (conHora) return conHora[1];
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
 
   // ISO format: 2024-01-15 or 2024-01-15T...
@@ -141,12 +140,13 @@ function formatDate(val) {
   return str;
 }
 
-function genericParse(rows, bankId) {
+function genericParse(rows, bankId, opts = {}) {
+  const { refExtra = [], puntoDecimal = false } = opts;
   const headerIdx = findHeaderRow(rows);
   const headers   = (rows[headerIdx] || []).map(h => h?.toString() || '');
 
   const fechaIdx   = findCol(headers, ['fecha']);
-  const refIdx     = findCol(headers, ['referencia', 'nro. ref', 'n° ref', 'num. ref', 'comprobante', 'documento', 'ref.', 'nro.doc', 'numero']);
+  const refIdx     = findCol(headers, ['referencia', 'nro. ref', 'n° ref', 'num. ref', 'comprobante', 'documento', 'ref.', 'nro.doc', 'numero', ...refExtra]);
   const descIdx    = findCol(headers, ['descripci', 'concepto', 'detalle', 'motivo', 'narración', 'narraci']);
   const montoIdx   = findCol(headers, ['monto', 'importe', 'valor']);
   const debitoIdx  = findCol(headers, ['debito', 'débito', 'cargo', ' db', 'deb.', 'egresos']);
@@ -169,11 +169,11 @@ function genericParse(rows, bankId) {
     let monto;
     let tipo;
     if (montoIdx !== -1 && row[montoIdx] !== '' && row[montoIdx] != null) {
-      monto = parseAmount(row[montoIdx]);
+      monto = parseAmount(row[montoIdx], { puntoDecimal });
       tipo  = /^\s*-|\(.*\)/.test(row[montoIdx]?.toString() || '') ? 'egreso' : 'ingreso';
     } else {
-      const deb = parseAmount(row[debitoIdx]);
-      const cre = parseAmount(row[creditoIdx]);
+      const deb = parseAmount(row[debitoIdx], { puntoDecimal });
+      const cre = parseAmount(row[creditoIdx], { puntoDecimal });
       monto = cre || deb;
       tipo  = deb > 0 ? 'egreso' : 'ingreso';
     }
@@ -193,6 +193,38 @@ function genericParse(rows, bankId) {
   return transactions;
 }
 
-export function parseStatement(rows, bankId) {
-  return genericParse(rows, bankId);
+// Banco Digital de los Trabajadores (BDT). SUPUESTO: no hay muestras públicas del
+// formato; se reutiliza el parser genérico con aliases adicionales para la
+// referencia ("operacion", "nro. transaccion"...) y soporte de montos con punto
+// decimal y fechas con hora. Ajustar con un estado de cuenta real.
+const parseBdt = (rows, bankId) =>
+  genericParse(rows, bankId, {
+    refExtra: ['operacion', 'operación', 'transaccion', 'transacción', 'serial'],
+    puntoDecimal: true,
+  });
+
+// Registro de parsers indexado por BancoInstitucional.formato_estado_cuenta.
+export const PARSERS = {
+  generico:  (rows, id) => genericParse(rows, id),
+  bancaribe: (rows, id) => genericParse(rows, id),
+  banesco:   (rows, id) => genericParse(rows, id),
+  tesoro:    (rows, id) => genericParse(rows, id),
+  bdt:       parseBdt,
+};
+
+export const FORMATO_DEFECTO = 'generico';
+
+// Deduce el formato por nombre cuando el banco no declara formato_estado_cuenta.
+export function formatoPorNombre(nombre = '') {
+  const t = n(nombre);
+  if (t.includes('bancaribe')) return 'bancaribe';
+  if (t.includes('banesco')) return 'banesco';
+  if (t.includes('tesoro')) return 'tesoro';
+  if (t.includes('trabajadores') || /\bbdt\b/.test(t)) return 'bdt';
+  return FORMATO_DEFECTO;
+}
+
+export function parseStatement(rows, formato = FORMATO_DEFECTO, bankId = formato) {
+  const parser = PARSERS[formato] || PARSERS[FORMATO_DEFECTO];
+  return parser(rows, bankId);
 }
