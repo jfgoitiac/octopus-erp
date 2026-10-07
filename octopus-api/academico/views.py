@@ -622,6 +622,10 @@ class AsistenciaView(APIView):
         Retorna la lista de alumnos de un grado con su asistencia del día.
         Parámetros requeridos: ?grado_seccion=&fecha=YYYY-MM-DD
         Si un alumno no tiene registro para esa fecha, presente=null.
+
+        El roster sale en orden alfabético (apellido, nombre) y cada fila trae
+        `numero_lista` (posición en ese orden) y `alumno_foto` (URL absoluta o
+        null) para el pase de lista del portal docente.
         """
         grado = request.query_params.get('grado_seccion')
         fecha = request.query_params.get('fecha')
@@ -638,7 +642,7 @@ class AsistenciaView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        alumnos = Alumno.objects.filter(grado_seccion=grado)
+        alumnos = Alumno.objects.filter(grado_seccion=grado).order_by('apellido', 'nombre', 'id')
         asistencias_qs = Asistencia.objects.filter(
             alumno__grado_seccion=grado, fecha=fecha
         ).select_related('alumno')
@@ -649,12 +653,12 @@ class AsistenciaView(APIView):
         asistencias_map = {a.alumno_id: a for a in asistencias_qs}
 
         resultado = []
-        for alumno in alumnos:
+        for numero_lista, alumno in enumerate(alumnos, start=1):
             asistencia = asistencias_map.get(alumno.id)
             if asistencia:
-                resultado.append(AsistenciaSerializer(asistencia).data)
+                fila = AsistenciaSerializer(asistencia).data
             else:
-                resultado.append({
+                fila = {
                     'id': None,
                     'alumno_id': alumno.id,
                     'alumno_nombre': f"{alumno.nombre} {alumno.apellido}",
@@ -663,7 +667,10 @@ class AsistenciaView(APIView):
                     'justificada': False,
                     'estado': None,
                     'observacion': '',
-                })
+                }
+            fila['numero_lista'] = numero_lista
+            fila['alumno_foto'] = request.build_absolute_uri(alumno.foto.url) if alumno.foto else None
+            resultado.append(fila)
 
         return Response(resultado)
 
