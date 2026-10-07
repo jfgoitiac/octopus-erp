@@ -249,6 +249,149 @@ class CandidatosConciliacionView(APIView):
 # POST conciliar
 # ─────────────────────────────────────────────────────────────────────────────
 
+class ErrorConciliacion(Exception):
+    """Error de negocio al conciliar un ítem (mensaje en español + código HTTP)."""
+
+    def __init__(self, mensaje, http_status=status.HTTP_400_BAD_REQUEST):
+        super().__init__(mensaje)
+        self.mensaje = mensaje
+        self.http_status = http_status
+
+
+def parsear_transaccion(tx):
+    """Valida {referencia, fecha, monto} → (referencia, fecha, monto)."""
+    tx = tx if isinstance(tx, dict) else {}
+    referencia = str(tx.get('referencia') or '').strip()
+    if not referencia:
+        raise ErrorConciliacion('transaccion.referencia es requerida.')
+    try:
+        return referencia, _fecha(tx.get('fecha')), _dec(tx.get('monto'), 'transaccion.monto')
+    except ValueError as exc:
+        raise ErrorConciliacion(str(exc))
+
+
+def parsear_tolerancia(valor):
+    """Tolerancia explícita (valor absoluto) o la global si viene vacía."""
+    if valor in (None, ''):
+        return tolerancia_global()
+    try:
+        return abs(_dec(valor, 'tolerancia'))
+    except ValueError as exc:
+        raise ErrorConciliacion(str(exc))
+
+
+def conciliar_item(user, banco, *, operacion_uuid, comprobante_id, referencia_banco,
+                   fecha_banco, monto_banco, tolerancia, observacion='', archivo=''):
+    """
+    Concilia UNA operación (o aprueba un comprobante pendiente y lo concilia).
+    Lógica única compartida por `conciliar/` y `auto/confirmar/`.
+
+    Atómica por sí misma (savepoint si ya hay una transacción abierta): ante
+    cualquier ErrorConciliacion no queda ningún efecto. Devuelve
+    (conciliacion, lote, advertencias).
+    """
+    if bool(operacion_uuid) == bool(comprobante_id):
+        raise ErrorConciliacion('Indique operacion_uuid o comprobante_id (solo uno).')
+    if operacion_uuid:
+        try:
+            operacion_uuid = uuid.UUID(str(operacion_uuid))
+        except ValueError:
+            raise ErrorConciliacion('operacion_uuid inválido.')
+    observacion = str(observacion or '').strip()
+    archivo = str(archivo or '').strip()[:255]
+
+    # La línea del banco no puede reutilizarse (verificación temprana; la
+    # restricción única de la BD cubre la carrera).
+    if ConciliacionBancaria.objects.filter(
+        banco=banco, referencia_banco=referencia_banco, fecha_banco=fecha_banco,
+    ).exists():
+        raise ErrorConciliacion('Esa transacción del estado de cuenta ya fue usada en otra conciliación.')
+
+    advertencias = []
+    pago_notificar = None
+    try:
+        with transaction.atomic():
+            comprobante = None
+            if comprobante_id:
+                comprobante, pagos, advertencias, pago_notificar = _aprobar_comprobante(
+                    user, banco, comprobante_id,
+                )
+                operacion_uuid = pagos[0].operacion_uuid
+            else:
+                pagos = list(filtrar_por_sede(user, Pago.objects.filter(
+                    operacion_uuid=operacion_uuid, banco_receptor=banco, estatus='completado',
+                ), campo='sede'))
+                if not pagos:
+                    raise ErrorConciliacion('Operación no encontrada para ese banco.', status.HTTP_404_NOT_FOUND)
+                if ConciliacionBancaria.objects.filter(operacion_uuid=operacion_uuid).exists():
+                    raise ErrorConciliacion('Esta operación ya fue conciliada.')
+
+            monto_sistema = sum((p.monto_ves for p in pagos), Decimal('0')).quantize(CENT)
+            diferencia = (monto_banco - monto_sistema).quantize(CENT)
+            fuera = abs(diferencia) > tolerancia
+            if fuera and not observacion:
+                # Al propagar la excepción se revierte la aprobación del comprobante.
+                raise ErrorConciliacion('La diferencia supera la tolerancia: la observación es obligatoria.')
+
+            lote = _obtener_o_crear_lote_abierto(user)
+            conciliacion = ConciliacionBancaria.objects.create(
+                lote=lote,
+                operacion_uuid=operacion_uuid,
+                banco=banco,
+                referencia_banco=referencia_banco,
+                fecha_banco=fecha_banco,
+                monto_banco_ves=monto_banco,
+                monto_sistema_ves=monto_sistema,
+                diferencia_ves=diferencia,
+                tolerancia_aplicada_ves=tolerancia,
+                fuera_tolerancia=fuera,
+                observacion=observacion,
+                archivo_estado_cuenta=archivo,
+                comprobante_aprobado=comprobante,
+                usuario=user,
+            )
+            lote.pagos.add(*pagos)
+            _recalcular_fechas(lote)
+
+            if pago_notificar:
+                mensualidad, pago = pago_notificar
+                from portal.services import notificar_pago_aprobado
+                transaction.on_commit(lambda: notificar_pago_aprobado(mensualidad, pago))
+    except IntegrityError:
+        raise ErrorConciliacion('La operación o la línea del estado de cuenta ya fue conciliada.')
+    return conciliacion, lote, advertencias
+
+
+def _aprobar_comprobante(user, banco, comprobante_id):
+    """Aprueba el comprobante vía servicio. Devuelve
+    (comprobante, [pago], advertencias, (mensualidad, pago)) o lanza ErrorConciliacion."""
+    from portal.models import ComprobantePago
+    from portal.services import ComprobanteNoEncontrado, ComprobanteYaProcesado, aprobar_comprobante
+
+    try:
+        comprobante_id = int(comprobante_id)
+    except (TypeError, ValueError):
+        raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
+    visible = filtrar_por_sede(
+        user, ComprobantePago.objects.filter(id=comprobante_id),
+        campo='mensualidad__alumno__sede',
+    ).first()
+    if not visible:
+        raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
+    if visible.banco_receptor_id != banco.id:
+        raise ErrorConciliacion('El comprobante pertenece a otro banco receptor.')
+    try:
+        comprobante, pago, mensualidad, advertencias = aprobar_comprobante(
+            comprobante_id, user,
+            observaciones='Aprobado automáticamente por conciliación bancaria',
+        )
+    except ComprobanteNoEncontrado:
+        raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
+    except ComprobanteYaProcesado as exc:
+        raise ErrorConciliacion(f'Este comprobante ya fue procesado (estatus actual: {exc.estatus}).')
+    return comprobante, [pago], advertencias, (mensualidad, pago)
+
+
 class ConciliarOperacionView(APIView):
     """
     POST cobranza/conciliacion/conciliar/
@@ -271,111 +414,23 @@ class ConciliarOperacionView(APIView):
                 {'error': 'Indique operacion_uuid o comprobante_id (solo uno).'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         try:
             banco = BancoInstitucional.objects.get(id=int(data.get('banco')))
         except (TypeError, ValueError, BancoInstitucional.DoesNotExist):
             return Response({'error': 'Banco inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        tx = data.get('transaccion') or {}
-        referencia_banco = str(tx.get('referencia') or '').strip()
-        if not referencia_banco:
-            return Response({'error': 'transaccion.referencia es requerida.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            fecha_banco = _fecha(tx.get('fecha'))
-            monto_banco = _dec(tx.get('monto'), 'transaccion.monto')
-            if data.get('tolerancia') in (None, ''):
-                tolerancia = tolerancia_global()
-            else:
-                tolerancia = abs(_dec(data.get('tolerancia'), 'tolerancia'))
-        except ValueError as exc:
-            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        if operacion_uuid:
-            try:
-                operacion_uuid = uuid.UUID(str(operacion_uuid))
-            except ValueError:
-                return Response({'error': 'operacion_uuid inválido.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        observacion = str(data.get('observacion') or '').strip()
-        archivo = str(data.get('archivo') or '').strip()[:255]
-
-        # La línea del banco no puede reutilizarse (verificación temprana; la
-        # restricción única de la BD cubre la carrera).
-        if ConciliacionBancaria.objects.filter(
-            banco=banco, referencia_banco=referencia_banco, fecha_banco=fecha_banco,
-        ).exists():
-            return Response(
-                {'error': 'Esa transacción del estado de cuenta ya fue usada en otra conciliación.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            referencia_banco, fecha_banco, monto_banco = parsear_transaccion(data.get('transaccion'))
+            tolerancia = parsear_tolerancia(data.get('tolerancia'))
+            conciliacion, lote, advertencias = conciliar_item(
+                request.user, banco,
+                operacion_uuid=operacion_uuid, comprobante_id=comprobante_id,
+                referencia_banco=referencia_banco, fecha_banco=fecha_banco,
+                monto_banco=monto_banco, tolerancia=tolerancia,
+                observacion=data.get('observacion'), archivo=data.get('archivo'),
             )
-
-        advertencias = []
-        pago_notificar = None
-        try:
-            with transaction.atomic():
-                comprobante = None
-                if comprobante_id:
-                    resp = self._aprobar_comprobante(request, banco, comprobante_id)
-                    if isinstance(resp, Response):
-                        return resp
-                    comprobante, pagos, advertencias, pago_notificar = resp
-                    operacion_uuid = pagos[0].operacion_uuid
-                else:
-                    pagos = list(filtrar_por_sede(request.user, Pago.objects.filter(
-                        operacion_uuid=operacion_uuid, banco_receptor=banco, estatus='completado',
-                    ), campo='sede'))
-                    if not pagos:
-                        return Response(
-                            {'error': 'Operación no encontrada para ese banco.'},
-                            status=status.HTTP_404_NOT_FOUND,
-                        )
-                    if ConciliacionBancaria.objects.filter(operacion_uuid=operacion_uuid).exists():
-                        return Response(
-                            {'error': 'Esta operación ya fue conciliada.'},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-
-                monto_sistema = sum((p.monto_ves for p in pagos), Decimal('0')).quantize(CENT)
-                diferencia = (monto_banco - monto_sistema).quantize(CENT)
-                fuera = abs(diferencia) > tolerancia
-                if fuera and not observacion:
-                    # Fuerza el rollback de una eventual aprobación de comprobante.
-                    transaction.set_rollback(True)
-                    return Response(
-                        {'error': 'La diferencia supera la tolerancia: la observación es obligatoria.'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                lote = _obtener_o_crear_lote_abierto(request.user)
-                conciliacion = ConciliacionBancaria.objects.create(
-                    lote=lote,
-                    operacion_uuid=operacion_uuid,
-                    banco=banco,
-                    referencia_banco=referencia_banco,
-                    fecha_banco=fecha_banco,
-                    monto_banco_ves=monto_banco,
-                    monto_sistema_ves=monto_sistema,
-                    diferencia_ves=diferencia,
-                    tolerancia_aplicada_ves=tolerancia,
-                    fuera_tolerancia=fuera,
-                    observacion=observacion,
-                    archivo_estado_cuenta=archivo,
-                    comprobante_aprobado=comprobante,
-                    usuario=request.user,
-                )
-                lote.pagos.add(*pagos)
-                _recalcular_fechas(lote)
-
-                if pago_notificar:
-                    mensualidad, pago = pago_notificar
-                    from portal.services import notificar_pago_aprobado
-                    transaction.on_commit(lambda: notificar_pago_aprobado(mensualidad, pago))
-        except IntegrityError:
-            return Response(
-                {'error': 'La operación o la línea del estado de cuenta ya fue conciliada.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        except ErrorConciliacion as exc:
+            return Response({'error': exc.mensaje}, status=exc.http_status)
 
         respuesta = {
             'conciliacion': serializar_conciliacion(conciliacion),
@@ -384,38 +439,6 @@ class ConciliarOperacionView(APIView):
         if advertencias:
             respuesta['advertencias'] = advertencias
         return Response(respuesta, status=status.HTTP_201_CREATED)
-
-    @staticmethod
-    def _aprobar_comprobante(request, banco, comprobante_id):
-        """Aprueba el comprobante vía servicio. Devuelve Response de error o
-        (comprobante, [pago], advertencias, (mensualidad, pago))."""
-        from portal.models import ComprobantePago
-        from portal.services import ComprobanteNoEncontrado, ComprobanteYaProcesado, aprobar_comprobante
-
-        visible = filtrar_por_sede(
-            request.user, ComprobantePago.objects.filter(id=comprobante_id),
-            campo='mensualidad__alumno__sede',
-        ).first()
-        if not visible:
-            return Response({'error': 'Comprobante no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        if visible.banco_receptor_id != banco.id:
-            return Response(
-                {'error': 'El comprobante pertenece a otro banco receptor.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        try:
-            comprobante, pago, mensualidad, advertencias = aprobar_comprobante(
-                comprobante_id, request.user,
-                observaciones='Aprobado automáticamente por conciliación bancaria',
-            )
-        except ComprobanteNoEncontrado:
-            return Response({'error': 'Comprobante no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        except ComprobanteYaProcesado as exc:
-            return Response(
-                {'error': f'Este comprobante ya fue procesado (estatus actual: {exc.estatus}).'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return comprobante, [pago], advertencias, (mensualidad, pago)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
