@@ -42,6 +42,14 @@ class ConfiguracionSistema(models.Model):  # NUEVO
         help_text='Si está activo, un abono parcial de un ADELANTO de mensualidad (mes futuro) solo se acepta si TODAS las líneas de la transacción son en Zelle o Efectivo Divisas (USD). No aplica a mensualidades ya vencidas.'
     )
 
+    # Diferencia máxima (en Bs) entre el monto del estado de cuenta y el monto
+    # registrado en el sistema para dar por buena una conciliación bancaria.
+    # Por encima de este valor el operador debe escribir una observación.
+    tolerancia_conciliacion_ves = models.DecimalField(
+        max_digits=12, decimal_places=2, default=200,
+        help_text='Tolerancia (Bs) de la conciliación bancaria. Si la diferencia la supera, la observación es obligatoria.'
+    )
+
     # Convenio de nómina aplicable al cálculo de asignaciones docentes (frontend, USD).
     # 'generico': el sueldo base viene directo de Empleado.sueldo_base, sin categorías.
     # 'avec_ve': deriva el sueldo base de la tabla de categorías AVEC y aplica prima docente/geográfica.

@@ -87,6 +87,11 @@ class ConfiguracionSistemaSerializer(serializers.ModelSerializer):  # NUEVO
         model  = ConfiguracionSistema
         fields = '__all__'
 
+    def validate_tolerancia_conciliacion_ves(self, valor):
+        if valor is not None and valor < 0:
+            raise serializers.ValidationError("La tolerancia no puede ser negativa.")
+        return valor
+
     def _validar_logo(self, imagen):
         if not imagen:
             return imagen
