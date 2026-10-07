@@ -35,7 +35,7 @@ Respuesta: `{"id":12,"numero":"CXP-000012","estado":"pendiente","situacion":"por
 | `POST /pagos-multiples/` | `{"pagos":[{"cuenta":12,"monto_aplicado":"10.00", "moneda":"USD","tasa_aplicada":"150.0000","fecha_pago":"2026-10-15","monto_pagado":"10.00","metodo_pago":"zelle"}]}`. |
 | `GET,POST /plantillas/` | Lista (`sede,activa,proveedor`) y crea plantilla recurrente. |
 | `GET,PATCH /plantillas/{id}/` | Edita o pausa con `{"activa":false}`. |
-| `GET,PATCH /configuracion/` | Singleton: `dias_antes:[7,3,1,0]`, `ventana_por_vencer:7`, `frecuencia_vencidas_dias:3`, `max_aplazamientos_sin_director:2`, canales, destinatarios, resumen opcional `hora_resumen:"07:00"`, aprobación opcional y `umbral_aprobacion_usd:"150.00"`. |
+| `GET,PATCH /configuracion/` | Singleton propio de Cuentas por Pagar, no configuración global; sólo roles `administrador` y `director`: `dias_antes:[7,3,1,0]`, `ventana_por_vencer:7`, `frecuencia_vencidas_dias:3`, `max_aplazamientos_sin_director:2`, canales, destinatarios, `hora_recordatorios:"07:30"`, resumen opcional `hora_resumen:"07:00"`, aprobación opcional y `umbral_aprobacion_usd:"150.00"`. |
 | `GET /bandeja/` | Avisos con filtros `leido,cuenta`; `PATCH /bandeja/{id}/` marca leído. |
 | `GET /tablero/` | Totales por situación y moneda; filtros `sede,desde,hasta`. |
 | `GET /calendario/` | Vencimientos y cuotas; filtros `sede,desde,hasta`. |
