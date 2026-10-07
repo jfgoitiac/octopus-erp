@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
+import { fechaBancoAISO, filtrarPorFechas } from '../utils/conciliacionMasiva';
 
 const TOLERANCIA_KEY = 'conciliador_tolerancia_sesion';
 const TOLERANCIA_DEFECTO = 200;
@@ -25,11 +26,7 @@ const guardarToleranciaSesion = (valor) => {
 const msgError = (err, fallback) =>
   err?.response?.data?.error || err?.response?.data?.detail || fallback;
 
-// El parser entrega fechas dd/MM/yyyy; la API espera ISO (yyyy-MM-dd).
-export const fechaBancoAISO = (fecha) => {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(fecha || '');
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : fecha;
-};
+export { fechaBancoAISO };
 
 export const claveCandidato = (c) => c.operacion_uuid || `comprobante-${c.comprobante_id}`;
 
@@ -44,6 +41,9 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   // cuenta, el operador puede cambiarlo dentro del modal.
   const [bancoReceptor, setBancoReceptor] = useState('');
   const [ref, setRef] = useState('');
+  // Rango de fechas opcional (yyyy-MM-dd) para acotar la búsqueda.
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [buscado, setBuscado] = useState(false);
   const [matches, setMatches] = useState([]);
   const [txSel, setTxSel] = useState(null);
@@ -107,6 +107,8 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
       return;
     }
     setRef('');
+    setDesde('');
+    setHasta('');
     setBancoReceptor(banco);
     resetBusqueda();
     setOpen(true);
@@ -122,16 +124,25 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   }, [resetBusqueda]);
 
   const refValida = ref.length >= 4 && ref.length <= 6;
+  const hayFechas = Boolean(desde || hasta);
+  const rangoInvalido = Boolean(desde && hasta && desde > hasta);
+  // Con rango de fechas se puede buscar sin dígitos; con dígitos, deben ser 4 a 6.
+  const puedeBuscar = !rangoInvalido && (refValida || (ref === '' && hayFechas));
 
-  const consultarCandidatos = useCallback(async (bancoId, refBuscada) => {
+  const cambiarDesde = useCallback((valor) => { setDesde(valor || ''); resetBusqueda(); }, [resetBusqueda]);
+  const cambiarHasta = useCallback((valor) => { setHasta(valor || ''); resetBusqueda(); }, [resetBusqueda]);
+
+  const consultarCandidatos = useCallback(async (bancoId, refBuscada, d, h) => {
     const id = ++reqId.current;
     setCandSel(null);
     setCandidatos([]);
     setLoadingCand(true);
     try {
-      const { data } = await apiClient.get('cobranza/conciliacion/candidatos/', {
-        params: { banco: bancoId, ref: refBuscada },
-      });
+      const params = { banco: bancoId };
+      if (refBuscada) params.ref = refBuscada;
+      if (d) params.desde = d;
+      if (h) params.hasta = h;
+      const { data } = await apiClient.get('cobranza/conciliacion/candidatos/', { params });
       if (id !== reqId.current) return;
       const lista = data?.resultados || [];
       setCandidatos(lista);
@@ -146,23 +157,24 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   }, []);
 
   const buscar = useCallback(async () => {
-    if (!refValida) return;
+    if (!puedeBuscar) return;
     const n = ref.length;
-    const encontradas = transactions.filter(
-      tx => tx.tipo !== 'egreso' && tx.referencia.replace(/\D/g, '').slice(-n) === ref
+    const enRango = filtrarPorFechas(transactions, desde, hasta);
+    const encontradas = enRango.filter(
+      tx => tx.tipo !== 'egreso' && (n === 0 || tx.referencia.replace(/\D/g, '').slice(-n) === ref)
     );
     setBuscado(true);
     setMatches(encontradas);
     setTxSel(encontradas.length === 1 ? encontradas[0] : null);
-    await consultarCandidatos(bancoActivo, ref);
-  }, [refValida, ref, transactions, bancoActivo, consultarCandidatos]);
+    await consultarCandidatos(bancoActivo, ref, desde, hasta);
+  }, [puedeBuscar, ref, desde, hasta, transactions, bancoActivo, consultarCandidatos]);
 
   // Cambia el banco receptor; si ya hay una búsqueda, vuelve a consultar candidatos.
   const cambiarBanco = useCallback((id) => {
     if (!id || id === bancoActivo) return;
     setBancoReceptor(id);
-    if (buscado && refValida) consultarCandidatos(id, ref);
-  }, [bancoActivo, buscado, refValida, ref, consultarCandidatos]);
+    if (buscado && puedeBuscar) consultarCandidatos(id, ref, desde, hasta);
+  }, [bancoActivo, buscado, puedeBuscar, ref, desde, hasta, consultarCandidatos]);
 
   const cambiarTolerancia = useCallback((valor) => {
     setToleranciaInput(valor);
@@ -240,6 +252,7 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     open, abrir, cerrar,
     bancoActivo, cambiarBanco,
     ref, cambiarRef, refValida, buscar, buscado,
+    desde, hasta, cambiarDesde, cambiarHasta, hayFechas, rangoInvalido, puedeBuscar,
     matches, txSel, setTxSel,
     candidatos, loadingCand, candSel, setCandSel, candidatoSel,
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal,

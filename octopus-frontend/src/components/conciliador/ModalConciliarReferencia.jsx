@@ -4,6 +4,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Modal } from '../ui/Modal';
 import { Tabla } from '../ui/Tabla';
+import DatePickerES from '../DatePickerES';
 import { Bone } from '../shared/Skeleton';
 import { claveCandidato } from '../../hooks/useConciliacionSemiauto';
 
@@ -254,7 +255,8 @@ function Comparacion({ comparacion, c }) {
 
 function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] }) {
   const {
-    open, cerrar, bancoActivo, cambiarBanco, ref, cambiarRef, refValida, buscar, buscado,
+    open, cerrar, bancoActivo, cambiarBanco, ref, cambiarRef, buscar, buscado,
+    desde, hasta, cambiarDesde, cambiarHasta, rangoInvalido, puedeBuscar,
     matches, txSel, setTxSel,
     candidatos, loadingCand, candSel, setCandSel, candidatoSel,
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal, toleranciaValida,
@@ -338,7 +340,7 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
               inputMode="numeric"
               value={ref}
               onChange={e => cambiarRef(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && refValida && buscar()}
+              onKeyDown={e => e.key === 'Enter' && puedeBuscar && buscar()}
               placeholder="ej. 1234 a 123456"
               maxLength={6}
               autoFocus
@@ -348,13 +350,42 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
             <button
               type="button"
               onClick={buscar}
-              disabled={!refValida || loadingCand}
+              disabled={!puedeBuscar || loadingCand}
               className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40"
               style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}
             >
               Buscar
             </button>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 sm:max-w-md">
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>Desde (opcional)</label>
+              <DatePickerES
+                value={desde}
+                onChange={e => cambiarDesde(e.target.value)}
+                maxDate={hasta || undefined}
+                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                style={inputBase}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>Hasta (opcional)</label>
+              <DatePickerES
+                value={hasta}
+                onChange={e => cambiarHasta(e.target.value)}
+                minDate={desde || undefined}
+                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                style={inputBase}
+              />
+            </div>
+          </div>
+          {rangoInvalido ? (
+            <p className="text-xs mt-1.5" style={{ color: 'var(--red)' }}>La fecha inicial no puede ser posterior a la final.</p>
+          ) : (
+            <p className="text-[11px] mt-1.5" style={{ color: 'var(--ash)' }}>
+              Con un rango de fechas puedes buscar sin dígitos de referencia.
+            </p>
+          )}
         </div>
 
         {mostrarPasos && (
