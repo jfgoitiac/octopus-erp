@@ -783,6 +783,11 @@ class LoteRevisionCaja(models.Model):
     nivel de operación (operacion_uuid), pero se guarda la relación con cada
     Pago individual para poder auditar/consultar el detalle después.
     """
+    ESTADOS = (
+        ('abierto', 'Abierto'),
+        ('finalizado', 'Finalizado'),
+    )
+
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     usuario = models.ForeignKey(
@@ -792,12 +797,73 @@ class LoteRevisionCaja(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     observaciones = models.TextField(blank=True, default='')
     pagos = models.ManyToManyField(Pago, related_name='lotes_revision')
+    # 'finalizado' por defecto: los lotes existentes y el flujo manual del
+    # checklist no cambian. Un lote 'abierto' acumula conciliaciones bancarias
+    # hasta que el usuario lo finaliza (fecha_inicio/fin se recalculan).
+    estado = models.CharField(max_length=12, choices=ESTADOS, default='finalizado', db_index=True)
 
     class Meta:
         ordering = ['-fecha_creacion']
+        constraints = [
+            # Un solo lote abierto por usuario.
+            models.UniqueConstraint(
+                fields=['usuario'],
+                condition=models.Q(estado='abierto'),
+                name='unico_lote_abierto_por_usuario',
+            ),
+        ]
 
     def __str__(self):
         return f"Lote #{self.pk} ({self.fecha_inicio} — {self.fecha_fin}) por {self.usuario}"
+
+
+class ConciliacionBancaria(models.Model):
+    """
+    Resultado de conciliar UNA operación (operacion_uuid) contra una línea del
+    estado de cuenta bancario. Pertenece a un lote de revisión (abierto hasta
+    que el operador lo finaliza). Solo registra la diferencia: no modifica
+    saldos (el saldo a favor por excedente es deuda técnica).
+    """
+    lote = models.ForeignKey(
+        LoteRevisionCaja, on_delete=models.CASCADE, related_name='conciliaciones',
+    )
+    operacion_uuid = models.UUIDField(db_index=True)
+    banco = models.ForeignKey(
+        BancoInstitucional, on_delete=models.PROTECT, related_name='conciliaciones',
+    )
+    referencia_banco = models.CharField(max_length=100)
+    fecha_banco = models.DateField()
+    monto_banco_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    monto_sistema_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    diferencia_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    tolerancia_aplicada_ves = models.DecimalField(max_digits=12, decimal_places=2)
+    fuera_tolerancia = models.BooleanField(default=False, db_index=True)
+    observacion = models.TextField(blank=True, default='')
+    archivo_estado_cuenta = models.CharField(max_length=255, blank=True, default='')
+    comprobante_aprobado = models.ForeignKey(
+        'portal.ComprobantePago', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='conciliaciones',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='conciliaciones_bancarias',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        constraints = [
+            # Una operación no se concilia dos veces.
+            models.UniqueConstraint(fields=['operacion_uuid'], name='unica_conciliacion_por_operacion'),
+            # Una línea del estado de cuenta no se usa dos veces.
+            models.UniqueConstraint(
+                fields=['banco', 'referencia_banco', 'fecha_banco'],
+                name='unica_linea_banco_conciliada',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Conciliación {self.referencia_banco} ({self.banco}) op {self.operacion_uuid}"
 
 
 class ClasificacionPagoManual(models.Model):
