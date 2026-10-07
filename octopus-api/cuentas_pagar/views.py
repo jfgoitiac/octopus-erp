@@ -7,11 +7,12 @@ from .models import ComprobantePagoCxP, CuentaPorPagar, PagoCuentaPagar
 from .permissions import PuedeGestionarCxP, PuedeVerCxP, PuedeEscribirCxP
 from .serializers import ComprobanteSerializer, CuentaSerializer, PagoSerializer
 from . import services
+from cobranza.permissions import filtrar_por_sede
 
 class CuentaPorPagarViewSet(viewsets.ModelViewSet):
     serializer_class=CuentaSerializer; permission_classes=[PuedeVerCxP]
     def get_queryset(self):
-        qs=filtrar_cuentas(CuentaPorPagar.objects.all().select_related('sede','proveedor','categoria'),self.request.query_params)
+        qs=filtrar_cuentas(filtrar_por_sede(self.request.user, CuentaPorPagar.objects.all().select_related('sede','proveedor','categoria')),self.request.query_params)
         # Multisede se verifica explícitamente en detalle; la configuración de
         # pertenencia del usuario varía entre instalaciones.
         return qs

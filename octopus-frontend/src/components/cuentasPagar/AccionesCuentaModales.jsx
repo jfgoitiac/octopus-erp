@@ -5,7 +5,7 @@ import DatePickerES from '../DatePickerES';
 import DecimalInput from '../DecimalInput';
 import { acuerdoCuotas, anularCuenta, aplazarCuenta, confirmarMonto, posponerRecordatorio } from '../../services/cuentasPagarService';
 import { parseApiError } from '../../utils/apiError';
-const hoy = new Date().toISOString().slice(0, 10);
+const hoy = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
 export function AccionCuentaModal({ tipo, cuenta, open, onClose, onHecho }) {
  const [fecha, setFecha] = useState(hoy); const [motivo, setMotivo] = useState(''); const [monto, setMonto] = useState(cuenta?.monto_documento || ''); const [tasa, setTasa] = useState(cuenta?.tasa_aplicada || ''); const [cuotas, setCuotas] = useState([{ fecha_vencimiento: hoy, monto: cuenta?.saldo || '' }]); const [guardando, setGuardando] = useState(false);
  if (!cuenta) return null; const titulo = { aplazar: 'Aplazar vencimiento', posponer: 'Posponer recordatorio', cuotas: 'Acuerdo de cuotas', confirmar: 'Confirmar monto', anular: 'Anular cuenta' }[tipo];

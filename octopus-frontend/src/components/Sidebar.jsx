@@ -12,7 +12,7 @@ import {
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
-  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt
+  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, CalendarClock
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente', 'coordinador'];
@@ -52,6 +52,7 @@ const navSections = [
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
       { name: 'Nómina',        path: '/nomina',        icon: Banknote,          roles: ['director','administrador'] },
       { name: 'Egresos',       path: '/egresos',       icon: Receipt,           roles: ['director','administrador'] },
+      { name: 'Cuentas por pagar', path: '/cuentas-por-pagar', icon: CalendarClock, roles: ['director','administrador','directivo_red','sistemas','cajero'] },
       { name: 'Pagos',         path: '/pagos',         icon: CreditCard,        roles: ['director','administrador'] },
       { name: 'Recibos',       path: '/recibos',       icon: FileText,          roles: ['director','administrador'] },
       { name: 'Conciliador',  path: '/conciliador',   icon: GitCompareArrows,  roles: ['director','administrador','cobranza'] },

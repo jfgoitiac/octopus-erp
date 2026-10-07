@@ -9,8 +9,9 @@ import { pagarCuenta, subirComprobantePago } from '../../services/cuentasPagarSe
 import { parseApiError } from '../../utils/apiError';
 
 const num = (v) => Number(v || 0);
+const fechaLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 export default function PagoModal({ cuenta, open, onClose, onPago }) {
-  const [datos, setDatos] = useState({ fecha_pago: new Date().toISOString().slice(0, 10), moneda: cuenta?.moneda || 'USD', tasa_aplicada: cuenta?.tasa_aplicada || '150.0000', motivo_cambio_tasa: '', monto_pagado: '', monto_aplicado: '', metodo_pago: 'transferencia', banco: '', referencia: '', nota: '' });
+  const [datos, setDatos] = useState({ fecha_pago: fechaLocal(), moneda: cuenta?.moneda || 'USD', tasa_aplicada: cuenta?.tasa_aplicada || '150.0000', motivo_cambio_tasa: '', monto_pagado: '', monto_aplicado: '', metodo_pago: 'transferencia', banco: '', referencia: '', nota: '' });
   const [archivos, setArchivos] = useState([]); const [guardando, setGuardando] = useState(false);
   const equivalente = useMemo(() => datos.moneda === cuenta?.moneda ? num(datos.monto_pagado) : datos.moneda === 'USD' ? num(datos.monto_pagado) * num(datos.tasa_aplicada) : num(datos.monto_pagado) / num(datos.tasa_aplicada), [datos, cuenta]);
   if (!cuenta) return null;

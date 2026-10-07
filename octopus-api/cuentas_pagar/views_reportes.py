@@ -1,12 +1,12 @@
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import reportes
+from .permissions import PuedeVerCxP
 
 
 class BaseReporteCxP(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (PuedeVerCxP,)
     def parametros(self): return {k: self.request.query_params.get(k) for k in ('sede', 'desde', 'hasta')}
 
 

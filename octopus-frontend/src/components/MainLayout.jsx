@@ -8,6 +8,7 @@ import { useTasaBCV } from '../hooks/useTasaBCV';
 import axiosInstance from '../api/apiClient';
 import { inicialesUsuario } from '../utils/nombreUsuario';
 import octopusSymbol from '../assets/octopus-symbol.svg';
+import CampanaCxP from './cuentasPagar/tablero/CampanaCxP';
 
 const PAGE_TITLES = {
   '/':                   'Panel de control',
@@ -183,6 +184,9 @@ const MainLayout = () => {
                 style={{ color: tasaError ? '#991b1b' : 'var(--topbar-fg-dim)', flexShrink: 0 }}
               />
             </button>
+            {['director', 'administrador', 'directivo_red', 'sistemas', 'cajero'].includes((user?.rol || '').toLowerCase()) && (
+              <CampanaCxP onAbrirCuenta={(cuenta) => navigate(`/cuentas-por-pagar/${cuenta?.id || cuenta}`)} />
+            )}
             <div className="relative" ref={profileRef}>
               <button
                 type="button"

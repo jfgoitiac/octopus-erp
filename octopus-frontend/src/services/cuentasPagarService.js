@@ -1,7 +1,7 @@
 import apiClient from '../api/apiClient';
 
 // Durante Fase 2 se puede activar VITE_CXP_STUBS=true; Fase 3 lo apaga sin cambiar consumidores.
-export const USE_STUBS = import.meta.env.VITE_CXP_STUBS === 'true';
+export const USE_STUBS = false;
 const hoy = new Date().toISOString().slice(0, 10);
 let cuentas = [{ id: 1, numero: 'CXP-000001', proveedor: 1, proveedor_nombre: 'Servicios Andes', categoria: 1, categoria_nombre: 'Servicios básicos', concepto: 'Internet octubre', moneda: 'USD', monto_documento: '85.00', monto_usd: '85.00', monto_ves: '12750.00', saldo: '85.00', tasa_aplicada: '150.0000', fecha_emision: hoy, fecha_vencimiento: hoy, prioridad: 'alta', estado: 'pendiente', situacion: 'vence_hoy', origen: 'manual', pagos: [], historial: [] }];
 const response = (data) => Promise.resolve({ data });
