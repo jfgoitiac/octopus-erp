@@ -3,9 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from .filters import filtrar_cuentas
-from .models import ComprobantePagoCxP, CuentaPorPagar, PagoCuentaPagar
+from .models import ComprobantePagoCxP, ConfiguracionRecordatorios, CuentaPorPagar, PagoCuentaPagar, PlantillaRecurrente
 from .permissions import PuedeGestionarCxP, PuedeVerCxP, PuedeEscribirCxP
-from .serializers import ComprobanteSerializer, CuentaSerializer, PagoSerializer
+from .serializers import ComprobanteSerializer, ConfiguracionRecordatoriosSerializer, CuentaSerializer, PagoSerializer, PlantillaRecurrenteSerializer
 from . import services
 from cobranza.permissions import filtrar_por_sede
 
@@ -59,3 +59,17 @@ class PagoViewSet(viewsets.GenericViewSet):
     @action(detail=True,methods=['post'])
     def adjuntos(self,request,pk=None):
         pago=PagoCuentaPagar.objects.get(pk=pk); s=ComprobanteSerializer(data=request.data); s.is_valid(raise_exception=True); c=s.save(pago=pago,subido_por=request.user); return Response(ComprobanteSerializer(c).data,status=201)
+
+class PlantillaRecurrenteViewSet(viewsets.ModelViewSet):
+    serializer_class = PlantillaRecurrenteSerializer
+    permission_classes = [PuedeGestionarCxP]
+    def get_queryset(self):
+        return filtrar_por_sede(self.request.user, PlantillaRecurrente.objects.select_related('proveedor','categoria','sede'))
+    def perform_create(self, serializer): serializer.save(creado_por=self.request.user)
+
+class ConfiguracionRecordatoriosViewSet(viewsets.ViewSet):
+    permission_classes = [PuedeGestionarCxP]
+    def _objeto(self): return ConfiguracionRecordatorios.objects.first() or ConfiguracionRecordatorios.objects.create()
+    def list(self, request): return Response(ConfiguracionRecordatoriosSerializer(self._objeto()).data)
+    def partial_update(self, request, pk=None):
+        serializer = ConfiguracionRecordatoriosSerializer(self._objeto(), data=request.data, partial=True); serializer.is_valid(raise_exception=True); serializer.save(actualizado_por=request.user); return Response(serializer.data)
