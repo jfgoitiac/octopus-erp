@@ -47,6 +47,7 @@ const PAGE_TITLES = {
   '/constancias/emitir':     'Emitir Constancia',
   '/constancias/historico':  'Histórico de Constancias',
   '/constancias/firmante':   'Firmante de Constancias',
+  '/constancias/cobros':     'Cobro de Constancias',
 };
 
 const FULL_HEIGHT_PAGES = ['/recibos'];

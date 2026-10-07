@@ -530,6 +530,11 @@ export default function EmisionConstancias() {
                   </div>
                 </div>
               )}
+              {cobro && !cobro.requiere_pago && plantilla?.destinatario === 'alumno' && (
+                <p className="mt-4 text-xs p-3 rounded-lg" style={{ background: '#f1f5f9', color: 'var(--ash)' }}>
+                  Esta constancia se emitirá gratis porque no tiene una tarifa configurada. Dirección puede activarla en Constancias → Cobros.
+                </p>
+              )}
 
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between pt-4">
                 <button

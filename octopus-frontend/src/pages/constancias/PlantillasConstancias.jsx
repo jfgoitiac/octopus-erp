@@ -117,13 +117,14 @@ export default function PlantillasConstancias() {
         titulo="Plantillas de constancias"
         descripcion="Gestiona las plantillas disponibles para emitir constancias"
         acciones={
-          <Link
-            to="nueva"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-white min-h-[44px]"
-            style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}
-          >
-            <Plus size={14} /> Nueva plantilla
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link to="/constancias/cobros" className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold min-h-[44px]" style={{ border: '1px solid var(--pb)', color: 'var(--pb-mid)' }}>
+              Configurar cobros
+            </Link>
+            <Link to="nueva" className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-white min-h-[44px]" style={{ background: 'linear-gradient(135deg, var(--pb) 0%, var(--pb-mid) 100%)' }}>
+              <Plus size={14} /> Nueva plantilla
+            </Link>
+          </div>
         }
       />
 
