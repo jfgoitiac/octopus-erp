@@ -1,0 +1,80 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useAsistenciaClase } from './useAsistenciaClase';
+import { getAsistencia, saveAsistencia } from '../api/academico.service';
+import { ESTADO } from '../../constants/asistencia';
+
+vi.mock('../api/academico.service', () => ({
+  getAsistencia: vi.fn(),
+  saveAsistencia: vi.fn(),
+}));
+vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+const FECHA = new Date(2026, 9, 7);
+const ROSTER = [
+  { alumno_id: 1, alumno_nombre: 'Ana Pérez', estado: 'P', observacion: '' },
+  { alumno_id: 2, alumno_nombre: 'Luis Gómez', estado: 'A', observacion: 'Enfermo' },
+  { alumno_id: 3, alumno_nombre: 'Sofía Ruiz', presente: null },
+];
+
+async function montar() {
+  const hook = renderHook(() => useAsistenciaClase('3A', FECHA, true));
+  await waitFor(() => expect(hook.result.current.registros).toHaveLength(3));
+  return hook;
+}
+
+describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaDetalle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAsistencia.mockResolvedValue({ data: ROSTER });
+    saveAsistencia.mockResolvedValue({});
+  });
+
+  it('no consulta la API si la pestaña no está activa', () => {
+    renderHook(() => useAsistenciaClase('3A', FECHA, false));
+    expect(getAsistencia).not.toHaveBeenCalled();
+  });
+
+  it('normaliza el roster y cuenta por estado', async () => {
+    const { result } = await montar();
+    expect(getAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', expect.any(AbortSignal));
+    expect(result.current.registros.map(r => r.estado)).toEqual([ESTADO.PRESENTE, ESTADO.AUSENTE, ESTADO.SIN_MARCAR]);
+    expect(result.current.conteos).toEqual({ presentes: 1, ausentes: 1, justificados: 0, retardados: 0 });
+  });
+
+  it('marcar Presente limpia la observación y deja el registro sucio', async () => {
+    const { result } = await montar();
+    act(() => result.current.marcar(2, ESTADO.PRESENTE));
+    expect(result.current.registros[1]).toMatchObject({ estado: ESTADO.PRESENTE, observacion: '', presente: true });
+    expect(result.current.dirtyAsistencia).toBe(true);
+  });
+
+  it('restaurarRegistro devuelve el registro exacto previo', async () => {
+    const { result } = await montar();
+    const previo = result.current.registros[1];
+    act(() => result.current.marcar(2, ESTADO.PRESENTE));
+    act(() => result.current.restaurarRegistro(previo));
+    expect(result.current.registros[1]).toBe(previo);
+  });
+
+  it('guarda con letras del backend; los sin marcar viajan como "A"', async () => {
+    const { result } = await montar();
+    let ok;
+    await act(async () => { ok = await result.current.guardarAsistencia(); });
+    expect(ok).toBe(true);
+    expect(saveAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', [
+      { alumno_id: 1, estado: 'P', observacion: '' },
+      { alumno_id: 2, estado: 'A', observacion: 'Enfermo' },
+      { alumno_id: 3, estado: 'A', observacion: '' },
+    ]);
+    expect(result.current.dirtyAsistencia).toBe(false);
+  });
+
+  it('devuelve false si el guardado falla', async () => {
+    saveAsistencia.mockRejectedValue({ response: { data: { error: 'x' } } });
+    const { result } = await montar();
+    let ok;
+    await act(async () => { ok = await result.current.guardarAsistencia(); });
+    expect(ok).toBe(false);
+  });
+});

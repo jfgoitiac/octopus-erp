@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../utils/datepickerPortal';
 import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown } from 'lucide-react';
 
-import { getMateria, getLapsos, getNotasGrado, saveNotas, getAsistencia, saveAsistencia } from '../api/academico.service';
+import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academico.service';
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
 import { useDocenteComparacionMateria } from '../hooks/useDocenteComparacionMateria';
+import { useAsistenciaClase } from '../hooks/useAsistenciaClase';
 import { calcDefinitiva } from '../../utils/notas.utils';
-import { ESTADO, ESTADO_A_BACKEND, BACKEND_A_ESTADO } from '../../constants/asistencia';
 import { TablaNotas } from '../../components/notas/TablaNotas';
 import FilaAlumno from '../../components/asistencia/FilaAlumno';
 import SkeletonFila from '../../components/asistencia/SkeletonFila';
@@ -27,19 +26,6 @@ const TABS = [
   { id: 'plan-evaluacion', label: 'Plan de Evaluación', icon: ClipboardList },
   { id: 'material', label: 'Material', icon: FileText },
 ];
-
-function normalizeRegistro(r) {
-  if (r.estado && BACKEND_A_ESTADO[r.estado]) {
-    return { ...r, estado: BACKEND_A_ESTADO[r.estado] };
-  }
-  return {
-    ...r,
-    estado: r.presente === true && !r.justificada ? ESTADO.PRESENTE
-          : r.justificada                          ? ESTADO.JUSTIFICADO
-          : r.presente === false                   ? ESTADO.AUSENTE
-          : ESTADO.SIN_MARCAR,
-  };
-}
 
 const TAB_IDS = TABS.map(t => t.id);
 
@@ -152,84 +138,16 @@ const DocenteMateriaDetalle = () => {
 
   // ── Tab Asistencia ────────────────────────────────────────────────────
   const [fechaAsistencia, setFechaAsistencia] = useState(new Date());
-  const [registros, setRegistros] = useState([]);
-  const [loadingAsistencia, setLoadingAsistencia] = useState(false);
-  const [savingAsistencia, setSavingAsistencia] = useState(false);
-  const [dirtyAsistencia, setDirtyAsistencia] = useState(false);
-  const abortAsistenciaRef = useRef(null);
-
-  const fetchAsistencia = useCallback(async () => {
-    if (!materia?.grado_seccion || !fechaAsistencia) return;
-    abortAsistenciaRef.current?.abort();
-    const controller = new AbortController();
-    abortAsistenciaRef.current = controller;
-
-    setLoadingAsistencia(true);
-    setDirtyAsistencia(false);
-    try {
-      const fechaStr = format(fechaAsistencia, 'yyyy-MM-dd');
-      const res = await getAsistencia(materia.grado_seccion, fechaStr, controller.signal);
-      if (controller.signal.aborted) return;
-      setRegistros((res.data || []).map(normalizeRegistro));
-    } catch (err) {
-      if (err.code === 'ERR_CANCELED' || controller.signal.aborted) return;
-      toast.error('No se pudo cargar la asistencia.');
-    } finally {
-      if (!controller.signal.aborted) setLoadingAsistencia(false);
-    }
-  }, [materia?.grado_seccion, fechaAsistencia]);
-
-  useEffect(() => { if (tab === 'asistencia') fetchAsistencia(); }, [tab, fetchAsistencia]);
-
-  const marcar = useCallback((alumnoId, estado) => {
-    setDirtyAsistencia(true);
-    setRegistros(prev => prev.map(r => {
-      if (r.alumno_id !== alumnoId) return r;
-      return {
-        ...r,
-        estado,
-        presente: estado === ESTADO.PRESENTE || estado === ESTADO.RETARDADO,
-        justificada: estado === ESTADO.JUSTIFICADO,
-        observacion: estado === ESTADO.PRESENTE ? '' : r.observacion,
-      };
-    }));
-  }, []);
-
-  const actualizarObservacion = useCallback((alumnoId, valor) => {
-    setDirtyAsistencia(true);
-    setRegistros(prev => prev.map(r => (r.alumno_id !== alumnoId ? r : { ...r, observacion: valor })));
-  }, []);
-
-  const guardarAsistencia = async () => {
-    setSavingAsistencia(true);
-    try {
-      const fechaStr = format(fechaAsistencia, 'yyyy-MM-dd');
-      const payload = registros.map(r => ({
-        alumno_id: r.alumno_id,
-        estado: ESTADO_A_BACKEND[r.estado] || 'A',
-        observacion: r.observacion || '',
-      }));
-      await saveAsistencia(materia.grado_seccion, fechaStr, payload);
-      toast.success('Asistencia guardada correctamente.');
-      setDirtyAsistencia(false);
-    } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al guardar asistencia.';
-      toast.error(msg);
-    } finally {
-      setSavingAsistencia(false);
-    }
-  };
-
-  const conteos = useMemo(
-    () => registros.reduce((acc, r) => {
-      if (r.estado === ESTADO.PRESENTE) acc.presentes++;
-      else if (r.estado === ESTADO.AUSENTE) acc.ausentes++;
-      else if (r.estado === ESTADO.JUSTIFICADO) acc.justificados++;
-      else if (r.estado === ESTADO.RETARDADO) acc.retardados++;
-      return acc;
-    }, { presentes: 0, ausentes: 0, justificados: 0, retardados: 0 }),
-    [registros]
-  );
+  const {
+    registros,
+    loadingAsistencia,
+    savingAsistencia,
+    dirtyAsistencia,
+    marcar,
+    actualizarObservacion,
+    guardarAsistencia,
+    conteos,
+  } = useAsistenciaClase(materia?.grado_seccion, fechaAsistencia, tab === 'asistencia');
 
   // ── Tab Material ──────────────────────────────────────────────────────
   const { materiales, loading: loadingMateriales, publicarMaterial, eliminarMaterial } = useDocenteMateriales(materiaId);
