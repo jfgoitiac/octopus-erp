@@ -11,6 +11,54 @@ import uuid
 
 from simple_history.models import HistoricalRecords
 
+CLAVES_COLUMNAS_ESTADO_CUENTA = ('referencia', 'fecha', 'descripcion', 'debito', 'credito', 'monto')
+FORMATOS_FECHA_ESTADO_CUENTA = ('auto', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd')
+SEPARADORES_DECIMAL_ESTADO_CUENTA = ('auto', ',', '.')
+CLAVES_CONFIG_ESTADO_CUENTA = ('columnas', 'formato_fecha', 'separador_decimal', 'filas_encabezado_max')
+
+
+def validar_config_estado_cuenta(valor):
+    """Valida ``BancoInstitucional.config_estado_cuenta`` (todas las claves son
+    opcionales). Lanza ValidationError con mensajes en español."""
+    if not isinstance(valor, dict):
+        raise ValidationError('La configuración del estado de cuenta debe ser un objeto.')
+    desconocidas = sorted(set(valor) - set(CLAVES_CONFIG_ESTADO_CUENTA))
+    if desconocidas:
+        raise ValidationError(
+            f"Claves no permitidas en la configuración: {', '.join(map(str, desconocidas))}."
+        )
+
+    columnas = valor.get('columnas')
+    if 'columnas' in valor:
+        if not isinstance(columnas, dict):
+            raise ValidationError('"columnas" debe ser un objeto.')
+        desconocidas = sorted(set(columnas) - set(CLAVES_COLUMNAS_ESTADO_CUENTA))
+        if desconocidas:
+            raise ValidationError(
+                f"Columnas no permitidas: {', '.join(map(str, desconocidas))}. "
+                f"Permitidas: {', '.join(CLAVES_COLUMNAS_ESTADO_CUENTA)}."
+            )
+        for clave, alias in columnas.items():
+            if not isinstance(alias, list) or not alias:
+                raise ValidationError(f'"columnas.{clave}" debe ser una lista no vacía de textos.')
+            for item in alias:
+                if not isinstance(item, str) or not item.strip():
+                    raise ValidationError(f'"columnas.{clave}" solo admite textos no vacíos.')
+                if len(item) > 80:
+                    raise ValidationError(f'Cada alias de "columnas.{clave}" admite máximo 80 caracteres.')
+
+    if 'formato_fecha' in valor and valor['formato_fecha'] not in FORMATOS_FECHA_ESTADO_CUENTA:
+        raise ValidationError(
+            f"formato_fecha inválido. Opciones: {', '.join(FORMATOS_FECHA_ESTADO_CUENTA)}."
+        )
+    if 'separador_decimal' in valor and valor['separador_decimal'] not in SEPARADORES_DECIMAL_ESTADO_CUENTA:
+        raise ValidationError('separador_decimal inválido. Opciones: auto, "," o ".".')
+    if 'filas_encabezado_max' in valor:
+        n = valor['filas_encabezado_max']
+        if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= 50:
+            raise ValidationError('filas_encabezado_max debe ser un entero entre 1 y 50.')
+
+
 class ParametroGlobal(models.Model):
     """Almacena configuraciones globales como el monto base de mensualidad"""
     clave = models.CharField(max_length=50, unique=True)
@@ -81,6 +129,22 @@ class BancoInstitucional(models.Model):
     # (p. ej. Banco Digital de los Trabajadores) hasta que el admin lo active
     # para recibir pagos.
     activo_conciliador = models.BooleanField(default=True)
+    # Ajustes del parser del estado de cuenta, configurables por banco sin
+    # tocar código. Contrato (todas las claves opcionales):
+    # {"columnas": {"referencia": [str], "fecha": [str], "descripcion": [str],
+    #   "debito": [str], "credito": [str], "monto": [str]},
+    #  "formato_fecha": "auto"|"dd/MM/yyyy"|"MM/dd/yyyy"|"yyyy-MM-dd",
+    #  "separador_decimal": "auto"|","|".", "filas_encabezado_max": 1..50}
+    config_estado_cuenta = models.JSONField(
+        default=dict, blank=True, validators=[validar_config_estado_cuenta],
+    )
+
+    def clean(self):
+        super().clean()
+        try:
+            validar_config_estado_cuenta(self.config_estado_cuenta)
+        except ValidationError as exc:
+            raise ValidationError({'config_estado_cuenta': exc.messages})
 
     def __str__(self):
         return self.nombre

@@ -8,6 +8,17 @@ El contrato se respeta tal cual. Detalles y adiciones:
   comporta como antes (solo `activo=True`, cacheado). Los bancos exponen ademas
   `formato_estado_cuenta`, `color` y `activo_conciliador`.
   El selector del conciliador debe llamar con `?para=conciliador`.
+- `BancoInstitucional.config_estado_cuenta` (NUEVO, JSON, default `{}`, migracion
+  cobranza 0050): ajustes del parser por banco, sin tocar codigo. Se devuelve en
+  `GET cobranza/bancos/?para=conciliador` y en `bancos/admin/` (lectura/escritura
+  solo director, sistemas y administrador, igual que el resto del CRUD de bancos).
+  Contrato (todas las claves opcionales; claves desconocidas -> 400):
+  `{"columnas": {"referencia"|"fecha"|"descripcion"|"debito"|"credito"|"monto": [str]},
+  "formato_fecha": "auto"|"dd/MM/yyyy"|"MM/dd/yyyy"|"yyyy-MM-dd",
+  "separador_decimal": "auto"|","|".", "filas_encabezado_max": 1..50}`.
+  Los alias de `columnas` se suman a los del preset; listas no vacias de textos
+  de maximo 80 caracteres. `formato_estado_cuenta` admite: generico, bancaribe,
+  banesco, tesoro, bdt. Errores en `config_estado_cuenta` (mensajes en espanol).
 - Los montos (`monto_ves`, `monto_banco_ves`, `diferencia_ves`, ...) se devuelven
   como string decimal con 2 decimales (convencion DRF del proyecto). La
   diferencia es con signo: `monto_banco - monto_sistema`.
