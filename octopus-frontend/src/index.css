@@ -484,6 +484,29 @@ button, a {
 .anim-fade-up   { animation: fadeUp 0.22s ease both; }
 .anim-scale-in  { animation: fadeScale 0.3s cubic-bezier(0.16,1,0.3,1) both; }
 
+/* ── Pase de lista por tarjetas (portal docente) ──
+   Solo se animan transform y opacity para sostener 60fps en gama media. */
+@keyframes plFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes plCheckPop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes plCheckOnda {
+  0%   { opacity: 0.35; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(1.6); }
+}
+.pl-check-pop  { animation: plCheckPop 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pl-check-onda { animation: plCheckOnda 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-check-pop  { animation: plFade 120ms ease-out both; }
+  .pl-check-onda { animation: none; opacity: 0; }
+}
+
 /* ── Card hover lift ── */
 .card-lift {
   transition: box-shadow 0.22s ease, transform 0.22s ease;
