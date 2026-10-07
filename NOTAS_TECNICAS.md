@@ -3996,3 +3996,29 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 4. **Lint preexistente en `src/context/BrandingContext.jsx`**: 2 errores
    (`react-hooks/set-state-in-effect` en el fetch del efecto y
    `react-refresh/only-export-components` por exportar `useBranding`).
+
+## Conciliador semiautomático (07/10/2026)
+
+1. **Código muerto**: `cobranza/conciliacion.py::ConciliadorBancario.conciliar_zelle`
+   no se usa en ningún sitio.
+2. **`Pago.estatus='en_revision'` sin uso**: existe en los choices y en las
+   constraints, pero ningún flujo lo asigna. Los pagos del portal viven como
+   `ComprobantePago`.
+3. **Saldo a favor por pagos en exceso**: hoy solo se registra la diferencia en
+   `ConciliacionBancaria.diferencia_ves` (decisión 6 del plan); no se acredita
+   ni se descuenta ningún saldo.
+4. **Tasa de cambio y tolerancia**: la validación del monto en Bs depende de la
+   tasa con la que se registró el pago. Un pago registrado con una tasa errónea
+   aparecerá siempre fuera de tolerancia.
+5. **`activo_conciliador` en `BancoInstitucional`**: se añadió para que el Banco
+   Digital de los Trabajadores exista solo en el conciliador (`activo=False`
+   para caja y portal) hasta que el admin lo active. Convive con `activo`; la
+   pantalla de administración de bancos aún no expone el nuevo booleano.
+6. **Monto en Bs al aprobar comprobantes**: `AdminComprobantesView.patch` creaba
+   el `Pago` con `monto_usd * tasa` sin redondear; con una tasa de 4 decimales
+   daba más de 2 decimales y fallaba la validación del modelo. Ahora el servicio
+   `portal/services.py` redondea a centavos.
+7. **Monto del comprobante pendiente**: el conciliador estima su monto en Bs como
+   `mensualidad.monto_usd * tasa vigente hoy` (igual que al aprobarlo); no se
+   usa el monto declarado por el representante porque `ComprobantePago` no lo
+   guarda.
