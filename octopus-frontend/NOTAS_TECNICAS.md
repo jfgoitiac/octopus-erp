@@ -563,3 +563,47 @@ sin derivar `pagado` ni generar historial). Ver
   cálculo de `pagado`/`fecha_pago` resuelto explícitamente en Python antes
   del lote (perdiendo el historial por fila de `django-simple-history`,
   que no soporta `bulk_update`, a menos que se cree el historial a mano).
+
+---
+
+## Pase de asistencia por tarjetas (Portal Docente) — 2026-10-07
+
+Detectado al implementar el modo "Pasar lista" en `DocenteMateriaDetalle`. Solo
+anotado; nada de esto se cambió.
+
+- [DEUDA] `App.jsx` usa `<BrowserRouter>` y no un data router
+  (`createBrowserRouter` + `RouterProvider`), así que `useBlocker` no está
+  disponible. La confirmación de cambios sin guardar cubre "Mis Materias",
+  cambio de pestaña, cambio de fecha y recarga/cierre (`beforeunload`), pero
+  NO los links del layout (`DesktopRail`, bottom nav de `DocenteLayout`): un
+  docente puede salir por ahí y perder la asistencia marcada. Migrar el router
+  de toda la app habilitaría el bloqueo real de navegación.
+
+- [DEUDA] `guardarAsistencia` (hoy en `portal-docente/hooks/useAsistenciaClase.js`)
+  envía `ESTADO_A_BACKEND[r.estado] || 'A'`: un alumno sin marcar se guarda como
+  Ausente sin aviso. El resumen del pase por tarjetas ahora lo advierte ("N sin
+  marcar… se registran como ausentes"), pero la vista Lista no. Decidir si el
+  backend debe aceptar "sin marcar" o si el frontend debe bloquear el guardado.
+
+- [DEUDA] La vista Lista renderiza `FilaAlumno` con `key={`${r.alumno_id}-${i}`}`:
+  incluir el índice hace que React remonte filas si el orden cambia. Con
+  `alumno_id` único bastaría.
+
+- [DEUDA] La API de asistencia no devuelve número de lista. La tarjeta muestra
+  la posición del alumno en el roster (`índice + 1`), que depende del orden en
+  que responde `AsistenciaView`. Si el colegio usa un número de lista oficial,
+  exponerlo en el endpoint.
+
+- [DEUDA] Los contadores de la vista Lista muestran Presentes/Ausentes/Justif.
+  pero no Retardados, aunque `conteos.retardados` existe y el backend acepta `R`.
+
+- [DEUDA] `fetchAsistencia` no aborta la petición al desmontar la página (el
+  AbortController solo cancela la petición anterior). Además, el lint actual
+  marca `react-hooks/set-state-in-effect` en este efecto y en otros del portal
+  docente (`DocenteMateriaDetalle` líneas de `getMateria` y notas,
+  `useAlumnosSeccion`, `PlanEvaluacionPanel`, etc.): es un patrón previo,
+  extendido en todo el módulo, que conviene resolver de forma transversal.
+
+- [DISEÑO] `src/index.css` `.text-gradient` (texto con degradado) fue marcado por
+  el linter de diseño como recurso decorativo; evaluar reemplazarlo por color
+  sólido donde se use.
