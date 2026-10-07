@@ -1,4 +1,10 @@
 from django.urls import path
+from .conciliacion_semiauto import (
+    CandidatosConciliacionView,
+    ConciliarOperacionView,
+    FinalizarLoteAbiertoView,
+    LoteAbiertoView,
+)
 from .views import (
     ActualizarCuotaInscripcionView,
     ActualizarMensualidadesView,
@@ -92,6 +98,10 @@ urlpatterns = [
     path('conciliacion/resumen/',           ResumenConciliacionView.as_view(),       name='conciliacion-resumen'),
     path('conciliacion/lotes/',             LoteRevisionCajaListCreateView.as_view(), name='conciliacion-lotes'),
     path('conciliacion/lotes/<int:pk>/',    LoteRevisionCajaDetailView.as_view(),     name='conciliacion-lote-detalle'),
+    path('conciliacion/candidatos/',        CandidatosConciliacionView.as_view(),     name='conciliacion-candidatos'),
+    path('conciliacion/conciliar/',         ConciliarOperacionView.as_view(),         name='conciliacion-conciliar'),
+    path('conciliacion/lotes/abierto/',     LoteAbiertoView.as_view(),                name='conciliacion-lote-abierto'),
+    path('conciliacion/lotes/abierto/finalizar/', FinalizarLoteAbiertoView.as_view(), name='conciliacion-lote-abierto-finalizar'),
     path('conciliacion/extraer-pdf/',       ExtraerPdfConciliacionView.as_view(),     name='conciliacion-extraer-pdf'),
     path('representantes/resumen-financiero/', RepresentantesResumenFinancieroView.as_view(), name='representantes-resumen-financiero'),
     path('pagos/estado-clasificacion/',    EstadoClasificacionPagosView.as_view(), name='estado-clasificacion-pagos'),
