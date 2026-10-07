@@ -14,6 +14,11 @@ from .reportes import (egresos_libro_compras, egresos_pagados, por_mes, rango_me
                        sin_comprobante, sumar)
 
 
+def formatear_monto(valor):
+    """Contrato JSON monetario: Decimal, siempre con dos posiciones, nunca float."""
+    return format(Decimal(valor or '0.00'), '.2f')
+
+
 class EsAdministradorODirector(permissions.BasePermission):
     """No se reutiliza el permiso amplio que también admite sistemas."""
     def has_permission(self, request, view):
@@ -49,8 +54,8 @@ class BaseInformeView(APIView):
     def dinero(fila, prefijo='monto'):
         """Serializa Decimal sin floats y conserva ambos equivalentes."""
         return {
-            'monto_usd': str(fila.get(f'{prefijo}_usd_pagado', fila.get(f'{prefijo}_usd', Decimal('0.00')))),
-            'monto_ves': str(fila.get(f'{prefijo}_ves_pagado', fila.get(f'{prefijo}_ves', Decimal('0.00')))),
+            'monto_usd': formatear_monto(fila.get(f'{prefijo}_usd_pagado', fila.get(f'{prefijo}_usd', Decimal('0.00')))),
+            'monto_ves': formatear_monto(fila.get(f'{prefijo}_ves_pagado', fila.get(f'{prefijo}_ves', Decimal('0.00')))),
         }
 
 
@@ -113,7 +118,7 @@ class TableroEgresosView(BaseInformeView):
             consumo = usd if p.moneda == 'USD' else ves
             porcentaje = Decimal('0.00') if not presupuesto else (consumo * Decimal('100') / presupuesto).quantize(Decimal('0.01'))
             resultado.append({'categoria_id': p.categoria_id, 'categoria': p.categoria.nombre, 'moneda_presupuesto': p.moneda,
-                              'presupuesto': str(presupuesto), 'pagado_usd': str(usd), 'pagado_ves': str(ves),
+                              'presupuesto': formatear_monto(presupuesto), 'pagado_usd': formatear_monto(usd), 'pagado_ves': formatear_monto(ves),
                               'comprometido_usd': '0.00', 'comprometido_ves': '0.00',
                               'porcentaje_usd': porcentaje if p.moneda == 'USD' else Decimal('0.00'),
                               'porcentaje_ves': porcentaje if p.moneda == 'VES' else Decimal('0.00')})
@@ -149,7 +154,7 @@ class ReportesEgresosView(BaseInformeView):
             'id': e.id, 'fecha_egreso': str(e.fecha_egreso), 'fecha_emision': str(e.fecha_emision),
             'proveedor': e.proveedor.razon_social, 'categoria': e.categoria.nombre, 'sede_id': e.sede_id,
             'numero_documento': e.numero_documento, 'moneda_original': e.moneda,
-            'monto_usd': str(e.monto_usd_pagado), 'monto_ves': str(e.monto_ves_pagado),
+            'monto_usd': formatear_monto(e.monto_usd_pagado), 'monto_ves': formatear_monto(e.monto_ves_pagado),
         } for e in qs]
 
     def _grupo(self, qs, *campos):
@@ -180,10 +185,10 @@ class ReportesEgresosView(BaseInformeView):
             'id': e.id, 'fecha_emision': str(e.fecha_emision), 'estado': e.estado,
             'proveedor': e.proveedor.razon_social, 'rif': e.proveedor.rif,
             'numero_documento': e.numero_documento, 'numero_control': e.numero_control,
-            'subtotal': str(e.subtotal), 'iva': str(e.monto_iva), 'igtf': str(e.monto_igtf),
-            'retencion_iva': str(e.monto_retencion_iva), 'retencion_islr': str(e.monto_retencion_islr),
-            'total_documento': str(e.total_documento), 'moneda_original': e.moneda,
-            'monto_usd': str(e.monto_usd), 'monto_ves': str(e.monto_ves),
+            'subtotal': formatear_monto(e.subtotal), 'iva': formatear_monto(e.monto_iva), 'igtf': formatear_monto(e.monto_igtf),
+            'retencion_iva': formatear_monto(e.monto_retencion_iva), 'retencion_islr': formatear_monto(e.monto_retencion_islr),
+            'total_documento': formatear_monto(e.total_documento), 'moneda_original': e.moneda,
+            'monto_usd': formatear_monto(e.monto_usd), 'monto_ves': formatear_monto(e.monto_ves),
         } for e in qs]
 
     def articulos(self, qs, request):
@@ -194,7 +199,7 @@ class ReportesEgresosView(BaseInformeView):
         return [
             {'articulo_id': r.articulo_id, 'articulo': r.articulo.nombre if r.articulo_id else r.descripcion,
              'fecha_egreso': str(r.egreso.fecha_egreso), 'proveedor': r.egreso.proveedor.razon_social,
-             'cantidad': str(r.cantidad), 'precio_unitario': str(r.precio_unitario), 'total': str(r.total),
-             'monto_usd': str(r.egreso.monto_usd_pagado), 'monto_ves': str(r.egreso.monto_ves_pagado)}
+             'cantidad': str(r.cantidad), 'precio_unitario': formatear_monto(r.precio_unitario), 'total': formatear_monto(r.total),
+             'monto_usd': formatear_monto(r.egreso.monto_usd_pagado), 'monto_ves': formatear_monto(r.egreso.monto_ves_pagado)}
             for r in renglones.select_related('egreso__proveedor').order_by('-egreso__fecha_egreso', '-id')
         ]
