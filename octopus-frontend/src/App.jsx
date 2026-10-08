@@ -421,7 +421,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="boletin" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Boletin />
                 </ProtectedRoute>
               } />
@@ -431,7 +431,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="horarios" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Horarios />
                 </ProtectedRoute>
               } />
@@ -441,12 +441,12 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="materias" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Materias />
                 </ProtectedRoute>
               } />
               <Route path="docentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
                   <Docentes />
                 </ProtectedRoute>
               } />
