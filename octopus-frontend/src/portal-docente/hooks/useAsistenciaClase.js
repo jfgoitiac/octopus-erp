@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { getAsistencia, saveAsistencia } from '../api/academico.service';
 import { ESTADO, ESTADO_A_BACKEND, BACKEND_A_ESTADO } from '../../constants/asistencia';
+import { encolarEnvio } from '../utils/asistenciaLocal';
+import { esErrorDeRed } from '../utils/colaAsistencia';
 
 export function normalizeRegistro(r) {
   if (r.estado && BACKEND_A_ESTADO[r.estado]) {
@@ -100,7 +102,8 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
 
   const sinMarcar = useMemo(() => registros.reduce((n, r) => n + (r.estado ? 0 : 1), 0), [registros]);
 
-  // Devuelve true si se guardó, para que el resumen pueda confirmar en pantalla.
+  // Devuelve true si se guardó, 'encolado' si no había conexión (queda en este
+  // dispositivo y se reenvía solo, ver colaAsistencia.js) o false si falló.
   // No se guarda con alumnos sin marcar: antes viajaban como 'A' sin aviso.
   const guardarAsistencia = async () => {
     if (sinMarcar > 0) {
@@ -120,6 +123,16 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
       setDirtyAsistencia(false);
       return true;
     } catch (err) {
+      if (esErrorDeRed(err)) {
+        encolarEnvio({ gradoSeccion, fecha: format(fecha, 'yyyy-MM-dd'), registros: registros.map(r => ({
+          alumno_id: r.alumno_id,
+          estado: ESTADO_A_BACKEND[r.estado],
+          observacion: r.observacion || '',
+        })) });
+        toast.warning('Sin conexión: la asistencia quedó guardada en este dispositivo y se enviará sola al volver la señal.');
+        setDirtyAsistencia(false);
+        return 'encolado';
+      }
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al guardar asistencia.';
       toast.error(msg);
       return false;

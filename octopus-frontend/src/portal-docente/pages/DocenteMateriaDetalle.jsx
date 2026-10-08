@@ -6,13 +6,14 @@ import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../utils/datepickerPortal';
-import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, Layers, List } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, Layers, List, CloudOff, RefreshCw } from 'lucide-react';
 
 import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academico.service';
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
 import { useDocenteComparacionMateria } from '../hooks/useDocenteComparacionMateria';
 import { useAsistenciaClase } from '../hooks/useAsistenciaClase';
 import { useBorradorAsistencia } from '../hooks/useBorradorAsistencia';
+import { enviarPendientes, usePendienteEnvio } from '../utils/colaAsistencia';
 import { calcDefinitiva } from '../../utils/notas.utils';
 import { TablaNotas } from '../../components/notas/TablaNotas';
 import FilaAlumno from '../../components/asistencia/FilaAlumno';
@@ -181,7 +182,10 @@ const DocenteMateriaDetalle = () => {
     onAplicar: aplicarCambios,
   });
 
+  const pendienteEnvio = usePendienteEnvio(materia?.grado_seccion, format(fechaAsistencia, 'yyyy-MM-dd'));
+
   // Guardar = enviar al servidor y, si salió bien, borrar el borrador local.
+  // Si quedó en cola por falta de conexión, el borrador se conserva.
   const guardarAsistencia = async () => {
     const resultado = await guardarEnServidor();
     if (resultado === true) borrador.limpiar();
@@ -374,7 +378,24 @@ const DocenteMateriaDetalle = () => {
             </div>
           </div>
 
-          {borrador.pendiente && (
+          {pendienteEnvio && (
+            <div role="status" className="flex flex-col gap-2 rounded-2xl p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4" style={{ background: '#fef3c7' }}>
+              <p className="flex items-start gap-2 text-sm" style={{ color: '#854d0e' }}>
+                <CloudOff size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span><strong className="font-semibold">Pendiente de envío.</strong> Se mandará sola cuando vuelva la conexión.</span>
+              </p>
+              <button
+                type="button"
+                onClick={enviarPendientes}
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold transition-transform active:scale-[0.97] sm:ml-auto"
+                style={{ color: '#854d0e' }}
+              >
+                <RefreshCw size={15} aria-hidden="true" /> Reintentar ahora
+              </button>
+            </div>
+          )}
+
+          {borrador.pendiente && !pendienteEnvio && (
             <AvisoBorrador
               borrador={borrador.pendiente}
               onRecuperar={borrador.recuperar}

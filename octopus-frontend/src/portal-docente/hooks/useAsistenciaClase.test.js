@@ -26,6 +26,7 @@ async function montar() {
 describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaDetalle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     getAsistencia.mockResolvedValue({ data: ROSTER });
     saveAsistencia.mockResolvedValue({});
   });
@@ -77,6 +78,19 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
       { alumno_id: 2, estado: 'A', observacion: 'Enfermo' },
       { alumno_id: 3, estado: 'R', observacion: '' },
     ]);
+    expect(result.current.dirtyAsistencia).toBe(false);
+  });
+
+  it('sin conexión deja el guardado en cola y responde "encolado"', async () => {
+    saveAsistencia.mockRejectedValue(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }));
+    const { result } = await montar();
+    act(() => result.current.marcar(3, ESTADO.PRESENTE));
+    let resultado;
+    await act(async () => { resultado = await result.current.guardarAsistencia(); });
+    expect(resultado).toBe('encolado');
+    const cola = JSON.parse(localStorage.getItem('docente_asistencia_cola'));
+    expect(cola[0]).toMatchObject({ gradoSeccion: '3A', fecha: '2026-10-07' });
+    expect(cola[0].registros[2]).toEqual({ alumno_id: 3, estado: 'P', observacion: '' });
     expect(result.current.dirtyAsistencia).toBe(false);
   });
 

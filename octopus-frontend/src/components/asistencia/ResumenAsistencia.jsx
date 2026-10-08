@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, Loader2, Save, UserCheck } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, CloudUpload, Loader2, Save, UserCheck } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../../constants/asistencia';
 import { prefiereMenosMovimiento } from './paseLista.utils';
 import AvatarAlumno from './AvatarAlumno';
@@ -67,8 +67,9 @@ const CheckGuardado = () => (
  * y guardado. `onGuardar` devuelve true si se guardó.
  */
 const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMarcarRestantes, onVolver }) => {
-  const [guardado, setGuardado] = useState(false);
+  const [guardado, setGuardado] = useState(false);   // false | true | 'encolado'
   const exito = guardado && !dirty;
+  const enCola = exito && guardado === 'encolado';
 
   const { conteos, sinMarcar, novedades } = useMemo(() => {
     const c = { [ESTADO.PRESENTE]: 0, [ESTADO.AUSENTE]: 0, [ESTADO.JUSTIFICADO]: 0, [ESTADO.RETARDADO]: 0 };
@@ -83,21 +84,28 @@ const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMa
   }, [registros]);
 
   const guardar = async () => {
-    const ok = await onGuardar();
-    if (ok) setGuardado(true);
+    const resultado = await onGuardar();
+    if (resultado) setGuardado(resultado);
   };
 
   return (
     <section className="mx-auto w-full max-w-md space-y-3 anim-scale-in" aria-labelledby="pl-resumen-titulo">
       <div className="rounded-2xl bg-white p-5 sm:p-6" style={TARJETA_STYLE}>
         <div className="flex items-center gap-3">
-          {exito && <CheckGuardado />}
+          {exito && !enCola && <CheckGuardado />}
+          {enCola && (
+            <span className="pl-check-pop flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl" style={{ background: '#fef3c7', color: '#b45309' }} aria-hidden="true">
+              <CloudUpload size={26} />
+            </span>
+          )}
           <div className="min-w-0">
             <h2 id="pl-resumen-titulo" className="text-lg font-semibold tracking-tight sm:text-xl" style={{ color: 'var(--jet)' }}>
-              {exito ? 'Asistencia guardada' : 'Resumen del pase'}
+              {enCola ? 'Guardada en este dispositivo' : exito ? 'Asistencia guardada' : 'Resumen del pase'}
             </h2>
             <p className="text-sm" style={{ color: 'var(--jet-mid)' }}>
-              {exito ? 'Todo quedó registrado.' : `Revisa antes de guardar · ${registros.length} alumnos`}
+              {enCola
+                ? 'No hay conexión. Se enviará sola cuando vuelva la señal.'
+                : exito ? 'Todo quedó registrado.' : `Revisa antes de guardar · ${registros.length} alumnos`}
             </p>
           </div>
         </div>
