@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../utils/datepickerPortal';
-import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, Layers, List, CloudOff, RefreshCw } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, Layers, List, CloudOff, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
 
 import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academico.service';
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
@@ -41,6 +41,25 @@ const VISTAS_ASISTENCIA = [
   { id: 'tarjetas', label: 'Tarjetas', icon: Layers },
   { id: 'lista', label: 'Lista', icon: List },
 ];
+
+// Fecha del pase como botón compacto ("mié 7 oct ▾") para que entre en la
+// misma fila que Tarjetas|Lista en 360px. react-datepicker inyecta value/onClick.
+const BotonFecha = forwardRef(function BotonFecha({ value, onClick }, ref) {
+  return (
+    <button
+      ref={ref}
+      id="docente-fecha-asistencia"
+      type="button"
+      onClick={onClick}
+      aria-label={`Fecha del pase: ${value}`}
+      className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--docente-primary)]/30"
+    >
+      <CalendarDays size={15} className="hidden text-gray-400 sm:block" aria-hidden="true" />
+      <span className="whitespace-nowrap">{value}</span>
+      <ChevronDown size={15} className="text-gray-400" aria-hidden="true" />
+    </button>
+  );
+});
 
 function leerVistaAsistencia() {
   try {
@@ -193,6 +212,7 @@ const DocenteMateriaDetalle = () => {
   };
 
   const [vistaAsistencia, setVistaAsistencia] = useState(leerVistaAsistencia);
+  const barraAsistenciaRef = useRef(null);
   const cambiarVistaAsistencia = (vista) => {
     setVistaAsistencia(vista);
     try { localStorage.setItem(VISTA_ASISTENCIA_KEY, vista); } catch { /* storage bloqueado: solo no se recuerda */ }
@@ -337,28 +357,10 @@ const DocenteMateriaDetalle = () => {
 
       {tab === 'asistencia' && (
         <div className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-            <div className="sm:w-56">
-              <label htmlFor="docente-fecha-asistencia" className="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
-              <DatePicker
-                selected={fechaAsistencia}
-                onChange={(fecha) => { if (fecha) confirmarSiHayCambios(() => setFechaAsistencia(fecha)); }}
-                locale={es}
-                dateFormat="dd/MM/yyyy"
-                maxDate={new Date()}
-                wrapperClassName="w-full"
-                popperContainer={datepickerPopperContainer}
-                customInput={
-                  <input
-                    id="docente-fecha-asistencia"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
-                  />
-                }
-              />
-            </div>
-
-            {/* Excepción declarada del estándar: 2 botones cortos, caben en 360px */}
-            <div role="group" aria-label="Vista de asistencia" className="grid grid-cols-2 gap-1 rounded-xl p-1 sm:ml-auto sm:inline-grid" style={{ background: 'var(--ash-light)' }}>
+          {/* Una sola fila también en 360px (como el boceto aprobado): son dos
+              controles cortos. flex-wrap evita scroll horizontal si no cupieran. */}
+          <div ref={barraAsistenciaRef} className="flex scroll-mt-16 flex-wrap items-center justify-between gap-2">
+            <div role="group" aria-label="Vista de asistencia" className="inline-grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--ash-light)' }}>
               {VISTAS_ASISTENCIA.map(({ id, label, icon: Icon }) => {
                 const activa = vistaAsistencia === id;
                 return (
@@ -367,7 +369,7 @@ const DocenteMateriaDetalle = () => {
                     type="button"
                     aria-pressed={activa}
                     onClick={() => cambiarVistaAsistencia(id)}
-                    className={`flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-[background-color,color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--docente-primary)]/40 ${
+                    className={`flex min-h-[36px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-[background-color,color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--docente-primary)]/40 ${
                       activa ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -376,6 +378,18 @@ const DocenteMateriaDetalle = () => {
                 );
               })}
             </div>
+
+            <DatePicker
+              selected={fechaAsistencia}
+              onChange={(fecha) => { if (fecha) confirmarSiHayCambios(() => setFechaAsistencia(fecha)); }}
+              locale={es}
+              dateFormat="EEE d MMM"
+              maxDate={new Date()}
+              wrapperClassName="!w-auto shrink-0"
+              popperPlacement="bottom-end"
+              popperContainer={datepickerPopperContainer}
+              customInput={<BotonFecha />}
+            />
           </div>
 
           {pendienteEnvio && (
@@ -416,6 +430,7 @@ const DocenteMateriaDetalle = () => {
               onObservacion={actualizarObservacion}
               onRestaurar={restaurarRegistro}
               onGuardar={guardarAsistencia}
+              anclaScrollRef={barraAsistenciaRef}
             />
           ) : (
             <>

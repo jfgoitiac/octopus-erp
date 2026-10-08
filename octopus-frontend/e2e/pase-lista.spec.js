@@ -150,7 +150,9 @@ test.describe('Pase de lista por tarjetas', () => {
     await page.getByRole('button', { name: /Listo, ver resumen/ }).click();
     await expect(page.getByRole('heading', { name: 'Resumen del pase' })).toBeVisible();
     const guardar = page.getByRole('button', { name: 'Guardar asistencia' });
-    await guardar.scrollIntoViewIfNeeded();
+    // Como lo haría el docente: desplazar hasta tener el botón a la vista
+    // (al borde inferior lo taparía la bottom nav, que es fija).
+    await guardar.evaluate((el) => el.scrollIntoView({ block: 'center' }));
     await alAlcance(page, guardar);
     await sinScrollHorizontal(page);
     await info.attach('resumen', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });

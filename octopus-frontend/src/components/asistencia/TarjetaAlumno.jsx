@@ -51,54 +51,66 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
         />
       )}
 
-      <div className="relative flex items-center justify-between gap-2 px-4 pt-4 sm:px-5 sm:pt-5">
-        <span
-          className="inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-semibold tabular-nums"
-          style={{ background: 'rgba(255,255,255,0.7)', color: 'var(--jet-mid)', border: '0.5px solid var(--border-md)' }}
-        >
-          N.º {registro.numero_lista ?? numero}
-        </span>
-        {cfg && (
-          <span
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold"
-            style={{ background: cfg.activeStyle.color, color: '#fff' }}
-          >
-            <cfg.Icon size={12} aria-hidden="true" /> {cfg.label}
-          </span>
-        )}
-      </div>
+      {expandido ? (
+        // Con la observación abierta, la cabecera se compacta en una fila para
+        // que input y "Siguiente" quepan en 360×640 sin scroll.
+        <div className="relative flex items-center gap-3 px-4 pt-4 sm:px-5 sm:pt-5">
+          <AvatarAlumno nombre={alumno_nombre} foto={registro.alumno_foto} className="h-11 w-11 rounded-xl text-sm" />
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-base font-semibold leading-tight tracking-tight sm:text-lg" style={{ color: 'var(--jet)' }}>
+              {alumno_nombre || 'Alumno sin nombre'}
+            </h2>
+            <p className="mt-1 flex items-center gap-1.5 text-[11px]">
+              <span className="font-semibold tabular-nums" style={{ color: 'var(--jet-mid)' }}>N.º {registro.numero_lista ?? numero}</span>
+              {cfg && (
+                <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold" style={{ background: cfg.activeStyle.color, color: '#fff' }}>
+                  <cfg.Icon size={11} aria-hidden="true" /> {cfg.label}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="relative flex items-center justify-between gap-2 px-4 pt-4 sm:px-5 sm:pt-5">
+            <span
+              className="inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-semibold tabular-nums"
+              style={{ background: 'rgba(255,255,255,0.7)', color: 'var(--jet-mid)', border: '0.5px solid var(--border-md)' }}
+            >
+              N.º {registro.numero_lista ?? numero}
+            </span>
+            {cfg && (
+              <span
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold"
+                style={{ background: cfg.activeStyle.color, color: '#fff' }}
+              >
+                <cfg.Icon size={12} aria-hidden="true" /> {cfg.label}
+              </span>
+            )}
+          </div>
 
-      <div
-        className={`relative flex flex-1 min-h-0 px-5 sm:px-6 ${
-          expandido ? 'flex-row items-center gap-3 pt-3' : 'flex-col items-center justify-center gap-3 sm:gap-4 text-center'
-        }`}
-      >
-        <AvatarAlumno
-          nombre={alumno_nombre}
-          foto={registro.alumno_foto}
-          className={`rounded-2xl ${expandido ? 'h-12 w-12 text-base' : 'h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl'}`}
-        />
-        <h2
-          className={`font-semibold leading-tight tracking-tight line-clamp-2 break-words ${
-            expandido ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl'
-          }`}
-          style={{ color: 'var(--jet)' }}
-        >
-          {alumno_nombre || 'Alumno sin nombre'}
-        </h2>
-      </div>
+          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-center sm:gap-4 sm:px-6">
+            <AvatarAlumno
+              nombre={alumno_nombre}
+              foto={registro.alumno_foto}
+              className="h-20 w-20 rounded-2xl text-2xl sm:h-24 sm:w-24 sm:text-3xl"
+            />
+            <h2 className="line-clamp-2 break-words text-xl font-semibold leading-tight tracking-tight sm:text-2xl" style={{ color: 'var(--jet)' }}>
+              {alumno_nombre || 'Alumno sin nombre'}
+            </h2>
+          </div>
+        </>
+      )}
 
       {expandido && (
-        <div className="relative space-y-2 px-4 pb-4 pt-3 sm:px-5 sm:pb-5 anim-fade-up">
-          <label htmlFor={inputId} className="block text-xs font-medium" style={{ color: 'var(--jet-mid)' }}>
-            Observación <span style={{ color: 'var(--ash)' }}>(opcional)</span>
-          </label>
+        <div className="relative mt-auto space-y-2 px-4 pb-4 pt-3 sm:px-5 sm:pb-5 anim-fade-up">
+          <label htmlFor={inputId} className="sr-only">Observación (opcional)</label>
           <input
             id={inputId}
             type="text"
             enterKeyHint="next"
             autoComplete="off"
-            placeholder="Ej.: avisó el representante"
+            placeholder="Observación (opcional)"
             className="w-full select-text rounded-xl px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
             style={{ border: '0.5px solid var(--border-md)', background: 'var(--ash-light)', color: 'var(--jet)' }}
             value={observacion || ''}

@@ -21,7 +21,7 @@ const DESTINO_SALIDA = {
 };
 
 // Origen abajo: al escalar, la tarjeta de atrás conserva el borde inferior y
-// asoma por debajo de la actual (10px y 20px), como un mazo.
+// asoma por debajo de la actual (6px y 12px), como un mazo.
 const MAZO_STYLE = { border: '0.5px solid var(--border-md)', boxShadow: '0 8px 24px -10px rgba(43,48,58,0.18)', transformOrigin: '50% 100%' };
 
 /**
@@ -40,6 +40,7 @@ const PaseListaTarjetas = ({
   onObservacion,
   onRestaurar,
   onGuardar,
+  anclaScrollRef,
 }) => {
   const [fase, setFase] = useState('inicio');          // 'inicio' | 'pase' | 'rapido' | 'resumen'
   const [indice, setIndice] = useState(0);
@@ -191,14 +192,15 @@ const PaseListaTarjetas = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [fase]);
 
-  // Al cambiar de fase, la sección queda alineada bajo el header fijo: en
-  // 360×640 así la tarjeta y los botones entran sin scroll.
+  // Al cambiar de fase, la sección (o `anclaScrollRef`: la barra Tarjetas|Lista
+  // y fecha de la página) queda alineada bajo el header fijo: en 360×640 así
+  // esa barra, la tarjeta y los botones entran sin scroll.
   useEffect(() => {
     if (faseAnteriorRef.current !== fase) {
-      rootRef.current?.scrollIntoView?.({ block: 'start', behavior: prefiereMenosMovimiento() ? 'auto' : 'smooth' });
+      (anclaScrollRef?.current ?? rootRef.current)?.scrollIntoView?.({ block: 'start', behavior: prefiereMenosMovimiento() ? 'auto' : 'smooth' });
     }
     faseAnteriorRef.current = fase;
-  }, [fase]);
+  }, [fase, anclaScrollRef]);
 
   // Foco al primer botón de cada tarjeta nueva (accesibilidad y teclado).
   useEffect(() => {
@@ -258,7 +260,7 @@ const PaseListaTarjetas = ({
     );
   } else {
     contenido = (
-      <div className="flex h-[calc(100dvh-8rem)] min-h-[30rem] flex-col gap-3 sm:h-[calc(100dvh-6rem)] sm:max-h-[50rem]">
+      <div className="flex h-[calc(100dvh-11.75rem)] min-h-[26rem] flex-col gap-3 sm:h-[calc(100dvh-9.75rem)] sm:max-h-[50rem]">
         <div className="mx-auto flex w-full max-w-md items-center gap-2">
           <div className="min-w-0 flex-1">
             <BarraProgresoLista registros={registros} indice={i} onIr={(idx) => irA(idx)} />
@@ -292,12 +294,12 @@ const PaseListaTarjetas = ({
             a ras del viewport en móvil: el <body> nunca scrollea en horizontal. */}
         <div className="relative -mx-4 min-h-0 flex-1 overflow-x-clip px-4 sm:mx-0 sm:px-0">
           <div className="relative mx-auto h-full w-full max-w-md">
-            <div className="absolute inset-x-0 bottom-5 top-0">
+            <div className="absolute inset-x-0 bottom-3 top-0">
               {restantesMazo >= 2 && (
-                <div aria-hidden="true" className="absolute inset-0 rounded-2xl bg-white" style={{ ...MAZO_STYLE, transform: 'translate3d(0, 20px, 0) scale(0.9)', opacity: 0.5 }} />
+                <div aria-hidden="true" className="absolute inset-0 rounded-2xl bg-white" style={{ ...MAZO_STYLE, transform: 'translate3d(0, 12px, 0) scale(0.92)', opacity: 0.55 }} />
               )}
               {restantesMazo >= 1 && (
-                <div aria-hidden="true" className="absolute inset-0 rounded-2xl bg-white" style={{ ...MAZO_STYLE, transform: 'translate3d(0, 10px, 0) scale(0.95)', opacity: 0.8 }} />
+                <div aria-hidden="true" className="absolute inset-0 rounded-2xl bg-white" style={{ ...MAZO_STYLE, transform: 'translate3d(0, 6px, 0) scale(0.96)', opacity: 0.85 }} />
               )}
 
               {actual && (

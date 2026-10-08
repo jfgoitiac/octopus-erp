@@ -516,7 +516,7 @@ button, a {
   to   { opacity: 0; transform: translate3d(var(--pl-x1, 0px), var(--pl-y1, 0px), 0) rotate(var(--pl-r1, 0deg)) scale(0.96); }
 }
 @keyframes plEntrarAdelante {
-  from { opacity: 0.5; transform: translate3d(0, 14px, 0) scale(0.94); }
+  from { opacity: 0.85; transform: translate3d(0, 6px, 0) scale(0.96); }
   to   { opacity: 1;   transform: translate3d(0, 0, 0) scale(1); }
 }
 @keyframes plEntrarAtras {
