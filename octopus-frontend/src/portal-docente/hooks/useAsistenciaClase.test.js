@@ -74,11 +74,37 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
     await act(async () => { ok = await result.current.guardarAsistencia(); });
     expect(ok).toBe(true);
     expect(saveAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', [
-      { alumno_id: 1, estado: 'P', observacion: '' },
-      { alumno_id: 2, estado: 'A', observacion: 'Enfermo' },
-      { alumno_id: 3, estado: 'R', observacion: '' },
+      { alumno_id: 1, estado: 'P', observacion: '', actualizado_en: null },
+      { alumno_id: 2, estado: 'A', observacion: 'Enfermo', actualizado_en: null },
+      { alumno_id: 3, estado: 'R', observacion: '', actualizado_en: null },
     ]);
     expect(result.current.dirtyAsistencia).toBe(false);
+  });
+
+  it('tras guardar adopta la versión nueva de cada fila', async () => {
+    saveAsistencia.mockResolvedValue({ data: { guardadas: [{ alumno_id: 3, actualizado_en: '2026-10-07T12:00:00Z' }] } });
+    const { result } = await montar();
+    act(() => result.current.marcar(3, ESTADO.PRESENTE));
+    await act(async () => { await result.current.guardarAsistencia(); });
+    expect(result.current.registros[2].actualizado_en).toBe('2026-10-07T12:00:00Z');
+  });
+
+  it('si otra persona la modificó (409) muestra su versión y no pisa nada', async () => {
+    saveAsistencia.mockRejectedValue({ response: { status: 409, data: {
+      error: 'Otra persona modificó...',
+      conflictos: [{ alumno_id: 2, estado: 'J', presente: false, justificada: true, observacion: 'Reposo', actualizado_en: '2026-10-07T13:00:00Z' }],
+    } } });
+    const { result } = await montar();
+    act(() => result.current.marcar(2, ESTADO.AUSENTE));
+    act(() => result.current.marcar(3, ESTADO.PRESENTE));
+    let ok;
+    await act(async () => { ok = await result.current.guardarAsistencia(); });
+    expect(ok).toBe(false);
+    expect(result.current.registros[1]).toMatchObject({ estado: ESTADO.JUSTIFICADO, observacion: 'Reposo', actualizado_en: '2026-10-07T13:00:00Z' });
+    // Lo marcado aquí en filas sin conflicto se conserva, pendiente de guardar.
+    expect(result.current.registros[2].estado).toBe(ESTADO.PRESENTE);
+    expect(result.current.dirtyAsistencia).toBe(true);
+    expect(localStorage.getItem('docente_asistencia_cola')).toBeNull();
   });
 
   it('sin conexión deja el guardado en cola y responde "encolado"', async () => {
@@ -90,7 +116,7 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
     expect(resultado).toBe('encolado');
     const cola = JSON.parse(localStorage.getItem('docente_asistencia_cola'));
     expect(cola[0]).toMatchObject({ gradoSeccion: '3A', fecha: '2026-10-07' });
-    expect(cola[0].registros[2]).toEqual({ alumno_id: 3, estado: 'P', observacion: '' });
+    expect(cola[0].registros[2]).toEqual({ alumno_id: 3, estado: 'P', observacion: '', actualizado_en: null });
     expect(result.current.dirtyAsistencia).toBe(false);
   });
 

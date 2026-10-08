@@ -623,3 +623,14 @@ el usuario; el resto sigue solo anotado.
 
 - [LÍMITE] El borrador y la cola son por dispositivo: si el docente empieza
   en el celular y sigue en la computadora, no se ven entre sí.
+
+- [DEUDA 2026-10-08] `normalizeRegistro` está duplicada entre
+  `hooks/useAsistencia.js` (panel) y `portal-docente/hooks/useAsistenciaClase.js`.
+  El control de versión ya es compartido (`utils/asistenciaVersiones.js`);
+  mover también la normalización ahí evitaría que ambos lados diverjan.
+
+- [LÍMITE 2026-10-08] Si un guardado en cola se envía solo mientras la pantalla
+  de esa misma fecha sigue abierta, la pantalla conserva la versión vieja: el
+  siguiente guardado desde ahí da un 409 contra el propio envío. No se pierde
+  nada (se muestra la versión del servidor y se vuelve a guardar), pero es un
+  aviso innecesario. Refrescar la asistencia abierta al vaciarse la cola.

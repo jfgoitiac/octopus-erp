@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { getAsistencia, saveAsistencia } from '../api/academico.service';
-import { ESTADO, ESTADO_A_BACKEND, BACKEND_A_ESTADO } from '../constants/asistencia';
+import { ESTADO, BACKEND_A_ESTADO } from '../constants/asistencia';
+import { aPayloadAsistencia, aplicarConflictos, aplicarVersiones, esConflictoAsistencia } from '../utils/asistenciaVersiones';
 
 function normalizeRegistro(r) {
   // El backend ya manda `estado` (P/A/J/R) para registros creados con la UI
@@ -109,16 +110,19 @@ export function useAsistencia() {
     setSaving(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      const payload = registros.map(r => ({
-        alumno_id:   r.alumno_id,
-        estado:      ESTADO_A_BACKEND[r.estado],
-        observacion: r.observacion || '',
-      }));
-      await saveAsistencia(grado, fechaStr, payload);
+      const res = await saveAsistencia(grado, fechaStr, aPayloadAsistencia(registros));
+      setRegistros(prev => aplicarVersiones(prev, res.data?.guardadas));
       toast.success('Asistencia guardada correctamente.');
       setDirty(false);
       return true;
     } catch (err) {
+      // Alguien la modificó desde el portal docente mientras estaba abierta:
+      // se muestra su versión en esas filas y queda pendiente volver a guardar.
+      if (esConflictoAsistencia(err)) {
+        setRegistros(prev => aplicarConflictos(prev, err.response.data?.conflictos, normalizeRegistro));
+        toast.warning(err.response.data?.error);
+        return false;
+      }
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al guardar asistencia.';
       toast.error(msg);
       return false;

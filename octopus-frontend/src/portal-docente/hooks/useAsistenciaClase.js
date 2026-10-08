@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { getAsistencia, saveAsistencia } from '../api/academico.service';
-import { ESTADO, ESTADO_A_BACKEND, BACKEND_A_ESTADO } from '../../constants/asistencia';
+import { ESTADO, BACKEND_A_ESTADO } from '../../constants/asistencia';
+import { aPayloadAsistencia, aplicarConflictos, aplicarVersiones, esConflictoAsistencia } from '../../utils/asistenciaVersiones';
 import { encolarEnvio } from '../utils/asistenciaLocal';
 import { esErrorDeRed } from '../utils/colaAsistencia';
 
@@ -113,22 +114,23 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     setSavingAsistencia(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      const payload = registros.map(r => ({
-        alumno_id: r.alumno_id,
-        estado: ESTADO_A_BACKEND[r.estado],
-        observacion: r.observacion || '',
-      }));
-      await saveAsistencia(gradoSeccion, fechaStr, payload);
+      const res = await saveAsistencia(gradoSeccion, fechaStr, aPayloadAsistencia(registros));
+      setRegistros(prev => aplicarVersiones(prev, res.data?.guardadas));
       toast.success('Asistencia guardada correctamente.');
       setDirtyAsistencia(false);
       return true;
     } catch (err) {
+      // Alguien la modificó desde el panel mientras estaba abierta: se muestra
+      // su versión en esas filas y queda pendiente volver a guardar.
+      if (esConflictoAsistencia(err)) {
+        setRegistros(prev => aplicarConflictos(prev, err.response.data?.conflictos, normalizeRegistro));
+        toast.warning(err.response.data?.error);
+        return false;
+      }
       if (esErrorDeRed(err)) {
-        encolarEnvio({ gradoSeccion, fecha: format(fecha, 'yyyy-MM-dd'), registros: registros.map(r => ({
-          alumno_id: r.alumno_id,
-          estado: ESTADO_A_BACKEND[r.estado],
-          observacion: r.observacion || '',
-        })) });
+        // La versión viaja en la cola: si al reconectar alguien ya la cambió,
+        // el servidor la rechaza en vez de pisar ese cambio (ver colaAsistencia).
+        encolarEnvio({ gradoSeccion, fecha: format(fecha, 'yyyy-MM-dd'), registros: aPayloadAsistencia(registros) });
         toast.warning('Sin conexión: la asistencia quedó guardada en este dispositivo y se enviará sola al volver la señal.');
         setDirtyAsistencia(false);
         return 'encolado';

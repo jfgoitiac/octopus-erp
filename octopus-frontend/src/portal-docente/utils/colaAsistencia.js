@@ -33,6 +33,10 @@ export async function enviarPendientes() {
       } catch (err) {
         if (esErrorDeRed(err)) break;
         quitarDeCola(envio.gradoSeccion, envio.fecha);
+        if (err.response?.status === 409) {
+          toast.warning(`Mientras no tenías conexión, otra persona modificó la asistencia de ${describir(envio)}. No se pisó su cambio: ábrela, revisa y recupera tu pase si hace falta.`);
+          continue;
+        }
         const motivo = err.response?.data?.error || err.response?.data?.detail || 'el servidor la rechazó';
         toast.error(`No se pudo enviar la asistencia de ${describir(envio)}: ${motivo}. Ábrela para recuperarla y guardarla de nuevo.`);
       }
