@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowRight, CalendarDays, ListChecks, Users } from 'lucide-react';
+import { ArrowRight, CalendarDays, ListChecks, UserCheck, Users } from 'lucide-react';
 
 const capitalizar = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -18,7 +18,7 @@ const Dato = ({ icon: Icon, label, valor, detalle }) => (
 );
 
 /** Pantalla previa al pase: qué clase, qué día y cuántos alumnos. */
-const InicioPaseLista = ({ materia, fecha, total, marcados, onComenzar, onResumen }) => {
+const InicioPaseLista = ({ materia, fecha, total, marcados, onComenzar, onRapido, onResumen }) => {
   const yaHayAsistencia = marcados > 0;
   const completa = total > 0 && marcados === total;
   const pct = total ? Math.round((marcados / total) * 100) : 0;
@@ -72,6 +72,15 @@ const InicioPaseLista = ({ materia, fecha, total, marcados, onComenzar, onResume
           >
             {yaHayAsistencia ? 'Revisar asistencia' : 'Comenzar a pasar lista'}
             <ArrowRight size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onRapido}
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-[transform,background-color] active:scale-[0.97] hover:bg-[#f0fdf4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 sm:w-auto"
+            style={{ color: '#15803d', boxShadow: 'inset 0 0 0 1px #bbf7d0' }}
+          >
+            <UserCheck size={17} aria-hidden="true" />
+            Todos presentes, marco solo a quienes faltan
           </button>
           {completa && (
             <button

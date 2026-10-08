@@ -5,6 +5,7 @@ import TarjetaAlumno, { BotonesEstado } from './TarjetaAlumno';
 import BarraProgresoLista from './BarraProgresoLista';
 import InicioPaseLista from './InicioPaseLista';
 import ResumenAsistencia from './ResumenAsistencia';
+import MarcadoRapido from './MarcadoRapido';
 import SkeletonTarjeta from './SkeletonTarjeta';
 import { useSwipeTarjeta } from './useSwipeTarjeta';
 import { SALIDA_POR_ESTADO, primerSinMarcar, requiereObservacion, prefiereMenosMovimiento, vibrar } from './paseLista.utils';
@@ -40,7 +41,7 @@ const PaseListaTarjetas = ({
   onRestaurar,
   onGuardar,
 }) => {
-  const [fase, setFase] = useState('inicio');          // 'inicio' | 'pase' | 'resumen'
+  const [fase, setFase] = useState('inicio');          // 'inicio' | 'pase' | 'rapido' | 'resumen'
   const [indice, setIndice] = useState(0);
   const [entrada, setEntrada] = useState('adelante');  // de dónde entra la tarjeta actual
   const [saliente, setSaliente] = useState(null);      // única tarjeta saliente: nunca se acumulan
@@ -146,6 +147,14 @@ const PaseListaTarjetas = ({
     setFase('pase');
   };
 
+  // Modo rápido: los sin marcar pasan a Presente y solo se tocan los ausentes.
+  const comenzarRapido = () => {
+    cancelarPendiente();
+    setExpandido(null);
+    registros.forEach(r => { if (!r.estado) onMarcar(r.alumno_id, ESTADO.PRESENTE); });
+    setFase('rapido');
+  };
+
   const abrirResumen = () => {
     cancelarPendiente();
     setExpandido(null);
@@ -229,9 +238,12 @@ const PaseListaTarjetas = ({
         total={total}
         marcados={marcados}
         onComenzar={comenzar}
+        onRapido={comenzarRapido}
         onResumen={abrirResumen}
       />
     );
+  } else if (fase === 'rapido') {
+    contenido = <MarcadoRapido registros={registros} onMarcar={onMarcar} onListo={abrirResumen} />;
   } else if (fase === 'resumen') {
     contenido = (
       <ResumenAsistencia

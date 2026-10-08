@@ -122,6 +122,19 @@ describe('PaseListaTarjetas', () => {
     expect(anuncio()).toBe('Alumno 2 de 3: Luis Gómez');
   });
 
+  it('modo rápido: todos presentes y un toque marca ausente', () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: /Todos presentes/ }));
+    expect(espia.registros.every(r => r.estado === ESTADO.PRESENTE)).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Luis Gómez: Presente/ }));
+    expect(espia.registros[1].estado).toBe(ESTADO.AUSENTE);
+    expect(screen.getByText('1 ausente')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Listo, ver resumen/ }));
+    expect(screen.getByRole('button', { name: /Editar a Luis Gómez: Ausente/ })).toBeInTheDocument();
+  });
+
   it('el resumen sin pendientes lista las novedades editables', () => {
     render(<Harness inicial={[{ ...ROSTER[0], estado: ESTADO.PRESENTE }, { ...ROSTER[1], estado: ESTADO.PRESENTE }, { ...ROSTER[2], estado: ESTADO.AUSENTE }]} />);
     fireEvent.click(screen.getByRole('button', { name: /Ver resumen/ }));
