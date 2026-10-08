@@ -325,6 +325,14 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cobranza.tasks.evaluar_ciclos_cobranza_inteligente',
         'schedule': crontab(hour=7, minute=30),
     },
+    'evaluar-reglas-cobranza-inteligente': {
+        'task': 'cobranza.tasks.evaluar_reglas_cobranza_inteligente',
+        'schedule': crontab(hour=7, minute=40),
+    },
+    'procesar-envios-cobranza-inteligente': {
+        'task': 'cobranza.tasks.procesar_envios_cobranza_inteligente',
+        'schedule': crontab(minute=5, hour='8-18'),
+    },
     # Revisar mensualidades vencidas cada día a las 8am y programar notificaciones pendientes
     'revisar-mensualidades-vencidas': {
         'task': 'notificaciones.tasks.revisar_y_programar_notificaciones_pendientes',

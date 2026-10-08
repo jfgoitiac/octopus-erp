@@ -1,5 +1,5 @@
 from django.urls import path
-from .views_ciclos import CarteraCiclosView, ExpedienteRepresentanteView
+from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
 from .views import (
     ActualizarCuotaInscripcionView,
     ActualizarMensualidadesView,
@@ -75,6 +75,8 @@ urlpatterns = [
     path('recibo/<int:pago_id>/whatsapp/', ReciboWhatsAppView.as_view(),           name='recibo-whatsapp'),
     path('recibo/publico/<str:token>/',    ReciboPublicoView.as_view(),            name='recibo-publico'),
     path('auditoria-diaria/',              AuditoriaDiariaView.as_view(),          name='auditoria-diaria'),
+    path('inteligente/envios/',            EnviosCobranzaView.as_view(),           name='cobranza-inteligente-envios'),
+    path('inteligente/sombra/resumen/',    ResumenSombraView.as_view(),            name='cobranza-inteligente-sombra-resumen'),
     path('inteligente/cartera/',           CarteraCiclosView.as_view(),            name='cobranza-inteligente-cartera'),
     path('inteligente/representantes/<int:representante_id>/expediente/', ExpedienteRepresentanteView.as_view(), name='cobranza-inteligente-expediente'),
     path('inteligente/configuracion/',     ConfiguracionCobranzaInteligenteView.as_view(), name='cobranza-inteligente-configuracion'),

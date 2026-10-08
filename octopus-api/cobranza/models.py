@@ -1162,3 +1162,105 @@ class EventoCiclo(models.Model):
 
     def __str__(self):
         return f"{self.tipo} · ciclo {self.ciclo_id}"
+
+
+class ReglaCobranza(models.Model):
+    """
+    Regla del motor de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md,
+    Fase 2): qué hacer cuando una deuda llega a `dia_relativo` respecto de su
+    vencimiento (negativo = antes de vencer). `sede` nula = regla global; si
+    una sede tiene reglas propias, reemplazan a las globales de esa sede.
+    Reemplaza el cronograma fijo de notificaciones.ConfiguracionNotificaciones.
+    """
+    ETAPA_PREVENTIVA = 'preventiva'
+    ETAPA_TEMPRANA = 'temprana'
+    ETAPA_PRIORITARIA = 'prioritaria'
+    ETAPAS = (
+        (ETAPA_PREVENTIVA, 'Preventiva'), (ETAPA_TEMPRANA, 'Temprana'),
+        (ETAPA_PRIORITARIA, 'Prioritaria y crítica'),
+    )
+    CANALES = (
+        ('whatsapp', 'WhatsApp'), ('email', 'Email'),
+        ('ambos', 'WhatsApp y email'), ('interno', 'Interno'),
+    )
+    DESTINATARIOS = (
+        ('representante', 'Representante'), ('responsable', 'Responsable'),
+        ('director', 'Director'),
+    )
+
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='reglas_cobranza')
+    nombre = models.CharField(max_length=100)
+    etapa = models.CharField(max_length=12, choices=ETAPAS)
+    dia_relativo = models.SmallIntegerField()
+    canal = models.CharField(max_length=10, choices=CANALES)
+    plantilla = models.CharField(max_length=40)
+    saldo_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.01'))
+    destinatario = models.CharField(max_length=14, choices=DESTINATARIOS, default='representante')
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['dia_relativo']
+        constraints = [
+            models.UniqueConstraint(fields=['sede', 'dia_relativo'], name='uniq_regla_cobranza_sede_dia'),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} (día {self.dia_relativo:+d})"
+
+
+class EnvioCobranza(models.Model):
+    """
+    Un aviso consolidado por representante, regla y día. La clave única
+    (representante, regla, fecha) garantiza que, aunque la tarea se ejecute
+    dos veces o Celery reentregue, no se envíe dos veces.
+    """
+    SIMULADO = 'simulado'
+    PENDIENTE = 'pendiente'
+    REINTENTO = 'reintento'
+    ENVIADO = 'enviado'
+    FALLIDO = 'fallido'
+    OMITIDO = 'omitido'
+    CANCELADO = 'cancelado'
+    ESTADOS = (
+        (SIMULADO, 'Simulado (modo sombra)'), (PENDIENTE, 'Pendiente'), (REINTENTO, 'Reintento'),
+        (ENVIADO, 'Enviado'), (FALLIDO, 'Fallido'), (OMITIDO, 'Omitido'), (CANCELADO, 'Cancelado'),
+    )
+    ESTADOS_POR_PROCESAR = (PENDIENTE, REINTENTO)
+
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE, related_name='envios_cobranza')
+    regla = models.ForeignKey(ReglaCobranza, on_delete=models.PROTECT, related_name='envios')
+    fecha = models.DateField()
+    estado = models.CharField(max_length=10, choices=ESTADOS, db_index=True)
+    canal = models.CharField(max_length=10, blank=True, default='')
+    motivo_omision = models.CharField(max_length=40, blank=True, default='')
+    detalle = models.JSONField(default=dict, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=0)
+    proximo_intento = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    enviado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado_en', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['representante', 'regla', 'fecha'], name='uniq_envio_cobranza_rep_regla_fecha'),
+        ]
+
+    def __str__(self):
+        return f"Envío {self.representante_id} · {self.regla_id} · {self.fecha} ({self.estado})"
+
+
+class BajaCobranza(models.Model):
+    """Baja voluntaria de un representante para un canal de cobranza."""
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE, related_name='bajas_cobranza')
+    canal = models.CharField(max_length=10, choices=(('whatsapp', 'WhatsApp'), ('email', 'Email')))
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['representante', 'canal'], name='uniq_baja_cobranza_rep_canal'),
+        ]

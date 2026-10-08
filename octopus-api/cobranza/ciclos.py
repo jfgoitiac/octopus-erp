@@ -157,6 +157,8 @@ def poner_al_dia_sede(sede_id, usuario=None, hoy=None):
     cierra lo que se pagó mientras estuvo apagado y recalcula etapas. No envía
     nada ni dispara reglas atrasadas.
     """
+    from .motor import crear_reglas_por_defecto
+    crear_reglas_por_defecto(sede_id)
     resumen = evaluar_ciclos_sede(sede_id, hoy)
     EventoCiclo.objects.create(
         sede_id=sede_id, tipo='modulo_encendido', usuario=usuario, detalle=resumen)
@@ -165,6 +167,8 @@ def poner_al_dia_sede(sede_id, usuario=None, hoy=None):
 
 def registrar_apagado_sede(sede_id, usuario=None, motivo=''):
     """Deja constancia de que el módulo se apagó (los datos se conservan)."""
+    from .motor import cancelar_envios_pendientes_sede
+    cancelar_envios_pendientes_sede(sede_id)
     EventoCiclo.objects.create(
         sede_id=sede_id, tipo='modulo_apagado', usuario=usuario, detalle={'motivo': motivo})
 

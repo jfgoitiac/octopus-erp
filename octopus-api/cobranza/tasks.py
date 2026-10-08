@@ -276,3 +276,26 @@ def evaluar_ciclos_cobranza_inteligente():
     resultado = evaluar_ciclos()
     logger.info(f'[Beat] evaluar_ciclos_cobranza_inteligente: {resultado}')
     return {str(k): v for k, v in resultado.items()}
+
+
+@shared_task(name='cobranza.tasks.evaluar_reglas_cobranza_inteligente')
+def evaluar_reglas_cobranza_inteligente():
+    """
+    Evaluación diaria de reglas de Cobranza Inteligente (después de evaluar los
+    ciclos): crea los envíos del día y deja que procesar_envios los despache
+    dentro del horario permitido.
+    """
+    from .inteligente import sedes_con_inteligente_activa
+    from .motor import evaluar_reglas_sede
+    resultado = {str(s): evaluar_reglas_sede(s) for s in sedes_con_inteligente_activa()}
+    logger.info(f'[Beat] evaluar_reglas_cobranza_inteligente: {resultado}')
+    return resultado
+
+
+@shared_task(name='cobranza.tasks.procesar_envios_cobranza_inteligente')
+def procesar_envios_cobranza_inteligente():
+    """Despacha los envíos pendientes o en reintento (cada hora, en horario permitido)."""
+    from .motor import procesar_envios
+    resultado = procesar_envios()
+    logger.info(f'[Beat] procesar_envios_cobranza_inteligente: {resultado}')
+    return resultado

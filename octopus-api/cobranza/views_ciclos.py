@@ -152,3 +152,106 @@ class ExpedienteRepresentanteView(APIView):
                 for e in eventos
             ],
         })
+
+
+def _filtro_envios_sedes(user, sede_param=None):
+    """Como _filtro_sedes_activas, pero sobre EnvioCobranza (sede de la regla o del alumno)."""
+    activas = sedes_con_inteligente_activa()
+    permitidas = sedes_permitidas_ids(user)
+    if permitidas is not None:
+        activas = {s for s in activas if s in permitidas}
+    if sede_param:
+        try:
+            activas = {s for s in activas if s == int(sede_param)}
+        except ValueError:
+            activas = set()
+    if not activas:
+        return None
+    q = Q(regla__sede_id__in=[s for s in activas if s is not None])
+    if None in activas:
+        q |= Q(regla__sede__isnull=True)
+    return q
+
+
+class EnviosCobranzaView(ListAPIView):
+    """
+    GET /api/cobranza/inteligente/envios/
+    Filtros: estado, fecha (YYYY-MM-DD), sede. Incluye los simulados del modo sombra.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsPagination
+
+    def list(self, request, *args, **kwargs):
+        from .models import EnvioCobranza
+        filtro = _filtro_envios_sedes(request.user, request.query_params.get('sede'))
+        if filtro is None:
+            return _respuesta_apagada()
+        qs = EnvioCobranza.objects.filter(filtro).select_related('representante', 'regla')
+        p = request.query_params
+        if p.get('estado') in dict(EnvioCobranza.ESTADOS):
+            qs = qs.filter(estado=p['estado'])
+        if p.get('fecha'):
+            try:
+                qs = qs.filter(fecha=date.fromisoformat(p['fecha']))
+            except ValueError:
+                return Response({'detail': 'Fecha inválida (use AAAA-MM-DD).'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        page = self.paginate_queryset(qs.order_by('-fecha', '-id'))
+        return self.get_paginated_response([
+            {
+                'id': e.id, 'fecha': e.fecha, 'estado': e.estado, 'canal': e.canal,
+                'motivo_omision': e.motivo_omision, 'intentos': e.intentos,
+                'regla': {'nombre': e.regla.nombre, 'dia_relativo': e.regla.dia_relativo,
+                          'etapa': e.regla.etapa},
+                'representante': {'id': e.representante_id,
+                                  'nombre': f'{e.representante.nombre} {e.representante.apellido}',
+                                  'cedula': e.representante.cedula},
+                'saldo_total_usd': e.detalle.get('saldo_total'),
+                'ciclos': e.detalle.get('ciclos', []),
+                'enviado_en': e.enviado_en,
+            }
+            for e in page
+        ])
+
+
+class ResumenSombraView(APIView):
+    """
+    GET /api/cobranza/inteligente/sombra/resumen/?desde=AAAA-MM-DD
+    Conteo de envíos por estado y FALSOS POSITIVOS: envíos (simulados o reales)
+    a deudas que ya estaban pagadas cuando se generó el aviso. Criterio de
+    salida de la Fase 2: cero falsos positivos en dos semanas de sombra.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from collections import Counter
+        from .models import EnvioCobranza
+        filtro = _filtro_envios_sedes(request.user, request.query_params.get('sede'))
+        if filtro is None:
+            return _respuesta_apagada()
+        qs = EnvioCobranza.objects.filter(filtro)
+        desde = request.query_params.get('desde')
+        if desde:
+            try:
+                qs = qs.filter(fecha__gte=date.fromisoformat(desde))
+            except ValueError:
+                return Response({'detail': 'Fecha inválida (use AAAA-MM-DD).'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        por_estado = Counter(qs.values_list('estado', flat=True))
+
+        falsos = []
+        for e in qs.filter(estado__in=['simulado', 'enviado']):
+            ciclos = CicloCobranza.objects.filter(id__in=e.detalle.get('ciclos', [])).select_related('mensualidad')
+            pagados_antes = [
+                c.id for c in ciclos
+                if c.mensualidad.pagado and c.mensualidad.fecha_pago
+                and c.mensualidad.fecha_pago <= e.creado_en
+            ]
+            if pagados_antes:
+                falsos.append({'envio_id': e.id, 'fecha': e.fecha, 'ciclos': pagados_antes})
+        return Response({
+            'por_estado': dict(por_estado),
+            'total': sum(por_estado.values()),
+            'falsos_positivos': falsos,
+            'cantidad_falsos_positivos': len(falsos),
+        })
