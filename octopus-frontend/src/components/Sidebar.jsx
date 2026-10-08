@@ -12,7 +12,7 @@ import {
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
-  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, CalendarClock
+  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente', 'coordinador'];
@@ -51,15 +51,7 @@ const navSections = [
       { name: 'Solvencia',     path: '/cobranza/solvencia', icon: BadgeCheck, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
       { name: 'Nómina',        path: '/nomina',        icon: Banknote,          roles: ['director','administrador'] },
-      { name: 'Egresos',       path: '/egresos',       icon: Receipt,           roles: ['director','administrador'] },
-      { name: 'Tablero egresos', path: '/egresos/tablero', icon: LayoutDashboard, roles: ['director','administrador'] },
-      { name: 'Reportes egresos', path: '/egresos/reportes', icon: BarChart3, roles: ['director','administrador'] },
-      { name: 'Cuentas por pagar', path: '/cuentas-por-pagar', icon: CalendarClock, roles: ['director','administrador'] },
-      { name: 'Tablero CxP', path: '/cuentas-por-pagar/tablero', icon: LayoutDashboard, roles: ['director','administrador'] },
-      { name: 'Calendario de pagos', path: '/cuentas-por-pagar/calendario', icon: CalendarCheck, roles: ['director','administrador'] },
-      { name: 'Reportes CxP', path: '/cuentas-por-pagar/reportes', icon: BarChart3, roles: ['director','administrador'] },
-      { name: 'Recurrentes CxP', path: '/cuentas-por-pagar/recurrentes', icon: History, roles: ['director','administrador'] },
-      { name: 'Config. recordatorios CxP', path: '/cuentas-por-pagar/configuracion', icon: Bell, roles: ['director','administrador'] },
+      { name: 'Egresos',       path: '/egresos',       match: ['/egresos', '/cuentas-por-pagar'], icon: Receipt,           roles: ['director','administrador'] },
       { name: 'Pagos',         path: '/pagos',         icon: CreditCard,        roles: ['director','administrador'] },
       { name: 'Recibos',       path: '/recibos',       icon: FileText,          roles: ['director','administrador'] },
       { name: 'Conciliador',  path: '/conciliador',   icon: GitCompareArrows,  roles: ['director','administrador','cobranza'] },
@@ -184,7 +176,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
     const seccionActiva = navSections.find(section =>
       section.items.some(item =>
         item.roles.includes(userRole) &&
-        (location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/'))
+        (location.pathname === item.path || item.match?.some((p) => location.pathname.startsWith(p)) || (item.path === '/dashboard' && location.pathname === '/'))
       )
     );
     if (seccionActiva && gruposColapsados.includes(seccionActiva.label)) {
@@ -278,7 +270,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
                   <div className="space-y-0.5">
                     {favoritosVisibles.map((item, iIdx) => {
                       const isActive =
-                        location.pathname === item.path ||
+                        location.pathname === item.path || item.match?.some((p) => location.pathname.startsWith(p)) ||
                         (item.path === '/dashboard' && location.pathname === '/');
                       return (
                         <SidebarNavItem
@@ -320,7 +312,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
                     <div id={groupId} className="space-y-0.5">
                       {!colapsado && visible.map((item, iIdx) => {
                         const isActive =
-                          location.pathname === item.path ||
+                          location.pathname === item.path || item.match?.some((p) => location.pathname.startsWith(p)) ||
                           (item.path === '/dashboard' && location.pathname === '/');
                         return (
                           <SidebarNavItem
