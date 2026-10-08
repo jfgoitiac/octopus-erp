@@ -6,11 +6,11 @@ import { BloqueDraggable } from './BloqueDraggable';
 // (no admite clases); una celda sin bloque en ese día/hora (hueco) tampoco.
 // `cellKey` (ej. "lunes-07:00") da un id estable al droppable cuando no hay
 // bloque, para no generar un id nuevo (impuro) en cada render.
-export const CeldaDroppable = ({ bloque, clase, cellKey, onCeldaClick, onEditarClase, onTogglePin, materiaActiva, onAsignarRapido }) => {
+export const CeldaDroppable = ({ bloque, clase, cellKey, onCeldaClick, onEditarClase, onTogglePin, materiaActiva, onAsignarRapido, soloLectura = false }) => {
   const droppable = useDroppable({
     id: bloque ? `bloque-${bloque.id}` : `vacio-${cellKey}`,
     data: { bloque },
-    disabled: !bloque || bloque.tipo !== 'clase',
+    disabled: soloLectura || !bloque || bloque.tipo !== 'clase',
   });
 
   if (!bloque) {
@@ -32,12 +32,13 @@ export const CeldaDroppable = ({ bloque, clase, cellKey, onCeldaClick, onEditarC
     >
       {clase ? (
         <div className="relative">
-          <BloqueDraggable clase={clase} onClick={onEditarClase} onTogglePin={onTogglePin} />
+          <BloqueDraggable clase={clase} onClick={onEditarClase} onTogglePin={onTogglePin} soloLectura={soloLectura} />
           {isOver && puedeSoltar && <span className="absolute inset-x-1 bottom-1 rounded bg-[var(--pb)] px-1 py-0.5 text-[9px] font-bold text-white pointer-events-none">Intercambiar</span>}
         </div>
-      ) : bloque.tipo !== 'clase' ? (
+      ) : bloque.tipo !== 'clase' || soloLectura ? (
         // Actividad general "suelta" (no forma parte de la fila unificada
-        // porque la jornada varía por día) — nunca abre ModalClase.
+        // porque la jornada varía por día) — nunca abre ModalClase. En solo
+        // lectura, la celda libre tampoco ofrece agregar una clase.
         <div className="w-full h-12 rounded-lg" style={{ background: 'transparent' }} />
       ) : (
         <button

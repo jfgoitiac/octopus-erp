@@ -3,10 +3,12 @@ import { ChevronDown, ChevronUp, Plus, BookOpen, User, UserX, X } from 'lucide-r
 import { getColor } from '../../constants/horarios';
 import { ModalMateria } from './ModalMateria';
 
-export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria, titulo = 'Materias del grado', permitirGestion = true, mostrarDocente = true, mensajeVacio, horasAsignadasPorMateria, instruccion }) => {
+export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, onEliminar, materiaActiva, onSeleccionarMateria, titulo = 'Materias del grado', permitirGestion = true, mostrarDocente = true, mensajeVacio, horasAsignadasPorMateria, instruccion, soloLectura = false }) => {
   const [abierto, setAbierto]   = useState(true);
   const [modal, setModal]       = useState(null); // null | { materia: obj|null }
 
+  // Solo lectura: las materias son informativas (sin modo rápido ni edición).
+  const Chip = soloLectura ? 'div' : 'button';
   const abrirNueva   = ()  => setModal({ materia: null });
   const abrirEditar  = (m) => setModal({ materia: m });
   const cerrarModal  = ()  => setModal(null);
@@ -50,7 +52,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
           <div className="px-4 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
               <p className="text-xs" style={{ color: materiaActiva ? 'var(--pb-mid)' : 'var(--ash)' }}>
-                {materiaActiva ? <>Modo rápido: toca celdas vacías para ubicar <strong>{materiaActiva.nombre}</strong>.</> : (instruccion || 'Selecciona una materia para ubicarla con un toque en varias celdas.')}
+                {soloLectura ? 'Materias del grado con sus horas semanales y docente asignado.' : materiaActiva ? <>Modo rápido: toca celdas vacías para ubicar <strong>{materiaActiva.nombre}</strong>.</> : (instruccion || 'Selecciona una materia para ubicarla con un toque en varias celdas.')}
               </p>
               {materiaActiva && <button type="button" onClick={() => onSeleccionarMateria(null)} className="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-xs font-medium" style={{ color: 'var(--ash)' }}><X size={13} /> Salir del modo rápido</button>}
             </div>
@@ -64,14 +66,16 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                   const docenteNombre = m.docente_nombre || m.docente_username || m.docente?.username || null;
                   const horasAsignadas = horasAsignadasPorMateria?.[m.id];
                   return (
-                    <button
+                    <Chip
                       key={m.id}
-                      type="button"
-                      onClick={() => onSeleccionarMateria(materiaActiva?.id === m.id ? null : m)}
-                      onDoubleClick={() => abrirEditar(m)}
-                      title={`Seleccionar ${m.nombre} para colocación rápida`}
-                      aria-pressed={materiaActiva?.id === m.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
+                      {...(soloLectura ? {} : {
+                        type: 'button',
+                        onClick: () => onSeleccionarMateria(materiaActiva?.id === m.id ? null : m),
+                        onDoubleClick: () => abrirEditar(m),
+                        title: `Seleccionar ${m.nombre} para colocación rápida`,
+                        'aria-pressed': materiaActiva?.id === m.id,
+                      })}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all group ${soloLectura ? '' : 'hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1'}`}
                       style={{
                         background: getColor(m.id),
                         border: materiaActiva?.id === m.id ? '2px solid var(--pb)' : !mostrarDocente || docenteNombre ? '1px solid rgba(0,0,0,0.07)' : '1px dashed var(--red)',
@@ -93,13 +97,13 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
                           Sin docente
                         </span>
                       ))}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>
             )}
 
-            {permitirGestion && <button
+            {permitirGestion && !soloLectura && <button
               type="button"
               onClick={abrirNueva}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--pb-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
@@ -116,7 +120,7 @@ export const PanelMaterias = ({ materias, savingMateria, onCrear, onActualizar, 
         )}
       </div>
 
-      {modal && (
+      {modal && !soloLectura && (
         <ModalMateria
           materia={modal.materia}
           saving={savingMateria}

@@ -138,6 +138,7 @@ export const GrillaHorario = ({
   onIntercambiarClase,
   materiaActiva,
   onAsignarRapido,
+  soloLectura = false,
 }) => {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -150,7 +151,7 @@ export const GrillaHorario = ({
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (!over) return;
+    if (soloLectura || !over) return;
     const clase = active.data.current?.clase;
     const bloqueDestino = over.data.current?.bloque;
     if (!clase || !bloqueDestino) return;
@@ -212,6 +213,7 @@ export const GrillaHorario = ({
                             onTogglePin={onTogglePin}
                             materiaActiva={materiaActiva}
                             onAsignarRapido={onAsignarRapido}
+                            soloLectura={soloLectura}
                           />
                         </td>
                       );
