@@ -19,14 +19,14 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
   const cantidadPendientes = mensualidades.length + otrosConceptos.length;
 
   return (
-    <section className={`portal-card p-4 sm:p-5 h-full ${tieneDeuda ? 'bg-red-50/70' : 'bg-emerald-50/70'}`}>
+    <section className={`portal-card p-4 sm:p-5 h-full ${tieneDeuda ? 'bg-[var(--red-light)]/70' : 'bg-[var(--green-light)]/70'}`}>
       <div className="flex items-center gap-2 mb-2">
         {tieneDeuda ? (
-          <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+          <AlertTriangle size={18} className="text-[var(--red)] flex-shrink-0" />
         ) : (
-          <CheckCircle size={18} className="text-green-600 flex-shrink-0" />
+          <CheckCircle size={18} className="text-[var(--green)] flex-shrink-0" />
         )}
-        <span className={`font-semibold text-sm ${tieneDeuda ? 'text-red-700' : 'text-green-700'}`}>
+        <span className={`font-semibold text-sm ${tieneDeuda ? 'text-[var(--red)]' : 'text-[var(--green)]'}`}>
           {tieneDeuda
             ? (variosAlumnos ? 'Deuda familiar pendiente' : 'Deuda pendiente')
             : 'Solvente — al día con los pagos'}
@@ -34,15 +34,15 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       </div>
 
       {tieneDeuda && (
-        <div className="mb-3"><MontoRef usd={resumen.total_deuda_usd} tasaBcv={tasaBcv} size="lg" align="left" colorRef="text-red-700" colorBs="text-red-600" />
-          <p className="mt-1 text-xs text-red-600/80">{variosAlumnos ? `Un solo total que reúne las deudas de todos tus hijos (${cantidadPendientes} concepto${cantidadPendientes === 1 ? '' : 's'}).` : `${cantidadPendientes} concepto${cantidadPendientes === 1 ? '' : 's'} pendiente${cantidadPendientes === 1 ? '' : 's'}.`}</p>
+        <div className="mb-3"><MontoRef usd={resumen.total_deuda_usd} tasaBcv={tasaBcv} size="lg" align="left" colorRef="text-[var(--red)]" colorBs="text-[var(--red)]" />
+          <p className="mt-1 text-xs text-[var(--red)]/80">{variosAlumnos ? `Un solo total que reúne las deudas de todos tus hijos (${cantidadPendientes} concepto${cantidadPendientes === 1 ? '' : 's'}).` : `${cantidadPendientes} concepto${cantidadPendientes === 1 ? '' : 's'} pendiente${cantidadPendientes === 1 ? '' : 's'}.`}</p>
         </div>
       )}
 
       {/* Para familias con varios alumnos, el monto único evita sumar mentalmente.
           El detalle sigue disponible de forma secundaria, sin repetir importes. */}
       {variosAlumnos && tieneDeuda && (
-        <details className="mb-3 rounded-xl bg-white/70 px-3 py-2 text-xs text-gray-600">
+        <details className="mb-3 rounded-xl bg-[var(--surface)]/70 px-3 py-2 text-xs text-[var(--jet-mid)]">
           <summary className="cursor-pointer font-medium text-[var(--portal-primary,#0fa3b1)]">Ver conceptos incluidos</summary>
           <p className="mt-2 leading-relaxed">Incluye {mensualidades.length} mensualidad{mensualidades.length === 1 ? '' : 'es'} pendiente{mensualidades.length === 1 ? '' : 's'} y {otrosConceptos.length} concepto{otrosConceptos.length === 1 ? '' : 's'} adicional{otrosConceptos.length === 1 ? '' : 'es'}, correspondientes a todos tus hijos.</p>
         </details>
@@ -52,15 +52,15 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       {!variosAlumnos && mensualidades.length > 0 && (
         <div className="space-y-2">
           {mensualidades.map((m) => (
-            <div key={m.id} className="flex items-center justify-between gap-3 bg-white/70 rounded-xl px-3 py-2">
+            <div key={m.id} className="flex items-center justify-between gap-3 bg-[var(--surface)]/70 rounded-xl px-3 py-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-[var(--jet-mid)]">
                   {m.mes_nombre} {m.anio}
                 </p>
                 {variosAlumnos && m.alumno_nombre && (
-                  <p className="text-xs text-gray-500 truncate">{m.alumno_nombre}</p>
+                  <p className="text-xs text-[var(--ash)] truncate">{m.alumno_nombre}</p>
                 )}
-                <p className="text-xs text-red-500">{m.dias_mora} días de mora</p>
+                <p className="text-xs text-[var(--red)]">{m.dias_mora} días de mora</p>
                 {m.porcentaje_beca_aplicado > 0 && (
                   <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-primary,#0fa3b1)]/10 text-[var(--portal-primary,#0fa3b1)]">
                     Beca -{m.porcentaje_beca_aplicado}%
@@ -69,21 +69,21 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
               </div>
               <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                 {m.porcentaje_beca_aplicado > 0 && m.monto_original_usd && (
-                  <p className="text-xs text-gray-400 line-through">REF. {fmtMonto(m.monto_original_usd)}</p>
+                  <p className="text-xs text-[var(--ash)] line-through">REF. {fmtMonto(m.monto_original_usd)}</p>
                 )}
                 {m.monto_recargo > 0 ? (
                   <>
-                    <p className="text-xs text-gray-400 line-through">REF. {fmtMonto(m.monto_usd)}</p>
-                    <MontoRef usd={m.monto_total} tasaBcv={tasaBcv} colorRef="text-red-600" />
-                    <p className="text-[10px] text-red-500 font-medium">
+                    <p className="text-xs text-[var(--ash)] line-through">REF. {fmtMonto(m.monto_usd)}</p>
+                    <MontoRef usd={m.monto_total} tasaBcv={tasaBcv} colorRef="text-[var(--red)]" />
+                    <p className="text-[10px] text-[var(--red)] font-medium">
                       + REF. {fmtMonto(m.monto_recargo)} {m.nombre_recargo}
                     </p>
                   </>
                 ) : m.monto_descuento > 0 ? (
                   <>
-                    <p className="text-xs text-gray-400 line-through">REF. {fmtMonto(m.monto_usd)}</p>
-                    <MontoRef usd={m.monto_total} tasaBcv={tasaBcv} colorRef="text-green-600" />
-                    <p className="text-[10px] text-green-600 font-medium">
+                    <p className="text-xs text-[var(--ash)] line-through">REF. {fmtMonto(m.monto_usd)}</p>
+                    <MontoRef usd={m.monto_total} tasaBcv={tasaBcv} colorRef="text-[var(--green)]" />
+                    <p className="text-[10px] text-[var(--green)] font-medium">
                       - REF. {fmtMonto(m.monto_descuento)} {m.nombre_descuento}
                     </p>
                   </>
@@ -108,17 +108,17 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       {!variosAlumnos && otrosConceptos.length > 0 && (
         <div className="space-y-2 mt-2">
           {otrosConceptos.map((c) => (
-            <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between gap-3 bg-white/70 rounded-xl px-3 py-2">
+            <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between gap-3 bg-[var(--surface)]/70 rounded-xl px-3 py-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-700">{c.concepto}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-[var(--jet-mid)]">{c.concepto}</p>
+                <p className="text-xs text-[var(--ash)]">
                   {c.alumno_nombre || 'Aplica a todos los hijos inscritos'}
                 </p>
               </div>
               <MontoRef usd={c.monto_usd} tasaBcv={tasaBcv} className="flex-shrink-0" />
             </div>
           ))}
-          <p className="text-xs text-gray-400 pt-1">
+          <p className="text-xs text-[var(--ash)] pt-1">
             Para pagar estos conceptos, contacta a administración.
           </p>
         </div>

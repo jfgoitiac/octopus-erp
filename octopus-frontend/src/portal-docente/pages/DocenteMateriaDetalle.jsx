@@ -239,7 +239,7 @@ const DocenteMateriaDetalle = () => {
     <div className="space-y-4 pb-20">
       <button
         onClick={() => navigate('/portal-docente/materias')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 min-h-[44px]"
+        className="flex items-center gap-1.5 text-sm text-[var(--ash)] min-h-[44px]"
       >
         <ArrowLeft size={16} /> Mis Materias
       </button>
@@ -249,14 +249,14 @@ const DocenteMateriaDetalle = () => {
           <SkeletonCard lines={1} />
         ) : (
           <>
-            <h1 className="text-lg font-bold text-gray-800">{materia?.nombre}</h1>
-            <p className="text-xs text-gray-400 mt-0.5">{materia?.grado_seccion}</p>
+            <h1 className="text-lg font-bold text-[var(--jet)]">{materia?.nombre}</h1>
+            <p className="text-xs text-[var(--ash)] mt-0.5">{materia?.grado_seccion}</p>
           </>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1 border-b border-[var(--border)] overflow-x-auto">
         {TABS.map(t => {
           const Icon = t.icon;
           const activo = tab === t.id;
@@ -265,7 +265,7 @@ const DocenteMateriaDetalle = () => {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium min-h-[44px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                activo ? 'text-[var(--docente-primary)] border-[var(--docente-primary)]' : 'text-gray-400 border-transparent'
+                activo ? 'text-[var(--docente-primary)] border-[var(--docente-primary)]' : 'text-[var(--ash)] border-transparent'
               }`}
             >
               <Icon size={15} /> {t.label}
@@ -277,10 +277,10 @@ const DocenteMateriaDetalle = () => {
       {tab === 'notas' && (
         <div className="space-y-4">
           <div>
-            <label htmlFor="docente-lapso" className="block text-xs font-medium text-gray-500 mb-1.5">Lapso</label>
+            <label htmlFor="docente-lapso" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Lapso</label>
             <select
               id="docente-lapso"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={lapsoId}
               onChange={e => setLapsoId(e.target.value)}
             >
@@ -292,23 +292,23 @@ const DocenteMateriaDetalle = () => {
               ))}
             </select>
             {lapsoSeleccionado && !lapsoSeleccionado.activo && (
-              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-red-600">
+              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-[var(--red)]">
                 <AlertTriangle size={11} /> Este lapso está cerrado — las notas son de solo lectura
               </p>
             )}
           </div>
 
           {lapsoId && comparacion && comparacion.otras_secciones_count > 0 && (
-            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+            <p className="text-xs text-[var(--ash)] flex items-center gap-1.5">
               {comparacion.porcentaje_propio >= comparacion.porcentaje_otras_secciones
-                ? <TrendingUp size={13} className="text-emerald-600 flex-shrink-0" />
-                : <TrendingDown size={13} className="text-amber-600 flex-shrink-0" />}
+                ? <TrendingUp size={13} className="text-[var(--green)] flex-shrink-0" />
+                : <TrendingDown size={13} className="text-[var(--yellow)] flex-shrink-0" />}
               Tu sección aprueba {comparacion.porcentaje_propio}%, el promedio de otras secciones de {comparacion.materia_nombre} es {comparacion.porcentaje_otras_secciones}%
             </p>
           )}
 
           {!lapsoId ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
               <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Selecciona un lapso para ver las notas.</p>
             </div>
@@ -336,7 +336,7 @@ const DocenteMateriaDetalle = () => {
       {tab === 'asistencia' && (
         <div className="space-y-4">
           <div>
-            <label htmlFor="docente-fecha-asistencia" className="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
+            <label htmlFor="docente-fecha-asistencia" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Fecha</label>
             <DatePicker
               selected={fechaAsistencia}
               onChange={setFechaAsistencia}
@@ -348,7 +348,7 @@ const DocenteMateriaDetalle = () => {
               customInput={
                 <input
                   id="docente-fecha-asistencia"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 />
               }
             />
@@ -357,9 +357,9 @@ const DocenteMateriaDetalle = () => {
           {!loadingAsistencia && registros.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {[
-                { key: 'presentes', label: 'Presentes', color: 'text-green-600', bg: 'bg-green-50' },
-                { key: 'ausentes', label: 'Ausentes', color: 'text-red-600', bg: 'bg-red-50' },
-                { key: 'justificados', label: 'Justif.', color: 'text-yellow-700', bg: 'bg-yellow-50' },
+                { key: 'presentes', label: 'Presentes', color: 'text-[var(--green)]', bg: 'bg-[var(--green-light)]' },
+                { key: 'ausentes', label: 'Ausentes', color: 'text-[var(--red)]', bg: 'bg-[var(--red-light)]' },
+                { key: 'justificados', label: 'Justif.', color: 'text-[var(--yellow)]', bg: 'bg-[var(--yellow-light)]' },
               ].map(({ key, label, color, bg }) => (
                 <div key={key} className={`flex items-center gap-2 p-2.5 rounded-xl ${bg}`}>
                   <Users size={15} className={color} />
@@ -376,7 +376,7 @@ const DocenteMateriaDetalle = () => {
             {loadingAsistencia ? (
               [...Array(5)].map((_, i) => <SkeletonFila key={i} />)
             ) : registros.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
                 <p className="text-sm">No hay alumnos registrados en esta sección.</p>
               </div>
             ) : (
@@ -407,10 +407,10 @@ const DocenteMateriaDetalle = () => {
       {tab === 'plan-evaluacion' && (
         <div className="space-y-4">
           <div>
-            <label htmlFor="docente-lapso-plan" className="block text-xs font-medium text-gray-500 mb-1.5">Lapso</label>
+            <label htmlFor="docente-lapso-plan" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Lapso</label>
             <select
               id="docente-lapso-plan"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={lapsoId}
               onChange={e => setLapsoId(e.target.value)}
             >
@@ -422,14 +422,14 @@ const DocenteMateriaDetalle = () => {
               ))}
             </select>
             {lapsoSeleccionado && !lapsoSeleccionado.activo && (
-              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-red-600">
+              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-[var(--red)]">
                 <AlertTriangle size={11} /> Este lapso está cerrado — el plan y las notas son de solo lectura
               </p>
             )}
           </div>
 
           {!lapsoId ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
               <ClipboardList size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Selecciona un lapso para ver el plan de evaluación.</p>
             </div>
@@ -458,7 +458,7 @@ const DocenteMateriaDetalle = () => {
               {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={1} />)}
             </div>
           ) : materiales.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
               <FileText size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Todavía no hay material publicado.</p>
             </div>

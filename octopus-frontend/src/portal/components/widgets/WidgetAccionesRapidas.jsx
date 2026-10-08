@@ -7,10 +7,10 @@ const WidgetAccionesRapidas = ({ onPagar, className = '' }) => (
       onClick={onPagar}
       className="portal-action rounded-2xl p-4 flex flex-col items-start gap-2 text-left"
     >
-      <div className="w-10 h-10 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center shadow-sm">
+      <div className="w-10 h-10 rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center">
         <Banknote size={17} />
       </div>
-      <p className="text-xs font-semibold text-slate-700 leading-tight">Enviar comprobante de pago</p>
+      <p className="text-xs font-semibold text-[var(--jet-mid)] leading-tight">Enviar comprobante de pago</p>
     </button>
 
     <Link
@@ -20,7 +20,7 @@ const WidgetAccionesRapidas = ({ onPagar, className = '' }) => (
       <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ color: 'var(--portal-primary,#0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary,#0fa3b1) 12%, white)' }}>
         <Receipt size={17} />
       </div>
-      <p className="text-xs font-semibold text-slate-700 leading-tight">Ver mis pagos</p>
+      <p className="text-xs font-semibold text-[var(--jet-mid)] leading-tight">Ver mis pagos</p>
     </Link>
 
     <Link
@@ -30,7 +30,7 @@ const WidgetAccionesRapidas = ({ onPagar, className = '' }) => (
       <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ color: 'var(--portal-primary,#0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary,#0fa3b1) 12%, white)' }}>
         <TrendingUp size={17} />
       </div>
-      <p className="text-xs font-semibold text-slate-700 leading-tight">Ver rendimiento</p>
+      <p className="text-xs font-semibold text-[var(--jet-mid)] leading-tight">Ver rendimiento</p>
     </Link>
 
     <Link
@@ -40,7 +40,7 @@ const WidgetAccionesRapidas = ({ onPagar, className = '' }) => (
       <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ color: 'var(--portal-primary,#0fa3b1)', background: 'color-mix(in srgb, var(--portal-primary,#0fa3b1) 12%, white)' }}>
         <Megaphone size={17} />
       </div>
-      <p className="text-xs font-semibold text-slate-700 leading-tight">Leer avisos del colegio</p>
+      <p className="text-xs font-semibold text-[var(--jet-mid)] leading-tight">Leer avisos del colegio</p>
     </Link>
   </section>
 );

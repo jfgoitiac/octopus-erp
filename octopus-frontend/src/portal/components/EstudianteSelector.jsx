@@ -24,11 +24,11 @@ const EstudianteSelector = ({ alumnos = [], alumnoActivo, onSelect }) => {
               className={`flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-colors border ${
                 isActive
                   ? 'bg-[var(--portal-primary,#0fa3b1)] text-white border-[var(--portal-primary,#0fa3b1)]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--portal-primary,#0fa3b1)] hover:text-[var(--portal-primary,#0fa3b1)]'
+                  : 'bg-[var(--surface)] text-[var(--jet-mid)] border-[var(--border)] hover:border-[var(--portal-primary,#0fa3b1)] hover:text-[var(--portal-primary,#0fa3b1)]'
               }`}
             >
               <span className="block leading-tight">{alumno.nombre} {alumno.apellido}</span>
-              <span className={`block text-xs ${isActive ? 'text-teal-100' : 'text-gray-400'}`}>
+              <span className={`block text-xs ${isActive ? 'text-teal-100' : 'text-[var(--ash)]'}`}>
                 {alumno.grado_seccion}
               </span>
             </button>

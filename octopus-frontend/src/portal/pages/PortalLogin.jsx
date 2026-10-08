@@ -46,7 +46,7 @@ const PortalLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-[420px]">
         {/* Logo / branding */}
         <div className="flex flex-col items-center mb-8 gap-3">
@@ -57,21 +57,21 @@ const PortalLogin = () => {
             onError={e => { e.target.src = logoColegioFallback; }}
           />
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-800">Portal de Familias</h1>
-            <p className="text-sm text-gray-500 mt-1">Accede a la información de tu representado</p>
+            <h1 className="text-xl font-bold text-[var(--jet)]">Portal de Familias</h1>
+            <p className="text-sm text-[var(--ash)] mt-1">Accede a la información de tu representado</p>
           </div>
         </div>
 
         {/* Card formulario */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Cédula o email */}
             <div>
-              <label htmlFor="portal-cedula" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="portal-cedula" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
                 Cédula o correo electrónico
               </label>
               <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
                 <input
                   id="portal-cedula"
                   type="text"
@@ -79,7 +79,7 @@ const PortalLogin = () => {
                   onChange={(e) => setCedulaOEmail(e.target.value)}
                   placeholder="Ej: V-12345678 o correo@ejemplo.com"
                   autoComplete="username"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                   disabled={submitting}
                 />
               </div>
@@ -87,11 +87,11 @@ const PortalLogin = () => {
 
             {/* Contraseña */}
             <div>
-              <label htmlFor="portal-password" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="portal-password" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
                 Contraseña
               </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
                 <input
                   id="portal-password"
                   type={showPassword ? 'text' : 'password'}
@@ -99,13 +99,13 @@ const PortalLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   autoComplete="current-password"
-                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                   disabled={submitting}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors min-w-[44px]"
+                  className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors min-w-[44px]"
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -140,7 +140,7 @@ const PortalLogin = () => {
 
         <BannerInstalarApp className="mt-4" />
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-[var(--ash)] mt-6">
           ¿Problemas para acceder? Contacta a la administración del colegio.
         </p>
       </div>

@@ -25,9 +25,9 @@ const WidgetHero = ({ nombre, proximaClase, pendientes = 0, radar, loadingPendie
           <p className="mt-2 text-sm text-white/85">
             {loadingPendientes ? 'Actualizando prioridades…' : pendientes > 0 ? `Tienes ${pendientes} pendiente${pendientes === 1 ? '' : 's'} que requiere${pendientes === 1 ? '' : 'n'} atención.` : 'No tienes pendientes críticos por ahora.'}
           </p>
-          {cierreTexto && <span className="mt-3 inline-flex rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold">{cierreTexto}</span>}
+          {cierreTexto && <span className="mt-3 inline-flex rounded-full bg-[var(--surface)]/15 px-2.5 py-1 text-[11px] font-semibold">{cierreTexto}</span>}
         </div>
-        <button onClick={() => navigate(destino)} className="group min-w-[230px] rounded-xl bg-white/15 p-3 text-left backdrop-blur-sm transition-colors hover:bg-white/20">
+        <button onClick={() => navigate(destino)} className="group min-w-[230px] rounded-xl bg-[var(--surface)]/15 p-3 text-left backdrop-blur-sm transition-colors hover:bg-[var(--surface)]/20">
           <span className="flex items-center gap-1.5 text-[11px] font-medium text-white/70"><CalendarClock size={13} /> Siguiente acción</span>
           {proximaClase ? <><strong className="mt-1 block truncate text-sm">{proximaClase.materia?.nombre}</strong><span className="mt-0.5 block text-xs text-white/75">{proximaClase.dia_semana_label} · {formatHora(proximaClase.hora_inicio)}</span></> : <span className="mt-1 block text-sm">Revisar mis materias</span>}
           <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold">{proximaClase ? 'Marcar asistencia' : 'Abrir materias'} <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" /></span>

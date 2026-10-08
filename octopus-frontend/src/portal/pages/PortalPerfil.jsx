@@ -77,15 +77,15 @@ const PortalPerfil = () => {
   return (
     <div className="space-y-4 pb-10">
       <div>
-        <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
           <User size={20} className="text-[var(--portal-primary)]" />
           Mi perfil
         </h1>
-        <p className="text-xs text-gray-400 mt-0.5">Gestiona tu información personal</p>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Gestiona tu información personal</p>
       </div>
 
       {/* Card avatar */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center gap-3">
+      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 flex flex-col items-center gap-3">
         <div className="relative">
           {fotoMostrada ? (
             <img
@@ -122,88 +122,88 @@ const PortalPerfil = () => {
         </div>
 
         <div className="text-center">
-          <p className="text-sm font-semibold text-gray-900">{nombreCompleto}</p>
-          <p className="text-xs text-gray-400">{perfil?.rol}</p>
+          <p className="text-sm font-semibold text-[var(--jet)]">{nombreCompleto}</p>
+          <p className="text-xs text-[var(--ash)]">{perfil?.rol}</p>
         </div>
       </div>
 
       {/* Card formulario */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4"
+        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 space-y-4"
       >
-        <h2 className="text-sm font-semibold text-gray-900">Información personal</h2>
+        <h2 className="text-sm font-semibold text-[var(--jet)]">Información personal</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="perfil-first-name" className="block text-xs font-medium text-gray-500 mb-1.5">Nombre</label>
+            <label htmlFor="perfil-first-name" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Nombre</label>
             <input
               id="perfil-first-name"
               type="text"
               value={form.first_name}
               onChange={(e) => handleChange('first_name', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
             />
           </div>
           <div>
-            <label htmlFor="perfil-last-name" className="block text-xs font-medium text-gray-500 mb-1.5">Apellido</label>
+            <label htmlFor="perfil-last-name" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Apellido</label>
             <input
               id="perfil-last-name"
               type="text"
               value={form.last_name}
               onChange={(e) => handleChange('last_name', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="perfil-email" className="block text-xs font-medium text-gray-500 mb-1.5">Correo electrónico</label>
+          <label htmlFor="perfil-email" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Correo electrónico</label>
           <div className="relative">
-            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
             <input
               id="perfil-email"
               type="email"
               value={form.email}
               onChange={(e) => handleChange('email', e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
+              className="w-full pl-9 pr-3 py-2.5 border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="perfil-telefono" className="block text-xs font-medium text-gray-500 mb-1.5">Teléfono</label>
+          <label htmlFor="perfil-telefono" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Teléfono</label>
           <div className="relative">
-            <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
             <input
               id="perfil-telefono"
               type="tel"
               value={form.telefono}
               onChange={(e) => handleChange('telefono', e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
+              className="w-full pl-9 pr-3 py-2.5 border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-gray-50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-[var(--border)]">
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Usuario</p>
-            <p className="text-sm text-gray-500 mt-1">{perfil?.username}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)]">Usuario</p>
+            <p className="text-sm text-[var(--ash)] mt-1">{perfil?.username}</p>
           </div>
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
               <ShieldCheck size={11} /> Rol
             </p>
-            <p className="text-sm text-gray-500 mt-1 capitalize">{perfil?.rol}</p>
+            <p className="text-sm text-[var(--ash)] mt-1 capitalize">{perfil?.rol}</p>
           </div>
         </div>
 
-        <div className="pt-1 border-t border-gray-50">
+        <div className="pt-1 border-t border-[var(--border)]">
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
               <IdCard size={11} /> Cédula
             </p>
-            <p className="text-sm text-gray-500 mt-1">{perfil?.cedula || '—'}</p>
+            <p className="text-sm text-[var(--ash)] mt-1">{perfil?.cedula || '—'}</p>
           </div>
         </div>
 
@@ -220,18 +220,18 @@ const PortalPerfil = () => {
       {/* Link a cambiar contraseña */}
       <Link
         to="/portal/cambiar-contrasena"
-        className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+        className="flex items-center justify-between bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 hover:shadow-md hover:-translate-y-0.5 transition-shadow"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[var(--portal-primary)]/10 text-[var(--portal-primary)] flex items-center justify-center">
             <KeyRound size={16} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">Cambiar contraseña</p>
-            <p className="text-xs text-gray-400">Actualiza tus credenciales de acceso</p>
+            <p className="text-sm font-semibold text-[var(--jet)]">Cambiar contraseña</p>
+            <p className="text-xs text-[var(--ash)]">Actualiza tus credenciales de acceso</p>
           </div>
         </div>
-        <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
+        <ChevronRight size={18} className="text-[var(--ash)] flex-shrink-0" />
       </Link>
     </div>
   );

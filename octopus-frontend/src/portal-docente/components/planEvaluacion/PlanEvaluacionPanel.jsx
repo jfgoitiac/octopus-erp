@@ -213,7 +213,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
 
   if (!plan && !editando) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
         <ClipboardList size={32} className="mx-auto mb-3 opacity-30" />
         <p className="text-sm mb-4">Todavía no hay un plan de evaluación para este lapso.</p>
         <button
@@ -247,9 +247,9 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
         />
       ) : (
         <>
-          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-[var(--jet)] flex items-center gap-1.5">
                 <Layers size={15} className="text-[var(--docente-primary)]" /> Bloques del plan
               </h3>
               <button
@@ -262,25 +262,25 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
             </div>
             <div className="space-y-2">
               {bloquesPlan.map(b => (
-                <div key={b.id} className="rounded-xl border border-gray-100 p-3">
+                <div key={b.id} className="rounded-xl border border-[var(--border)] p-3">
                   <div className="flex items-center justify-between flex-wrap gap-1">
-                    <span className="text-sm font-semibold text-gray-700">{b.nombre}</span>
+                    <span className="text-sm font-semibold text-[var(--jet-mid)]">{b.nombre}</span>
                     {!esLiteral && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-sunken)] text-[var(--jet-mid)]">
                         {b.total_puntos} pts · {b.modo === 'promedio' ? 'promedio' : 'suma'}
                       </span>
                     )}
                   </div>
                   <ul className="mt-2 space-y-1">
                     {(b.items || []).map(it => (
-                      <li key={it.id} className="flex items-center justify-between text-xs text-gray-500">
+                      <li key={it.id} className="flex items-center justify-between text-xs text-[var(--ash)]">
                         <span>{it.nombre}</span>
                         <span className="flex items-center gap-2">
                           {it.fecha && (
                             <span>{format(parseISO(it.fecha), "dd 'de' MMM", { locale: es })}</span>
                           )}
                           {!esLiteral && it.valor_maximo != null && it.valor_maximo !== '' && (
-                            <span className="font-medium text-gray-600">{it.valor_maximo} pts</span>
+                            <span className="font-medium text-[var(--jet-mid)]">{it.valor_maximo} pts</span>
                           )}
                         </span>
                       </li>
@@ -324,33 +324,33 @@ function BuilderPlan({
   onGuardar, onCancelar,
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
+    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-800">
+        <h3 className="text-sm font-bold text-[var(--jet)]">
           {plan ? 'Editar plan de evaluación' : 'Nuevo plan de evaluación'}
         </h3>
         {onCancelar && (
-          <button onClick={onCancelar} className="text-gray-400 min-h-[36px] px-1" aria-label="Cancelar edición">
+          <button onClick={onCancelar} className="text-[var(--ash)] min-h-[36px] px-1" aria-label="Cancelar edición">
             <X size={16} />
           </button>
         )}
       </div>
 
       {!lapsoActivo && (
-        <p className="text-xs font-medium text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+        <p className="text-xs font-medium text-[var(--yellow)] bg-[var(--yellow-light)] rounded-lg px-3 py-2">
           Este lapso está cerrado — puedes revisar el plan, pero no guardar cambios.
         </p>
       )}
 
       {bloques.map(b => (
-        <div key={b.id} className="rounded-xl border border-gray-200 p-3 space-y-3">
+        <div key={b.id} className="rounded-xl border border-[var(--border)] p-3 space-y-3">
           <div className="flex items-start gap-2">
             <div className="flex-1">
-              <label className="block text-[11px] font-medium text-gray-400 mb-1">Nombre del bloque</label>
+              <label className="block text-[11px] font-medium text-[var(--ash)] mb-1">Nombre del bloque</label>
               <input
                 type="text"
                 placeholder="Ej: Contenido, Actitudinal..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 value={b.nombre}
                 onChange={e => onCambiarBloque(b.id, 'nombre', e.target.value)}
                 disabled={!lapsoActivo}
@@ -359,7 +359,7 @@ function BuilderPlan({
             <button
               onClick={() => onQuitarBloque(b.id)}
               disabled={!lapsoActivo}
-              className="mt-6 text-red-400 hover:text-red-600 min-h-[36px] px-1"
+              className="mt-6 text-[var(--red)] hover:text-[var(--red)] min-h-[36px] px-1"
               aria-label="Eliminar bloque"
             >
               <Trash2 size={15} />
@@ -369,21 +369,21 @@ function BuilderPlan({
           {!esLiteral && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] font-medium text-gray-400 mb-1">Total de puntos</label>
+                <label className="block text-[11px] font-medium text-[var(--ash)] mb-1">Total de puntos</label>
                 <input
                   type="number"
                   min="0"
                   step="0.5"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                  className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                   value={b.total_puntos}
                   onChange={e => onCambiarBloque(b.id, 'total_puntos', e.target.value)}
                   disabled={!lapsoActivo}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-gray-400 mb-1">Modo</label>
+                <label className="block text-[11px] font-medium text-[var(--ash)] mb-1">Modo</label>
                 <select
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                  className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                   value={b.modo}
                   onChange={e => onCambiarBloque(b.id, 'modo', e.target.value)}
                   disabled={!lapsoActivo}
@@ -396,14 +396,14 @@ function BuilderPlan({
           )}
 
           <div className="space-y-2">
-            <label className="block text-[11px] font-medium text-gray-400">Ítems</label>
+            <label className="block text-[11px] font-medium text-[var(--ash)]">Ítems</label>
             {b.items.map(it => (
-              <div key={it.id} className="flex items-start gap-2 bg-gray-50 rounded-lg p-2">
+              <div key={it.id} className="flex items-start gap-2 bg-[var(--surface-sunken)] rounded-lg p-2">
                 <div className="flex-1 space-y-1.5">
                   <input
                     type="text"
                     placeholder="Nombre del ítem (ej: Exposición)"
-                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                    className="w-full border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                     value={it.nombre}
                     onChange={e => onCambiarItem(b.id, it.id, 'nombre', e.target.value)}
                     disabled={!lapsoActivo}
@@ -418,7 +418,7 @@ function BuilderPlan({
                       wrapperClassName="flex-1"
                       popperContainer={datepickerPopperContainer}
                       customInput={
-                        <input className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30" />
+                        <input className="w-full border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30" />
                       }
                     />
                     {!esLiteral && b.modo === 'puntos' && (
@@ -427,7 +427,7 @@ function BuilderPlan({
                         min="0"
                         step="0.5"
                         placeholder="Pts máx."
-                        className="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                        className="w-24 border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                         value={it.valor_maximo}
                         onChange={e => onCambiarItem(b.id, it.id, 'valor_maximo', e.target.value)}
                         disabled={!lapsoActivo}
@@ -438,7 +438,7 @@ function BuilderPlan({
                 <button
                   onClick={() => onQuitarItem(b.id, it.id)}
                   disabled={!lapsoActivo}
-                  className="text-red-400 hover:text-red-600 min-h-[36px] px-1"
+                  className="text-[var(--red)] hover:text-[var(--red)] min-h-[36px] px-1"
                   aria-label="Eliminar ítem"
                 >
                   <Trash2 size={13} />
@@ -459,7 +459,7 @@ function BuilderPlan({
       <button
         onClick={onAgregarBloque}
         disabled={!lapsoActivo}
-        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-300 text-gray-500 py-2.5 rounded-xl text-sm min-h-[44px]"
+        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-[var(--border-md)] text-[var(--ash)] py-2.5 rounded-xl text-sm min-h-[44px]"
       >
         <Plus size={15} /> Agregar bloque
       </button>
@@ -490,36 +490,36 @@ function TablaNotasPlan({ bloques, notasLocal, loading, esLiteral, lapsoActivo, 
 
   if (!notasLocal.length) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400">
+      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-8 text-center text-[var(--ash)]">
         <p className="text-sm">No hay alumnos registrados en esta sección.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="px-3 py-2.5 text-[11px] uppercase tracking-wide text-gray-400 sticky left-0 bg-gray-50">Alumno</th>
+            <tr className="bg-[var(--surface-sunken)]">
+              <th className="px-3 py-2.5 text-[11px] uppercase tracking-wide text-[var(--ash)] sticky left-0 bg-[var(--surface-sunken)]">Alumno</th>
               {items.map(it => (
-                <th key={it.id} className="px-2 py-2.5 text-[10px] uppercase tracking-wide text-gray-400 whitespace-nowrap">
+                <th key={it.id} className="px-2 py-2.5 text-[10px] uppercase tracking-wide text-[var(--ash)] whitespace-nowrap">
                   {it.nombre}
                 </th>
               ))}
-              {!esLiteral && <th className="px-3 py-2.5 text-[11px] uppercase tracking-wide text-gray-400">Total</th>}
+              {!esLiteral && <th className="px-3 py-2.5 text-[11px] uppercase tracking-wide text-[var(--ash)]">Total</th>}
             </tr>
           </thead>
           <tbody>
             {notasLocal.map(al => (
-              <tr key={al.alumno_id} className="border-t border-gray-100">
-                <td className="px-3 py-2 text-sm font-medium text-gray-700 whitespace-nowrap sticky left-0 bg-white">
+              <tr key={al.alumno_id} className="border-t border-[var(--border)]">
+                <td className="px-3 py-2 text-sm font-medium text-[var(--jet-mid)] whitespace-nowrap sticky left-0 bg-[var(--surface)]">
                   {al.alumno_nombre}
                 </td>
                 {items.map(it => {
                   const tieneError = celdasConError?.has(`${al.alumno_id}-${it.id}`);
-                  const claseError = tieneError ? 'border-red-400 ring-1 ring-red-200' : 'border-gray-200';
+                  const claseError = tieneError ? 'border-[var(--red)] ring-1 ring-[var(--red)]' : 'border-[var(--border)]';
                   return (
                   <td key={it.id} className="px-2 py-2">
                     {esLiteral ? (
@@ -553,7 +553,7 @@ function TablaNotasPlan({ bloques, notasLocal, loading, esLiteral, lapsoActivo, 
                   );
                 })}
                 {!esLiteral && (
-                  <td className="px-3 py-2 text-sm font-bold text-gray-700">
+                  <td className="px-3 py-2 text-sm font-bold text-[var(--jet-mid)]">
                     {totalesPorAlumno[al.alumno_id]?.totalMateria != null
                       ? totalesPorAlumno[al.alumno_id].totalMateria.toFixed(2)
                       : '—'}

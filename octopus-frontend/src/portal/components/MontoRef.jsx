@@ -13,7 +13,7 @@ const TAMANOS = {
 
 const MontoRef = ({
   usd, tasaBcv, size = 'sm', align = 'right', className = '',
-  colorRef = 'text-gray-800', colorBs = 'text-gray-500',
+  colorRef = 'text-[var(--jet)]', colorBs = 'text-[var(--ash)]',
 }) => {
   const t = TAMANOS[size] || TAMANOS.sm;
   const bs = montoEnBs(usd, tasaBcv);
@@ -30,7 +30,7 @@ const MontoRef = ({
 export const NotaTasaBcv = ({ tasaBcv, className = '' }) => {
   if (!tasaBcv) {
     return (
-      <p className={`text-xs text-gray-500 ${className}`}>
+      <p className={`text-xs text-[var(--ash)] ${className}`}>
         Montos en dólares de referencia (REF.). Aún no hay tasa BCV registrada para
         calcular el equivalente en bolívares.
       </p>
@@ -38,7 +38,7 @@ export const NotaTasaBcv = ({ tasaBcv, className = '' }) => {
   }
   const fecha = format(parseISO(tasaBcv.fecha), 'dd/MM/yyyy', { locale: es });
   return (
-    <p className={`text-xs text-gray-500 ${className}`}>
+    <p className={`text-xs text-[var(--ash)] ${className}`}>
       El monto en bolívares corresponde a la tasa del dólar BCV del día {fecha}
       {' '}(Bs. {fmtMonto(tasaBcv.valor)} por dólar).
     </p>

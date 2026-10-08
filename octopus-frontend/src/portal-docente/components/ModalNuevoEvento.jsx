@@ -43,24 +43,24 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
       aria-modal="true"
       aria-labelledby="nuevo-evento-titulo"
     >
-      <div ref={containerRef} className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <div ref={containerRef} className="bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 id="nuevo-evento-titulo" className="font-bold text-gray-800 flex items-center gap-2">
+          <h3 id="nuevo-evento-titulo" className="font-bold text-[var(--jet)] flex items-center gap-2">
             <CalendarPlus size={18} className="text-[var(--docente-primary)]" />
             Nuevo evento
           </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-gray-400">
+          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-[var(--ash)]">
             <X size={18} />
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="nuevo-evento-titulo-input" className="block text-xs font-medium text-gray-500 mb-1.5">Título</label>
+            <label htmlFor="nuevo-evento-titulo-input" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Título</label>
             <input
               id="nuevo-evento-titulo-input"
               type="text"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={titulo}
               onChange={e => setTitulo(e.target.value)}
               placeholder="Ej. Entrega de proyecto final"
@@ -70,21 +70,21 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="nuevo-evento-fecha" className="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
+              <label htmlFor="nuevo-evento-fecha" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Fecha</label>
               <input
                 id="nuevo-evento-fecha"
                 type="date"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 value={fecha}
                 onChange={e => setFecha(e.target.value)}
               />
             </div>
             <div>
-              <label htmlFor="nuevo-evento-hora" className="block text-xs font-medium text-gray-500 mb-1.5">Hora (opcional)</label>
+              <label htmlFor="nuevo-evento-hora" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Hora (opcional)</label>
               <input
                 id="nuevo-evento-hora"
                 type="time"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 value={hora}
                 onChange={e => setHora(e.target.value)}
               />
@@ -92,10 +92,10 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
           </div>
 
           <div>
-            <label htmlFor="nuevo-evento-tipo" className="block text-xs font-medium text-gray-500 mb-1.5">Tipo</label>
+            <label htmlFor="nuevo-evento-tipo" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Tipo</label>
             <select
               id="nuevo-evento-tipo"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={tipo}
               onChange={e => setTipo(e.target.value)}
             >
@@ -106,11 +106,11 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
           </div>
 
           <div>
-            <label htmlFor="nuevo-evento-descripcion" className="block text-xs font-medium text-gray-500 mb-1.5">Descripción (opcional)</label>
+            <label htmlFor="nuevo-evento-descripcion" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Descripción (opcional)</label>
             <textarea
               id="nuevo-evento-descripcion"
               rows={2}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Detalles adicionales..."
@@ -121,7 +121,7 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
         <div className="flex gap-2 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl py-2.5 text-sm border border-gray-200 text-gray-500 min-h-[44px]"
+            className="flex-1 rounded-xl py-2.5 text-sm border border-[var(--border)] text-[var(--ash)] min-h-[44px]"
           >
             Cancelar
           </button>

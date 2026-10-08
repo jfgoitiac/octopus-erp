@@ -28,12 +28,12 @@ const WidgetAccionesRapidas = ({ className = '' }) => (
         key={label}
         to={to}
         state={state}
-        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
       >
         <div className="w-9 h-9 rounded-xl bg-[var(--docente-primary)] text-white flex items-center justify-center">
           <Icon size={17} />
         </div>
-        <p className="text-[11px] font-medium text-gray-600 leading-tight">{label}</p>
+        <p className="text-[11px] font-medium text-[var(--jet-mid)] leading-tight">{label}</p>
       </Link>
     ))}
   </div>

@@ -9,7 +9,7 @@ import { useFocusTrap } from '../../../hooks/useFocusTrap';
 const Sparkline = ({ puntos, enRiesgo }) => {
   const valores = puntos.map(p => p.promedio_general).filter(v => v !== null && v !== undefined);
   if (valores.length === 0) {
-    return <p className="text-xs text-gray-400 text-center py-6">Sin promedios registrados aún.</p>;
+    return <p className="text-xs text-[var(--ash)] text-center py-6">Sin promedios registrados aún.</p>;
   }
 
   const width = 280;
@@ -43,7 +43,7 @@ const Sparkline = ({ puntos, enRiesgo }) => {
       </svg>
       <div className="flex justify-between mt-1">
         {coords.map((c, i) => (
-          <span key={i} className="text-[9px] text-gray-400 truncate" style={{ maxWidth: `${100 / coords.length}%` }}>
+          <span key={i} className="text-[9px] text-[var(--ash)] truncate" style={{ maxWidth: `${100 / coords.length}%` }}>
             {c.lapso}
           </span>
         ))}
@@ -54,8 +54,8 @@ const Sparkline = ({ puntos, enRiesgo }) => {
 
 const SkeletonEvolucion = () => (
   <div className="animate-pulse space-y-3">
-    <div className="h-4 w-2/3 bg-gray-100 rounded" />
-    <div className="h-20 bg-gray-100 rounded" />
+    <div className="h-4 w-2/3 bg-[var(--surface-sunken)] rounded" />
+    <div className="h-20 bg-[var(--surface-sunken)] rounded" />
   </div>
 );
 
@@ -91,13 +91,13 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
       aria-modal="true"
       aria-labelledby="evolucion-alumno-titulo"
     >
-      <div ref={containerRef} className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <div ref={containerRef} className="bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 id="evolucion-alumno-titulo" className="font-bold text-gray-800 flex items-center gap-2">
+          <h3 id="evolucion-alumno-titulo" className="font-bold text-[var(--jet)] flex items-center gap-2">
             <LineChart size={18} className="text-[var(--docente-primary)]" />
             Evolución del alumno
           </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-gray-400">
+          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-[var(--ash)]">
             <X size={18} />
           </button>
         </div>
@@ -105,15 +105,15 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
         {loading ? (
           <SkeletonEvolucion />
         ) : !rendimiento ? (
-          <p className="text-sm text-gray-400 text-center py-6">No se pudo cargar la información del alumno.</p>
+          <p className="text-sm text-[var(--ash)] text-center py-6">No se pudo cargar la información del alumno.</p>
         ) : (
           <div className="space-y-4">
             <div>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-[var(--jet)]">
                 {rendimiento.alumno?.nombre} {rendimiento.alumno?.apellido}
               </p>
               {enRiesgo && (
-                <div className="mt-1.5 inline-flex items-center gap-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg px-2.5 py-1">
+                <div className="mt-1.5 inline-flex items-center gap-1.5 bg-[var(--red-light)] text-[var(--red)] text-xs font-medium rounded-lg px-2.5 py-1">
                   <TrendingDown size={13} />
                   Alumno en riesgo académico
                 </div>
@@ -123,9 +123,9 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
             <Sparkline puntos={rendimiento.por_lapso || []} enRiesgo={enRiesgo} />
 
             {rendimiento.asistencia?.porcentaje !== null && rendimiento.asistencia?.porcentaje !== undefined && (
-              <div className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Asistencia</span>
-                <span className="text-sm font-semibold text-gray-900">{rendimiento.asistencia.porcentaje}%</span>
+              <div className="bg-[var(--surface-sunken)] rounded-xl px-3 py-2.5 flex items-center justify-between">
+                <span className="text-xs text-[var(--ash)]">Asistencia</span>
+                <span className="text-sm font-semibold text-[var(--jet)]">{rendimiento.asistencia.porcentaje}%</span>
               </div>
             )}
           </div>

@@ -74,12 +74,12 @@ const PortalDashboard = () => {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mi familia</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ash)]">Mi familia</p>
       {/* Selector de estudiantes */}
       {loading ? (
         <div className="flex gap-2">
-          <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
-          <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
+          <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
+          <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
         </div>
       ) : (
         <EstudianteSelector
@@ -93,9 +93,9 @@ const PortalDashboard = () => {
       {/* Con varios hijos la deuda suma a todos; el hijo seleccionado solo
           filtra los últimos pagos. */}
       {alumnoActivo && variosAlumnos && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-[var(--ash)]">
           La deuda incluye a todos tus hijos. Últimos pagos de{' '}
-          <span className="font-medium text-gray-700">
+          <span className="font-medium text-[var(--jet-mid)]">
             {alumnoActivo.nombre} {alumnoActivo.apellido}
           </span>
           {' '}· {alumnoActivo.grado_seccion}
@@ -114,15 +114,15 @@ const PortalDashboard = () => {
         </div>
 
         <div className="md:col-span-12">
-          {loading || loadingAvisos || loadingRendimiento ? <div className="h-28 rounded-2xl bg-slate-100 animate-pulse" /> : <WidgetFamiliaHoy deuda={Number(resumen?.total_deuda_usd || 0)} avisos={avisosSinLeer} alertas={alertaRendimiento} alumnoActivo={alumnoActivo} onPagar={handlePagarRapido} />}
+          {loading || loadingAvisos || loadingRendimiento ? <div className="h-28 rounded-2xl bg-[var(--surface-sunken)] animate-pulse" /> : <WidgetFamiliaHoy deuda={Number(resumen?.total_deuda_usd || 0)} avisos={avisosSinLeer} alertas={alertaRendimiento} alumnoActivo={alumnoActivo} onPagar={handlePagarRapido} />}
         </div>
 
         <div className="md:col-span-12">
-          <p className="mb-2 px-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Acciones frecuentes</p>
+          <p className="mb-2 px-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--ash)]">Acciones frecuentes</p>
           <WidgetAccionesRapidas onPagar={handlePagarRapido} />
         </div>
 
-        <div className="md:col-span-12"><p className="px-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Pagos y vencimientos</p></div>
+        <div className="md:col-span-12"><p className="px-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--ash)]">Pagos y vencimientos</p></div>
         <div className="md:col-span-4">
           <WidgetResumenFinanciero
             resumen={resumen}
