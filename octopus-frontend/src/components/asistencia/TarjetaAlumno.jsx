@@ -14,6 +14,7 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
   registro,
   numero,
   expandido = false,
+  destello = null,
   onObservacion,
   onSiguiente,
   cardRef,
@@ -38,6 +39,17 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
         className="absolute inset-x-0 top-0 h-28 pointer-events-none"
         style={{ background: `linear-gradient(180deg, ${cfg ? cfg.activeStyle.background : 'var(--pb-light)'} 0%, transparent 100%)` }}
       />
+
+      {/* Destello del color del estado al marcar: confirma el toque también donde
+          no hay vibración (iOS). Se re-monta con cada marcado (key). */}
+      {destello && (
+        <span
+          key={destello.seq}
+          aria-hidden="true"
+          className="pl-destello pointer-events-none absolute inset-0 z-10 rounded-2xl"
+          style={{ boxShadow: `inset 0 0 0 3px ${CONFIGS_ESTADO[destello.estado]?.activeStyle.color}` }}
+        />
+      )}
 
       <div className="relative flex items-center justify-between gap-2 px-4 pt-4 sm:px-5 sm:pt-5">
         <span

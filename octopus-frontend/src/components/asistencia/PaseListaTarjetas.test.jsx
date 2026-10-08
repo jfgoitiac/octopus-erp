@@ -1,17 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useEffect, useState } from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PaseListaTarjetas from './PaseListaTarjetas';
 import { ESTADO } from '../../constants/asistencia';
-
-const { toastMock } = vi.hoisted(() => {
-  const fn = vi.fn();
-  fn.isActive = vi.fn(() => false);
-  fn.update = vi.fn();
-  fn.dismiss = vi.fn();
-  return { toastMock: fn };
-});
-vi.mock('react-toastify', () => ({ toast: toastMock }));
 
 const ROSTER = [
   { alumno_id: 1, alumno_nombre: 'Ana Pérez', estado: null, observacion: '' },
@@ -94,13 +85,27 @@ describe('PaseListaTarjetas', () => {
   it('Deshacer revierte el último marcado y vuelve a esa tarjeta', async () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole('button', { name: /Comenzar/ }));
+    expect(screen.getByRole('button', { name: /Deshacer/ })).toBeDisabled();
+
     fireEvent.click(screen.getByRole('button', { name: 'Presente' }));
     await waitFor(() => expect(anuncio()).toBe('Alumno 2 de 3: Luis Gómez'));
 
-    const contenidoToast = toastMock.mock.calls.at(-1)[0];
-    const { getByRole } = render(contenidoToast);
-    act(() => { fireEvent.click(getByRole('button', { name: /Deshacer/ })); });
+    fireEvent.click(screen.getByRole('button', { name: 'Deshacer: Ana Pérez, Presente' }));
+    expect(espia.registros[0].estado).toBe(null);
+    expect(anuncio()).toBe('Alumno 1 de 3: Ana Pérez');
+  });
 
+  it('Ctrl+Z deshace varios pasos en orden', async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: /Comenzar/ }));
+    fireEvent.keyDown(window, { key: 'p' });
+    await waitFor(() => expect(anuncio()).toBe('Alumno 2 de 3: Luis Gómez'));
+    fireEvent.keyDown(window, { key: 'a' });
+    expect(espia.registros[1].estado).toBe(ESTADO.AUSENTE);
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(espia.registros[1].estado).toBe(null);
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
     expect(espia.registros[0].estado).toBe(null);
     expect(anuncio()).toBe('Alumno 1 de 3: Ana Pérez');
   });

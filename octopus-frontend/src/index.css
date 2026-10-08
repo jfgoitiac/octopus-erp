@@ -522,6 +522,12 @@ button, a {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+@keyframes plDestello {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.pl-destello        { animation: plDestello 420ms ease-out forwards; }
 .pl-salir           { animation: plSalir 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .pl-entrar-adelante { animation: plEntrarAdelante 280ms cubic-bezier(0.22, 1, 0.36, 1); }
 .pl-entrar-atras    { animation: plEntrarAtras 260ms cubic-bezier(0.22, 1, 0.36, 1); }

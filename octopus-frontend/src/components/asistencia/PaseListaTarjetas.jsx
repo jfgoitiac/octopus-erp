@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'react-toastify';
 import { ListChecks, Undo2, Users } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO, TECLA_A_ESTADO } from '../../constants/asistencia';
 import TarjetaAlumno, { BotonesEstado } from './TarjetaAlumno';
@@ -10,8 +9,8 @@ import SkeletonTarjeta from './SkeletonTarjeta';
 import { useSwipeTarjeta } from './useSwipeTarjeta';
 import { SALIDA_POR_ESTADO, primerSinMarcar, requiereObservacion, prefiereMenosMovimiento, vibrar } from './paseLista.utils';
 
-const TOAST_DESHACER = 'pase-lista-deshacer';
 const MS_CONFIRMACION = 150;
+const MAX_DESHACER = 20;
 
 // Destino de la tarjeta saliente según la dirección (ver @keyframes plSalir).
 const DESTINO_SALIDA = {
@@ -23,23 +22,6 @@ const DESTINO_SALIDA = {
 // Origen abajo: al escalar, la tarjeta de atrás conserva el borde inferior y
 // asoma por debajo de la actual (10px y 20px), como un mazo.
 const MAZO_STYLE = { border: '0.5px solid var(--border-md)', boxShadow: '0 8px 24px -10px rgba(43,48,58,0.18)', transformOrigin: '50% 100%' };
-
-const AvisoDeshacer = ({ nombre, estado, onDeshacer }) => (
-  <div className="flex items-center justify-between gap-3">
-    <p className="min-w-0 truncate text-sm" style={{ color: 'var(--jet)' }}>
-      <span className="font-semibold">{nombre || 'Alumno'}</span>
-      <span style={{ color: 'var(--jet-mid)' }}> · {CONFIGS_ESTADO[estado]?.label}</span>
-    </p>
-    <button
-      type="button"
-      onClick={onDeshacer}
-      className="inline-flex min-h-[36px] shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-transform active:scale-[0.97]"
-      style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
-    >
-      <Undo2 size={14} aria-hidden="true" /> Deshacer
-    </button>
-  </div>
-);
 
 /**
  * Modo "Pasar lista": inicio → una tarjeta por alumno → resumen.
@@ -64,13 +46,13 @@ const PaseListaTarjetas = ({
   const [saliente, setSaliente] = useState(null);      // única tarjeta saliente: nunca se acumulan
   const [expandido, setExpandido] = useState(null);    // alumno_id con la observación abierta
   const [confirmando, setConfirmando] = useState(null);
+  const [historial, setHistorial] = useState([]);      // pila de marcados para deshacer
+  const [destello, setDestello] = useState(null);      // { seq, estado }: borde de color al marcar
 
   const rootRef = useRef(null);
   const primerBotonRef = useRef(null);
   const timerRef = useRef(null);
-  const ultimoCambioRef = useRef(null);
   const salidaSeqRef = useRef(0);
-  const deshacerRef = useRef(null);
   const teclaRef = useRef(null);
   const faseAnteriorRef = useRef(fase);
 
@@ -116,15 +98,8 @@ const PaseListaTarjetas = ({
   const siguiente = (x0) => irA(i + 1, { dir: 'izq', x0 });
   const anterior = (x0) => { if (i > 0) irA(i - 1, { dir: 'der', x0 }); };
 
-  const avisarDeshacer = (previo, idx, estado) => {
-    ultimoCambioRef.current = { previo, idx };
-    const render = (
-      <AvisoDeshacer nombre={previo.alumno_nombre} estado={estado} onDeshacer={() => deshacerRef.current?.()} />
-    );
-    // Arriba: abajo taparía los botones de la zona del pulgar en móvil.
-    const opciones = { position: 'top-center', autoClose: 4000, closeOnClick: false, hideProgressBar: true };
-    if (toast.isActive(TOAST_DESHACER)) toast.update(TOAST_DESHACER, { render, ...opciones });
-    else toast(render, { toastId: TOAST_DESHACER, ...opciones });
+  const recordarCambio = (previo, idx, estado) => {
+    setHistorial(h => [...h.slice(-(MAX_DESHACER - 1)), { previo, idx, estado }]);
   };
 
   const marcarActual = (estado) => {
@@ -135,7 +110,9 @@ const PaseListaTarjetas = ({
     const previo = actual;
     const idx = i;
     onMarcar(previo.alumno_id, estado);
-    avisarDeshacer(previo, idx, estado);
+    recordarCambio(previo, idx, estado);
+    salidaSeqRef.current += 1;
+    setDestello({ seq: salidaSeqRef.current, estado });
 
     if (requiereObservacion(estado)) {
       setExpandido(previo.alumno_id);
@@ -151,13 +128,12 @@ const PaseListaTarjetas = ({
     }, MS_CONFIRMACION);
   };
 
+  const ultimoCambio = historial[historial.length - 1];
   const deshacer = () => {
-    const cambio = ultimoCambioRef.current;
-    if (!cambio) return;
-    ultimoCambioRef.current = null;
-    toast.dismiss(TOAST_DESHACER);
-    onRestaurar(cambio.previo);
-    irA(cambio.idx, { dir: 'der' });
+    if (!ultimoCambio) return;
+    setHistorial(h => h.slice(0, -1));
+    onRestaurar(ultimoCambio.previo);
+    irA(ultimoCambio.idx, { dir: 'der' });
   };
 
   const comenzar = () => {
@@ -182,14 +158,15 @@ const PaseListaTarjetas = ({
 
   const swipe = useSwipeTarjeta({ onSiguiente: siguiente, onAnterior: anterior, hayAnterior: i > 0 });
 
-  // Los listeners externos (toast, teclado) llaman siempre a la versión del
-  // último render, para no operar con un índice viejo.
+  // El listener de teclado llama siempre a la versión del último render,
+  // para no operar con un índice viejo.
   useEffect(() => {
-    deshacerRef.current = deshacer;
     teclaRef.current = (e) => {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (e.defaultPrevented || e.repeat) return;
       if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (document.querySelector('[role="dialog"]')) return;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') { e.preventDefault(); deshacer(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key === 'ArrowRight') { e.preventDefault(); siguiente(); return; }
       if (e.key === 'ArrowLeft') { e.preventDefault(); anterior(); return; }
@@ -227,10 +204,7 @@ const PaseListaTarjetas = ({
     img.src = fotoSiguiente;
   }, [fotoSiguiente]);
 
-  useEffect(() => () => {
-    clearTimeout(timerRef.current);
-    toast.dismiss(TOAST_DESHACER);
-  }, []);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const anuncio = fase === 'pase' && actual ? `Alumno ${i + 1} de ${total}: ${actual.alumno_nombre || 'sin nombre'}` : '';
 
@@ -279,6 +253,20 @@ const PaseListaTarjetas = ({
           </div>
           <button
             type="button"
+            onClick={deshacer}
+            disabled={!ultimoCambio}
+            aria-keyshortcuts="Control+Z"
+            aria-label={ultimoCambio
+              ? `Deshacer: ${ultimoCambio.previo.alumno_nombre || 'alumno'}, ${CONFIGS_ESTADO[ultimoCambio.estado]?.label}`
+              : 'Deshacer (no hay cambios)'}
+            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-sm font-medium transition-[transform,opacity] active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
+            style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb-mid)' }}
+          >
+            <Undo2 size={18} aria-hidden="true" />
+            <span className="hidden sm:inline">Deshacer</span>
+          </button>
+          <button
+            type="button"
             onClick={abrirResumen}
             aria-label="Ver resumen"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white transition-transform active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
@@ -306,6 +294,7 @@ const PaseListaTarjetas = ({
                   registro={actual}
                   numero={i + 1}
                   expandido={expandido === actual.alumno_id}
+                  destello={destello}
                   onObservacion={onObservacion}
                   onSiguiente={() => irA(i + 1, { dir: SALIDA_POR_ESTADO[actual.estado] || 'izq' })}
                   cardRef={swipe.ref}
