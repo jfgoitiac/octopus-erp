@@ -34,16 +34,6 @@ const Legend = memo(({ items }) => (
 ));
 Legend.displayName = 'Legend';
 
-const TrustBadge = ({ confidence, compact = false }) => (
-    <span
-        className={`inline-flex items-center rounded-full font-semibold ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]'}`}
-        style={{ background: confidence >= 80 ? '#dcfce7' : '#fef3c7', color: confidence >= 80 ? '#166534' : '#92400e' }}
-        title={`Confianza estimada: ${confidence}%`}
-    >
-        Confianza {confidence}%
-    </span>
-);
-
 const Provenance = ({ updatedAt, compact = false }) => (
     <details className={compact ? 'text-[10px]' : 'text-xs'}>
         <summary className="cursor-pointer list-none underline underline-offset-2" style={{ color: 'var(--ash)' }}>
@@ -57,9 +47,9 @@ const Provenance = ({ updatedAt, compact = false }) => (
     </details>
 );
 
-const ChartHeader = ({ confidence, updatedAt, action }) => (
+const ChartHeader = ({ updatedAt, action }) => (
     <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-        <TrustBadge confidence={confidence} compact />
+        <span className="text-[10px]" style={{ color: 'var(--ash)' }}>Datos actualizados {updatedAt}</span>
         <div className="flex items-center gap-2">
             {action}
             <Provenance updatedAt={updatedAt} compact />
@@ -123,8 +113,6 @@ const Dashboard = () => {
         () => format(new Date(), "d MMM yyyy, HH:mm", { locale: es }),
         [s]
     );
-    const financialConfidence = s.total_activos > 0 ? 94 : 45;
-    const genderConfidence = totalGender > 0 ? 98 : 45;
 
     const registerFeedback = (type) => {
         const entry = { type, createdAt: new Date().toISOString(), screen: 'dashboard' };
@@ -179,7 +167,7 @@ const Dashboard = () => {
             <Card className="anim-scale-in dashboard-insight-new" padding="normal">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1"><Sparkles size={15} style={{ color: 'var(--pb)' }} /><span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Lectura asistida</span><TrustBadge confidence={financialConfidence} /></div>
+                        <div className="flex flex-wrap items-center gap-2 mb-1"><Sparkles size={15} style={{ color: 'var(--pb)' }} /><span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Lectura asistida</span></div>
                         <p className="text-sm" style={{ color: 'var(--ash)' }}>
                             {s.morosos > 0 ? `Los datos disponibles sugieren revisar ${kpi.morosos} cuentas en mora antes de priorizar la cobranza de hoy.` : 'Los datos disponibles no muestran cuentas en mora para priorizar hoy.'}
                         </p>
@@ -198,18 +186,18 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 <KpiCard icon={Users}         label="Alumnos activos" value={kpi.totalActivos}
                     sub={`${kpi.inactivos} retirados`}
-                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={0} confidence={98} provenance="Registro académico" />
+                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={0} />
                 <KpiCard icon={CheckCircle}   label="Solventes"       value={kpi.solventes}
-                    accent="#16a34a" iconBg="#dcfce7" iconColor="#16a34a" delay={60} confidence={financialConfidence} provenance="Cobranza y registro académico" />
+                    accent="#16a34a" iconBg="#dcfce7" iconColor="#16a34a" delay={60} />
                 <KpiCard icon={AlertTriangle} label="En mora"         value={kpi.morosos}
-                    accent="#dc2626" iconBg="var(--red-light)" iconColor="#dc2626" delay={120} confidence={financialConfidence} provenance="Cobranza y registro académico" />
+                    accent="#dc2626" iconBg="var(--red-light)" iconColor="#dc2626" delay={120} />
                 <KpiCard icon={Award}         label="Becados"         value={kpi.becados}
-                    accent="#7c3aed" iconBg="#ede9fe" iconColor="#7c3aed" delay={180} confidence={96} provenance="Registro de becas" />
+                    accent="#7c3aed" iconBg="#ede9fe" iconColor="#7c3aed" delay={180} />
                 <KpiCard icon={UserMinus}     label="Retirados"       value={kpi.inactivos}
-                    accent="#6b7280" iconBg="var(--ash-light)" iconColor="#6b7280" delay={240} confidence={98} provenance="Registro académico" />
+                    accent="#6b7280" iconBg="var(--ash-light)" iconColor="#6b7280" delay={240} />
                 <KpiCard icon={TrendingUp}    label="Tasa BCV"        value={kpi.tasaBcv}
                     sub={today}
-                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={300} confidence={s.tasa_bcv > 0 ? 90 : 45} provenance="Tasa configurada del sistema" />
+                    accent="#4f6ef7" iconBg="var(--pb-light)" iconColor="#4f6ef7" delay={300} />
             </div>
 
             {/* ── Row 2: inscripciones (independiente del resto de este dashboard) ── */}
@@ -227,7 +215,7 @@ const Dashboard = () => {
 
                 {/* Estado financiero */}
                 <Card titulo="Estado financiero" className="flex flex-col anim-scale-in card-lift">
-                    <ChartHeader confidence={financialConfidence} updatedAt={updatedAt} action={<button onClick={() => navigate('/morosos')} className="text-[10px] font-semibold underline underline-offset-2" style={{ color: 'var(--pb)' }}>Ver detalle</button>} />
+                    <ChartHeader updatedAt={updatedAt} action={<button onClick={() => navigate('/morosos')} className="text-[10px] font-semibold underline underline-offset-2" style={{ color: 'var(--pb)' }}>Ver detalle</button>} />
                     <div className="flex justify-center flex-1 items-center">
                         <DonutChart data={financialData} size={180} thickness={30} />
                     </div>
@@ -236,7 +224,7 @@ const Dashboard = () => {
 
                 {/* Distribución por género */}
                 <Card titulo="Distribución por género" className="flex flex-col anim-scale-in card-lift">
-                    <ChartHeader confidence={genderConfidence} updatedAt={updatedAt} action={<button onClick={() => navigate('/alumnos')} className="text-[10px] font-semibold underline underline-offset-2" style={{ color: 'var(--pb)' }}>Explorar</button>} />
+                    <ChartHeader updatedAt={updatedAt} action={<button onClick={() => navigate('/alumnos')} className="text-[10px] font-semibold underline underline-offset-2" style={{ color: 'var(--pb)' }}>Explorar</button>} />
                     <div className="flex justify-center my-4">
                         <DonutChart data={genderData} size={180} thickness={30} label="estudiantes" />
                     </div>
@@ -256,7 +244,7 @@ const Dashboard = () => {
 
                 {/* Cobranza hoy */}
                 <Card titulo="Cobranza hoy" className="flex flex-col gap-3 anim-scale-in card-lift">
-                    <ChartHeader confidence={s.pagos_hoy_count > 0 ? 96 : 45} updatedAt={updatedAt} action={<button onClick={() => navigate('/cobranza/dashboard')} className="text-[10px] font-semibold underline underline-offset-2" style={{ color: 'var(--pb)' }}>Profundizar</button>} />
+                    <ChartHeader updatedAt={updatedAt} action={<button onClick={() => navigate('/cobranza/dashboard')} className="text-[10px] font-semibold underline underline-offset-2" style={{ color: 'var(--pb)' }}>Profundizar</button>} />
                     <CobranzaFila icon={DollarSign} label="Total USD cobrado" value={kpi.cobradoHoyUsd} color="#16a34a" bg="#dcfce7" />
                     <CobranzaFila icon={Wallet}     label="Total VES cobrado" value={kpi.cobradoHoyVes} color="#4f6ef7" bg="var(--pb-light)" />
                     <CobranzaFila icon={BookOpen}   label="Pagos procesados"  value={kpi.pagosHoyCount} color="#7c3aed" bg="#ede9fe" />
