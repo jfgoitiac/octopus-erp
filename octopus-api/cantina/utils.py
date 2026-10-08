@@ -67,6 +67,7 @@ def validar_datos_bancarios(metodo, referencia, numero_lote, banco_receptor, exc
             excluir_recarga_id=excluir_recarga_id,
             metodo_pago=metodo,
             banco_receptor_id=(banco_receptor.id if banco_receptor else None),
+            numero_lote=numero_lote_raw,
         )
         if duplicado:
             return {'referencia': (

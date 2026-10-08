@@ -784,7 +784,8 @@ class PagoCreateSerializer(serializers.Serializer):
             ref_normalizada = normalizar_referencia(ref_raw)
             metodo_item = pago_item['metodo_pago']
             banco_item_id = pago_item.get('banco_receptor_id')
-            clave_item = (ref_normalizada, metodo_item, banco_item_id)
+            lote_item = (pago_item.get('numero_lote') or '').strip() if metodo_item == 'punto_de_venta' else ''
+            clave_item = (ref_normalizada, metodo_item, banco_item_id, lote_item)
 
             # 1. Duplicate dentro de la misma solicitud (misma referencia + método + banco)
             if clave_item in referencias_en_esta_solicitud:
@@ -797,6 +798,7 @@ class PagoCreateSerializer(serializers.Serializer):
             # 2. Duplicate contra cobranza.Pago, portal.ComprobantePago o cantina.RecargaTarjeta
             duplicado = buscar_referencia_duplicada(
                 ref_normalizada, metodo_pago=metodo_item, banco_receptor_id=banco_item_id,
+                numero_lote=lote_item,
             )
             if duplicado:
                 raise serializers.ValidationError(
