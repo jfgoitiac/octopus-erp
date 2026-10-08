@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../utils/datepickerPortal';
-import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, Layers, List, CloudOff, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, CloudOff, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
 
 import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academico.service';
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
@@ -20,6 +20,8 @@ import FilaAlumno from '../../components/asistencia/FilaAlumno';
 import SkeletonFila from '../../components/asistencia/SkeletonFila';
 import PaseListaTarjetas from '../../components/asistencia/PaseListaTarjetas';
 import AvisoBorrador from '../../components/asistencia/AvisoBorrador';
+import SelectorVistaAsistencia from '../../components/asistencia/SelectorVistaAsistencia';
+import { useVistaAsistencia, VISTA } from '../../components/asistencia/useVistaAsistencia';
 import { Modal } from '../../components/ui/Modal';
 import TarjetaMaterial from '../../components/materiales/TarjetaMaterial';
 import ModalNuevoMaterial from '../../components/materiales/ModalNuevoMaterial';
@@ -34,13 +36,6 @@ const TABS = [
 ];
 
 const TAB_IDS = TABS.map(t => t.id);
-
-// Preferencia de vista del tab Asistencia ("tarjetas" | "lista"), por navegador.
-const VISTA_ASISTENCIA_KEY = 'docente_asistencia_vista';
-const VISTAS_ASISTENCIA = [
-  { id: 'tarjetas', label: 'Tarjetas', icon: Layers },
-  { id: 'lista', label: 'Lista', icon: List },
-];
 
 // Fecha del pase como botón compacto ("mié 7 oct ▾") para que entre en la
 // misma fila que Tarjetas|Lista en 360px. react-datepicker inyecta value/onClick.
@@ -60,14 +55,6 @@ const BotonFecha = forwardRef(function BotonFecha({ value, onClick }, ref) {
     </button>
   );
 });
-
-function leerVistaAsistencia() {
-  try {
-    return localStorage.getItem(VISTA_ASISTENCIA_KEY) === 'lista' ? 'lista' : 'tarjetas';
-  } catch {
-    return 'tarjetas';
-  }
-}
 
 const DocenteMateriaDetalle = () => {
   const { materiaId } = useParams();
@@ -211,12 +198,8 @@ const DocenteMateriaDetalle = () => {
     return resultado;
   };
 
-  const [vistaAsistencia, setVistaAsistencia] = useState(leerVistaAsistencia);
+  const [vistaAsistencia, cambiarVistaAsistencia] = useVistaAsistencia('docente_asistencia_vista');
   const barraAsistenciaRef = useRef(null);
-  const cambiarVistaAsistencia = (vista) => {
-    setVistaAsistencia(vista);
-    try { localStorage.setItem(VISTA_ASISTENCIA_KEY, vista); } catch { /* storage bloqueado: solo no se recuerda */ }
-  };
 
   // Protección de cambios sin guardar: salir, cambiar de pestaña o de fecha
   // queda en espera hasta que el docente decide en el modal. Los links del
@@ -359,25 +342,11 @@ const DocenteMateriaDetalle = () => {
         <div className="space-y-4">
           {/* Una sola fila también en 360px (como el boceto aprobado): son dos
               controles cortos. flex-wrap evita scroll horizontal si no cupieran. */}
-          <div ref={barraAsistenciaRef} className="flex scroll-mt-16 flex-wrap items-center justify-between gap-2">
-            <div role="group" aria-label="Vista de asistencia" className="inline-grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--ash-light)' }}>
-              {VISTAS_ASISTENCIA.map(({ id, label, icon: Icon }) => {
-                const activa = vistaAsistencia === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={activa}
-                    onClick={() => cambiarVistaAsistencia(id)}
-                    className={`flex min-h-[36px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-[background-color,color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--docente-primary)]/40 ${
-                      activa ? 'bg-white shadow-sm text-[var(--jet)]' : 'text-[var(--ash)] hover:text-[var(--jet)]'
-                    }`}
-                  >
-                    <Icon size={15} aria-hidden="true" /> {label}
-                  </button>
-                );
-              })}
-            </div>
+          <div
+            ref={barraAsistenciaRef}
+            className={`flex scroll-mt-16 flex-wrap items-center justify-between gap-2 ${vistaAsistencia === VISTA.TARJETAS ? 'mx-auto w-full max-w-md' : ''}`}
+          >
+            <SelectorVistaAsistencia vista={vistaAsistencia} onCambiar={cambiarVistaAsistencia} />
 
             <DatePicker
               selected={fechaAsistencia}
@@ -417,12 +386,13 @@ const DocenteMateriaDetalle = () => {
             />
           )}
 
-          {vistaAsistencia === 'tarjetas' ? (
+          {vistaAsistencia === VISTA.TARJETAS ? (
             <PaseListaTarjetas
               key={`${materia?.grado_seccion}-${format(fechaAsistencia, 'yyyy-MM-dd')}`}
               registros={registros}
               loading={loadingAsistencia || loadingMateria}
-              materia={materia}
+              titulo={materia?.nombre}
+              subtitulo={materia?.grado_seccion}
               fecha={fechaAsistencia}
               dirty={dirtyAsistencia}
               saving={savingAsistencia}

@@ -20,6 +20,11 @@ const DESTINO_SALIDA = {
   arriba: { '--pl-x1': '0px',   '--pl-y1': '-35%', '--pl-r1': '0deg' },
 };
 
+// Altura del modo pase para el layout del portal docente: header de 56px,
+// bottom nav de 57px en móvil y la barra Tarjetas|Lista + fecha (60px) arriba.
+// Otros layouts (panel administrativo) pasan la suya en `claseAltura`.
+const ALTURA_PORTAL_DOCENTE = 'h-[calc(100dvh-11.75rem)] sm:h-[calc(100dvh-9.75rem)]';
+
 // Origen abajo: al escalar, la tarjeta de atrás conserva el borde inferior y
 // asoma por debajo de la actual (6px y 12px), como un mazo.
 const MAZO_STYLE = { border: '0.5px solid var(--border-md)', boxShadow: '0 8px 24px -10px rgba(43,48,58,0.18)', transformOrigin: '50% 100%' };
@@ -32,7 +37,8 @@ const MAZO_STYLE = { border: '0.5px solid var(--border-md)', boxShadow: '0 8px 2
 const PaseListaTarjetas = ({
   registros,
   loading,
-  materia,
+  titulo,
+  subtitulo,
   fecha,
   dirty,
   saving,
@@ -41,6 +47,7 @@ const PaseListaTarjetas = ({
   onRestaurar,
   onGuardar,
   anclaScrollRef,
+  claseAltura = ALTURA_PORTAL_DOCENTE,
 }) => {
   const [fase, setFase] = useState('inicio');          // 'inicio' | 'pase' | 'rapido' | 'resumen'
   const [indice, setIndice] = useState(0);
@@ -235,7 +242,8 @@ const PaseListaTarjetas = ({
   } else if (fase === 'inicio') {
     contenido = (
       <InicioPaseLista
-        materia={materia}
+        titulo={titulo}
+        subtitulo={subtitulo}
         fecha={fecha}
         total={total}
         marcados={marcados}
@@ -260,7 +268,7 @@ const PaseListaTarjetas = ({
     );
   } else {
     contenido = (
-      <div className="flex h-[calc(100dvh-11.75rem)] min-h-[26rem] flex-col gap-3 sm:h-[calc(100dvh-9.75rem)] sm:max-h-[50rem]">
+      <div className={`flex min-h-[26rem] max-h-[50rem] flex-col gap-3 ${claseAltura}`}>
         <div className="mx-auto flex w-full max-w-md items-center gap-2">
           <div className="min-w-0 flex-1">
             <BarraProgresoLista registros={registros} indice={i} onIr={(idx) => irA(idx)} />
