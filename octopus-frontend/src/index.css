@@ -77,8 +77,12 @@ html { scroll-behavior: smooth; }
 
 /* Red de seguridad anti-desborde horizontal — no es la solución, es un
    respaldo. El contenedor culpable de cualquier desborde real debe
-   corregirse en su propio componente. */
-html, body { overflow-x: hidden; }
+   corregirse en su propio componente.
+   `clip` (no `hidden`): recorta igual pero no convierte a html/body en
+   contenedores de scroll, que rompían todo `position: sticky` de la app
+   (header del portal docente, botones fijos). `hidden` queda de respaldo
+   para navegadores sin soporte de `clip`. */
+html, body { overflow-x: hidden; overflow-x: clip; }
 
 /* Portal de representantes: una capa visual propia, alineada con el nivel
    de detalle del panel administrativo sin perder la marca de cada colegio. */
@@ -361,6 +365,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02","cv03","cv04","cv11";
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4, h5, h6 {
