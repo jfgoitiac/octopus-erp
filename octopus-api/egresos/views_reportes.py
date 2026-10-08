@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from finanzas.models import PresupuestoCategoria
+from .permissions import EsAdministradorODirector
 from .models import ConfiguracionEgresos, Egreso, RenglonEgreso
 from .reportes import (egresos_libro_compras, egresos_pagados, por_mes, rango_mes_actual,
                        sin_comprobante, sumar)
@@ -17,17 +18,6 @@ from .reportes import (egresos_libro_compras, egresos_pagados, por_mes, rango_me
 def formatear_monto(valor):
     """Contrato JSON monetario: Decimal, siempre con dos posiciones, nunca float."""
     return format(Decimal(valor or '0.00'), '.2f')
-
-
-class EsAdministradorODirector(permissions.BasePermission):
-    """No se reutiliza el permiso amplio que también admite sistemas."""
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        if request.user.is_superuser:
-            return True
-        perfil = getattr(request.user, 'perfil', None)
-        return bool(perfil and perfil.esta_activo and perfil.rol in ('administrador', 'director'))
 
 
 class BaseInformeView(APIView):
@@ -76,7 +66,8 @@ class TableroEgresosView(BaseInformeView):
             **sumar('monto_usd_pagado', 'monto_ves_pagado')).order_by('-monto_usd_pagado')[:5])
         proveedores = list(actual.values('proveedor_id', 'proveedor__razon_social').annotate(
             **sumar('monto_usd_pagado', 'monto_ves_pagado')).order_by('-monto_usd_pagado')[:5])
-        presupuestos = self._presupuestos(request.user, sede, actual_desde.year, actual_desde.month, actual)
+        comprometido = self._comprometido(request.user, sede)
+        presupuestos = self._presupuestos(request.user, sede, actual_desde.year, actual_desde.month, actual, comprometido)
         alertas = [p for p in presupuestos if p['porcentaje_usd'] >= Decimal('80') or p['porcentaje_ves'] >= Decimal('80')]
         return Response({
             'periodo': {'desde': str(actual_desde), 'hasta': str(actual_hasta)},
@@ -89,8 +80,8 @@ class TableroEgresosView(BaseInformeView):
             'top_proveedores': [dict(x, **self.dinero(x)) for x in proveedores],
             'presupuesto_consumido': presupuestos,
             'alertas_presupuesto': alertas,
-            # No existe modelo CxP en este checkout: no se infiere deuda desde Egreso.
-            'comprometido_pendiente': {'monto_usd': '0.00', 'monto_ves': '0.00'},
+            # Deuda abierta real de CxP (pendiente/parcial, no anulada) según sedes autorizadas.
+            'comprometido_pendiente': {'monto_usd': formatear_monto(comprometido['usd']), 'monto_ves': formatear_monto(comprometido['ves'])},
         })
 
     @staticmethod
@@ -101,7 +92,12 @@ class TableroEgresosView(BaseInformeView):
             resultado[moneda] = str(Decimal('0.00') if not base else ((actual[campo] - base) * Decimal('100') / base).quantize(Decimal('0.01')))
         return resultado
 
-    def _presupuestos(self, usuario, sede, anio, mes, gastos):
+    @staticmethod
+    def _comprometido(usuario, sede):
+        from cuentas_pagar.services import comprometido_abierto
+        return comprometido_abierto(usuario, sede)
+
+    def _presupuestos(self, usuario, sede, anio, mes, gastos, comprometido=None):
         from cobranza.permissions import filtrar_por_sede
         presupuestos = PresupuestoCategoria.objects.filter(anio=anio, mes=mes)
         presupuestos = filtrar_por_sede(usuario, presupuestos, campo='sede')
@@ -109,6 +105,8 @@ class TableroEgresosView(BaseInformeView):
             presupuestos = presupuestos.filter(sede_id=sede)
         gastos_categoria = gastos.values('categoria_id').annotate(**sumar('monto_usd_pagado', 'monto_ves_pagado'))
         gastos_por_categoria = {x['categoria_id']: x for x in gastos_categoria}
+        comprometido = comprometido if comprometido is not None else self._comprometido(usuario, sede)
+        por_categoria = comprometido['por_categoria']
         resultado = []
         # La suma y agrupación ocurren en DB; este bucle solo une dos conjuntos agregados.
         for p in presupuestos.select_related('categoria'):
@@ -119,7 +117,8 @@ class TableroEgresosView(BaseInformeView):
             porcentaje = Decimal('0.00') if not presupuesto else (consumo * Decimal('100') / presupuesto).quantize(Decimal('0.01'))
             resultado.append({'categoria_id': p.categoria_id, 'categoria': p.categoria.nombre, 'moneda_presupuesto': p.moneda,
                               'presupuesto': formatear_monto(presupuesto), 'pagado_usd': formatear_monto(usd), 'pagado_ves': formatear_monto(ves),
-                              'comprometido_usd': '0.00', 'comprometido_ves': '0.00',
+                              'comprometido_usd': formatear_monto(por_categoria.get(p.categoria_id, {}).get('usd')),
+                              'comprometido_ves': formatear_monto(por_categoria.get(p.categoria_id, {}).get('ves')),
                               'porcentaje_usd': porcentaje if p.moneda == 'USD' else Decimal('0.00'),
                               'porcentaje_ves': porcentaje if p.moneda == 'VES' else Decimal('0.00')})
         return resultado
@@ -131,6 +130,7 @@ class ReportesEgresosView(BaseInformeView):
         'por-sede': 'sede', 'comparativo-mensual': 'mensual', 'por-periodo': 'mensual',
         'ejecucion-presupuestaria': 'presupuesto', 'presupuesto': 'presupuesto',
         'libro-compras': 'libro', 'historial-articulos': 'articulos',
+        'impuestos': 'impuestos', 'retenciones': 'retenciones', 'variacion-precios': 'variacion',
     }
 
     def get(self, request, nombre):
@@ -143,10 +143,13 @@ class ReportesEgresosView(BaseInformeView):
         sede, desde, hasta, moneda = parametros
         if tipo == 'libro':
             return Response({'reporte': nombre, 'resultados': self.libro(egresos_libro_compras(request.user, sede, desde, hasta))})
+        if tipo in ('impuestos', 'retenciones'):
+            documentos = egresos_libro_compras(request.user, sede, desde, hasta)
+            return Response({'reporte': nombre, 'moneda': moneda, 'resultados': getattr(self, tipo)(documentos)})
         gastos = egresos_pagados(request.user, sede, desde, hasta)
         metodos = {'relacion': self.relacion, 'categoria': self.categoria, 'proveedor': self.proveedor,
                     'sede': self.sede, 'mensual': self.mensual, 'presupuesto': self.presupuesto,
-                    'articulos': self.articulos}
+                    'articulos': self.articulos, 'variacion': self.variacion}
         return Response({'reporte': nombre, 'moneda': moneda, 'resultados': metodos[tipo](gastos, request)})
 
     def relacion(self, qs, request):
@@ -203,3 +206,56 @@ class ReportesEgresosView(BaseInformeView):
              'monto_usd': formatear_monto(r.egreso.monto_usd_pagado), 'monto_ves': formatear_monto(r.egreso.monto_ves_pagado)}
             for r in renglones.select_related('egreso__proveedor').order_by('-egreso__fecha_egreso', '-id')
         ]
+
+
+    def impuestos(self, qs):
+        """IVA e IGTF por documento fiscal (pendientes y registrados, no anulados)."""
+        return [{
+            'id': e.id, 'fecha_emision': str(e.fecha_emision), 'estado': e.estado,
+            'proveedor': e.proveedor.razon_social, 'rif': e.proveedor.rif, 'sede_id': e.sede_id,
+            'numero_documento': e.numero_documento, 'moneda_original': e.moneda,
+            'subtotal': formatear_monto(e.subtotal),
+            'porcentaje_iva': formatear_monto(e.porcentaje_iva), 'iva': formatear_monto(e.monto_iva),
+            'igtf': formatear_monto(e.monto_igtf), 'total_documento': formatear_monto(e.total_documento),
+            'monto_usd': formatear_monto(e.monto_usd), 'monto_ves': formatear_monto(e.monto_ves),
+        } for e in qs.filter(Q(monto_iva__gt=0) | Q(monto_igtf__gt=0)).order_by('fecha_emision', 'id')]
+
+    def retenciones(self, qs):
+        """Retenciones de IVA e ISLR practicadas por documento fiscal."""
+        return [{
+            'id': e.id, 'fecha_emision': str(e.fecha_emision), 'estado': e.estado,
+            'proveedor': e.proveedor.razon_social, 'rif': e.proveedor.rif, 'sede_id': e.sede_id,
+            'numero_documento': e.numero_documento, 'moneda_original': e.moneda,
+            'porcentaje_retencion_iva': formatear_monto(e.porcentaje_retencion_iva),
+            'retencion_iva': formatear_monto(e.monto_retencion_iva),
+            'porcentaje_retencion_islr': formatear_monto(e.porcentaje_retencion_islr),
+            'retencion_islr': formatear_monto(e.monto_retencion_islr),
+            'total_documento': formatear_monto(e.total_documento),
+        } for e in qs.filter(Q(monto_retencion_iva__gt=0) | Q(monto_retencion_islr__gt=0)).order_by('fecha_emision', 'id')]
+
+    def variacion(self, qs, request):
+        """Variación del precio unitario por artículo entre su primera y última compra."""
+        umbral = (ConfiguracionEgresos.objects.filter(pk=1).values_list('umbral_alerta_variacion', flat=True).first()
+                  or Decimal('15.0000'))
+        renglones = (RenglonEgreso.objects.filter(egreso__in=qs, articulo__isnull=False)
+                     .select_related('articulo', 'egreso').order_by('egreso__fecha_egreso', 'id'))
+        articulo = request.query_params.get('articulo')
+        if articulo:
+            renglones = renglones.filter(articulo_id=articulo)
+        grupos = {}
+        for r in renglones:
+            grupos.setdefault(r.articulo_id, []).append(r)
+        resultado = []
+        for articulo_id, filas in grupos.items():
+            primero, ultimo = filas[0], filas[-1]
+            precios = [x.precio_unitario for x in filas]
+            base = primero.precio_unitario
+            pct = Decimal('0.00') if not base else ((ultimo.precio_unitario - base) * Decimal('100') / base).quantize(Decimal('0.01'))
+            resultado.append({
+                'articulo_id': articulo_id, 'articulo': primero.articulo.nombre, 'compras': len(filas),
+                'precio_inicial': formatear_monto(base), 'fecha_inicial': str(primero.egreso.fecha_egreso),
+                'precio_actual': formatear_monto(ultimo.precio_unitario), 'fecha_actual': str(ultimo.egreso.fecha_egreso),
+                'precio_minimo': formatear_monto(min(precios)), 'precio_maximo': formatear_monto(max(precios)),
+                'variacion_porcentaje': str(pct), 'supera_umbral': abs(pct) >= Decimal(umbral),
+            })
+        return sorted(resultado, key=lambda x: abs(Decimal(x['variacion_porcentaje'])), reverse=True)
