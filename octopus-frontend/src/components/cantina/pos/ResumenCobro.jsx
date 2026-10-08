@@ -39,7 +39,7 @@ export default function ResumenCobro({
   const creditoDisponible = saldoActual + limiteCredito;
 
   return (
-    <div className="space-y-3 rounded-xl p-4" style={{ border: '1.5px solid var(--pb, #0fa3b1)', background: 'var(--pb-light, #e6f7f9)' }}>
+    <div className="space-y-3 rounded-xl p-4" style={{ border: '1.5px solid var(--pb)', background: 'var(--pb-light)' }}>
       <div className="flex items-start gap-3">
         {foto ? (
           <img
@@ -55,7 +55,7 @@ export default function ResumenCobro({
             aria-label="Sin foto registrada"
           >
             <UserRound size={20} />
-            <span className="text-[9px] leading-none font-medium">SIN FOTO</span>
+            <span className="text-xs leading-none font-medium">SIN FOTO</span>
           </div>
         )}
 
@@ -71,7 +71,7 @@ export default function ResumenCobro({
           type="button"
           onClick={onCambiarTarjeta}
           className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
-          style={{ color: 'var(--pb-mid, #0c7a86)' }}
+          style={{ color: 'var(--pb-mid)' }}
         >
           <RotateCcw size={12} /> Cambiar
         </button>
@@ -79,21 +79,21 @@ export default function ResumenCobro({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
         <div className="rounded-lg px-3 py-2" style={{ background: '#fff' }}>
-          <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo actual</p>
-          <p className="font-semibold" style={{ color: saldoActual < 0 ? 'var(--red, #dc2626)' : 'var(--jet)' }}>
+          <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo actual</p>
+          <p className="font-semibold" style={{ color: saldoActual < 0 ? 'var(--red)' : 'var(--jet)' }}>
             ${saldoActual.toFixed(2)}
           </p>
         </div>
         <div className="rounded-lg px-3 py-2" style={{ background: '#fff' }}>
-          <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo después</p>
-          <p className="font-semibold" style={{ color: saldoDespues < 0 ? 'var(--red, #dc2626)' : 'var(--jet)' }}>
+          <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo después</p>
+          <p className="font-semibold" style={{ color: saldoDespues < 0 ? 'var(--red)' : 'var(--jet)' }}>
             ${saldoDespues.toFixed(2)}
           </p>
         </div>
       </div>
 
       {excedeLimite && (
-        <p className="flex items-start gap-1.5 text-sm font-medium rounded-lg px-3 py-2" style={{ color: 'var(--red, #dc2626)', background: '#fef2f2' }}>
+        <p className="flex items-start gap-1.5 text-sm font-medium rounded-lg px-3 py-2" style={{ color: 'var(--red)', background: '#fef2f2' }}>
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           Saldo insuficiente: el crédito disponible de este alumno es ${creditoDisponible.toFixed(2)} (límite ${limiteCredito.toFixed(2)}). No se puede cobrar esta venta con tarjeta.
         </p>
@@ -104,11 +104,11 @@ export default function ResumenCobro({
         // fusionan en UN solo paso de confirmación en vez de dos checkboxes
         // secuenciales — un solo check cubre ambas condiciones a la vez.
         <div className="space-y-2 rounded-lg px-3 py-2" style={{ background: '#fffbeb' }}>
-          <p className="flex items-start gap-1.5 text-sm font-medium" style={{ color: '#b45309' }}>
+          <p className="flex items-start gap-1.5 text-sm font-medium" style={{ color: 'var(--amber-ink)' }}>
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
             El saldo quedará en negativo (${saldoDespues.toFixed(2)}), dentro del crédito permitido. Confirma para continuar.
           </p>
-          <label className="flex items-center gap-2 text-sm" style={{ color: '#b45309' }}>
+          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--amber-ink)' }}>
             <input
               type="checkbox"
               checked={identidadConfirmada && confirmarSaldoNegativo}
@@ -127,7 +127,7 @@ export default function ResumenCobro({
             checked={identidadConfirmada}
             onChange={e => onCambiarIdentidadConfirmada(e.target.checked)}
           />
-          <CheckCircle2 size={14} style={{ color: 'var(--pb-mid, #0c7a86)' }} />
+          <CheckCircle2 size={14} style={{ color: 'var(--pb-mid)' }} />
           Confirmo que la foto/nombre coincide con el estudiante frente a mí.
         </label>
       )}

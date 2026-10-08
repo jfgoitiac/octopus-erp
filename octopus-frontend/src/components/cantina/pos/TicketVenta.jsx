@@ -65,7 +65,7 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
         ))}
       </div>
 
-      <div className="rounded-xl px-3 py-3 mb-4 space-y-1" style={{ background: 'var(--pb-light, #e6f7f9)' }}>
+      <div className="rounded-xl px-3 py-3 mb-4 space-y-1" style={{ background: 'var(--pb-light)' }}>
         <div className="flex justify-between font-semibold" style={{ color: 'var(--jet)' }}>
           <span>Total</span>
           <span>${Number(venta.total_usd).toFixed(2)}</span>

@@ -111,7 +111,7 @@ export default function RecargasPendientesList({ refreshSignal }) {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr style={{ background: 'var(--porcelain)' }}>
                 <th className="text-left px-4 py-2 font-medium" style={{ color: 'var(--ash)' }}>Alumno</th>
@@ -151,7 +151,7 @@ export default function RecargasPendientesList({ refreshSignal }) {
                           onClick={() => handleAprobar(r.id)}
                           disabled={procesando}
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 min-h-[36px]"
-                          style={{ background: '#16a34a' }}
+                          style={{ background: 'var(--green)' }}
                         >
                           {procesando ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                           Aprobar
@@ -160,7 +160,7 @@ export default function RecargasPendientesList({ refreshSignal }) {
                           onClick={() => handleRechazar(r.id)}
                           disabled={procesando}
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 min-h-[36px]"
-                          style={{ border: '0.5px solid #dc2626', color: '#dc2626' }}
+                          style={{ border: '0.5px solid #dc2626', color: 'var(--red)' }}
                         >
                           <XCircle size={12} />
                           Rechazar

@@ -48,11 +48,11 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
 
   return (
     <div>
-      <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+      <label htmlFor="buscadoralumnomanual-busqueda-manual-si-el-qr-no-" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
         Búsqueda manual (si el QR no lee)
       </label>
       <div className="flex gap-2">
-        <input
+        <input id="buscadoralumnomanual-busqueda-manual-si-el-qr-no-"
           type="text"
           disabled={disabled || buscando}
           value={valor}
@@ -68,7 +68,7 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
           onClick={buscar}
           disabled={disabled || buscando}
           className="px-4 rounded-xl text-sm font-medium text-white flex items-center gap-1.5 disabled:opacity-50 min-h-[44px]"
-          style={{ background: 'var(--pb, #0fa3b1)' }}
+          style={{ background: 'var(--pb)' }}
         >
           {buscando ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
           Buscar

@@ -42,9 +42,9 @@ export default function CarritoVenta({
     // Desde `lg` el POS tiene altura fija y la tarjeta scrollea por dentro;
     // debajo de `lg` la página scrollea. En ambos casos el pie con COBRAR es
     // sticky para que el botón de confirmar nunca quede fuera de alcance.
-    <div className="flex flex-col lg:h-full lg:overflow-y-auto rounded-2xl bg-white" style={{ border: '0.5px solid var(--border-md)' }}>
+    <div className="flex flex-col lg:h-full lg:overflow-y-auto rounded-2xl bg-[var(--surface)]" style={{ border: '0.5px solid var(--border-md)' }}>
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-        <ShoppingCart size={18} style={{ color: 'var(--pb, #0fa3b1)' }} />
+        <ShoppingCart size={18} style={{ color: 'var(--pb)' }} />
         <h2 className="font-semibold" style={{ color: 'var(--jet)' }}>Carrito</h2>
         <span className="ml-auto text-xs" style={{ color: 'var(--ash)' }}>
           {items.length} línea{items.length !== 1 ? 's' : ''}
@@ -91,7 +91,7 @@ export default function CarritoVenta({
                 type="button"
                 onClick={() => onQuitar(producto.id)}
                 className="shrink-0 p-1.5 rounded-lg"
-                style={{ color: 'var(--red, #dc2626)' }}
+                style={{ color: 'var(--red)' }}
                 aria-label={`Quitar ${producto.nombre} del carrito`}
               >
                 <Trash2 size={14} />
@@ -107,13 +107,13 @@ export default function CarritoVenta({
           <div className="text-right">
             <p
               className="font-bold"
-              style={{ fontSize: resaltarMoneda === 'usd' ? '1.35rem' : '1.05rem', color: resaltarMoneda === 'usd' ? 'var(--pb, #0fa3b1)' : 'var(--jet)' }}
+              style={{ fontSize: resaltarMoneda === 'usd' ? '1.35rem' : '1.05rem', color: resaltarMoneda === 'usd' ? 'var(--pb)' : 'var(--jet)' }}
             >
               ${totalUsd.toFixed(2)}
             </p>
             <p
               className="font-medium"
-              style={{ fontSize: resaltarMoneda === 'ves' ? '1.2rem' : '0.85rem', color: resaltarMoneda === 'ves' ? 'var(--pb, #0fa3b1)' : 'var(--ash)' }}
+              style={{ fontSize: resaltarMoneda === 'ves' ? '1.2rem' : '0.85rem', color: resaltarMoneda === 'ves' ? 'var(--pb)' : 'var(--ash)' }}
             >
               Bs. {totalVes.toFixed(2)}
             </p>
@@ -121,7 +121,7 @@ export default function CarritoVenta({
         </div>
 
         <div>
-          <p className="text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Método de pago</p>
+          <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Método de pago</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
             {METODOS.map(m => {
               const Icon = m.icon;
@@ -133,7 +133,7 @@ export default function CarritoVenta({
                   onClick={() => onCambiarMetodo(m.value)}
                   className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-medium min-h-[52px]"
                   style={activo
-                    ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' }
+                    ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' }
                     : { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
                 >
                   <Icon size={16} />
@@ -148,7 +148,7 @@ export default function CarritoVenta({
       </div>
 
       <div
-        className="sticky bottom-0 z-10 bg-white rounded-b-2xl px-4 py-3 space-y-2"
+        className="sticky bottom-0 z-10 bg-[var(--surface)] rounded-b-2xl px-4 py-3 space-y-2"
         style={{ borderTop: '0.5px solid var(--border-md)' }}
       >
         {cobrarDisabled && cobrarDisabledMotivo && (
@@ -160,7 +160,7 @@ export default function CarritoVenta({
           onClick={onCobrar}
           disabled={cobrarDisabled || cobrando}
           className="w-full text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2 min-h-[48px]"
-          style={{ background: 'var(--pb, #0fa3b1)' }}
+          style={{ background: 'var(--pb)' }}
         >
           {cobrando ? <><Loader2 size={16} className="animate-spin" /> Cobrando...</> : 'COBRAR'}
         </button>

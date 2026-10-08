@@ -57,7 +57,7 @@ const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, 
     >
       <div className="flex flex-col gap-4">
         <div>
-          <label htmlFor="cxc-limite" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cxc-limite" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Límite en USD
           </label>
           <input

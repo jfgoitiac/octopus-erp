@@ -10,7 +10,7 @@ const IDLE_STYLE  = { border: '0.5px solid var(--border-md)', color: 'var(--ash)
 const TIPOS = [
   { value: 'entrada', label: 'Entrada', icon: ArrowDownCircle, activeStyle: { background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '1.5px solid var(--pb)' } },
   { value: 'salida',  label: 'Salida',  icon: ArrowUpCircle,   activeStyle: { background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid var(--red)' } },
-  { value: 'ajuste',  label: 'Ajuste',  icon: Wrench,          activeStyle: { background: '#fef3c7', color: '#b45309', border: '1.5px solid #f59e0b' } },
+  { value: 'ajuste',  label: 'Ajuste',  icon: Wrench,          activeStyle: { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid #f59e0b' } },
 ];
 
 export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
@@ -81,8 +81,8 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Tipo de movimiento</label>
-          <div className="flex gap-2">
+          <span id="movimiento-tipo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Tipo de movimiento</span>
+          <div role="group" aria-labelledby="movimiento-tipo" className="flex gap-2">
             {TIPOS.map(t => {
               const Icon = t.icon;
               return (
@@ -103,8 +103,8 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Cantidad</label>
-          <input
+          <label htmlFor="movimientostockmodal-cantidad" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Cantidad</label>
+          <input id="movimientostockmodal-cantidad"
             type="number"
             min="1"
             step="1"
@@ -122,8 +122,8 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Motivo (opcional)</label>
-          <textarea
+          <label htmlFor="movimientostockmodal-motivo-opcional" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Motivo (opcional)</label>
+          <textarea id="movimientostockmodal-motivo-opcional"
             rows={2}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
             style={FIELD_STYLE}

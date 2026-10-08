@@ -84,7 +84,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
           onClick={handleConfirmar}
           disabled={reponiendo || !confirmado}
           className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
-          style={{ background: '#b45309' }}
+          style={{ background: 'var(--amber-ink)' }}
         >
           {reponiendo ? <><Loader2 size={14} className="animate-spin" /> Reponiendo...</> : 'Confirmar reposición'}
         </button>
@@ -98,7 +98,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
       onClose={handleClose}
       titulo={(
         <>
-          <ShieldAlert size={17} style={{ color: '#b45309' }} />
+          <ShieldAlert size={17} style={{ color: 'var(--amber-ink)' }} />
           Reponer tarjeta extraviada/dañada
         </>
       )}
@@ -107,11 +107,11 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
     >
       {!tarjeta ? (
         <div className="space-y-3">
-          <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
+          <label htmlFor="reponertarjetamodal-codigo-qr-o-serial-de-la-tar" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Código QR o serial de la tarjeta a reponer
           </label>
           <div className="flex gap-2">
-            <input
+            <input id="reponertarjetamodal-codigo-qr-o-serial-de-la-tar"
               autoFocus
               className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
@@ -130,7 +130,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
             </button>
           </div>
           {errorBusqueda && (
-            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red, #dc2626)' }}>
+            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
               <AlertTriangle size={14} /> {errorBusqueda}
             </p>
           )}
@@ -145,8 +145,8 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
           </p>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Motivo</label>
-            <div className="flex gap-2">
+            <span id="reponer-motivo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Motivo</span>
+            <div role="group" aria-labelledby="reponer-motivo" className="flex gap-2">
               {MOTIVOS.map(m => (
                 <button
                   key={m.value}
@@ -155,7 +155,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
                   onClick={() => setMotivo(m.value)}
                   className="flex-1 py-2.5 rounded-lg text-sm font-medium min-h-[44px]"
                   style={motivo === m.value
-                    ? { background: '#fef3c7', color: '#b45309', border: '1.5px solid #f59e0b' }
+                    ? { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid #f59e0b' }
                     : IDLE_STYLE}
                 >
                   {m.label}

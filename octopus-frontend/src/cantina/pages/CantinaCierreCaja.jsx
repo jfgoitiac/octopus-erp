@@ -134,7 +134,7 @@ export default function CantinaCierreCaja() {
 
   const yaCerrado = cierre?.ya_cerrado;
   const diferencia = yaCerrado ? parseFloat(cierre.diferencia || 0) : 0;
-  const diferenciaColor = diferencia < 0 ? 'var(--red, #dc2626)' : '#16a34a';
+  const diferenciaColor = diferencia < 0 ? 'var(--red)' : 'var(--green)';
 
   return (
     <div className="flex flex-col gap-6">
@@ -160,25 +160,25 @@ export default function CantinaCierreCaja() {
           style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
         >
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={20} style={{ color: '#16a34a' }} />
+            <CheckCircle2 size={20} style={{ color: 'var(--green)' }} />
             <h2 className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Caja cerrada</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
-              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Conteo físico</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Conteo físico</p>
               <p className="text-xl font-bold font-mono mt-1" style={{ color: 'var(--jet)' }}>
                 ${parseFloat(cierre.conteo_fisico || 0).toFixed(2)}
               </p>
             </div>
             <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
-              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Diferencia</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Diferencia</p>
               <p className="text-xl font-bold font-mono mt-1" style={{ color: diferenciaColor }}>
                 {diferencia > 0 ? '+' : ''}${diferencia.toFixed(2)}
               </p>
             </div>
             <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
-              <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Fecha de cierre</p>
+              <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Fecha de cierre</p>
               <p className="text-sm font-semibold mt-1.5" style={{ color: 'var(--jet)' }}>
                 {formatearFecha(cierre.cerrado_en)}
               </p>
@@ -187,7 +187,7 @@ export default function CantinaCierreCaja() {
 
           {cierre.observaciones && (
             <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
-              <p className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Observaciones</p>
+              <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Observaciones</p>
               <p className="text-sm" style={{ color: 'var(--jet)' }}>{cierre.observaciones}</p>
             </div>
           )}
@@ -201,10 +201,10 @@ export default function CantinaCierreCaja() {
           <h2 className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Registrar cierre</h2>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
-              Conteo físico de caja <span style={{ color: 'var(--red, #dc2626)' }}>*</span>
+            <label htmlFor="cantinacierrecaja-conteo-fisico-de-caja" className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
+              Conteo físico de caja <span style={{ color: 'var(--red)' }}>*</span>
             </label>
-            <input
+            <input id="cantinacierrecaja-conteo-fisico-de-caja"
               type="number"
               step="0.01"
               min="0"
@@ -218,10 +218,10 @@ export default function CantinaCierreCaja() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
+            <label htmlFor="cantinacierrecaja-observaciones-opcional" className="text-xs font-medium" style={{ color: 'var(--jet)' }}>
               Observaciones <span style={{ color: 'var(--ash)' }}>(opcional)</span>
             </label>
-            <textarea
+            <textarea id="cantinacierrecaja-observaciones-opcional"
               value={observaciones}
               onChange={e => setObservaciones(e.target.value)}
               rows={3}

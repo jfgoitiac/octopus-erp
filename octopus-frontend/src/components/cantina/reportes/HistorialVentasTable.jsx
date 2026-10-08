@@ -123,7 +123,7 @@ export default function HistorialVentasTable({ ventas = [] }) {
                         <Ban size={11} /> Anulada
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#dcfce7', color: '#15803d' }}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'var(--green-light)', color: '#15803d' }}>
                         Completada
                       </span>
                     )}

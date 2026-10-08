@@ -1,6 +1,7 @@
-import { forwardRef, useEffect } from 'react';
+import { forwardRef, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const SIZE_CLASSES = {
   sm: 'sm:max-w-md',
@@ -13,6 +14,23 @@ export const Modal = forwardRef(function Modal(
   { open, onClose, titulo, children, footer, size = 'md', className = 'z-50' },
   ref
 ) {
+  const tituloId = useId();
+  const internoRef = useRef(null);
+  const asignarRef = (nodo) => {
+    internoRef.current = nodo;
+    if (typeof ref === 'function') ref(nodo);
+    else if (ref) ref.current = nodo;
+  };
+
+  // Devuelve el foco al botón que abrió el modal (se declara antes del trap,
+  // para capturar el elemento activo antes de que el trap mueva el foco).
+  useEffect(() => {
+    if (!open) return;
+    const previo = document.activeElement;
+    return () => { if (previo instanceof HTMLElement && document.contains(previo)) previo.focus(); };
+  }, [open]);
+  useFocusTrap(internoRef, open);
+
   useEffect(() => {
     if (!open) return;
 
@@ -41,10 +59,10 @@ export const Modal = forwardRef(function Modal(
       onClick={onClose}
     >
       <div
-        ref={ref}
+        ref={asignarRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titulo ? 'modal-titulo' : undefined}
+        aria-labelledby={titulo ? tituloId : undefined}
         onClick={(e) => e.stopPropagation()}
         className={`w-full ${sizeClass} max-h-[100dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden`}
         style={{ background: 'var(--porcelain)' }}
@@ -54,11 +72,11 @@ export const Modal = forwardRef(function Modal(
             className="p-5 flex justify-between items-center shrink-0"
             style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--pb)', color: '#fff' }}
           >
-            <h3 id="modal-titulo" className="font-bold text-base flex items-center gap-2">
+            <h3 id={tituloId} className="font-bold text-base flex items-center gap-2">
               {titulo}
             </h3>
-            <button onClick={onClose} aria-label="Cerrar" style={{ color: '#fff' }}>
-              <X size={20} />
+            <button type="button" onClick={onClose} aria-label="Cerrar" className="w-11 h-11 -mr-2 flex items-center justify-center rounded-full hover:bg-white/10" style={{ color: '#fff' }}>
+              <X size={20} aria-hidden="true" />
             </button>
           </div>
         )}

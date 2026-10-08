@@ -90,20 +90,20 @@ export default function AjustarCreditoModal({ tarjeta, onClose, onAjustado }) {
       footer={footer}
       size="sm"
     >
-      <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2 mb-4" style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}>
+      <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2 mb-4" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
         <span>{nombreTarjeta}</span>
-        <span className="font-semibold" style={{ color: Number(tarjeta?.saldo) < 0 ? 'var(--red, #dc2626)' : 'var(--pb-mid, #0c7a86)' }}>
+        <span className="font-semibold" style={{ color: Number(tarjeta?.saldo) < 0 ? 'var(--red)' : 'var(--pb-mid)' }}>
           Saldo: ${Number(tarjeta?.saldo ?? 0).toFixed(2)}
         </span>
       </div>
 
       <div>
-        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+        <label htmlFor="ajustarcreditomodal-limite-de-credito-usd" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
           Límite de crédito (USD)
         </label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>$</span>
-          <input
+          <input id="ajustarcreditomodal-limite-de-credito-usd"
             type="number"
             min="0"
             step="0.01"

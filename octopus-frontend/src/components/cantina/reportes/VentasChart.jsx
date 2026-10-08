@@ -34,7 +34,7 @@ export default function VentasChart({ porDia = [] }) {
             formatter={(v, name) => name === 'total_usd' ? [`$${Number(v).toFixed(2)}`, 'Total'] : [v, 'Ventas']}
             labelFormatter={(label) => `Día ${label}`}
           />
-          <Bar dataKey="total_usd" radius={[6, 6, 0, 0]} fill="var(--pb, #0fa3b1)" barSize={28} />
+          <Bar dataKey="total_usd" radius={[6, 6, 0, 0]} fill="var(--pb)" barSize={28} />
         </BarChart>
       </ResponsiveContainer>
     </div>

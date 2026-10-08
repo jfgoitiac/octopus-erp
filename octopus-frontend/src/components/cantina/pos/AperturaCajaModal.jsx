@@ -6,7 +6,7 @@ import { Modal } from '../../ui/Modal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const LABEL_STYLE = { color: 'var(--ash)' };
-const ACTIVE_STYLE = { border: '2px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' };
+const ACTIVE_STYLE = { border: '2px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' };
 const IDLE_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' };
 
 // Dos cajas (D1/D2 del prompt CxC): el cajero elige el área AL ABRIR; la
@@ -91,7 +91,7 @@ export default function AperturaCajaModal({ onAbierta }) {
         </div>
 
         <div>
-          <span id="apertura-caja-area" className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</span>
+          <span id="apertura-caja-area" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</span>
           <div role="group" aria-labelledby="apertura-caja-area" className="grid grid-cols-2 gap-2">
             {AREAS.map(({ value, label, icon: Icon }) => (
               <button
@@ -111,7 +111,7 @@ export default function AperturaCajaModal({ onAbierta }) {
         </div>
 
         <div>
-          <label htmlFor="apertura-monto-inicial" className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+          <label htmlFor="apertura-monto-inicial" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
             Monto inicial de caja (USD)
           </label>
           <div className="relative">

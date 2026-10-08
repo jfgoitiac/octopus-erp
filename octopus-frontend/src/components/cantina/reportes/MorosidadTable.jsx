@@ -5,8 +5,8 @@ import { UserX, Phone, Mail, SlidersHorizontal } from 'lucide-react';
 function badgeDias(dias) {
   const rojo = Number(dias) > 3;
   return {
-    background: rojo ? 'var(--red-light, #fee2e2)' : '#fef3c7',
-    color: rojo ? 'var(--red, #dc2626)' : '#b45309',
+    background: rojo ? 'var(--red-light)' : 'var(--yellow-light)',
+    color: rojo ? 'var(--red)' : 'var(--amber-ink)',
   };
 }
 
@@ -91,7 +91,7 @@ export default function MorosidadTable({ resultados, cargando, onAjustarCredito 
                   )}
                 </div>
               </td>
-              <td className="px-4 py-3 font-semibold" style={{ color: 'var(--red, #dc2626)' }}>
+              <td className="px-4 py-3 font-semibold" style={{ color: 'var(--red)' }}>
                 ${Number(r.saldo ?? 0).toFixed(2)}
               </td>
               <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>${Number(r.limite_credito ?? 0).toFixed(2)}</td>

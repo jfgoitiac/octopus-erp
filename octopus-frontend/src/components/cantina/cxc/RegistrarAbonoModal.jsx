@@ -211,7 +211,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
         )}
       >
         <div className="flex flex-col items-center gap-2 text-center py-2">
-          <CheckCircle2 size={36} style={{ color: '#16a34a' }} />
+          <CheckCircle2 size={36} style={{ color: 'var(--green)' }} />
           <p className="text-sm" style={{ color: 'var(--jet)' }}>
             Se abonaron <strong>{fmtUsd(resultado.total)}</strong> a la cuenta de {nombre}.
           </p>
@@ -247,25 +247,25 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
         {/* Resumen deuda vs total en vivo */}
         <div className="rounded-xl p-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
           <div>
-            <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Deuda</p>
-            <p className="font-bold" style={{ color: saldo > 0 ? '#dc2626' : 'var(--jet)' }}>{fmtUsd(saldo)}</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Deuda</p>
+            <p className="font-bold" style={{ color: saldo > 0 ? 'var(--red)' : 'var(--jet)' }}>{fmtUsd(saldo)}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total del abono</p>
-            <p className="font-bold" style={{ color: excede ? '#dc2626' : 'var(--jet)' }}>{fmtUsd(totalUsd)}</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total del abono</p>
+            <p className="font-bold" style={{ color: excede ? 'var(--red)' : 'var(--jet)' }}>{fmtUsd(totalUsd)}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Quedaría</p>
+            <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Quedaría</p>
             <p className="font-bold" style={{ color: 'var(--jet)' }}>{fmtUsd(Math.max(restante, 0))}</p>
           </div>
         </div>
         {areaFiltrada && (
-          <p className="text-xs flex items-start gap-1" style={{ color: '#b45309' }}>
+          <p className="text-xs flex items-start gap-1" style={{ color: 'var(--amber-ink)' }}>
             <AlertTriangle size={12} className="mt-0.5 shrink-0" /> El abono se aplica a la deuda más antigua, sin importar el área.
           </p>
         )}
         {excede && (
-          <p className="text-xs flex items-center gap-1" style={{ color: '#dc2626' }}>
+          <p className="text-xs flex items-center gap-1" style={{ color: 'var(--red)' }}>
             <AlertTriangle size={12} /> El total supera la deuda; no se admite saldo a favor.
           </p>
         )}
@@ -280,9 +280,9 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
             {retro && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                  <span className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                     Fecha del pago
-                  </label>
+                  </span>
                   <DatePickerES
                     value={fecha}
                     onChange={cambiarFecha}
@@ -292,7 +292,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
                   />
                 </div>
                 <div>
-                  <label htmlFor="cxc-tasa-retro" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                  <label htmlFor="cxc-tasa-retro" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                     Tasa aplicada (Bs./$)
                   </label>
                   <input
@@ -306,18 +306,18 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
                     style={FIELD_STYLE}
                   />
                   {!exacta && fechaReal && tasaManual == null && (
-                    <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                    <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
                       Sin tasa ese día: se sugiere la del {fechaReal.split('-').reverse().join('/')}.
                     </p>
                   )}
                   {desviacionAlta && (
-                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: '#b45309' }}>
+                    <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--amber-ink)' }}>
                       <AlertTriangle size={11} /> Se desvía más de 20% de la tasa sugerida (Bs. {num(tasaSugerida).toFixed(2)}). Verifica que sea correcta.
                     </p>
                   )}
                 </div>
                 <div className="sm:col-span-2">
-                  <label htmlFor="cxc-motivo-retro" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                  <label htmlFor="cxc-motivo-retro" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                     Motivo (obligatorio)
                   </label>
                   <textarea
@@ -349,7 +349,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
                     : ''}
                 </span>
                 {lineas.length > 1 && (
-                  <button type="button" onClick={() => quitarLinea(l.key)} aria-label={`Quitar método ${i + 1}`} className="p-1.5 rounded-lg" style={{ color: '#dc2626' }}>
+                  <button type="button" onClick={() => quitarLinea(l.key)} aria-label={`Quitar método ${i + 1}`} className="p-1.5 rounded-lg" style={{ color: 'var(--red)' }}>
                     <Trash2 size={16} />
                   </button>
                 )}
