@@ -110,6 +110,18 @@ describe('PaseListaTarjetas', () => {
     expect(anuncio()).toBe('Alumno 1 de 3: Ana Pérez');
   });
 
+  it('la barra de progreso es un slider navegable con teclado', () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: /Comenzar/ }));
+    const slider = screen.getByRole('slider', { name: 'Ir a un alumno' });
+    expect(slider).toHaveAttribute('aria-valuetext', 'Alumno 1 de 3: Ana Pérez');
+
+    fireEvent.keyDown(slider, { key: 'End' });
+    expect(anuncio()).toBe('Alumno 3 de 3: Sofía Ruiz');
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+    expect(anuncio()).toBe('Alumno 2 de 3: Luis Gómez');
+  });
+
   it('el resumen sin pendientes lista las novedades editables', () => {
     render(<Harness inicial={[{ ...ROSTER[0], estado: ESTADO.PRESENTE }, { ...ROSTER[1], estado: ESTADO.PRESENTE }, { ...ROSTER[2], estado: ESTADO.AUSENTE }]} />);
     fireEvent.click(screen.getByRole('button', { name: /Ver resumen/ }));
