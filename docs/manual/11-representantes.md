@@ -4,7 +4,7 @@
 
 Es el banco de representantes: papás, mamás y tutores. Aquí registras sus datos,
 ves qué hijos tienen en el colegio, ajustas su cuota de Proyecto de Inversión y
-—lo más importante— les activas el acceso al Portal de Familias.
+—lo más importante— les activas el acceso al Portal de Representantes.
 
 ## Quién puede usarlo
 
@@ -104,7 +104,7 @@ Haz clic en **"Exportar a Excel"**. Verás **"Archivo Excel descargado."**.
 
 **Al activar el acceso al portal:**
 
-- Se crea la cuenta del representante en el Portal de Familias.
+- Se crea la cuenta del representante en el Portal de Representantes.
 - Su contraseña inicial es su cédula.
 - Queda marcado para cambiar la clave la primera vez que entre.
 - Si el colegio tiene las notificaciones activas, le llega un correo de

@@ -3,7 +3,7 @@
 ## Para qué sirve
 
 Publica avisos y circulares para todas las familias del colegio. La circular
-aparece en el Portal de Familias y, si lo indicas, el sistema lleva la cuenta de
+aparece en el Portal de Representantes y, si lo indicas, el sistema lleva la cuenta de
 quién la leyó.
 
 ## Quién puede usarlo

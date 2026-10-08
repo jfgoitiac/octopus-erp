@@ -235,7 +235,7 @@ tarjetas con saldo negativo en este filtro"**.
 - Si fue con tarjeta prepago, el saldo del alumno baja de inmediato.
 - El stock de cada producto vendido se descuenta.
 - Se genera el ticket.
-- El consumo aparece en el Portal de Familias, en la sección **"Cantina"**.
+- El consumo aparece en el Portal de Representantes, en la sección **"Cantina"**.
 
 **Al aprobar una recarga:** el saldo de la tarjeta sube al instante y el
 representante lo ve en su portal.
@@ -424,7 +424,7 @@ por cobrar y recargas de esa apertura.
 
 ## 18. Qué ve el representante en el portal
 
-En la sección **"Cantina"** del Portal de Familias, el representante ve en solo
+En la sección **"Cantina"** del Portal de Representantes, el representante ve en solo
 lectura su **cuenta de cantina y librería**: la deuda total y por caja, los
 consumos pendientes (con fecha y alumno) y sus últimos abonos. No puede pagar
 desde el portal; la deuda se cancela en la cantina o la librería. No se muestran

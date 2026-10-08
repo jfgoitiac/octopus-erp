@@ -130,7 +130,7 @@ Deuda"** en su fila, no los montos globales.
 
 ---
 
-## Portal de familias
+## Portal de representantes
 
 ### 19. Subí el comprobante y la deuda sigue apareciendo. ¿Falló?
 

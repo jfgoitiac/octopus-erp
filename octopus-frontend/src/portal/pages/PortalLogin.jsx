@@ -57,7 +57,7 @@ const PortalLogin = () => {
             onError={e => { e.target.src = logoColegioFallback; }}
           />
           <div className="text-center">
-            <h1 className="text-xl font-bold text-[var(--jet)]">Portal de Familias</h1>
+            <h1 className="text-xl font-bold text-[var(--jet)]">Portal de Representantes</h1>
             <p className="text-sm text-[var(--ash)] mt-1">Accede a la información de tu representado</p>
           </div>
         </div>

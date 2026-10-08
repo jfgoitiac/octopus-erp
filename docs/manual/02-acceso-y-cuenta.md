@@ -49,14 +49,14 @@ El sistema te lleva directo a tu pantalla de inicio según tu rol:
 
 ## 2. Entrar al portal (representantes)
 
-1. Abre la dirección `/portal/login`. Verás **"Portal de Familias"** y debajo
+1. Abre la dirección `/portal/login`. Verás **"Portal de Representantes"** y debajo
    **"Accede a la información de tu representado"**.
 2. En **"Cédula o correo electrónico"** escribe tu cédula con la letra y sin
    puntos (ejemplo: `V-12345678`) o tu correo.
 3. Escribe tu clave en **"Contraseña"**.
 4. Haz clic en **"Ingresar"**.
 
-[CAPTURA: pantalla "Portal de Familias" con los campos de cédula y contraseña y el enlace "¿Olvidaste tu contraseña?"]
+[CAPTURA: pantalla "Portal de Representantes" con los campos de cédula y contraseña y el enlace "¿Olvidaste tu contraseña?"]
 
 ### Primera vez que entras
 
@@ -130,7 +130,7 @@ pide a **Sistemas** o al **Director** que te la reinicie desde el módulo
 1. Haz clic en el círculo con tus iniciales, arriba a la derecha.
 2. Haz clic en **"Cerrar sesión"**.
 
-En el portal de familias y en el portal docente la opción está en el menú de tu
+En el portal de representantes y en el portal docente la opción está en el menú de tu
 perfil.
 
 ---
@@ -180,7 +180,7 @@ perfil.
 | Mensaje | Qué significa | Qué hacer |
 |---------|---------------|-----------|
 | "Usuario o contraseña incorrectos." | Los datos no coinciden. | Revisa mayúsculas. Si insiste, pide reinicio a Sistemas. |
-| "Credenciales incorrectas. Verifica tu cédula/correo y contraseña." | Igual, en el portal de familias. | Prueba con el correo en vez de la cédula. |
+| "Credenciales incorrectas. Verifica tu cédula/correo y contraseña." | Igual, en el portal de representantes. | Prueba con el correo en vez de la cédula. |
 | "Completa todos los campos" | Dejaste un campo vacío. | Llena los dos campos. |
 | "Debe cambiar su contraseña antes de continuar." | Tu clave todavía es la inicial. | Ve a "Cambiar contraseña". |
 | "La contraseña actual es incorrecta." | Escribiste mal la clave vieja. | Vuelve a intentar. |

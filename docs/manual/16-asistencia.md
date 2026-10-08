@@ -88,7 +88,7 @@ Verás **"Asistencia guardada correctamente."**.
 - Queda constancia de quién registró la asistencia.
 - Cada cambio se guarda en el historial, con el usuario y el valor anterior.
 - La asistencia se refleja en el indicador de asistencia que ve el representante
-  en el Portal de Familias.
+  en el Portal de Representantes.
 - No se envía ningún correo automático al guardar.
 
 ---

@@ -1,4 +1,4 @@
-# 31 · Portal de Representantes (Portal de Familias)
+# 31 · Portal de Representantes
 
 ## Para qué sirve
 

@@ -168,7 +168,7 @@ estás viendo.
 
 **Auditoría.** Bitácora de quién hizo qué, cuándo y desde qué computadora.
 
-**Portal de Familias.** La aplicación para representantes.
+**Portal de Representantes.** La aplicación para representantes.
 
 **Portal Docente.** La aplicación para maestros.
 

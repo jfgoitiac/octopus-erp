@@ -33,7 +33,7 @@ El título es **"Configuración del Sistema"**, y está dividida en bloques:
 | **"Tipos de Cargo"** | Cargos del personal |
 | **"Datos del Colegio"** | Nombre, dirección, teléfono, correo |
 | **"Logos del Recibo de Pago"** | Imágenes que salen en los recibos |
-| **"Personalización visual del portal"** | Colores del portal de familias |
+| **"Personalización visual del portal"** | Colores del portal de representantes |
 | **"Notificaciones"** | Estado de los canales, prueba e historial |
 
 [CAPTURA: pantalla "Configuración del Sistema" con los bloques de año escolar, inscripciones y control de cupos]
@@ -206,7 +206,7 @@ historial"* — muestra:
 | Dirección, Municipio, Estado | No | Texto | Ubicación del plantel |
 | Teléfono, Correo Electrónico | No | Texto | Contacto institucional |
 | Logo Colegio, Logo AVEC | No | Imagen | Se imprimen en los recibos |
-| Color Primario, Color Secundario | No | Color | Colores del portal de familias |
+| Color Primario, Color Secundario | No | Color | Colores del portal de representantes |
 | URL del Logo | No | Dirección web | Logo del portal |
 
 ---

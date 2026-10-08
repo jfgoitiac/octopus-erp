@@ -109,7 +109,7 @@ apareciendo en los boletines.
 
 - Las notas quedan guardadas y el sistema recalcula la definitiva de cada alumno.
 - Las notas se ven de inmediato en el [Boletín](15-boletin.md), en
-  [Rendimiento](05-rendimiento.md) y en el Portal de Familias, en la sección de
+  [Rendimiento](05-rendimiento.md) y en el Portal de Representantes, en la sección de
   rendimiento del representante.
 - **Cada cambio de nota queda registrado** con el usuario, la fecha y el valor
   anterior.
