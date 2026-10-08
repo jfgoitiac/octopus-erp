@@ -197,6 +197,7 @@ class AplazamientoCxP(models.Model):
 
 
 class ConfiguracionRecordatorios(models.Model):
+    # Configuración propia de Cuentas por Pagar, no configuración global.
     dias_antes = models.JSONField(default=dias_recordatorio_default)
     ventana_por_vencer = models.PositiveSmallIntegerField(default=7)
     frecuencia_vencidas_dias = models.PositiveSmallIntegerField(default=3)
@@ -208,6 +209,7 @@ class ConfiguracionRecordatorios(models.Model):
     usuarios_destino = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='configuraciones_recordatorios_cxp')
     roles_destino = models.JSONField(default=list, blank=True)
     resumen_diario_activo = models.BooleanField(default=False)
+    hora_recordatorios = models.TimeField(default=time(7, 30))
     hora_resumen = models.TimeField(default=time(7, 0))
     requiere_aprobacion_pago_grande = models.BooleanField(default=False)
     umbral_aprobacion_usd = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('150.00'))

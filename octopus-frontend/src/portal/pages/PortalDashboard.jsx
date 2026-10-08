@@ -12,6 +12,7 @@ import WidgetAccionesRapidas from '../components/widgets/WidgetAccionesRapidas';
 import WidgetResumenFinanciero from '../components/widgets/WidgetResumenFinanciero';
 import WidgetProximosVencimientos from '../components/widgets/WidgetProximosVencimientos';
 import WidgetUltimosPagos from '../components/widgets/WidgetUltimosPagos';
+import WidgetFamiliaHoy from '../components/widgets/WidgetFamiliaHoy';
 
 const PortalDashboard = () => {
   const { user } = useContext(PortalAuthContext);
@@ -72,6 +73,8 @@ const PortalDashboard = () => {
 
   return (
     <div className="space-y-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mi familia</p>
       {/* Selector de estudiantes */}
       {loading ? (
         <div className="flex gap-2">
@@ -85,6 +88,7 @@ const PortalDashboard = () => {
           onSelect={setAlumnoActivo}
         />
       )}
+      </div>
 
       {/* Con varios hijos la deuda suma a todos; el hijo seleccionado solo
           filtra los últimos pagos. */}
@@ -103,20 +107,22 @@ const PortalDashboard = () => {
           <WidgetHeroPortal
             nombre={user?.nombre}
             resumen={resumen}
-            avisosSinLeer={avisosSinLeer}
-            alertaRendimiento={alertaRendimiento}
             logoColegio={logoColegio}
             variosAlumnos={variosAlumnos}
             loadingResumen={loading}
-            loadingAvisos={loadingAvisos}
-            loadingRendimiento={loadingRendimiento}
           />
         </div>
 
         <div className="md:col-span-12">
+          {loading || loadingAvisos || loadingRendimiento ? <div className="h-28 rounded-2xl bg-slate-100 animate-pulse" /> : <WidgetFamiliaHoy deuda={Number(resumen?.total_deuda_usd || 0)} avisos={avisosSinLeer} alertas={alertaRendimiento} alumnoActivo={alumnoActivo} onPagar={handlePagarRapido} />}
+        </div>
+
+        <div className="md:col-span-12">
+          <p className="mb-2 px-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Acciones frecuentes</p>
           <WidgetAccionesRapidas onPagar={handlePagarRapido} />
         </div>
 
+        <div className="md:col-span-12"><p className="px-0.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Pagos y vencimientos</p></div>
         <div className="md:col-span-4">
           <WidgetResumenFinanciero
             resumen={resumen}

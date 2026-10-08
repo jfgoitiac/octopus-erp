@@ -209,10 +209,23 @@ def recalcular_mensualidades_impagas(alumno, periodo_escolar=None):
     Devuelve la cantidad de filas afectadas (actualizadas o eliminadas).
     """
     porcentaje = porcentaje_beca_vigente(alumno, periodo_escolar)
-    impagas = Mensualidad.objects.filter(alumno=alumno, pagado=False)
+    # La beca solo puede alterar mensualidades del período que cubre. Antes
+    # se tomaban todas las impagas del alumno: otorgar una beca vigente podía
+    # borrar deuda pendiente de otro año escolar.
+    config = configuracion_activa()
+    rango = rango_ano_escolar(config)
+    impagas = list(Mensualidad.objects.filter(alumno=alumno, pagado=False))
+    if rango:
+        fecha_inicio, fecha_fin = rango
+        inicio = (fecha_inicio.year, fecha_inicio.month)
+        fin = (fecha_fin.year, fecha_fin.month)
+        impagas = [m for m in impagas if inicio <= (m.anio, m.mes) <= fin]
 
     if porcentaje >= 100:
-        total, _ = impagas.delete()
+        ids = [m.pk for m in impagas]
+        if not ids:
+            return 0
+        total, _ = Mensualidad.objects.filter(pk__in=ids).delete()
         return total
 
     actualizadas = 0

@@ -94,8 +94,8 @@ export default function BecasTab() {
                                 <tr key={beca.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
                                     <td className="px-5 py-3.5 text-sm font-medium" style={{ color: 'var(--jet)' }}>{beca.alumno_nombre}</td>
                                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--jet)' }}>{beca.periodo_escolar}</td>
-                                    <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>{TIPO_LABELS[beca.tipo] || beca.tipo}</td>
-                                    <td className="px-5 py-3.5 text-sm font-semibold" style={{ color: 'var(--pb)' }}>{beca.porcentaje}%</td>
+                                    <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>Beca total</td>
+                                    <td className="px-5 py-3.5 text-sm font-semibold" style={{ color: 'var(--pb)' }}>100%</td>
                                     <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>
                                         {fechaCorta(beca.fecha_desde)} — {fechaCorta(beca.fecha_hasta)}
                                     </td>

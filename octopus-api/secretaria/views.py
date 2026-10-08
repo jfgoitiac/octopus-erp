@@ -2004,7 +2004,34 @@ class BecaViewSet(
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(otorgada_por=self.request.user, estado='activa')
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+
+        config = ConfiguracionSistema.objects.first()
+        if not config or not config.periodo_escolar_activo or not config.fecha_inicio_ano_escolar or not config.fecha_fin_ano_escolar:
+            raise DRFValidationError(
+                'Configure primero el período escolar activo para otorgar una beca.'
+            )
+        if Beca.objects.filter(
+            alumno=serializer.validated_data['alumno'],
+            periodo_escolar=config.periodo_escolar_activo,
+            estado='activa',
+        ).exists():
+            raise DRFValidationError(
+                'El alumno ya tiene una beca total activa para el período escolar actual.'
+            )
+
+        # Regla de producto: el listado de becados contiene exclusivamente
+        # becas completas. El porcentaje, tipo y vigencia no se reciben del
+        # cliente para impedir que reaparezca una beca parcial o ambigua.
+        serializer.save(
+            otorgada_por=self.request.user,
+            estado='activa',
+            periodo_escolar=config.periodo_escolar_activo,
+            tipo='otra',
+            porcentaje=100,
+            fecha_desde=config.fecha_inicio_ano_escolar,
+            fecha_hasta=config.fecha_fin_ano_escolar,
+        )
 
     def perform_update(self, serializer):
         from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -2013,6 +2040,8 @@ class BecaViewSet(
         # crea una beca nueva, dejando intacto el historial de la revocada.
         if serializer.instance.estado != 'activa':
             raise DRFValidationError('No se puede editar una beca revocada. Cree una nueva.')
+        # Solo se permite corregir la justificación o el documento de una
+        # beca vigente; la cobertura completa y el período no son editables.
         serializer.save()
 
     @action(detail=True, methods=['post'])

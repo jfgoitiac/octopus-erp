@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     'constancias.apps.ConstanciasConfig',
     'finanzas.apps.FinanzasConfig',
     'egresos.apps.EgresosConfig',
+    'cuentas_pagar.apps.CuentasPagarConfig',
 
 ]
 
@@ -354,6 +355,18 @@ CELERY_BEAT_SCHEDULE = {
     'respaldo-diario-bd': {
         'task': 'usuarios.tasks.respaldo_diario_automatico',
         'schedule': crontab(hour=3, minute=0),
+    },
+    'generar-cuentas-recurrentes': {
+        'task': 'cuentas_pagar.tasks.generar_cuentas_recurrentes',
+        'schedule': crontab(hour=0, minute=15),
+    },
+    'enviar-recordatorios-cxp': {
+        'task': 'cuentas_pagar.tasks.enviar_recordatorios_cxp',
+        'schedule': crontab(hour=7, minute=30),
+    },
+    'enviar-resumen-cxp': {
+        'task': 'cuentas_pagar.tasks.enviar_resumen_cxp',
+        'schedule': crontab(hour=7, minute=0),
     },
 }
 # ── Fin Celery Beat ────────────────────────────────────────────────────────────

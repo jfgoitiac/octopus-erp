@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/cobranza/', include('cobranza.urls')),
     path('api/finanzas/', include('finanzas.urls')),
     path('api/egresos/', include('egresos.urls')),
+    path('api/cuentas-pagar/', include('cuentas_pagar.urls')),
     path('api/nomina/', include('nomina.urls')),
     path('api/rrhh/', include('rrhh.urls')),
     path('api/constancias/', include('constancias.urls')),

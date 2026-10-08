@@ -28,6 +28,10 @@ class BecaSerializer(serializers.ModelSerializer):
             'revocada_por', 'revocada_por_nombre', 'fecha_revocacion', 'motivo_revocacion',
         ]
         read_only_fields = [
+            # Una beca del sistema siempre es total y cubre el período escolar
+            # activo. Estos valores los fija el ViewSet al otorgarla para que
+            # no exista una segunda vía (o una beca parcial) desde el cliente.
+            'periodo_escolar', 'tipo', 'porcentaje', 'fecha_desde', 'fecha_hasta',
             'estado', 'otorgada_por', 'fecha_otorgamiento',
             'revocada_por', 'fecha_revocacion', 'motivo_revocacion',
         ]
@@ -301,6 +305,10 @@ class AlumnoSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSerialize
     class Meta:
         model  = Alumno
         fields = '__all__'
+        # La beca se concede exclusivamente mediante BecaViewSet. Estos dos
+        # campos se conservan como caché para el código heredado, pero nunca
+        # deben poder modificarse desde el formulario del alumno.
+        read_only_fields = ['porcentaje_beca', 'estatus_financiero']
 
     def _periodo_activo(self):
         """Cachea ConfiguracionSistema.objects.first() en la instancia del serializer
@@ -435,6 +443,7 @@ class AlumnoUpdateSerializer(NormalizaFechaNacimientoMixin, serializers.ModelSer
             'grado_seccion':     {'allow_null': True, 'allow_blank': True, 'required': False},
             'fecha_nacimiento':  {'allow_null': True, 'required': False},
         }
+        read_only_fields = ['porcentaje_beca', 'estatus_financiero']
 
     def update(self, instance, validated_data):
         representante_data = validated_data.pop('representante', None)

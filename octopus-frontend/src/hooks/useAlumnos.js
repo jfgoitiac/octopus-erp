@@ -6,7 +6,6 @@ import { cedulaParaEditar } from '../utils/cedulaEscolar';
 
 const INITIAL_REGISTER_FORM = {
     nombre: '', apellido: '', cedula_escolar: '', fecha_nacimiento: '', genero: 'masculino',
-    porcentaje_beca: 0,
     parentesco: '',
     direccion: '',
     lugar_nacimiento: '', pais_nacimiento: 'Venezuela', estado_nacimiento: '',
@@ -17,7 +16,7 @@ const INITIAL_REGISTER_FORM = {
 
 const INITIAL_EDIT_FORM = {
     id: '', nombre: '', apellido: '', cedula_escolar: '', grado_seccion: '',
-    fecha_nacimiento: '', estatus_financiero: '', porcentaje_beca: '', genero: '',
+    fecha_nacimiento: '', estatus_financiero: '', genero: '',
     monto_solvencia: '0.00',
     concepto_solvencia: '',
     monto_proyecto_inversion: '0.00',
@@ -333,7 +332,6 @@ export function useAlumnos() {
                 cedula_escolar: registerForm.cedula_escolar.trim() || null,
                 fecha_nacimiento: registerForm.fecha_nacimiento || null,
                 genero: registerForm.genero,
-                porcentaje_beca: Number(registerForm.porcentaje_beca) || 0,
                 parentesco: registerForm.parentesco || '',
                 direccion: registerForm.direccion || '',
                 lugar_nacimiento: registerForm.lugar_nacimiento || '',
@@ -383,7 +381,6 @@ export function useAlumnos() {
                     fecha_nacimiento: d.fecha_nacimiento || '',
                     genero: d.genero || '',
                     estatus_financiero: d.estatus_financiero || 'solvente',
-                    porcentaje_beca: d.porcentaje_beca || 0,
                     // El backend responde '0.00' tanto si no hay cuota de solvencia registrada
                     // como si la hay con monto 0 explícito. Para alumnos sin solvencia definida
                     // se precarga en 0 (la mayoría está solvente); el flag solvencia_definida
@@ -439,7 +436,6 @@ export function useAlumnos() {
                 fecha_nacimiento: editForm.fecha_nacimiento || null,
                 genero: editForm.genero,
                 estatus_financiero: editForm.estatus_financiero,
-                porcentaje_beca: Number(editForm.porcentaje_beca) || 0,
                 monto_solvencia: Number(editForm.monto_solvencia) || 0,
                 concepto_solvencia: editForm.concepto_solvencia?.trim() || '',
                 parentesco: editForm.parentesco?.trim() || '',

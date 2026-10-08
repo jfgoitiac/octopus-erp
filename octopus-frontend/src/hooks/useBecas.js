@@ -7,11 +7,6 @@ const normalizeList = (data) =>
 
 const FORM_INICIAL = {
     alumno: null,
-    periodo_escolar: '',
-    tipo: 'academica',
-    porcentaje: '',
-    fecha_desde: '',
-    fecha_hasta: '',
     motivo: '',
     documento_adjunto: null,
 };
@@ -89,11 +84,6 @@ export function useBecas() {
         setBecaEditando(beca);
         setBecaForm({
             alumno: { id: beca.alumno, nombre: beca.alumno_nombre },
-            periodo_escolar: beca.periodo_escolar,
-            tipo: beca.tipo,
-            porcentaje: beca.porcentaje,
-            fecha_desde: beca.fecha_desde,
-            fecha_hasta: beca.fecha_hasta,
             motivo: beca.motivo || '',
             documento_adjunto: null,
         });
@@ -107,29 +97,10 @@ export function useBecas() {
             toast.error('Seleccione un alumno.');
             return;
         }
-        if (!becaForm.periodo_escolar.trim()) {
-            toast.error('El período escolar es requerido.');
-            return;
-        }
-        const porcentaje = Number(becaForm.porcentaje);
-        if (!porcentaje || porcentaje < 1 || porcentaje > 100) {
-            toast.error('El porcentaje debe estar entre 1 y 100.');
-            return;
-        }
-        if (!becaForm.fecha_desde || !becaForm.fecha_hasta) {
-            toast.error('Indique la vigencia de la beca.');
-            return;
-        }
-
         setBecaSaving(true);
         try {
             const formData = new FormData();
             formData.append('alumno', becaForm.alumno.id);
-            formData.append('periodo_escolar', becaForm.periodo_escolar.trim());
-            formData.append('tipo', becaForm.tipo);
-            formData.append('porcentaje', porcentaje);
-            formData.append('fecha_desde', becaForm.fecha_desde);
-            formData.append('fecha_hasta', becaForm.fecha_hasta);
             formData.append('motivo', becaForm.motivo || '');
             if (becaForm.documento_adjunto) {
                 formData.append('documento_adjunto', becaForm.documento_adjunto);

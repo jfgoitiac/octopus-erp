@@ -133,6 +133,14 @@ Para revisar los *procesos* systemd en el servidor sin reiniciarlos:
   CELERY_BROKER_URL       URL de Redis               redis://localhost:6379/0
   CELERY_RESULT_BACKEND   Backend de resultados      redis://localhost:6379/0
 
+## Tareas de Cuentas por Pagar
+
+Celery Beat programa `cuentas_pagar.tasks.generar_cuentas_recurrentes` a las
+00:15, `enviar_recordatorios_cxp` a las 07:30 y `enviar_resumen_cxp` a las
+07:00. Para dispararlas manualmente desde `octopus-api`:
+
+  python manage.py shell -c "from cuentas_pagar.tasks import generar_cuentas_recurrentes; generar_cuentas_recurrentes()"
+
 ## Nota sobre config/celery.py
 
 config/celery.py es la unica instancia de Celery del proyecto (usa

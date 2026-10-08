@@ -545,6 +545,16 @@ button, a {
   .pl-entrar-atras { animation: plFade 120ms ease-out; }
 }
 
+/* Dashboard: a single, restrained cue for a newly refreshed assisted insight. */
+@keyframes dashboardInsightPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79, 110, 247, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(79, 110, 247, .14); }
+}
+.dashboard-insight-new { animation: fadeScale 220ms cubic-bezier(.16, 1, .3, 1) both, dashboardInsightPulse 1.4s ease 280ms 2; }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-insight-new { animation: none; }
+}
+
 /* ── Card hover lift ── */
 .card-lift {
   transition: box-shadow 0.22s ease, transform 0.22s ease;

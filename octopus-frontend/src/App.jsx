@@ -53,6 +53,14 @@ const EgresoDetalle            = lazy(() => import('./pages/EgresoDetalle'));
 const ReportesEgresos          = lazy(() => import('./pages/ReportesEgresos'));
 const TableroEgresos           = lazy(() => import('./pages/TableroEgresos'));
 const Proveedores              = lazy(() => import('./pages/Proveedores'));
+const CuentasPorPagar          = lazy(() => import('./pages/CuentasPorPagar'));
+const CuentaPorPagarForm       = lazy(() => import('./pages/CuentaPorPagarForm'));
+const CuentaPorPagarDetalle    = lazy(() => import('./pages/CuentaPorPagarDetalle'));
+const TableroCuentasPorPagar   = lazy(() => import('./pages/TableroCuentasPorPagar'));
+const CalendarioPagos          = lazy(() => import('./pages/CalendarioPagos'));
+const ReportesCuentasPorPagar  = lazy(() => import('./pages/ReportesCuentasPorPagar'));
+const PlantillasRecurrentes    = lazy(() => import('./pages/PlantillasRecurrentes'));
+const ConfiguracionRecordatorios = lazy(() => import('./pages/ConfiguracionRecordatorios'));
 const Conciliador              = lazy(() => import('./pages/Conciliador'));
 const Auditoria                = lazy(() => import('./pages/Auditoria'));
 const Configuracion            = lazy(() => import('./pages/Configuracion'));
@@ -324,6 +332,14 @@ function App() {
                   <Proveedores />
                 </ProtectedRoute>
               } />
+              <Route path="cuentas-por-pagar" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><CuentasPorPagar /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/nueva" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.CAJERO]}><CuentaPorPagarForm /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/tablero" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><TableroCuentasPorPagar /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/calendario" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><CalendarioPagos /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/reportes" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><ReportesCuentasPorPagar /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/recurrentes" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><PlantillasRecurrentes /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/configuracion" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><ConfiguracionRecordatorios /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/:id" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><CuentaPorPagarDetalle /></ProtectedRoute>} />
 
               {/* Constancias */}
               <Route path="constancias/plantillas" element={

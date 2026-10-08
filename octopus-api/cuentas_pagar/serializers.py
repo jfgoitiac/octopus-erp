@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CuentaPorPagar, PagoCuentaPagar, ComprobantePagoCxP, CuotaCuentaPagar
+from .models import CuentaPorPagar, PagoCuentaPagar, ComprobantePagoCxP, CuotaCuentaPagar, PlantillaRecurrente, ConfiguracionRecordatorios
 from .validators import validar_comprobante
 from .services import situacion
 
@@ -25,4 +25,10 @@ class CuentaSerializer(serializers.ModelSerializer):
     def get_situacion(self,obj): return situacion(obj)
 
 class CuotaSerializer(serializers.ModelSerializer):
-    class Meta: model=CuotaCuentaPagar; fields=('id','numero','fecha_vencimiento','monto','pagado','estado')
+        class Meta: model=CuotaCuentaPagar; fields=('id','numero','fecha_vencimiento','monto','pagado','estado')
+
+class PlantillaRecurrenteSerializer(serializers.ModelSerializer):
+    class Meta: model=PlantillaRecurrente; fields='__all__'; read_only_fields=('creado_por','creado_en','actualizado_en')
+
+class ConfiguracionRecordatoriosSerializer(serializers.ModelSerializer):
+    class Meta: model=ConfiguracionRecordatorios; fields='__all__'; read_only_fields=('actualizado_por','actualizado_en')

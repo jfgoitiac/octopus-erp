@@ -3996,3 +3996,10 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 4. **Lint preexistente en `src/context/BrandingContext.jsx`**: 2 errores
    (`react-hooks/set-state-in-effect` en el fetch del efecto y
    `react-refresh/only-export-components` por exportar `useBranding`).
+
+## Cuentas por Pagar (07/10/2026)
+
+1. **Lint global preexistente**: `npm run lint` reporta 191 errores fuera del
+   módulo Cuentas por Pagar, repartidos principalmente entre Cantina, Portal y
+   utilidades históricas. El lint focal de CxP está limpio; esta deuda no se
+   corrigió para no modificar módulos ajenos.

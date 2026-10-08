@@ -21,14 +21,25 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false })
 
   if (!resumen?.proximos_vencimientos?.length) return null;
 
+  const vencimientos = resumen.proximos_vencimientos;
+  const totalProximo = vencimientos.reduce((total, mensualidad) => total + Number(mensualidad.monto_total ?? mensualidad.monto_usd ?? 0), 0);
+  const siguienteFecha = vencimientos.map(m => m.fecha_vencimiento).filter(Boolean).sort()[0];
+
   return (
     <section className="portal-card portal-card--soft p-5 h-full">
       <div className="flex items-center gap-2 mb-3">
         <CalendarDays size={16} className="text-[var(--portal-primary,#0fa3b1)]" />
         <h2 className="text-sm font-semibold text-gray-700">Próximos vencimientos</h2>
       </div>
-      <div className="space-y-2">
-        {resumen.proximos_vencimientos.map((m) => (
+      {variosAlumnos ? (
+        <div className="rounded-xl bg-white px-3 py-3">
+          <p className="text-sm font-medium text-gray-700">Próximas mensualidades de toda la familia</p>
+          <p className="mt-1 text-xs text-gray-500">Un monto único para {vencimientos.length} mensualidad{vencimientos.length === 1 ? '' : 'es'} de tus hijos.</p>
+          <MontoRef usd={totalProximo} tasaBcv={resumen.tasa_bcv} className="mt-2" />
+          {siguienteFecha && <p className="mt-1 text-xs text-gray-400">Próximo vencimiento: {formatFecha(siguienteFecha)}</p>}
+        </div>
+      ) : <div className="space-y-2">
+        {vencimientos.map((m) => (
           <div key={m.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-700">{m.mes_nombre} {m.anio}</p>
@@ -42,7 +53,7 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false })
             <MontoRef usd={m.monto_usd} tasaBcv={resumen.tasa_bcv} className="flex-shrink-0" />
           </div>
         ))}
-      </div>
+      </div>}
       <NotaTasaBcv tasaBcv={resumen.tasa_bcv} className="mt-3" />
     </section>
   );

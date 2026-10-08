@@ -14,8 +14,8 @@ const DesktopRail = () => {
   const { nombre_colegio: nombreColegio, logo_url: logoColegio } = useConfigColegio();
 
   return (
-  <nav className="hidden md:flex fixed left-0 top-0 bottom-0 w-20 flex-col items-center bg-white border-r border-gray-100 py-4 z-20">
-    <div className="mb-6" style={{ color: 'var(--docente-primary)' }}>
+  <nav className="group hidden md:flex fixed left-0 top-0 bottom-0 w-20 hover:w-60 flex-col bg-white border-r border-gray-100 py-4 z-20 transition-[width] duration-200 overflow-hidden shadow-sm">
+    <div className="mb-6 px-[27px] flex items-center gap-3 whitespace-nowrap" style={{ color: 'var(--docente-primary)' }}>
       {logoColegio ? (
         <img
           src={logoColegio}
@@ -26,21 +26,25 @@ const DesktopRail = () => {
       ) : (
         <GraduationCap size={26} />
       )}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 min-w-0">
+        <p className="text-xs font-bold text-gray-800 truncate">{nombreColegio || 'Portal Docente'}</p>
+        <p className="text-[10px] text-gray-400">Área académica</p>
+      </div>
     </div>
-    <div className="flex flex-col items-center gap-2 w-full">
+    <div className="flex flex-col items-center gap-2 w-full px-2">
       {ITEMS.map(({ to, end, icon: Icon, label }) => (
         <NavLink
           key={to}
           to={to}
           end={end}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 py-2.5 px-2 w-16 rounded-xl transition-colors ${
+            `flex items-center gap-3 py-2.5 px-3 w-full rounded-xl transition-colors ${
               isActive ? 'bg-[var(--docente-primary)]/10 text-[var(--docente-primary)]' : 'text-gray-400 hover:text-gray-600'
             }`
           }
-        >
-          <Icon size={20} />
-          <span className="text-[10px] font-medium">{label}</span>
+          >
+            <Icon size={20} />
+          <span className="text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">{label}</span>
         </NavLink>
       ))}
     </div>
