@@ -1,5 +1,6 @@
 import { memo, useRef, useState } from 'react';
 import { CONFIGS_ESTADO } from '../../constants/asistencia';
+import { nombreLegible } from './paseLista.utils';
 
 /**
  * Progreso del pase de lista: un segmento por alumno, coloreado según su
@@ -74,7 +75,7 @@ const BarraProgresoLista = memo(function BarraProgresoLista({ registros, indice,
         aria-valuemin={1}
         aria-valuemax={total}
         aria-valuenow={indice + 1}
-        aria-valuetext={`Alumno ${indice + 1} de ${total}: ${actual?.alumno_nombre || 'sin nombre'}`}
+        aria-valuetext={`Alumno ${indice + 1} de ${total}: ${nombreLegible(actual?.alumno_nombre) || 'sin nombre'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -104,7 +105,7 @@ const BarraProgresoLista = memo(function BarraProgresoLista({ registros, indice,
             className="pointer-events-none absolute bottom-full z-30 mb-1 max-w-[80%] truncate rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg"
             style={{ left: `${pct}%`, transform: `translateX(-${pct}%)`, background: 'var(--jet)' }}
           >
-            {alumnoArrastre.numero_lista ?? arrastre + 1}. {alumnoArrastre.alumno_nombre}
+            {alumnoArrastre.numero_lista ?? arrastre + 1}. {nombreLegible(alumnoArrastre.alumno_nombre)}
             {alumnoArrastre.estado && <span className="font-normal opacity-80"> · {CONFIGS_ESTADO[alumnoArrastre.estado].label}</span>}
           </div>
         )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { iniciales, primerSinMarcar, requiereObservacion, SALIDA_POR_ESTADO } from './paseLista.utils';
+import { iniciales, nombreLegible, primerSinMarcar, requiereObservacion, SALIDA_POR_ESTADO } from './paseLista.utils';
 import { ESTADO } from '../../constants/asistencia';
 
 describe('paseLista.utils', () => {
@@ -8,6 +8,15 @@ describe('paseLista.utils', () => {
     expect(iniciales('  Ana  ')).toBe('A');
     expect(iniciales('')).toBe('?');
     expect(iniciales(undefined)).toBe('?');
+  });
+
+  it('nombreLegible pasa MAYÚSCULAS a tipo título y respeta lo demás', () => {
+    expect(nombreLegible('ANTHONELLA YICET ALVARADO')).toBe('Anthonella Yicet Alvarado');
+    expect(nombreLegible('MARÍA DE LOS ÁNGELES PÉREZ')).toBe('María de los Ángeles Pérez');
+    expect(nombreLegible('  JOSÉ   O’NEILL-RÍOS ')).toBe('José O’Neill-Ríos');
+    expect(nombreLegible('Ronald McDonald')).toBe('Ronald McDonald');
+    expect(nombreLegible('')).toBe('');
+    expect(nombreLegible(undefined)).toBe('');
   });
 
   it('primerSinMarcar devuelve el primer índice sin estado o -1', () => {
