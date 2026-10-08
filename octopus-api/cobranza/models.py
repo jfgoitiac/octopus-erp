@@ -1264,3 +1264,64 @@ class BajaCobranza(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['representante', 'canal'], name='uniq_baja_cobranza_rep_canal'),
         ]
+
+
+class ConvenioPago(models.Model):
+    """
+    Convenio de pago MÍNIMO (PLAN_COBRANZA_INTELIGENTE.md, Fase 3): cuotas con
+    fecha y monto que pausan el ciclo de las deudas incluidas. Si una cuota se
+    incumple, esas deudas vuelven al ciclo. Fuera de alcance: refinanciamiento,
+    intereses y firma digital.
+    """
+    VIGENTE = 'vigente'
+    CUMPLIDO = 'cumplido'
+    INCUMPLIDO = 'incumplido'
+    CANCELADO = 'cancelado'
+    ESTADOS = (
+        (VIGENTE, 'Vigente'), (CUMPLIDO, 'Cumplido'),
+        (INCUMPLIDO, 'Incumplido'), (CANCELADO, 'Cancelado'),
+    )
+
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE, related_name='convenios_cobranza')
+    ciclos = models.ManyToManyField(CicloCobranza, related_name='convenios')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default=VIGENTE, db_index=True)
+    notas = models.TextField(blank=True, default='')
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+
+
+class CuotaConvenio(models.Model):
+    convenio = models.ForeignKey(ConvenioPago, on_delete=models.CASCADE, related_name='cuotas')
+    numero = models.PositiveSmallIntegerField()
+    fecha = models.DateField()
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    pagada = models.BooleanField(default=False)
+    pagada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['numero']
+        constraints = [
+            models.UniqueConstraint(fields=['convenio', 'numero'], name='uniq_cuota_convenio_numero'),
+        ]
+
+
+class LineaBaseCobranza(models.Model):
+    """
+    Línea base medida en la semana 2 del plan (últimos 3 meses del colegio
+    piloto), contra la que se compara el dashboard. Se carga a mano una vez.
+    """
+    sede = models.OneToOneField(
+        'multisede.Sede', on_delete=models.CASCADE, null=True, blank=True, related_name='linea_base_cobranza')
+    cobrado_al_vencimiento_pct = models.DecimalField(max_digits=5, decimal_places=2)
+    mora_7_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    mora_15_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    mora_30_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    horas_semanales_cobranza = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    periodo_desde = models.DateField(null=True, blank=True)
+    periodo_hasta = models.DateField(null=True, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)

@@ -299,3 +299,12 @@ def procesar_envios_cobranza_inteligente():
     resultado = procesar_envios()
     logger.info(f'[Beat] procesar_envios_cobranza_inteligente: {resultado}')
     return resultado
+
+
+@shared_task(name='cobranza.tasks.revisar_convenios_cobranza_inteligente')
+def revisar_convenios_cobranza_inteligente():
+    """Diaria: los convenios con una cuota vencida sin pagar pasan a incumplidos."""
+    from .gestion import revisar_convenios
+    n = revisar_convenios()
+    logger.info(f'[Beat] revisar_convenios_cobranza_inteligente: {n} incumplidos.')
+    return n
