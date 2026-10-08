@@ -16,6 +16,25 @@ export const requiereObservacion = (estado) =>
 export const primerSinMarcar = (registros) =>
   registros.findIndex(r => !r.estado);
 
+const PARTICULAS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'do', 'dos', 'van', 'von']);
+
+/**
+ * Nombre para mostrar: si viene todo en MAYÚSCULAS (habitual en planillas)
+ * pasa a "Tipo Título" con partículas en minúscula ("María de los Ángeles").
+ * Nombres que ya traen minúsculas se respetan tal cual (p. ej. "McDonald").
+ */
+export function nombreLegible(nombre) {
+  const limpio = (nombre || '').trim().replace(/\s+/g, ' ');
+  if (!limpio || limpio !== limpio.toUpperCase() || limpio === limpio.toLowerCase()) return limpio;
+  return limpio
+    .toLowerCase()
+    .split(' ')
+    .map((palabra, i) => (i > 0 && PARTICULAS.has(palabra)
+      ? palabra
+      : palabra.replace(/(^|[-'’])(\p{L})/gu, (_, sep, letra) => sep + letra.toUpperCase())))
+    .join(' ');
+}
+
 /** "María José Pérez" → "MJ"; tolera nombres vacíos o con espacios extra. */
 export function iniciales(nombre) {
   const partes = (nombre || '').trim().split(/\s+/).filter(Boolean);

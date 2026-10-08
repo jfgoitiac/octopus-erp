@@ -33,7 +33,7 @@ export const tokenDePrueba = (rol) => [
  * (devuelve el objeto JSON o undefined). Asistencia y token van incluidos;
  * el resto responde [].
  */
-export async function simularApi(page, rol, extra = () => undefined) {
+export async function simularApi(page, rol, extra = () => undefined, roster = ROSTER) {
   const errores = [];
   page.on('pageerror', (e) => errores.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errores.push(`console: ${m.text()}`); });
@@ -45,7 +45,7 @@ export async function simularApi(page, rol, extra = () => undefined) {
     if (ruta.startsWith('academico/asistencia')) {
       return req.method() === 'POST'
         ? route.fulfill({ json: { guardadas: [], errores: [] } })
-        : route.fulfill({ json: ROSTER });
+        : route.fulfill({ json: roster });
     }
     const respuesta = extra(ruta, req);
     return route.fulfill({ json: respuesta === undefined ? [] : respuesta });

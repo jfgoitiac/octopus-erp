@@ -2,10 +2,11 @@ import { memo } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../../constants/asistencia';
 import AvatarAlumno from './AvatarAlumno';
-import { vibrar } from './paseLista.utils';
+import { nombreLegible, vibrar } from './paseLista.utils';
 
 const FilaRapida = memo(function FilaRapida({ registro, numero, onAlternar }) {
-  const { alumno_id, alumno_nombre, alumno_foto, estado } = registro;
+  const { alumno_id, alumno_foto, estado } = registro;
+  const alumno_nombre = nombreLegible(registro.alumno_nombre);
   const cfg = estado ? CONFIGS_ESTADO[estado] : null;
   const ausente = estado === ESTADO.AUSENTE;
 

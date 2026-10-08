@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { simularApi, sinScrollHorizontal, alAlcance, anuncio } from './ayudas';
+import { ROSTER, simularApi, sinScrollHorizontal, alAlcance, anuncio } from './ayudas';
 
 /*
  * Pase de lista por tarjetas — criterio de aceptación del ESTÁNDAR DE DISEÑO
@@ -47,6 +47,28 @@ test.describe('Pase de lista por tarjetas', () => {
     await info.attach('tarjeta-observacion', { body: await page.screenshot(), contentType: 'image/png' });
 
     expect(errores).toEqual([]);
+  });
+
+  test('un nombre largo en MAYÚSCULAS se ve completo aun en una pantalla baja', async ({ page }, info) => {
+    const largo = 'ANTHONELLA YICET ALVARADO DE LOS ÁNGELES RODRÍGUEZ';
+    await simularApi(page, 'docente', (ruta) => (ruta === 'academico/materias/1/' ? MATERIA : undefined),
+      [{ ...ROSTER[0], alumno_nombre: largo }, ...ROSTER.slice(1)]);
+    // Caso reportado: laptop ancha pero baja (zoom / barra de favoritos).
+    const { width } = page.viewportSize();
+    if (width >= 1024) await page.setViewportSize({ width, height: 600 });
+    await page.goto('/portal-docente/materias/1?tab=asistencia');
+    await page.getByRole('button', { name: /Comenzar a pasar lista/ }).click();
+    await esperarScroll(page);
+
+    const nombre = page.getByRole('heading', { name: 'Anthonella Yicet Alvarado de los Ángeles Rodríguez' });
+    await expect(nombre).toBeVisible();
+    const dentro = await nombre.evaluate((h) => {
+      const tarjeta = h.closest('article').getBoundingClientRect();
+      const r = h.getBoundingClientRect();
+      return r.top >= tarjeta.top && r.bottom <= tarjeta.bottom - 4 && h.scrollHeight <= h.clientHeight + 1;
+    });
+    expect(dentro, 'el nombre queda cortado por la tarjeta').toBe(true);
+    await info.attach('nombre-largo', { body: await page.screenshot(), contentType: 'image/png' });
   });
 
   test('las transiciones y el swipe no generan scroll horizontal', async ({ page }) => {
