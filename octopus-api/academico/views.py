@@ -667,6 +667,7 @@ class AsistenciaView(APIView):
                     'justificada': False,
                     'estado': None,
                     'observacion': '',
+                    'actualizado_en': None,
                 }
             fila['numero_lista'] = numero_lista
             fila['alumno_foto'] = request.build_absolute_uri(alumno.foto.url) if alumno.foto else None
@@ -682,9 +683,16 @@ class AsistenciaView(APIView):
     def post(self, request):
         """
         Guarda/actualiza la asistencia masiva de un grado en un día.
-        Body: {fecha, grado_seccion, registros: [{alumno_id, estado, observacion}]}
+        Body: {fecha, grado_seccion, registros: [{alumno_id, estado, observacion, actualizado_en}]}
         Roles permitidos: director, sistemas, administrador, secretaria,
         o docente si tiene una materia activa asignada en esa sección.
+
+        Todo o nada:
+        - 400 si algún alumno no pertenece a `grado_seccion` (el permiso se
+          valida por sección, así que un alumno ajeno no puede colarse).
+        - 409 si algún registro cambió desde que el cliente lo cargó (otra
+          persona lo guardó desde el panel o el portal docente). Responde con
+          los registros actuales en `conflictos` para que el cliente los muestre.
         """
         if not IsDocenteAsignadoOrSecretariaOrAbove().has_permission(request, self):
             return Response(
@@ -698,6 +706,7 @@ class AsistenciaView(APIView):
 
         datos     = serializer.validated_data
         fecha     = datos['fecha']
+        grado     = datos['grado_seccion']
         registros = datos['registros']
 
         # Prefetch de todos los alumnos del payload en una sola query (antes:
@@ -705,32 +714,67 @@ class AsistenciaView(APIView):
         alumno_ids  = [item['alumno_id'] for item in registros]
         alumnos_map = {a.id: a for a in Alumno.objects.filter(pk__in=alumno_ids)}
 
+        ajenos = [a for a in alumnos_map.values() if a.grado_seccion != grado]
+        if ajenos:
+            nombres = ', '.join(f"{a.nombre} {a.apellido}" for a in ajenos)
+            return Response(
+                {'error': f'No pertenecen a {grado}: {nombres}. Recarga la lista.',
+                 'alumnos_ajenos': [a.id for a in ajenos]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         guardadas = []
         errores   = []
 
-        for item in registros:
-            alumno_id = item['alumno_id']
-            alumno = alumnos_map.get(alumno_id)
-            if alumno is None:
-                errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
-                continue
+        with transaction.atomic():
+            # Bloquea los registros existentes del día para que la verificación
+            # de versión y el guardado no se intercalen con otro request.
+            existentes = {
+                a.alumno_id: a
+                for a in Asistencia.objects.select_for_update()
+                .filter(alumno_id__in=alumno_ids, fecha=fecha)
+                .select_related('alumno')
+            }
 
-            asistencia, _ = Asistencia.objects.update_or_create(
-                alumno=alumno,
-                fecha=fecha,
-                defaults={
-                    'presente':       item['presente'],
-                    'justificada':    item.get('justificada', False),
-                    'estado':         item.get('estado'),
-                    'observacion':    item.get('observacion', ''),
-                    'registrado_por': request.user,
-                }
-            )
-            # update_or_create no cachea la relación FK cuando toma la rama
-            # "update" (registro ya existente) — sin esto AsistenciaSerializer
-            # dispararía 1 query más (alumno) por cada registro ya existente.
-            asistencia.alumno = alumno
-            guardadas.append(AsistenciaSerializer(asistencia).data)
+            conflictos = [
+                existentes[item['alumno_id']]
+                for item in registros
+                if 'actualizado_en' in item
+                and item['alumno_id'] in existentes
+                and existentes[item['alumno_id']].actualizado_en != item['actualizado_en']
+            ]
+            if conflictos:
+                nombres = ', '.join(f"{a.alumno.nombre} {a.alumno.apellido}" for a in conflictos)
+                return Response(
+                    {'error': f'Otra persona modificó la asistencia de {nombres} mientras tenías la lista abierta. '
+                              'Se cargó su versión; revisa y vuelve a guardar.',
+                     'conflictos': AsistenciaSerializer(conflictos, many=True).data},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            for item in registros:
+                alumno_id = item['alumno_id']
+                alumno = alumnos_map.get(alumno_id)
+                if alumno is None:
+                    errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
+                    continue
+
+                asistencia, _ = Asistencia.objects.update_or_create(
+                    alumno=alumno,
+                    fecha=fecha,
+                    defaults={
+                        'presente':       item['presente'],
+                        'justificada':    item.get('justificada', False),
+                        'estado':         item.get('estado'),
+                        'observacion':    item.get('observacion', ''),
+                        'registrado_por': request.user,
+                    }
+                )
+                # update_or_create no cachea la relación FK cuando toma la rama
+                # "update" (registro ya existente) — sin esto AsistenciaSerializer
+                # dispararía 1 query más (alumno) por cada registro ya existente.
+                asistencia.alumno = alumno
+                guardadas.append(AsistenciaSerializer(asistencia).data)
 
         return Response({
             'guardadas': guardadas,

@@ -144,6 +144,86 @@ class AsistenciaDocenteScopingTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertFalse(Asistencia.objects.filter(alumno=self.alumno_ajeno).exists())
 
+    def test_docente_no_puede_colar_alumno_ajeno_en_su_seccion(self):
+        resp = self.client.post('/api/academico/asistencia/', {
+            'fecha': '2026-07-27',
+            'grado_seccion': '2do Grado B',
+            'registros': [
+                {'alumno_id': self.alumno_propio.id, 'estado': 'P'},
+                {'alumno_id': self.alumno_ajeno.id, 'estado': 'A'},
+            ],
+        }, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()['alumnos_ajenos'], [self.alumno_ajeno.id])
+        # Todo o nada: tampoco se guardó el alumno propio.
+        self.assertFalse(Asistencia.objects.exists())
+
+
+class AsistenciaSincroniaPanelDocenteTests(TestCase):
+    """Portal docente y panel escriben el mismo registro: un guardado hecho
+    sobre datos viejos no debe pisar una corrección posterior."""
+    URL = '/api/academico/asistencia/'
+    GRADO = '2do Grado B'
+    FECHA = '2026-10-08'
+
+    def setUp(self):
+        self.docente = crear_usuario('docente_sync', 'docente')
+        self.secretaria = crear_usuario('secre_sync', 'secretaria')
+        self.alumno = crear_alumno('E84000010', grado_seccion=self.GRADO)
+        Materia.objects.create(nombre='Lengua', grado_seccion=self.GRADO, docente=self.docente, activa=True)
+        self.c_docente = APIClient()
+        self.c_docente.force_authenticate(user=self.docente)
+        self.c_secre = APIClient()
+        self.c_secre.force_authenticate(user=self.secretaria)
+
+    def _leer(self, cliente):
+        resp = cliente.get(self.URL, {'grado_seccion': self.GRADO, 'fecha': self.FECHA})
+        return resp.json()[0]
+
+    def _guardar(self, cliente, estado, actualizado_en, observacion=''):
+        return cliente.post(self.URL, {
+            'fecha': self.FECHA, 'grado_seccion': self.GRADO,
+            'registros': [{'alumno_id': self.alumno.id, 'estado': estado,
+                           'observacion': observacion, 'actualizado_en': actualizado_en}],
+        }, format='json')
+
+    def test_lo_que_guarda_el_docente_lo_ve_el_panel(self):
+        fila = self._leer(self.c_docente)
+        self.assertEqual(self._guardar(self.c_docente, 'R', fila['actualizado_en']).status_code, 200)
+        self.assertEqual(self._leer(self.c_secre), self._leer(self.c_docente))
+        self.assertEqual(self._leer(self.c_secre)['estado'], 'R')
+
+    def test_guardado_viejo_del_docente_no_pisa_correccion_del_panel(self):
+        vista_docente = self._leer(self.c_docente)
+        self._guardar(self.c_docente, 'A', vista_docente['actualizado_en'])
+        vista_docente = self._leer(self.c_docente)  # el docente ve "A"
+
+        # La secretaria justifica la falta.
+        vista_secre = self._leer(self.c_secre)
+        self.assertEqual(self._guardar(self.c_secre, 'J', vista_secre['actualizado_en'], 'Reposo').status_code, 200)
+
+        # El docente reenvía con la versión que tenía cargada (pantalla
+        # abierta o cola sin conexión): se rechaza y se le devuelve la actual.
+        resp = self._guardar(self.c_docente, 'A', vista_docente['actualizado_en'])
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.json()['conflictos'][0]['estado'], 'J')
+        self.assertEqual(Asistencia.objects.get(alumno=self.alumno).estado, 'J')
+
+    def test_crear_cuando_otro_ya_lo_creo_es_conflicto(self):
+        self._guardar(self.c_secre, 'P', None)
+        resp = self._guardar(self.c_docente, 'A', None)
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(Asistencia.objects.get(alumno=self.alumno).estado, 'P')
+
+    def test_sin_actualizado_en_no_se_verifica(self):
+        """Clientes que aún no envían la versión siguen funcionando."""
+        self._guardar(self.c_secre, 'P', None)
+        resp = self.c_docente.post(self.URL, {
+            'fecha': self.FECHA, 'grado_seccion': self.GRADO,
+            'registros': [{'alumno_id': self.alumno.id, 'estado': 'A'}],
+        }, format='json')
+        self.assertEqual(resp.status_code, 200)
+
 
 class IncidenteDisciplinarioTests(TestCase):
     def setUp(self):

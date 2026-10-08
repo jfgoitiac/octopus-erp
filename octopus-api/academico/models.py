@@ -310,6 +310,10 @@ class Asistencia(models.Model):
     # de este campo para no romper reportes existentes que ya los leen.
     estado    = models.CharField(max_length=1, choices=ESTADOS, null=True, blank=True)
     observacion  = models.CharField(max_length=200, blank=True)
+    # Marca de versión para detectar guardados hechos sobre datos viejos (el
+    # portal docente y el panel escriben el mismo registro). null en registros
+    # anteriores a este campo.
+    actualizado_en = models.DateTimeField(auto_now=True, null=True)
     # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores
     history = HistoricalRecords()
     registrado_por = models.ForeignKey(

@@ -204,7 +204,7 @@ class AsistenciaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Asistencia
-        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion']
+        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion', 'actualizado_en']
 
     def get_alumno_nombre(self, obj):
         return f"{obj.alumno.nombre} {obj.alumno.apellido}"
@@ -222,6 +222,11 @@ class AsistenciaRegistroSerializer(serializers.Serializer):
     presente    = serializers.BooleanField(required=False)
     justificada = serializers.BooleanField(required=False, default=False)
     observacion = serializers.CharField(required=False, allow_blank=True, default='')
+    # `actualizado_en` del registro tal como lo cargó el cliente (null si aún
+    # no existía). Si viene y no coincide con el actual, alguien más lo
+    # modificó entretanto y el guardado se rechaza (409). Si no viene, no se
+    # verifica (clientes que aún no lo envían).
+    actualizado_en = serializers.DateTimeField(required=False, allow_null=True)
 
     def validate(self, data):
         if 'estado' not in data or data.get('estado') is None:
