@@ -147,7 +147,7 @@ const PortalDashboard = () => {
         <div className="hidden sm:block pt-2">
           <button
             onClick={handlePagarRapido}
-            className="w-full flex items-center justify-center gap-2 bg-[var(--portal-primary,#0fa3b1)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] transition-colors"
           >
             Pagar por transferencia
           </button>
@@ -159,7 +159,7 @@ const PortalDashboard = () => {
         <div className="fixed bottom-16 left-0 right-0 px-4 z-20 sm:hidden">
           <button
             onClick={handlePagarRapido}
-            className="w-full max-w-[480px] mx-auto flex items-center justify-center gap-2 bg-[var(--portal-primary,#0fa3b1)] text-white font-semibold py-3.5 rounded-xl text-base hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] transition-colors shadow-lg shadow-[var(--portal-primary,#0fa3b1)]/30"
+            className="w-full max-w-[480px] mx-auto flex items-center justify-center gap-2 bg-[var(--portal-primary)] text-white font-semibold py-3.5 rounded-xl text-base hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] transition-colors shadow-lg shadow-[var(--portal-primary)]/30"
           >
             Pagar por transferencia
           </button>

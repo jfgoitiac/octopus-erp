@@ -8,7 +8,7 @@ const GraficaPromedioLapsos = ({ porLapso = [] }) => {
 
   if (!hayDatos) {
     return (
-      <div className="rounded-xl p-8 text-center text-sm" style={{ background: '#f9fafb', color: '#9ca3af' }}>
+      <div className="rounded-xl p-8 text-center text-sm" style={{ background: 'var(--surface-sunken)', color: 'var(--ash)' }}>
         Las notas estarán disponibles cuando el docente las cargue.
       </div>
     );
@@ -18,17 +18,17 @@ const GraficaPromedioLapsos = ({ porLapso = [] }) => {
     <div style={{ width: '100%', height: 220 }}>
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 10, right: 16, left: -16, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="lapso" tick={{ fontSize: 11, fill: '#6b7280' }} />
-          <YAxis domain={[0, 20]} tick={{ fontSize: 11, fill: '#6b7280' }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-md)" />
+          <XAxis dataKey="lapso" tick={{ fontSize: 12, fill: 'var(--ash)' }} />
+          <YAxis domain={[0, 20]} tick={{ fontSize: 12, fill: 'var(--ash)' }} />
           <Tooltip formatter={(v) => [v ?? 'Sin datos', 'Promedio']} />
-          <ReferenceLine y={UMBRAL} stroke="#ef4444" strokeDasharray="4 4" label={{ value: 'Mínimo', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
+          <ReferenceLine y={UMBRAL} stroke="var(--red)" strokeDasharray="4 4" label={{ value: 'Mínimo', position: 'insideTopRight', fontSize: 12, fill: 'var(--red)' }} />
           <Line
             type="monotone"
             dataKey="promedio"
-            stroke="var(--portal-primary, #0fa3b1)"
+            stroke="var(--portal-primary)"
             strokeWidth={2.5}
-            dot={{ r: 4, fill: 'var(--portal-primary, #0fa3b1)' }}
+            dot={{ r: 4, fill: 'var(--portal-primary)' }}
             connectNulls
           />
         </LineChart>

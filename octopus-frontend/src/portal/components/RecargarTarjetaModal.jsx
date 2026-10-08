@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, X, FileText, CheckCircle, AlertCircle, Hash, Camera, Wallet } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { recargarTarjetaCantina, getBancos } from '../api/portal.service';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Modal } from '../../components/ui/Modal';
 
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -46,10 +46,8 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
   const [moneda, setMoneda] = useState('usd');
   const [monto, setMonto] = useState('');
   const inputRef = useRef(null);
-  const containerRef = useRef(null);
   const timerRef = useRef(null);
 
-  useFocusTrap(containerRef, isOpen);
 
   const resetForm = useCallback(() => {
     clearTimeout(timerRef.current);
@@ -69,14 +67,6 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
     resetForm();
     onClose();
   }, [onClose, resetForm]);
-
-  // Cerrar con Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => { if (e.key === 'Escape') handleClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [isOpen, handleClose]);
 
   // Cargar catálogo de bancos institucionales — se reutiliza getBancos() del
   // portal (ya usado por ComprobantePagoModal) en vez de crear un endpoint
@@ -185,41 +175,35 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
-      <div
-        ref={containerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-recarga-titulo"
-        className="bg-[var(--surface)] w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 max-h-[92vh] overflow-y-auto"
-      >
-        {/* Encabezado */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 id="modal-recarga-titulo" className="font-semibold text-[var(--jet)] text-base flex items-center gap-1.5">
-              <Wallet size={16} className="text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />
-              Recargar saldo
-            </h2>
-            <p className="text-xs text-[var(--ash)] mt-0.5">
-              {alumno.nombre} {alumno.apellido}
-            </p>
-          </div>
-          <button
-            onClick={handleClose}
-            aria-label="Cerrar modal"
-            className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-[var(--surface-sunken)] text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors -mr-2"
-          >
-            <X size={20} aria-hidden="true" />
-          </button>
-        </div>
-
+    <Modal open onClose={handleClose} size="sm" titulo={<span className="flex items-center gap-1.5"><Wallet size={16} aria-hidden="true" /> Recargar saldo</span>} footer={
+<button
+          type="button"
+          onClick={handleSubmit}
+          disabled={estado === 'uploading' || estado === 'success'}
+          className="w-full bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl min-h-[44px] transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {estado === 'uploading' ? (
+            <>
+              <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" aria-hidden="true" />
+              Enviando…
+            </>
+          ) : (
+            <>
+              <Upload size={16} aria-hidden="true" />
+              Enviar recarga
+            </>
+          )}
+        </button>
+    }>
+      <div className="space-y-4">
+        <p className="text-xs text-[var(--ash)]">{alumno.nombre} {alumno.apellido}</p>
         {/* Método de pago */}
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-[var(--jet-mid)] block">Método de pago</label>
-          <select
+          <label htmlFor="recarga-metodo" className="text-xs font-semibold text-[var(--jet-mid)] block">Método de pago</label>
+          <select id="recarga-metodo"
             value={metodoPago}
             onChange={(e) => setMetodoPago(e.target.value)}
-            className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-[var(--surface)]"
+            className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)] bg-[var(--surface)]"
           >
             {METODOS_PORTAL.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
@@ -231,11 +215,11 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {requiereBanco && (
           <>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-[var(--jet-mid)] block">Banco receptor (del colegio)</label>
-              <select
+              <label htmlFor="recarga-banco-receptor" className="text-xs font-semibold text-[var(--jet-mid)] block">Banco receptor (del colegio)</label>
+              <select id="recarga-banco-receptor"
                 value={bancoReceptorId}
                 onChange={(e) => setBancoReceptorId(e.target.value)}
-                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-[var(--surface)]"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)] bg-[var(--surface)]"
               >
                 <option value="">Selecciona un banco</option>
                 {bancos.map((b) => (
@@ -257,13 +241,13 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
             )}
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-[var(--jet-mid)] block">Banco de procedencia (tuyo)</label>
-              <input
+              <label htmlFor="recarga-banco-procedencia" className="text-xs font-semibold text-[var(--jet-mid)] block">Banco de procedencia (tuyo)</label>
+              <input id="recarga-banco-procedencia"
                 type="text"
                 value={bancoProcedencia}
                 onChange={(e) => setBancoProcedencia(e.target.value)}
                 placeholder="Ej: Banesco"
-                className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]"
                 maxLength={100}
               />
             </div>
@@ -273,17 +257,18 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {/* Referencia — transferencia / pago móvil / zelle */}
         {requiereReferencia && (
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-[var(--jet-mid)] block flex items-center gap-1">
+            <label htmlFor="recarga-referencia" className="text-xs font-semibold text-[var(--jet-mid)] flex items-center gap-1">
               <Hash size={12} aria-hidden="true" />
               Número de referencia / confirmación
               <span className="text-[var(--red)] ml-0.5">*</span>
             </label>
             <input
+              id="recarga-referencia"
               type="text"
               value={referencia}
               onChange={(e) => setReferencia(e.target.value)}
               placeholder={metodoPago === 'zelle' ? 'Ej: ZL-2024-XXXXXXXX' : 'Ej: 000123'}
-              className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] uppercase placeholder:normal-case"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)] uppercase placeholder:normal-case"
               maxLength={100}
               autoComplete="off"
             />
@@ -296,20 +281,20 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {/* Moneda + monto */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-[var(--jet-mid)] block">Moneda</label>
-            <select
+            <label htmlFor="recarga-moneda" className="text-xs font-semibold text-[var(--jet-mid)] block">Moneda</label>
+            <select id="recarga-moneda"
               value={moneda}
               onChange={(e) => setMoneda(e.target.value)}
               disabled={metodoPago === 'efectivo_ves'}
-              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-[var(--surface)] disabled:bg-[var(--surface-sunken)] disabled:text-[var(--ash)]"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)] bg-[var(--surface)] disabled:bg-[var(--surface-sunken)] disabled:text-[var(--ash)]"
             >
               <option value="usd">USD ($)</option>
               <option value="ves">VES (Bs.)</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-[var(--jet-mid)] block">Monto</label>
-            <input
+            <label htmlFor="recarga-monto" className="text-xs font-semibold text-[var(--jet-mid)] block">Monto</label>
+            <input id="recarga-monto"
               type="number"
               inputMode="decimal"
               min="0"
@@ -317,7 +302,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
               value={monto}
               onChange={(e) => setMonto(e.target.value)}
               placeholder="0.00"
-              className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]"
             />
           </div>
         </div>
@@ -326,25 +311,25 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {requiereComprobante && (
           !archivo ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-[var(--surface-sunken)] transition-colors min-h-[90px]">
-                <Camera size={26} className="text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />
+              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] active:bg-[var(--surface-sunken)] transition-colors min-h-[90px]">
+                <Camera size={26} className="text-[var(--portal-primary)]" aria-hidden="true" />
                 <span className="text-sm font-medium text-[var(--jet-mid)]">Cámara</span>
                 <input
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  className="hidden"
+                  className="sr-only"
                   onChange={handleFileChange}
                 />
               </label>
-              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-[var(--surface-sunken)] transition-colors min-h-[90px]">
+              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] active:bg-[var(--surface-sunken)] transition-colors min-h-[90px]">
                 <Upload size={26} className="text-[var(--ash)]" aria-hidden="true" />
                 <span className="text-sm font-medium text-[var(--jet-mid)]">Archivo</span>
                 <input
                   ref={inputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="hidden"
+                  className="sr-only"
                   onChange={handleFileChange}
                 />
               </label>
@@ -352,7 +337,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
           ) : (
             <div className="relative">
               {esPDF ? (
-                <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[var(--surface-sunken)] text-[var(--portal-primary,#0fa3b1)]">
+                <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[var(--surface-sunken)] text-[var(--portal-primary)]">
                   <FileText size={40} aria-hidden="true" />
                   <span className="text-sm text-[var(--jet-mid)] text-center break-all">{archivo?.name}</span>
                 </div>
@@ -366,7 +351,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => { setArchivo(null); setPreview(null); setEsPDF(false); setEstado('idle'); }}
-                className="absolute top-2 right-2 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors"
+                className="absolute top-1 right-1 w-11 h-11 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors"
                 aria-label="Quitar archivo"
               >
                 <X size={14} className="text-white" aria-hidden="true" />
@@ -390,27 +375,8 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
             <span>No se pudo enviar. Intenta nuevamente.</span>
           </div>
         )}
-
-        {/* Botón submit */}
-        <button
-          onClick={handleSubmit}
-          disabled={estado === 'uploading' || estado === 'success'}
-          className="w-full bg-[var(--portal-primary,#0fa3b1)] text-white font-medium py-3 rounded-xl transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {estado === 'uploading' ? (
-            <>
-              <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" aria-hidden="true" />
-              Enviando...
-            </>
-          ) : (
-            <>
-              <Upload size={16} aria-hidden="true" />
-              Enviar recarga
-            </>
-          )}
-        </button>
       </div>
-    </div>
+    </Modal>
   );
 };
 

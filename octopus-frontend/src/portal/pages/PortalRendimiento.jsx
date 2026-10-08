@@ -21,7 +21,7 @@ const PortalRendimiento = () => {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold text-[var(--jet)] flex items-center gap-2">
-          <TrendingUp size={20} style={{ color: 'var(--portal-primary, #0fa3b1)' }} />
+          <TrendingUp size={20} style={{ color: 'var(--portal-primary)' }} />
           Rendimiento Académico
         </h1>
         <p className="text-xs text-[var(--ash)] mt-0.5">Notas y asistencia por lapso</p>

@@ -49,7 +49,7 @@ const CuentaCantinaCard = ({ cuenta, loading }) => {
         <div className="flex items-center gap-2 mb-2">
           <HandCoins
             size={18}
-            className={`flex-shrink-0 ${hayDeuda ? 'text-[var(--red)]' : 'text-[var(--portal-primary,#0fa3b1)]'}`}
+            className={`flex-shrink-0 ${hayDeuda ? 'text-[var(--red)]' : 'text-[var(--portal-primary)]'}`}
             aria-hidden="true"
           />
           <span className={`font-semibold text-sm ${hayDeuda ? 'text-[var(--red)]' : 'text-[var(--jet-mid)]'}`}>

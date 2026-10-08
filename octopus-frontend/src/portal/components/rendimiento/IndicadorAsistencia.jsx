@@ -5,14 +5,14 @@ const IndicadorAsistencia = ({ asistencia }) => {
 
   if (!total) {
     return (
-      <div className="rounded-xl p-6 text-center text-sm" style={{ background: '#f9fafb', color: '#9ca3af' }}>
+      <div className="rounded-xl p-6 text-center text-sm" style={{ background: 'var(--surface-sunken)', color: 'var(--ash)' }}>
         Aún no hay registros de asistencia.
       </div>
     );
   }
 
   const bajoUmbral = porcentaje < 85;
-  const color = bajoUmbral ? '#ef4444' : 'var(--portal-primary, #0fa3b1)';
+  const color = bajoUmbral ? 'var(--red)' : 'var(--portal-primary)';
   const data = [{ name: 'asistencia', value: porcentaje, fill: color }];
 
   return (
@@ -27,7 +27,7 @@ const IndicadorAsistencia = ({ asistencia }) => {
             endAngle={90 - 360 * (porcentaje / 100)}
             barSize={10}
           >
-            <RadialBar dataKey="value" background={{ fill: '#f3f4f6' }} cornerRadius={8} />
+            <RadialBar dataKey="value" background={{ fill: 'var(--surface-sunken)' }} cornerRadius={8} />
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center">
@@ -35,7 +35,7 @@ const IndicadorAsistencia = ({ asistencia }) => {
         </div>
       </div>
       <div>
-        <p className="text-sm font-medium" style={{ color: bajoUmbral ? '#ef4444' : '#374151' }}>
+        <p className="text-sm font-medium" style={{ color: bajoUmbral ? 'var(--red)' : 'var(--jet-mid)' }}>
           {presentes} de {total} clases
         </p>
         <p className="text-xs text-[var(--ash)]">Asistencia acumulada</p>

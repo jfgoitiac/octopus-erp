@@ -54,7 +54,7 @@ export default function PortalPlanEvaluacion() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold text-[var(--jet)] flex items-center gap-2">
-          <ClipboardList size={20} style={{ color: 'var(--portal-primary, #0fa3b1)' }} />
+          <ClipboardList size={20} style={{ color: 'var(--portal-primary)' }} />
           Plan de evaluación
         </h1>
         <p className="text-xs text-[var(--ash)] mt-0.5">Actividades, fechas y calificaciones registradas</p>
@@ -80,7 +80,7 @@ function plansContent(planes) {
           <h2 className="font-semibold text-[var(--jet)]">{plan.materia}</h2>
           <p className="text-xs text-[var(--ash)]">{plan.lapso}</p>
         </div>
-        <span className="text-[11px] rounded-full bg-[var(--surface-sunken)] px-2 py-1 text-[var(--jet-mid)]">{plan.tipo_evaluacion === 'literal' ? 'Literal' : 'Numérica'}</span>
+        <span className="text-xs rounded-full bg-[var(--surface-sunken)] px-2 py-1 text-[var(--jet-mid)]">{plan.tipo_evaluacion === 'literal' ? 'Literal' : 'Numérica'}</span>
       </div>
       {plan.bloques.map((bloque) => (
         <div key={bloque.id} className="rounded-xl bg-[var(--surface-sunken)] p-3">

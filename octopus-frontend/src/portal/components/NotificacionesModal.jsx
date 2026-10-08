@@ -66,16 +66,16 @@ const NotificacionesModal = () => {
           <div className="flex items-center gap-2">
             <span
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-              style={{ backgroundColor: 'color-mix(in srgb, var(--portal-primary, #0fa3b1) 15%, white)' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--portal-primary) 15%, white)' }}
             >
-              <Bell size={18} style={{ color: 'var(--portal-primary, #0fa3b1)' }} aria-hidden="true" />
+              <Bell size={18} style={{ color: 'var(--portal-primary)' }} aria-hidden="true" />
             </span>
             <h2 className="font-semibold text-[var(--jet)] text-sm">Mantente informado</h2>
           </div>
           <button
             onClick={handleAhoraNo}
             aria-label="Cerrar"
-            className="w-9 h-9 -mr-1.5 -mt-1 flex items-center justify-center rounded-full hover:bg-[var(--surface-sunken)] text-[var(--ash)]"
+            className="w-11 h-11 -mr-2 -mt-2 flex items-center justify-center rounded-full hover:bg-[var(--surface-sunken)] text-[var(--ash)]"
           >
             <X size={18} aria-hidden="true" />
           </button>
@@ -99,7 +99,7 @@ const NotificacionesModal = () => {
                 onClick={handleActivar}
                 disabled={loading}
                 className="w-full h-11 rounded-xl text-white text-sm font-medium disabled:opacity-60 transition-colors"
-                style={{ backgroundColor: 'var(--portal-primary, #0fa3b1)' }}
+                style={{ backgroundColor: 'var(--portal-primary)' }}
               >
                 {loading ? 'Activando…' : 'Activar Notificaciones'}
               </button>

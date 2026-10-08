@@ -5,7 +5,7 @@ import { PortalAuthContext } from '../context/PortalAuthContext';
 
 // Skeleton fullscreen mientras carga
 const FullscreenSkeleton = () => (
-  <div className="min-h-screen bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4">
+  <div className="min-h-dvh bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4">
     <div className="w-full max-w-[480px] space-y-4 animate-pulse">
       <div className="h-10 bg-[var(--surface-sunken)] rounded-xl w-3/4 mx-auto" />
       <div className="h-4 bg-[var(--surface-sunken)] rounded w-1/2 mx-auto" />

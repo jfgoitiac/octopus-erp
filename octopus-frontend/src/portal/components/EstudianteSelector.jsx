@@ -23,8 +23,8 @@ const EstudianteSelector = ({ alumnos = [], alumnoActivo, onSelect }) => {
               aria-pressed={isActive}
               className={`flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-colors border ${
                 isActive
-                  ? 'bg-[var(--portal-primary,#0fa3b1)] text-white border-[var(--portal-primary,#0fa3b1)]'
-                  : 'bg-[var(--surface)] text-[var(--jet-mid)] border-[var(--border)] hover:border-[var(--portal-primary,#0fa3b1)] hover:text-[var(--portal-primary,#0fa3b1)]'
+                  ? 'bg-[var(--portal-primary)] text-white border-[var(--portal-primary)]'
+                  : 'bg-[var(--surface)] text-[var(--jet-mid)] border-[var(--border)] hover:border-[var(--portal-primary)] hover:text-[var(--portal-primary)]'
               }`}
             >
               <span className="block leading-tight">{alumno.nombre} {alumno.apellido}</span>

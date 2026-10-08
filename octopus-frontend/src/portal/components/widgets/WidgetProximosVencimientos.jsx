@@ -28,7 +28,7 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false })
   return (
     <section className="portal-card portal-card--soft p-5 h-full">
       <div className="flex items-center gap-2 mb-3">
-        <CalendarDays size={16} className="text-[var(--portal-primary,#0fa3b1)]" />
+        <CalendarDays size={16} className="text-[var(--portal-primary)]" />
         <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Próximos vencimientos</h2>
       </div>
       {variosAlumnos ? (

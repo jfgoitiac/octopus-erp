@@ -44,7 +44,7 @@ const PortalMensajes = () => {
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
-          <MessageCircle size={20} className="text-[var(--portal-primary,#0fa3b1)]" />
+          <MessageCircle size={20} className="text-[var(--portal-primary)]" />
           Mensajes
         </h1>
         <p className="text-xs text-[var(--ash)] mt-0.5">Conversaciones con los docentes</p>
@@ -56,7 +56,7 @@ const PortalMensajes = () => {
         <EstudianteSelector alumnos={alumnos} alumnoActivo={alumnoActivo} onSelect={setAlumnoActivo} />
       )}
 
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden" style={{ height: '65vh' }}>
+      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden" style={{ height: '65dvh' }}>
         {alumnoActivo ? (
           <ChatMensajes
             mensajes={mensajes}

@@ -13,7 +13,7 @@ const BannerInstalarApp = ({ className = '' }) => {
       <div className={`sm:hidden portal-card p-3 flex items-center gap-3 ${className}`} role="region" aria-label="Instalar app">
         <div
           className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-white"
-          style={{ background: 'var(--portal-primary, #0fa3b1)' }}
+          style={{ background: 'var(--portal-primary)' }}
         >
           <Smartphone size={20} />
         </div>
@@ -25,7 +25,7 @@ const BannerInstalarApp = ({ className = '' }) => {
           type="button"
           onClick={accionar}
           className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white"
-          style={{ background: 'var(--portal-primary, #0fa3b1)' }}
+          style={{ background: 'var(--portal-primary)' }}
         >
           <Download size={14} />
           {esIOS ? 'Cómo' : 'Instalar'}
