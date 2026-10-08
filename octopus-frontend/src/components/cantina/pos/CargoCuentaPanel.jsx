@@ -71,7 +71,7 @@ export default function CargoCuentaPanel({
       </div>
 
       {!ev.ok && (
-        <p className="flex items-start gap-1.5 text-sm font-medium rounded-lg px-3 py-2" style={{ color: 'var(--red)', background: '#fef2f2' }}>
+        <p className="flex items-start gap-1.5 text-sm font-medium rounded-lg px-3 py-2" style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           {ev.motivo}
         </p>

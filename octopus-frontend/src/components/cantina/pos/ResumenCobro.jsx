@@ -93,7 +93,7 @@ export default function ResumenCobro({
       </div>
 
       {excedeLimite && (
-        <p className="flex items-start gap-1.5 text-sm font-medium rounded-lg px-3 py-2" style={{ color: 'var(--red)', background: '#fef2f2' }}>
+        <p className="flex items-start gap-1.5 text-sm font-medium rounded-lg px-3 py-2" style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           Saldo insuficiente: el crédito disponible de este alumno es ${creditoDisponible.toFixed(2)} (límite ${limiteCredito.toFixed(2)}). No se puede cobrar esta venta con tarjeta.
         </p>
@@ -103,7 +103,7 @@ export default function ResumenCobro({
         // El saldo queda en negativo Y hace falta confirmar identidad: se
         // fusionan en UN solo paso de confirmación en vez de dos checkboxes
         // secuenciales — un solo check cubre ambas condiciones a la vez.
-        <div className="space-y-2 rounded-lg px-3 py-2" style={{ background: '#fffbeb' }}>
+        <div className="space-y-2 rounded-lg px-3 py-2" style={{ background: 'var(--yellow-light)' }}>
           <p className="flex items-start gap-1.5 text-sm font-medium" style={{ color: 'var(--amber-ink)' }}>
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
             El saldo quedará en negativo (${saldoDespues.toFixed(2)}), dentro del crédito permitido. Confirma para continuar.

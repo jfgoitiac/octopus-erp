@@ -155,7 +155,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
                   onClick={() => setMotivo(m.value)}
                   className="flex-1 py-2.5 rounded-lg text-sm font-medium min-h-[44px]"
                   style={motivo === m.value
-                    ? { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid #f59e0b' }
+                    ? { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid var(--yellow)' }
                     : IDLE_STYLE}
                 >
                   {m.label}
@@ -164,7 +164,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
             </div>
           </div>
 
-          <div className="rounded-lg px-3 py-3 text-sm flex gap-2" style={{ background: '#fef2f2', border: '0.5px solid #fecaca', color: '#b91c1c' }}>
+          <div className="rounded-lg px-3 py-3 text-sm flex gap-2" style={{ background: 'var(--red-light)', border: '0.5px solid color-mix(in srgb, var(--red) 25%, white)', color: 'var(--red)' }}>
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
             <span>
               El código físico (QR) anterior quedará <strong>permanentemente inválido</strong>. Si alguien lo escanea después, no resolverá a ninguna tarjeta activa. El saldo actual de la tarjeta se conserva.

@@ -160,7 +160,7 @@ export default function RecargasPendientesList({ refreshSignal }) {
                           onClick={() => handleRechazar(r.id)}
                           disabled={procesando}
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 min-h-[36px]"
-                          style={{ border: '0.5px solid #dc2626', color: 'var(--red)' }}
+                          style={{ border: '0.5px solid var(--red)', color: 'var(--red)' }}
                         >
                           <XCircle size={12} />
                           Rechazar

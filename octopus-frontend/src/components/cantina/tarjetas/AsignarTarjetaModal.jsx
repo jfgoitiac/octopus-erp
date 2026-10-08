@@ -312,11 +312,11 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
           </div>
 
           {conflicto && (
-            <div className="rounded-lg px-3 py-3 text-sm" style={{ background: '#fef2f2', border: '0.5px solid #fecaca', color: '#b91c1c' }}>
+            <div className="rounded-lg px-3 py-3 text-sm" style={{ background: 'var(--red-light)', border: '0.5px solid color-mix(in srgb, var(--red) 25%, white)', color: 'var(--red)' }}>
               <p className="flex items-center gap-1.5 font-medium mb-2">
                 <AlertTriangle size={14} /> {conflicto.detail}
               </p>
-              <p className="mb-2" style={{ color: '#7f1d1d' }}>
+              <p className="mb-2" style={{ color: 'var(--red)' }}>
                 {alumnoSeleccionado?.nombre || 'Este alumno'} ya tiene una tarjeta activa. Si la tarjeta anterior se extravió o dañó, usa el flujo de reposición en vez de asignar una nueva.
               </p>
               <button
@@ -328,7 +328,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
                   onClose();
                 }}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                style={{ background: '#b91c1c' }}
+                style={{ background: 'var(--red)' }}
               >
                 Ir a reponer tarjeta
               </button>

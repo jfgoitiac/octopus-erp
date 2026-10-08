@@ -352,7 +352,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
                   style={{
                     ...FIELD_STYLE,
-                    border: tocado.banco && !bancoReceptorId ? '1px solid #ef4444' : FIELD_STYLE.border,
+                    border: tocado.banco && !bancoReceptorId ? '1px solid var(--red)' : FIELD_STYLE.border,
                   }}
                   value={bancoReceptorId}
                   onChange={e => setBancoReceptorId(e.target.value)}
@@ -363,7 +363,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                   {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
                 </select>
                 {tocado.banco && !bancoReceptorId && (
-                  <p className="text-xs mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Selecciona un banco</p>
                 )}
               </div>
               <div>
@@ -390,7 +390,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
                 style={{
                   ...FIELD_STYLE,
-                  border: tocado.referencia && referenciaInvalida(metodoPago, referencia) ? '1px solid #ef4444' : FIELD_STYLE.border,
+                  border: tocado.referencia && referenciaInvalida(metodoPago, referencia) ? '1px solid var(--red)' : FIELD_STYLE.border,
                 }}
                 value={referencia}
                 onChange={e => setReferencia(
@@ -402,7 +402,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                 disabled={enviando}
               />
               {tocado.referencia && referenciaInvalida(metodoPago, referencia) && (
-                <p className="text-xs mt-1" style={{ color: '#ef4444' }}>
+                <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
                   {metodoPago === 'zelle' ? 'Ingresa el número de confirmación.' : 'Debe tener exactamente 6 dígitos numéricos.'}
                 </p>
               )}

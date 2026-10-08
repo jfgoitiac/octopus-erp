@@ -16,11 +16,11 @@ const ESTADO_STYLE = {
   pendiente: { label: 'Pendiente', color: 'var(--amber-ink)', bg: 'var(--yellow-light)' },
   pagado: { label: 'Pagado', color: 'var(--green)', bg: 'var(--green-light)' },
   completado: { label: 'Completado', color: 'var(--green)', bg: 'var(--green-light)' },
-  anulado: { label: 'Anulado', color: '#6b7280', bg: '#f3f4f6' },
+  anulado: { label: 'Anulado', color: 'var(--ash)', bg: 'var(--surface-sunken)' },
 };
 
 const Chip = ({ estado }) => {
-  const s = ESTADO_STYLE[estado] || { label: estado || '—', color: '#6b7280', bg: '#f3f4f6' };
+  const s = ESTADO_STYLE[estado] || { label: estado || '—', color: 'var(--ash)', bg: 'var(--surface-sunken)' };
   return (
     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: s.color, background: s.bg }}>
       {s.label}
@@ -163,7 +163,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
               <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--jet)' }}>
                 Límite de crédito: <strong>{data.limite_usd != null ? fmtUsd(data.limite_usd) : '—'}</strong>
                 {bloqueado && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--red)', background: '#fee2e2' }}>
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
                     <Lock size={11} /> Bloqueado
                   </span>
                 )}
@@ -291,7 +291,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                           <Printer size={15} /> Recibo
                         </button>
                         {esAdmin && a.estatus !== 'anulado' && (
-                          <button type="button" onClick={() => setAbonoAAnular(a)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid #dc2626', color: 'var(--red)' }}>
+                          <button type="button" onClick={() => setAbonoAAnular(a)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid var(--red)', color: 'var(--red)' }}>
                             <Ban size={15} /> Anular
                           </button>
                         )}

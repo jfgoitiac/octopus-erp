@@ -32,12 +32,12 @@ function Campo({ label, error, children }) {
     <div className="min-w-0">
       <label htmlFor={id} className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>{label}</label>
       {children(id)}
-      {error && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{error}</p>}
+      {error && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{error}</p>}
     </div>
   );
 }
 
-const estiloCampo = (error) => (error ? { ...FIELD_STYLE, border: '1px solid #ef4444' } : FIELD_STYLE);
+const estiloCampo = (error) => (error ? { ...FIELD_STYLE, border: '1px solid var(--red)' } : FIELD_STYLE);
 
 export default function MetodoPagoFields({
   value, onChange, bancos = [], tasa = 0, metodosPermitidos,

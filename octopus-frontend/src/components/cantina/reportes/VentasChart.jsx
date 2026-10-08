@@ -27,9 +27,9 @@ export default function VentasChart({ porDia = [] }) {
     <div style={{ width: '100%', height: 280 }}>
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-          <XAxis dataKey="fechaLabel" tick={{ fontSize: 11, fill: '#6b7280' }} />
-          <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={(v) => `$${v}`} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-md)" vertical={false} />
+          <XAxis dataKey="fechaLabel" tick={{ fontSize: 11, fill: 'var(--ash)' }} />
+          <YAxis tick={{ fontSize: 11, fill: 'var(--ash)' }} tickFormatter={(v) => `$${v}`} />
           <Tooltip
             formatter={(v, name) => name === 'total_usd' ? [`$${Number(v).toFixed(2)}`, 'Total'] : [v, 'Ventas']}
             labelFormatter={(label) => `Día ${label}`}

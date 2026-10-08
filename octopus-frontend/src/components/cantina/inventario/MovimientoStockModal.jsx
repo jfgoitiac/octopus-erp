@@ -10,7 +10,7 @@ const IDLE_STYLE  = { border: '0.5px solid var(--border-md)', color: 'var(--ash)
 const TIPOS = [
   { value: 'entrada', label: 'Entrada', icon: ArrowDownCircle, activeStyle: { background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '1.5px solid var(--pb)' } },
   { value: 'salida',  label: 'Salida',  icon: ArrowUpCircle,   activeStyle: { background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid var(--red)' } },
-  { value: 'ajuste',  label: 'Ajuste',  icon: Wrench,          activeStyle: { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid #f59e0b' } },
+  { value: 'ajuste',  label: 'Ajuste',  icon: Wrench,          activeStyle: { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid var(--yellow)' } },
 ];
 
 export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
