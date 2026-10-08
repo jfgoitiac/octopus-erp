@@ -31,7 +31,11 @@ const INPUT_STYLE = {
 const Representantes = () => {
     const { user } = useContext(AuthContext);
     const rol = (user?.rol || '').toLowerCase().trim();
-    const canEditar   = ROLE_GROUPS.REPRESENTANTES_EDITAR.includes(rol);
+    // canEditar: crear/editar datos de contacto (incluye secretaria).
+    // canAdminCuenta: acciones financieras/de acceso (Proyecto de Inversión, portal, Excel),
+    // que siguen siendo solo de director/administrador/sistemas.
+    const canEditar      = ROLE_GROUPS.REPRESENTANTES_CRUD.includes(rol);
+    const canAdminCuenta = ROLE_GROUPS.REPRESENTANTES_EDITAR.includes(rol);
     const canEliminar = ROLE_GROUPS.REPRESENTANTES_ELIMINAR.includes(rol);
 
     const rep = useRepresentantes();
@@ -96,7 +100,7 @@ const Representantes = () => {
                             Agregar
                         </button>
                     )}
-                    {canEditar && (
+                    {canAdminCuenta && (
                         <button
                             onClick={rep.handleExportExcel}
                             disabled={rep.exportingExcel || rep.loading}
@@ -147,6 +151,7 @@ const Representantes = () => {
                     alumnos={rep.fichaAlumnos}
                     fichaLoading={rep.fichaLoading}
                     canEditar={canEditar}
+                    canAdminCuenta={canAdminCuenta}
                     canEliminar={canEliminar}
                     onClose={rep.closeFicha}
                     onEditar={rep.openEditar}
