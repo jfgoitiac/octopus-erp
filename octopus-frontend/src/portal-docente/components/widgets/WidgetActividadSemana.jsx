@@ -28,10 +28,11 @@ const WidgetActividadSemana = ({ mensajes, incidentes }) => {
                 <div
                   className={`w-4/5 rounded-md transition-all ${esHoy ? 'bg-[var(--docente-primary)]' : 'bg-[var(--docente-primary)]/20'}`}
                   style={{ height: `${alturaPct}%` }}
+                  role="img" aria-label={`${format(dia, 'EEEE', { locale: es })}: ${total} actividad${total === 1 ? '' : 'es'}`}
                   title={`${total} actividad${total === 1 ? '' : 'es'}`}
                 />
               </div>
-              <span className={`text-[10px] capitalize ${esHoy ? 'font-bold text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`}>
+              <span className={`text-xs capitalize ${esHoy ? 'font-bold text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`}>
                 {format(dia, 'EEEEE', { locale: es })}
               </span>
             </div>

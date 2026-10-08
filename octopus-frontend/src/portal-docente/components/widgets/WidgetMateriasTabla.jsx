@@ -26,7 +26,7 @@ const WidgetMateriasTabla = ({ materias, className = '' }) => (
           <span>Materia</span>
           <span>Sección</span>
           <span>Alumnos</span>
-          <span></span>
+          <span aria-hidden="true"></span>
         </div>
         {materias.map(m => (
           <Link

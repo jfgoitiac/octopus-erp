@@ -28,9 +28,9 @@ const WidgetProgresoNotas = ({ progreso, lapsoActivo, className = '' }) => (
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-[var(--jet)] truncate">{p.nombre}</p>
-                <div className="h-1.5 rounded-full bg-[var(--surface-sunken)] mt-1.5 overflow-hidden">
+                <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Notas cargadas de ${p.nombre}`} className="h-1.5 rounded-full bg-[var(--surface-sunken)] mt-1.5 overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${completo ? 'bg-[var(--green-light)]0' : 'bg-emerald-400'}`}
+                    className={`h-full rounded-full ${completo ? 'bg-[var(--green)]' : 'bg-[var(--docente-primary)]'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

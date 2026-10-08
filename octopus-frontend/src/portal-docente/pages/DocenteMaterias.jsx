@@ -1,10 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { BookOpen, GraduationCap, ChevronRight } from 'lucide-react';
 import { useDocenteMisMaterias } from '../hooks/useDocenteMisMaterias';
 import SkeletonCard from '../../portal/components/SkeletonCard';
 
 const DocenteMaterias = () => {
-  const navigate = useNavigate();
   const { materias, loading } = useDocenteMisMaterias();
 
   return (
@@ -27,19 +26,19 @@ const DocenteMaterias = () => {
           <p className="text-sm">Todavía no tienes materias asignadas.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:space-y-0">
           {materias.map(m => (
-            <button
+            <Link
               key={m.id}
-              onClick={() => navigate(`/portal-docente/materias/${m.id}`)}
+              to={`/portal-docente/materias/${m.id}`}
               className="w-full text-left bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 flex items-center justify-between gap-3 min-h-[44px] hover:border-[var(--docente-primary)]/40 transition-colors"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[var(--jet)] truncate">{m.nombre}</p>
-                <p className="text-xs text-[var(--ash)] mt-1">{m.grado_seccion}{m.codigo ? ` · ${m.codigo}` : ''}</p>
+                <p className="text-xs text-[var(--ash)] mt-1 truncate">{m.grado_seccion}{m.codigo ? ` · ${m.codigo}` : ''}</p>
               </div>
               <ChevronRight size={18} className="text-[var(--ash)] flex-shrink-0" />
-            </button>
+            </Link>
           ))}
         </div>
       )}

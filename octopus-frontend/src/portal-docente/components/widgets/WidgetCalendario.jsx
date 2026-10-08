@@ -45,17 +45,17 @@ const WidgetCalendario = ({ className = '' }) => {
           <button
             onClick={() => setMesActual(m => subMonths(m, 1))}
             aria-label="Mes anterior"
-            className="p-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
+            className="p-2.5 -m-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
           >
             <ChevronLeft size={16} />
           </button>
-          <p className="text-sm font-semibold text-[var(--jet)] capitalize w-28 text-center">
+          <p className="text-sm font-semibold text-[var(--jet)] capitalize min-w-32 text-center">
             {format(mesActual, 'MMMM yyyy', { locale: es })}
           </p>
           <button
             onClick={() => setMesActual(m => addMonths(m, 1))}
             aria-label="Mes siguiente"
-            className="p-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
+            className="p-2.5 -m-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
           >
             <ChevronRight size={16} />
           </button>
@@ -63,9 +63,9 @@ const WidgetCalendario = ({ className = '' }) => {
         <button
           onClick={() => setModalAbierto(true)}
           aria-label="Agregar evento"
-          className="w-7 h-7 rounded-lg bg-[var(--docente-primary)]/10 text-[var(--docente-primary)] flex items-center justify-center hover:bg-[var(--docente-primary)]/20 transition-colors"
+          className="w-10 h-10 rounded-xl bg-[var(--docente-primary)]/10 text-[var(--docente-primary)] flex items-center justify-center hover:bg-[var(--docente-primary)]/20 transition-colors"
         >
-          <Plus size={15} />
+          <Plus size={18} />
         </button>
       </div>
 
@@ -85,27 +85,29 @@ const WidgetCalendario = ({ className = '' }) => {
             <button
               key={iso}
               onClick={() => setDiaSeleccionado(iso)}
-              className="relative flex flex-col items-center"
+              aria-label={format(dia, "d 'de' MMMM", { locale: es }) + (tieneEventos ? ', con eventos' : '')}
+              aria-pressed={esSeleccionado}
+              className="relative flex flex-col items-center justify-center min-h-[40px]"
             >
               <span
-                className={`text-xs h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
+                className={`text-xs h-8 w-8 flex items-center justify-center rounded-full transition-colors ${
                   esSeleccionado
                     ? 'bg-[var(--docente-primary)] text-white font-bold'
                     : esHoy
                     ? 'border border-[var(--docente-primary)] text-[var(--docente-primary)] font-bold'
                     : delMes
                     ? 'text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)]'
-                    : 'text-[var(--ash)]'
+                    : 'text-[var(--ash)]/70'
                 }`}
               >
                 {format(dia, 'd')}
               </span>
               {tieneEventos && (
                 <span
-                  className={`w-1 h-1 rounded-full mt-0.5 ${
+                  className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
                     tieneEvaluacion
-                      ? (esSeleccionado ? 'bg-[var(--yellow-light)]0' : 'bg-amber-400/70')
-                      : (esSeleccionado ? 'bg-[var(--docente-primary)]' : 'bg-[var(--docente-primary)]/50')
+                      ? 'bg-[var(--yellow)]'
+                      : 'bg-[var(--docente-primary)]'
                   }`}
                 />
               )}
@@ -114,13 +116,13 @@ const WidgetCalendario = ({ className = '' }) => {
         })}
       </div>
 
-      <div className="mt-3 flex items-center gap-3 text-[10px] text-[var(--ash)]"><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[var(--docente-primary)] inline-block" />Evento</span><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />Evaluación</span></div>
+      <div className="mt-3 flex items-center gap-3 text-xs text-[var(--ash)]"><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[var(--docente-primary)] inline-block" />Evento</span><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[var(--yellow)] inline-block" />Evaluación</span></div>
       <div className="mt-3 pt-3 border-t border-[var(--border)] flex-1">
         <p className="text-xs font-semibold text-[var(--ash)] capitalize mb-2">
           {format(new Date(diaSeleccionado + 'T00:00:00'), "EEEE d 'de' MMMM", { locale: es })}
         </p>
         {loading ? (
-          <p className="text-xs text-[var(--ash)]">Cargando eventos...</p>
+          <p className="text-xs text-[var(--ash)]" role="status">Cargando eventos…</p>
         ) : eventosDelDia.length === 0 ? (
           <p className="text-xs text-[var(--ash)]">Sin eventos este día.</p>
         ) : (
@@ -131,20 +133,20 @@ const WidgetCalendario = ({ className = '' }) => {
                 className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${ev.solo_lectura ? 'bg-[var(--yellow-light)]' : 'bg-[var(--docente-primary)]/10'}`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className={`text-xs font-semibold truncate ${ev.solo_lectura ? 'text-amber-900' : 'text-[var(--docente-primary-dark)]'}`}>{ev.titulo}</p>
-                  <p className={`text-[10px] ${ev.solo_lectura ? 'text-[var(--yellow)]' : 'text-[var(--docente-primary)]'}`}>
+                  <p className={`text-xs font-semibold truncate ${ev.solo_lectura ? 'text-[var(--jet)]' : 'text-[var(--docente-primary-dark)]'}`}>{ev.titulo}</p>
+                  <p className={`text-xs ${ev.solo_lectura ? 'text-[var(--yellow)]' : 'text-[var(--docente-primary)]'}`}>
                     {ev.tipo_label}{ev.hora ? ` · ${ev.hora.slice(0, 5)}` : ''}
                   </p>
                 </div>
                 {ev.solo_lectura ? (
-                  <GraduationCap size={13} className="text-amber-400 flex-shrink-0" aria-label="Evaluación del plan" />
+                  <GraduationCap size={13} className="text-[var(--yellow)] flex-shrink-0" aria-label="Evaluación del plan" />
                 ) : (
                   <button
                     onClick={() => eliminarEvento(ev.id)}
                     aria-label="Eliminar evento"
-                    className="text-[var(--ash)] hover:text-[var(--red)] flex-shrink-0"
+                    className="text-[var(--ash)] hover:text-[var(--red)] flex-shrink-0 p-2.5 -m-2"
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={15} />
                   </button>
                 )}
               </div>

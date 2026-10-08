@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, TrendingDown, LineChart } from 'lucide-react';
+import { TrendingDown, LineChart } from 'lucide-react';
 import { getRendimientoAlumno } from '../../api/academico.service';
-import { useEscape } from '../../../hooks/useEscape';
-import { useFocusTrap } from '../../../hooks/useFocusTrap';
+import { Modal } from '../../../components/ui/Modal';
 
 // Sparkline SVG simple hecho a mano (sin librería nueva) — traza el promedio
 // general a través de los lapsos disponibles.
@@ -31,11 +30,11 @@ const Sparkline = ({ puntos, enRiesgo }) => {
 
   const validos = coords.filter(c => c.y !== null);
   const pathD = validos.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x},${c.y}`).join(' ');
-  const color = enRiesgo ? '#dc2626' : 'var(--docente-primary)';
+  const color = enRiesgo ? 'var(--red)' : 'var(--docente-primary)';
 
   return (
     <div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-20">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-20" role="img" aria-label="Evolución del promedio general por lapso">
         <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {validos.map((c, i) => (
           <circle key={i} cx={c.x} cy={c.y} r="3" fill={color} />
@@ -43,7 +42,7 @@ const Sparkline = ({ puntos, enRiesgo }) => {
       </svg>
       <div className="flex justify-between mt-1">
         {coords.map((c, i) => (
-          <span key={i} className="text-[9px] text-[var(--ash)] truncate" style={{ maxWidth: `${100 / coords.length}%` }}>
+          <span key={i} className="text-[11px] text-[var(--ash)] truncate" style={{ maxWidth: `${100 / coords.length}%` }}>
             {c.lapso}
           </span>
         ))}
@@ -62,11 +61,6 @@ const SkeletonEvolucion = () => (
 const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
   const [rendimiento, setRendimiento] = useState(null);
   const [loading, setLoading] = useState(true);
-  const containerRef = useRef(null);
-
-  useEscape(true, onClose);
-  useFocusTrap(containerRef);
-
   const abortRef = useRef(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -85,23 +79,12 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
   const enRiesgo = rendimiento?.en_riesgo;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="evolucion-alumno-titulo"
+    <Modal
+      open
+      onClose={onClose}
+      size="sm"
+      titulo={<span className="flex items-center gap-2"><LineChart size={18} /> Evolución del alumno</span>}
     >
-      <div ref={containerRef} className="bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="evolucion-alumno-titulo" className="font-bold text-[var(--jet)] flex items-center gap-2">
-            <LineChart size={18} className="text-[var(--docente-primary)]" />
-            Evolución del alumno
-          </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-[var(--ash)]">
-            <X size={18} />
-          </button>
-        </div>
-
         {loading ? (
           <SkeletonEvolucion />
         ) : !rendimiento ? (
@@ -130,8 +113,7 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
             )}
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 };
 

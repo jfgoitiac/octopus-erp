@@ -48,13 +48,16 @@ const DocenteCambiarContrasena = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Lock size={20} className="text-[var(--docente-primary)]" />
-        <h1 className="text-lg font-bold text-[var(--jet)]">Cambiar contraseña</h1>
+    <div className="space-y-4 max-w-md mx-auto">
+      <div>
+        <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
+          <Lock size={20} className="text-[var(--docente-primary)]" />
+          Cambiar contraseña
+        </h1>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Mínimo 8 caracteres</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 space-y-4">
         {[
           { key: 'contrasena_actual', label: 'Contraseña actual' },
           { key: 'contrasena_nueva', label: 'Nueva contraseña' },
@@ -63,7 +66,7 @@ const DocenteCambiarContrasena = () => {
           const sk = showKey(key);
           return (
             <div key={key}>
-              <label htmlFor={`docente-pwd-${key}`} className="block text-xs font-medium text-[var(--jet-mid)] mb-1">{label}</label>
+              <label htmlFor={`docente-pwd-${key}`} className="block text-xs font-medium text-[var(--ash)] mb-1.5">{label}</label>
               <div className="relative">
                 <input
                   id={`docente-pwd-${key}`}
@@ -72,7 +75,7 @@ const DocenteCambiarContrasena = () => {
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   required
                   autoComplete={key === 'contrasena_actual' ? 'current-password' : 'new-password'}
-                  className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-base sm:text-sm pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30 focus:border-[var(--docente-primary)] transition-colors"
                 />
                 <ToggleBtn field={sk} />
               </div>
@@ -85,7 +88,7 @@ const DocenteCambiarContrasena = () => {
           disabled={loading}
           className="w-full bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-60 mt-2 min-h-[44px]"
         >
-          {loading ? 'Guardando...' : 'Actualizar contraseña'}
+          {loading ? 'Guardando…' : 'Actualizar contraseña'}
         </button>
       </form>
     </div>

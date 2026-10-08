@@ -22,18 +22,18 @@ const ACCIONES = [
 ];
 
 const WidgetAccionesRapidas = ({ className = '' }) => (
-  <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 ${className}`}>
+  <div className={`grid grid-cols-3 gap-2 sm:gap-3 ${className}`}>
     {ACCIONES.map(({ to, state, icon: Icon, label }) => (
       <Link
         key={label}
         to={to}
         state={state}
-        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+        className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 flex flex-col items-center gap-1.5 text-center hover:border-[var(--docente-primary)]/40 transition-colors min-h-[44px]"
       >
         <div className="w-9 h-9 rounded-xl bg-[var(--docente-primary)] text-white flex items-center justify-center">
           <Icon size={17} />
         </div>
-        <p className="text-[11px] font-medium text-[var(--jet-mid)] leading-tight">{label}</p>
+        <p className="text-xs font-medium text-[var(--jet-mid)] leading-tight">{label}</p>
       </Link>
     ))}
   </div>

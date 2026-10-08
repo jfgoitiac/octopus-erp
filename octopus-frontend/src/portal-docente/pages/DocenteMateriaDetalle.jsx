@@ -405,7 +405,7 @@ const DocenteMateriaDetalle = () => {
           ) : (
             <>
             {!loadingAsistencia && registros.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { key: 'presentes', label: 'Presentes', color: 'text-[var(--green)]', bg: 'bg-[var(--green-light)]' },
                   { key: 'ausentes', label: 'Ausentes', color: 'text-[var(--red)]', bg: 'bg-[var(--red-light)]' },
@@ -415,7 +415,7 @@ const DocenteMateriaDetalle = () => {
                     <Users size={15} className={color} />
                     <div>
                       <p className={`text-sm font-bold leading-none ${color}`}>{conteos[key]}</p>
-                      <p className={`text-[10px] ${color}`}>{label}</p>
+                      <p className={`text-xs ${color}`}>{label}</p>
                     </div>
                   </div>
                 ))}

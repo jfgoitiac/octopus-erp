@@ -71,16 +71,16 @@ const DocenteDashboard = () => {
       </div>
 
       <div className="md:col-span-12">
-        {loadingAlertas || loadingRadar || loadingConversaciones ? <SkeletonCard lines={4} /> : <WidgetPendientesHoy items={pendientes} updatedAt="ahora" />}
+        {loadingAlertas || loadingRadar || loadingConversaciones ? <SkeletonCard lines={4} /> : <WidgetPendientesHoy items={pendientes} />}
       </div>
 
       <div className="md:col-span-12">
         {cargando ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={1} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {[
               { icon: BookOpen, label: 'Materias', value: materias.length, to: '/portal-docente/materias' },
               { icon: MessageCircle, label: 'Sin leer', value: mensajesNoLeidos, to: '/portal-docente/mensajes' },
@@ -89,7 +89,7 @@ const DocenteDashboard = () => {
               <Link
                 key={label}
                 to={to}
-                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 flex flex-col items-center gap-1.5 text-center hover:border-[var(--docente-primary)]/40 transition-colors min-h-[44px]"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--docente-primary)]/10 text-[var(--docente-primary)]">
                   <Icon size={16} />
@@ -104,7 +104,7 @@ const DocenteDashboard = () => {
 
       {/* Acciones rápidas */}
       <div className="md:col-span-12">
-        <p className="text-xs font-semibold text-[var(--ash)] uppercase tracking-wide mb-2 px-0.5">Acciones frecuentes</p>
+        <h2 className="text-xs font-semibold text-[var(--ash)] uppercase tracking-wide mb-2 px-0.5">Acciones frecuentes</h2>
         <WidgetAccionesRapidas />
       </div>
 
@@ -119,7 +119,7 @@ const DocenteDashboard = () => {
       </div>
 
       <div className="md:col-span-12">
-        <p className="text-xs font-semibold text-[var(--ash)] uppercase tracking-wide mb-2 px-0.5">Seguimiento académico</p>
+        <h2 className="text-xs font-semibold text-[var(--ash)] uppercase tracking-wide mb-2 px-0.5">Seguimiento académico</h2>
         {loadingNotas ? <SkeletonCard lines={3} /> : (
           <WidgetProgresoNotas progreso={progreso} lapsoActivo={lapsoActivo} />
         )}

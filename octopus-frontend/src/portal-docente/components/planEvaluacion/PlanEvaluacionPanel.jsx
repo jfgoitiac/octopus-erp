@@ -502,13 +502,13 @@ function TablaNotasPlan({ bloques, notasLocal, loading, esLiteral, lapsoActivo, 
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[var(--surface-sunken)]">
-              <th className="px-3 py-2.5 text-[11px] uppercase tracking-wide text-[var(--ash)] sticky left-0 bg-[var(--surface-sunken)]">Alumno</th>
+              <th className="px-3 py-2.5 text-xs uppercase tracking-wide text-[var(--ash)] sticky left-0 bg-[var(--surface-sunken)]">Alumno</th>
               {items.map(it => (
-                <th key={it.id} className="px-2 py-2.5 text-[10px] uppercase tracking-wide text-[var(--ash)] whitespace-nowrap">
+                <th key={it.id} className="px-2 py-2.5 text-xs uppercase tracking-wide text-[var(--ash)] whitespace-nowrap">
                   {it.nombre}
                 </th>
               ))}
-              {!esLiteral && <th className="px-3 py-2.5 text-[11px] uppercase tracking-wide text-[var(--ash)]">Total</th>}
+              {!esLiteral && <th className="px-3 py-2.5 text-xs uppercase tracking-wide text-[var(--ash)]">Total</th>}
             </tr>
           </thead>
           <tbody>
