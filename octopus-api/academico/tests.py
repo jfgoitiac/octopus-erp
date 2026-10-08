@@ -2131,3 +2131,9 @@ class AsistenciaRosterTests(TestCase):
 
         self.assertIsNone(filas[self.zapata.id]['alumno_foto'])
         self.assertTrue(filas[self.alvarez.id]['alumno_foto'].startswith('http://testserver/'))
+
+    def test_incluye_genero_del_alumno_para_el_resumen(self):
+        Alumno.objects.filter(pk=self.alvarez.pk).update(genero='femenino')
+        filas = {f['alumno_id']: f for f in self._get()}
+        self.assertEqual(filas[self.alvarez.id]['alumno_genero'], 'femenino')
+        self.assertEqual(filas[self.zapata.id]['alumno_genero'], 'masculino')
