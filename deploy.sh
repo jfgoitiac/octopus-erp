@@ -74,6 +74,11 @@ echo "▶ Verificando librerías de notificaciones push..."
     exit 1
 }
 
+# Genera el par VAPID en .env solo si faltan las dos claves (nunca sobrescribe
+# uno existente: cambiarlo invalida las suscripciones push de todos).
+echo "▶ Verificando claves VAPID del push..."
+"$VENV/python" "$BACKEND/manage.py" generar_vapid
+
 echo "▶ Verificando postgresql-client (pg_dump, requerido para el respaldo de BD)..."
 if ! command -v pg_dump &> /dev/null; then
     sudo apt-get install -y postgresql-client

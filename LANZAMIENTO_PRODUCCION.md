@@ -45,8 +45,10 @@ nunca se versionan con secretos:
 - Notificaciones push: `deploy.sh` ya instala `pywebpush`, `py-vapid` y
   `http-ece` desde `requirements.txt` y aborta si no quedan importables
   (en un servidor sin compilador: `apt install build-essential python3-dev`).
-  Generar y completar `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` en el `.env` (ver
-  `octopus-api/.env.example`); sin ellas el push queda apagado en silencio.
+  `deploy.sh` genera `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` en el `.env` si faltan
+  (`manage.py generar_vapid`); nunca sobrescribe un par existente. Hacer copia del
+  `.env` con ese par: perderlo obliga a cada usuario a reactivar las notificaciones.
+  Sin las claves el push queda apagado en silencio.
   El push cubre los tres portales: representantes, panel administrativo y
   docentes (campana en la barra superior de cada uno).
 
