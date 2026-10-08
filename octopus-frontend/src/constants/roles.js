@@ -118,8 +118,19 @@ export const ROLE_GROUPS = {
   // (RepresentanteViewSet.get_permissions: destroy/eliminar_definitivo_manual).
   REPRESENTANTES_ELIMINAR: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA],
 
-  // Morosos: todos excepto directivo_red y sistemas (gestión local de sede)
-  MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SECRETARIA, ROLES.CAJERO, ROLES.COBRANZA],
+  // Crear/editar datos de contacto del representante — debe coincidir con
+  // secretaria/views.py::IsSecretariaOrAbove (RepresentanteViewSet.get_permissions:
+  // create/update/partial_update). La carga del Proyecto de Inversión sigue
+  // siendo solo REPRESENTANTES_EDITAR (es financiera).
+  REPRESENTANTES_CRUD: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SISTEMAS, ROLES.SECRETARIA],
+
+  // Morosos y Cobros WhatsApp: personal que cobra. La secretaria no cobra, así
+  // que no ve montos adeudados (coincide con authentication/views.py::EsPersonalCobranza).
+  MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.COBRANZA],
+
+  // Roles que consultan Boletines/Horarios/Materias/Docentes sin poder
+  // modificarlos (el backend ya rechaza sus escrituras con IsAdminOrAbove).
+  ACADEMICO_SOLO_LECTURA: [ROLES.SECRETARIA],
 
   // Docente: solo banco de estudiantes, representantes e inscripciones
   DOCENTE: [ROLES.DOCENTE],

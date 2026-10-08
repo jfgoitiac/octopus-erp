@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { Plus, Search, UserRound, GraduationCap } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { ROLE_GROUPS } from '../constants/roles';
 import GradoSelect from '../components/GradoSelect';
 import { ModalMateria } from '../components/horarios/ModalMateria';
 import { INPUT_STYLE } from '../constants/styles';
@@ -9,6 +11,8 @@ import { Card } from '../components/ui/Card';
 import { coincideBusqueda } from '../utils/busqueda';
 
 const Materias = () => {
+  const { user } = useContext(AuthContext);
+  const soloLectura = ROLE_GROUPS.ACADEMICO_SOLO_LECTURA.includes((user?.rol || '').toLowerCase().trim());
   const { materias, loading, saving, crear, actualizar, eliminar } = useMaterias();
   const [filtro, setFiltro] = useState('');
   const [grado, setGrado] = useState('');
@@ -39,8 +43,8 @@ const Materias = () => {
     <div className="animate-fadeIn">
       <PageHeader
         titulo="Materias"
-        descripcion="Registra cada materia y asígnala a un grado y docente."
-        acciones={(
+        descripcion={soloLectura ? 'Consulta las materias por grado y docente.' : 'Registra cada materia y asígnala a un grado y docente.'}
+        acciones={soloLectura ? null : (
           <button
             type="button"
             onClick={() => setModal({ materia: null })}
@@ -85,12 +89,14 @@ const Materias = () => {
           </div>
         ) : (
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {materiasFiltradas.map(materia => (
-              <button
+            {materiasFiltradas.map(materia => {
+              const Fila = soloLectura ? 'div' : 'button';
+              const propsFila = soloLectura ? {} : { type: 'button', onClick: () => setModal({ materia }) };
+              return (
+              <Fila
                 key={materia.id}
-                type="button"
-                onClick={() => setModal({ materia })}
-                className="w-full px-4 py-3 text-left flex items-center justify-between gap-4 hover:bg-[var(--ash-light)] transition-colors"
+                {...propsFila}
+                className={`w-full px-4 py-3 text-left flex items-center justify-between gap-4 transition-colors ${soloLectura ? '' : 'hover:bg-[var(--ash-light)]'}`}
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--jet)' }}>{materia.nombre}</p>
@@ -101,13 +107,14 @@ const Materias = () => {
                   </p>
                 </div>
                 <span className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--ash)' }}>{materia.horas_academicas} h/sem.</span>
-              </button>
-            ))}
+              </Fila>
+              );
+            })}
           </div>
         )}
       </Card>
 
-      {modal && (
+      {modal && !soloLectura && (
         <ModalMateria
           materia={modal.materia}
           mostrarGrado

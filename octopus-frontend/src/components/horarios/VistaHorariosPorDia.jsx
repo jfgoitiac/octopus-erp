@@ -5,7 +5,7 @@ import { TablaScroll } from '../ui/TablaScroll';
 // Matriz de coordinación: cada grupo de columnas es un día y dentro de él
 // aparecen todos los grados del paquete. Permite detectar rápidamente huecos
 // y cruces entre grados, tal como se haría en una hoja de planificación.
-export const VistaHorariosPorDia = ({ bloques = [], grillas = [], escala = 90, onCeldaClick, onEditarClase }) => {
+export const VistaHorariosPorDia = ({ bloques = [], grillas = [], escala = 90, onCeldaClick, onEditarClase, soloLectura = false }) => {
   const horas = [...new Set(bloques.map(bloque => bloque.hora_inicio))].sort();
   const bloquePorDiaHora = new Map(bloques.map(bloque => [`${bloque.dia_semana}-${bloque.hora_inicio}`, bloque]));
   const clasesPorGrado = new Map(grillas.map(grilla => [
@@ -53,11 +53,18 @@ export const VistaHorariosPorDia = ({ bloques = [], grillas = [], escala = 90, o
                       return (
                         <td key={`${dia.value}-${hora}-${grilla.grado}`} className="p-1 align-middle" style={{ minWidth: 130, borderLeft: indiceGrado === 0 ? '2px solid var(--pb)' : '0.5px solid var(--border)' }}>
                           {clase ? (
+                            soloLectura ? (
+                              <div className="w-full rounded px-1.5 py-2 text-left" style={{ background: getColor(clase.materia?.id), color: 'var(--jet)' }}>
+                                <span className="block text-[10px] font-bold leading-tight">{clase.materia?.nombre || 'Materia'}</span>
+                                {clase.aula && <span className="block mt-0.5 text-[9px] opacity-70">{clase.aula}</span>}
+                              </div>
+                            ) : (
                             <button type="button" onClick={() => onEditarClase(clase, grilla.materias)} className="w-full rounded px-1.5 py-2 text-left transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]" style={{ background: getColor(clase.materia?.id), color: 'var(--jet)' }}>
                               <span className="block text-[10px] font-bold leading-tight">{clase.materia?.nombre || 'Materia'}</span>
                               {clase.aula && <span className="block mt-0.5 text-[9px] opacity-70">{clase.aula}</span>}
                             </button>
-                          ) : bloque ? (
+                            )
+                          ) : bloque && !soloLectura ? (
                             <button type="button" onClick={() => onCeldaClick(bloque, grilla.materias)} className="flex w-full min-h-10 items-center justify-center rounded border border-dashed transition-colors hover:bg-[var(--pb-light)]" style={{ borderColor: 'var(--border-md)', color: 'var(--ash)' }} aria-label={`Agregar clase a ${grilla.grado}, ${dia.label} ${hora}`}><Plus size={13} className="opacity-45" /></button>
                           ) : <span className="block h-10" />}
                         </td>

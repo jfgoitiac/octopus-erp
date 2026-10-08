@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useContext } from 'react';
 import { toast } from 'react-toastify';
+import { AuthContext } from '../context/AuthContext';
+import { ROLE_GROUPS } from '../constants/roles';
 import { useSearchParams, Link } from 'react-router-dom';
 import { GraduationCap, Printer, Wand2, Settings2, Package, ChevronLeft, Plus, ZoomIn, ZoomOut } from 'lucide-react';
 import { useHorarios } from '../hooks/useHorarios';
@@ -20,6 +22,10 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { getHorariosDocente, getHorarios, getMaterias, listarDocentes } from '../api/academico.service';
 
 const Horarios = () => {
+  // Solo lectura (secretaria): ve la grilla y puede imprimirla, pero no edita
+  // clases, bloques ni genera horarios (el backend ya rechaza esas escrituras).
+  const { user } = useContext(AuthContext);
+  const soloLectura = ROLE_GROUPS.ACADEMICO_SOLO_LECTURA.includes((user?.rol || '').toLowerCase().trim());
   const [searchParams, setSearchParams] = useSearchParams();
   const paqueteId = searchParams.get('paquete') || '';
 
@@ -157,6 +163,7 @@ const Horarios = () => {
   };
 
   const abrirCelda = (bloque, materiasContexto = null) => {
+    if (soloLectura) return;
     setModal({ clase: null, bloque, materiasContexto });
   };
 
@@ -170,6 +177,7 @@ const Horarios = () => {
   };
 
   const asignarRapido = async (bloque) => {
+    if (soloLectura) return;
     if (!materiaActiva) return abrirCelda(bloque);
     const ok = await guardar({
       materia_id: materiaActiva.id,
@@ -182,6 +190,7 @@ const Horarios = () => {
   };
 
   const editarClase = (clase) => {
+    if (soloLectura) return;
     setModal({ clase, bloque: null });
   };
 
@@ -207,6 +216,7 @@ const Horarios = () => {
 
   // Drag & drop: mover una clase existente a otro bloque (mismo día u otro)
   const handleMoverClase = async (clase, bloqueDestino) => {
+    if (soloLectura) return;
     const ok = await guardar({
       id: clase.id,
       materia_id: clase.materia?.id,
@@ -219,6 +229,7 @@ const Horarios = () => {
   };
 
   const handleIntercambiarClase = async (origen, destino) => {
+    if (soloLectura) return;
     setIntercambioPendiente({ origen, destino });
   };
 
@@ -270,8 +281,8 @@ const Horarios = () => {
       <div className="animate-fadeIn">
         <PageHeader
           titulo="Horarios de Clases"
-          descripcion="Selecciona un paquete de horario para ver o editar su grilla"
-          acciones={
+          descripcion={soloLectura ? 'Selecciona un paquete de horario para consultar su grilla' : 'Selecciona un paquete de horario para ver o editar su grilla'}
+          acciones={soloLectura ? null :
             <Link
               to="/horarios/paquetes"
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
@@ -289,7 +300,7 @@ const Horarios = () => {
           <div className="rounded-xl p-16 text-center"
             style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}>
             <Package size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Aún no hay paquetes de horario. Crea uno desde "Gestionar paquetes".</p>
+            <p className="text-sm">{soloLectura ? 'Aún no hay paquetes de horario.' : 'Aún no hay paquetes de horario. Crea uno desde "Gestionar paquetes".'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -320,9 +331,10 @@ const Horarios = () => {
       <div className="print:hidden">
         <PageHeader
           titulo={paqueteActual ? paqueteActual.nombre : 'Horarios de Clases'}
-          descripcion={usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : usandoVistaParalela ? 'Compara y ajusta los grados del paquete lado a lado' : usandoVistaPorDia ? 'Coordina todos los grados agrupados por día de la semana' : 'Visualiza y edita la grilla horaria por grado'}
+          descripcion={soloLectura ? 'Consulta la grilla horaria por grado o por profesor' : usandoVistaDocente ? 'Cuadra la carga semanal de cada profesor sin salir de la grilla' : usandoVistaParalela ? 'Compara y ajusta los grados del paquete lado a lado' : usandoVistaPorDia ? 'Coordina todos los grados agrupados por día de la semana' : 'Visualiza y edita la grilla horaria por grado'}
           acciones={
             <div className="flex items-center gap-2 flex-wrap">
+              {!soloLectura && (<>
               <button
                 onClick={() => setShowEditorBloques(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-2"
@@ -350,6 +362,7 @@ const Horarios = () => {
                 <Wand2 size={16} />
                 Generar automático
               </button>
+              </>)}
               <button
                 onClick={abrirImpresion}
                 disabled={!(usandoVistaDocente ? docenteId : grado) || !bloques.length}
@@ -385,7 +398,7 @@ const Horarios = () => {
           {usandoVistaDocente ? 'Profesor' : usandoVistaComparativa ? 'Grados del paquete' : 'Grado / Año'}
         </label>
         {usandoVistaComparativa ? (
-          <p className="text-sm" style={{ color: 'var(--ash)' }}>{usandoVistaPorDia ? 'Los grados se agrupan dentro de cada día para coordinar la jornada completa.' : `Se muestran ${gradosPaquete.length} grillas lado a lado. Selecciona una celda para editar ese grado.`}</p>
+          <p className="text-sm" style={{ color: 'var(--ash)' }}>{usandoVistaPorDia ? 'Los grados se agrupan dentro de cada día para coordinar la jornada completa.' : `Se muestran ${gradosPaquete.length} grillas lado a lado.${soloLectura ? '' : ' Selecciona una celda para editar ese grado.'}`}</p>
         ) : usandoVistaDocente ? (
           <select value={docenteId} onChange={e => seleccionarDocente(e.target.value)} disabled={loadingDocentes} className="w-full px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-60" style={INPUT_STYLE}>
             <option value="">{loadingDocentes ? 'Cargando profesores...' : 'Seleccionar profesor...'}</option>
@@ -395,8 +408,10 @@ const Horarios = () => {
           <p className="text-sm" style={{ color: 'var(--ash)' }}>Cargando grados...</p>
         ) : gradosPaquete.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--ash)' }}>
-            Este paquete no tiene grados. Agrégalos desde{' '}
-            <Link to="/horarios/paquetes" className="underline" style={{ color: 'var(--pb)' }}>Gestionar paquetes</Link>.
+            {soloLectura ? 'Este paquete no tiene grados.' : (<>
+              Este paquete no tiene grados. Agrégalos desde{' '}
+              <Link to="/horarios/paquetes" className="underline" style={{ color: 'var(--pb)' }}>Gestionar paquetes</Link>.
+            </>)}
           </p>
         ) : (
           <select
@@ -426,6 +441,7 @@ const Horarios = () => {
             onCrear={crearMateria}
             onActualizar={actualizarMateria}
             onEliminar={eliminarMateria}
+            soloLectura={soloLectura}
             titulo={usandoVistaDocente ? `Organiza por profesor: ${docenteActivo?.nombre_completo || ''}` : undefined}
             permitirGestion={!usandoVistaDocente}
             mostrarDocente={!usandoVistaDocente}
@@ -461,6 +477,7 @@ const Horarios = () => {
               escala={escalaParalelas}
               onCeldaClick={abrirCelda}
               onEditarClase={(clase, materiasContexto) => setModal({ clase, bloque: null, materiasContexto })}
+              soloLectura={soloLectura}
             />
           ) : <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {grillasParalelas.map(grilla => {
@@ -471,7 +488,7 @@ const Horarios = () => {
                   <GrillaHorario loading={loadingParalelas} bloques={bloques} getClaseEnBloque={id => clasesPorBloque.get(id) || null}
                     onCeldaClick={bloque => abrirCelda(bloque, grilla.materias)} onEditarClase={clase => setModal({ clase, bloque: null, materiasContexto: grilla.materias })}
                     onTogglePin={async clase => { const ok = await pinear(clase.id, !clase.pineado); if (ok) cargarGrillasParalelas(); }}
-                    onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} />
+                    onMoverClase={handleMoverClase} onIntercambiarClase={handleIntercambiarClase} soloLectura={soloLectura} />
                 </div>
               </section>;
             })}
@@ -496,17 +513,18 @@ const Horarios = () => {
           onIntercambiarClase={handleIntercambiarClase}
           materiaActiva={materiaActiva}
           onAsignarRapido={asignarRapido}
+          soloLectura={soloLectura}
         /></div>
       )}
 
-      {(usandoVistaDocente ? docenteId : grado) && !(usandoVistaDocente ? loadingHorarioDocente : loading) && !!bloques.length && (
+      {!soloLectura && (usandoVistaDocente ? docenteId : grado) && !(usandoVistaDocente ? loadingHorarioDocente : loading) && !!bloques.length && (
         <p className="mt-3 text-xs print:hidden" style={{ color: 'var(--ash)' }}>
           Selecciona una materia para colocarla en varios bloques con un toque. Haz doble clic en una materia para editarla; arrastra una clase para moverla.
         </p>
       )}
 
       {/* Modal clase (crear / editar) */}
-      {modal && (
+      {modal && !soloLectura && (
         <ModalClase
           materias={modal.materiasContexto || materiasVisibles}
           claseInicial={modal.clase}

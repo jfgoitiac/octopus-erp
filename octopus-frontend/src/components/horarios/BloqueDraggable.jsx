@@ -6,12 +6,13 @@ import { getColor } from '../../constants/horarios';
 // Chip de una clase ya colocada en la grilla. Arrastrable con @dnd-kit salvo
 // que esté pineada (pineado=true) — una clase pineada solo se edita/despinea
 // por click, no se puede soltar encima de otra celda.
-export const BloqueDraggable = ({ clase, onClick, onTogglePin }) => {
+export const BloqueDraggable = ({ clase, onClick, onTogglePin, soloLectura = false }) => {
   const pineado = !!clase.pineado;
+  const sinArrastre = pineado || soloLectura;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `clase-${clase.id}`,
     data: { clase },
-    disabled: pineado,
+    disabled: sinArrastre,
   });
 
   const style = transform ? {
@@ -20,19 +21,25 @@ export const BloqueDraggable = ({ clase, onClick, onTogglePin }) => {
     opacity: isDragging ? 0.6 : undefined,
   } : undefined;
 
+  // Solo lectura: la ficha es informativa (sin arrastre, sin edición, sin pin).
+  const Ficha = soloLectura ? 'div' : 'button';
+  const propsFicha = soloLectura ? {} : {
+    type: 'button',
+    onClick: () => onClick(clase),
+    'aria-label': `Editar ${clase.materia?.nombre || 'clase'}`,
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...(pineado ? {} : listeners)}
-      {...(pineado ? {} : attributes)}
-      className="relative w-full rounded-lg px-2 py-2 text-left group touch-none cursor-grab active:cursor-grabbing"
+      {...(sinArrastre ? {} : listeners)}
+      {...(sinArrastre ? {} : attributes)}
+      className={`relative w-full rounded-lg px-2 py-2 text-left group ${soloLectura ? '' : 'touch-none cursor-grab active:cursor-grabbing'}`}
     >
-      <button
-        type="button"
-        onClick={() => onClick(clase)}
-        aria-label={`Editar ${clase.materia?.nombre || 'clase'}`}
-        className="w-full text-left rounded-lg transition-all hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1"
+      <Ficha
+        {...propsFicha}
+        className={`w-full text-left rounded-lg transition-all focus:outline-none ${soloLectura ? '' : 'hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[var(--pb)]/50 focus-visible:ring-offset-1'}`}
         style={{
           background: getColor(clase.materia?.id),
           border: pineado ? '2px solid #7c3aed' : '1px solid rgba(0,0,0,0.07)',
@@ -48,9 +55,9 @@ export const BloqueDraggable = ({ clase, onClick, onTogglePin }) => {
         <p className="text-[9px] mt-0.5 opacity-60" style={{ color: 'var(--jet)' }}>
           {clase.hora_inicio} – {clase.hora_fin}
         </p>
-      </button>
+      </Ficha>
 
-      {onTogglePin && (
+      {onTogglePin && !soloLectura && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onTogglePin(clase); }}
@@ -65,11 +72,13 @@ export const BloqueDraggable = ({ clase, onClick, onTogglePin }) => {
         </button>
       )}
 
-      <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
-        <span className="p-0.5 rounded" style={{ background: 'rgba(255,255,255,0.8)' }}>
-          <Edit3 size={10} style={{ color: 'var(--pb)' }} />
-        </span>
-      </div>
+      {!soloLectura && (
+        <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
+          <span className="p-0.5 rounded" style={{ background: 'rgba(255,255,255,0.8)' }}>
+            <Edit3 size={10} style={{ color: 'var(--pb)' }} />
+          </span>
+        </div>
+      )}
     </div>
   );
 };

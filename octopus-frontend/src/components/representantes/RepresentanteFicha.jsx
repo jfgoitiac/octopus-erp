@@ -28,7 +28,7 @@ const EstadoCuentaSkeleton = () => (
 );
 
 const RepresentanteFicha = ({
-    rep, alumnos, fichaLoading, canEditar, canEliminar, onClose, onEditar, onConfirmDelete, onConfirmDeleteDefinitivo,
+    rep, alumnos, fichaLoading, canEditar, canAdminCuenta, canEliminar, onClose, onEditar, onConfirmDelete, onConfirmDeleteDefinitivo,
     portalLoading, onActivarPortal, onDesactivarPortal, onRestablecerContrasena,
     cargandoProyectoId, onCargarProyectoInversion,
 }) => {
@@ -126,7 +126,7 @@ const RepresentanteFicha = ({
         {/* Proyecto de Inversión: carga manual puntual, solo mientras el
             representante siga debiendo inscripción (ver secretaria/views.py::
             RepresentanteViewSet.cargar_proyecto_inversion) */}
-        {canEditar && rep.tiene_inscripcion_impaga && (
+        {canAdminCuenta && rep.tiene_inscripcion_impaga && (
             <div className="px-4 py-3" style={{ borderTop: '0.5px solid var(--border)' }}>
                 <button
                     onClick={() => onCargarProyectoInversion(rep)}
@@ -141,7 +141,7 @@ const RepresentanteFicha = ({
         )}
 
         {/* Acceso al Portal */}
-        {canEditar && (
+        {canAdminCuenta && (
             <div className="px-4 py-3 flex flex-col gap-2" style={{ borderTop: '0.5px solid var(--border)' }}>
                 <div className="flex items-center justify-between">
                     <p className="text-[11px] uppercase tracking-widest font-medium flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>

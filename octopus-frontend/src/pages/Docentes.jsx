@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { UserRound, Plus, Search, GraduationCap, BookOpen } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import { AuthContext } from '../context/AuthContext';
+import { ROLE_GROUPS } from '../constants/roles';
 import { ModalDocente } from '../components/docentes/ModalDocente';
 import { ModalAsignarMaterias } from '../components/docentes/ModalAsignarMaterias';
 import { INPUT_STYLE } from '../constants/styles';
@@ -11,6 +13,8 @@ import { Card } from '../components/ui/Card';
 import { coincideBusqueda } from '../utils/busqueda';
 
 const Docentes = () => {
+  const { user } = useContext(AuthContext);
+  const soloLectura = ROLE_GROUPS.ACADEMICO_SOLO_LECTURA.includes((user?.rol || '').toLowerCase().trim());
   const { docentes, loading, saving, crear, actualizar, eliminar, asignarMaterias } = useDocentesAdmin();
   const [filtro, setFiltro] = useState('');
   const [modal, setModal] = useState(null);
@@ -18,12 +22,14 @@ const Docentes = () => {
   const [usuariosDocentes, setUsuariosDocentes] = useState([]);
 
   useEffect(() => {
+    // Solo hace falta para crear docentes; el rol de solo lectura no los crea.
+    if (soloLectura) return undefined;
     const controller = new AbortController();
     apiClient.get('authentication/users/', { signal: controller.signal })
       .then(res => setUsuariosDocentes((res.data || []).filter(u => u.perfil?.rol === 'docente')))
       .catch(() => {});
     return () => controller.abort();
-  }, []);
+  }, [soloLectura]);
 
   const docentesConUsuarioLibre = useMemo(() => {
     const idsConDocente = new Set(docentes.map(d => d.user_id));
@@ -35,6 +41,8 @@ const Docentes = () => {
       return coincideBusqueda(`${docente.nombre_completo} ${docente.especialidad || ''}`, filtro);
     });
   }, [filtro, docentes]);
+
+  const Contenido = soloLectura ? 'div' : 'button';
 
   const guardar = async (form) => {
     const ok = form.id ? await actualizar(form) : await crear(form);
@@ -55,8 +63,8 @@ const Docentes = () => {
     <div className="animate-fadeIn">
       <PageHeader
         titulo="Docentes"
-        descripcion="Gestiona los docentes del colegio y sus materias asignadas."
-        acciones={(
+        descripcion={soloLectura ? 'Consulta los docentes del colegio y sus materias asignadas.' : 'Gestiona los docentes del colegio y sus materias asignadas.'}
+        acciones={soloLectura ? null : (
           <button
             type="button"
             onClick={() => setModal({ docente: null })}
@@ -99,10 +107,9 @@ const Docentes = () => {
                 key={docente.id}
                 className="w-full px-4 py-3 flex items-center justify-between gap-4"
               >
-                <button
-                  type="button"
-                  onClick={() => setModal({ docente })}
-                  className="min-w-0 text-left flex-1 hover:opacity-80 transition-opacity"
+                <Contenido
+                  {...(soloLectura ? {} : { type: 'button', onClick: () => setModal({ docente }) })}
+                  className={`min-w-0 text-left flex-1 transition-opacity ${soloLectura ? '' : 'hover:opacity-80'}`}
                 >
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--jet)' }}>
                     {docente.nombre_completo}
@@ -123,22 +130,24 @@ const Docentes = () => {
                       </>
                     )}
                   </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalAsignar({ docente })}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
-                >
-                  <GraduationCap size={13} /> Asignar materias
-                </button>
+                </Contenido>
+                {!soloLectura && (
+                  <button
+                    type="button"
+                    onClick={() => setModalAsignar({ docente })}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
+                  >
+                    <GraduationCap size={13} /> Asignar materias
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </Card>
 
-      {modal && (
+      {modal && !soloLectura && (
         <ModalDocente
           docente={modal.docente}
           docentesDisponibles={docentesConUsuarioLibre}
@@ -149,7 +158,7 @@ const Docentes = () => {
         />
       )}
 
-      {modalAsignar && (
+      {modalAsignar && !soloLectura && (
         <ModalAsignarMaterias
           docente={modalAsignar.docente}
           saving={saving}
