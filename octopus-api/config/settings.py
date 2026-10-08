@@ -320,6 +320,11 @@ CELERY_TIMEZONE = 'America/Caracas'
 # vista atrapa el error de conexión al *broker* casi de inmediato.
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_BEAT_SCHEDULE = {
+    # Cobranza Inteligente: evaluar ciclos antes del flujo anterior de las 8am
+    'evaluar-ciclos-cobranza-inteligente': {
+        'task': 'cobranza.tasks.evaluar_ciclos_cobranza_inteligente',
+        'schedule': crontab(hour=7, minute=30),
+    },
     # Revisar mensualidades vencidas cada día a las 8am y programar notificaciones pendientes
     'revisar-mensualidades-vencidas': {
         'task': 'notificaciones.tasks.revisar_y_programar_notificaciones_pendientes',

@@ -22,6 +22,7 @@ const Morosos = () => {
         exportingExcel,
         totalDeudaUSD,
         totalSolvenciaUSD,
+        cobranzaInteligente,
         refetch,
         handleExportExcel,
         page,
@@ -68,6 +69,7 @@ const Morosos = () => {
         { key: 'telefono',    label: 'Teléfono' },
         { key: 'deuda',       label: 'Deuda (USD)' },
         { key: 'solvencia',   label: 'Solvencia (USD)' },
+        ...(cobranzaInteligente ? [{ key: 'etapa', label: 'Etapa' }] : []),
         {
             key: 'dias_atraso',
             label: (
@@ -161,10 +163,10 @@ const Morosos = () => {
             <Card padding="none">
                 <Tabla columnas={columnas} minWidth={700}>
                     {loading ? (
-                        <MorososSkeleton rows={6} />
+                        <MorososSkeleton rows={6} conEtapa={cobranzaInteligente} />
                     ) : alumnosOrdenados.length === 0 ? (
                         <tr>
-                            <td colSpan={9} className="px-4 py-12 text-center">
+                            <td colSpan={columnas.length} className="px-4 py-12 text-center">
                                 <div className="flex flex-col items-center gap-2">
                                     <AlertTriangle size={28} style={{ color: 'var(--ash)' }} />
                                     <p className="text-xs" style={{ color: 'var(--ash)' }}>
@@ -180,6 +182,7 @@ const Morosos = () => {
                             key={alu.id}
                             alu={alu}
                             animDelay={idx * 30}
+                            mostrarEtapa={cobranzaInteligente}
                             ultimoAviso={ultimosAvisos[alu.representante?.cedula] || null}
                         />
                     ))}

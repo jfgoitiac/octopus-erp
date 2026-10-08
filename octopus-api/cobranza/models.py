@@ -1071,3 +1071,94 @@ class ConfiguracionCobranzaInteligente(models.Model):
 
     def __str__(self):
         return f"Cobranza Inteligente — {self.sede or 'sin sede'} ({'encendida' if self.activo else 'apagada'})"
+
+
+class CicloCobranza(models.Model):
+    """
+    Ciclo de seguimiento de UNA deuda (hoy: una Mensualidad). Ver
+    PLAN_COBRANZA_INTELIGENTE.md, Fase 1. No copia montos: el saldo se lee
+    siempre de la Mensualidad para no tener una segunda fuente de verdad.
+    La etapa se deriva de `fecha_vencimiento` (guardada al crear el ciclo, para
+    que cambiar `Alumno.dia_limite_pago` no mueva deudas viejas) y se calcula en
+    cobranza/ciclos.py reutilizando el criterio de cobranza/mora.py.
+    """
+    PREVENTIVA = 'preventiva'
+    VENCIDA = 'vencida'
+    SEGUIMIENTO = 'seguimiento'
+    PRIORITARIA = 'prioritaria'
+    CRITICA = 'critica'
+    PAUSADA = 'pausada'
+    CERRADA = 'cerrada'
+    ESTADOS = (
+        (PREVENTIVA, 'Preventiva'), (VENCIDA, 'Vencida'), (SEGUIMIENTO, 'Seguimiento'),
+        (PRIORITARIA, 'Prioritaria'), (CRITICA, 'Crítica'),
+        (PAUSADA, 'Pausada'), (CERRADA, 'Cerrada'),
+    )
+    ESTADOS_ABIERTOS = (PREVENTIVA, VENCIDA, SEGUIMIENTO, PRIORITARIA, CRITICA, PAUSADA)
+    ETAPAS_CALCULADAS = (PREVENTIVA, VENCIDA, SEGUIMIENTO, PRIORITARIA, CRITICA)
+
+    mensualidad = models.OneToOneField(
+        Mensualidad, on_delete=models.CASCADE, related_name='ciclo')
+    fecha_vencimiento = models.DateField()
+    estado = models.CharField(max_length=12, choices=ESTADOS, default=PREVENTIVA, db_index=True)
+    estado_previo_pausa = models.CharField(max_length=12, blank=True, default='')
+    motivo_pausa = models.CharField(max_length=200, blank=True, default='')
+    motivo_cierre = models.CharField(max_length=30, blank=True, default='')
+    responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ciclos_cobranza')
+    ultima_accion_en = models.DateTimeField(null=True, blank=True)
+    proxima_accion = models.CharField(max_length=100, blank=True, default='')
+    proxima_accion_fecha = models.DateField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    cerrado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['fecha_vencimiento']
+        verbose_name = 'Ciclo de cobranza'
+        verbose_name_plural = 'Ciclos de cobranza'
+
+    def __str__(self):
+        return f"Ciclo {self.mensualidad_id} ({self.estado})"
+
+    @property
+    def abierto(self):
+        return self.estado != self.CERRADA
+
+    @property
+    def semaforo(self):
+        return {
+            self.PREVENTIVA: 'verde', self.VENCIDA: 'amarillo', self.SEGUIMIENTO: 'amarillo',
+            self.PRIORITARIA: 'rojo', self.CRITICA: 'rojo',
+            self.PAUSADA: 'gris', self.CERRADA: 'gris',
+        }[self.estado]
+
+
+class EventoCiclo(models.Model):
+    """
+    Historial de SOLO INSERCIÓN de un ciclo (o de la sede, para encendido y
+    apagado del módulo). Nunca se edita ni se borra.
+    """
+    ciclo = models.ForeignKey(
+        CicloCobranza, on_delete=models.CASCADE, null=True, blank=True, related_name='eventos')
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    tipo = models.CharField(max_length=30, db_index=True)
+    detalle = models.JSONField(default=dict, blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en', '-id']
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValidationError('EventoCiclo es de solo inserción: no se edita.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('EventoCiclo es de solo inserción: no se borra.')
+
+    def __str__(self):
+        return f"{self.tipo} · ciclo {self.ciclo_id}"

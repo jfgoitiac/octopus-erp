@@ -267,3 +267,12 @@ def verificar_solvencia_estudiantil_automatica():
                 print(f"[{datetime.now()}] Error al guardar logs de auditoría de solvencia: {e}")
 
     print(f"[{datetime.now()}] Verificación finalizada.")
+
+
+@shared_task(name='cobranza.tasks.evaluar_ciclos_cobranza_inteligente')
+def evaluar_ciclos_cobranza_inteligente():
+    """Evaluación diaria de ciclos de Cobranza Inteligente (solo sedes encendidas)."""
+    from .ciclos import evaluar_ciclos
+    resultado = evaluar_ciclos()
+    logger.info(f'[Beat] evaluar_ciclos_cobranza_inteligente: {resultado}')
+    return {str(k): v for k, v in resultado.items()}

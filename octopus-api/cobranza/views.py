@@ -3377,6 +3377,12 @@ class ListaMorososView(APIView):
         pagina = paginator.paginate_queryset(qs, request, view=self)
         pagina = enriquecer_monto_adeudado_con_recargo(pagina, hoy)
 
+        # Cobranza Inteligente: etapa más avanzada por alumno, solo si su sede
+        # tiene el módulo encendido (apagado => la respuesta no cambia).
+        from .ciclos import etapa_mas_avanzada_por_alumno
+        from .inteligente import sedes_con_inteligente_activa
+        etapas = etapa_mas_avanzada_por_alumno(pagina)
+
         results = [
             {
                 'id':              a.id,
@@ -3397,10 +3403,12 @@ class ListaMorososView(APIView):
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
                 'monto_proyecto_inversion_adeudado': str(a.monto_proyecto_inversion_adeudado),
                 'dias_atraso':                calcular_dias_atraso(a, hoy),
+                'etapa_cobranza':             etapas.get(a.id),
             }
             for a in pagina
         ]
         response = paginator.get_paginated_response(results)
+        response.data['cobranza_inteligente'] = bool(sedes_con_inteligente_activa())
         response.data['total_deuda_usd'] = str((agregados['total_deuda_usd'] or Decimal('0.00')) + total_recargo_usd)
         response.data['total_solvencia_usd'] = str(agregados['total_solvencia_usd'] or 0)
         response.data['total_proyecto_inversion_usd'] = str(agregados['total_proyecto_inversion_usd'] or 0)
@@ -3631,6 +3639,15 @@ class ConfiguracionCobranzaInteligenteView(APIView):
             cfg.save()
             nuevo_estado = {'activo': cfg.activo, 'modo_sombra': cfg.modo_sombra,
                             'etapas_envio_activas': list(cfg.etapas_envio_activas)}
+            if nuevo_estado['activo'] != anterior['activo']:
+                from .ciclos import poner_al_dia_sede, registrar_apagado_sede
+                if nuevo_estado['activo']:
+                    # Puesta al día silenciosa: crea ciclos y recalcula etapas, no envía nada.
+                    poner_al_dia_sede(cfg.sede_id, usuario=request.user)
+                else:
+                    registrar_apagado_sede(
+                        cfg.sede_id, usuario=request.user,
+                        motivo=str(request.data.get('motivo', ''))[:500])
             if nuevo_estado != anterior:
                 LogAuditoria.objects.create(
                     usuario=request.user,
