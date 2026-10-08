@@ -9,6 +9,7 @@ import axiosInstance from '../api/apiClient';
 import { inicialesUsuario } from '../utils/nombreUsuario';
 import octopusSymbol from '../assets/octopus-symbol.svg';
 import CampanaCxP from './cuentasPagar/tablero/CampanaCxP';
+import BotonNotificacionesPush from './BotonNotificacionesPush';
 
 const PAGE_TITLES = {
   '/':                   'Panel de control',
@@ -23,6 +24,9 @@ const PAGE_TITLES = {
   '/sistemas':           'Configuración del sistema',
   '/configuracion':      'Configuración',
   '/configuracion/notificaciones': 'Configuración de Notificaciones',
+  '/configuracion/cobranza-inteligente': 'Cobranza Inteligente',
+  '/cobranza/inteligente': 'Gestión de cobranza',
+  '/cobranza/inteligente/resultados': 'Resultados de cobranza',
   '/nomina':             'Nómina',
   '/pagos':              'Pagos',
   '/recibos':            'Recibos de Pago',
@@ -187,6 +191,7 @@ const MainLayout = () => {
             {['director', 'administrador', 'directivo_red', 'sistemas', 'cajero'].includes((user?.rol || '').toLowerCase()) && (
               <CampanaCxP onAbrirCuenta={(cuenta) => navigate(`/cuentas-por-pagar/${cuenta?.id || cuenta}`)} />
             )}
+            <BotonNotificacionesPush />
             <div className="relative" ref={profileRef}>
               <button
                 type="button"

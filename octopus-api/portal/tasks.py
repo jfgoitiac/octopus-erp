@@ -35,6 +35,22 @@ def notificar_comprobante_subido(comprobante_id):
         representante = alumno.representante
         mensualidad = comprobante.mensualidad
 
+        # Push a cobranza/administración (no depende de que haya emails destino).
+        try:
+            from notificaciones.services import push_usuarios
+            from django.contrib.auth import get_user_model
+            push_usuarios(
+                get_user_model().objects.filter(
+                    perfil__rol__in=('cobranza', 'administrador', 'director'),
+                    perfil__esta_activo=True, is_active=True),
+                'comprobante', 'Comprobante de pago pendiente',
+                f'{representante.nombre} {representante.apellido} · '
+                f'{alumno.nombre} {alumno.apellido} · ${mensualidad.monto_usd}',
+                url='/comprobantes/revision', tipo_log='comprobante',
+            )
+        except Exception as e:
+            logger.warning(f'Push de comprobante {comprobante_id} falló: {e}')
+
         # Obtener emails de usuarios con rol cobranza, administrador o director
         from django.contrib.auth import get_user_model
         from authentication.models import PerfilUsuario

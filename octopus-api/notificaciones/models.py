@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from .crypto_fields import EncryptedTextField
@@ -104,6 +105,33 @@ class SuscripcionPush(models.Model):
 
     def __str__(self):
         return f'Push {self.usuario_portal} ({"activa" if self.activa else "inactiva"})'
+
+
+def _tipos_push_usuario_default():
+    return ['mensaje', 'comprobante']
+
+
+class SuscripcionPushUsuario(models.Model):
+    """Suscripción Web Push de un usuario del panel (administrativo o docente).
+    Equivalente a SuscripcionPush, que es exclusiva de representantes. Un
+    usuario puede tener varias (una por dispositivo/navegador)."""
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='suscripciones_push',
+    )
+    endpoint      = models.URLField(max_length=500, unique=True)
+    p256dh        = models.TextField()
+    auth          = models.TextField()
+    activa        = models.BooleanField(default=True)
+    tipos_activos = models.JSONField(default=_tipos_push_usuario_default)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Suscripción Push (usuario del panel)'
+        verbose_name_plural = 'Suscripciones Push (usuarios del panel)'
+
+    def __str__(self):
+        return f'Push {self.usuario} ({"activa" if self.activa else "inactiva"})'
 
 
 class NotificacionLog(models.Model):

@@ -1051,3 +1051,292 @@ class LineaDescuentoPago(models.Model):
 
     def __str__(self):
         return f"Descuento '{self.nombre}' - Pago {self.pago_id} - Mensualidad {self.mensualidad_id}"
+
+
+class ConfiguracionCobranzaInteligente(models.Model):
+    """
+    Toggle de Cobranza Inteligente, por sede (ver PLAN_COBRANZA_INTELIGENTE.md §3).
+
+    `sede` nula = instalación sin sedes. Viene APAGADO por defecto: mientras
+    `activo` sea False rige el flujo anterior de notificaciones; con True rige
+    el motor nuevo (nunca los dos a la vez). El estado efectivo lo resuelve
+    cobranza/inteligente.py, que además respeta el corte global de soporte.
+    """
+    ETAPAS = ('preventiva', 'temprana', 'prioritaria')
+
+    sede = models.OneToOneField(
+        'multisede.Sede', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='cobranza_inteligente',
+    )
+    activo = models.BooleanField(default=False)
+    modo_sombra = models.BooleanField(
+        default=True,
+        help_text='Con el módulo encendido evalúa y registra, pero no envía.',
+    )
+    etapas_envio_activas = models.JSONField(default=list, blank=True)
+    activado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    activado_en = models.DateTimeField(null=True, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración de Cobranza Inteligente'
+
+    def __str__(self):
+        return f"Cobranza Inteligente — {self.sede or 'sin sede'} ({'encendida' if self.activo else 'apagada'})"
+
+
+class CicloCobranza(models.Model):
+    """
+    Ciclo de seguimiento de UNA deuda (hoy: una Mensualidad). Ver
+    PLAN_COBRANZA_INTELIGENTE.md, Fase 1. No copia montos: el saldo se lee
+    siempre de la Mensualidad para no tener una segunda fuente de verdad.
+    La etapa se deriva de `fecha_vencimiento` (guardada al crear el ciclo, para
+    que cambiar `Alumno.dia_limite_pago` no mueva deudas viejas) y se calcula en
+    cobranza/ciclos.py reutilizando el criterio de cobranza/mora.py.
+    """
+    PREVENTIVA = 'preventiva'
+    VENCIDA = 'vencida'
+    SEGUIMIENTO = 'seguimiento'
+    PRIORITARIA = 'prioritaria'
+    CRITICA = 'critica'
+    PAUSADA = 'pausada'
+    CERRADA = 'cerrada'
+    ESTADOS = (
+        (PREVENTIVA, 'Preventiva'), (VENCIDA, 'Vencida'), (SEGUIMIENTO, 'Seguimiento'),
+        (PRIORITARIA, 'Prioritaria'), (CRITICA, 'Crítica'),
+        (PAUSADA, 'Pausada'), (CERRADA, 'Cerrada'),
+    )
+    ESTADOS_ABIERTOS = (PREVENTIVA, VENCIDA, SEGUIMIENTO, PRIORITARIA, CRITICA, PAUSADA)
+    ETAPAS_CALCULADAS = (PREVENTIVA, VENCIDA, SEGUIMIENTO, PRIORITARIA, CRITICA)
+
+    mensualidad = models.OneToOneField(
+        Mensualidad, on_delete=models.CASCADE, related_name='ciclo')
+    fecha_vencimiento = models.DateField()
+    estado = models.CharField(max_length=12, choices=ESTADOS, default=PREVENTIVA, db_index=True)
+    estado_previo_pausa = models.CharField(max_length=12, blank=True, default='')
+    motivo_pausa = models.CharField(max_length=200, blank=True, default='')
+    motivo_cierre = models.CharField(max_length=30, blank=True, default='')
+    responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ciclos_cobranza')
+    ultima_accion_en = models.DateTimeField(null=True, blank=True)
+    proxima_accion = models.CharField(max_length=100, blank=True, default='')
+    proxima_accion_fecha = models.DateField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    cerrado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['fecha_vencimiento']
+        verbose_name = 'Ciclo de cobranza'
+        verbose_name_plural = 'Ciclos de cobranza'
+
+    def __str__(self):
+        return f"Ciclo {self.mensualidad_id} ({self.estado})"
+
+    @property
+    def abierto(self):
+        return self.estado != self.CERRADA
+
+    @property
+    def semaforo(self):
+        return {
+            self.PREVENTIVA: 'verde', self.VENCIDA: 'amarillo', self.SEGUIMIENTO: 'amarillo',
+            self.PRIORITARIA: 'rojo', self.CRITICA: 'rojo',
+            self.PAUSADA: 'gris', self.CERRADA: 'gris',
+        }[self.estado]
+
+
+class EventoCiclo(models.Model):
+    """
+    Historial de SOLO INSERCIÓN de un ciclo (o de la sede, para encendido y
+    apagado del módulo). Nunca se edita ni se borra.
+    """
+    ciclo = models.ForeignKey(
+        CicloCobranza, on_delete=models.CASCADE, null=True, blank=True, related_name='eventos')
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    tipo = models.CharField(max_length=30, db_index=True)
+    detalle = models.JSONField(default=dict, blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en', '-id']
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValidationError('EventoCiclo es de solo inserción: no se edita.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('EventoCiclo es de solo inserción: no se borra.')
+
+    def __str__(self):
+        return f"{self.tipo} · ciclo {self.ciclo_id}"
+
+
+class ReglaCobranza(models.Model):
+    """
+    Regla del motor de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md,
+    Fase 2): qué hacer cuando una deuda llega a `dia_relativo` respecto de su
+    vencimiento (negativo = antes de vencer). `sede` nula = regla global; si
+    una sede tiene reglas propias, reemplazan a las globales de esa sede.
+    Reemplaza el cronograma fijo de notificaciones.ConfiguracionNotificaciones.
+    """
+    ETAPA_PREVENTIVA = 'preventiva'
+    ETAPA_TEMPRANA = 'temprana'
+    ETAPA_PRIORITARIA = 'prioritaria'
+    ETAPAS = (
+        (ETAPA_PREVENTIVA, 'Preventiva'), (ETAPA_TEMPRANA, 'Temprana'),
+        (ETAPA_PRIORITARIA, 'Prioritaria y crítica'),
+    )
+    CANALES = (
+        ('whatsapp', 'WhatsApp'), ('email', 'Email'),
+        ('ambos', 'WhatsApp y email'), ('interno', 'Interno'),
+    )
+    DESTINATARIOS = (
+        ('representante', 'Representante'), ('responsable', 'Responsable'),
+        ('director', 'Director'),
+    )
+
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='reglas_cobranza')
+    nombre = models.CharField(max_length=100)
+    etapa = models.CharField(max_length=12, choices=ETAPAS)
+    dia_relativo = models.SmallIntegerField()
+    canal = models.CharField(max_length=10, choices=CANALES)
+    plantilla = models.CharField(max_length=40)
+    saldo_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.01'))
+    destinatario = models.CharField(max_length=14, choices=DESTINATARIOS, default='representante')
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['dia_relativo']
+        constraints = [
+            models.UniqueConstraint(fields=['sede', 'dia_relativo'], name='uniq_regla_cobranza_sede_dia'),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} (día {self.dia_relativo:+d})"
+
+
+class EnvioCobranza(models.Model):
+    """
+    Un aviso consolidado por representante, regla y día. La clave única
+    (representante, regla, fecha) garantiza que, aunque la tarea se ejecute
+    dos veces o Celery reentregue, no se envíe dos veces.
+    """
+    SIMULADO = 'simulado'
+    PENDIENTE = 'pendiente'
+    REINTENTO = 'reintento'
+    ENVIADO = 'enviado'
+    FALLIDO = 'fallido'
+    OMITIDO = 'omitido'
+    CANCELADO = 'cancelado'
+    ESTADOS = (
+        (SIMULADO, 'Simulado (modo sombra)'), (PENDIENTE, 'Pendiente'), (REINTENTO, 'Reintento'),
+        (ENVIADO, 'Enviado'), (FALLIDO, 'Fallido'), (OMITIDO, 'Omitido'), (CANCELADO, 'Cancelado'),
+    )
+    ESTADOS_POR_PROCESAR = (PENDIENTE, REINTENTO)
+
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE, related_name='envios_cobranza')
+    regla = models.ForeignKey(ReglaCobranza, on_delete=models.PROTECT, related_name='envios')
+    fecha = models.DateField()
+    estado = models.CharField(max_length=10, choices=ESTADOS, db_index=True)
+    canal = models.CharField(max_length=10, blank=True, default='')
+    motivo_omision = models.CharField(max_length=40, blank=True, default='')
+    detalle = models.JSONField(default=dict, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=0)
+    proximo_intento = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    enviado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-creado_en', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['representante', 'regla', 'fecha'], name='uniq_envio_cobranza_rep_regla_fecha'),
+        ]
+
+    def __str__(self):
+        return f"Envío {self.representante_id} · {self.regla_id} · {self.fecha} ({self.estado})"
+
+
+class BajaCobranza(models.Model):
+    """Baja voluntaria de un representante para un canal de cobranza."""
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE, related_name='bajas_cobranza')
+    canal = models.CharField(max_length=10, choices=(('whatsapp', 'WhatsApp'), ('email', 'Email')))
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['representante', 'canal'], name='uniq_baja_cobranza_rep_canal'),
+        ]
+
+
+class ConvenioPago(models.Model):
+    """
+    Convenio de pago MÍNIMO (PLAN_COBRANZA_INTELIGENTE.md, Fase 3): cuotas con
+    fecha y monto que pausan el ciclo de las deudas incluidas. Si una cuota se
+    incumple, esas deudas vuelven al ciclo. Fuera de alcance: refinanciamiento,
+    intereses y firma digital.
+    """
+    VIGENTE = 'vigente'
+    CUMPLIDO = 'cumplido'
+    INCUMPLIDO = 'incumplido'
+    CANCELADO = 'cancelado'
+    ESTADOS = (
+        (VIGENTE, 'Vigente'), (CUMPLIDO, 'Cumplido'),
+        (INCUMPLIDO, 'Incumplido'), (CANCELADO, 'Cancelado'),
+    )
+
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.CASCADE, related_name='convenios_cobranza')
+    ciclos = models.ManyToManyField(CicloCobranza, related_name='convenios')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default=VIGENTE, db_index=True)
+    notas = models.TextField(blank=True, default='')
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+
+
+class CuotaConvenio(models.Model):
+    convenio = models.ForeignKey(ConvenioPago, on_delete=models.CASCADE, related_name='cuotas')
+    numero = models.PositiveSmallIntegerField()
+    fecha = models.DateField()
+    monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    pagada = models.BooleanField(default=False)
+    pagada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['numero']
+        constraints = [
+            models.UniqueConstraint(fields=['convenio', 'numero'], name='uniq_cuota_convenio_numero'),
+        ]
+
+
+class LineaBaseCobranza(models.Model):
+    """
+    Línea base medida en la semana 2 del plan (últimos 3 meses del colegio
+    piloto), contra la que se compara el dashboard. Se carga a mano una vez.
+    """
+    sede = models.OneToOneField(
+        'multisede.Sede', on_delete=models.CASCADE, null=True, blank=True, related_name='linea_base_cobranza')
+    cobrado_al_vencimiento_pct = models.DecimalField(max_digits=5, decimal_places=2)
+    mora_7_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    mora_15_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    mora_30_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    horas_semanales_cobranza = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    periodo_desde = models.DateField(null=True, blank=True)
+    periodo_hasta = models.DateField(null=True, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)

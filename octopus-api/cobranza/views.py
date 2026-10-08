@@ -3380,6 +3380,12 @@ class ListaMorososView(APIView):
         pagina = paginator.paginate_queryset(qs, request, view=self)
         pagina = enriquecer_monto_adeudado_con_recargo(pagina, hoy)
 
+        # Cobranza Inteligente: etapa más avanzada por alumno, solo si su sede
+        # tiene el módulo encendido (apagado => la respuesta no cambia).
+        from .ciclos import etapa_mas_avanzada_por_alumno
+        from .inteligente import sedes_con_inteligente_activa
+        etapas = etapa_mas_avanzada_por_alumno(pagina)
+
         results = [
             {
                 'id':              a.id,
@@ -3400,10 +3406,12 @@ class ListaMorososView(APIView):
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
                 'monto_proyecto_inversion_adeudado': str(a.monto_proyecto_inversion_adeudado),
                 'dias_atraso':                calcular_dias_atraso(a, hoy),
+                'etapa_cobranza':             etapas.get(a.id),
             }
             for a in pagina
         ]
         response = paginator.get_paginated_response(results)
+        response.data['cobranza_inteligente'] = bool(sedes_con_inteligente_activa())
         response.data['total_deuda_usd'] = str((agregados['total_deuda_usd'] or Decimal('0.00')) + total_recargo_usd)
         response.data['total_solvencia_usd'] = str(agregados['total_solvencia_usd'] or 0)
         response.data['total_proyecto_inversion_usd'] = str(agregados['total_proyecto_inversion_usd'] or 0)
@@ -3559,3 +3567,114 @@ class ReporteCostoBecasView(APIView):
     def get(self, request):
         periodo_escolar = request.query_params.get('periodo_escolar')
         return Response(reporte_costo_becas(periodo_escolar))
+
+
+class ConfiguracionCobranzaInteligenteView(APIView):
+    """
+    Toggle de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md §3).
+
+    GET   ?sede=<id> -> estado (cualquier usuario autenticado; el frontend lo
+                        usa para mostrar u ocultar las pantallas del módulo).
+    PATCH ?sede=<id> -> cambia activo / modo_sombra / etapas_envio_activas.
+                        Solo director o administrador de sistema; cada cambio
+                        queda en LogAuditoria.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _config(self, request):
+        from .inteligente import obtener_configuracion
+        sede_id = request.query_params.get('sede') or None
+        if sede_id is not None:
+            try:
+                sede_id = int(sede_id)
+            except ValueError:
+                return None, Response({'detail': 'Sede inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+        permitidas = sedes_permitidas_ids(request.user)
+        if permitidas is not None and sede_id not in permitidas:
+            return None, Response({'detail': 'No encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return obtener_configuracion(sede_id), None
+
+    @staticmethod
+    def _serializar(cfg):
+        from .inteligente import corte_global_activo
+        return {
+            'sede': cfg.sede_id,
+            'activo': cfg.activo,
+            'modo_sombra': cfg.modo_sombra,
+            'etapas_envio_activas': cfg.etapas_envio_activas,
+            'corte_global': corte_global_activo(),
+            'efectivo': cfg.activo and not corte_global_activo(),
+            'activado_por': cfg.activado_por.get_username() if cfg.activado_por_id else None,
+            'activado_en': cfg.activado_en,
+        }
+
+    def get(self, request):
+        cfg, error = self._config(request)
+        return error or Response(self._serializar(cfg))
+
+    def patch(self, request):
+        if not IsSystemAdminOrDirector().has_permission(request, self):
+            return Response({'detail': 'No tienes permiso para cambiar Cobranza Inteligente.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        cfg, error = self._config(request)
+        if error:
+            return error
+
+        etapas = request.data.get('etapas_envio_activas')
+        if etapas is not None:
+            validas = cfg.ETAPAS
+            if not isinstance(etapas, list) or any(e not in validas for e in etapas):
+                return Response({'detail': f'Etapas válidas: {", ".join(validas)}.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        anterior = {'activo': cfg.activo, 'modo_sombra': cfg.modo_sombra,
+                    'etapas_envio_activas': list(cfg.etapas_envio_activas)}
+        with transaction.atomic():
+            if 'activo' in request.data:
+                nuevo = bool(request.data['activo'])
+                if nuevo and not cfg.activo:
+                    cfg.activado_por, cfg.activado_en = request.user, timezone.now()
+                cfg.activo = nuevo
+            if 'modo_sombra' in request.data:
+                cfg.modo_sombra = bool(request.data['modo_sombra'])
+            if etapas is not None:
+                cfg.etapas_envio_activas = etapas
+            cfg.save()
+            nuevo_estado = {'activo': cfg.activo, 'modo_sombra': cfg.modo_sombra,
+                            'etapas_envio_activas': list(cfg.etapas_envio_activas)}
+            if nuevo_estado['activo'] != anterior['activo']:
+                from .ciclos import poner_al_dia_sede, registrar_apagado_sede
+                if nuevo_estado['activo']:
+                    # Puesta al día silenciosa: crea ciclos y recalcula etapas, no envía nada.
+                    poner_al_dia_sede(cfg.sede_id, usuario=request.user)
+                else:
+                    registrar_apagado_sede(
+                        cfg.sede_id, usuario=request.user,
+                        motivo=str(request.data.get('motivo', ''))[:500])
+            if nuevo_estado != anterior:
+                LogAuditoria.objects.create(
+                    usuario=request.user,
+                    accion='COBRANZA_INTELIGENTE_CAMBIO',
+                    modulo='COBRANZA',
+                    detalles={'sede': cfg.sede_id, 'anterior': anterior, 'nuevo': nuevo_estado,
+                              'motivo': str(request.data.get('motivo', ''))[:500]},
+                )
+        return Response(self._serializar(cfg))
+
+
+class HistorialCobranzaInteligenteView(ConfiguracionCobranzaInteligenteView):
+    """GET ?sede=<id> -> últimos cambios de configuración (de LogAuditoria)."""
+
+    def get(self, request):
+        cfg, error = self._config(request)
+        if error:
+            return error
+        logs = (LogAuditoria.objects.filter(accion='COBRANZA_INTELIGENTE_CAMBIO')
+                .select_related('usuario').order_by('-fecha_hora')[:200])
+        filas = [
+            {'fecha': l.fecha_hora, 'usuario': l.usuario.get_username() if l.usuario_id else None,
+             'anterior': l.detalles.get('anterior'), 'nuevo': l.detalles.get('nuevo'),
+             'motivo': l.detalles.get('motivo', '')}
+            for l in logs if l.detalles.get('sede') == cfg.sede_id
+        ][:20]
+        return Response({'results': filas})
