@@ -93,3 +93,16 @@ export const exportarEstadoPorConceptoExcel = (params, signal) =>
 
 export const getEstadoCuentaRepresentante = (representanteId, params, signal) =>
     apiClient.get(`cobranza/representantes/${representanteId}/estado-cuenta/`, { params, signal });
+
+/* ── Cobranza Inteligente (toggle por sede) ── */
+
+export const getCobranzaInteligente = (sedeId, signal) =>
+    apiClient.get('cobranza/inteligente/configuracion/', {
+        params: sedeId ? { sede: sedeId } : undefined,
+        signal,
+    });
+
+export const actualizarCobranzaInteligente = (sedeId, datos) =>
+    apiClient.patch('cobranza/inteligente/configuracion/', datos, {
+        params: sedeId ? { sede: sedeId } : undefined,
+    });

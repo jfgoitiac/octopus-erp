@@ -12,7 +12,7 @@ import {
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
-  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, CalendarClock
+  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, CalendarClock, Sparkles
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente', 'coordinador'];
@@ -99,6 +99,7 @@ const navSections = [
       { name: 'Sitio Institucional', path: '/gestion-sitio', icon: Globe, roles: ['director','sistemas'] },
       { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas'] },
       { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas'] },
+      { name: 'Cobranza Inteligente', path: '/configuracion/cobranza-inteligente', icon: Sparkles, roles: ['director','sistemas','administrador'] },
       { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas'] },
       { name: 'Auditoría', path: '/auditoria', icon: ShieldCheck, roles: ['director'] },
     ],
