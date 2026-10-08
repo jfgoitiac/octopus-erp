@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MinValueValidator
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 from finanzas.monedas import convertir, redondear
@@ -109,10 +109,19 @@ class CuentaPorPagar(models.Model):
             self.monto_usd = convertir(self.monto_documento, 'VES', 'USD', self.tasa_aplicada)
 
     def save(self, *args, **kwargs):
-        if not self.numero:
+        if self.numero or self.pk:
+            return super().save(*args, **kwargs)
+        # Alta concurrente: se reintenta con el siguiente número si otro proceso tomó el mismo.
+        for intento in range(5):
             ultimo = CuentaPorPagar.objects.order_by('-id').values_list('id', flat=True).first() or 0
-            self.numero = f'CXP-{ultimo + 1:06d}'
-        super().save(*args, **kwargs)
+            self.numero = f'CXP-{ultimo + 1 + intento:06d}'
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError as exc:
+                if 'numero' not in str(exc).lower() and 'unique' not in str(exc).lower(): raise
+                self.numero = ''
+        raise IntegrityError('No se pudo asignar un número único a la cuenta.')
 
     def __str__(self):
         return f'{self.numero} - {self.proveedor}'

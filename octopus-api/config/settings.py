@@ -199,6 +199,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Configuración de DRF
 REST_FRAMEWORK = {
+    # Normaliza errores solo en api/cuentas-por-pagar/ y api/egresos/ (config/exception_handler.py).
+    'EXCEPTION_HANDLER': 'config.exception_handler.exception_handler_octopus',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
@@ -357,15 +359,15 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=3, minute=0),
     },
     'generar-cuentas-recurrentes': {
-        'task': 'cuentas_pagar.tasks.generar_cuentas_recurrentes',
+        'task': 'cuentas_pagar.tasks.generar_recurrentes_diarias',
         'schedule': crontab(hour=0, minute=15),
     },
     'enviar-recordatorios-cxp': {
-        'task': 'cuentas_pagar.tasks.enviar_recordatorios_cxp',
+        'task': 'cuentas_pagar.tasks.enviar_recordatorios_diarios',
         'schedule': crontab(hour=7, minute=30),
     },
     'enviar-resumen-cxp': {
-        'task': 'cuentas_pagar.tasks.enviar_resumen_cxp',
+        'task': 'cuentas_pagar.tasks.enviar_resumen_diario_cxp',
         'schedule': crontab(hour=7, minute=0),
     },
 }

@@ -24,13 +24,13 @@ class ProyeccionCxPView(BaseReporteCxP):
 
 
 class EstadoProveedorCxPView(BaseReporteCxP):
-    def get(self, request, proveedor_id): return Response(reportes.estado_proveedor(proveedor_id, **self.parametros()))
+    def get(self, request, proveedor_id): return Response(reportes.estado_proveedor(proveedor_id, sede=self.request.query_params.get('sede'), usuario=self.request.user))
 
 
 class ReporteCxPView(BaseReporteCxP):
     def get(self, request, nombre):
         try:
-            parametros = self.parametros(); parametros.pop('usuario')
+            parametros = self.parametros()
             return Response(reportes.reporte(nombre, proveedor=request.query_params.get('proveedor'), corte=request.query_params.get('corte'), **parametros))
         except ValueError:
             return Response({'detalle': 'Informe no válido'}, status=404)

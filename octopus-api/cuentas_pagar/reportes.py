@@ -7,7 +7,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from cobranza.permissions import filtrar_por_sede
 
-from .models import CuentaPorPagar, CuotaCuentaPagar, PagoCuentaPagar, PlantillaRecurrente
+from .models import AplazamientoCxP, CuentaPorPagar, CuotaCuentaPagar, PagoCuentaPagar, PlantillaRecurrente
 
 ZERO = Decimal('0.00')
 
@@ -56,9 +56,40 @@ def _montos(cuentas):
     return {k: {m: str(v.quantize(Decimal('0.01'))) if m != 'cantidad' else v for m, v in d.items()} for k, d in totales.items()}
 
 
+def _resumen(cuentas, saldo_proporcional=True):
+    """Totales {cantidad, monto_usd, monto_ves} usando los snapshots de cada cuenta."""
+    usd = ves = ZERO
+    cantidad = 0
+    for c in cuentas:
+        factor = (c.saldo / c.monto_documento) if (saldo_proporcional and c.monto_documento) else Decimal('1')
+        usd += c.monto_usd * factor; ves += c.monto_ves * factor; cantidad += 1
+    return {'cantidad': cantidad, 'monto_usd': str(usd.quantize(Decimal('0.01'))), 'monto_ves': str(ves.quantize(Decimal('0.01')))}
+
+
 def tablero(sede=None, desde=None, hasta=None, hoy=None, usuario=None):
+    hoy = hoy or timezone.localdate()
     cuentas = list(_cuentas(sede, desde, hasta, usuario=usuario))
-    return {'por_situacion': _montos(cuentas), 'total_cuentas': len(cuentas), 'fecha': str(hoy or timezone.localdate())}
+    abiertas = [c for c in cuentas if c.estado in ('pendiente', 'parcial')]
+    dias = lambda c: (c.fecha_vencimiento - hoy).days
+    # Pagos y aplazamientos del mes en curso, limitados a las mismas cuentas visibles.
+    ids = [c.id for c in cuentas]
+    pagos = PagoCuentaPagar.objects.filter(cuenta_id__in=ids, estado='valido', fecha_pago__year=hoy.year, fecha_pago__month=hoy.month)
+    pagado_usd = sum((p.monto_usd for p in pagos), ZERO); pagado_ves = sum((p.monto_ves for p in pagos), ZERO)
+    aplazadas = AplazamientoCxP.objects.filter(cuenta_id__in=ids, creado_en__year=hoy.year, creado_en__month=hoy.month).count()
+    semana = sorted((c for c in abiertas if dias(c) <= 7), key=lambda c: (c.fecha_vencimiento, c.id))
+    return {
+        'por_situacion': _montos(cuentas), 'total_cuentas': len(cuentas), 'fecha': str(hoy),
+        'vencidas': _resumen([c for c in abiertas if dias(c) < 0]),
+        'vence_hoy': _resumen([c for c in abiertas if dias(c) == 0]),
+        'proximos_7_dias': _resumen([c for c in abiertas if 0 < dias(c) <= 7]),
+        'proximos_30_dias': _resumen([c for c in abiertas if 0 < dias(c) <= 30]),
+        'total_adeudado': _resumen(abiertas),
+        'pagado_mes': {'cantidad': len(pagos), 'monto_usd': str(pagado_usd.quantize(Decimal('0.01'))), 'monto_ves': str(pagado_ves.quantize(Decimal('0.01')))},
+        'aplazadas_mes': {'cantidad': aplazadas, 'monto_usd': '0.00', 'monto_ves': '0.00'},
+        'semana': [{'id': c.id, 'numero': c.numero, 'proveedor': c.proveedor_id, 'proveedor_nombre': str(c.proveedor),
+                    'concepto': c.concepto, 'fecha_vencimiento': str(c.fecha_vencimiento), 'prioridad': c.prioridad,
+                    'monto_usd': str(c.monto_usd), 'monto_ves': str(c.monto_ves)} for c in semana],
+    }
 
 
 def calendario(sede=None, desde=None, hasta=None, usuario=None):
@@ -110,14 +141,14 @@ NOMBRES_REPORTES = {
 }
 
 
-def reporte(nombre, sede=None, desde=None, hasta=None, proveedor=None, corte=None, hoy=None):
+def reporte(nombre, sede=None, desde=None, hasta=None, proveedor=None, corte=None, hoy=None, usuario=None):
     if nombre not in NOMBRES_REPORTES: raise ValueError('Informe no válido')
     hoy = hoy or timezone.localdate(); corte = _fecha(corte, hoy)
     if nombre == 'cuentas-pendientes-al-corte':
-        return [{'numero': c.numero, 'proveedor': str(c.proveedor), 'vencimiento': str(c.fecha_vencimiento), 'saldo': str(c.saldo), 'moneda': c.moneda} for c in _cuentas(sede, hasta=corte).exclude(estado__in=['pagada', 'anulada'])]
+        return [{'numero': c.numero, 'proveedor': str(c.proveedor), 'vencimiento': str(c.fecha_vencimiento), 'saldo': str(c.saldo), 'moneda': c.moneda} for c in _cuentas(sede, hasta=corte, usuario=usuario).exclude(estado__in=['pagada', 'anulada'])]
     if nombre == 'antiguedad-saldos':
         grupos = defaultdict(lambda: {'cantidad': 0, 'usd': ZERO, 'ves': ZERO})
-        for c in _cuentas(sede).exclude(estado__in=['pagada', 'anulada']):
+        for c in _cuentas(sede, usuario=usuario).exclude(estado__in=['pagada', 'anulada']):
             dias = max((corte - c.fecha_vencimiento).days, 0); banda = '0-30' if dias <= 30 else '31-60' if dias <= 60 else '61-90' if dias <= 90 else '91+'
             d=grupos[banda]; d['cantidad'] += 1; factor=c.saldo/c.monto_documento; d['usd'] += c.monto_usd*factor; d['ves'] += c.monto_ves*factor
         return [{'rango': k, 'cantidad': v['cantidad'], 'usd': str(v['usd'].quantize(Decimal('0.01'))), 'ves': str(v['ves'].quantize(Decimal('0.01')))} for k,v in grupos.items()]
@@ -125,12 +156,13 @@ def reporte(nombre, sede=None, desde=None, hasta=None, proveedor=None, corte=Non
         pagos=PagoCuentaPagar.objects.filter(estado='valido').select_related('cuenta','cuenta__proveedor')
         if desde: pagos=pagos.filter(fecha_pago__gte=_fecha(desde,hoy))
         if hasta: pagos=pagos.filter(fecha_pago__lte=_fecha(hasta,hoy))
+        if usuario is not None: pagos=filtrar_por_sede(usuario, pagos, 'cuenta__sede')
         if sede: pagos=pagos.filter(cuenta__sede_id=sede)
         return [{'id':p.id,'fecha':str(p.fecha_pago),'cuenta':p.cuenta.numero,'proveedor':str(p.cuenta.proveedor),'usd':str(p.monto_usd),'ves':str(p.monto_ves)} for p in pagos]
-    if nombre == 'vencimientos': return calendario(sede, desde, hasta)
+    if nombre == 'vencimientos': return calendario(sede, desde, hasta, usuario=usuario)
     if nombre == 'aplazamientos':
-        qs = _cuentas(sede).prefetch_related('aplazamientos')
+        qs = _cuentas(sede, usuario=usuario).prefetch_related('aplazamientos')
         return [{'cuenta':c.numero,'cantidad':c.aplazamientos.count(),'eventos':[{'anterior':str(a.fecha_anterior),'nueva':str(a.fecha_nueva),'motivo':a.motivo} for a in c.aplazamientos.all()]} for c in qs if c.aplazamientos.exists()]
-    if nombre == 'estado-cuenta-proveedor': return estado_proveedor(proveedor, sede, hoy) if proveedor else []
-    if nombre == 'proyeccion-pagos': return proyeccion(sede, desde, hasta)
-    return [{'id':p.id,'nombre':p.nombre,'proveedor':str(p.proveedor),'monto':str(p.monto),'moneda':p.moneda,'activa':p.activa} for p in PlantillaRecurrente.objects.select_related('proveedor')]
+    if nombre == 'estado-cuenta-proveedor': return estado_proveedor(proveedor, sede, hoy, usuario=usuario) if proveedor else []
+    if nombre == 'proyeccion-pagos': return proyeccion(sede, desde, hasta, usuario=usuario)
+    return [{'id':p.id,'nombre':p.nombre,'proveedor':str(p.proveedor),'monto':str(p.monto),'moneda':p.moneda,'activa':p.activa} for p in (filtrar_por_sede(usuario, PlantillaRecurrente.objects.select_related('proveedor')) if usuario is not None else PlantillaRecurrente.objects.select_related('proveedor'))]
