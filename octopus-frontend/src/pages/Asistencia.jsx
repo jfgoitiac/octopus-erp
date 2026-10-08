@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useCallback, useRef } from 'react';
 import { Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
+import { ESTADO, CONFIGS_ESTADO } from '../constants/asistencia';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../utils/datepickerPortal';
@@ -10,6 +11,7 @@ import GradoSelect from '../components/GradoSelect';
 import FilaAlumno from '../components/asistencia/FilaAlumno';
 import SkeletonFila from '../components/asistencia/SkeletonFila';
 import PaseListaTarjetas from '../components/asistencia/PaseListaTarjetas';
+import ResumenGrado from '../components/asistencia/ResumenGrado';
 import SelectorVistaAsistencia from '../components/asistencia/SelectorVistaAsistencia';
 import { useVistaAsistencia, VISTA } from '../components/asistencia/useVistaAsistencia';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -24,12 +26,14 @@ const NAV_BTN_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--je
 // >= 4.5:1 en texto pequeño (WCAG AA). #16a34a/var(--ash) originales no
 // pasaban sobre sus fondos claros — se oscurecieron a #15803d y var(--jet).
 const CONTEO_ITEMS = [
-  { key: 'presentes',   label: 'Presentes',   color: '#15803d',     bg: '#dcfce7' },
-  { key: 'ausentes',    label: 'Ausentes',    color: 'var(--red)',  bg: 'var(--red-light)' },
-  { key: 'justificados',label: 'Justificados',color: '#854d0e',     bg: '#fef9c3' },
-  { key: 'retardados',  label: 'Retardados',  color: '#b45309',     bg: '#fef3c7' },
-  { key: 'sinMarcar',   label: 'Sin marcar',  color: 'var(--jet)',  bg: 'var(--ash-light)' },
+  { key: 'presentes',    label: 'Presentes',    estado: ESTADO.PRESENTE },
+  { key: 'ausentes',     label: 'Ausentes',     estado: ESTADO.AUSENTE },
+  { key: 'retardados',   label: 'Retardados',   estado: ESTADO.RETARDADO },
+  { key: 'justificados', label: 'Justificados', estado: ESTADO.JUSTIFICADO },
+  { key: 'sinMarcar',    label: 'Sin marcar',   estado: null },
 ];
+
+const TARJETA_STYLE = { border: '0.5px solid var(--border-md)' };
 
 // Altura del modo pase dentro de MainLayout: topbar de 56px (64px desde md),
 // padding del área de contenido y la fila del selector (44px + 16px) que queda
@@ -53,8 +57,10 @@ const Asistencia = () => {
     sinMarcar,
   } = useAsistencia();
 
-  const [vista, cambiarVista] = useVistaAsistencia('admin_asistencia_vista');
+  const [vista, cambiarVista] = useVistaAsistencia('admin_asistencia_vista', { conResumen: true });
   const enTarjetas = vista === VISTA.TARJETAS;
+  const enResumen = vista === VISTA.RESUMEN;
+  const enLista = vista === VISTA.LISTA;
   const barraVistaRef = useRef(null);
 
   const hoy = useMemo(() => startOfDay(new Date()), []);
@@ -84,7 +90,7 @@ const Asistencia = () => {
       <PageHeader
         titulo="Control de Asistencia"
         descripcion="Registro diario de presencia por grado"
-        acciones={!enTarjetas && (
+        acciones={enLista && (
           <button
             onClick={guardar}
             disabled={saving || !dirty || !registros.length || sinMarcar > 0}
@@ -98,12 +104,12 @@ const Asistencia = () => {
       />
 
       {/* Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="mb-4 grid grid-cols-1 gap-4 rounded-2xl bg-white p-4 sm:grid-cols-2 sm:p-5" style={TARJETA_STYLE}>
         <div>
           <label
             htmlFor="filtro-fecha"
-            className="block text-[11px] uppercase tracking-widest mb-1.5"
-            style={{ color: 'var(--ash)' }}
+            className="mb-1.5 block text-xs font-medium"
+            style={{ color: 'var(--jet-mid)' }}
           >
             Fecha
           </label>
@@ -151,8 +157,8 @@ const Asistencia = () => {
         <div>
           <label
             htmlFor="filtro-grado"
-            className="block text-[11px] uppercase tracking-widest mb-1.5"
-            style={{ color: 'var(--ash)' }}
+            className="mb-1.5 block text-xs font-medium"
+            style={{ color: 'var(--jet-mid)' }}
           >
             Grado / Año
           </label>
@@ -172,7 +178,7 @@ const Asistencia = () => {
           ref={barraVistaRef}
           className={`mb-4 flex scroll-mt-4 items-center md:scroll-mt-6 ${enTarjetas ? 'mx-auto w-full max-w-md' : 'justify-end'}`}
         >
-          <SelectorVistaAsistencia vista={vista} onCambiar={cambiarVista} />
+          <SelectorVistaAsistencia vista={vista} onCambiar={cambiarVista} conResumen />
         </div>
       )}
 
@@ -193,20 +199,35 @@ const Asistencia = () => {
           anclaScrollRef={barraVistaRef}
           claseAltura={ALTURA_PANEL}
         />
+      ) : grado && enResumen ? (
+        loading ? (
+          <div className="space-y-3">{[...Array(4)].map((_, i) => <SkeletonFila key={i} />)}</div>
+        ) : registros.length === 0 ? (
+          <div className="rounded-2xl p-10 text-center sm:p-16" style={{ ...TARJETA_STYLE, background: 'var(--porcelain)', color: 'var(--jet-mid)' }}>
+            <p className="text-sm">No hay alumnos registrados en este grado.</p>
+          </div>
+        ) : (
+          <ResumenGrado grado={grado} fecha={fecha} registros={registros} dirty={dirty} />
+        )
       ) : (
       <>
       {/* Contadores */}
       {grado && !loading && registros.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-          {CONTEO_ITEMS.map(({ key, label, color, bg }) => (
-            <div key={key} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: bg }}>
-              <Users size={18} style={{ color }} />
-              <div>
-                <p className="text-xl font-bold leading-none" style={{ color }}>{conteos[key]}</p>
-                <p className="text-xs" style={{ color }}>{label}</p>
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+          {CONTEO_ITEMS.map(({ key, label, estado }) => {
+            const cfg = estado ? CONFIGS_ESTADO[estado] : null;
+            const { color, background } = cfg ? cfg.activeStyle : { color: 'var(--jet)', background: 'var(--ash-light)' };
+            const Icon = cfg ? cfg.Icon : Users;
+            return (
+              <div key={key} className="flex items-center gap-3 rounded-xl p-3" style={{ background }}>
+                <Icon size={18} aria-hidden="true" style={{ color }} />
+                <div>
+                  <p className="text-xl font-bold leading-none tabular-nums" style={{ color }}>{conteos[key]}</p>
+                  <p className="mt-1 text-xs font-medium" style={{ color }}>{label}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -228,10 +249,10 @@ const Asistencia = () => {
       {/* Lista */}
       {!grado ? (
         <div
-          className="rounded-xl p-16 text-center"
-          style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)', color: 'var(--ash)' }}
+          className="rounded-2xl p-10 text-center sm:p-16"
+          style={{ ...TARJETA_STYLE, background: 'var(--porcelain)', color: 'var(--jet-mid)' }}
         >
-          <GraduationCap size={40} className="mx-auto mb-3 opacity-30" />
+          <GraduationCap size={40} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm">Selecciona grado y fecha para cargar la lista.</p>
         </div>
       ) : (
