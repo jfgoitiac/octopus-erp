@@ -329,6 +329,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cobranza.tasks.evaluar_reglas_cobranza_inteligente',
         'schedule': crontab(hour=7, minute=40),
     },
+    'revisar-convenios-cobranza-inteligente': {
+        'task': 'cobranza.tasks.revisar_convenios_cobranza_inteligente',
+        'schedule': crontab(hour=7, minute=20),
+    },
     'procesar-envios-cobranza-inteligente': {
         'task': 'cobranza.tasks.procesar_envios_cobranza_inteligente',
         'schedule': crontab(minute=5, hour='8-18'),
