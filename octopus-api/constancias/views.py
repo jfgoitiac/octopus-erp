@@ -402,7 +402,10 @@ class EmitirView(APIView):
                 referencia = (datos_pago.get('referencia') or '').strip()
                 if metodo not in ('efectivo', 'efectivo_ves') and not referencia:
                     return Response({'detail': 'La referencia del pago es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
-                if referencia and buscar_referencia_duplicada(referencia, metodo_pago=metodo, banco_receptor_id=banco_id):
+                if referencia and buscar_referencia_duplicada(
+                    referencia, metodo_pago=metodo, banco_receptor_id=banco_id,
+                    numero_lote=datos_pago.get('numero_lote'),
+                ):
                     return Response({'detail': 'La referencia indicada ya fue utilizada.'}, status=status.HTTP_400_BAD_REQUEST)
                 pago = Pago.objects.create(
                     alumno=alumno, usuario_receptor=request.user, banco_receptor=banco,

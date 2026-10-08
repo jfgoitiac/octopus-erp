@@ -37,6 +37,7 @@ def buscar_referencia_duplicada(
     banco_receptor_id=_SIN_FILTRO,
     excluir_abono_id=None,
     excluir_venta_id=None,
+    numero_lote=None,
 ):
     """
     Busca `ref_normalizada` (ya normalizada por `normalizar_referencia`) en
@@ -61,6 +62,12 @@ def buscar_referencia_duplicada(
     compatibilidad de arriba: acá el llamador sabe que no hay banco y quiere
     que eso también participe de la clave de unicidad.
 
+    Punto de Venta: la referencia del voucher (4 dígitos) se repite entre
+    lotes distintos, así que para `metodo_pago='punto_de_venta'` con
+    `numero_lote` informado la clave pasa a ser (referencia, metodo_pago,
+    banco_receptor, numero_lote). Sin lote, o con otro método, el lote se
+    ignora. `portal.ComprobantePago` no guarda lote y no se filtra por él.
+
     Devuelve un dict {'origen', 'id', 'detalle'} describiendo dónde ya
     existe, o None si la referencia está libre.
     """
@@ -72,6 +79,11 @@ def buscar_referencia_duplicada(
     from cantina.models import AbonoCantina, RecargaTarjeta, VentaCantina
 
     con_filtro_compuesto = metodo_pago is not _SIN_FILTRO or banco_receptor_id is not _SIN_FILTRO
+
+    lote = (numero_lote or '').strip() if metodo_pago == 'punto_de_venta' else ''
+
+    def _filtro_lote(qs):
+        return qs.filter(numero_lote=lote) if lote else qs
 
     def _filtro_banco(qs):
         if banco_receptor_id is _SIN_FILTRO:
@@ -97,7 +109,7 @@ def buscar_referencia_duplicada(
     ).exclude(pk=excluir_pago_id)
     if metodo_pago is not _SIN_FILTRO:
         pagos_qs = pagos_qs.filter(metodo_pago=metodo_pago)
-    pagos_qs = _filtro_banco(pagos_qs)
+    pagos_qs = _filtro_lote(_filtro_banco(pagos_qs))
     dup_pago = pagos_qs.first()
     if dup_pago:
         return {
@@ -128,7 +140,7 @@ def buscar_referencia_duplicada(
     ).exclude(pk=excluir_recarga_id)
     if metodo_pago is not _SIN_FILTRO:
         recarga_qs = recarga_qs.filter(metodo_pago=metodo_pago)
-    recarga_qs = _filtro_banco(recarga_qs)
+    recarga_qs = _filtro_lote(_filtro_banco(recarga_qs))
     dup_recarga = recarga_qs.first()
     if dup_recarga:
         return {
@@ -142,7 +154,7 @@ def buscar_referencia_duplicada(
     ).exclude(pk=excluir_abono_id)
     if metodo_pago is not _SIN_FILTRO:
         abono_qs = abono_qs.filter(metodo_pago=metodo_pago)
-    abono_qs = _filtro_banco(abono_qs)
+    abono_qs = _filtro_lote(_filtro_banco(abono_qs))
     dup_abono = abono_qs.first()
     if dup_abono:
         return {
@@ -156,7 +168,7 @@ def buscar_referencia_duplicada(
     ).exclude(pk=excluir_venta_id)
     if metodo_pago is not _SIN_FILTRO:
         venta_qs = venta_qs.filter(metodo_pago=metodo_pago)
-    venta_qs = _filtro_banco(venta_qs)
+    venta_qs = _filtro_lote(_filtro_banco(venta_qs))
     dup_venta = venta_qs.first()
     if dup_venta:
         return {

@@ -287,7 +287,8 @@ def _chequear_duplicados(normalizadas):
         if not ln['referencia']:
             continue
         banco_id = ln['banco_receptor'].id if ln['banco_receptor'] else None
-        clave = (ln['referencia'], ln['metodo_pago'], banco_id)
+        lote = ln['numero_lote'] if ln['metodo_pago'] == 'punto_de_venta' else None
+        clave = (ln['referencia'], ln['metodo_pago'], banco_id, lote)
         if clave in vistas:
             raise ValidationError({
                 f'lineas[{i}]': f"La referencia '{ln['referencia']}' está repetida dentro de este mismo abono.",
@@ -295,6 +296,7 @@ def _chequear_duplicados(normalizadas):
         vistas.add(clave)
         dup = buscar_referencia_duplicada(
             ln['referencia'], metodo_pago=ln['metodo_pago'], banco_receptor_id=banco_id,
+            numero_lote=lote,
         )
         if dup:
             raise ValidationError({
