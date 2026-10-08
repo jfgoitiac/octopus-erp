@@ -50,6 +50,11 @@ def task_notificar_mora_programada(self, mensualidad_id, tipo):
         if m.pagado:
             logger.info(f"Mensualidad {mensualidad_id} ya pagada. Se omite notificación {tipo}.")
             return
+        # Avisos ya agendados antes de encender Cobranza Inteligente: se descartan.
+        from cobranza.inteligente import inteligente_activa_para_sede
+        if inteligente_activa_para_sede(m.alumno.sede_id):
+            logger.info(f"Cobranza Inteligente activa para la sede de la mensualidad {mensualidad_id}. Se omite {tipo}.")
+            return
         task_notificar_mora(mensualidad_id, tipo)
     except Exception as exc:
         logger.error(f"Error en task_notificar_mora_programada ({mensualidad_id}, {tipo}): {exc}")
@@ -116,6 +121,10 @@ def revisar_y_programar_notificaciones_pendientes():
     hoy = date.today()
     procesadas = 0
     dias_r1, dias_r2, dias_dir = _dias_recordatorio()
+    # Excluyente con Cobranza Inteligente: las sedes con el módulo encendido
+    # las atiende el motor nuevo, no este flujo.
+    from cobranza.inteligente import sedes_con_inteligente_activa
+    sedes_inteligente = sedes_con_inteligente_activa()
 
     # Buscar mensualidades impagas de alumnos activos
     mensualidades = Mensualidad.objects.filter(
@@ -124,6 +133,8 @@ def revisar_y_programar_notificaciones_pendientes():
     ).select_related('alumno__representante')
 
     for mensualidad in mensualidades:
+        if mensualidad.alumno.sede_id in sedes_inteligente:
+            continue
         # Calcular fecha de vencimiento usando dia_limite_pago del alumno (default 5)
         dia_limite = getattr(mensualidad.alumno, 'dia_limite_pago', None) or 5
         ultimo_dia = calendar.monthrange(mensualidad.anio, mensualidad.mes)[1]

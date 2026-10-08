@@ -3556,3 +3556,87 @@ class ReporteCostoBecasView(APIView):
     def get(self, request):
         periodo_escolar = request.query_params.get('periodo_escolar')
         return Response(reporte_costo_becas(periodo_escolar))
+
+
+class ConfiguracionCobranzaInteligenteView(APIView):
+    """
+    Toggle de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md §3).
+
+    GET   ?sede=<id> -> estado (cualquier usuario autenticado; el frontend lo
+                        usa para mostrar u ocultar las pantallas del módulo).
+    PATCH ?sede=<id> -> cambia activo / modo_sombra / etapas_envio_activas.
+                        Solo director o administrador de sistema; cada cambio
+                        queda en LogAuditoria.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _config(self, request):
+        from .inteligente import obtener_configuracion
+        sede_id = request.query_params.get('sede') or None
+        if sede_id is not None:
+            try:
+                sede_id = int(sede_id)
+            except ValueError:
+                return None, Response({'detail': 'Sede inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+        permitidas = sedes_permitidas_ids(request.user)
+        if permitidas is not None and sede_id not in permitidas:
+            return None, Response({'detail': 'No encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return obtener_configuracion(sede_id), None
+
+    @staticmethod
+    def _serializar(cfg):
+        from .inteligente import corte_global_activo
+        return {
+            'sede': cfg.sede_id,
+            'activo': cfg.activo,
+            'modo_sombra': cfg.modo_sombra,
+            'etapas_envio_activas': cfg.etapas_envio_activas,
+            'corte_global': corte_global_activo(),
+            'efectivo': cfg.activo and not corte_global_activo(),
+            'activado_por': cfg.activado_por.get_username() if cfg.activado_por_id else None,
+            'activado_en': cfg.activado_en,
+        }
+
+    def get(self, request):
+        cfg, error = self._config(request)
+        return error or Response(self._serializar(cfg))
+
+    def patch(self, request):
+        if not IsSystemAdminOrDirector().has_permission(request, self):
+            return Response({'detail': 'No tienes permiso para cambiar Cobranza Inteligente.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        cfg, error = self._config(request)
+        if error:
+            return error
+
+        etapas = request.data.get('etapas_envio_activas')
+        if etapas is not None:
+            validas = cfg.ETAPAS
+            if not isinstance(etapas, list) or any(e not in validas for e in etapas):
+                return Response({'detail': f'Etapas válidas: {", ".join(validas)}.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        anterior = {'activo': cfg.activo, 'modo_sombra': cfg.modo_sombra,
+                    'etapas_envio_activas': list(cfg.etapas_envio_activas)}
+        with transaction.atomic():
+            if 'activo' in request.data:
+                nuevo = bool(request.data['activo'])
+                if nuevo and not cfg.activo:
+                    cfg.activado_por, cfg.activado_en = request.user, timezone.now()
+                cfg.activo = nuevo
+            if 'modo_sombra' in request.data:
+                cfg.modo_sombra = bool(request.data['modo_sombra'])
+            if etapas is not None:
+                cfg.etapas_envio_activas = etapas
+            cfg.save()
+            nuevo_estado = {'activo': cfg.activo, 'modo_sombra': cfg.modo_sombra,
+                            'etapas_envio_activas': list(cfg.etapas_envio_activas)}
+            if nuevo_estado != anterior:
+                LogAuditoria.objects.create(
+                    usuario=request.user,
+                    accion='COBRANZA_INTELIGENTE_CAMBIO',
+                    modulo='COBRANZA',
+                    detalles={'sede': cfg.sede_id, 'anterior': anterior, 'nuevo': nuevo_estado,
+                              'motivo': str(request.data.get('motivo', ''))[:500]},
+                )
+        return Response(self._serializar(cfg))

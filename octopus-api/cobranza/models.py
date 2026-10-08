@@ -1036,3 +1036,38 @@ class LineaDescuentoPago(models.Model):
 
     def __str__(self):
         return f"Descuento '{self.nombre}' - Pago {self.pago_id} - Mensualidad {self.mensualidad_id}"
+
+
+class ConfiguracionCobranzaInteligente(models.Model):
+    """
+    Toggle de Cobranza Inteligente, por sede (ver PLAN_COBRANZA_INTELIGENTE.md §3).
+
+    `sede` nula = instalación sin sedes. Viene APAGADO por defecto: mientras
+    `activo` sea False rige el flujo anterior de notificaciones; con True rige
+    el motor nuevo (nunca los dos a la vez). El estado efectivo lo resuelve
+    cobranza/inteligente.py, que además respeta el corte global de soporte.
+    """
+    ETAPAS = ('preventiva', 'temprana', 'prioritaria')
+
+    sede = models.OneToOneField(
+        'multisede.Sede', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='cobranza_inteligente',
+    )
+    activo = models.BooleanField(default=False)
+    modo_sombra = models.BooleanField(
+        default=True,
+        help_text='Con el módulo encendido evalúa y registra, pero no envía.',
+    )
+    etapas_envio_activas = models.JSONField(default=list, blank=True)
+    activado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    activado_en = models.DateTimeField(null=True, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración de Cobranza Inteligente'
+
+    def __str__(self):
+        return f"Cobranza Inteligente — {self.sede or 'sin sede'} ({'encendida' if self.activo else 'apagada'})"

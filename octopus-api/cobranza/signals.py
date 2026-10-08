@@ -43,6 +43,11 @@ def al_crear_mensualidad(sender, instance, created, **kwargs):
     """
     if created and not instance.pagado:
         try:
+            # Excluyente con Cobranza Inteligente: si la sede la tiene
+            # encendida, el motor nuevo se encarga y este flujo no agenda nada.
+            from .inteligente import inteligente_activa_para_sede
+            if inteligente_activa_para_sede(instance.alumno.sede_id):
+                return
             from notificaciones.tasks import programar_notificaciones_mensualidad
             programar_notificaciones_mensualidad(instance.id)
         except Exception as e:
