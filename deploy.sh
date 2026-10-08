@@ -66,6 +66,14 @@ echo ""
 echo "▶ Instalando dependencias Python..."
 "$VENV/pip" install -r "$BACKEND/requirements.txt" --quiet
 
+# Sin estas librerías el Web Push (portal de representantes) queda apagado en
+# silencio: se verifica aquí para que un fallo de instalación no pase inadvertido.
+echo "▶ Verificando librerías de notificaciones push..."
+"$VENV/python" -c "import pywebpush, py_vapid, http_ece" || {
+    echo "✗ pywebpush/py-vapid/http-ece no están instalados. Revisa el pip install (¿falta build-essential/python3-dev?)." >&2
+    exit 1
+}
+
 echo "▶ Verificando postgresql-client (pg_dump, requerido para el respaldo de BD)..."
 if ! command -v pg_dump &> /dev/null; then
     sudo apt-get install -y postgresql-client

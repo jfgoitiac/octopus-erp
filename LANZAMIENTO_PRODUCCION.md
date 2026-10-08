@@ -42,6 +42,12 @@ nunca se versionan con secretos:
   de activar el respaldo diario.
 - Correo: completar `PORTAL_EMAIL_DIRECTOR` si se requiere la alerta mensual
   del portal.
+- Notificaciones push: `deploy.sh` ya instala `pywebpush`, `py-vapid` y
+  `http-ece` desde `requirements.txt` y aborta si no quedan importables
+  (en un servidor sin compilador: `apt install build-essential python3-dev`).
+  Generar y completar `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` en el `.env` (ver
+  `octopus-api/.env.example`); sin ellas el push queda apagado en silencio.
+  Hoy el push existe solo para el portal de representantes.
 
 ## Secuencia de publicación
 

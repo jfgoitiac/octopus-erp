@@ -4024,5 +4024,10 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    la vez (una petición por ciclo, sin transacción conjunta en el frontend).
 5. **Migración pendiente ajena**: `makemigrations --check` detecta un cambio
    sin migrar en `notificaciones.PlantillaWhatsApp.id`.
-6. **Dependencias**: `http-ece` (vía `pywebpush`) no compila en el entorno cloud
-   de pruebas; los tests se corrieron sin ellas.
+6. **Dependencias**: `http-ece` (vía `pywebpush`) no compila con el pip del
+   Python del sistema del entorno cloud de pruebas (setuptools de Debian); en un
+   venv instala bien. Por eso 4 tests de `notificaciones` fallaron solo allí.
+   `deploy.sh` y CI ahora verifican que las librerías de push sean importables.
+7. **Web Push solo para representantes**: `SuscripcionPush` cuelga de
+   `RepresentanteUser`; el panel administrativo y el portal docente no tienen
+   suscripciones push (pendiente, es una función nueva).
