@@ -7,7 +7,13 @@ export const crearEgreso = async (body) => {
   // El API crea primero un borrador para poder validar y calcular; el alta desde
   // Egresos siempre lo confirma como contado en la misma operación de UI.
   const { data: borrador } = await apiClient.post('egresos/', body);
-  return apiClient.post(`egresos/${borrador.id}/guardar/`, body);
+  try {
+    return await apiClient.post(`egresos/${borrador.id}/guardar/`, body);
+  } catch (error) {
+    // No dejar un borrador huérfano si la confirmación falla.
+    await apiClient.post(`egresos/${borrador.id}/anular/`, { motivo: 'Borrador descartado: falló la confirmación' }).catch(() => apiClient.delete(`egresos/${borrador.id}/`).catch(() => {}));
+    throw error;
+  }
 };
 export const anularEgreso = (id, motivo) => apiClient.post(`egresos/${id}/anular/`, { motivo });
 // El contrato expone el cálculo en un egreso ya creado (borrador), no como ruta de colección.

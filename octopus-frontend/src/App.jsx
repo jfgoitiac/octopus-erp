@@ -332,14 +332,14 @@ function App() {
                   <Proveedores />
                 </ProtectedRoute>
               } />
-              <Route path="cuentas-por-pagar" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><CuentasPorPagar /></ProtectedRoute>} />
-              <Route path="cuentas-por-pagar/nueva" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.CAJERO]}><CuentaPorPagarForm /></ProtectedRoute>} />
-              <Route path="cuentas-por-pagar/tablero" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><TableroCuentasPorPagar /></ProtectedRoute>} />
-              <Route path="cuentas-por-pagar/calendario" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><CalendarioPagos /></ProtectedRoute>} />
-              <Route path="cuentas-por-pagar/reportes" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><ReportesCuentasPorPagar /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CuentasPorPagar /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/nueva" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CuentaPorPagarForm /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/tablero" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><TableroCuentasPorPagar /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/calendario" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CalendarioPagos /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/reportes" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><ReportesCuentasPorPagar /></ProtectedRoute>} />
               <Route path="cuentas-por-pagar/recurrentes" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><PlantillasRecurrentes /></ProtectedRoute>} />
               <Route path="cuentas-por-pagar/configuracion" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><ConfiguracionRecordatorios /></ProtectedRoute>} />
-              <Route path="cuentas-por-pagar/:id" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS, ROLES.CAJERO]}><CuentaPorPagarDetalle /></ProtectedRoute>} />
+              <Route path="cuentas-por-pagar/:id" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CuentaPorPagarDetalle /></ProtectedRoute>} />
 
               {/* Constancias */}
               <Route path="constancias/plantillas" element={
