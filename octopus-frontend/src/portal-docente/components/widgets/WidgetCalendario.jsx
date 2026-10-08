@@ -114,7 +114,8 @@ const WidgetCalendario = ({ className = '' }) => {
         })}
       </div>
 
-      <div className="mt-4 pt-3 border-t border-gray-50 flex-1">
+      <div className="mt-3 flex items-center gap-3 text-[10px] text-gray-400"><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[var(--docente-primary)] inline-block" />Evento</span><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />Evaluación</span></div>
+      <div className="mt-3 pt-3 border-t border-gray-50 flex-1">
         <p className="text-xs font-semibold text-gray-500 capitalize mb-2">
           {format(new Date(diaSeleccionado + 'T00:00:00'), "EEEE d 'de' MMMM", { locale: es })}
         </p>
@@ -124,7 +125,7 @@ const WidgetCalendario = ({ className = '' }) => {
           <p className="text-xs text-gray-400">Sin eventos este día.</p>
         ) : (
           <div className="space-y-1.5">
-            {eventosDelDia.map(ev => (
+            {[...eventosDelDia].sort((a, b) => (a.hora || '99:99').localeCompare(b.hora || '99:99')).map(ev => (
               <div
                 key={ev.id}
                 className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${ev.solo_lectura ? 'bg-amber-50' : 'bg-[var(--docente-primary)]/10'}`}

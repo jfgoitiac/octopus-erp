@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, MessageCirclePlus, BookOpen } from 'lucide-react';
+import { AlertTriangle, MessageCirclePlus, ClipboardPenLine } from 'lucide-react';
 
 const ACCIONES = [
   {
@@ -16,8 +16,8 @@ const ACCIONES = [
   },
   {
     to: '/portal-docente/materias',
-    icon: BookOpen,
-    label: 'Cargar material',
+    icon: ClipboardPenLine,
+    label: 'Cargar notas',
   },
 ];
 

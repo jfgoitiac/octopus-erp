@@ -14,7 +14,9 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
   if (!resumen) return null;
 
   const tasaBcv = resumen.tasa_bcv;
-  const desglose = (resumen.deuda_por_alumno || []).filter((d) => Number(d.deuda_usd) > 0);
+  const mensualidades = resumen.mensualidades_vencidas || [];
+  const otrosConceptos = resumen.otros_conceptos_pendientes || [];
+  const cantidadPendientes = mensualidades.length + otrosConceptos.length;
 
   return (
     <section className={`portal-card p-4 sm:p-5 h-full ${tieneDeuda ? 'bg-red-50/70' : 'bg-emerald-50/70'}`}>
@@ -26,39 +28,30 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
         )}
         <span className={`font-semibold text-sm ${tieneDeuda ? 'text-red-700' : 'text-green-700'}`}>
           {tieneDeuda
-            ? (variosAlumnos ? 'Deuda total pendiente (todos tus hijos)' : 'Deuda pendiente')
+            ? (variosAlumnos ? 'Deuda familiar pendiente' : 'Deuda pendiente')
             : 'Solvente — al día con los pagos'}
         </span>
       </div>
 
       {tieneDeuda && (
-        <MontoRef
-          usd={resumen.total_deuda_usd}
-          tasaBcv={tasaBcv}
-          size="lg"
-          align="left"
-          colorRef="text-red-700"
-          colorBs="text-red-600"
-          className="mb-3"
-        />
-      )}
-
-      {/* Desglose por hijo */}
-      {variosAlumnos && desglose.length > 0 && (
-        <div className="bg-white/70 rounded-xl px-3 py-2 mb-3 divide-y divide-red-100">
-          {desglose.map((d) => (
-            <div key={d.alumno_id} className="flex items-center justify-between gap-3 py-1.5">
-              <p className="text-sm text-gray-700 min-w-0 truncate">{d.alumno_nombre}</p>
-              <MontoRef usd={d.deuda_usd} tasaBcv={tasaBcv} />
-            </div>
-          ))}
+        <div className="mb-3"><MontoRef usd={resumen.total_deuda_usd} tasaBcv={tasaBcv} size="lg" align="left" colorRef="text-red-700" colorBs="text-red-600" />
+          <p className="mt-1 text-xs text-red-600/80">{variosAlumnos ? `Un solo total que reúne las deudas de todos tus hijos (${cantidadPendientes} concepto${cantidadPendientes === 1 ? '' : 's'}).` : `${cantidadPendientes} concepto${cantidadPendientes === 1 ? '' : 's'} pendiente${cantidadPendientes === 1 ? '' : 's'}.`}</p>
         </div>
       )}
 
+      {/* Para familias con varios alumnos, el monto único evita sumar mentalmente.
+          El detalle sigue disponible de forma secundaria, sin repetir importes. */}
+      {variosAlumnos && tieneDeuda && (
+        <details className="mb-3 rounded-xl bg-white/70 px-3 py-2 text-xs text-gray-600">
+          <summary className="cursor-pointer font-medium text-[var(--portal-primary,#0fa3b1)]">Ver conceptos incluidos</summary>
+          <p className="mt-2 leading-relaxed">Incluye {mensualidades.length} mensualidad{mensualidades.length === 1 ? '' : 'es'} pendiente{mensualidades.length === 1 ? '' : 's'} y {otrosConceptos.length} concepto{otrosConceptos.length === 1 ? '' : 's'} adicional{otrosConceptos.length === 1 ? '' : 'es'}, correspondientes a todos tus hijos.</p>
+        </details>
+      )}
+
       {/* Mensualidades vencidas */}
-      {resumen.mensualidades_vencidas?.length > 0 && (
+      {!variosAlumnos && mensualidades.length > 0 && (
         <div className="space-y-2">
-          {resumen.mensualidades_vencidas.map((m) => (
+          {mensualidades.map((m) => (
             <div key={m.id} className="flex items-center justify-between gap-3 bg-white/70 rounded-xl px-3 py-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-700">
@@ -112,9 +105,9 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       {/* Otros conceptos pendientes: inscripción y proyecto de inversión.
           No tienen botón "Pagar": el comprobante del portal solo aplica
           a mensualidades, este pago se coordina con administración. */}
-      {resumen.otros_conceptos_pendientes?.length > 0 && (
+      {!variosAlumnos && otrosConceptos.length > 0 && (
         <div className="space-y-2 mt-2">
-          {resumen.otros_conceptos_pendientes.map((c) => (
+          {otrosConceptos.map((c) => (
             <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between gap-3 bg-white/70 rounded-xl px-3 py-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-700">{c.concepto}</p>
@@ -129,6 +122,10 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
             Para pagar estos conceptos, contacta a administración.
           </p>
         </div>
+      )}
+
+      {variosAlumnos && mensualidades.length > 0 && (
+        <button onClick={() => onPagar(mensualidades[0])} className="w-full min-h-[44px] rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-sm font-semibold text-white transition-opacity hover:opacity-90">Registrar comprobante de pago</button>
       )}
 
       {tieneDeuda && <NotaTasaBcv tasaBcv={tasaBcv} className="mt-3" />}

@@ -12,7 +12,7 @@ const EstudianteSelector = ({ alumnos = [], alumnoActivo, onSelect }) => {
   if (!alumnos || alumnos.length <= 1) return null;
 
   return (
-    <div className="overflow-x-auto -mx-4 px-4 mb-4">
+    <div className="overflow-x-auto -mx-4 px-4 mt-2">
       <div className="flex gap-2 min-w-max">
         {alumnos.map((alumno) => {
           const isActive = alumnoActivo?.id === alumno.id;
@@ -20,7 +20,8 @@ const EstudianteSelector = ({ alumnos = [], alumnoActivo, onSelect }) => {
             <button
               key={alumno.id}
               onClick={() => onSelect(alumno)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+              aria-pressed={isActive}
+              className={`flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-colors border ${
                 isActive
                   ? 'bg-[var(--portal-primary,#0fa3b1)] text-white border-[var(--portal-primary,#0fa3b1)]'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--portal-primary,#0fa3b1)] hover:text-[var(--portal-primary,#0fa3b1)]'
