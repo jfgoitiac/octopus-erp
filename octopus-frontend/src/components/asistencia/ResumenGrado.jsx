@@ -18,6 +18,15 @@ const TARJETA_STYLE = { border: '0.5px solid var(--border-md)' };
 
 const plural = (n, uno, varios) => (n === 1 ? uno : varios);
 
+/** Desglose por género; `alumno_genero` viene del backend ('femenino' | 'masculino'). */
+const porGenero = (alumnos) => ({
+  hembras: alumnos.filter(a => a.alumno_genero === 'femenino').length,
+  varones: alumnos.filter(a => a.alumno_genero === 'masculino').length,
+});
+
+const textoGenero = ({ hembras, varones }) =>
+  `${hembras} ${plural(hembras, 'hembra', 'hembras')} · ${varones} ${plural(varones, 'varón', 'varones')}`;
+
 /** Barra proporcional de la asistencia del grado; las cifras exactas van en las tarjetas. */
 const BarraProporcion = ({ segmentos, total }) => (
   <div
@@ -39,10 +48,15 @@ const GrupoAlumnos = ({ titulo, vacio, Icon = Users, color, fondo, alumnos }) =>
     style={TARJETA_STYLE}
   >
     <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-      <h3 className="flex min-w-0 items-center gap-2 text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-        <Icon size={16} aria-hidden="true" style={{ color }} />
-        <span className="truncate">{titulo}</span>
-      </h3>
+      <div className="min-w-0">
+        <h3 className="flex min-w-0 items-center gap-2 text-sm font-semibold" style={{ color: 'var(--jet)' }}>
+          <Icon size={16} aria-hidden="true" style={{ color }} />
+          <span className="truncate">{titulo}</span>
+        </h3>
+        {alumnos.length > 0 && (
+          <p className="mt-0.5 pl-6 text-xs" style={{ color: 'var(--jet-mid)' }}>{textoGenero(porGenero(alumnos))}</p>
+        )}
+      </div>
       <span
         className="min-w-8 rounded-lg px-2 py-0.5 text-center text-sm font-bold tabular-nums"
         style={{ background: fondo, color }}
@@ -76,7 +90,7 @@ const GrupoAlumnos = ({ titulo, vacio, Icon = Users, color, fondo, alumnos }) =>
  * tienen justificación en el grado y fecha seleccionados. Solo lectura.
  */
 const ResumenGrado = ({ grado, fecha, registros, dirty }) => {
-  const { grupos, sinMarcar, total, asistieron } = useMemo(() => {
+  const { grupos, sinMarcar, total, asistieron, generoAsistieron } = useMemo(() => {
     const por = new Map(GRUPOS.map(g => [g.estado, []]));
     const sin = [];
     registros.forEach(r => (r.estado ? por.get(r.estado)?.push(r) : sin.push(r)));
@@ -86,6 +100,7 @@ const ResumenGrado = ({ grado, fecha, registros, dirty }) => {
       total: registros.length,
       // Quien llega tarde igual asistió a clase.
       asistieron: por.get(ESTADO.PRESENTE).length + por.get(ESTADO.RETARDADO).length,
+      generoAsistieron: porGenero([...por.get(ESTADO.PRESENTE), ...por.get(ESTADO.RETARDADO)]),
     };
   }, [registros]);
 
@@ -126,7 +141,11 @@ const ResumenGrado = ({ grado, fecha, registros, dirty }) => {
 
         <div className="mt-4"><BarraProporcion segmentos={segmentos} total={total} /></div>
 
-        <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--jet-mid)' }}>
+        <p className="mt-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>
+          Asistieron: {textoGenero(generoAsistieron)}
+        </p>
+
+        <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--jet-mid)' }}>
           {cuenta(ESTADO.PRESENTE)} {plural(cuenta(ESTADO.PRESENTE), 'vino', 'vinieron')}, {faltaron} {plural(faltaron, 'faltó', 'faltaron')}
           {retardos > 0 && `, ${retardos} con retardo`}
           {justificados > 0 && `, ${justificados} ${plural(justificados, 'justificado', 'justificados')}`}

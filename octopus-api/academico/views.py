@@ -670,6 +670,7 @@ class AsistenciaView(APIView):
                 }
             fila['numero_lista'] = numero_lista
             fila['alumno_foto'] = request.build_absolute_uri(alumno.foto.url) if alumno.foto else None
+            fila['alumno_genero'] = alumno.genero
             resultado.append(fila)
 
         return Response(resultado)

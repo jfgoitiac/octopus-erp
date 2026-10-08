@@ -21,6 +21,7 @@ import SkeletonFila from '../../components/asistencia/SkeletonFila';
 import PaseListaTarjetas from '../../components/asistencia/PaseListaTarjetas';
 import AvisoBorrador from '../../components/asistencia/AvisoBorrador';
 import SelectorVistaAsistencia from '../../components/asistencia/SelectorVistaAsistencia';
+import ResumenGrado from '../../components/asistencia/ResumenGrado';
 import { useVistaAsistencia, VISTA } from '../../components/asistencia/useVistaAsistencia';
 import { Modal } from '../../components/ui/Modal';
 import TarjetaMaterial from '../../components/materiales/TarjetaMaterial';
@@ -198,7 +199,7 @@ const DocenteMateriaDetalle = () => {
     return resultado;
   };
 
-  const [vistaAsistencia, cambiarVistaAsistencia] = useVistaAsistencia('docente_asistencia_vista');
+  const [vistaAsistencia, cambiarVistaAsistencia] = useVistaAsistencia('docente_asistencia_vista', { conResumen: true });
   const barraAsistenciaRef = useRef(null);
 
   // Protección de cambios sin guardar: salir, cambiar de pestaña o de fecha
@@ -346,7 +347,7 @@ const DocenteMateriaDetalle = () => {
             ref={barraAsistenciaRef}
             className={`flex scroll-mt-16 flex-wrap items-center justify-between gap-2 ${vistaAsistencia === VISTA.TARJETAS ? 'mx-auto w-full max-w-md' : ''}`}
           >
-            <SelectorVistaAsistencia vista={vistaAsistencia} onCambiar={cambiarVistaAsistencia} />
+            <SelectorVistaAsistencia vista={vistaAsistencia} onCambiar={cambiarVistaAsistencia} conResumen />
 
             <DatePicker
               selected={fechaAsistencia}
@@ -402,6 +403,16 @@ const DocenteMateriaDetalle = () => {
               onGuardar={guardarAsistencia}
               anclaScrollRef={barraAsistenciaRef}
             />
+          ) : vistaAsistencia === VISTA.RESUMEN ? (
+            loadingAsistencia || loadingMateria ? (
+              <div className="space-y-2">{[...Array(4)].map((_, i) => <SkeletonFila key={i} />)}</div>
+            ) : registros.length === 0 ? (
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
+                <p className="text-sm">No hay alumnos registrados en esta sección.</p>
+              </div>
+            ) : (
+              <ResumenGrado grado={materia?.grado_seccion} fecha={fechaAsistencia} registros={registros} dirty={dirtyAsistencia} />
+            )
           ) : (
             <>
             {!loadingAsistencia && registros.length > 0 && (
