@@ -15,8 +15,8 @@ const WidgetMensajes = ({ conversaciones, className = '' }) => (
         >
           <Avatar nombre={c.alumno_nombre} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900 truncate">{c.alumno_nombre}</p>
-            <p className="text-xs text-gray-400 truncate">{c.ultimoMensaje?.cuerpo || ''}</p>
+            <p className="text-sm font-semibold text-[var(--jet)] truncate">{c.alumno_nombre}</p>
+            <p className="text-xs text-[var(--ash)] truncate">{c.ultimoMensaje?.cuerpo || ''}</p>
           </div>
           {c.noLeidos > 0 && (
             <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">

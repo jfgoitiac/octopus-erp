@@ -89,13 +89,13 @@ const DocenteDashboard = () => {
               <Link
                 key={label}
                 to={to}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+                className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-3 flex flex-col items-center gap-1.5 text-center hover:shadow-md hover:-translate-y-0.5 transition-shadow"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--docente-primary)]/10 text-[var(--docente-primary)]">
                   <Icon size={16} />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+                <p className="text-2xl font-bold text-[var(--jet)] leading-none">{value}</p>
+                <p className="text-xs text-[var(--ash)] mt-0.5">{label}</p>
               </Link>
             ))}
           </div>
@@ -104,7 +104,7 @@ const DocenteDashboard = () => {
 
       {/* Acciones rápidas */}
       <div className="md:col-span-12">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-0.5">Acciones frecuentes</p>
+        <p className="text-xs font-semibold text-[var(--ash)] uppercase tracking-wide mb-2 px-0.5">Acciones frecuentes</p>
         <WidgetAccionesRapidas />
       </div>
 
@@ -119,7 +119,7 @@ const DocenteDashboard = () => {
       </div>
 
       <div className="md:col-span-12">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-0.5">Seguimiento académico</p>
+        <p className="text-xs font-semibold text-[var(--ash)] uppercase tracking-wide mb-2 px-0.5">Seguimiento académico</p>
         {loadingNotas ? <SkeletonCard lines={3} /> : (
           <WidgetProgresoNotas progreso={progreso} lapsoActivo={lapsoActivo} />
         )}

@@ -1,12 +1,16 @@
 # Contrato API — Cuentas por Pagar
 
-Base `/api/cuentas-por-pagar/`. Autenticación obligatoria. F8: lectores: `administrador`, `director`, `directivo_red`, `sistemas` y `cajero`; crean, pagan y adjuntan: `administrador`, `cajero`; aplazan y posponen: `administrador`, `director`, `cajero`; confirmar monto, anular, editar y duplicar: `administrador`, `director`; plantillas y configuración: `administrador`, `director`. El filtro multisede responde `404` para una sede no autorizada. No existe borrado físico.
+Base `/api/cuentas-por-pagar/`. Autenticación obligatoria. Todo el módulo (lectura, creación, pagos, adjuntos, aplazar, posponer, confirmar monto, anular, editar, duplicar, plantillas y configuración) es de uso exclusivo de `administrador` y `director`; cualquier otro rol recibe `403`. El filtro multisede responde `404` para una sede no autorizada. No existe borrado físico.
 
 Errores comunes: `400 {"detalle":"...","campos":{"campo":["..."]}}`, `401`, `403`, `404`, `409`. Montos y tasas son strings decimales; moneda es `USD` o `VES`. La tasa BCV se obtiene por fecha con `finanzas.monedas`; una tasa manual requiere `motivo_cambio_tasa`.
 
 ## Cuenta y flujo de egreso
 
 `CuentaPorPagar` usa número `CXP-000001`, origen `factura|manual|recurrente`, estado `pendiente|parcial|pagada|anulada` y situación calculada `al_dia|por_vencer|vence_hoy|vencida`. `por_vencer` es los siete días previos. Cada cuenta conserva snapshots `monto_usd`, `monto_ves`, `tasa_aplicada` y saldo en la moneda documental.
+
+Los pagos `por_aprobar` no afectan el saldo, pero lo reservan: al registrar un pago (`pagar`/`pagos-multiples`) la suma de pagos válidos + por aprobar + el nuevo no puede exceder el saldo; si excede responde `400`. Anular una cuenta anula también sus pagos por aprobar.
+
+`monto_documento` es inmutable por `PATCH/PUT` (responde `400` si cambia); la única vía para cambiarlo es `confirmar-monto`. `moneda` y `tasa_aplicada` siguen la misma regla (`400` remitiendo a `confirmar-monto`) cuando la cuenta tiene pagos válidos o por aprobar; sin pagos el cambio se permite y se recalculan `monto_usd`, `monto_ves` y `saldo`. `actualizar_desde_egreso` solo aplica una lista blanca de campos descriptivos (proveedor, categoría, sede, concepto, descripción, prioridad, fechas), nunca montos, saldo ni estado. El número `CXP-######` se asigna con reintento ante colisión por concurrencia.
 
 Al crear un pago parcial sólo se registra `PagoCuentaPagar`; nunca se crea Egreso. Al último pago válido que deja el saldo en cero, el flujo depende del origen: para `factura` llama `egresos.services.marcar_pagado(egreso_id, datos_pago)` con los comprobantes de todos los abonos; para `manual` y `recurrente` llama `egresos.services.crear_desde_cuenta_pagada(cuenta_id, cuenta, abonos)`. El egreso final tiene fecha del último abono, suma total y detalle inmutable de cada pago, tasa, USD, VES y comprobantes. Al anular el pago final de una `factura` llama `revertir_pago`; al anular una cuenta `manual` o `recurrente` llama `anular_por_cuenta`.
 
@@ -31,7 +35,9 @@ Respuesta: `{"id":12,"numero":"CXP-000012","estado":"pendiente","situacion":"por
 | `POST /{id}/duplicar/` | Crea nueva pendiente sin pagos, avisos ni egreso. |
 | `GET /{id}/pagos/` | Lista pagos y comprobantes. |
 | `POST /pagos/{id}/anular/` | `{"motivo":"Referencia incorrecta"}`; recalcula saldo y revierte egreso final si corresponde. |
-| `POST /pagos/{id}/adjuntos/` | Multipart `archivo,descripcion`; JPG/PNG/WEBP/PDF, 10 MB máximo. |
+| `POST /pagos/{id}/adjuntos/` | Multipart `archivo,descripcion`; JPG/PNG/WEBP/PDF, 10 MB máximo. Se valida extensión, firma de bytes y tamaño (no el `content_type` del cliente); un contenido que no coincide con la extensión responde `400`. |
+| `POST /pagos/{id}/aprobar/` | Aprueba un pago `por_aprobar` (solo `administrador`/`director`). Revalida contra el saldo vigente, recalcula saldo y, si salda la cuenta, crea/actualiza el egreso como un pago normal. Respuesta igual a `pagar`. Registra `pago_aprobado` en el historial. `400 {"detalle"}` si el pago no está por aprobar, la cuenta no admite pagos o excede el saldo; `404` si no existe. |
+| `POST /pagos/{id}/rechazar/` | `{"motivo":"..."}` (obligatorio). Pasa el pago `por_aprobar` a `anulado` con motivo y libera el saldo reservado. Registra `pago_rechazado`. Mismos errores `400/404`. |
 | `POST /pagos-multiples/` | `{"pagos":[{"cuenta":12,"monto_aplicado":"10.00", "moneda":"USD","tasa_aplicada":"150.0000","fecha_pago":"2026-10-15","monto_pagado":"10.00","metodo_pago":"zelle"}]}`. |
 | `GET,POST /plantillas/` | Lista (`sede,activa,proveedor`) y crea plantilla recurrente. |
 | `GET,PATCH /plantillas/{id}/` | Edita o pausa con `{"activa":false}`. |

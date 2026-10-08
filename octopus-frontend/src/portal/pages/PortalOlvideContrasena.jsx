@@ -34,7 +34,7 @@ const PortalOlvideContrasena = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-[420px]">
         <div className="flex flex-col items-center mb-8 gap-3">
           <img
@@ -44,35 +44,35 @@ const PortalOlvideContrasena = () => {
             onError={e => { e.target.src = logoColegioFallback; }}
           />
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-800">Recuperar contraseña</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-xl font-bold text-[var(--jet)]">Recuperar contraseña</h1>
+            <p className="text-sm text-[var(--ash)] mt-1">
               Te enviaremos un enlace para restablecer tu acceso al portal
             </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-4">
           {enviado ? (
             <div className="flex flex-col items-center text-center gap-3 py-2">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                <MailCheck size={22} className="text-emerald-600" />
+              <div className="w-12 h-12 rounded-full bg-[var(--green-light)] flex items-center justify-center">
+                <MailCheck size={22} className="text-[var(--green)]" />
               </div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-[var(--jet-mid)]">
                 Si <strong>{cedulaOEmail}</strong> corresponde a una cuenta del portal,
                 recibirás un correo con las instrucciones para restablecer tu contraseña.
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-[var(--ash)]">
                 Revisa también tu carpeta de spam o correo no deseado.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
-                <label htmlFor="portal-recuperar-cedula" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="portal-recuperar-cedula" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
                   Cédula o correo electrónico
                 </label>
                 <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
                   <input
                     id="portal-recuperar-cedula"
                     type="text"
@@ -80,7 +80,7 @@ const PortalOlvideContrasena = () => {
                     onChange={(e) => setCedulaOEmail(e.target.value)}
                     placeholder="Ej: V-12345678 o correo@ejemplo.com"
                     autoComplete="username"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                     disabled={submitting}
                   />
                 </div>
@@ -106,7 +106,7 @@ const PortalOlvideContrasena = () => {
 
         <Link
           to="/portal/login"
-          className="flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mt-6 transition-colors"
+          className="flex items-center justify-center gap-1.5 text-sm text-[var(--ash)] hover:text-[var(--jet-mid)] mt-6 transition-colors"
         >
           <ArrowLeft size={15} />
           Volver a iniciar sesión

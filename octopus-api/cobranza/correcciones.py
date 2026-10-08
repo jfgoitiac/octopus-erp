@@ -212,12 +212,12 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
                     'cuota_monto_pagado': 'Este pago no está ligado a ninguna cuota con abono editable.'
                 })
         if cuota_monto_usd_nuevo is not None:
-            if cuota_afectada is None or cuota_info['tipo'] != 'mensualidad':
+            if cuota_afectada is None:
                 raise ValidationError({
-                    'cuota_monto_usd': 'Este pago no está ligado a una mensualidad cuyo monto se pueda ajustar.'
+                    'cuota_monto_usd': 'Este pago no está ligado a ninguna cuota cuyo monto se pueda ajustar.'
                 })
             if cuota_monto_usd_nuevo <= 0:
-                raise ValidationError({'cuota_monto_usd': 'El monto de la mensualidad debe ser mayor a 0.'})
+                raise ValidationError({'cuota_monto_usd': 'El monto total de la cuota debe ser mayor a 0.'})
     if monto_usd_nuevo is not None:
         if monto_usd_nuevo <= 0:
             raise ValidationError({'monto_usd': 'El monto debe ser mayor a 0.'})
@@ -246,8 +246,10 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
             })
         if cuota_monto_usd_nuevo is not None:
             # Override manual: propagar_monto_global() no debe pisarlo luego.
+            # CuotaSolvencia no tiene el flag (su monto ya es siempre por alumno).
             cuota_afectada.monto_usd = cuota_monto_usd_nuevo
-            cuota_afectada.monto_personalizado = True
+            if hasattr(cuota_afectada, 'monto_personalizado'):
+                cuota_afectada.monto_personalizado = True
         if cuota_info['tipo'] in ('mensualidad', 'inscripcion'):
             # Mensualidad.save() tiene una compatibilidad especial (ver su
             # docstring): si `pagado` ya estaba en True y el monto_pagado

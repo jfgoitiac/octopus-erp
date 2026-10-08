@@ -38,7 +38,7 @@ const IndicadorAsistencia = ({ asistencia }) => {
         <p className="text-sm font-medium" style={{ color: bajoUmbral ? '#ef4444' : '#374151' }}>
           {presentes} de {total} clases
         </p>
-        <p className="text-xs text-gray-400">Asistencia acumulada</p>
+        <p className="text-xs text-[var(--ash)]">Asistencia acumulada</p>
       </div>
     </div>
   );

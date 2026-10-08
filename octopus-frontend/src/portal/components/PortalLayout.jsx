@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, Menu, X, Download } from 'lucide-react';
+import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, ClipboardList, Menu, X, Download } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
 import { useBranding } from '../../context/BrandingContext';
@@ -16,7 +16,7 @@ const PortalLayout = () => {
   const location = useLocation();
   const { nombreColegio, logoUrl } = useBranding();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const rutasSecundarias = ['/portal/mensajes', '/portal/rendimiento', '/portal/cantina', '/portal/perfil', '/portal/cambiar-contrasena'];
+  const rutasSecundarias = ['/portal/mensajes', '/portal/rendimiento', '/portal/plan-evaluacion', '/portal/cantina', '/portal/perfil', '/portal/cambiar-contrasena'];
   const masActivo = rutasSecundarias.includes(location.pathname);
 
   return (
@@ -37,14 +37,14 @@ const PortalLayout = () => {
             ) : (
               <GraduationCap size={22} style={{ color: 'var(--portal-primary, #0fa3b1)' }} />
             )}
-            <span className="font-semibold text-gray-800 text-sm">
+            <span className="font-semibold text-[var(--jet)] text-sm">
               {nombreColegio || 'Portal Escolar'}
             </span>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/portal/cambiar-contrasena')}
-              className="hidden sm:flex items-center gap-1 text-gray-400 hover:text-[var(--portal-primary,#0fa3b1)] transition-colors text-sm"
+              className="hidden sm:flex items-center gap-1 text-[var(--ash)] hover:text-[var(--portal-primary,#0fa3b1)] transition-colors text-sm"
               aria-label="Cambiar contraseña"
               title="Cambiar contraseña"
             >
@@ -52,7 +52,7 @@ const PortalLayout = () => {
             </button>
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 transition-colors text-sm"
+              className="flex items-center gap-1.5 text-[var(--ash)] hover:text-[var(--red)] transition-colors text-sm"
               aria-label="Cerrar sesión"
             >
               <LogOut size={16} />
@@ -71,13 +71,13 @@ const PortalLayout = () => {
       </main>
 
       {/* Bottom navigation — solo móvil */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-slate-200/80 backdrop-blur-xl z-30 sm:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--surface)]/95 border-t border-[var(--border)]/80 backdrop-blur-xl z-30 sm:hidden">
         <div className="max-w-[480px] mx-auto grid grid-cols-4">
           <NavLink
             to="/portal"
             end
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-slate-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-[var(--ash)]'}`
             }
           >
             <Home size={22} />
@@ -86,7 +86,7 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/historial"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-slate-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-[var(--ash)]'}`
             }
           >
             <Receipt size={22} />
@@ -95,7 +95,7 @@ const PortalLayout = () => {
           <NavLink
             to="/portal/comunicaciones"
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-slate-400'}`
+              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-[var(--ash)]'}`
             }
           >
             <Megaphone size={22} />
@@ -104,7 +104,7 @@ const PortalLayout = () => {
           <button
             type="button"
             onClick={() => setMenuAbierto((abierto) => !abierto)}
-            className={`flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${masActivo || menuAbierto ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${masActivo || menuAbierto ? 'text-[var(--portal-primary,#0fa3b1)]' : 'text-[var(--ash)]'}`}
             aria-label="Más opciones"
             aria-expanded={menuAbierto}
           >
@@ -120,11 +120,12 @@ const PortalLayout = () => {
             {[
               { to: '/portal/mensajes', icon: MessageCircle, label: 'Mensajes' },
               { to: '/portal/rendimiento', icon: TrendingUp, label: 'Rendimiento' },
+              { to: '/portal/plan-evaluacion', icon: ClipboardList, label: 'Plan de evaluación' },
               { to: '/portal/cantina', icon: CreditCard, label: 'Cantina' },
               { to: '/portal/perfil', icon: UserCircle, label: 'Mi perfil' },
               { to: '/portal/cambiar-contrasena', icon: Lock, label: 'Seguridad' },
             ].map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} onClick={() => setMenuAbierto(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-[var(--portal-primary,#0fa3b1)]">
+              <NavLink key={to} to={to} onClick={() => setMenuAbierto(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)] hover:text-[var(--portal-primary,#0fa3b1)]">
                 <Icon size={18} /> {label}
               </NavLink>
             ))}
@@ -132,7 +133,7 @@ const PortalLayout = () => {
               <button
                 type="button"
                 onClick={() => { setMenuAbierto(false); instalarApp(); }}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-[var(--portal-primary,#0fa3b1)] text-left"
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)] hover:text-[var(--portal-primary,#0fa3b1)] text-left"
               >
                 <Download size={18} /> Instalar app
               </button>

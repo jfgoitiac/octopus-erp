@@ -191,23 +191,23 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-recarga-titulo"
-        className="bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 max-h-[92vh] overflow-y-auto"
+        className="bg-[var(--surface)] w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 max-h-[92vh] overflow-y-auto"
       >
         {/* Encabezado */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 id="modal-recarga-titulo" className="font-semibold text-gray-800 text-base flex items-center gap-1.5">
+            <h2 id="modal-recarga-titulo" className="font-semibold text-[var(--jet)] text-base flex items-center gap-1.5">
               <Wallet size={16} className="text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />
               Recargar saldo
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-[var(--ash)] mt-0.5">
               {alumno.nombre} {alumno.apellido}
             </p>
           </div>
           <button
             onClick={handleClose}
             aria-label="Cerrar modal"
-            className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors -mr-2"
+            className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-[var(--surface-sunken)] text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors -mr-2"
           >
             <X size={20} aria-hidden="true" />
           </button>
@@ -215,11 +215,11 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
 
         {/* Método de pago */}
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-600 block">Método de pago</label>
+          <label className="text-xs font-semibold text-[var(--jet-mid)] block">Método de pago</label>
           <select
             value={metodoPago}
             onChange={(e) => setMetodoPago(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-white"
+            className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-[var(--surface)]"
           >
             {METODOS_PORTAL.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
@@ -231,11 +231,11 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {requiereBanco && (
           <>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600 block">Banco receptor (del colegio)</label>
+              <label className="text-xs font-semibold text-[var(--jet-mid)] block">Banco receptor (del colegio)</label>
               <select
                 value={bancoReceptorId}
                 onChange={(e) => setBancoReceptorId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-white"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-[var(--surface)]"
               >
                 <option value="">Selecciona un banco</option>
                 {bancos.map((b) => (
@@ -245,25 +245,25 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
             </div>
 
             {bancos.length > 0 && (
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs font-semibold text-gray-600 mb-2">Datos para transferencia:</p>
+              <div className="bg-[var(--surface-sunken)] rounded-xl p-3">
+                <p className="text-xs font-semibold text-[var(--jet-mid)] mb-2">Datos para transferencia:</p>
                 {bancos.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
-                    <span className="text-xs text-gray-700 font-medium">{b.nombre}</span>
-                    <span className="text-xs text-gray-500">{b.numero_cuenta || (b.tipos || []).join(', ')}</span>
+                  <div key={b.id} className="flex items-center justify-between py-1 border-b border-[var(--border)] last:border-0">
+                    <span className="text-xs text-[var(--jet-mid)] font-medium">{b.nombre}</span>
+                    <span className="text-xs text-[var(--ash)]">{b.numero_cuenta || (b.tipos || []).join(', ')}</span>
                   </div>
                 ))}
               </div>
             )}
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-600 block">Banco de procedencia (tuyo)</label>
+              <label className="text-xs font-semibold text-[var(--jet-mid)] block">Banco de procedencia (tuyo)</label>
               <input
                 type="text"
                 value={bancoProcedencia}
                 onChange={(e) => setBancoProcedencia(e.target.value)}
                 placeholder="Ej: Banesco"
-                className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]"
                 maxLength={100}
               />
             </div>
@@ -273,21 +273,21 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {/* Referencia — transferencia / pago móvil / zelle */}
         {requiereReferencia && (
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-600 block flex items-center gap-1">
+            <label className="text-xs font-semibold text-[var(--jet-mid)] block flex items-center gap-1">
               <Hash size={12} aria-hidden="true" />
               Número de referencia / confirmación
-              <span className="text-red-500 ml-0.5">*</span>
+              <span className="text-[var(--red)] ml-0.5">*</span>
             </label>
             <input
               type="text"
               value={referencia}
               onChange={(e) => setReferencia(e.target.value)}
               placeholder={metodoPago === 'zelle' ? 'Ej: ZL-2024-XXXXXXXX' : 'Ej: 000123'}
-              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] uppercase placeholder:normal-case"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] uppercase placeholder:normal-case"
               maxLength={100}
               autoComplete="off"
             />
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-[var(--ash)]">
               Este número identifica tu transacción de forma única. No puede reutilizarse en otro pago del sistema.
             </p>
           </div>
@@ -296,19 +296,19 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {/* Moneda + monto */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-600 block">Moneda</label>
+            <label className="text-xs font-semibold text-[var(--jet-mid)] block">Moneda</label>
             <select
               value={moneda}
               onChange={(e) => setMoneda(e.target.value)}
               disabled={metodoPago === 'efectivo_ves'}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-white disabled:bg-gray-50 disabled:text-gray-400"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)] bg-[var(--surface)] disabled:bg-[var(--surface-sunken)] disabled:text-[var(--ash)]"
             >
               <option value="usd">USD ($)</option>
               <option value="ves">VES (Bs.)</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-600 block">Monto</label>
+            <label className="text-xs font-semibold text-[var(--jet-mid)] block">Monto</label>
             <input
               type="number"
               inputMode="decimal"
@@ -317,7 +317,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
               value={monto}
               onChange={(e) => setMonto(e.target.value)}
               placeholder="0.00"
-              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]"
             />
           </div>
         </div>
@@ -326,9 +326,9 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         {requiereComprobante && (
           !archivo ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-gray-50 transition-colors min-h-[90px]">
+              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-[var(--surface-sunken)] transition-colors min-h-[90px]">
                 <Camera size={26} className="text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />
-                <span className="text-sm font-medium text-gray-600">Cámara</span>
+                <span className="text-sm font-medium text-[var(--jet-mid)]">Cámara</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -337,9 +337,9 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
                   onChange={handleFileChange}
                 />
               </label>
-              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-gray-50 transition-colors min-h-[90px]">
-                <Upload size={26} className="text-gray-400" aria-hidden="true" />
-                <span className="text-sm font-medium text-gray-600">Archivo</span>
+              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary,#0fa3b1)] active:bg-[var(--surface-sunken)] transition-colors min-h-[90px]">
+                <Upload size={26} className="text-[var(--ash)]" aria-hidden="true" />
+                <span className="text-sm font-medium text-[var(--jet-mid)]">Archivo</span>
                 <input
                   ref={inputRef}
                   type="file"
@@ -352,15 +352,15 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
           ) : (
             <div className="relative">
               {esPDF ? (
-                <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-gray-50 text-[var(--portal-primary,#0fa3b1)]">
+                <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[var(--surface-sunken)] text-[var(--portal-primary,#0fa3b1)]">
                   <FileText size={40} aria-hidden="true" />
-                  <span className="text-sm text-gray-600 text-center break-all">{archivo?.name}</span>
+                  <span className="text-sm text-[var(--jet-mid)] text-center break-all">{archivo?.name}</span>
                 </div>
               ) : (
                 <img
                   src={preview}
                   alt="Vista previa del comprobante"
-                  className="w-full max-h-48 rounded-2xl object-contain bg-gray-50"
+                  className="w-full max-h-48 rounded-2xl object-contain bg-[var(--surface-sunken)]"
                 />
               )}
               <button
@@ -377,7 +377,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
 
         {/* Estado success */}
         {estado === 'success' && (
-          <div className="flex items-center gap-2 bg-green-50 text-green-700 rounded-xl px-4 py-3 text-sm" role="status">
+          <div className="flex items-center gap-2 bg-[var(--green-light)] text-[var(--green)] rounded-xl px-4 py-3 text-sm" role="status">
             <CheckCircle size={18} aria-hidden="true" />
             <span>Recarga enviada. En revisión.</span>
           </div>
@@ -385,7 +385,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
 
         {/* Estado error */}
         {estado === 'error' && (
-          <div className="flex items-center gap-2 bg-red-50 text-red-700 rounded-xl px-4 py-3 text-sm" role="alert">
+          <div className="flex items-center gap-2 bg-[var(--red-light)] text-[var(--red)] rounded-xl px-4 py-3 text-sm" role="alert">
             <AlertCircle size={18} aria-hidden="true" />
             <span>No se pudo enviar. Intenta nuevamente.</span>
           </div>

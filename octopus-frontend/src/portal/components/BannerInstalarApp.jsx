@@ -18,8 +18,8 @@ const BannerInstalarApp = ({ className = '' }) => {
           <Smartphone size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800 leading-tight">Ten el portal a la mano</p>
-          <p className="text-xs text-slate-500 leading-snug">Instálalo como app en tu celular.</p>
+          <p className="text-sm font-semibold text-[var(--jet)] leading-tight">Ten el portal a la mano</p>
+          <p className="text-xs text-[var(--ash)] leading-snug">Instálalo como app en tu celular.</p>
         </div>
         <button
           type="button"
@@ -33,7 +33,7 @@ const BannerInstalarApp = ({ className = '' }) => {
         <button
           type="button"
           onClick={descartar}
-          className="shrink-0 p-1.5 -mr-1 text-slate-400 hover:text-slate-600"
+          className="shrink-0 p-1.5 -mr-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
           aria-label="Ocultar aviso de instalación"
         >
           <X size={16} />

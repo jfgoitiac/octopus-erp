@@ -20,26 +20,26 @@ const PortalRendimiento = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-[var(--jet)] flex items-center gap-2">
           <TrendingUp size={20} style={{ color: 'var(--portal-primary, #0fa3b1)' }} />
           Rendimiento Académico
         </h1>
-        <p className="text-xs text-gray-400 mt-0.5">Notas y asistencia por lapso</p>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Notas y asistencia por lapso</p>
       </div>
 
       {loadingAlumnos ? (
         <div className="flex gap-2">
-          <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
-          <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
+          <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
+          <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
         </div>
       ) : (
         <EstudianteSelector alumnos={alumnos} alumnoActivo={alumnoActivo} onSelect={setAlumnoActivo} />
       )}
 
       {alumnoActivo && alumnos.length > 1 && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-[var(--ash)]">
           Mostrando información de{' '}
-          <span className="font-medium text-gray-700">
+          <span className="font-medium text-[var(--jet-mid)]">
             {alumnoActivo.nombre} {alumnoActivo.apellido}
           </span>
           {' '}· {alumnoActivo.grado_seccion}
@@ -53,25 +53,25 @@ const PortalRendimiento = () => {
           <SkeletonCard lines={2} />
         </>
       ) : !rendimiento ? (
-        <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
-          <p className="text-sm text-gray-400">No se pudo cargar la información de rendimiento.</p>
+        <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
+          <p className="text-sm text-[var(--ash)]">No se pudo cargar la información de rendimiento.</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Promedio General por Lapso</h2>
+          <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--jet-mid)] mb-3">Promedio General por Lapso</h2>
             <GraficaPromedioLapsos porLapso={rendimiento.por_lapso} />
           </div>
 
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--jet-mid)] mb-3">
               Por Materia {ultimoLapsoConNotas ? `— ${ultimoLapsoConNotas.lapso}` : ''}
             </h2>
             <GraficaPorMateria porMateria={ultimoLapsoConNotas?.por_materia || []} />
           </div>
 
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Asistencia</h2>
+          <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--jet-mid)] mb-3">Asistencia</h2>
             <IndicadorAsistencia asistencia={rendimiento.asistencia} />
           </div>
         </>

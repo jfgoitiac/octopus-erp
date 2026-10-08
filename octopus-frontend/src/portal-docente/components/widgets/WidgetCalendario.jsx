@@ -39,23 +39,23 @@ const WidgetCalendario = ({ className = '' }) => {
   const eventosDelDia = eventosPorDia.get(diaSeleccionado) || [];
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-4 h-full flex flex-col ${className}`}>
+    <div className={`bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 h-full flex flex-col ${className}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setMesActual(m => subMonths(m, 1))}
             aria-label="Mes anterior"
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
           >
             <ChevronLeft size={16} />
           </button>
-          <p className="text-sm font-semibold text-gray-900 capitalize w-28 text-center">
+          <p className="text-sm font-semibold text-[var(--jet)] capitalize w-28 text-center">
             {format(mesActual, 'MMMM yyyy', { locale: es })}
           </p>
           <button
             onClick={() => setMesActual(m => addMonths(m, 1))}
             aria-label="Mes siguiente"
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-1 text-[var(--ash)] hover:text-[var(--jet-mid)]"
           >
             <ChevronRight size={16} />
           </button>
@@ -71,7 +71,7 @@ const WidgetCalendario = ({ className = '' }) => {
 
       <div className="grid grid-cols-7 gap-y-1.5 text-center">
         {DIAS_SEMANA.map((d, i) => (
-          <span key={i} className="text-[10px] font-medium text-gray-300">{d}</span>
+          <span key={i} className="text-[10px] font-medium text-[var(--ash)]">{d}</span>
         ))}
         {dias.map((dia) => {
           const iso = toISODate(dia);
@@ -90,12 +90,12 @@ const WidgetCalendario = ({ className = '' }) => {
               <span
                 className={`text-xs h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
                   esSeleccionado
-                    ? 'bg-[var(--docente-primary)] text-white font-bold shadow-sm'
+                    ? 'bg-[var(--docente-primary)] text-white font-bold'
                     : esHoy
                     ? 'border border-[var(--docente-primary)] text-[var(--docente-primary)] font-bold'
                     : delMes
-                    ? 'text-gray-600 hover:bg-gray-50'
-                    : 'text-gray-300'
+                    ? 'text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)]'
+                    : 'text-[var(--ash)]'
                 }`}
               >
                 {format(dia, 'd')}
@@ -104,7 +104,7 @@ const WidgetCalendario = ({ className = '' }) => {
                 <span
                   className={`w-1 h-1 rounded-full mt-0.5 ${
                     tieneEvaluacion
-                      ? (esSeleccionado ? 'bg-amber-500' : 'bg-amber-400/70')
+                      ? (esSeleccionado ? 'bg-[var(--yellow-light)]0' : 'bg-amber-400/70')
                       : (esSeleccionado ? 'bg-[var(--docente-primary)]' : 'bg-[var(--docente-primary)]/50')
                   }`}
                 />
@@ -114,25 +114,25 @@ const WidgetCalendario = ({ className = '' }) => {
         })}
       </div>
 
-      <div className="mt-3 flex items-center gap-3 text-[10px] text-gray-400"><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[var(--docente-primary)] inline-block" />Evento</span><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />Evaluación</span></div>
-      <div className="mt-3 pt-3 border-t border-gray-50 flex-1">
-        <p className="text-xs font-semibold text-gray-500 capitalize mb-2">
+      <div className="mt-3 flex items-center gap-3 text-[10px] text-[var(--ash)]"><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[var(--docente-primary)] inline-block" />Evento</span><span className="flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />Evaluación</span></div>
+      <div className="mt-3 pt-3 border-t border-[var(--border)] flex-1">
+        <p className="text-xs font-semibold text-[var(--ash)] capitalize mb-2">
           {format(new Date(diaSeleccionado + 'T00:00:00'), "EEEE d 'de' MMMM", { locale: es })}
         </p>
         {loading ? (
-          <p className="text-xs text-gray-300">Cargando eventos...</p>
+          <p className="text-xs text-[var(--ash)]">Cargando eventos...</p>
         ) : eventosDelDia.length === 0 ? (
-          <p className="text-xs text-gray-400">Sin eventos este día.</p>
+          <p className="text-xs text-[var(--ash)]">Sin eventos este día.</p>
         ) : (
           <div className="space-y-1.5">
             {[...eventosDelDia].sort((a, b) => (a.hora || '99:99').localeCompare(b.hora || '99:99')).map(ev => (
               <div
                 key={ev.id}
-                className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${ev.solo_lectura ? 'bg-amber-50' : 'bg-[var(--docente-primary)]/10'}`}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${ev.solo_lectura ? 'bg-[var(--yellow-light)]' : 'bg-[var(--docente-primary)]/10'}`}
               >
                 <div className="min-w-0 flex-1">
                   <p className={`text-xs font-semibold truncate ${ev.solo_lectura ? 'text-amber-900' : 'text-[var(--docente-primary-dark)]'}`}>{ev.titulo}</p>
-                  <p className={`text-[10px] ${ev.solo_lectura ? 'text-amber-500' : 'text-[var(--docente-primary)]'}`}>
+                  <p className={`text-[10px] ${ev.solo_lectura ? 'text-[var(--yellow)]' : 'text-[var(--docente-primary)]'}`}>
                     {ev.tipo_label}{ev.hora ? ` · ${ev.hora.slice(0, 5)}` : ''}
                   </p>
                 </div>
@@ -142,7 +142,7 @@ const WidgetCalendario = ({ className = '' }) => {
                   <button
                     onClick={() => eliminarEvento(ev.id)}
                     aria-label="Eliminar evento"
-                    className="text-gray-300 hover:text-red-500 flex-shrink-0"
+                    className="text-[var(--ash)] hover:text-[var(--red)] flex-shrink-0"
                   >
                     <Trash2 size={13} />
                   </button>

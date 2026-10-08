@@ -15,9 +15,9 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 const TAMANO_MAX_MB = 5;
 
 const SEVERIDADES = [
-  { value: 'L', label: 'Leve', className: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
-  { value: 'M', label: 'Moderado', className: 'text-orange-700 bg-orange-50 border-orange-200' },
-  { value: 'G', label: 'Grave', className: 'text-red-700 bg-red-50 border-red-200' },
+  { value: 'L', label: 'Leve', className: 'text-[var(--yellow)] bg-[var(--yellow-light)] border-[var(--yellow)]' },
+  { value: 'M', label: 'Moderado', className: 'text-[var(--yellow)] bg-[var(--yellow-light)] border-[var(--yellow)]' },
+  { value: 'G', label: 'Grave', className: 'text-[var(--red)] bg-[var(--red-light)] border-[var(--red)]' },
 ];
 
 const severidadCfg = (val) => SEVERIDADES.find(s => s.value === val) || SEVERIDADES[0];
@@ -70,23 +70,23 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
       aria-modal="true"
       aria-labelledby="nuevo-incidente-titulo"
     >
-      <div ref={containerRef} className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <div ref={containerRef} className="bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 id="nuevo-incidente-titulo" className="font-bold text-gray-800 flex items-center gap-2">
+          <h3 id="nuevo-incidente-titulo" className="font-bold text-[var(--jet)] flex items-center gap-2">
             <AlertTriangle size={18} className="text-[var(--docente-primary)]" />
             Nuevo incidente
           </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-gray-400">
+          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-[var(--ash)]">
             <X size={18} />
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="nuevo-incidente-materia" className="block text-xs font-medium text-gray-500 mb-1.5">Materia</label>
+            <label htmlFor="nuevo-incidente-materia" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Materia</label>
             <select
               id="nuevo-incidente-materia"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={materiaId}
               onChange={e => { setMateriaId(e.target.value); setAlumnoId(''); }}
               disabled={loadingMaterias}
@@ -100,10 +100,10 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
 
           {materiaId && (
             <div>
-              <label htmlFor="nuevo-incidente-alumno" className="block text-xs font-medium text-gray-500 mb-1.5">Alumno</label>
+              <label htmlFor="nuevo-incidente-alumno" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Alumno</label>
               <select
                 id="nuevo-incidente-alumno"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 value={alumnoId}
                 onChange={e => setAlumnoId(e.target.value)}
                 disabled={loadingAlumnos}
@@ -117,7 +117,7 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
           )}
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Severidad</label>
+            <label className="block text-xs font-medium text-[var(--ash)] mb-1.5">Severidad</label>
             <div className="flex gap-2">
               {SEVERIDADES.map(s => (
                 <button
@@ -125,7 +125,7 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
                   type="button"
                   onClick={() => setSeveridad(s.value)}
                   className={`flex-1 py-2 rounded-xl text-xs font-medium border min-h-[44px] ${
-                    severidad === s.value ? s.className : 'text-gray-400 bg-white border-gray-200'
+                    severidad === s.value ? s.className : 'text-[var(--ash)] bg-[var(--surface)] border-[var(--border)]'
                   }`}
                 >
                   {s.label}
@@ -135,11 +135,11 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
           </div>
 
           <div>
-            <label htmlFor="nuevo-incidente-descripcion" className="block text-xs font-medium text-gray-500 mb-1.5">Descripción</label>
+            <label htmlFor="nuevo-incidente-descripcion" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Descripción</label>
             <textarea
               id="nuevo-incidente-descripcion"
               rows={3}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Describe lo ocurrido..."
@@ -147,16 +147,16 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Foto (opcional, máx. {TAMANO_MAX_MB}MB)</label>
+            <label className="block text-xs font-medium text-[var(--ash)] mb-1.5">Foto (opcional, máx. {TAMANO_MAX_MB}MB)</label>
             {adjunto ? (
               <div className="flex items-center gap-3">
-                <span className="text-sm truncate text-gray-700">{adjunto.name}</span>
-                <button type="button" onClick={() => setAdjunto(null)} className="text-xs font-medium text-red-600">
+                <span className="text-sm truncate text-[var(--jet-mid)]">{adjunto.name}</span>
+                <button type="button" onClick={() => setAdjunto(null)} className="text-xs font-medium text-[var(--red)]">
                   Quitar
                 </button>
               </div>
             ) : (
-              <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm cursor-pointer min-h-[44px] border border-dashed border-gray-300 text-gray-400">
+              <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm cursor-pointer min-h-[44px] border border-dashed border-[var(--border-md)] text-[var(--ash)]">
                 <ImageIcon size={15} />
                 Adjuntar foto
                 <input type="file" accept="image/*" className="hidden" onChange={handleArchivo} />
@@ -168,7 +168,7 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
         <div className="flex gap-2 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl py-2.5 text-sm border border-gray-200 text-gray-500 min-h-[44px]"
+            className="flex-1 rounded-xl py-2.5 text-sm border border-[var(--border)] text-[var(--ash)] min-h-[44px]"
           >
             Cancelar
           </button>
@@ -201,11 +201,11 @@ const DocenteIncidentes = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
             <AlertTriangle size={20} className="text-[var(--docente-primary)]" />
             Incidentes
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">Registro disciplinario de tus alumnos</p>
+          <p className="text-xs text-[var(--ash)] mt-0.5">Registro disciplinario de tus alumnos</p>
         </div>
         <button
           onClick={() => setModalAbierto(true)}
@@ -221,7 +221,7 @@ const DocenteIncidentes = () => {
           type="button"
           onClick={() => setFiltroSeveridad('')}
           className={`px-3 py-2 rounded-xl text-xs font-medium border min-h-[44px] flex-shrink-0 ${
-            filtroSeveridad === '' ? 'text-gray-700 bg-gray-100 border-gray-200' : 'text-gray-400 bg-white border-gray-200'
+            filtroSeveridad === '' ? 'text-[var(--jet-mid)] bg-[var(--surface-sunken)] border-[var(--border)]' : 'text-[var(--ash)] bg-[var(--surface)] border-[var(--border)]'
           }`}
         >
           Todos
@@ -232,7 +232,7 @@ const DocenteIncidentes = () => {
             type="button"
             onClick={() => setFiltroSeveridad(s.value)}
             className={`px-3 py-2 rounded-xl text-xs font-medium border min-h-[44px] flex-shrink-0 ${
-              filtroSeveridad === s.value ? s.className : 'text-gray-400 bg-white border-gray-200'
+              filtroSeveridad === s.value ? s.className : 'text-[var(--ash)] bg-[var(--surface)] border-[var(--border)]'
             }`}
           >
             {s.label}
@@ -245,7 +245,7 @@ const DocenteIncidentes = () => {
           {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={2} />)}
         </div>
       ) : incidentes.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
           <AlertTriangle size={32} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">No hay incidentes registrados.</p>
         </div>
@@ -254,17 +254,17 @@ const DocenteIncidentes = () => {
           {incidentes.map(inc => {
             const cfg = severidadCfg(inc.severidad);
             return (
-              <div key={inc.id} className="bg-white rounded-2xl border border-gray-100 p-4">
+              <div key={inc.id} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-800">{inc.alumno_nombre}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{formatFecha(inc.fecha)}</p>
+                    <p className="text-sm font-semibold text-[var(--jet)]">{inc.alumno_nombre}</p>
+                    <p className="text-xs text-[var(--ash)] mt-0.5">{formatFecha(inc.fecha)}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full border flex-shrink-0 ${cfg.className}`}>
                     {inc.severidad_label || cfg.label}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mt-2 whitespace-pre-line">{inc.descripcion}</p>
+                <p className="text-sm text-[var(--jet-mid)] mt-2 whitespace-pre-line">{inc.descripcion}</p>
                 {inc.adjunto && (
                   <a
                     href={inc.adjunto}

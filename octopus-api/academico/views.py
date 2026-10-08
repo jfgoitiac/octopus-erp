@@ -3014,8 +3014,11 @@ class PlanEvaluacionView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
-        _sync_plan_bloques(plan, serializer.validated_data['bloques'])
+        # La creación y el árbol anidado son una sola operación: un error de
+        # persistencia no debe dejar un plan vacío o parcialmente configurado.
+        with transaction.atomic():
+            plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
+            _sync_plan_bloques(plan, serializer.validated_data['bloques'])
 
         plan = PlanEvaluacion.objects.filter(pk=plan.pk).prefetch_related('bloques__items').first()
         return Response(PlanEvaluacionSerializer(plan).data, status=status.HTTP_201_CREATED)
@@ -3044,7 +3047,8 @@ class PlanEvaluacionView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        _sync_plan_bloques(plan, serializer.validated_data['bloques'])
+        with transaction.atomic():
+            _sync_plan_bloques(plan, serializer.validated_data['bloques'])
 
         plan = PlanEvaluacion.objects.filter(pk=plan.pk).prefetch_related('bloques__items').first()
         return Response(PlanEvaluacionSerializer(plan).data, status=status.HTTP_200_OK)
@@ -3177,12 +3181,47 @@ class PlanEvaluacionNotasView(APIView):
                     errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
                     continue
 
+                # Un docente solo puede calificar la matrícula de la sección
+                # de su materia; validar el item no basta para evitar que un
+                # alumno de otra sección sea incluido mediante una petición
+                # manipulada.
+                if alumno.grado_seccion != materia.grado_seccion:
+                    errores.append({
+                        'item_id': item_id, 'alumno_id': alumno_id,
+                        'error': 'El alumno no pertenece a la sección de esta materia.',
+                    })
+                    continue
+
                 # El item debe pertenecer al plan de la materia/lapso solicitados
                 # — evita que, vía item_id, se escriban notas de otra materia.
                 if item.bloque.plan.materia_id != materia.id or item.bloque.plan.lapso_id != lapso.id:
                     errores.append({
                         'item_id': item_id, 'alumno_id': alumno_id,
                         'error': 'El ítem no pertenece al plan de evaluación de esta materia/lapso.',
+                    })
+                    continue
+
+                valor_numerico = item_data.get('valor_numerico')
+                valor_letra = item_data.get('valor_letra')
+                if materia.tipo_evaluacion == 'numerica':
+                    if valor_numerico is None or valor_letra is not None:
+                        errores.append({
+                            'item_id': item_id, 'alumno_id': alumno_id,
+                            'error': 'Esta materia requiere una nota numérica.',
+                        })
+                        continue
+                    if valor_numerico < 0 or (
+                        item.valor_maximo is not None and valor_numerico > item.valor_maximo
+                    ):
+                        errores.append({
+                            'item_id': item_id, 'alumno_id': alumno_id,
+                            'error': 'La nota está fuera del rango permitido para este ítem.',
+                        })
+                        continue
+                elif valor_letra is None or valor_numerico is not None:
+                    errores.append({
+                        'item_id': item_id, 'alumno_id': alumno_id,
+                        'error': 'Esta materia requiere una calificación literal.',
                     })
                     continue
 

@@ -61,7 +61,7 @@ const NotificacionesModal = () => {
       aria-label="Activar notificaciones"
       className="fixed bottom-[70px] sm:bottom-4 left-0 right-0 z-40 px-4 flex justify-center"
     >
-      <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
+      <div className="w-full max-w-[440px] bg-[var(--surface)] rounded-2xl shadow-xl border border-[var(--border)] p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
@@ -70,12 +70,12 @@ const NotificacionesModal = () => {
             >
               <Bell size={18} style={{ color: 'var(--portal-primary, #0fa3b1)' }} aria-hidden="true" />
             </span>
-            <h2 className="font-semibold text-gray-800 text-sm">Mantente informado</h2>
+            <h2 className="font-semibold text-[var(--jet)] text-sm">Mantente informado</h2>
           </div>
           <button
             onClick={handleAhoraNo}
             aria-label="Cerrar"
-            className="w-9 h-9 -mr-1.5 -mt-1 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"
+            className="w-9 h-9 -mr-1.5 -mt-1 flex items-center justify-center rounded-full hover:bg-[var(--surface-sunken)] text-[var(--ash)]"
           >
             <X size={18} aria-hidden="true" />
           </button>
@@ -83,13 +83,13 @@ const NotificacionesModal = () => {
 
         {supported ? (
           <>
-            <p className="text-xs text-gray-500 mt-2 mb-3">
+            <p className="text-xs text-[var(--ash)] mt-2 mb-3">
               Activa las notificaciones para recibir alertas de:
             </p>
             <ul className="space-y-2 mb-4">
               {TIPOS.map(({ icon: Icon, label }) => (
-                <li key={label} className="flex items-center gap-2 text-sm text-gray-600">
-                  <Icon size={16} className="text-gray-400 shrink-0" aria-hidden="true" />
+                <li key={label} className="flex items-center gap-2 text-sm text-[var(--jet-mid)]">
+                  <Icon size={16} className="text-[var(--ash)] shrink-0" aria-hidden="true" />
                   {label}
                 </li>
               ))}
@@ -105,7 +105,7 @@ const NotificacionesModal = () => {
               </button>
               <button
                 onClick={handleAhoraNo}
-                className="w-full h-11 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50"
+                className="w-full h-11 rounded-xl text-sm font-medium text-[var(--ash)] hover:bg-[var(--surface-sunken)]"
               >
                 Ahora no
               </button>
@@ -113,12 +113,12 @@ const NotificacionesModal = () => {
           </>
         ) : (
           <>
-            <p className="text-xs text-gray-500 mt-2 mb-4">
+            <p className="text-xs text-[var(--ash)] mt-2 mb-4">
               Tu navegador no soporta notificaciones push. Seguirás recibiendo los avisos por correo electrónico.
             </p>
             <button
               onClick={handleAhoraNo}
-              className="w-full h-11 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100"
+              className="w-full h-11 rounded-xl text-sm font-medium text-[var(--jet-mid)] bg-[var(--surface-sunken)] hover:bg-[var(--surface-sunken)]"
             >
               Entendido
             </button>

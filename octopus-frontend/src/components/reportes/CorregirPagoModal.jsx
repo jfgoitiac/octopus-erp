@@ -9,13 +9,20 @@ import { ROLE_GROUPS } from '../../constants/roles';
 
 const MOTIVO_MIN_LEN = 10;
 
-// Label del campo de abono según el tipo de cuota que devuelva el backend
-// (ver ElegibilidadMontoCorreccionView) — 'inscripcion' no tiene abono
-// parcial (es todo-o-nada), así que no aparece acá.
+// Labels según el tipo de cuota que devuelva el backend
+// (ver ElegibilidadMontoCorreccionView). Todos los tipos admiten abono parcial
+// y ajuste del monto total.
 const CUOTA_ABONO_LABEL = {
     solvencia: 'Abono a cuota de solvencia',
     mensualidad: 'Abono a mensualidad',
     proyecto_inversion: 'Abono a proyecto de inversión',
+    inscripcion: 'Abono a inscripción',
+};
+const CUOTA_TOTAL_LABEL = {
+    solvencia: 'Monto total de la cuota de solvencia (USD)',
+    mensualidad: 'Monto total de la mensualidad (USD)',
+    proyecto_inversion: 'Monto total del proyecto de inversión (USD)',
+    inscripcion: 'Monto total de la inscripción (USD)',
 };
 
 /**
@@ -73,8 +80,7 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
         return () => controller.abort();
     }, [puedeEditarMonto, pago.id]);
 
-    // 'inscripcion' es todo-o-nada (sin monto_pagado) — no tiene campo de abono.
-    const cuotaConAbono = elegibilidad?.cuota && elegibilidad.cuota.tipo !== 'inscripcion' ? elegibilidad.cuota : null;
+    const cuotaConAbono = elegibilidad?.cuota ?? null;
 
     const requiereBanco = metodoPago && !['efectivo', 'efectivo_ves'].includes(metodoPago);
     const esPuntoDeVenta = metodoPago === 'punto_de_venta';
@@ -82,8 +88,8 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
     const motivoInvalido = motivo.trim().length < MOTIVO_MIN_LEN;
     const montoUsdInvalido = puedeEditarMonto && elegibilidad?.editable_monto
         && (montoUsd === '' || Number(montoUsd) <= 0);
-    // Solo mensualidades admiten ajustar el monto total (tarifa mal cargada).
-    const puedeAjustarTotalCuota = cuotaConAbono?.tipo === 'mensualidad';
+    // Cualquier cuota ligada admite ajustar su monto total (tarifa mal cargada).
+    const puedeAjustarTotalCuota = !!cuotaConAbono;
     const totalCuotaEfectivo = puedeAjustarTotalCuota && cuotaMontoUsd !== ''
         ? Number(cuotaMontoUsd)
         : Number(cuotaConAbono?.monto_usd);
@@ -109,7 +115,7 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
             return;
         }
         if (cuotaTotalInvalido) {
-            toast.warning('El monto de la mensualidad debe ser mayor a 0.');
+            toast.warning('El monto total de la cuota debe ser mayor a 0.');
             return;
         }
         if (cuotaMontoInvalido) {
@@ -308,7 +314,7 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                         {puedeAjustarTotalCuota && (
                             <div className="flex-1 sm:min-w-[11rem]">
                                 <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
-                                    Monto total de la mensualidad (USD)
+                                    {CUOTA_TOTAL_LABEL[cuotaConAbono.tipo] || 'Monto total de la cuota (USD)'}
                                 </label>
                                 <input
                                     type="number"
@@ -345,11 +351,6 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                                     </p>
                                 )}
                             </div>
-                        )}
-                        {elegibilidad.cuota?.tipo === 'inscripcion' && (
-                            <p className="flex-1 text-xs self-center" style={{ color: 'var(--ash)' }}>
-                                Ligado a una cuota de inscripción (todo-o-nada) — no tiene abono que corregir.
-                            </p>
                         )}
                     </div>
                 )}

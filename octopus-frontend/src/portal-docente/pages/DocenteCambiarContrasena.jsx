@@ -40,7 +40,7 @@ const DocenteCambiarContrasena = () => {
     <button
       type="button"
       onClick={() => setShow((s) => ({ ...s, [field]: !s[field] }))}
-      className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors min-w-[44px]"
+      className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors min-w-[44px]"
       aria-label={show[field] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
     >
       {show[field] ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -51,7 +51,7 @@ const DocenteCambiarContrasena = () => {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Lock size={20} className="text-[var(--docente-primary)]" />
-        <h1 className="text-lg font-bold text-gray-800">Cambiar contraseña</h1>
+        <h1 className="text-lg font-bold text-[var(--jet)]">Cambiar contraseña</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,7 +63,7 @@ const DocenteCambiarContrasena = () => {
           const sk = showKey(key);
           return (
             <div key={key}>
-              <label htmlFor={`docente-pwd-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <label htmlFor={`docente-pwd-${key}`} className="block text-xs font-medium text-[var(--jet-mid)] mb-1">{label}</label>
               <div className="relative">
                 <input
                   id={`docente-pwd-${key}`}
@@ -72,7 +72,7 @@ const DocenteCambiarContrasena = () => {
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   required
                   autoComplete={key === 'contrasena_actual' ? 'current-password' : 'new-password'}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 />
                 <ToggleBtn field={sk} />
               </div>

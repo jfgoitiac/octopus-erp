@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.apps import apps
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from finanzas.monedas import convertir, redondear, tasa_para_fecha
+from finanzas.monedas import convertir, redondear
 from .models import (ArticuloFrecuente, BitacoraEgreso, DetallePagoCuentaPorPagar,
                      Egreso, RenglonEgreso)
 
@@ -86,6 +86,7 @@ def guardar_contado(egreso, datos=None, usuario=None):
 def anular(egreso, motivo, usuario=None, desde_cuenta=False):
     if egreso.origen == 'cuenta_por_pagar' and not desde_cuenta:
         raise ValueError('Los egresos originados en CxP solo se anulan desde CxP.')
+    if egreso.estado == 'anulado': raise ValueError('El egreso ya está anulado.')
     if not motivo: raise ValueError('El motivo de anulación es obligatorio.')
     antes = _snapshot(egreso); egreso.estado='anulado'; egreso.motivo_anulacion=motivo; egreso.anulado_por=usuario; egreso.anulado_en=timezone.now()
     egreso.save(update_fields=['estado','motivo_anulacion','anulado_por','anulado_en','actualizado_en'])
@@ -103,7 +104,7 @@ def duplicar(egreso, usuario=None):
 
 def marcar_pagado(cuenta_por_pagar_id, abono):
     """La llamada parcial nunca crea un egreso; el llamador conserva sus abonos."""
-    if not apps.is_installed('cuentas_por_pagar'): return {'cuenta_por_pagar_id': cuenta_por_pagar_id, 'egreso_creado': False}
+    if not apps.is_installed('cuentas_pagar'): return {'cuenta_por_pagar_id': cuenta_por_pagar_id, 'egreso_creado': False}
     return {'cuenta_por_pagar_id': cuenta_por_pagar_id, 'egreso_creado': False, 'abono': abono}
 
 
@@ -111,6 +112,9 @@ def marcar_pagado(cuenta_por_pagar_id, abono):
 def crear_desde_cuenta_pagada(cuenta_por_pagar_id, cuenta, abonos):
     """Crea/actualiza idempotentemente el único resumen final de una cuenta saldada."""
     defaults = dict(cuenta)
+    # Egreso no tiene `concepto`: se conserva dentro de la descripción.
+    concepto = defaults.pop('concepto', '')
+    if concepto: defaults['descripcion'] = ' - '.join(x for x in (concepto, defaults.get('descripcion')) if x)
     # Se calculan los snapshots antes de persistir: el constraint del modelo no
     # admite un estado registrado sin fecha de egreso, ni siquiera transitoriamente.
     if not abonos:
@@ -120,8 +124,10 @@ def crear_desde_cuenta_pagada(cuenta_por_pagar_id, cuenta, abonos):
     ultimo = max(a['fecha_pago'] for a in abonos)
     moneda = defaults.get('moneda', 'USD')
     total_documento = redondear(usd if moneda == 'USD' else ves)
-    try: egreso = Egreso.objects.select_for_update().get(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar')
-    except Egreso.DoesNotExist:
+    # Los egresos anulados no se reutilizan: una cuenta repagada genera uno nuevo.
+    activos = Egreso.objects.select_for_update().filter(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar').exclude(estado='anulado')
+    egreso = activos.order_by('-id').first()
+    if egreso is None:
         defaults.update(
             origen='cuenta_por_pagar', cuenta_por_pagar_id=cuenta_por_pagar_id,
             condicion='contado', estado='registrado', fecha_egreso=ultimo,
@@ -136,9 +142,7 @@ def crear_desde_cuenta_pagada(cuenta_por_pagar_id, cuenta, abonos):
                 egreso = Egreso.objects.create(**defaults)
             creado = True
         except IntegrityError:
-            egreso = Egreso.objects.select_for_update().get(
-                cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar'
-            )
+            egreso = activos.order_by('-id').first()
             creado = False
     else: creado=False
     DetallePagoCuentaPorPagar.objects.filter(egreso=egreso).delete()
@@ -152,7 +156,7 @@ def crear_desde_cuenta_pagada(cuenta_por_pagar_id, cuenta, abonos):
 
 @transaction.atomic
 def revertir_pago(cuenta_por_pagar_id, abono_id):
-    egreso=Egreso.objects.select_for_update().filter(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar').first()
+    egreso=Egreso.objects.select_for_update().filter(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar').exclude(estado='anulado').first()
     if not egreso: return None
     egreso.pagos_cuenta_por_pagar.filter(pk=abono_id).delete()
     if not egreso.pagos_cuenta_por_pagar.exists(): return anular(egreso, 'Reversión de pago CxP', desde_cuenta=True)
@@ -161,5 +165,5 @@ def revertir_pago(cuenta_por_pagar_id, abono_id):
 
 
 def anular_por_cuenta(cuenta_por_pagar_id, motivo):
-    e=Egreso.objects.filter(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar').first()
+    e=Egreso.objects.filter(cuenta_por_pagar_id=cuenta_por_pagar_id, origen='cuenta_por_pagar').exclude(estado='anulado').first()
     return anular(e, motivo, desde_cuenta=True) if e else None

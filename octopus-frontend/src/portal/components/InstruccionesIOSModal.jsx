@@ -20,9 +20,9 @@ const InstruccionesIOSModal = ({ open, onClose }) => (
       </button>
     }
   >
-    <ol className="space-y-4 text-sm text-slate-700">
+    <ol className="space-y-4 text-sm text-[var(--jet-mid)]">
       <li className="flex items-start gap-3">
-        <span className="shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold">1</span>
+        <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-xs font-bold">1</span>
         <span>
           Abre esta página en <strong>Safari</strong> y toca el botón Compartir{' '}
           <Share size={16} className="inline -mt-0.5 text-[var(--portal-primary,#0fa3b1)]" aria-label="Compartir" />{' '}
@@ -30,14 +30,14 @@ const InstruccionesIOSModal = ({ open, onClose }) => (
         </span>
       </li>
       <li className="flex items-start gap-3">
-        <span className="shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold">2</span>
+        <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-xs font-bold">2</span>
         <span>
           Desliza y elige <strong>Agregar a pantalla de inicio</strong>{' '}
           <SquarePlus size={16} className="inline -mt-0.5 text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />.
         </span>
       </li>
       <li className="flex items-start gap-3">
-        <span className="shrink-0 w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold">3</span>
+        <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-xs font-bold">3</span>
         <span>Toca <strong>Agregar</strong>. El portal quedará como una app más en tu celular.</span>
       </li>
     </ol>

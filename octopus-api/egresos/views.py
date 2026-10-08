@@ -15,6 +15,8 @@ from .services import anular, calcular_totales, duplicar, guardar_contado
 
 class EgresoViewSet(viewsets.ModelViewSet):
     serializer_class=EgresoSerializer; permission_classes=(EsAdministradorODirector,)
+    # Los egresos no se borran: se anulan con motivo (ver acción `anular`).
+    http_method_names=['get','post','put','patch','head','options']
     def get_queryset(self):
         qs=egresos_visibles(self.request.user,Egreso.objects.select_related('proveedor','categoria','sede').prefetch_related('renglones','pagos_cuenta_por_pagar'))
         for campo in ('sede','estado','origen','proveedor','categoria','moneda'):

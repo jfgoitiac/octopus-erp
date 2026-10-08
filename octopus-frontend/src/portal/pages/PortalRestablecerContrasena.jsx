@@ -48,7 +48,7 @@ const PortalRestablecerContrasena = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-[420px]">
         <div className="flex flex-col items-center mb-8 gap-3">
           <img
@@ -58,18 +58,18 @@ const PortalRestablecerContrasena = () => {
             onError={e => { e.target.src = logoColegioFallback; }}
           />
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-800">Restablecer contraseña</h1>
-            <p className="text-sm text-gray-500 mt-1">Elige tu nueva contraseña de acceso</p>
+            <h1 className="text-xl font-bold text-[var(--jet)]">Restablecer contraseña</h1>
+            <p className="text-sm text-[var(--ash)] mt-1">Elige tu nueva contraseña de acceso</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-4">
           {linkInvalido ? (
             <div className="flex flex-col items-center text-center gap-3 py-2">
-              <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center">
-                <AlertTriangle size={22} className="text-amber-600" />
+              <div className="w-12 h-12 rounded-full bg-[var(--yellow-light)] flex items-center justify-center">
+                <AlertTriangle size={22} className="text-[var(--yellow)]" />
               </div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-[var(--jet-mid)]">
                 Este enlace no es válido. Ábrelo directamente desde el correo que recibiste,
                 o solicita uno nuevo.
               </p>
@@ -82,21 +82,21 @@ const PortalRestablecerContrasena = () => {
             </div>
           ) : listo ? (
             <div className="flex flex-col items-center text-center gap-3 py-2">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                <CheckCircle2 size={22} className="text-emerald-600" />
+              <div className="w-12 h-12 rounded-full bg-[var(--green-light)] flex items-center justify-center">
+                <CheckCircle2 size={22} className="text-[var(--green)]" />
               </div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-[var(--jet-mid)]">
                 Tu contraseña fue actualizada. Redirigiendo al inicio de sesión...
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
-                <label htmlFor="reset-password-nueva" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="reset-password-nueva" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
                   Nueva contraseña
                 </label>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
                   <input
                     id="reset-password-nueva"
                     type={showPassword ? 'text' : 'password'}
@@ -104,13 +104,13 @@ const PortalRestablecerContrasena = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo 8 caracteres"
                     autoComplete="new-password"
-                    className="w-full pl-9 pr-12 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                    className="w-full pl-9 pr-12 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                     disabled={submitting}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors min-w-[44px]"
+                    className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors min-w-[44px]"
                     aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -119,11 +119,11 @@ const PortalRestablecerContrasena = () => {
               </div>
 
               <div>
-                <label htmlFor="reset-password-confirmar" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="reset-password-confirmar" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
                   Confirmar contraseña
                 </label>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ash)]" />
                   <input
                     id="reset-password-confirmar"
                     type={showPassword ? 'text' : 'password'}
@@ -131,7 +131,7 @@ const PortalRestablecerContrasena = () => {
                     onChange={(e) => setConfirmar(e.target.value)}
                     placeholder="Repite la contraseña"
                     autoComplete="new-password"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
                     disabled={submitting}
                   />
                 </div>

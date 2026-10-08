@@ -16,8 +16,8 @@ const WidgetActividadSemana = ({ mensajes, incidentes }) => {
   const maximo = Math.max(1, ...dias.map(d => d.total));
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 h-full flex flex-col">
-      <p className="text-sm font-semibold text-gray-900 mb-4">Actividad de la semana</p>
+    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 h-full flex flex-col">
+      <p className="text-sm font-semibold text-[var(--jet)] mb-4">Actividad de la semana</p>
       <div className="flex items-end justify-between gap-2 h-28 flex-1">
         {dias.map(({ dia, total }) => {
           const esHoy = isSameDay(dia, new Date());
@@ -31,14 +31,14 @@ const WidgetActividadSemana = ({ mensajes, incidentes }) => {
                   title={`${total} actividad${total === 1 ? '' : 'es'}`}
                 />
               </div>
-              <span className={`text-[10px] capitalize ${esHoy ? 'font-bold text-[var(--docente-primary)]' : 'text-gray-400'}`}>
+              <span className={`text-[10px] capitalize ${esHoy ? 'font-bold text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`}>
                 {format(dia, 'EEEEE', { locale: es })}
               </span>
             </div>
           );
         })}
       </div>
-      <p className="text-xs text-gray-400 mt-3">Mensajes enviados e incidentes registrados por día.</p>
+      <p className="text-xs text-[var(--ash)] mt-3">Mensajes enviados e incidentes registrados por día.</p>
     </div>
   );
 };
