@@ -4003,3 +4003,9 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    módulo Cuentas por Pagar, repartidos principalmente entre Cantina, Portal y
    utilidades históricas. El lint focal de CxP está limpio; esta deuda no se
    corrigió para no modificar módulos ajenos.
+
+## Deuda técnica: Cuentas por pagar / Egresos (detectada)
+- **ESLint `react-hooks/set-state-in-effect`**: ~23 errores en `pages/`, `components/cuentasPagar`, `components/egresos` y similares (setState síncrono dentro de `useEffect`). Pendiente de refactor.
+- **Egresos**: el estado `pendiente_pago` existe pero no se usa en ningún flujo.
+- **`aplazadas_mes`** (tablero/informes) no muestra importe: el modelo de aplazamientos no guarda monto.
+- **Avisos de bandeja sin cuenta** (`AvisoBandeja` sin `cuenta`) no se filtran por sede.
