@@ -319,7 +319,29 @@ CELERY_TIMEZONE = 'America/Caracas'
 # Con ignore_result=True esa escritura ni se intenta, y el try/except de cada
 # vista atrapa el error de conexión al *broker* casi de inmediato.
 CELERY_TASK_IGNORE_RESULT = True
+# Modo sencillo: con CELERY_TASK_ALWAYS_EAGER=True cada `.delay()` se ejecuta en
+# el mismo proceso web, sin worker ni Redis (los avisos push/email salen al
+# instante, a costa de que la petición espere). Solo las tareas programadas
+# (Beat: mora, cobranza) siguen necesitando worker y beat.
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
 CELERY_BEAT_SCHEDULE = {
+    # Cobranza Inteligente: evaluar ciclos antes del flujo anterior de las 8am
+    'evaluar-ciclos-cobranza-inteligente': {
+        'task': 'cobranza.tasks.evaluar_ciclos_cobranza_inteligente',
+        'schedule': crontab(hour=7, minute=30),
+    },
+    'evaluar-reglas-cobranza-inteligente': {
+        'task': 'cobranza.tasks.evaluar_reglas_cobranza_inteligente',
+        'schedule': crontab(hour=7, minute=40),
+    },
+    'revisar-convenios-cobranza-inteligente': {
+        'task': 'cobranza.tasks.revisar_convenios_cobranza_inteligente',
+        'schedule': crontab(hour=7, minute=20),
+    },
+    'procesar-envios-cobranza-inteligente': {
+        'task': 'cobranza.tasks.procesar_envios_cobranza_inteligente',
+        'schedule': crontab(minute=5, hour='8-18'),
+    },
     # Revisar mensualidades vencidas cada día a las 8am y programar notificaciones pendientes
     'revisar-mensualidades-vencidas': {
         'task': 'notificaciones.tasks.revisar_y_programar_notificaciones_pendientes',

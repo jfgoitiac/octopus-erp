@@ -14,6 +14,8 @@ export function useMorosos(busqueda) {
     const [total, setTotal] = useState(0);
     const [totalDeudaBackendUSD, setTotalDeudaBackendUSD] = useState(0);
     const [totalSolvenciaBackendUSD, setTotalSolvenciaBackendUSD] = useState(0);
+    // Cobranza Inteligente encendida en alguna sede: habilita la columna de etapa.
+    const [cobranzaInteligente, setCobranzaInteligente] = useState(false);
 
     const fetchMorosos = useCallback(async (signal) => {
         setLoading(true);
@@ -25,6 +27,7 @@ export function useMorosos(busqueda) {
             setTotal(res.data?.count ?? 0);
             setTotalDeudaBackendUSD(parseFloat(res.data?.total_deuda_usd || 0));
             setTotalSolvenciaBackendUSD(parseFloat(res.data?.total_solvencia_usd || 0));
+            setCobranzaInteligente(Boolean(res.data?.cobranza_inteligente));
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
             if (err.response?.status === 404 && page > 1) { setPage(1); return; }
@@ -83,6 +86,7 @@ export function useMorosos(busqueda) {
         exportingExcel,
         totalDeudaUSD,
         totalSolvenciaUSD,
+        cobranzaInteligente,
         refetch,
         handleExportExcel,
         // Paginación

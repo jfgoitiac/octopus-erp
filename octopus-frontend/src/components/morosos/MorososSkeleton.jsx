@@ -5,7 +5,7 @@ const Bone = ({ className = '' }) => (
     />
 );
 
-const SkeletonRow = () => (
+const SkeletonRow = ({ conEtapa }) => (
     <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}>
         {/* Alumno */}
         <td className="px-4 py-3">
@@ -35,6 +35,8 @@ const SkeletonRow = () => (
         <td className="px-4 py-3"><Bone className="h-2.5 w-14" /></td>
         {/* Solvencia */}
         <td className="px-4 py-3"><Bone className="h-2.5 w-14" /></td>
+        {/* Etapa de Cobranza Inteligente (solo con el módulo encendido) */}
+        {conEtapa && <td className="px-4 py-3"><Bone className="h-5 w-20 rounded-full" /></td>}
         {/* Días de atraso */}
         <td className="px-4 py-3"><Bone className="h-2.5 w-14" /></td>
         {/* Acción */}
@@ -42,10 +44,10 @@ const SkeletonRow = () => (
     </tr>
 );
 
-const MorososSkeleton = ({ rows = 6 }) => (
+const MorososSkeleton = ({ rows = 6, conEtapa = false }) => (
     <>
         {Array.from({ length: rows }).map((_, i) => (
-            <SkeletonRow key={i} />
+            <SkeletonRow key={i} conEtapa={conEtapa} />
         ))}
     </>
 );

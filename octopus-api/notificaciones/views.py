@@ -565,3 +565,54 @@ class EnviarCobroWhatsAppView(APIView):
             log.modo = 'automatico'
             log.save(update_fields=['modo'])
         return Response({'id': log.id if log else None, 'estado': 'enviado'})
+
+
+class SuscripcionPushUsuarioView(APIView):
+    """Web Push de usuarios del panel (administrativos y docentes), con el JWT
+    del panel. GET: estado de la cuenta + clave pública VAPID. POST: crea o
+    reactiva la suscripción del `endpoint` (unico: si el navegador cambia de
+    cuenta queda reasignado). DELETE: desactiva (soft) ese endpoint."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    TIPOS_VALIDOS = {'mensaje', 'comprobante'}
+
+    def get(self, request):
+        from django.conf import settings
+        from .models import SuscripcionPushUsuario
+        s = SuscripcionPushUsuario.objects.filter(
+            usuario=request.user, activa=True).order_by('-fecha_registro').first()
+        return Response({
+            'activa': bool(s),
+            'tipos_activos': s.tipos_activos if s else [],
+            'vapid_public_key': settings.VAPID_PUBLIC_KEY,
+        })
+
+    def post(self, request):
+        from .models import SuscripcionPushUsuario, _tipos_push_usuario_default
+        endpoint = (request.data.get('endpoint') or '').strip()
+        keys = request.data.get('keys') or {}
+        p256dh, auth = keys.get('p256dh'), keys.get('auth')
+        if not endpoint or not p256dh or not auth:
+            return Response({'error': 'Suscripción inválida: faltan endpoint o keys.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        tipos = request.data.get('tipos') or _tipos_push_usuario_default()
+        if not isinstance(tipos, list) or not set(tipos).issubset(self.TIPOS_VALIDOS):
+            return Response({'error': f'`tipos` debe estar dentro de {sorted(self.TIPOS_VALIDOS)}.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        s, _ = SuscripcionPushUsuario.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={'usuario': request.user, 'p256dh': p256dh, 'auth': auth,
+                      'activa': True, 'tipos_activos': tipos},
+        )
+        return Response({'id': s.id, 'activa': s.activa, 'tipos_activos': s.tipos_activos},
+                        status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        from .models import SuscripcionPushUsuario
+        endpoint = (request.data.get('endpoint') or '').strip()
+        if not endpoint:
+            return Response({'error': 'Falta endpoint.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not SuscripcionPushUsuario.objects.filter(
+                endpoint=endpoint, usuario=request.user).update(activa=False):
+            return Response({'error': 'Suscripción no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -3,13 +3,13 @@ import { suscribirPush, desuscribirPush } from '../api/notificaciones.service';
 import { useBranding } from '../../context/BrandingContext';
 import { limpiarServiceWorkersEnDev } from '../../utils/devServiceWorker';
 
-const isPushSupported = () =>
+export const isPushSupported = () =>
   typeof window !== 'undefined' &&
   'serviceWorker' in navigator &&
   'PushManager' in window &&
   typeof Notification !== 'undefined';
 
-function urlBase64ToUint8Array(base64String) {
+export function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
@@ -18,7 +18,7 @@ function urlBase64ToUint8Array(base64String) {
 
 // Registra el Service Worker generado por vite-plugin-pwa (registro manual,
 // injectRegister: null en vite.config.js) y espera a que quede activo.
-async function ensureServiceWorkerReady() {
+export async function ensureServiceWorkerReady() {
   if (!isPushSupported()) return null;
   if (await limpiarServiceWorkersEnDev()) return null;
   try {

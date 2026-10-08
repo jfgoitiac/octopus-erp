@@ -5,11 +5,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import InitialsAvatar from '../shared/InitialsAvatar';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
+import EtapaCobranza from './EtapaCobranza';
 import ModalCobroWhatsApp from '../whatsapp/ModalCobroWhatsApp';
 import { fmt } from '../../utils/format';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
 
-const MorososRow = ({ alu, animDelay, ultimoAviso = null }) => {
+const MorososRow = ({ alu, animDelay, ultimoAviso = null, mostrarEtapa = false }) => {
     const navigate = useNavigate();
     const [modalWhatsAppAbierto, setModalWhatsAppAbierto] = useState(false);
 
@@ -119,6 +120,13 @@ const MorososRow = ({ alu, animDelay, ultimoAviso = null }) => {
                     <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
                 )}
             </td>
+
+            {/* Etapa de Cobranza Inteligente (solo con el módulo encendido) */}
+            {mostrarEtapa && (
+                <td className="px-4 py-3">
+                    <EtapaCobranza etapa={alu.etapa_cobranza} />
+                </td>
+            )}
 
             {/* Días de atraso */}
             <td className="px-4 py-3">

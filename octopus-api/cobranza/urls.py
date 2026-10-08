@@ -1,4 +1,9 @@
 from django.urls import path
+from .views_gestion import (
+    AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, CuotaConvenioPagadaView,
+    DashboardInteligenteView, LineaBaseView, PagosRevisionView,
+)
+from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
 from .views import (
     ActualizarCuotaInscripcionView,
     ActualizarMensualidadesView,
@@ -14,6 +19,8 @@ from .views import (
     ComprobanteDetalleView,
     AnularPagoView,
     ConfiguracionCobranzaView,
+    ConfiguracionCobranzaInteligenteView,
+    HistorialCobranzaInteligenteView,
     ConfigNominaView,
     ConsultaComprobantesView,
     ConsultaSolvenciaView,
@@ -73,6 +80,20 @@ urlpatterns = [
     path('recibo/<int:pago_id>/whatsapp/', ReciboWhatsAppView.as_view(),           name='recibo-whatsapp'),
     path('recibo/publico/<str:token>/',    ReciboPublicoView.as_view(),            name='recibo-publico'),
     path('auditoria-diaria/',              AuditoriaDiariaView.as_view(),          name='auditoria-diaria'),
+    path('inteligente/bandeja/',           BandejaView.as_view(),                  name='cobranza-inteligente-bandeja'),
+    path('inteligente/ciclos/<int:ciclo_id>/acciones/', AccionCicloView.as_view(), name='cobranza-inteligente-accion'),
+    path('inteligente/pagos-revision/',    PagosRevisionView.as_view(),            name='cobranza-inteligente-pagos-revision'),
+    path('inteligente/convenios/',         ConveniosView.as_view(),                name='cobranza-inteligente-convenios'),
+    path('inteligente/convenios/cuotas/<int:cuota_id>/pagar/', CuotaConvenioPagadaView.as_view(), name='cobranza-inteligente-cuota-pagar'),
+    path('inteligente/convenios/<int:convenio_id>/cancelar/', CancelarConvenioView.as_view(), name='cobranza-inteligente-convenio-cancelar'),
+    path('inteligente/dashboard/',         DashboardInteligenteView.as_view(),     name='cobranza-inteligente-dashboard'),
+    path('inteligente/linea-base/',        LineaBaseView.as_view(),                name='cobranza-inteligente-linea-base'),
+    path('inteligente/envios/',            EnviosCobranzaView.as_view(),           name='cobranza-inteligente-envios'),
+    path('inteligente/sombra/resumen/',    ResumenSombraView.as_view(),            name='cobranza-inteligente-sombra-resumen'),
+    path('inteligente/cartera/',           CarteraCiclosView.as_view(),            name='cobranza-inteligente-cartera'),
+    path('inteligente/representantes/<int:representante_id>/expediente/', ExpedienteRepresentanteView.as_view(), name='cobranza-inteligente-expediente'),
+    path('inteligente/configuracion/historial/', HistorialCobranzaInteligenteView.as_view(), name='cobranza-inteligente-historial'),
+    path('inteligente/configuracion/',     ConfiguracionCobranzaInteligenteView.as_view(), name='cobranza-inteligente-configuracion'),
     path('configuracion/',                 ConfiguracionCobranzaView.as_view(),    name='cobranza-configuracion'),
     path('actualizar-mensualidades/',      ActualizarMensualidadesView.as_view(),  name='actualizar-mensualidades'),
     path('actualizar-cuota-inscripcion/',  ActualizarCuotaInscripcionView.as_view(), name='actualizar-cuota-inscripcion'),

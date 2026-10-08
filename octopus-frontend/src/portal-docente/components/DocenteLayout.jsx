@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation, NavLink, Link } from 'react-router-do
 import { LogOut, GraduationCap, LayoutDashboard, Home, ArrowLeft, BookOpen, MessageCircle, AlertTriangle, UserCircle } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { useConfigColegio } from '../hooks/useConfigColegio';
+import BotonNotificacionesPush from '../../components/BotonNotificacionesPush';
 import DesktopRail from './DesktopRail';
 import { enviarPendientes } from '../utils/colaAsistencia';
 
@@ -76,6 +77,7 @@ const DocenteLayout = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <BotonNotificacionesPush variante="claro" />
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 text-[var(--ash)] hover:text-[var(--red)] transition-colors text-sm min-h-[44px] px-2"

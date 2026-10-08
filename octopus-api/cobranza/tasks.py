@@ -267,3 +267,44 @@ def verificar_solvencia_estudiantil_automatica():
                 print(f"[{datetime.now()}] Error al guardar logs de auditoría de solvencia: {e}")
 
     print(f"[{datetime.now()}] Verificación finalizada.")
+
+
+@shared_task(name='cobranza.tasks.evaluar_ciclos_cobranza_inteligente')
+def evaluar_ciclos_cobranza_inteligente():
+    """Evaluación diaria de ciclos de Cobranza Inteligente (solo sedes encendidas)."""
+    from .ciclos import evaluar_ciclos
+    resultado = evaluar_ciclos()
+    logger.info(f'[Beat] evaluar_ciclos_cobranza_inteligente: {resultado}')
+    return {str(k): v for k, v in resultado.items()}
+
+
+@shared_task(name='cobranza.tasks.evaluar_reglas_cobranza_inteligente')
+def evaluar_reglas_cobranza_inteligente():
+    """
+    Evaluación diaria de reglas de Cobranza Inteligente (después de evaluar los
+    ciclos): crea los envíos del día y deja que procesar_envios los despache
+    dentro del horario permitido.
+    """
+    from .inteligente import sedes_con_inteligente_activa
+    from .motor import evaluar_reglas_sede
+    resultado = {str(s): evaluar_reglas_sede(s) for s in sedes_con_inteligente_activa()}
+    logger.info(f'[Beat] evaluar_reglas_cobranza_inteligente: {resultado}')
+    return resultado
+
+
+@shared_task(name='cobranza.tasks.procesar_envios_cobranza_inteligente')
+def procesar_envios_cobranza_inteligente():
+    """Despacha los envíos pendientes o en reintento (cada hora, en horario permitido)."""
+    from .motor import procesar_envios
+    resultado = procesar_envios()
+    logger.info(f'[Beat] procesar_envios_cobranza_inteligente: {resultado}')
+    return resultado
+
+
+@shared_task(name='cobranza.tasks.revisar_convenios_cobranza_inteligente')
+def revisar_convenios_cobranza_inteligente():
+    """Diaria: los convenios con una cuota vencida sin pagar pasan a incumplidos."""
+    from .gestion import revisar_convenios
+    n = revisar_convenios()
+    logger.info(f'[Beat] revisar_convenios_cobranza_inteligente: {n} incumplidos.')
+    return n

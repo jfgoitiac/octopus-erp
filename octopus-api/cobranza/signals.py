@@ -43,6 +43,11 @@ def al_crear_mensualidad(sender, instance, created, **kwargs):
     """
     if created and not instance.pagado:
         try:
+            # Excluyente con Cobranza Inteligente: si la sede la tiene
+            # encendida, el motor nuevo se encarga y este flujo no agenda nada.
+            from .inteligente import inteligente_activa_para_sede
+            if inteligente_activa_para_sede(instance.alumno.sede_id):
+                return
             from notificaciones.tasks import programar_notificaciones_mensualidad
             programar_notificaciones_mensualidad(instance.id)
         except Exception as e:
@@ -50,3 +55,25 @@ def al_crear_mensualidad(sender, instance, created, **kwargs):
             logging.getLogger(__name__).warning(
                 f'No se pudo programar notificaciones para Mensualidad {instance.id}: {e}'
             )
+
+
+@receiver(post_save, sender=Mensualidad)
+def sincronizar_ciclo_cobranza_inteligente(sender, instance, created, **kwargs):
+    """
+    Cobranza Inteligente: crea el ciclo de una mensualidad nueva y cierra el
+    de una pagada de inmediato, solo si la sede tiene el módulo encendido.
+    """
+    from .inteligente import inteligente_activa_para_sede
+    from .ciclos import cerrar_ciclo_si_pagado, crear_ciclo_para
+    try:
+        if not inteligente_activa_para_sede(instance.alumno.sede_id):
+            return
+        if instance.pagado:
+            cerrar_ciclo_si_pagado(instance)
+        elif created:
+            crear_ciclo_para(instance)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f'No se pudo sincronizar el ciclo de la Mensualidad {instance.id}: {e}'
+        )

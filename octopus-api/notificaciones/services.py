@@ -451,6 +451,17 @@ def _push_representante(usuario_portal, tipo_push, titulo, cuerpo, url='/portal'
                        representante_cedula=representante_cedula, alumno_nombre=alumno_nombre)
 
 
+def push_usuarios(usuarios, tipo_push, titulo, cuerpo, url, tipo_log='otro'):
+    """Envia push a las suscripciones activas de usuarios del panel
+    (administrativos o docentes) que tengan `tipo_push` habilitado."""
+    from .models import SuscripcionPushUsuario
+    if not _vapid_configurado():
+        return
+    for s in SuscripcionPushUsuario.objects.filter(usuario__in=usuarios, activa=True):
+        if tipo_push in (s.tipos_activos or []):
+            enviar_push(s, titulo, cuerpo, url=url, tipo=tipo_log)
+
+
 def _vapid_configurado():
     from django.conf import settings
     return bool(settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY)
@@ -714,7 +725,11 @@ def notificar_mensaje_directo(mensaje):
             url='/portal/mensajes', tipo_log='mensaje',
             representante_cedula=rep.cedula, alumno_nombre=ctx['alumno_nombre'],
         )
-    elif mensaje.destinatario_docente and mensaje.destinatario_docente.email:
+    elif mensaje.destinatario_docente:
+        push_usuarios([mensaje.destinatario_docente], 'mensaje', asunto, mensaje.cuerpo[:120],
+                      url='/portal-docente/mensajes', tipo_log='mensaje')
+    if not mensaje.destinatario_representante and mensaje.destinatario_docente \
+            and mensaje.destinatario_docente.email:
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         ctx['enlace'] = f'{frontend_url}/mensajes'
         html = _render_email('mensaje_nuevo.html', ctx)
