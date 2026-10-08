@@ -12,11 +12,13 @@ import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academic
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
 import { useDocenteComparacionMateria } from '../hooks/useDocenteComparacionMateria';
 import { useAsistenciaClase } from '../hooks/useAsistenciaClase';
+import { useBorradorAsistencia } from '../hooks/useBorradorAsistencia';
 import { calcDefinitiva } from '../../utils/notas.utils';
 import { TablaNotas } from '../../components/notas/TablaNotas';
 import FilaAlumno from '../../components/asistencia/FilaAlumno';
 import SkeletonFila from '../../components/asistencia/SkeletonFila';
 import PaseListaTarjetas from '../../components/asistencia/PaseListaTarjetas';
+import AvisoBorrador from '../../components/asistencia/AvisoBorrador';
 import { Modal } from '../../components/ui/Modal';
 import TarjetaMaterial from '../../components/materiales/TarjetaMaterial';
 import ModalNuevoMaterial from '../../components/materiales/ModalNuevoMaterial';
@@ -164,10 +166,27 @@ const DocenteMateriaDetalle = () => {
     marcar,
     actualizarObservacion,
     restaurarRegistro,
-    guardarAsistencia,
+    aplicarCambios,
+    guardarAsistencia: guardarEnServidor,
     conteos,
     sinMarcar,
   } = useAsistenciaClase(materia?.grado_seccion, fechaAsistencia, tab === 'asistencia');
+
+  const borrador = useBorradorAsistencia({
+    gradoSeccion: materia?.grado_seccion,
+    fecha: fechaAsistencia,
+    registros,
+    dirty: dirtyAsistencia,
+    loading: loadingAsistencia || loadingMateria,
+    onAplicar: aplicarCambios,
+  });
+
+  // Guardar = enviar al servidor y, si salió bien, borrar el borrador local.
+  const guardarAsistencia = async () => {
+    const resultado = await guardarEnServidor();
+    if (resultado === true) borrador.limpiar();
+    return resultado;
+  };
 
   const [vistaAsistencia, setVistaAsistencia] = useState(leerVistaAsistencia);
   const cambiarVistaAsistencia = (vista) => {
@@ -189,6 +208,7 @@ const DocenteMateriaDetalle = () => {
   const descartarYContinuar = () => {
     const accion = accionPendiente;
     setAccionPendiente(null);
+    borrador.limpiar();
     accion?.();
   };
   const guardarYContinuar = async () => {
@@ -353,6 +373,14 @@ const DocenteMateriaDetalle = () => {
               })}
             </div>
           </div>
+
+          {borrador.pendiente && (
+            <AvisoBorrador
+              borrador={borrador.pendiente}
+              onRecuperar={borrador.recuperar}
+              onDescartar={borrador.descartar}
+            />
+          )}
 
           {vistaAsistencia === 'tarjetas' ? (
             <PaseListaTarjetas

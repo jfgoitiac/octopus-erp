@@ -81,6 +81,23 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     setRegistros(prev => prev.map(r => (r.alumno_id !== registroPrevio.alumno_id ? r : registroPrevio)));
   }, []);
 
+  // Recuperar un borrador local: aplica estado + observación por alumno.
+  const aplicarCambios = useCallback((cambios) => {
+    const porAlumno = new Map(cambios.map(c => [c.alumno_id, c]));
+    setDirtyAsistencia(true);
+    setRegistros(prev => prev.map(r => {
+      const c = porAlumno.get(r.alumno_id);
+      if (!c) return r;
+      return {
+        ...r,
+        estado: c.estado,
+        presente: c.estado === ESTADO.PRESENTE || c.estado === ESTADO.RETARDADO,
+        justificada: c.estado === ESTADO.JUSTIFICADO,
+        observacion: c.observacion || '',
+      };
+    }));
+  }, []);
+
   const sinMarcar = useMemo(() => registros.reduce((n, r) => n + (r.estado ? 0 : 1), 0), [registros]);
 
   // Devuelve true si se guardó, para que el resumen pueda confirmar en pantalla.
@@ -131,6 +148,7 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     marcar,
     actualizarObservacion,
     restaurarRegistro,
+    aplicarCambios,
     guardarAsistencia,
     conteos,
     sinMarcar,
