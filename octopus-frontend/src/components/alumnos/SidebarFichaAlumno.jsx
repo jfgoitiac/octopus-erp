@@ -66,8 +66,8 @@ const SidebarFichaAlumno = ({ alumno, onClose, onIrCobranza }) => (
                                 color: alumno.estatus_financiero === 'solvente' ? '#16a34a' : 'var(--red)',
                             },
                             {
-                                label: 'Porcentaje Beca',
-                                valor: alumno.porcentaje_beca ? `${alumno.porcentaje_beca}%` : 'Sin beca',
+                                label: 'Beca',
+                                valor: alumno.porcentaje_beca ? 'Beca total (100%)' : 'Sin beca',
                             },
                         ].map(({ label, valor, color }) => (
                             <div key={label} className="flex justify-between items-center p-3 rounded-xl"

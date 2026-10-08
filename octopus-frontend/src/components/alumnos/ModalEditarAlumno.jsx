@@ -142,10 +142,6 @@ const ModalEditarAlumno = ({ form, setForm, saving, onClose, onSave, puedeEditar
                                 Se calcula automáticamente según mensualidades, inscripción y solvencia vencidas.
                             </p>
                         </Campo>
-                        <Campo label="Porcentaje Beca (%)">
-                            <input type="number" min="0" max="100" className={inputClass} style={inputStyle}
-                                value={form.porcentaje_beca} onChange={set('porcentaje_beca')} />
-                        </Campo>
                         <Campo label="Solvencia del período activo (USD)">
                             <input type="number" min="0" step="0.01" readOnly={!puedeEditarSolvencia}
                                 disabled={!puedeEditarSolvencia}

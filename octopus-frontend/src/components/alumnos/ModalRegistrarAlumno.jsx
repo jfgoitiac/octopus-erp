@@ -121,14 +121,6 @@ const ModalRegistrarAlumno = ({
                                 <option value="femenino">Femenino</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-                                Porcentaje Beca (%)
-                            </label>
-                            <input type="number" min="0" max="100" className={inputClass}
-                                style={{ ...inputStyle, background: '#fff' }}
-                                value={form.porcentaje_beca} onChange={set('porcentaje_beca')} />
-                        </div>
                         <div className="sm:col-span-2">
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                 Dirección

@@ -4,20 +4,10 @@ import { Modal } from '../ui/Modal';
 const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const labelStyle = { color: 'var(--ash)' };
 
-const TIPOS = [
-    { value: 'academica', label: 'Académica' },
-    { value: 'deportiva', label: 'Deportiva' },
-    { value: 'socioeconomica', label: 'Socioeconómica' },
-    { value: 'hermanos', label: 'Hermanos' },
-    { value: 'empleado', label: 'Hijo de Empleado' },
-    { value: 'otra', label: 'Otra' },
-];
-
 /**
- * Formulario de otorgamiento/edición de Beca (ver secretaria/models.py::Beca).
- * Solo afecta mensualidades — no inscripción ni cargos especiales, se avisa
- * en el propio formulario para que quien otorga la beca no asuma más de lo
- * que realmente cubre.
+ * Formulario de la única modalidad de beca: 100% de las mensualidades del
+ * período escolar activo. El backend fija esa cobertura y retira las
+ * mensualidades pendientes al guardarla.
  */
 export default function ModalBeca({
     open, onClose, editando,
@@ -48,7 +38,7 @@ export default function ModalBeca({
         >
             <div className="space-y-4">
                 <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
-                    La beca solo aplica a mensualidades. Inscripción y cargos especiales se cobran normalmente.
+                    Esta beca cubre el 100% de las mensualidades pendientes del período escolar activo. Inscripción y cargos especiales se cobran normalmente.
                 </p>
 
                 {/* Selector de alumno */}
@@ -93,42 +83,11 @@ export default function ModalBeca({
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Período Escolar *</label>
-                        <input type="text" value={form.periodo_escolar}
-                            onChange={e => setForm(p => ({ ...p, periodo_escolar: e.target.value }))}
-                            placeholder="Ej. 2026-2027"
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                <div className="space-y-4">
+                    <div className="rounded-lg px-3 py-2 text-sm" style={{ background: 'var(--ash-light)', color: 'var(--jet)' }}>
+                        Cobertura fija: <strong>100% de mensualidades</strong>. La vigencia se toma automáticamente del período escolar activo.
                     </div>
                     <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Tipo</label>
-                        <select value={form.tipo}
-                            onChange={e => setForm(p => ({ ...p, tipo: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                            {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Porcentaje (%) *</label>
-                        <input type="number" min="1" max="100" value={form.porcentaje}
-                            onChange={e => setForm(p => ({ ...p, porcentaje: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                    </div>
-                    <div />
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Vigente Desde *</label>
-                        <input type="date" value={form.fecha_desde}
-                            onChange={e => setForm(p => ({ ...p, fecha_desde: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                    </div>
-                    <div>
-                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Vigente Hasta *</label>
-                        <input type="date" value={form.fecha_hasta}
-                            onChange={e => setForm(p => ({ ...p, fecha_hasta: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                    </div>
-                    <div className="sm:col-span-2">
                         <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Motivo</label>
                         <textarea value={form.motivo} rows={2}
                             onChange={e => setForm(p => ({ ...p, motivo: e.target.value }))}
