@@ -449,14 +449,6 @@ button, a {
   }
 }
 
-/* ── Gradient text ── */
-.text-gradient {
-  background: linear-gradient(135deg, var(--pb) 0%, #4f6ef7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
 /* ── Glow pulse for brand icon ── */
 @keyframes glowPulse {
   0%, 100% { box-shadow: 0 0 8px rgba(15,163,177,0.4), 0 2px 4px rgba(15,163,177,0.2); }

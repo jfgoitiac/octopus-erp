@@ -604,9 +604,9 @@ el usuario; el resto sigue solo anotado.
   `useAlumnosSeccion`, `PlanEvaluacionPanel`, etc.): es un patrón previo,
   extendido en todo el módulo, que conviene resolver de forma transversal.
 
-- [DISEÑO] `src/index.css` `.text-gradient` (texto con degradado) fue marcado por
-  el linter de diseño como recurso decorativo; evaluar reemplazarlo por color
-  sólido donde se use.
+- [RESUELTO 2026-10-08] `src/index.css` `.text-gradient` (texto con degradado)
+  fue marcado por el linter de diseño; ningún archivo la usaba, así que se
+  eliminó la clase.
 
 - [RESUELTO 2026-10-07] `html, body { overflow-x: hidden }` (guardia global
   anti-desborde) convertía a body en contenedor de scroll y rompía todo
