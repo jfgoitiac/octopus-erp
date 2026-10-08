@@ -22,6 +22,7 @@ const PortalCambiarContrasena  = lazy(() => import('./portal/pages/PortalCambiar
 const PortalComunicaciones     = lazy(() => import('./portal/pages/PortalComunicaciones'));
 const PortalMensajes           = lazy(() => import('./portal/pages/PortalMensajes'));
 const PortalRendimiento        = lazy(() => import('./portal/pages/PortalRendimiento'));
+const PortalPlanEvaluacion     = lazy(() => import('./portal/pages/PortalPlanEvaluacion'));
 const PortalPerfil             = lazy(() => import('./portal/pages/PortalPerfil'));
 const PortalCantina            = lazy(() => import('./portal/pages/PortalCantina'));
 
@@ -153,6 +154,7 @@ function App() {
               <Route path="comunicaciones" element={<PortalComunicaciones />} />
               <Route path="mensajes" element={<PortalMensajes />} />
               <Route path="rendimiento" element={<PortalRendimiento />} />
+              <Route path="plan-evaluacion" element={<PortalPlanEvaluacion />} />
               <Route path="perfil" element={<PortalPerfil />} />
               <Route path="cantina" element={<PortalCantina />} />
             </Route>

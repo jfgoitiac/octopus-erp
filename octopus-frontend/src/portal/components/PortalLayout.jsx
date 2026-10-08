@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, Menu, X, Download } from 'lucide-react';
+import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, ClipboardList, Menu, X, Download } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
 import { useBranding } from '../../context/BrandingContext';
@@ -16,7 +16,7 @@ const PortalLayout = () => {
   const location = useLocation();
   const { nombreColegio, logoUrl } = useBranding();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const rutasSecundarias = ['/portal/mensajes', '/portal/rendimiento', '/portal/cantina', '/portal/perfil', '/portal/cambiar-contrasena'];
+  const rutasSecundarias = ['/portal/mensajes', '/portal/rendimiento', '/portal/plan-evaluacion', '/portal/cantina', '/portal/perfil', '/portal/cambiar-contrasena'];
   const masActivo = rutasSecundarias.includes(location.pathname);
 
   return (
@@ -120,6 +120,7 @@ const PortalLayout = () => {
             {[
               { to: '/portal/mensajes', icon: MessageCircle, label: 'Mensajes' },
               { to: '/portal/rendimiento', icon: TrendingUp, label: 'Rendimiento' },
+              { to: '/portal/plan-evaluacion', icon: ClipboardList, label: 'Plan de evaluación' },
               { to: '/portal/cantina', icon: CreditCard, label: 'Cantina' },
               { to: '/portal/perfil', icon: UserCircle, label: 'Mi perfil' },
               { to: '/portal/cambiar-contrasena', icon: Lock, label: 'Seguridad' },

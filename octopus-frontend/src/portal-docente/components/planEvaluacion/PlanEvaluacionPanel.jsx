@@ -101,6 +101,15 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
       }
     }
 
+    // Quitar un ítem borra sus notas asociadas en el servidor. Hacer explícito
+    // ese efecto antes del PATCH evita pérdidas accidentales al editar.
+    const idsOriginales = new Set((plan?.bloques || []).flatMap(b => (b.items || []).map(it => it.id)));
+    const idsConservados = new Set(bloquesForm.flatMap(b => (b.items || []).map(it => it.id)).filter(id => !esTemporal(id)));
+    const eliminados = [...idsOriginales].filter(id => !idsConservados.has(id));
+    if (eliminados.length && !window.confirm(
+      `Eliminarás ${eliminados.length} ítem${eliminados.length === 1 ? '' : 's'} del plan y sus notas cargadas. ¿Deseas continuar?`
+    )) return;
+
     const payload = bloquesForm.map((b, i) => ({
       ...(esTemporal(b.id) ? {} : { id: b.id }),
       nombre: b.nombre.trim(),
@@ -209,6 +218,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
         <p className="text-sm mb-4">Todavía no hay un plan de evaluación para este lapso.</p>
         <button
           onClick={iniciarEdicion}
+          disabled={!lapsoActivo}
           className="inline-flex items-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-2.5 px-4 rounded-xl text-sm min-h-[44px]"
         >
           <Plus size={16} /> Crear plan de evaluación
@@ -244,6 +254,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
               </h3>
               <button
                 onClick={iniciarEdicion}
+                disabled={!lapsoActivo}
                 className="flex items-center gap-1 text-xs font-medium text-[var(--docente-primary)] min-h-[36px] px-2"
               >
                 <Pencil size={13} /> Editar plan
@@ -342,10 +353,12 @@ function BuilderPlan({
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                 value={b.nombre}
                 onChange={e => onCambiarBloque(b.id, 'nombre', e.target.value)}
+                disabled={!lapsoActivo}
               />
             </div>
             <button
               onClick={() => onQuitarBloque(b.id)}
+              disabled={!lapsoActivo}
               className="mt-6 text-red-400 hover:text-red-600 min-h-[36px] px-1"
               aria-label="Eliminar bloque"
             >
@@ -364,6 +377,7 @@ function BuilderPlan({
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                   value={b.total_puntos}
                   onChange={e => onCambiarBloque(b.id, 'total_puntos', e.target.value)}
+                  disabled={!lapsoActivo}
                 />
               </div>
               <div>
@@ -372,6 +386,7 @@ function BuilderPlan({
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                   value={b.modo}
                   onChange={e => onCambiarBloque(b.id, 'modo', e.target.value)}
+                  disabled={!lapsoActivo}
                 >
                   <option value="puntos">Suma de puntos</option>
                   <option value="promedio">Promedio</option>
@@ -391,11 +406,13 @@ function BuilderPlan({
                     className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                     value={it.nombre}
                     onChange={e => onCambiarItem(b.id, it.id, 'nombre', e.target.value)}
+                    disabled={!lapsoActivo}
                   />
                   <div className="flex gap-1.5">
                     <DatePicker
                       selected={it.fecha ? parseISO(it.fecha) : null}
                       onChange={date => onCambiarItem(b.id, it.id, 'fecha', date ? format(date, 'yyyy-MM-dd') : '')}
+                      disabled={!lapsoActivo}
                       locale={es}
                       dateFormat="dd/MM/yyyy"
                       wrapperClassName="flex-1"
@@ -413,12 +430,14 @@ function BuilderPlan({
                         className="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                         value={it.valor_maximo}
                         onChange={e => onCambiarItem(b.id, it.id, 'valor_maximo', e.target.value)}
+                        disabled={!lapsoActivo}
                       />
                     )}
                   </div>
                 </div>
                 <button
                   onClick={() => onQuitarItem(b.id, it.id)}
+                  disabled={!lapsoActivo}
                   className="text-red-400 hover:text-red-600 min-h-[36px] px-1"
                   aria-label="Eliminar ítem"
                 >
@@ -428,6 +447,7 @@ function BuilderPlan({
             ))}
             <button
               onClick={() => onAgregarItem(b.id)}
+              disabled={!lapsoActivo}
               className="flex items-center gap-1 text-xs font-medium text-[var(--docente-primary)] min-h-[36px]"
             >
               <Plus size={13} /> Agregar ítem
@@ -438,6 +458,7 @@ function BuilderPlan({
 
       <button
         onClick={onAgregarBloque}
+        disabled={!lapsoActivo}
         className="w-full flex items-center justify-center gap-1.5 border border-dashed border-gray-300 text-gray-500 py-2.5 rounded-xl text-sm min-h-[44px]"
       >
         <Plus size={15} /> Agregar bloque

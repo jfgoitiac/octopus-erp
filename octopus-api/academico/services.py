@@ -44,18 +44,53 @@ def calcular_rendimiento_alumno(alumno):
     por_lapso = []
     en_riesgo = False
     for lapso in lapsos:
-        notas = Nota.objects.filter(alumno=alumno, lapso=lapso).select_related('materia')
+        # Una materia usa la tabla clásica de notas o un PlanEvaluacion, pero
+        # el portal debe presentar ambas fuentes de manera transparente.
+        planes = list(
+            PlanEvaluacion.objects.filter(
+                lapso=lapso,
+                materia__grado_seccion=alumno.grado_seccion,
+                materia__activa=True,
+            ).select_related('materia')
+        )
+        materia_ids_con_plan = {plan.materia_id for plan in planes}
+        notas = (
+            Nota.objects.filter(alumno=alumno, lapso=lapso)
+            .exclude(materia_id__in=materia_ids_con_plan)
+            .select_related('materia')
+        )
         por_materia = []
         definitivas = []
         for nota in notas:
             if nota.definitiva is not None:
-                definitivas.append(nota.definitiva)
+                if nota.materia.cuenta_para_promedio:
+                    definitivas.append(nota.definitiva)
                 if nota.definitiva < UMBRAL_APROBATORIO:
                     en_riesgo = True
             por_materia.append({
                 'materia_id': nota.materia_id,
                 'materia': nota.materia.nombre,
                 'promedio': float(nota.definitiva) if nota.definitiva is not None else None,
+                'calificacion_literal': None,
+            })
+
+        # Reutilizamos el mismo cálculo que ve el docente para no duplicar las
+        # reglas de bloques, promedios y aportes entre materias.
+        for plan in planes:
+            _, alumnos_plan = calcular_plan_notas(plan.materia, lapso)
+            resultado = next((fila for fila in alumnos_plan if fila['alumno_id'] == alumno.id), None)
+            total = resultado['total'] if resultado else None
+            letra = resultado['total_letra'] if resultado else None
+            if total is not None:
+                if plan.materia.cuenta_para_promedio:
+                    definitivas.append(Decimal(str(total)))
+                if Decimal(str(total)) < UMBRAL_APROBATORIO:
+                    en_riesgo = True
+            por_materia.append({
+                'materia_id': plan.materia_id,
+                'materia': plan.materia.nombre,
+                'promedio': total,
+                'calificacion_literal': letra,
             })
         promedio_general = float(sum(definitivas) / len(definitivas)) if definitivas else None
         por_lapso.append({

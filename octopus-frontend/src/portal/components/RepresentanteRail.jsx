@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { GraduationCap, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard } from 'lucide-react';
+import { GraduationCap, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, ClipboardList } from 'lucide-react';
 
 const ITEMS = [
   { to: '/portal', end: true, icon: Home, label: 'Inicio' },
@@ -7,6 +7,7 @@ const ITEMS = [
   { to: '/portal/comunicaciones', icon: Megaphone, label: 'Comunicaciones' },
   { to: '/portal/mensajes', icon: MessageCircle, label: 'Mensajes' },
   { to: '/portal/rendimiento', icon: TrendingUp, label: 'Rendimiento' },
+  { to: '/portal/plan-evaluacion', icon: ClipboardList, label: 'Plan de evaluación' },
   { to: '/portal/cantina', icon: CreditCard, label: 'Cantina' },
   { to: '/portal/perfil', icon: UserCircle, label: 'Perfil' },
 ];
