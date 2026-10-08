@@ -9,9 +9,9 @@ const ESTADO_LABELS = {
 
 const ESTADO_STYLE = {
   sin_asignar: { background: 'var(--porcelain)', color: 'var(--ash)' },
-  activa: { background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' },
-  bloqueada: { background: '#fef3c7', color: '#b45309' },
-  extraviada: { background: 'var(--red-light, #fee2e2)', color: 'var(--red, #dc2626)' },
+  activa: { background: 'var(--pb-light)', color: 'var(--pb-mid)' },
+  bloqueada: { background: 'var(--yellow-light)', color: 'var(--amber-ink)' },
+  extraviada: { background: 'var(--red-light)', color: 'var(--red)' },
 };
 
 function SkeletonFila() {
@@ -86,7 +86,7 @@ export default function TarjetasTable({ tarjetas, cargando, onAjustarCredito }) 
                 )}
               </td>
               <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{t.serial}</td>
-              <td className="px-4 py-3 font-semibold" style={{ color: Number(t.saldo) < 0 ? 'var(--red, #dc2626)' : 'var(--jet)' }}>
+              <td className="px-4 py-3 font-semibold" style={{ color: Number(t.saldo) < 0 ? 'var(--red)' : 'var(--jet)' }}>
                 ${Number(t.saldo ?? 0).toFixed(2)}
               </td>
               <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>${Number(t.limite_credito ?? 0).toFixed(2)}</td>

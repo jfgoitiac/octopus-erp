@@ -157,8 +157,8 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
     >
       <div className="space-y-4">
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Nombre</label>
-          <input
+          <label htmlFor="productoformmodal-nombre" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Nombre</label>
+          <input id="productoformmodal-nombre"
             type="text"
             className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
             style={FIELD_STYLE}
@@ -169,8 +169,8 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</label>
-          <div className="grid grid-cols-2 gap-2">
+          <span id="producto-caja" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Caja</span>
+          <div role="group" aria-labelledby="producto-caja" className="grid grid-cols-2 gap-2">
             {[['cantina', 'Cantina'], ['libreria', 'Librería']].map(([valor, etiqueta]) => (
               <button
                 key={valor}
@@ -179,7 +179,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
                 aria-pressed={area === valor}
                 className="py-2 rounded-lg text-sm font-medium min-h-[44px]"
                 style={area === valor
-                  ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' }
+                  ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' }
                   : { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
               >
                 {etiqueta}
@@ -189,11 +189,11 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Categoría</label>
+          <label htmlFor="productoformmodal-categoria" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Categoría</label>
           {loadingCategorias ? (
             <div className="h-11 rounded-lg animate-pulse" style={{ background: 'var(--border-md)' }} />
           ) : (
-            <select
+            <select id="productoformmodal-categoria"
               className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
               value={categoriaId}
@@ -227,8 +227,8 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Código de barras (opcional)</label>
-          <input
+          <label htmlFor="productoformmodal-codigo-de-barras-opcional" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Código de barras (opcional)</label>
+          <input id="productoformmodal-codigo-de-barras-opcional"
             type="text"
             className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px] font-mono"
             style={FIELD_STYLE}
@@ -240,8 +240,8 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Precio (USD)</label>
-            <input
+            <label htmlFor="productoformmodal-precio-usd" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Precio (USD)</label>
+            <input id="productoformmodal-precio-usd"
               type="number"
               min="0"
               step="0.01"
@@ -252,10 +252,10 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+            <label htmlFor="productoformmodal-campo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
               {esEdicion ? 'Stock actual' : 'Stock inicial'}
             </label>
-            <input
+            <input id="productoformmodal-campo"
               type="number"
               min="0"
               step="1"
@@ -268,8 +268,8 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Stock mínimo</label>
-            <input
+            <label htmlFor="productoformmodal-stock-minimo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Stock mínimo</label>
+            <input id="productoformmodal-stock-minimo"
               type="number"
               min="0"
               step="1"

@@ -157,7 +157,7 @@ export default function CantinaCuentasPorCobrar() {
 
       {errorCarga && !cargando ? (
         <div className="rounded-xl p-6 flex flex-col items-center gap-3 text-center" role="alert" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
-          <p className="text-sm" style={{ color: '#dc2626' }}>No se pudieron cargar las cuentas por cobrar.</p>
+          <p className="text-sm" style={{ color: 'var(--red)' }}>No se pudieron cargar las cuentas por cobrar.</p>
           <button
             type="button"
             onClick={() => { setCargadoPara(null); cargar(); }}

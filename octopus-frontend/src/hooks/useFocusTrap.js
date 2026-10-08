@@ -17,7 +17,8 @@ export function useFocusTrap(ref, isActive = true) {
 
     // Mover foco al primer elemento interactivo del modal
     const focusable = getFocusable();
-    if (focusable.length) focusable[0].focus();
+    // Respeta un autoFocus que ya haya dejado el foco dentro del contenedor.
+    if (focusable.length && !container.contains(document.activeElement)) focusable[0].focus();
 
     const handleKeyDown = (e) => {
       if (e.key !== 'Tab') return;

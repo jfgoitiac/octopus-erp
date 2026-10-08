@@ -157,7 +157,7 @@ const BuscadorRepresentanteCxc = ({
                 </span>
                 <span
                   className="text-sm font-semibold shrink-0"
-                  style={{ color: num(rep.saldo_usd) > 0 ? '#dc2626' : 'var(--jet)' }}
+                  style={{ color: num(rep.saldo_usd) > 0 ? 'var(--red)' : 'var(--jet)' }}
                 >
                   {fmtUsd(rep.saldo_usd)}
                 </span>

@@ -196,11 +196,11 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       {/* Paso 1 — buscar tarjeta */}
       {paso === 1 && (
         <div className="space-y-3">
-          <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
+          <label htmlFor="asignartarjetamodal-codigo-qr-o-serial-de-la-tar" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Código QR o serial de la tarjeta
           </label>
           <div className="flex gap-2">
-            <input
+            <input id="asignartarjetamodal-codigo-qr-o-serial-de-la-tar"
               autoFocus
               className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
@@ -220,7 +220,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
             </button>
           </div>
           {errorTarjeta && (
-            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red, #dc2626)' }}>
+            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
               <AlertTriangle size={14} /> {errorTarjeta}
             </p>
           )}
@@ -230,16 +230,16 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       {/* Paso 2 — buscar representante */}
       {paso === 2 && (
         <div className="space-y-3">
-          <div className="rounded-lg px-3 py-2 text-sm flex items-center gap-2" style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}>
+          <div className="rounded-lg px-3 py-2 text-sm flex items-center gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
             <CheckCircle2 size={16} />
             Tarjeta {tarjeta?.serial} lista para asignar.
           </div>
 
-          <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
+          <label htmlFor="asignartarjetamodal-cedula-del-representante" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Cédula del representante
           </label>
           <div className="flex gap-2">
-            <input
+            <input id="asignartarjetamodal-cedula-del-representante"
               autoFocus
               className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
@@ -259,7 +259,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
             </button>
           </div>
           {errorRep && (
-            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red, #dc2626)' }}>
+            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
               <AlertTriangle size={14} /> {errorRep}
             </p>
           )}
@@ -277,22 +277,22 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       {/* Paso 3 — seleccionar alumno y confirmar */}
       {paso === 3 && (
         <div className="space-y-3">
-          <div className="rounded-lg px-3 py-2 text-sm flex items-center gap-2" style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}>
+          <div className="rounded-lg px-3 py-2 text-sm flex items-center gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
             <UserRound size={16} />
             {representante?.nombre} {representante?.apellido} — {representante?.alumnos.length} alumno(s)
           </div>
 
-          <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
+          <span id="asignar-alumno" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Alumno que recibirá la tarjeta {tarjeta?.serial}
-          </label>
-          <div className="space-y-2">
+          </span>
+          <div role="radiogroup" aria-labelledby="asignar-alumno" className="space-y-2">
             {representante?.alumnos.map(al => (
               <label
                 key={al.id}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer"
                 style={
                   String(alumnoId) === String(al.id)
-                    ? { border: '1.5px solid var(--pb)', background: 'var(--pb-light, #e6f7f9)' }
+                    ? { border: '1.5px solid var(--pb)', background: 'var(--pb-light)' }
                     : { border: '0.5px solid var(--border-md)' }
                 }
               >
@@ -312,11 +312,11 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
           </div>
 
           {conflicto && (
-            <div className="rounded-lg px-3 py-3 text-sm" style={{ background: '#fef2f2', border: '0.5px solid #fecaca', color: '#b91c1c' }}>
+            <div className="rounded-lg px-3 py-3 text-sm" style={{ background: 'var(--red-light)', border: '0.5px solid color-mix(in srgb, var(--red) 25%, white)', color: 'var(--red)' }}>
               <p className="flex items-center gap-1.5 font-medium mb-2">
                 <AlertTriangle size={14} /> {conflicto.detail}
               </p>
-              <p className="mb-2" style={{ color: '#7f1d1d' }}>
+              <p className="mb-2" style={{ color: 'var(--red)' }}>
                 {alumnoSeleccionado?.nombre || 'Este alumno'} ya tiene una tarjeta activa. Si la tarjeta anterior se extravió o dañó, usa el flujo de reposición en vez de asignar una nueva.
               </p>
               <button
@@ -328,7 +328,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
                   onClose();
                 }}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                style={{ background: '#b91c1c' }}
+                style={{ background: 'var(--red)' }}
               >
                 Ir a reponer tarjeta
               </button>

@@ -19,6 +19,7 @@ import { buscarProductoPorCodigo } from '../../../api/cantina.service';
 export default function ScannerProducto({ onProductoEncontrado, disabled = false }) {
   const [valor, setValor] = useState('');
   const [buscando, setBuscando] = useState(false);
+  const [aviso, setAviso] = useState("");
   const inputRef = useRef(null);
   const abortRef = useRef(null);
 
@@ -42,6 +43,11 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  const avisar = (mensaje) => {
+    setAviso(mensaje);
+    toast.error(mensaje);
+  };
+
   const handleKeyDown = async (e) => {
     if (e.key !== 'Enter') return;
     const codigo = valor.trim();
@@ -59,9 +65,9 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       if (err.response?.status === 404) {
-        toast.error(`No se encontró ningún producto con el código "${codigo}".`);
+        avisar(`No se encontró ningún producto con el código "${codigo}".`);
       } else {
-        toast.error(err.response?.data?.detail || 'No se pudo buscar el producto.');
+        avisar(err.response?.data?.detail || 'No se pudo buscar el producto.');
       }
       setValor('');
     } finally {
@@ -71,11 +77,12 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
   };
 
   return (
+    <div>
     <div className="relative">
       <ScanLine
         size={18}
         className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ color: 'var(--pb, #0fa3b1)' }}
+        style={{ color: 'var(--pb)' }}
       />
       <input
         ref={inputRef}
@@ -83,16 +90,18 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
         autoFocus
         disabled={disabled}
         value={valor}
-        onChange={e => setValor(e.target.value)}
+        onChange={e => { setValor(e.target.value); if (aviso) setAviso(""); }}
         onKeyDown={handleKeyDown}
         placeholder="Escanea el código de barras del producto y presiona Enter"
         aria-label="Escaneo de producto por código de barras"
         className="w-full pl-10 pr-10 py-3 rounded-xl text-sm outline-none min-h-[48px] font-mono"
-        style={{ border: '1.5px solid var(--pb, #0fa3b1)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+        style={{ border: '1.5px solid var(--pb)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
       />
       {buscando && (
         <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin" style={{ color: 'var(--pb)' }} />
       )}
+    </div>
+    {aviso && <p role="alert" className="mt-1.5 text-xs font-medium text-[var(--red)]">{aviso}</p>}
     </div>
   );
 }

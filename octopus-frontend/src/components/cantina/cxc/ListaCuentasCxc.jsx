@@ -13,7 +13,7 @@ const DiasDeuda = ({ dias }) => {
   if (dias == null) return <span style={{ color: 'var(--ash)' }}>—</span>;
   const alerta = num(dias) > DIAS_ALERTA;
   return (
-    <span className="font-medium" style={{ color: alerta ? '#dc2626' : 'var(--jet)' }}>
+    <span className="font-medium" style={{ color: alerta ? 'var(--red)' : 'var(--jet)' }}>
       {num(dias)} {num(dias) === 1 ? 'día' : 'días'}
     </span>
   );
@@ -70,7 +70,7 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
                 <p className="text-xs" style={{ color: 'var(--ash)' }}>C.I. {c.cedula || '—'}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-base font-bold" style={{ color: num(c.saldo_usd) > 0 ? '#dc2626' : 'var(--jet)' }}>
+                <p className="text-base font-bold" style={{ color: num(c.saldo_usd) > 0 ? 'var(--red)' : 'var(--jet)' }}>
                   {fmtUsd(c.saldo_usd)}
                 </p>
                 {tasa > 0 && (
@@ -93,7 +93,7 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
         <TablaScroll>
           <table className="w-full min-w-[720px] text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>
+              <tr className="text-left text-xs uppercase tracking-widest" style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>
                 <th className="px-4 py-3 font-medium">Representante</th>
                 <th className="px-4 py-3 font-medium">Cédula</th>
                 <th className="px-4 py-3 font-medium">Alumnos</th>
@@ -109,7 +109,7 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
                   <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{nombreCompleto(c)}</td>
                   <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{c.cedula || '—'}</td>
                   <td className="px-4 py-3 max-w-[16rem]" style={{ color: 'var(--ash)' }}>{alumnosTexto(c)}</td>
-                  <td className="px-4 py-3 text-right font-semibold" style={{ color: num(c.saldo_usd) > 0 ? '#dc2626' : 'var(--jet)' }}>
+                  <td className="px-4 py-3 text-right font-semibold" style={{ color: num(c.saldo_usd) > 0 ? 'var(--red)' : 'var(--jet)' }}>
                     {fmtUsd(c.saldo_usd)}
                   </td>
                   <td className="px-4 py-3 text-right" style={{ color: 'var(--ash)' }}>

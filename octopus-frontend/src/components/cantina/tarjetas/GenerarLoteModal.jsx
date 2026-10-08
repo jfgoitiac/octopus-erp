@@ -117,10 +117,10 @@ export default function GenerarLoteModal({ onClose }) {
       </p>
 
       <div>
-        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+        <label htmlFor="generarlotemodal-cantidad-de-tarjetas" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
           Cantidad de tarjetas
         </label>
-        <input
+        <input id="generarlotemodal-cantidad-de-tarjetas"
           type="number"
           min="1"
           max="500"

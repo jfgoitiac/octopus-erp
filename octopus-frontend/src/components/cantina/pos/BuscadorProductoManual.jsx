@@ -50,7 +50,7 @@ export default function BuscadorProductoManual({ productos, onSeleccionar }) {
 
       {busqueda.trim() && (
         <div
-          className="absolute z-10 mt-1 w-full rounded-xl overflow-hidden shadow-lg bg-white max-h-64 overflow-y-auto"
+          className="absolute z-10 mt-1 w-full rounded-xl overflow-hidden shadow-lg bg-[var(--surface)] max-h-64 overflow-y-auto"
           style={{ border: '0.5px solid var(--border-md)' }}
         >
           {resultados.length === 0 ? (
@@ -61,11 +61,11 @@ export default function BuscadorProductoManual({ productos, onSeleccionar }) {
                 key={p.id}
                 type="button"
                 onClick={() => seleccionar(p)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-gray-50 min-h-[44px]"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-sunken)] min-h-[44px]"
                 style={{ borderTop: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
               >
                 <span className="truncate">{p.nombre}</span>
-                <span className="font-medium shrink-0 ml-2" style={{ color: 'var(--pb-mid, #0c7a86)' }}>
+                <span className="font-medium shrink-0 ml-2" style={{ color: 'var(--pb-mid)' }}>
                   ${Number(p.precio).toFixed(2)}
                 </span>
               </button>
