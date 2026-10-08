@@ -49,7 +49,7 @@ const DonutChart = memo(({ data, size = 180, thickness = 28, label = 'alumnos' }
                     strokeDasharray={`${seg.dash} ${seg.gap}`}
                     strokeLinecap="butt"
                     transform={`rotate(${seg.rotate} ${cx} ${cy})`}
-                    style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                    style={{ transition: 'stroke-dasharray 220ms ease' }}
                 />
             ))}
             <text x={cx} y={cy - 6}  textAnchor="middle" fontSize={22} fontWeight="600" fill="var(--jet)">{total}</text>
