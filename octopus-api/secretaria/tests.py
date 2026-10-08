@@ -861,3 +861,89 @@ class InscripcionStatsViewTest(TestCase):
         resp = self.client.get(self.url, {'periodo': '2099-2100'})
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertTrue(resp.data['visible'])
+
+
+class PermisosRolSecretariaTest(TestCase):
+    """
+    Permisos del rol 'secretaria' (revisión de roles):
+    - NO cobra: sin acceso a Morosos (lista y Excel).
+    - NO ve becas (dato financiero) ni puede eliminar alumnos.
+    - Las exportaciones/consultas administrativas ya no son para cualquier rol
+      autenticado: el docente queda fuera.
+    - SÍ crea/edita representantes, pero NO carga el Proyecto de Inversión.
+    Para verificar solo el permiso (sin armar datos) se usa 403 vs "no 403":
+    el permiso se evalúa antes de resolver el objeto o validar el cuerpo.
+    """
+    _n = 0
+
+    def _client_como(self, rol):
+        PermisosRolSecretariaTest._n += 1
+        user = User.objects.create_user(
+            username=f'perm_{rol}_{PermisosRolSecretariaTest._n}', password='clave123456',
+        )
+        user.perfil.rol = rol
+        user.perfil.esta_activo = True
+        user.perfil.save()
+        client = APIClient()
+        token = str(RefreshToken.for_user(user).access_token)
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        return client
+
+    def test_morosos_denegado_secretaria_permitido_personal_de_cobro(self):
+        for url in ['/api/cobranza/morosos/', '/api/cobranza/morosos/exportar-excel/']:
+            self.assertEqual(self._client_como('secretaria').get(url).status_code, 403, url)
+            self.assertEqual(self._client_como('docente').get(url).status_code, 403, url)
+            for rol in ['director', 'administrador', 'cobranza', 'cajero']:
+                self.assertNotEqual(self._client_como(rol).get(url).status_code, 403, (rol, url))
+
+    def test_becas_listado_denegado_secretaria(self):
+        self.assertEqual(self._client_como('secretaria').get('/api/secretaria/becas/').status_code, 403)
+        for rol in ['director', 'administrador', 'sistemas', 'cobranza']:
+            self.assertEqual(self._client_como(rol).get('/api/secretaria/becas/').status_code, 200, rol)
+
+    def test_destroy_alumno_denegado_secretaria(self):
+        # pk inexistente: el permiso se evalúa antes del lookup → 403 vs 404.
+        url = '/api/secretaria/alumnos/999999/'
+        self.assertEqual(self._client_como('secretaria').delete(url).status_code, 403)
+        for rol in ['director', 'administrador']:
+            self.assertEqual(self._client_como(rol).delete(url).status_code, 404, rol)
+
+    def test_exportaciones_y_listados_excluyen_docente(self):
+        urls = [
+            '/api/secretaria/exportar-alumnos-excel/',
+            '/api/secretaria/exportar-representantes-excel/',
+            '/api/secretaria/inscripciones/',
+        ]
+        for url in urls:
+            self.assertEqual(self._client_como('docente').get(url).status_code, 403, url)
+            self.assertNotEqual(self._client_como('secretaria').get(url).status_code, 403, url)
+
+    def test_matricula_grado_solo_secretaria_o_superior(self):
+        for url in ['/api/secretaria/matricula-grado/', '/api/secretaria/matricula-grado/exportar-excel/',
+                    '/api/secretaria/matricula-grado/exportar-pdf/']:
+            for rol in ['docente', 'cajero', 'cobranza']:
+                self.assertEqual(self._client_como(rol).get(url).status_code, 403, (rol, url))
+            self.assertNotEqual(self._client_como('secretaria').get(url).status_code, 403, url)
+
+    def test_representantes_secretaria_crea_y_edita_pero_no_carga_proyecto(self):
+        datos = {
+            'cedula': 'V31000001', 'nombre': 'Ana', 'apellido': 'Prueba',
+            'telefono': '04141234567', 'correo': 'ana.prueba@example.com', 'direccion': 'Calle 1',
+        }
+        client = self._client_como('secretaria')
+        resp = client.post('/api/secretaria/representantes/', datos, format='json')
+        self.assertNotEqual(resp.status_code, 403, getattr(resp, 'data', None))
+        rep = Representante.objects.create(
+            cedula='V31000002', nombre='Rep', apellido='Dos', correo='rep2@example.com',
+        )
+        resp = client.patch(f'/api/secretaria/representantes/{rep.id}/', {'telefono': '04149999999'}, format='json')
+        self.assertNotEqual(resp.status_code, 403, getattr(resp, 'data', None))
+        # Financiero: sigue siendo solo director/administrador/sistemas.
+        resp = client.post(f'/api/secretaria/representantes/{rep.id}/cargar_proyecto_inversion/')
+        self.assertEqual(resp.status_code, 403)
+        # Quien no es secretaria o superior sigue sin poder crear/editar.
+        for rol in ['cajero', 'cobranza', 'docente']:
+            resp = self._client_como(rol).patch(
+                f'/api/secretaria/representantes/{rep.id}/', {'telefono': '04148888888'}, format='json',
+            )
+            self.assertEqual(resp.status_code, 403, rol)

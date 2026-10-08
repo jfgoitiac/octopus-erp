@@ -3319,8 +3319,11 @@ class ListaMorososView(APIView):
     Incluye monto_adeudado, meses_adeudados, monto_solvencia_adeudado y
     monto_proyecto_inversion_adeudado (estos dos últimos aparte, sin sumarse
     a monto_adeudado) por alumno, sin N+1 queries.
+
+    Solo personal de cobranza/caja (EsPersonalCobranza): la secretaria no
+    cobra y no debe ver montos adeudados.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     @staticmethod
     def _build_qs(hoy, buscar='', user=None):
@@ -3412,7 +3415,7 @@ class ExportarMorososExcelView(APIView):
     Exporta la lista dinámica de morosos a Excel usando la misma lógica
     que ListaMorososView — sin depender de estatus_financiero.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     def get(self, request):
         from datetime import date as _date

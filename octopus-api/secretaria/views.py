@@ -90,6 +90,46 @@ class IsFinanzasOrAbove(permissions.BasePermission):
             return False
 
 
+class _RolesPermitidos(permissions.BasePermission):
+    """Base para permisos por lista de roles: superusuario o perfil activo con
+    alguno de los roles en `ROLES`."""
+    ROLES = ()
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser:
+            return True
+
+        try:
+            return (
+                request.user.perfil.esta_activo and
+                request.user.perfil.rol in self.ROLES
+            )
+        except Exception:
+            return False
+
+
+class IsStaffSede(_RolesPermitidos):
+    """Personal administrativo de la sede (todos menos docente y directivo_red):
+    exportaciones de alumnos/representantes. Coincide con los roles que ven las
+    páginas Alumnos y Representantes en el frontend."""
+    ROLES = ('director', 'sistemas', 'administrador', 'secretaria', 'cobranza', 'cajero', 'coordinador')
+
+
+class IsConsultaInscripcion(_RolesPermitidos):
+    """Listado de inscripciones (Consulta de Inscripción): todo el personal
+    administrativo, incluido directivo_red; excluye a docente."""
+    ROLES = ('director', 'sistemas', 'administrador', 'secretaria', 'cobranza', 'cajero', 'coordinador', 'directivo_red')
+
+
+class IsLecturaBecas(_RolesPermitidos):
+    """Listado/consulta de becas: dato financiero — director, administrador,
+    sistemas y cobranza. La secretaria y el resto del staff no lo ven."""
+    ROLES = ('director', 'sistemas', 'administrador', 'cobranza')
+
+
 class IsSecretariaOrCobranzaOrAbove(permissions.BasePermission):
     """Igual que IsSecretariaOrAbove pero también permite a cobranza, docente y
     coordinador académico editar los datos del alumno (el monto/concepto de
@@ -683,10 +723,13 @@ class AlumnoListView(viewsets.ModelViewSet):
         # Crear/editar: secretaria o superior
         # Editar info del alumno (update/partial_update/update_info): también cobranza y docente
         # Listar/ver: docente o superior
-        # Eliminación definitiva (temporal): solo director/sistemas/admin
+        # Eliminar (destroy): solo director/sistemas/admin — la secretaria usa
+        # retirar o quitar_grado, que no son irreversibles.
         if self.action in ['update', 'partial_update', 'update_info']:
             return [IsSecretariaOrCobranzaOrAbove()]
-        if self.action in ['create', 'destroy', 'quitar_grado']:
+        if self.action == 'destroy':
+            return [IsSystemAdminOrDirector()]
+        if self.action in ['create', 'quitar_grado']:
             return [IsSecretariaOrAbove()]
         return [IsDocenteOrAbove()]
 
@@ -970,9 +1013,10 @@ class InscripcionNuevaView(APIView):
 # ─────────────────────────────────────────────
 class InscripcionListView(generics.ListAPIView):
     """Listado de inscripciones por nombre/apellido del alumno, disponible para
-    cualquier rol autenticado — se usa para localizar y reimprimir comprobantes."""
+    todo el personal administrativo (IsConsultaInscripcion, excluye docente) —
+    se usa para localizar y reimprimir comprobantes."""
     serializer_class    = InscripcionListSerializer
-    permission_classes  = [permissions.IsAuthenticated]
+    permission_classes  = [permissions.IsAuthenticated, IsConsultaInscripcion]
     pagination_class    = StandardResultsPagination
 
     def get_queryset(self):
@@ -1101,7 +1145,7 @@ class PlanillaPreinscripcionMasivaView(APIView):
 # EXPORTAR ALUMNOS A EXCEL
 # ─────────────────────────────────────────────
 class ExportarAlumnosExcelView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsStaffSede]
 
     def get(self, request):
         from cobranza.exports import ExcelExporter
@@ -1145,7 +1189,7 @@ class ExportarAlumnosExcelView(APIView):
 
 
 class ExportarRepresentantesExcelView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsStaffSede]
 
     def get(self, request):
         from cobranza.exports import ExcelExporter
@@ -1523,7 +1567,7 @@ class GradosListView(APIView):
 
 class MatriculaGradoView(APIView):
     """Devuelve la lista de alumnos de un grado con orden configurable."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSecretariaOrAbove]
 
     def get(self, request):
         grado  = request.query_params.get('grado', '').strip()
@@ -1563,7 +1607,7 @@ class MatriculaGradoView(APIView):
 
 class ExportarMatriculaGradoExcelView(APIView):
     """Exporta la matrícula de un grado a Excel."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSecretariaOrAbove]
 
     def get(self, request):
         from cobranza.exports import ExcelExporter
@@ -1634,7 +1678,7 @@ class ExportarMatriculaGradoExcelView(APIView):
 
 class ExportarMatriculaGradoPDFView(APIView):
     """Exporta la matrícula de un grado a PDF con reportlab."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSecretariaOrAbove]
 
     def get(self, request):
         from reportlab.lib.pagesizes import letter, landscape
@@ -1818,12 +1862,16 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         # permiso con el resto de acciones de cobranza/finanzas sobre
         # representantes (IsFinanzasOrAbove: director, administrador,
         # cobranza) — 'sistemas' queda fuera a propósito, igual que en el
-        # resto de finanzas. create/update/partial_update y el
-        # eliminar_definitivo histórico (usado por Sistemas → Limpieza de
-        # Datos) siguen exigiendo IsSystemAdminOrDirector, sin cambios.
+        # resto de finanzas. create/update/partial_update (datos de contacto)
+        # también los puede hacer la secretaria (IsSecretariaOrAbove). La carga
+        # del Proyecto de Inversión es financiera y el eliminar_definitivo
+        # histórico (usado por Sistemas → Limpieza de Datos) siguen exigiendo
+        # IsSystemAdminOrDirector, sin cambios.
         if self.action in ['destroy', 'eliminar_definitivo_manual']:
             return [permissions.IsAuthenticated(), IsFinanzasOrAbove()]
-        if self.action in ['create', 'update', 'partial_update', 'cargar_proyecto_inversion']:
+        if self.action in ['create', 'update', 'partial_update']:
+            return [permissions.IsAuthenticated(), IsSecretariaOrAbove()]
+        if self.action in ['cargar_proyecto_inversion']:
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
         return [permissions.IsAuthenticated()]
 
@@ -1968,8 +2016,8 @@ class BecaViewSet(
     """
     CRUD de becas, sin destroy físico (ver acción `revocar` — una beca nunca
     se borra, se revoca, para no perder el registro auditable). Solo
-    director/administrador/sistemas pueden crear, editar o revocar; el resto
-    del staff autenticado puede listar/consultar.
+    director/administrador/sistemas pueden crear, editar o revocar; listar y
+    consultar queda para director/administrador/sistemas/cobranza (IsLecturaBecas).
     """
     serializer_class = BecaSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2001,7 +2049,7 @@ class BecaViewSet(
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'revocar']:
             return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
-        return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsLecturaBecas()]
 
     def perform_create(self, serializer):
         from rest_framework.exceptions import ValidationError as DRFValidationError
