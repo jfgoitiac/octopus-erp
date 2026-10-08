@@ -18,7 +18,7 @@ const Dato = ({ icon: Icon, label, valor, detalle }) => (
 );
 
 /** Pantalla previa al pase: qué clase, qué día y cuántos alumnos. */
-const InicioPaseLista = ({ materia, fecha, total, marcados, onComenzar, onRapido, onResumen }) => {
+const InicioPaseLista = ({ titulo, subtitulo, fecha, total, marcados, onComenzar, onRapido, onResumen }) => {
   const yaHayAsistencia = marcados > 0;
   const completa = total > 0 && marcados === total;
   const pct = total ? Math.round((marcados / total) * 100) : 0;
@@ -37,9 +37,9 @@ const InicioPaseLista = ({ materia, fecha, total, marcados, onComenzar, onRapido
           </span>
           <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pb-mid)' }}>Pase de lista</p>
           <h2 id="pl-inicio-titulo" className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl" style={{ color: 'var(--jet)' }}>
-            {materia?.nombre || 'Materia'}
+            {titulo || 'Asistencia'}
           </h2>
-          {materia?.grado_seccion && <p className="mt-0.5 text-sm" style={{ color: 'var(--jet-mid)' }}>{materia.grado_seccion}</p>}
+          {subtitulo && <p className="mt-0.5 text-sm" style={{ color: 'var(--jet-mid)' }}>{subtitulo}</p>}
         </div>
 
         <div className="relative mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">

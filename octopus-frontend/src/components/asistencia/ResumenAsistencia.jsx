@@ -127,7 +127,7 @@ const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMa
               style={{ color: '#15803d', boxShadow: 'inset 0 0 0 1px #bbf7d0' }}
             >
               <UserCheck size={16} aria-hidden="true" />
-              Marcar {sinMarcar === 1 ? 'el restante' : `los ${sinMarcar} restantes`} como presentes
+              {sinMarcar === 1 ? 'Marcar presente al restante' : `Marcar presentes a los ${sinMarcar}`}
             </button>
           </div>
         )}

@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback, useRef } from 'react';
 import { Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../utils/datepickerPortal';
 import { es } from 'date-fns/locale';
-import { addDays, isSameDay, startOfDay } from 'date-fns';
+import { addDays, format, isSameDay, startOfDay } from 'date-fns';
 import { useAsistencia } from '../hooks/useAsistencia';
 import GradoSelect from '../components/GradoSelect';
 import FilaAlumno from '../components/asistencia/FilaAlumno';
 import SkeletonFila from '../components/asistencia/SkeletonFila';
+import PaseListaTarjetas from '../components/asistencia/PaseListaTarjetas';
+import SelectorVistaAsistencia from '../components/asistencia/SelectorVistaAsistencia';
+import { useVistaAsistencia, VISTA } from '../components/asistencia/useVistaAsistencia';
 import { PageHeader } from '../components/ui/PageHeader';
 
 const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
@@ -28,6 +31,11 @@ const CONTEO_ITEMS = [
   { key: 'sinMarcar',   label: 'Sin marcar',  color: 'var(--jet)',  bg: 'var(--ash-light)' },
 ];
 
+// Altura del modo pase dentro de MainLayout: topbar de 56px (64px desde md),
+// padding del área de contenido y la fila del selector (44px + 16px) que queda
+// anclada arriba. Sin bottom nav: los botones quedan sobre el borde inferior.
+const ALTURA_PANEL = 'h-[calc(100dvh-8.75rem)] md:h-[calc(100dvh-9.75rem)]';
+
 const Asistencia = () => {
   const {
     fecha, setFecha,
@@ -40,8 +48,14 @@ const Asistencia = () => {
     marcar,
     marcarTodosPresentes,
     actualizarObservacion,
+    restaurarRegistro,
     guardar,
+    sinMarcar,
   } = useAsistencia();
+
+  const [vista, cambiarVista] = useVistaAsistencia('admin_asistencia_vista');
+  const enTarjetas = vista === VISTA.TARJETAS;
+  const barraVistaRef = useRef(null);
 
   const hoy = useMemo(() => startOfDay(new Date()), []);
   const esHoy = isSameDay(fecha, hoy);
@@ -70,17 +84,17 @@ const Asistencia = () => {
       <PageHeader
         titulo="Control de Asistencia"
         descripcion="Registro diario de presencia por grado"
-        acciones={
+        acciones={!enTarjetas && (
           <button
             onClick={guardar}
-            disabled={saving || !dirty || !registros.length}
+            disabled={saving || !dirty || !registros.length || sinMarcar > 0}
             className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
             style={{ background: 'var(--pb)' }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Guardando...' : 'Guardar asistencia'}
           </button>
-        }
+        )}
       />
 
       {/* Filtros */}
@@ -153,6 +167,34 @@ const Asistencia = () => {
         </div>
       </div>
 
+      {grado && (
+        <div
+          ref={barraVistaRef}
+          className={`mb-4 flex scroll-mt-4 items-center md:scroll-mt-6 ${enTarjetas ? 'mx-auto w-full max-w-md' : 'justify-end'}`}
+        >
+          <SelectorVistaAsistencia vista={vista} onCambiar={cambiarVista} />
+        </div>
+      )}
+
+      {grado && enTarjetas ? (
+        <PaseListaTarjetas
+          key={`${grado}-${format(fecha, 'yyyy-MM-dd')}`}
+          titulo={grado}
+          subtitulo="Control de asistencia"
+          fecha={fecha}
+          registros={registros}
+          loading={loading}
+          dirty={dirty}
+          saving={saving}
+          onMarcar={marcar}
+          onObservacion={actualizarObservacion}
+          onRestaurar={restaurarRegistro}
+          onGuardar={guardar}
+          anclaScrollRef={barraVistaRef}
+          claseAltura={ALTURA_PANEL}
+        />
+      ) : (
+      <>
       {/* Contadores */}
       {grado && !loading && registros.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
@@ -216,7 +258,13 @@ const Asistencia = () => {
         </div>
       )}
 
-      {/* Botón guardar sticky — solo mobile, visible cuando hay cambios */}
+      {dirty && sinMarcar > 0 && registros.length > 0 && (
+        <p className="mt-3 text-center text-xs" style={{ color: 'var(--ash)' }}>
+          Falta{sinMarcar === 1 ? '' : 'n'} {sinMarcar} alumno{sinMarcar === 1 ? '' : 's'} por marcar para poder guardar.
+        </p>
+      )}
+
+      {/* Botón guardar sticky — solo mobile y vista Lista, visible cuando hay cambios */}
       {dirty && registros.length > 0 && (
         <div
           className="fixed bottom-0 left-0 right-0 p-4 sm:hidden z-40"
@@ -224,7 +272,7 @@ const Asistencia = () => {
         >
           <button
             onClick={guardar}
-            disabled={saving}
+            disabled={saving || sinMarcar > 0}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--pb)' }}
           >
@@ -232,6 +280,8 @@ const Asistencia = () => {
             {saving ? 'Guardando...' : 'Guardar asistencia'}
           </button>
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -20,7 +20,8 @@ function Harness({ inicial = ROSTER }) {
     <PaseListaTarjetas
       registros={registros}
       loading={false}
-      materia={{ nombre: 'Matemática', grado_seccion: '3er año A' }}
+      titulo="Matemática"
+      subtitulo="3er año A"
       fecha={new Date(2026, 9, 7)}
       dirty
       saving={false}
