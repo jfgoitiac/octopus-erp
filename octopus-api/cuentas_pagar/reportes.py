@@ -75,7 +75,10 @@ def tablero(sede=None, desde=None, hasta=None, hoy=None, usuario=None):
     ids = [c.id for c in cuentas]
     pagos = PagoCuentaPagar.objects.filter(cuenta_id__in=ids, estado='valido', fecha_pago__year=hoy.year, fecha_pago__month=hoy.month)
     pagado_usd = sum((p.monto_usd for p in pagos), ZERO); pagado_ves = sum((p.monto_ves for p in pagos), ZERO)
+    aplazadas_ids = set(AplazamientoCxP.objects.filter(cuenta_id__in=ids, creado_en__year=hoy.year, creado_en__month=hoy.month).values_list('cuenta_id', flat=True))
     aplazadas = AplazamientoCxP.objects.filter(cuenta_id__in=ids, creado_en__year=hoy.year, creado_en__month=hoy.month).count()
+    # El aplazamiento no guarda importe: se reporta el saldo vigente de las cuentas aplazadas en el mes.
+    monto_aplazado = _resumen([c for c in cuentas if c.id in aplazadas_ids], saldo_proporcional=True)
     semana = sorted((c for c in abiertas if dias(c) <= 7), key=lambda c: (c.fecha_vencimiento, c.id))
     return {
         'por_situacion': _montos(cuentas), 'total_cuentas': len(cuentas), 'fecha': str(hoy),
@@ -85,7 +88,7 @@ def tablero(sede=None, desde=None, hasta=None, hoy=None, usuario=None):
         'proximos_30_dias': _resumen([c for c in abiertas if 0 < dias(c) <= 30]),
         'total_adeudado': _resumen(abiertas),
         'pagado_mes': {'cantidad': len(pagos), 'monto_usd': str(pagado_usd.quantize(Decimal('0.01'))), 'monto_ves': str(pagado_ves.quantize(Decimal('0.01')))},
-        'aplazadas_mes': {'cantidad': aplazadas, 'monto_usd': '0.00', 'monto_ves': '0.00'},
+        'aplazadas_mes': {'cantidad': aplazadas, 'monto_usd': monto_aplazado['monto_usd'], 'monto_ves': monto_aplazado['monto_ves']},
         'semana': [{'id': c.id, 'numero': c.numero, 'proveedor': c.proveedor_id, 'proveedor_nombre': str(c.proveedor),
                     'concepto': c.concepto, 'fecha_vencimiento': str(c.fecha_vencimiento), 'prioridad': c.prioridad,
                     'monto_usd': str(c.monto_usd), 'monto_ves': str(c.monto_ves)} for c in semana],

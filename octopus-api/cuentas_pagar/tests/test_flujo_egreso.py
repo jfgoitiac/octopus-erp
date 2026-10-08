@@ -118,6 +118,14 @@ class TableroYBandejaTests(BaseCxP):
         self.assertEqual(r.data['vence_hoy']['cantidad'], 1)
         self.assertEqual(len(r.data['semana']), 1)
 
+    def test_tablero_reporta_monto_de_aplazadas_del_mes(self):
+        cuenta = self.cuenta(monto='100.00')
+        services.aplazar(cuenta.id, timezone.localdate() + timezone.timedelta(days=10), 'Sin fondos', self.usuario)
+        r = self.api.get('/api/cuentas-por-pagar/tablero/')
+        self.assertEqual(r.data['aplazadas_mes']['cantidad'], 1)
+        self.assertEqual(r.data['aplazadas_mes']['monto_usd'], '100.00')
+        self.assertEqual(r.data['aplazadas_mes']['monto_ves'], '10000.00')
+
     def test_bandeja_lista_filtra_y_marca_leido(self):
         cuenta = self.cuenta()
         a = AvisoBandeja.objects.create(cuenta=cuenta, usuario=self.usuario, titulo='A', mensaje='m')
