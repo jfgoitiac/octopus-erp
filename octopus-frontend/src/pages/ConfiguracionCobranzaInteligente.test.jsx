@@ -12,6 +12,7 @@ const { getMock, patchMock, sedeState } = vi.hoisted(() => ({
 vi.mock('../api/cobranza.service', () => ({
     getCobranzaInteligente: (...a) => getMock(...a),
     actualizarCobranzaInteligente: (...a) => patchMock(...a),
+    getHistorialCobranzaInteligente: () => Promise.resolve({ data: { results: [] } }),
 }));
 vi.mock('../context/SedeContext', () => ({ useSede: () => sedeState }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

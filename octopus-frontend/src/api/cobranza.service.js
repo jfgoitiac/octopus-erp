@@ -106,3 +106,44 @@ export const actualizarCobranzaInteligente = (sedeId, datos) =>
     apiClient.patch('cobranza/inteligente/configuracion/', datos, {
         params: sedeId ? { sede: sedeId } : undefined,
     });
+
+/* ── Cobranza Inteligente (gestión y dashboard) ── */
+
+const parametrosSede = (sedeId) => (sedeId ? { sede: sedeId } : undefined);
+const BASE_INT = 'cobranza/inteligente';
+
+export const getBandejaInteligente = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/bandeja/`, { params: parametrosSede(sedeId), signal });
+
+export const accionCicloInteligente = (cicloId, datos) =>
+    apiClient.post(`${BASE_INT}/ciclos/${cicloId}/acciones/`, datos);
+
+export const getPagosRevisionInteligente = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/pagos-revision/`, { params: parametrosSede(sedeId), signal });
+
+export const getConveniosInteligente = (signal) =>
+    apiClient.get(`${BASE_INT}/convenios/`, { signal });
+
+export const crearConvenioInteligente = (datos) =>
+    apiClient.post(`${BASE_INT}/convenios/`, datos);
+
+export const pagarCuotaConvenio = (cuotaId) =>
+    apiClient.post(`${BASE_INT}/convenios/cuotas/${cuotaId}/pagar/`);
+
+export const cancelarConvenioInteligente = (convenioId) =>
+    apiClient.post(`${BASE_INT}/convenios/${convenioId}/cancelar/`);
+
+export const getDashboardInteligente = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/dashboard/`, { params: parametrosSede(sedeId), signal });
+
+export const getLineaBaseInteligente = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/linea-base/`, { params: parametrosSede(sedeId), signal });
+
+export const guardarLineaBaseInteligente = (sedeId, datos) =>
+    apiClient.put(`${BASE_INT}/linea-base/`, datos, { params: parametrosSede(sedeId) });
+
+export const getHistorialCobranzaInteligente = (sedeId, signal) =>
+    apiClient.get('cobranza/inteligente/configuracion/historial/', {
+        params: sedeId ? { sede: sedeId } : undefined,
+        signal,
+    });

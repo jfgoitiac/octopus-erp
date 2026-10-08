@@ -47,6 +47,8 @@ const navSections = [
     items: [
       { name: 'Cobranza',      path: '/cobranza',      icon: Calculator,   roles: ['director','cobranza','administrador','cajero'] },
       { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero'] },
+      { name: 'Gestión inteligente', path: '/cobranza/inteligente', icon: Sparkles, roles: ['director','cobranza','administrador','cajero','sistemas'] },
+      { name: 'Resultados cobranza', path: '/cobranza/inteligente/resultados', icon: Sparkles, roles: ['director','administrador','sistemas'] },
       { name: 'Revisar pagos', path: '/comprobantes/revision', icon: ReceiptText, roles: ['director','sistemas','cobranza','administrador'] },
       { name: 'Solvencia',     path: '/cobranza/solvencia', icon: BadgeCheck, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },

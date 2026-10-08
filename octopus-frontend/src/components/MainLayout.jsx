@@ -24,6 +24,8 @@ const PAGE_TITLES = {
   '/configuracion':      'Configuración',
   '/configuracion/notificaciones': 'Configuración de Notificaciones',
   '/configuracion/cobranza-inteligente': 'Cobranza Inteligente',
+  '/cobranza/inteligente': 'Gestión de cobranza',
+  '/cobranza/inteligente/resultados': 'Resultados de cobranza',
   '/nomina':             'Nómina',
   '/pagos':              'Pagos',
   '/recibos':            'Recibos de Pago',

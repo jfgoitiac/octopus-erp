@@ -59,6 +59,16 @@ class ToggleApiTest(ToggleBase):
         self.assertFalse(log.detalles['anterior']['activo'])
         self.assertTrue(log.detalles['nuevo']['activo'])
 
+    def test_historial_lista_los_cambios_de_la_sede(self):
+        self.client.patch(URL + f'?sede={self.sede.id}', {'activo': True, 'motivo': 'piloto'}, format='json')
+        otra = Sede.objects.create(nombre='Otra')
+        self.client.patch(URL + f'?sede={otra.id}', {'modo_sombra': False}, format='json')
+        r = self.client.get(URL + 'historial/', {'sede': self.sede.id})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data['results']), 1)
+        self.assertEqual(r.data['results'][0]['motivo'], 'piloto')
+        self.assertEqual(r.data['results'][0]['usuario'], 'admin')
+
     def test_sin_cambios_no_audita(self):
         self.client.patch(URL + f'?sede={self.sede.id}', {'activo': False}, format='json')
         self.assertFalse(LogAuditoria.objects.filter(accion='COBRANZA_INTELIGENTE_CAMBIO').exists())

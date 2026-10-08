@@ -3657,3 +3657,21 @@ class ConfiguracionCobranzaInteligenteView(APIView):
                               'motivo': str(request.data.get('motivo', ''))[:500]},
                 )
         return Response(self._serializar(cfg))
+
+
+class HistorialCobranzaInteligenteView(ConfiguracionCobranzaInteligenteView):
+    """GET ?sede=<id> -> últimos cambios de configuración (de LogAuditoria)."""
+
+    def get(self, request):
+        cfg, error = self._config(request)
+        if error:
+            return error
+        logs = (LogAuditoria.objects.filter(accion='COBRANZA_INTELIGENTE_CAMBIO')
+                .select_related('usuario').order_by('-fecha_hora')[:200])
+        filas = [
+            {'fecha': l.fecha_hora, 'usuario': l.usuario.get_username() if l.usuario_id else None,
+             'anterior': l.detalles.get('anterior'), 'nuevo': l.detalles.get('nuevo'),
+             'motivo': l.detalles.get('motivo', '')}
+            for l in logs if l.detalles.get('sede') == cfg.sede_id
+        ][:20]
+        return Response({'results': filas})

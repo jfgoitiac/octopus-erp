@@ -66,6 +66,8 @@ const Conciliador              = lazy(() => import('./pages/Conciliador'));
 const Auditoria                = lazy(() => import('./pages/Auditoria'));
 const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
+const CobranzaInteligenteGestion = lazy(() => import('./pages/CobranzaInteligenteGestion'));
+const CobranzaInteligenteDashboard = lazy(() => import('./pages/CobranzaInteligenteDashboard'));
 const ConfiguracionCobranzaInteligente = lazy(() => import('./pages/ConfiguracionCobranzaInteligente'));
 const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
 const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/PlantillaEditorConstancia'));
@@ -418,6 +420,16 @@ function App() {
               <Route path="configuracion/notificaciones" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <ConfiguracionNotificaciones />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/inteligente" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO, ROLES.SISTEMAS]}>
+                  <CobranzaInteligenteGestion />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/inteligente/resultados" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
+                  <CobranzaInteligenteDashboard />
                 </ProtectedRoute>
               } />
               <Route path="configuracion/cobranza-inteligente" element={

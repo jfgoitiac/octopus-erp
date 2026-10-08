@@ -6,6 +6,8 @@ import { Modal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useCobranzaInteligente, ETAPAS_ENVIO } from '../hooks/useCobranzaInteligente';
+import { useCargaInteligente } from '../hooks/useCargaInteligente';
+import { getHistorialCobranzaInteligente } from '../api/cobranza.service';
 
 // Switch accesible: botón con role="switch".
 const Switch = ({ checked, onChange, disabled, label, id }) => (
@@ -50,6 +52,37 @@ const Aviso = ({ tono, icono: Icono, children }) => (
         <div className="min-w-0">{children}</div>
     </div>
 );
+
+const describirCambio = ({ anterior, nuevo }) => {
+    const partes = [];
+    if (anterior?.activo !== nuevo?.activo) partes.push(nuevo?.activo ? 'Encendió el módulo' : 'Apagó el módulo');
+    if (anterior?.modo_sombra !== nuevo?.modo_sombra) partes.push(nuevo?.modo_sombra ? 'Activó modo sombra' : 'Desactivó modo sombra');
+    if (JSON.stringify(anterior?.etapas_envio_activas) !== JSON.stringify(nuevo?.etapas_envio_activas)) {
+        partes.push(`Etapas con envío: ${(nuevo?.etapas_envio_activas || []).join(', ') || 'ninguna'}`);
+    }
+    return partes.join(' · ');
+};
+
+// Se remonta (key) tras cada cambio de configuración para recargar la lista.
+const Historial = () => {
+    const { data, loading } = useCargaInteligente(getHistorialCobranzaInteligente);
+    if (loading || !data?.results.length) return null;
+    return (
+        <Card titulo="Historial de cambios">
+            <ul className="space-y-2 text-sm">
+                {data.results.map((c, i) => (
+                    <li key={i} style={{ color: 'var(--jet)' }}>
+                        <span className="block sm:inline">{describirCambio(c)}</span>
+                        <span className="block sm:inline sm:ml-2 text-xs" style={{ color: 'var(--ash)' }}>
+                            {format(new Date(c.fecha), "d MMM yyyy, HH:mm", { locale: es })}
+                            {c.usuario ? ` · ${c.usuario}` : ''}{c.motivo ? ` · ${c.motivo}` : ''}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+    );
+};
 
 const ConfiguracionCobranzaInteligente = () => {
     const { estado, loading, guardando, guardar, requiereSede, sedeActiva } = useCobranzaInteligente();
@@ -207,6 +240,7 @@ const ConfiguracionCobranzaInteligente = () => {
                             </Card>
                         </>
                     )}
+                    <Historial key={`${estado.activo}${estado.modo_sombra}${(estado.etapas_envio_activas || []).join()}`} />
                 </>
             )}
 
