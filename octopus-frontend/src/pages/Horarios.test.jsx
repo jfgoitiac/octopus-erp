@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Horarios from './Horarios';
+import { AuthContext } from '../context/AuthContext';
 
 // Auditoría 2026-09-15 — rediseño del módulo Horarios (paquetes + bloques).
 //
@@ -52,10 +53,14 @@ vi.mock('../api/apiClient', () => {
   return { default: { get, post: vi.fn(), put: vi.fn(), delete: vi.fn() }, API_BASE: 'http://test' };
 });
 
+// Horarios lee el rol del usuario (secretaria = solo lectura): hace falta un
+// AuthContext; con 'director' el módulo se muestra editable como antes.
 const renderHorarios = () => render(
-  <MemoryRouter initialEntries={['/horarios?paquete=1']}>
-    <Horarios />
-  </MemoryRouter>
+  <AuthContext.Provider value={{ user: { rol: 'director' } }}>
+    <MemoryRouter initialEntries={['/horarios?paquete=1']}>
+      <Horarios />
+    </MemoryRouter>
+  </AuthContext.Provider>
 );
 
 describe('Horarios — selección de paquete + grado y grilla por bloques', () => {
