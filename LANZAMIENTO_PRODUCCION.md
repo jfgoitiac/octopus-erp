@@ -49,6 +49,10 @@ nunca se versionan con secretos:
   (`manage.py generar_vapid`); nunca sobrescribe un par existente. Hacer copia del
   `.env` con ese par: perderlo obliga a cada usuario a reactivar las notificaciones.
   Sin las claves el push queda apagado en silencio.
+  Los avisos salen por Celery: sin worker no sale ninguno (ni email). Opción
+  simple sin Redis ni worker: `CELERY_TASK_ALWAYS_EAGER=True` en el `.env`.
+  Para saber qué falla: `python manage.py diagnosticar_notificaciones`
+  (`deploy.sh` lo ejecuta al final de la instalación).
   El push cubre los tres portales: representantes, panel administrativo y
   docentes (campana en la barra superior de cada uno).
 

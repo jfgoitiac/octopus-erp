@@ -79,6 +79,9 @@ echo "▶ Verificando librerías de notificaciones push..."
 echo "▶ Verificando claves VAPID del push..."
 "$VENV/python" "$BACKEND/manage.py" generar_vapid
 
+# Informe (no bloquea el deploy): dice si el push y los avisos están en condiciones de salir.
+"$VENV/python" "$BACKEND/manage.py" diagnosticar_notificaciones || true
+
 echo "▶ Verificando postgresql-client (pg_dump, requerido para el respaldo de BD)..."
 if ! command -v pg_dump &> /dev/null; then
     sudo apt-get install -y postgresql-client
