@@ -3,6 +3,7 @@ from .views import (
     ProbarNotificacionView, ConfiguracionNotificacionesView, LogNotificacionesView,
     PerfilEmailRemitenteView,
     PlantillasWhatsAppView, PlantillaWhatsAppDetailView, VariablesPlantillaWhatsAppView,
+    SuscripcionPushUsuarioView,
     PrevisualizarCobroWhatsAppView, RegistrarEnvioManualCobroWhatsAppView, EnviarCobroWhatsAppView,
 )
 
@@ -10,6 +11,7 @@ urlpatterns = [
     path('probar/',                     ProbarNotificacionView.as_view()),
     path('configuracion/',              ConfiguracionNotificacionesView.as_view()),
     path('perfiles-email/<str:area>/',  PerfilEmailRemitenteView.as_view()),
+    path('push/usuario/',               SuscripcionPushUsuarioView.as_view()),
     path('logs/',                       LogNotificacionesView.as_view()),
 
     # Cobros por WhatsApp — 'variables/' debe ir antes que '<int:pk>/' para

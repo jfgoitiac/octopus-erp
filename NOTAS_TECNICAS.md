@@ -4028,6 +4028,8 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    Python del sistema del entorno cloud de pruebas (setuptools de Debian); en un
    venv instala bien. Por eso 4 tests de `notificaciones` fallaron solo allí.
    `deploy.sh` y CI ahora verifican que las librerías de push sean importables.
-7. **Web Push solo para representantes**: `SuscripcionPush` cuelga de
-   `RepresentanteUser`; el panel administrativo y el portal docente no tienen
-   suscripciones push (pendiente, es una función nueva).
+7. **Web Push para panel y docentes** (`SuscripcionPushUsuario`): avisa de
+   mensajes nuevos al docente y de comprobantes pendientes a cobranza,
+   administración y dirección. Otros eventos (circulares, mora, etc.) siguen
+   solo por email o push de representantes; `tipos_activos` no es editable
+   desde la UI (se activa todo con la campana).
