@@ -1,32 +1,5 @@
 import { memo, useCallback, useRef } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
-import { ESTADO } from '../../constants/asistencia';
-
-// Nota: color de texto activo de "Presente" oscurecido a #15803d (desde
-// #16a34a) para cumplir contraste >= 4.5:1 sobre el fondo #dcfce7 en texto
-// pequeño (WCAG AA). El borde puede mantenerse más claro por ser decorativo.
-const CONFIGS_ESTADO = {
-  [ESTADO.PRESENTE]: {
-    label:       'Presente',
-    icon:        <CheckCircle size={14} />,
-    activeStyle: { background: '#dcfce7', color: '#15803d', border: '1.5px solid #16a34a' },
-  },
-  [ESTADO.AUSENTE]: {
-    label:       'Ausente',
-    icon:        <XCircle size={14} />,
-    activeStyle: { background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid var(--red)' },
-  },
-  [ESTADO.JUSTIFICADO]: {
-    label:       'Justificado',
-    icon:        <AlertCircle size={14} />,
-    activeStyle: { background: '#fef9c3', color: '#854d0e', border: '1.5px solid #ca8a04' },
-  },
-  [ESTADO.RETARDADO]: {
-    label:       'Retardado',
-    icon:        <Clock size={14} />,
-    activeStyle: { background: '#fef3c7', color: '#b45309', border: '1.5px solid #f59e0b' },
-  },
-};
+import { ESTADO, CONFIGS_ESTADO, TECLA_A_ESTADO } from '../../constants/asistencia';
 
 // El estado idle usa clases (no `style` inline) a propósito: así :hover y
 // :focus-visible pueden sobrescribir color/fondo — un `style` inline siempre
@@ -35,15 +8,6 @@ const IDLE_CLASSES     = 'border-[0.5px] border-[var(--border-md)] bg-[var(--por
 const FILA_STYLE       = { border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' };
 const OBSERV_STYLE     = { border: '0.5px solid var(--border-md)', background: 'var(--ash-light)', color: 'var(--jet)' };
 const ESTADOS_BOTONES  = [ESTADO.PRESENTE, ESTADO.AUSENTE, ESTADO.JUSTIFICADO, ESTADO.RETARDADO];
-
-// Atajos de teclado por fila: P/A/T/J. "T" mapea a RETARDADO porque en la UI
-// ese estado se etiqueta "Tarde"/"Retardado" indistintamente.
-const TECLA_A_ESTADO = {
-  p: ESTADO.PRESENTE,
-  a: ESTADO.AUSENTE,
-  t: ESTADO.RETARDADO,
-  j: ESTADO.JUSTIFICADO,
-};
 
 const FilaAlumno = memo(({ registro, onMarcar, onObservacion }) => {
   const { alumno_id, alumno_nombre, estado, observacion } = registro;
@@ -89,7 +53,7 @@ const FilaAlumno = memo(({ registro, onMarcar, onObservacion }) => {
                 className={`flex items-center justify-center gap-1.5 px-3 min-h-[44px] sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40 focus-visible:ring-offset-1 ${!isActive ? IDLE_CLASSES : ''}`}
                 style={isActive ? cfg.activeStyle : undefined}
               >
-                {cfg.icon}
+                <cfg.Icon size={14} />
                 <span className="hidden sm:inline">{cfg.label}</span>
               </button>
             );

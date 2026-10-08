@@ -1,9 +1,10 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
 import { LogOut, GraduationCap, LayoutDashboard, Home, ArrowLeft, BookOpen, MessageCircle, AlertTriangle, UserCircle } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { useConfigColegio } from '../hooks/useConfigColegio';
 import DesktopRail from './DesktopRail';
+import { enviarPendientes } from '../utils/colaAsistencia';
 
 const DocenteLayout = () => {
   const { logout } = useContext(AuthContext);
@@ -11,6 +12,14 @@ const DocenteLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const enDashboard = location.pathname === '/portal-docente' || location.pathname === '/portal-docente/';
+
+  // Asistencia guardada sin conexión: se reenvía al entrar al portal y cada
+  // vez que vuelve la señal, esté donde esté el docente dentro del portal.
+  useEffect(() => {
+    enviarPendientes();
+    window.addEventListener('online', enviarPendientes);
+    return () => window.removeEventListener('online', enviarPendientes);
+  }, []);
 
   const handleLogout = () => {
     logout();

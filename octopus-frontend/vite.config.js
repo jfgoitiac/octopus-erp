@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
     globals: true,
+    // Las pruebas de pantalla (e2e/) las corre Playwright, no Vitest.
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
   },
   plugins: [
     react(),

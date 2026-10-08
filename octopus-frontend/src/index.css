@@ -77,8 +77,12 @@ html { scroll-behavior: smooth; }
 
 /* Red de seguridad anti-desborde horizontal — no es la solución, es un
    respaldo. El contenedor culpable de cualquier desborde real debe
-   corregirse en su propio componente. */
-html, body { overflow-x: hidden; }
+   corregirse en su propio componente.
+   `clip` (no `hidden`): recorta igual pero no convierte a html/body en
+   contenedores de scroll, que rompían todo `position: sticky` de la app
+   (header del portal docente, botones fijos). `hidden` queda de respaldo
+   para navegadores sin soporte de `clip`. */
+html, body { overflow-x: hidden; overflow-x: clip; }
 
 /* Portal de representantes: una capa visual propia, alineada con el nivel
    de detalle del panel administrativo sin perder la marca de cada colegio. */
@@ -361,6 +365,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02","cv03","cv04","cv11";
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -483,6 +488,62 @@ button, a {
 .anim-slide-in  { animation: slideInLeft 0.22s ease both; }
 .anim-fade-up   { animation: fadeUp 0.22s ease both; }
 .anim-scale-in  { animation: fadeScale 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* ── Pase de lista por tarjetas (portal docente) ──
+   Solo se animan transform y opacity para sostener 60fps en gama media. */
+@keyframes plFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes plCheckPop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes plCheckOnda {
+  0%   { opacity: 0.35; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(1.6); }
+}
+.pl-check-pop  { animation: plCheckPop 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pl-check-onda { animation: plCheckOnda 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both; }
+
+/* Mazo de tarjetas. La saliente parte de donde la dejó el dedo (--pl-x0/--pl-r0)
+   y viaja hacia --pl-x1/--pl-y1/--pl-r1 según el estado marcado. Las de entrada
+   no usan fill-mode "forwards": al terminar, el swipe vuelve a poder escribir
+   `transform` inline sobre la tarjeta. */
+@keyframes plSalir {
+  from { opacity: 1; transform: translate3d(var(--pl-x0, 0px), 0, 0) rotate(var(--pl-r0, 0deg)); }
+  to   { opacity: 0; transform: translate3d(var(--pl-x1, 0px), var(--pl-y1, 0px), 0) rotate(var(--pl-r1, 0deg)) scale(0.96); }
+}
+@keyframes plEntrarAdelante {
+  from { opacity: 0.85; transform: translate3d(0, 6px, 0) scale(0.96); }
+  to   { opacity: 1;   transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes plEntrarAtras {
+  from { opacity: 0; transform: translate3d(-55%, 0, 0) rotate(-4deg); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes plFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes plDestello {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.pl-destello        { animation: plDestello 420ms ease-out forwards; }
+.pl-salir           { animation: plSalir 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.pl-entrar-adelante { animation: plEntrarAdelante 280ms cubic-bezier(0.22, 1, 0.36, 1); }
+.pl-entrar-atras    { animation: plEntrarAtras 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-check-pop  { animation: plFade 120ms ease-out both; }
+  .pl-check-onda { animation: none; opacity: 0; }
+  .pl-salir      { animation: plFadeOut 120ms ease-out forwards; }
+  .pl-entrar-adelante,
+  .pl-entrar-atras { animation: plFade 120ms ease-out; }
+}
 
 /* Dashboard: a single, restrained cue for a newly refreshed assisted insight. */
 @keyframes dashboardInsightPulse {
