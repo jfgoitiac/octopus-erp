@@ -177,9 +177,22 @@ class Pago(models.Model):
             # en casos de reverso bancario legítimo.
             models.UniqueConstraint(
                 fields=['referencia', 'metodo_pago', 'banco_receptor'],
-                condition=models.Q(estatus__in=['completado', 'en_revision']),
+                condition=(
+                    models.Q(estatus__in=['completado', 'en_revision'])
+                    & ~models.Q(metodo_pago='punto_de_venta')
+                ),
                 name='unique_referencia_metodo_banco_pago_activo'
-            )
+            ),
+            # Punto de Venta: la referencia del voucher se repite entre lotes
+            # distintos, así que el número de lote forma parte de la clave.
+            models.UniqueConstraint(
+                fields=['referencia', 'metodo_pago', 'banco_receptor', 'numero_lote'],
+                condition=(
+                    models.Q(estatus__in=['completado', 'en_revision'])
+                    & models.Q(metodo_pago='punto_de_venta')
+                ),
+                name='unique_referencia_lote_pos_pago_activo'
+            ),
         ]
 
     def __str__(self):
@@ -226,6 +239,8 @@ class Pago(models.Model):
             # así que acá se compara explícitamente NULL contra NULL para que
             # esta validación en Python cubra ese caso que el UniqueConstraint
             # de la Meta no puede atrapar por sí solo.
+            if self.metodo_pago == 'punto_de_venta':
+                duplicado_qs = duplicado_qs.filter(numero_lote=self.numero_lote)
             if self.banco_receptor_id is None:
                 duplicado_qs = duplicado_qs.filter(banco_receptor__isnull=True)
             else:

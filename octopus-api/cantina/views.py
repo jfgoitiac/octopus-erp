@@ -1137,6 +1137,7 @@ class RegistrarVentaView(APIView):
                     dup = buscar_referencia_duplicada(
                         referencia, metodo_pago=metodo_pago,
                         banco_receptor_id=(banco_receptor.id if banco_receptor else None),
+                        numero_lote=numero_lote,
                     )
                     if dup:
                         raise drf_serializers.ValidationError({'referencia': (

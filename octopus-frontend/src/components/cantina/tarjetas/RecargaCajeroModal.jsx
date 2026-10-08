@@ -11,7 +11,7 @@ import { Modal } from '../../ui/Modal';
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const LABEL_STYLE = { color: 'var(--ash)' };
 const IDLE_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: 'var(--porcelain)' };
-const ACTIVE_STYLE = { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' };
+const ACTIVE_STYLE = { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' };
 
 // Métodos que el cajero puede cobrar en caja (§7.3bis cantina.md): efectivo
 // USD/VES sin aprobación previa, y transferencia/pago móvil/zelle solo
@@ -238,11 +238,11 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
     >
       {!tarjeta ? (
         <div className="space-y-3">
-          <label className="block text-[11px] uppercase tracking-widest" style={LABEL_STYLE}>
+          <label htmlFor="recargacajeromodal-codigo-qr-o-serial-de-la-tar" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Código QR o serial de la tarjeta
           </label>
           <div className="flex gap-2">
-            <input
+            <input id="recargacajeromodal-codigo-qr-o-serial-de-la-tar"
               autoFocus
               className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
@@ -262,21 +262,21 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
             </button>
           </div>
           {errorBusqueda && (
-            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red, #dc2626)' }}>
+            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
               <AlertTriangle size={14} /> {errorBusqueda}
             </p>
           )}
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2" style={{ background: 'var(--pb-light, #e6f7f9)', color: 'var(--pb-mid, #0c7a86)' }}>
+          <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
             <span className="flex items-center gap-2">
               <UserRound size={16} />
               {tarjeta.alumno?.nombre
                 ? `${tarjeta.alumno.nombre} ${tarjeta.alumno.apellido || ''}`.trim()
                 : `Tarjeta ${tarjeta.serial}`}
             </span>
-            <span className="font-semibold" style={{ color: tarjeta.saldo < 0 ? 'var(--red, #dc2626)' : 'var(--pb-mid, #0c7a86)' }}>
+            <span className="font-semibold" style={{ color: tarjeta.saldo < 0 ? 'var(--red)' : 'var(--pb-mid)' }}>
               Saldo: ${Number(tarjeta.saldo ?? 0).toFixed(2)}
             </span>
           </div>
@@ -286,8 +286,8 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
 
           {/* Método de pago */}
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Método de pago</label>
-            <div className="grid grid-cols-3 gap-1.5">
+            <span id="recarga-cajero-metodo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Método de pago</span>
+            <div role="group" aria-labelledby="recarga-cajero-metodo" className="grid grid-cols-3 gap-1.5">
               {METODOS.map(m => (
                 <button
                   key={m.value}
@@ -306,12 +306,12 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
           {/* Monto + moneda */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Monto</label>
+              <label htmlFor="recargacajeromodal-monto" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Monto</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>
                   {moneda === 'USD' ? '$' : 'Bs.'}
                 </span>
-                <input
+                <input id="recargacajeromodal-monto"
                   type="number"
                   min="0.01"
                   step="0.01"
@@ -325,8 +325,8 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
               </div>
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Moneda</label>
-              <div className="flex gap-1.5">
+              <span id="recarga-cajero-moneda" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Moneda</span>
+              <div role="group" aria-labelledby="recarga-cajero-moneda" className="flex gap-1.5">
                 {['USD', 'VES'].map(mo => (
                   <button
                     key={mo}
@@ -347,12 +347,12 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
           {requiereBanco(metodoPago) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco receptor</label>
-                <select
+                <label htmlFor="recargacajeromodal-banco-receptor" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco receptor</label>
+                <select id="recargacajeromodal-banco-receptor"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
                   style={{
                     ...FIELD_STYLE,
-                    border: tocado.banco && !bancoReceptorId ? '1px solid #ef4444' : FIELD_STYLE.border,
+                    border: tocado.banco && !bancoReceptorId ? '1px solid var(--red)' : FIELD_STYLE.border,
                   }}
                   value={bancoReceptorId}
                   onChange={e => setBancoReceptorId(e.target.value)}
@@ -363,12 +363,12 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                   {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
                 </select>
                 {tocado.banco && !bancoReceptorId && (
-                  <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Selecciona un banco</p>
                 )}
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco de procedencia</label>
-                <input
+                <label htmlFor="recargacajeromodal-banco-de-procedencia" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco de procedencia</label>
+                <input id="recargacajeromodal-banco-de-procedencia"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
                   style={FIELD_STYLE}
                   value={bancoProcedencia}
@@ -382,15 +382,15 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
 
           {requiereReferencia(metodoPago) && (
             <div>
-              <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+              <label htmlFor="recargacajeromodal-campo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
                 {metodoPago === 'zelle' ? 'Número de confirmación Zelle' : 'Referencia (6 dígitos)'}
               </label>
-              <input
+              <input id="recargacajeromodal-campo"
                 type="text"
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
                 style={{
                   ...FIELD_STYLE,
-                  border: tocado.referencia && referenciaInvalida(metodoPago, referencia) ? '1px solid #ef4444' : FIELD_STYLE.border,
+                  border: tocado.referencia && referenciaInvalida(metodoPago, referencia) ? '1px solid var(--red)' : FIELD_STYLE.border,
                 }}
                 value={referencia}
                 onChange={e => setReferencia(
@@ -402,7 +402,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                 disabled={enviando}
               />
               {tocado.referencia && referenciaInvalida(metodoPago, referencia) && (
-                <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>
+                <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
                   {metodoPago === 'zelle' ? 'Ingresa el número de confirmación.' : 'Debe tener exactamente 6 dígitos numéricos.'}
                 </p>
               )}

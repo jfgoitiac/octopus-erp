@@ -7,8 +7,8 @@ import { actualizarPlantilla, crearPlantilla, listarPlantillas } from '../servic
 import { parseApiError } from '../utils/apiError';
 import { campoErr, useErroresCampos } from '../utils/erroresCampos';
 
-const INPUT = 'mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-normal normal-case tracking-normal text-slate-900';
-const LABEL = 'block text-xs font-medium uppercase tracking-wide text-slate-500';
+const INPUT = 'mt-1 input';
+const LABEL = 'block text-xs font-medium uppercase tracking-wide text-[var(--ash)]';
 const FRECUENCIAS = ['mensual', 'bimestral', 'trimestral', 'semestral', 'anual'];
 
 export default function PlantillasRecurrentes() {
@@ -59,17 +59,17 @@ export default function PlantillasRecurrentes() {
 
   return (
     <div className="space-y-5">
-      <PageHeader titulo="Plantillas recurrentes" descripcion="Generan cuentas periódicas sin duplicarlas." acciones={<button onClick={() => setAbierta(true)} className="rounded-lg px-4 py-2 text-white" style={{ background: 'var(--pb)' }}>Nueva plantilla</button>} />
+      <PageHeader titulo="Plantillas recurrentes" descripcion="Generan cuentas periódicas sin duplicarlas." acciones={<button onClick={() => setAbierta(true)} className="btn btn-primary">Nueva plantilla</button>} />
       <div className="space-y-3">
         {items.map((p) => (
-          <article key={p.id} className="rounded-xl border border-slate-200 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-white shadow-sm">
-            <div><b>{p.concepto}</b><p className="text-sm text-slate-500">{p.frecuencia} · próxima generación: {p.proxima_generacion || '—'}</p></div>
-            <button onClick={() => pausar(p)} className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-colors px-3 py-2">{p.activa ? 'Pausar' : 'Reanudar'}</button>
+          <article key={p.id} className="rounded-xl border border-[var(--border)] p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-[var(--surface)]">
+            <div><b>{p.concepto}</b><p className="text-sm text-[var(--ash)]">{p.frecuencia} · próxima generación: {p.proxima_generacion || '—'}</p></div>
+            <button onClick={() => pausar(p)} className="btn btn-secondary">{p.activa ? 'Pausar' : 'Reanudar'}</button>
           </article>
         ))}
-        {!items.length && <p className="rounded-xl border border-slate-200 p-8 text-center text-slate-500 bg-white shadow-sm">No hay plantillas.</p>}
+        {!items.length && <p className="rounded-xl border border-[var(--border)] p-8 text-center text-[var(--ash)] bg-[var(--surface)]">No hay plantillas.</p>}
       </div>
-      <Modal open={abierta} onClose={() => setAbierta(false)} titulo="Nueva plantilla" footer={<button form="plantilla-cxp" className="w-full sm:w-auto rounded-lg px-4 py-2 text-white" style={{ background: 'var(--pb)' }}>Guardar</button>}>
+      <Modal open={abierta} onClose={() => setAbierta(false)} titulo="Nueva plantilla" footer={<button form="plantilla-cxp" className="btn btn-primary w-full sm:w-auto">Guardar</button>}>
         <form id="plantilla-cxp" onSubmit={guardar} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className={`${LABEL} ${campoErr(errores, 'concepto')}`}>Concepto<input required placeholder="Concepto" value={datos.concepto} onChange={(e) => campo('concepto', e.target.value)} className={INPUT} /><ErrorCampo msg={errores.concepto} /></label>
           <label className={`${LABEL} ${campoErr(errores, 'frecuencia')}`}>Frecuencia<select value={datos.frecuencia} onChange={(e) => campo('frecuencia', e.target.value)} className={INPUT}>{FRECUENCIAS.map((x) => <option key={x}>{x}</option>)}</select><ErrorCampo msg={errores.frecuencia} /></label>

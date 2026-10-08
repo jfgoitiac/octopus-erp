@@ -21,10 +21,10 @@ const Switch = ({ checked, onChange, disabled, label }) => (
     aria-label={label}
     disabled={disabled}
     onClick={() => onChange(!checked)}
-    className={`w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${checked ? 'bg-[var(--portal-primary,#0fa3b1)]' : 'bg-gray-200'}`}
+    className={`w-11 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 ${checked ? 'bg-[var(--portal-primary)]' : 'bg-[var(--surface-sunken)]'}`}
   >
     <span
-      className={`block w-5 h-5 bg-white rounded-full shadow transform transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`}
+      className={`block w-5 h-5 bg-[var(--surface)] rounded-full shadow transform transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`}
     />
   </button>
 );
@@ -105,7 +105,7 @@ const PortalCambiarContrasena = () => {
     <button
       type="button"
       onClick={() => setShow((s) => ({ ...s, [field]: !s[field] }))}
-      className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors min-w-[44px]"
+      className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors min-w-[44px]"
       aria-label={show[field] ? 'Ocultar contraseña' : 'Mostrar contraseña'}
     >
       {show[field] ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -116,24 +116,24 @@ const PortalCambiarContrasena = () => {
     <div className="max-w-sm mx-auto px-4 py-6">
       <button
         onClick={() => navigate('/portal')}
-        className="flex items-center gap-1 text-sm text-gray-500 mb-4 hover:text-gray-700 py-2 min-h-[44px]"
+        className="flex items-center gap-1 text-sm text-[var(--ash)] mb-4 hover:text-[var(--jet-mid)] py-2 min-h-[44px]"
       >
         <ArrowLeft size={16} /> Volver
       </button>
 
       {pushSupported && (
-        <div className="mb-6 border border-gray-100 rounded-2xl p-4">
+        <div className="mb-6 border border-[var(--border)] rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Bell size={18} className="text-[var(--portal-primary,#0fa3b1)]" />
-            <h2 className="text-sm font-semibold text-gray-800">Notificaciones</h2>
+            <Bell size={18} className="text-[var(--portal-primary)]" />
+            <h2 className="text-sm font-semibold text-[var(--jet)]">Notificaciones</h2>
           </div>
           <div className="space-y-3">
             {TIPOS_PUSH.map(({ tipo, icon: Icon, label }) => {
               const activo = pushActiva && tiposActivos.includes(tipo);
               return (
                 <div key={tipo} className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Icon size={16} className="text-gray-400 shrink-0" aria-hidden="true" />
+                  <div className="flex items-center gap-2 text-sm text-[var(--jet-mid)]">
+                    <Icon size={16} className="text-[var(--ash)] shrink-0" aria-hidden="true" />
                     {label}
                   </div>
                   <Switch
@@ -150,8 +150,8 @@ const PortalCambiarContrasena = () => {
       )}
 
       <div className="flex items-center gap-2 mb-6">
-        <Lock size={20} className="text-[var(--portal-primary,#0fa3b1)]" />
-        <h1 className="text-lg font-bold text-gray-800">Cambiar contraseña</h1>
+        <Lock size={20} className="text-[var(--portal-primary)]" />
+        <h1 className="text-lg font-bold text-[var(--jet)]">Cambiar contraseña</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -163,7 +163,7 @@ const PortalCambiarContrasena = () => {
           const sk = showKey(key);
           return (
             <div key={key}>
-              <label htmlFor={`portal-pwd-${key}`} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <label htmlFor={`portal-pwd-${key}`} className="block text-xs font-medium text-[var(--jet-mid)] mb-1">{label}</label>
               <div className="relative">
                 <input
                   id={`portal-pwd-${key}`}
@@ -172,7 +172,7 @@ const PortalCambiarContrasena = () => {
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   required
                   autoComplete={key === 'contrasena_actual' ? 'current-password' : 'new-password'}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30"
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base pr-12 focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30"
                 />
                 <ToggleBtn field={sk} />
               </div>
@@ -183,7 +183,7 @@ const PortalCambiarContrasena = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[var(--portal-primary,#0fa3b1)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] transition-colors disabled:opacity-60 mt-2"
+          className="w-full bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] transition-colors disabled:opacity-60 mt-2"
         >
           {loading ? 'Guardando...' : 'Actualizar contraseña'}
         </button>

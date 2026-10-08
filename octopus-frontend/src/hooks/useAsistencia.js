@@ -90,27 +90,42 @@ export function useAsistencia() {
     );
   }, []);
 
+  // Deshacer del pase por tarjetas: devuelve un registro a su copia previa.
+  const restaurarRegistro = useCallback((registroPrevio) => {
+    setDirty(true);
+    setRegistros(prev => prev.map(r => (r.alumno_id !== registroPrevio.alumno_id ? r : registroPrevio)));
+  }, []);
+
+  const sinMarcar = useMemo(() => registros.reduce((n, r) => n + (r.estado ? 0 : 1), 0), [registros]);
+
+  // Devuelve true si se guardó. Misma regla que el portal docente: no se
+  // guarda con alumnos sin marcar (antes viajaban como 'A' sin aviso).
   const guardar = useCallback(async () => {
-    if (!grado || !fecha) { toast.warning('Selecciona grado y fecha.'); return; }
+    if (!grado || !fecha) { toast.warning('Selecciona grado y fecha.'); return false; }
+    if (sinMarcar > 0) {
+      toast.warning(`Falta${sinMarcar === 1 ? '' : 'n'} ${sinMarcar} alumno${sinMarcar === 1 ? '' : 's'} por marcar.`);
+      return false;
+    }
     setSaving(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      // Igual que antes: un alumno sin marcar se guarda como ausente.
       const payload = registros.map(r => ({
         alumno_id:   r.alumno_id,
-        estado:      ESTADO_A_BACKEND[r.estado] || 'A',
+        estado:      ESTADO_A_BACKEND[r.estado],
         observacion: r.observacion || '',
       }));
       await saveAsistencia(grado, fechaStr, payload);
       toast.success('Asistencia guardada correctamente.');
       setDirty(false);
+      return true;
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al guardar asistencia.';
       toast.error(msg);
+      return false;
     } finally {
       setSaving(false);
     }
-  }, [grado, fecha, registros]);
+  }, [grado, fecha, registros, sinMarcar]);
 
   const conteos = useMemo(
     () => registros.reduce(
@@ -138,6 +153,8 @@ export function useAsistencia() {
     marcar,
     marcarTodosPresentes,
     actualizarObservacion,
+    restaurarRegistro,
     guardar,
+    sinMarcar,
   };
 }

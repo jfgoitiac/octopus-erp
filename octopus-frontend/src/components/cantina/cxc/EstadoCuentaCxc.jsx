@@ -13,16 +13,16 @@ import {
 } from './utilsCxc';
 
 const ESTADO_STYLE = {
-  pendiente: { label: 'Pendiente', color: '#b45309', bg: '#fef3c7' },
-  pagado: { label: 'Pagado', color: '#16a34a', bg: '#dcfce7' },
-  completado: { label: 'Completado', color: '#16a34a', bg: '#dcfce7' },
-  anulado: { label: 'Anulado', color: '#6b7280', bg: '#f3f4f6' },
+  pendiente: { label: 'Pendiente', color: 'var(--amber-ink)', bg: 'var(--yellow-light)' },
+  pagado: { label: 'Pagado', color: 'var(--green)', bg: 'var(--green-light)' },
+  completado: { label: 'Completado', color: 'var(--green)', bg: 'var(--green-light)' },
+  anulado: { label: 'Anulado', color: 'var(--ash)', bg: 'var(--surface-sunken)' },
 };
 
 const Chip = ({ estado }) => {
-  const s = ESTADO_STYLE[estado] || { label: estado || '—', color: '#6b7280', bg: '#f3f4f6' };
+  const s = ESTADO_STYLE[estado] || { label: estado || '—', color: 'var(--ash)', bg: 'var(--surface-sunken)' };
   return (
-    <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ color: s.color, background: s.bg }}>
+    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: s.color, background: s.bg }}>
       {s.label}
     </span>
   );
@@ -135,7 +135,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
 
       {errorCarga && !cargando && (
         <div className="rounded-xl p-6 flex flex-col items-center gap-3 text-center" role="alert" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
-          <p className="text-sm" style={{ color: '#dc2626' }}>No se pudo cargar el estado de cuenta.</p>
+          <p className="text-sm" style={{ color: 'var(--red)' }}>No se pudo cargar el estado de cuenta.</p>
           <button type="button" onClick={() => { setCargadoPara(null); cargar(); }} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto" style={{ background: 'var(--pb)' }}>
             <RefreshCw size={15} /> Reintentar
           </button>
@@ -153,8 +153,8 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                 </p>
               </div>
               <div className="sm:text-right">
-                <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Deuda pendiente</p>
-                <p className="text-2xl sm:text-3xl font-bold" style={{ color: saldo > 0 ? '#dc2626' : '#16a34a' }}>{fmtUsd(saldo)}</p>
+                <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Deuda pendiente</p>
+                <p className="text-2xl sm:text-3xl font-bold" style={{ color: saldo > 0 ? 'var(--red)' : 'var(--green)' }}>{fmtUsd(saldo)}</p>
                 {saldoVes != null && <p className="text-xs" style={{ color: 'var(--ash)' }}>{fmtVes(saldoVes)} a tasa vigente</p>}
               </div>
             </div>
@@ -163,7 +163,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
               <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--jet)' }}>
                 Límite de crédito: <strong>{data.limite_usd != null ? fmtUsd(data.limite_usd) : '—'}</strong>
                 {bloqueado && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: '#dc2626', background: '#fee2e2' }}>
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--red)', background: 'var(--red-light)' }}>
                     <Lock size={11} /> Bloqueado
                   </span>
                 )}
@@ -222,7 +222,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                   <TablaScroll>
                     <table className="w-full min-w-[680px] text-sm">
                       <thead>
-                        <tr className="text-left text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>
+                        <tr className="text-left text-xs uppercase tracking-widest" style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>
                           <th className="px-4 py-3 font-medium">Fecha</th>
                           <th className="px-4 py-3 font-medium">Área</th>
                           <th className="px-4 py-3 font-medium">Alumno</th>
@@ -276,7 +276,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                       <span className="text-sm" style={{ color: 'var(--jet)' }}>{fmtFecha(a.fecha_pago)}</span>
                       <div className="flex items-center gap-2">
                         {a.es_retroactivo && (
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ color: '#7c3aed', background: '#ede9fe' }}>Retroactivo</span>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--violet)', background: 'var(--violet-light)' }}>Retroactivo</span>
                         )}
                         <Chip estado={a.estatus} />
                       </div>
@@ -291,7 +291,7 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                           <Printer size={15} /> Recibo
                         </button>
                         {esAdmin && a.estatus !== 'anulado' && (
-                          <button type="button" onClick={() => setAbonoAAnular(a)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid #dc2626', color: '#dc2626' }}>
+                          <button type="button" onClick={() => setAbonoAAnular(a)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid var(--red)', color: 'var(--red)' }}>
                             <Ban size={15} /> Anular
                           </button>
                         )}

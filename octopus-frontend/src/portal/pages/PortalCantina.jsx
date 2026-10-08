@@ -132,8 +132,8 @@ const PortalCantina = () => {
     <div className="space-y-4">
       {/* Encabezado */}
       <div>
-        <h1 className="text-lg font-bold text-gray-800">Cantina</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Saldo y consumo de la tarjeta de cantina</p>
+        <h1 className="text-lg font-bold text-[var(--jet)]">Cantina</h1>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Saldo y consumo de la tarjeta de cantina</p>
       </div>
 
       {/* Cuenta de cantina y librería (deuda del representante) */}
@@ -142,7 +142,7 @@ const PortalCantina = () => {
       {/* Selector de estudiante */}
       {loadingAlumnos ? (
         <div className="flex gap-2">
-          <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
+          <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
         </div>
       ) : (
         <EstudianteSelector
@@ -153,8 +153,8 @@ const PortalCantina = () => {
       )}
 
       {alumnoActivo && alumnos.length > 1 && (
-        <p className="text-sm text-gray-500">
-          <span className="font-medium text-gray-700">
+        <p className="text-sm text-[var(--ash)]">
+          <span className="font-medium text-[var(--jet-mid)]">
             {alumnoActivo.nombre} {alumnoActivo.apellido}
           </span>{' '}
           · {alumnoActivo.grado_seccion}
@@ -171,7 +171,7 @@ const PortalCantina = () => {
       {/* Historial de consumo — solo si el alumno tiene tarjeta */}
       {(loadingSaldo || saldoTarjeta?.tiene_tarjeta) && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-gray-700">Historial de consumo</h2>
+          <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Historial de consumo</h2>
           <HistorialConsumoList
             movimientos={movimientos}
             loading={loadingAlumnos || loadingHistorial}

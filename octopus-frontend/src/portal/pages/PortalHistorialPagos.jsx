@@ -21,16 +21,16 @@ const formatFecha = (fechaStr) => {
 
 const EstatusBadge = ({ estatus }) => {
   const config = {
-    completado: 'bg-green-100 text-green-700',
-    anulado: 'bg-red-100 text-red-700',
-    en_revision: 'bg-yellow-100 text-yellow-700',
+    completado: 'bg-[var(--green-light)] text-[var(--green)]',
+    anulado: 'bg-[var(--red-light)] text-[var(--red)]',
+    en_revision: 'bg-[var(--yellow-light)] text-[var(--yellow)]',
   };
   const labels = {
     completado: 'Pagado',
     anulado: 'Anulado',
     en_revision: 'En revisión',
   };
-  const cls = config[estatus] || 'bg-gray-100 text-gray-600';
+  const cls = config[estatus] || 'bg-[var(--surface-sunken)] text-[var(--jet-mid)]';
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>
       {labels[estatus] || estatus}
@@ -124,14 +124,14 @@ const PortalHistorialPagos = () => {
     <div className="space-y-4">
       {/* Encabezado */}
       <div>
-        <h1 className="text-lg font-bold text-gray-800">Historial de pagos</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Registro completo de tus pagos</p>
+        <h1 className="text-lg font-bold text-[var(--jet)]">Historial de pagos</h1>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Registro completo de tus pagos</p>
       </div>
 
       {/* Selector de alumno */}
       {loadingAlumnos ? (
         <div className="flex gap-2">
-          <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
+          <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
         </div>
       ) : (
         <EstudianteSelector
@@ -143,8 +143,8 @@ const PortalHistorialPagos = () => {
 
       {/* Nombre del alumno activo */}
       {alumnoActivo && (
-        <p className="text-sm text-gray-500">
-          <span className="font-medium text-gray-700">
+        <p className="text-sm text-[var(--ash)]">
+          <span className="font-medium text-[var(--jet-mid)]">
             {alumnoActivo.nombre} {alumnoActivo.apellido}
           </span>{' '}
           · {alumnoActivo.grado_seccion}
@@ -155,7 +155,7 @@ const PortalHistorialPagos = () => {
       {loadingPagos ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2 animate-pulse">
+            <div key={i} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-2 animate-pulse">
               <div className="flex justify-between">
                 <SkeletonLine width="w-2/5" height="h-4" />
                 <SkeletonLine width="w-1/5" height="h-4" />
@@ -165,22 +165,22 @@ const PortalHistorialPagos = () => {
           ))}
         </div>
       ) : pagos.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center">
-          <Receipt size={32} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">No hay pagos registrados aún.</p>
+        <div className="bg-[var(--surface)] rounded-2xl p-8 border border-[var(--border)] text-center">
+          <Receipt size={32} className="text-[var(--border-md)] mx-auto mb-3" />
+          <p className="text-sm text-[var(--ash)]">No hay pagos registrados aún.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm divide-y divide-gray-100">
+        <div className="bg-[var(--surface)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]">
           {pagos.map((pago) => (
             <div key={pago.id} className="px-4 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 line-clamp-2">{pago.concepto}</p>
-                  <p className="text-sm text-gray-400 mt-0.5">{formatFecha(pago.fecha_pago)}</p>
-                  <p className="text-sm text-gray-400 capitalize">{pago.metodo_pago || 'Transferencia'}</p>
+                  <p className="text-sm font-medium text-[var(--jet)] line-clamp-2">{pago.concepto}</p>
+                  <p className="text-sm text-[var(--ash)] mt-0.5">{formatFecha(pago.fecha_pago)}</p>
+                  <p className="text-sm text-[var(--ash)] capitalize">{pago.metodo_pago || 'Transferencia'}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <p className="text-sm font-semibold text-gray-800">
+                  <p className="text-sm font-semibold text-[var(--jet)]">
                     ${Number(pago.monto_usd).toFixed(2)}
                   </p>
                   <EstatusBadge estatus={pago.estatus} />
@@ -189,10 +189,10 @@ const PortalHistorialPagos = () => {
                       type="button"
                       onClick={() => handleDescargarRecibo(pago)}
                       disabled={descargandoId === pago.id}
-                      className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary,#0fa3b1)] hover:underline disabled:opacity-50 min-h-[44px] sm:min-h-[32px]"
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary)] hover:underline disabled:opacity-50 min-h-[44px] sm:min-h-[32px]"
                     >
                       {descargandoId === pago.id ? (
-                        <span className="animate-spin inline-block w-3 h-3 border-2 border-[var(--portal-primary,#0fa3b1)] border-t-transparent rounded-full" aria-hidden="true" />
+                        <span className="animate-spin inline-block w-3 h-3 border-2 border-[var(--portal-primary)] border-t-transparent rounded-full" aria-hidden="true" />
                       ) : (
                         <Download size={13} aria-hidden="true" />
                       )}
@@ -212,18 +212,18 @@ const PortalHistorialPagos = () => {
           <button
             onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
             disabled={paginaActual === 1}
-            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]"
+            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-[var(--border)] text-sm text-[var(--jet-mid)] disabled:opacity-40 hover:bg-[var(--surface-sunken)] transition-colors min-h-[44px]"
           >
             <ChevronLeft size={16} />
             Anterior
           </button>
-          <span className="text-sm text-gray-500 whitespace-nowrap">
+          <span className="text-sm text-[var(--ash)] whitespace-nowrap">
             {paginaActual} / {totalPaginas}
           </span>
           <button
             onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
             disabled={paginaActual === totalPaginas}
-            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors min-h-[44px]"
+            className="flex-1 flex items-center justify-center gap-1 py-3 rounded-xl border border-[var(--border)] text-sm text-[var(--jet-mid)] disabled:opacity-40 hover:bg-[var(--surface-sunken)] transition-colors min-h-[44px]"
           >
             Siguiente
             <ChevronRight size={16} />

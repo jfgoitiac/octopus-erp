@@ -563,3 +563,63 @@ sin derivar `pagado` ni generar historial). Ver
   cálculo de `pagado`/`fecha_pago` resuelto explícitamente en Python antes
   del lote (perdiendo el historial por fila de `django-simple-history`,
   que no soporta `bulk_update`, a menos que se cree el historial a mano).
+
+---
+
+## Pase de asistencia por tarjetas (Portal Docente) — 2026-10-07
+
+Detectado al implementar el modo "Pasar lista" en `DocenteMateriaDetalle`.
+Los ítems [RESUELTO] se corrigieron en la segunda ronda de mejoras aprobada por
+el usuario; el resto sigue solo anotado.
+
+- [DEUDA] `App.jsx` usa `<BrowserRouter>` y no un data router
+  (`createBrowserRouter` + `RouterProvider`), así que `useBlocker` no está
+  disponible. La confirmación de cambios sin guardar cubre "Mis Materias",
+  cambio de pestaña, cambio de fecha y recarga/cierre (`beforeunload`), pero
+  NO los links del layout (`DesktopRail`, bottom nav de `DocenteLayout`).
+  Mitigado (2026-10-07): el borrador local (`useBorradorAsistencia`) permite
+  recuperar el pase al volver. Migrar el router habilitaría el bloqueo real;
+  se decidió posponerlo por tocar todas las rutas de la app.
+
+- [RESUELTO 2026-10-07] `guardarAsistencia` enviaba los alumnos sin marcar
+  como `'A'` sin aviso. Ahora no se puede guardar con alumnos sin marcar
+  (Tarjetas, Lista y modal) y se ofrece "Marcar restantes como presentes".
+
+- [DEUDA] La vista Lista renderiza `FilaAlumno` con `key={`${r.alumno_id}-${i}`}`:
+  incluir el índice hace que React remonte filas si el orden cambia. Con
+  `alumno_id` único bastaría.
+
+- [RESUELTO 2026-10-07] `AsistenciaView` GET ahora ordena por apellido y
+  nombre y devuelve `numero_lista` (posición alfabética) y `alumno_foto`. Si
+  algún colegio usa un número de lista oficial distinto al alfabético, habría
+  que agregar el campo a `Alumno` (decisión pospuesta).
+
+- [DEUDA] Los contadores de la vista Lista muestran Presentes/Ausentes/Justif.
+  pero no Retardados, aunque `conteos.retardados` existe y el backend acepta `R`.
+
+- [DEUDA] `fetchAsistencia` no aborta la petición al desmontar la página (el
+  AbortController solo cancela la petición anterior). Además, el lint actual
+  marca `react-hooks/set-state-in-effect` en este efecto y en otros del portal
+  docente (`DocenteMateriaDetalle` líneas de `getMateria` y notas,
+  `useAlumnosSeccion`, `PlanEvaluacionPanel`, etc.): es un patrón previo,
+  extendido en todo el módulo, que conviene resolver de forma transversal.
+
+- [DISEÑO] `src/index.css` `.text-gradient` (texto con degradado) fue marcado por
+  el linter de diseño como recurso decorativo; evaluar reemplazarlo por color
+  sólido donde se use.
+
+- [RESUELTO 2026-10-07] `html, body { overflow-x: hidden }` (guardia global
+  anti-desborde) convertía a body en contenedor de scroll y rompía todo
+  `position: sticky`. Cambiado a `overflow-x: clip` con `hidden` de respaldo.
+  Revisar visualmente otras pantallas con `sticky` que quizás se habían
+  ajustado para convivir con el bug.
+
+- [LÍMITE] La cola de asistencia sin conexión (`portal-docente/utils/colaAsistencia.js`)
+  vive en localStorage del dispositivo y solo se reenvía mientras el portal
+  docente está abierto (al entrar y en el evento `online`). No usa Background
+  Sync del service worker: si el docente nunca vuelve a abrir el portal en
+  ese dispositivo, el envío queda pendiente. Evaluar Background Sync cuando
+  el PWA del portal docente tenga su propio service worker.
+
+- [LÍMITE] El borrador y la cola son por dispositivo: si el docente empieza
+  en el celular y sigue en la computadora, no se ven entre sí.

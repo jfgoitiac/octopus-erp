@@ -348,7 +348,7 @@ export default function CantinaPOS() {
           <BuscadorProductoManual productos={productos} onSeleccionar={agregarProducto} />
 
           <div className="max-h-[45dvh] lg:max-h-none lg:flex-1 overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
-            <p className="text-[11px] uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
+            <p className="text-xs uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
               <Package size={13} /> Productos
             </p>
             {loadingProductos ? (
@@ -363,13 +363,13 @@ export default function CantinaPOS() {
                     type="button"
                     onClick={() => agregarProducto(p)}
                     disabled={p.stock_actual <= 0}
-                    className="flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left disabled:opacity-40 min-h-[64px]"
-                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain, #f5f5f4)' }}
+                    className="flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left disabled:opacity-60 disabled:cursor-not-allowed min-h-[64px]"
+                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
                   >
                     <span className="text-sm font-medium truncate w-full" style={{ color: 'var(--jet)' }}>{p.nombre}</span>
-                    <span className="text-sm font-semibold" style={{ color: 'var(--pb-mid, #0c7a86)' }}>${Number(p.precio).toFixed(2)}</span>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--pb-mid)' }}>${Number(p.precio).toFixed(2)}</span>
                     {p.stock_actual <= 0 && (
-                      <span className="text-[10px]" style={{ color: 'var(--red, #dc2626)' }}>Sin stock</span>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--red)' }}>Sin stock</span>
                     )}
                   </button>
                 ))}

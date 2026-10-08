@@ -11,15 +11,15 @@ const WidgetMensajes = ({ conversaciones, className = '' }) => (
         <Link
           key={c.alumno_id}
           to="/portal-docente/mensajes"
-          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50/50 transition-colors"
+          className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors"
         >
           <Avatar nombre={c.alumno_nombre} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900 truncate">{c.alumno_nombre}</p>
-            <p className="text-xs text-gray-400 truncate">{c.ultimoMensaje?.cuerpo || ''}</p>
+            <p className="text-sm font-semibold text-[var(--jet)] truncate">{c.alumno_nombre}</p>
+            <p className="text-xs text-[var(--ash)] truncate">{c.ultimoMensaje?.cuerpo || 'Sin mensajes'}</p>
           </div>
           {c.noLeidos > 0 && (
-            <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+            <span className="min-w-5 h-5 px-1 rounded-full bg-[var(--docente-primary)] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
               {c.noLeidos}
             </span>
           )}

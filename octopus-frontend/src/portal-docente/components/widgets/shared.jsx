@@ -27,9 +27,9 @@ export const Avatar = ({ nombre, foto, className = '' }) => {
 };
 
 export const SectionCard = ({ title, to, children, className = '' }) => (
-  <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col ${className}`}>
+  <div className={`bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden h-full flex flex-col ${className}`}>
     <div className="flex items-center justify-between px-4 pt-4 pb-2">
-      <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+      <h2 className="text-sm font-semibold text-[var(--jet)]">{title}</h2>
       {to && (
         <Link
           to={to}
@@ -39,7 +39,7 @@ export const SectionCard = ({ title, to, children, className = '' }) => (
         </Link>
       )}
     </div>
-    <div className="divide-y divide-gray-50 flex-1">{children}</div>
+    <div className="divide-y divide-[var(--border)] flex-1">{children}</div>
   </div>
 );
 
@@ -47,10 +47,10 @@ export const SectionCard = ({ title, to, children, className = '' }) => (
 // texto principal + texto secundario opcional más chico.
 export const EmptyRow = ({ icon: Icon, text, subtext }) => (
   <div className="px-4 py-8 text-center">
-    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
-      <Icon size={22} className="text-gray-300" />
+    <div className="w-12 h-12 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center mx-auto mb-3">
+      <Icon size={22} className="text-[var(--ash)]" />
     </div>
-    <p className="text-sm font-medium text-gray-500">{text}</p>
-    {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
+    <p className="text-sm font-medium text-[var(--ash)]">{text}</p>
+    {subtext && <p className="text-xs text-[var(--ash)] mt-1">{subtext}</p>}
   </div>
 );

@@ -131,12 +131,12 @@ export default function ParametrosCreditoModal({ onClose }) {
       ) : (
         <div className="space-y-4">
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+            <label htmlFor="parametroscreditomodal-limite-de-credito-por-defect" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
               Límite de crédito por defecto (USD)
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: 'var(--ash)' }}>$</span>
-              <input
+              <input id="parametroscreditomodal-limite-de-credito-por-defect"
                 type="number"
                 min="0"
                 step="0.01"
@@ -152,10 +152,10 @@ export default function ParametrosCreditoModal({ onClose }) {
           </div>
 
           <div>
-            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+            <label htmlFor="parametroscreditomodal-dias-de-alerta-por-saldo-neg" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
               Días de alerta por saldo negativo
             </label>
-            <input
+            <input id="parametroscreditomodal-dias-de-alerta-por-saldo-neg"
               type="text"
               className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
               style={FIELD_STYLE}
@@ -164,7 +164,7 @@ export default function ParametrosCreditoModal({ onClose }) {
               placeholder="1,3,7"
               disabled={guardando}
             />
-            <p className="text-[11px] mt-1" style={LABEL_STYLE}>
+            <p className="text-xs mt-1" style={LABEL_STYLE}>
               Lista de días (separados por coma) desde que la tarjeta entra en negativo en los que se dispara una alerta. Ej: "1,3,7" avisa al día 1, 3 y 7.
             </p>
           </div>

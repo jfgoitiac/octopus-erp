@@ -2074,3 +2074,60 @@ class DeshacerGeneracionHorarioTests(TestCase):
             'paquete_id': self.paquete.id,
         }, format='json')
         self.assertEqual(resp.status_code, 404)
+
+
+class AsistenciaRosterTests(TestCase):
+    """GET de asistencia: roster alfabético con número de lista y foto."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(user=crear_usuario('secre-roster', 'secretaria'))
+        rep = Representante.objects.create(
+            cedula='V99000001', nombre='Rosa', apellido='Mendez',
+            telefono='04141234567', correo='roster@example.com', direccion='Calle 1',
+        )
+
+        def alumno(cedula, nombre, apellido, **extra):
+            return Alumno.objects.create(
+                representante=rep, cedula_escolar=cedula, nombre=nombre, apellido=apellido,
+                fecha_nacimiento=date(2015, 1, 1), grado_seccion='4to Grado A', **extra,
+            )
+
+        # Se crean desordenados a propósito.
+        self.zapata = alumno('E99000001', 'Luis', 'Zapata')
+        self.alvarez = alumno('E99000002', 'Ana', 'Alvarez')
+        self.mora_b = alumno('E99000003', 'Bruno', 'Mora')
+        self.mora_a = alumno('E99000004', 'Andrea', 'Mora')
+
+    def _get(self):
+        resp = self.client.get('/api/academico/asistencia/', {'grado_seccion': '4to Grado A', 'fecha': '2026-10-07'})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        return resp.json()
+
+    def test_roster_en_orden_alfabetico_con_numero_de_lista(self):
+        Asistencia.objects.create(alumno=self.mora_b, fecha=date(2026, 10, 7), estado='A')
+        filas = self._get()
+        self.assertEqual(
+            [f['alumno_id'] for f in filas],
+            [self.alvarez.id, self.mora_a.id, self.mora_b.id, self.zapata.id],
+        )
+        self.assertEqual([f['numero_lista'] for f in filas], [1, 2, 3, 4])
+        # El alumno con registro conserva su estado y también recibe número.
+        self.assertEqual(filas[2]['estado'], 'A')
+
+    def test_foto_null_si_no_tiene_y_url_absoluta_si_tiene(self):
+        import shutil
+        import tempfile
+        from django.test import override_settings
+
+        media = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=media):
+                self.alvarez.foto = SimpleUploadedFile('ana.png', PNG_BYTES, content_type='image/png')
+                self.alvarez.save()
+                filas = {f['alumno_id']: f for f in self._get()}
+        finally:
+            shutil.rmtree(media, ignore_errors=True)
+
+        self.assertIsNone(filas[self.zapata.id]['alumno_foto'])
+        self.assertTrue(filas[self.alvarez.id]['alumno_foto'].startswith('http://testserver/'))

@@ -43,20 +43,20 @@ const PortalMensajes = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <MessageCircle size={20} className="text-[var(--portal-primary,#0fa3b1)]" />
+        <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
+          <MessageCircle size={20} className="text-[var(--portal-primary)]" />
           Mensajes
         </h1>
-        <p className="text-xs text-gray-400 mt-0.5">Conversaciones con los docentes</p>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Conversaciones con los docentes</p>
       </div>
 
       {loadingAlumnos ? (
-        <div className="h-10 w-28 bg-gray-200 rounded-full animate-pulse" />
+        <div className="h-10 w-28 bg-[var(--surface-sunken)] rounded-full animate-pulse" />
       ) : (
         <EstudianteSelector alumnos={alumnos} alumnoActivo={alumnoActivo} onSelect={setAlumnoActivo} />
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ height: '65vh' }}>
+      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden" style={{ height: '65dvh' }}>
         {alumnoActivo ? (
           <ChatMensajes
             mensajes={mensajes}
@@ -66,7 +66,7 @@ const PortalMensajes = () => {
             placeholder="Responder al docente..."
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4 text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full text-center px-4 text-[var(--ash)]">
             <MessageCircle size={32} className="opacity-30 mb-2" />
             <p className="text-sm">No hay alumnos asociados a tu cuenta.</p>
           </div>

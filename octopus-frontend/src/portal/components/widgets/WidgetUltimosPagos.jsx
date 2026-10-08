@@ -17,16 +17,16 @@ const formatFechaConAnio = (fechaStr) => {
 // Badge de estatus de pago
 const EstatusBadge = ({ estatus }) => {
   const config = {
-    completado: 'bg-green-100 text-green-700',
-    anulado: 'bg-red-100 text-red-700',
-    en_revision: 'bg-yellow-100 text-yellow-700',
+    completado: 'bg-[var(--green-light)] text-[var(--green)]',
+    anulado: 'bg-[var(--red-light)] text-[var(--red)]',
+    en_revision: 'bg-[var(--yellow-light)] text-[var(--yellow)]',
   };
   const labels = {
     completado: 'Pagado',
     anulado: 'Anulado',
     en_revision: 'En revisión',
   };
-  const cls = config[estatus] || 'bg-gray-100 text-gray-600';
+  const cls = config[estatus] || 'bg-[var(--surface-sunken)] text-[var(--jet-mid)]';
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>
       {labels[estatus] || estatus}
@@ -45,25 +45,25 @@ const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
     <section className="portal-card portal-card--soft p-5 h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Clock size={16} className="text-[var(--portal-primary,#0fa3b1)]" />
-          <h2 className="text-sm font-semibold text-gray-700">Últimos pagos</h2>
+          <Clock size={16} className="text-[var(--portal-primary)]" />
+          <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Últimos pagos</h2>
         </div>
         <Link
           to="/portal/historial"
-          className="flex items-center gap-1 text-sm text-[var(--portal-primary,#0fa3b1)] py-2 px-1 -mx-1 min-h-[44px] hover:underline"
+          className="flex items-center gap-1 text-sm text-[var(--portal-primary)] py-2 px-1 -mx-1 min-h-[44px] hover:underline"
         >
           Ver todos <ArrowRight size={14} />
         </Link>
       </div>
       <div className="space-y-2">
         {ultimosPagos.slice(0, 3).map((pago) => (
-          <div key={pago.id} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
+          <div key={pago.id} className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0">
             <div>
-              <p className="text-sm text-gray-700">{pago.concepto}</p>
-              <p className="text-xs text-gray-400">{formatFechaConAnio(pago.fecha_pago)}</p>
+              <p className="text-sm text-[var(--jet-mid)]">{pago.concepto}</p>
+              <p className="text-xs text-[var(--ash)]">{formatFechaConAnio(pago.fecha_pago)}</p>
             </div>
             <div className="text-right flex flex-col items-end gap-1">
-              <p className="text-sm font-semibold text-gray-800">${Number(pago.monto_usd).toFixed(2)}</p>
+              <p className="text-sm font-semibold text-[var(--jet)]">${Number(pago.monto_usd).toFixed(2)}</p>
               <EstatusBadge estatus={pago.estatus} />
             </div>
           </div>

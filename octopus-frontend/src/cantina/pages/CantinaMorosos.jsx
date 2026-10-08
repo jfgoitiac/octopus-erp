@@ -90,10 +90,10 @@ export default function CantinaMorosos() {
 
       <form onSubmit={handleFiltrar} className="flex flex-wrap items-end gap-4 rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cantinamorosos-dias-minimos-en-negativo" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Días mínimos en negativo
           </label>
-          <input
+          <input id="cantinamorosos-dias-minimos-en-negativo"
             type="number"
             min="0"
             step="1"

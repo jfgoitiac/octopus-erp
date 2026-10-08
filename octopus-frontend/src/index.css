@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --docente-primary:      #0fa3b1;
-  --docente-primary-dark: #0c828d;
-  --docente-bg:           #e8f8fa;
+  --docente-primary:      var(--portal-primary);
+  --docente-primary-dark: var(--portal-secondary);
+  --docente-bg:           var(--pb-light);
   --docente-accent:       #fbbf24;
   --pb:        #0fa3b1;
   --pb-light:  #e8f8fa;
@@ -24,6 +24,13 @@
   --green-light: #dcfce7;
   --yellow:      #d97706;
   --yellow-light:#fef3c7;
+  --orange:      #c2410c;
+  --orange-light:#ffedd5;
+  --amber-ink:   #b45309;
+  --teal:        #0f766e;
+  --teal-light:  #ccfbf1;
+  --violet:      #6d28d9;
+  --violet-light:#ede9fe;
 
   --shadow-sm:  0 1px 3px rgba(43,48,58,0.07), 0 1px 2px rgba(43,48,58,0.05);
   --shadow-md:  0 4px 16px rgba(43,48,58,0.10), 0 2px 6px rgba(43,48,58,0.06);
@@ -65,20 +72,24 @@
 
   --portal-primary:   var(--pb);
   --portal-secondary: var(--pb-mid);
-  --portal-ink:       #1e293b;
-  --portal-muted:     #64748b;
-  --portal-canvas:    #f5f7fb;
-  --portal-surface:   rgba(255,255,255,0.94);
-  --portal-line:      rgba(30,41,59,0.09);
-  --portal-shadow:    0 12px 30px rgba(15,23,42,0.07), 0 2px 7px rgba(15,23,42,0.035);
+  --portal-ink:       var(--jet);
+  --portal-muted:     #6f6670;
+  --portal-canvas:    var(--bg);
+  --portal-surface:   rgba(255,255,250,0.94);
+  --portal-line:      var(--border);
+  --portal-shadow:    0 12px 30px rgba(43,48,58,0.07), 0 2px 7px rgba(43,48,58,0.035);
 }
 
 html { scroll-behavior: smooth; }
 
 /* Red de seguridad anti-desborde horizontal — no es la solución, es un
    respaldo. El contenedor culpable de cualquier desborde real debe
-   corregirse en su propio componente. */
-html, body { overflow-x: hidden; }
+   corregirse en su propio componente.
+   `clip` (no `hidden`): recorta igual pero no convierte a html/body en
+   contenedores de scroll, que rompían todo `position: sticky` de la app
+   (header del portal docente, botones fijos). `hidden` queda de respaldo
+   para navegadores sin soporte de `clip`. */
+html, body { overflow-x: hidden; overflow-x: clip; }
 
 /* Portal de representantes: una capa visual propia, alineada con el nivel
    de detalle del panel administrativo sin perder la marca de cada colegio. */
@@ -94,7 +105,7 @@ html, body { overflow-x: hidden; }
   border-radius: 18px;
   box-shadow: var(--portal-shadow);
 }
-.portal-card--soft { box-shadow: 0 5px 16px rgba(15,23,42,0.045); }
+.portal-card--soft { box-shadow: 0 5px 16px rgba(43,48,58,0.045); }
 .portal-kicker {
   color: var(--portal-muted);
   font-size: 0.6875rem;
@@ -107,7 +118,7 @@ html, body { overflow-x: hidden; }
 .portal-action {
   border: 1px solid var(--portal-line);
   background: var(--portal-surface);
-  box-shadow: 0 4px 12px rgba(15,23,42,0.035);
+  box-shadow: 0 4px 12px rgba(43,48,58,0.035);
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .portal-action:hover { transform: translateY(-2px); box-shadow: var(--portal-shadow); border-color: color-mix(in srgb, var(--portal-primary) 25%, white); }
@@ -361,6 +372,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02","cv03","cv04","cv11";
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -483,6 +495,62 @@ button, a {
 .anim-slide-in  { animation: slideInLeft 0.22s ease both; }
 .anim-fade-up   { animation: fadeUp 0.22s ease both; }
 .anim-scale-in  { animation: fadeScale 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* ── Pase de lista por tarjetas (portal docente) ──
+   Solo se animan transform y opacity para sostener 60fps en gama media. */
+@keyframes plFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes plCheckPop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes plCheckOnda {
+  0%   { opacity: 0.35; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(1.6); }
+}
+.pl-check-pop  { animation: plCheckPop 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pl-check-onda { animation: plCheckOnda 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both; }
+
+/* Mazo de tarjetas. La saliente parte de donde la dejó el dedo (--pl-x0/--pl-r0)
+   y viaja hacia --pl-x1/--pl-y1/--pl-r1 según el estado marcado. Las de entrada
+   no usan fill-mode "forwards": al terminar, el swipe vuelve a poder escribir
+   `transform` inline sobre la tarjeta. */
+@keyframes plSalir {
+  from { opacity: 1; transform: translate3d(var(--pl-x0, 0px), 0, 0) rotate(var(--pl-r0, 0deg)); }
+  to   { opacity: 0; transform: translate3d(var(--pl-x1, 0px), var(--pl-y1, 0px), 0) rotate(var(--pl-r1, 0deg)) scale(0.96); }
+}
+@keyframes plEntrarAdelante {
+  from { opacity: 0.85; transform: translate3d(0, 6px, 0) scale(0.96); }
+  to   { opacity: 1;   transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes plEntrarAtras {
+  from { opacity: 0; transform: translate3d(-55%, 0, 0) rotate(-4deg); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes plFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes plDestello {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.pl-destello        { animation: plDestello 420ms ease-out forwards; }
+.pl-salir           { animation: plSalir 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.pl-entrar-adelante { animation: plEntrarAdelante 280ms cubic-bezier(0.22, 1, 0.36, 1); }
+.pl-entrar-atras    { animation: plEntrarAtras 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-check-pop  { animation: plFade 120ms ease-out both; }
+  .pl-check-onda { animation: none; opacity: 0; }
+  .pl-salir      { animation: plFadeOut 120ms ease-out forwards; }
+  .pl-entrar-adelante,
+  .pl-entrar-atras { animation: plFade 120ms ease-out; }
+}
 
 /* Dashboard: a single, restrained cue for a newly refreshed assisted insight. */
 @keyframes dashboardInsightPulse {
@@ -613,3 +681,113 @@ button, a {
 }
 .btn-danger:hover:not(:disabled) { background: #7f221d; }
 .Toastify__slide-enter--bottom-right { animation-duration: 0.15s !important; }
+
+/* ── Finanzas: sistema visual compartido para egresos y CxP ──
+   Las pantallas comparten datos sensibles y densos. Esta capa reduce el
+   ruido visual, crea una jerarquía estable y hace que filtros, resultados y
+   resúmenes se lean como una misma familia de herramientas. */
+.finance-module {
+  --finance-line: color-mix(in srgb, var(--pb) 12%, var(--border));
+}
+.finance-navigation { margin-bottom: 1.25rem; padding: .5rem; border: 1px solid var(--finance-line); border-radius: var(--radius-card); background: color-mix(in srgb, var(--surface) 92%, var(--pb-light)); box-shadow: 0 2px 8px rgba(43,48,58,.035); }
+.finance-navigation__modules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .375rem; }
+.finance-navigation__module { display: flex; align-items: center; gap: .65rem; min-width: 0; padding: .625rem .75rem; border: 1px solid transparent; border-radius: 10px; color: #687993; }
+.finance-navigation__module span { min-width: 0; display: grid; gap: .06rem; }
+.finance-navigation__module strong { font-size: .8125rem; font-weight: 650; color: var(--jet-mid); }
+.finance-navigation__module small { overflow: hidden; font-size: .6875rem; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; color: var(--ash); }
+.finance-navigation__module:hover { background: rgba(15,163,177,.07); color: var(--pb-mid); }
+.finance-navigation__module.is-active { border-color: rgba(15,163,177,.22); background: var(--surface); box-shadow: 0 1px 3px rgba(43,48,58,.07); color: var(--pb-mid); }
+.finance-navigation__module.is-active strong { color: var(--pb-mid); }
+.finance-navigation__views { display: flex; gap: .125rem; overflow-x: auto; margin-top: .5rem; padding: .375rem .125rem 0; border-top: 1px solid var(--finance-line); }
+.finance-navigation__view { display: inline-flex; align-items: center; flex: 0 0 auto; gap: .375rem; min-height: 32px; padding: .375rem .625rem; border-radius: 8px; color: #687993; font-size: .75rem; font-weight: 500; }
+.finance-navigation__view:hover { background: rgba(15,163,177,.08); color: var(--pb-mid); }
+.finance-navigation__view.is-active { background: var(--pb-light); color: var(--pb-mid); font-weight: 650; }
+.finance-module > div > .mb-\[var\(--gap-section\)\] h1 {
+  letter-spacing: -.035em;
+}
+.finance-module .input,
+.finance-module select,
+.finance-module input:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--pb) 18%, var(--border-md));
+  background: color-mix(in srgb, var(--surface) 96%, var(--pb-light));
+}
+.finance-module .input:hover,
+.finance-module select:hover,
+.finance-module input:not([type="checkbox"]):not([type="radio"]):hover {
+  border-color: color-mix(in srgb, var(--pb) 45%, var(--border-md));
+}
+.finance-module .rounded-xl.border,
+.finance-module .rounded-\[var\(--radius-card\)\].border {
+  box-shadow: var(--shadow-sm);
+}
+.finance-module table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.finance-module table thead {
+  background: color-mix(in srgb, var(--pb-light) 42%, var(--surface));
+  border-bottom: 1px solid var(--finance-line);
+  color: #5c718e;
+}
+.finance-module table thead th {
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .055em;
+}
+.finance-module table tbody tr {
+  border-color: var(--finance-line);
+}
+.finance-module table tbody tr:hover {
+  background: color-mix(in srgb, var(--pb-light) 38%, var(--surface)) !important;
+}
+.finance-module .text-\[var\(--ash\)\] {
+  color: #687993;
+}
+.finance-module .bg-\[var\(--surface\)\] {
+  background-color: var(--surface);
+}
+.finance-module .rounded-xl.border.p-4,
+.finance-module .rounded-\[var\(--radius-card\)\].border.p-4 {
+  border-color: var(--finance-line);
+}
+.finance-module .sticky.bottom-2 {
+  box-shadow: var(--shadow-lg);
+  border: 1px solid color-mix(in srgb, var(--pb) 45%, transparent);
+}
+.finance-module input[type="checkbox"] {
+  accent-color: var(--pb);
+  width: 1rem;
+  height: 1rem;
+}
+.finance-module .btn-primary {
+  box-shadow: 0 5px 12px rgba(15,163,177,.18);
+}
+.finance-module .btn-primary:hover:not(:disabled) {
+  box-shadow: 0 7px 18px rgba(15,163,177,.24);
+}
+
+/* Tablero: las alertas conservan su semántica, con tonos contenidos. */
+.finance-module [class*="bg-[var(--red-light)]"] { border-color: rgba(158,43,37,.28); }
+.finance-module [class*="bg-[var(--yellow-light)]"] { border-color: rgba(217,119,6,.30); }
+.finance-module [class*="bg-[var(--pb-light)]"] { border-color: rgba(15,163,177,.25); }
+
+/* Calendario: celdas más tranquilas, legibles y claramente interactuables. */
+.finance-module .md\:grid-cols-7 > button {
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+.finance-module .md\:grid-cols-7 > button:hover {
+  box-shadow: inset 0 0 0 1px rgba(15,163,177,.22);
+}
+.finance-module .md\:grid-cols-7 > button > p:first-child {
+  color: var(--jet-mid);
+  font-weight: 650;
+}
+
+@media (min-width: 1024px) {
+  .finance-module > div {
+    max-width: 1440px;
+    margin-inline: auto;
+  }
+}
+@media (max-width: 640px) { .finance-navigation__module { padding: .5rem; } .finance-navigation__module small { display: none; } .finance-navigation__module strong { font-size: .75rem; } }

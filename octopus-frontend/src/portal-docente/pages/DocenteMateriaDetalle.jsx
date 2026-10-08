@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
@@ -6,16 +6,23 @@ import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../utils/datepickerPortal';
-import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, FileText, Save, Loader2, Plus, AlertTriangle, Users, ClipboardList, TrendingUp, TrendingDown, CloudOff, RefreshCw, CalendarDays, ChevronDown } from 'lucide-react';
 
-import { getMateria, getLapsos, getNotasGrado, saveNotas, getAsistencia, saveAsistencia } from '../api/academico.service';
+import { getMateria, getLapsos, getNotasGrado, saveNotas } from '../api/academico.service';
 import { useDocenteMateriales } from '../hooks/useDocenteMateriales';
 import { useDocenteComparacionMateria } from '../hooks/useDocenteComparacionMateria';
+import { useAsistenciaClase } from '../hooks/useAsistenciaClase';
+import { useBorradorAsistencia } from '../hooks/useBorradorAsistencia';
+import { enviarPendientes, usePendienteEnvio } from '../utils/colaAsistencia';
 import { calcDefinitiva } from '../../utils/notas.utils';
-import { ESTADO, ESTADO_A_BACKEND, BACKEND_A_ESTADO } from '../../constants/asistencia';
 import { TablaNotas } from '../../components/notas/TablaNotas';
 import FilaAlumno from '../../components/asistencia/FilaAlumno';
 import SkeletonFila from '../../components/asistencia/SkeletonFila';
+import PaseListaTarjetas from '../../components/asistencia/PaseListaTarjetas';
+import AvisoBorrador from '../../components/asistencia/AvisoBorrador';
+import SelectorVistaAsistencia from '../../components/asistencia/SelectorVistaAsistencia';
+import { useVistaAsistencia, VISTA } from '../../components/asistencia/useVistaAsistencia';
+import { Modal } from '../../components/ui/Modal';
 import TarjetaMaterial from '../../components/materiales/TarjetaMaterial';
 import ModalNuevoMaterial from '../../components/materiales/ModalNuevoMaterial';
 import SkeletonCard from '../../portal/components/SkeletonCard';
@@ -28,20 +35,26 @@ const TABS = [
   { id: 'material', label: 'Material', icon: FileText },
 ];
 
-function normalizeRegistro(r) {
-  if (r.estado && BACKEND_A_ESTADO[r.estado]) {
-    return { ...r, estado: BACKEND_A_ESTADO[r.estado] };
-  }
-  return {
-    ...r,
-    estado: r.presente === true && !r.justificada ? ESTADO.PRESENTE
-          : r.justificada                          ? ESTADO.JUSTIFICADO
-          : r.presente === false                   ? ESTADO.AUSENTE
-          : ESTADO.SIN_MARCAR,
-  };
-}
-
 const TAB_IDS = TABS.map(t => t.id);
+
+// Fecha del pase como botón compacto ("mié 7 oct ▾") para que entre en la
+// misma fila que Tarjetas|Lista en 360px. react-datepicker inyecta value/onClick.
+const BotonFecha = forwardRef(function BotonFecha({ value, onClick }, ref) {
+  return (
+    <button
+      ref={ref}
+      id="docente-fecha-asistencia"
+      type="button"
+      onClick={onClick}
+      aria-label={`Fecha del pase: ${value}`}
+      className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-3 text-sm font-medium text-[var(--jet)] transition-colors hover:border-[var(--border-md)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--docente-primary)]/30"
+    >
+      <CalendarDays size={15} className="hidden text-[var(--ash)] sm:block" aria-hidden="true" />
+      <span className="whitespace-nowrap">{value}</span>
+      <ChevronDown size={15} className="text-[var(--ash)]" aria-hidden="true" />
+    </button>
+  );
+});
 
 const DocenteMateriaDetalle = () => {
   const { materiaId } = useParams();
@@ -152,84 +165,76 @@ const DocenteMateriaDetalle = () => {
 
   // ── Tab Asistencia ────────────────────────────────────────────────────
   const [fechaAsistencia, setFechaAsistencia] = useState(new Date());
-  const [registros, setRegistros] = useState([]);
-  const [loadingAsistencia, setLoadingAsistencia] = useState(false);
-  const [savingAsistencia, setSavingAsistencia] = useState(false);
-  const [dirtyAsistencia, setDirtyAsistencia] = useState(false);
-  const abortAsistenciaRef = useRef(null);
+  const {
+    registros,
+    loadingAsistencia,
+    savingAsistencia,
+    dirtyAsistencia,
+    marcar,
+    actualizarObservacion,
+    restaurarRegistro,
+    aplicarCambios,
+    guardarAsistencia: guardarEnServidor,
+    conteos,
+    sinMarcar,
+  } = useAsistenciaClase(materia?.grado_seccion, fechaAsistencia, tab === 'asistencia');
 
-  const fetchAsistencia = useCallback(async () => {
-    if (!materia?.grado_seccion || !fechaAsistencia) return;
-    abortAsistenciaRef.current?.abort();
-    const controller = new AbortController();
-    abortAsistenciaRef.current = controller;
+  const borrador = useBorradorAsistencia({
+    gradoSeccion: materia?.grado_seccion,
+    fecha: fechaAsistencia,
+    registros,
+    dirty: dirtyAsistencia,
+    loading: loadingAsistencia || loadingMateria,
+    onAplicar: aplicarCambios,
+  });
 
-    setLoadingAsistencia(true);
-    setDirtyAsistencia(false);
-    try {
-      const fechaStr = format(fechaAsistencia, 'yyyy-MM-dd');
-      const res = await getAsistencia(materia.grado_seccion, fechaStr, controller.signal);
-      if (controller.signal.aborted) return;
-      setRegistros((res.data || []).map(normalizeRegistro));
-    } catch (err) {
-      if (err.code === 'ERR_CANCELED' || controller.signal.aborted) return;
-      toast.error('No se pudo cargar la asistencia.');
-    } finally {
-      if (!controller.signal.aborted) setLoadingAsistencia(false);
-    }
-  }, [materia?.grado_seccion, fechaAsistencia]);
+  const pendienteEnvio = usePendienteEnvio(materia?.grado_seccion, format(fechaAsistencia, 'yyyy-MM-dd'));
 
-  useEffect(() => { if (tab === 'asistencia') fetchAsistencia(); }, [tab, fetchAsistencia]);
-
-  const marcar = useCallback((alumnoId, estado) => {
-    setDirtyAsistencia(true);
-    setRegistros(prev => prev.map(r => {
-      if (r.alumno_id !== alumnoId) return r;
-      return {
-        ...r,
-        estado,
-        presente: estado === ESTADO.PRESENTE || estado === ESTADO.RETARDADO,
-        justificada: estado === ESTADO.JUSTIFICADO,
-        observacion: estado === ESTADO.PRESENTE ? '' : r.observacion,
-      };
-    }));
-  }, []);
-
-  const actualizarObservacion = useCallback((alumnoId, valor) => {
-    setDirtyAsistencia(true);
-    setRegistros(prev => prev.map(r => (r.alumno_id !== alumnoId ? r : { ...r, observacion: valor })));
-  }, []);
-
+  // Guardar = enviar al servidor y, si salió bien, borrar el borrador local.
+  // Si quedó en cola por falta de conexión, el borrador se conserva.
   const guardarAsistencia = async () => {
-    setSavingAsistencia(true);
-    try {
-      const fechaStr = format(fechaAsistencia, 'yyyy-MM-dd');
-      const payload = registros.map(r => ({
-        alumno_id: r.alumno_id,
-        estado: ESTADO_A_BACKEND[r.estado] || 'A',
-        observacion: r.observacion || '',
-      }));
-      await saveAsistencia(materia.grado_seccion, fechaStr, payload);
-      toast.success('Asistencia guardada correctamente.');
-      setDirtyAsistencia(false);
-    } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Error al guardar asistencia.';
-      toast.error(msg);
-    } finally {
-      setSavingAsistencia(false);
+    const resultado = await guardarEnServidor();
+    if (resultado === true) borrador.limpiar();
+    return resultado;
+  };
+
+  const [vistaAsistencia, cambiarVistaAsistencia] = useVistaAsistencia('docente_asistencia_vista');
+  const barraAsistenciaRef = useRef(null);
+
+  // Protección de cambios sin guardar: salir, cambiar de pestaña o de fecha
+  // queda en espera hasta que el docente decide en el modal. Los links del
+  // layout (rail/bottom nav) no se pueden interceptar con BrowserRouter
+  // (ver NOTAS_TECNICAS.md); recargar o cerrar lo cubre `beforeunload`.
+  const [accionPendiente, setAccionPendiente] = useState(null);
+  const hayCambiosAsistencia = tab === 'asistencia' && dirtyAsistencia;
+  const confirmarSiHayCambios = (accion) => {
+    if (hayCambiosAsistencia) setAccionPendiente(() => accion);
+    else accion();
+  };
+  const cerrarConfirmacion = useCallback(() => setAccionPendiente(null), []);
+  const descartarYContinuar = () => {
+    const accion = accionPendiente;
+    setAccionPendiente(null);
+    borrador.limpiar();
+    accion?.();
+  };
+  const guardarYContinuar = async () => {
+    const accion = accionPendiente;
+    if (await guardarAsistencia()) {
+      setAccionPendiente(null);
+      accion?.();
     }
   };
 
-  const conteos = useMemo(
-    () => registros.reduce((acc, r) => {
-      if (r.estado === ESTADO.PRESENTE) acc.presentes++;
-      else if (r.estado === ESTADO.AUSENTE) acc.ausentes++;
-      else if (r.estado === ESTADO.JUSTIFICADO) acc.justificados++;
-      else if (r.estado === ESTADO.RETARDADO) acc.retardados++;
-      return acc;
-    }, { presentes: 0, ausentes: 0, justificados: 0, retardados: 0 }),
-    [registros]
-  );
+  useEffect(() => {
+    if (!hayCambiosAsistencia) return undefined;
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hayCambiosAsistencia]);
 
   // ── Tab Material ──────────────────────────────────────────────────────
   const { materiales, loading: loadingMateriales, publicarMaterial, eliminarMaterial } = useDocenteMateriales(materiaId);
@@ -238,8 +243,8 @@ const DocenteMateriaDetalle = () => {
   return (
     <div className="space-y-4 pb-20">
       <button
-        onClick={() => navigate('/portal-docente/materias')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 min-h-[44px]"
+        onClick={() => confirmarSiHayCambios(() => navigate('/portal-docente/materias'))}
+        className="flex items-center gap-1.5 text-sm text-[var(--ash)] min-h-[44px]"
       >
         <ArrowLeft size={16} /> Mis Materias
       </button>
@@ -249,23 +254,23 @@ const DocenteMateriaDetalle = () => {
           <SkeletonCard lines={1} />
         ) : (
           <>
-            <h1 className="text-lg font-bold text-gray-800">{materia?.nombre}</h1>
-            <p className="text-xs text-gray-400 mt-0.5">{materia?.grado_seccion}</p>
+            <h1 className="text-lg font-bold text-[var(--jet)]">{materia?.nombre}</h1>
+            <p className="text-xs text-[var(--ash)] mt-0.5">{materia?.grado_seccion}</p>
           </>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1 border-b border-[var(--border)] overflow-x-auto">
         {TABS.map(t => {
           const Icon = t.icon;
           const activo = tab === t.id;
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => { if (!activo) confirmarSiHayCambios(() => setTab(t.id)); }}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium min-h-[44px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                activo ? 'text-[var(--docente-primary)] border-[var(--docente-primary)]' : 'text-gray-400 border-transparent'
+                activo ? 'text-[var(--docente-primary)] border-[var(--docente-primary)]' : 'text-[var(--ash)] border-transparent'
               }`}
             >
               <Icon size={15} /> {t.label}
@@ -277,10 +282,10 @@ const DocenteMateriaDetalle = () => {
       {tab === 'notas' && (
         <div className="space-y-4">
           <div>
-            <label htmlFor="docente-lapso" className="block text-xs font-medium text-gray-500 mb-1.5">Lapso</label>
+            <label htmlFor="docente-lapso" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Lapso</label>
             <select
               id="docente-lapso"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={lapsoId}
               onChange={e => setLapsoId(e.target.value)}
             >
@@ -292,23 +297,23 @@ const DocenteMateriaDetalle = () => {
               ))}
             </select>
             {lapsoSeleccionado && !lapsoSeleccionado.activo && (
-              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-red-600">
+              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-[var(--red)]">
                 <AlertTriangle size={11} /> Este lapso está cerrado — las notas son de solo lectura
               </p>
             )}
           </div>
 
           {lapsoId && comparacion && comparacion.otras_secciones_count > 0 && (
-            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+            <p className="text-xs text-[var(--ash)] flex items-center gap-1.5">
               {comparacion.porcentaje_propio >= comparacion.porcentaje_otras_secciones
-                ? <TrendingUp size={13} className="text-emerald-600 flex-shrink-0" />
-                : <TrendingDown size={13} className="text-amber-600 flex-shrink-0" />}
+                ? <TrendingUp size={13} className="text-[var(--green)] flex-shrink-0" />
+                : <TrendingDown size={13} className="text-[var(--yellow)] flex-shrink-0" />}
               Tu sección aprueba {comparacion.porcentaje_propio}%, el promedio de otras secciones de {comparacion.materia_nombre} es {comparacion.porcentaje_otras_secciones}%
             </p>
           )}
 
           {!lapsoId ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
               <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Selecciona un lapso para ver las notas.</p>
             </div>
@@ -335,71 +340,125 @@ const DocenteMateriaDetalle = () => {
 
       {tab === 'asistencia' && (
         <div className="space-y-4">
-          <div>
-            <label htmlFor="docente-fecha-asistencia" className="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
+          {/* Una sola fila también en 360px (como el boceto aprobado): son dos
+              controles cortos. flex-wrap evita scroll horizontal si no cupieran. */}
+          <div
+            ref={barraAsistenciaRef}
+            className={`flex scroll-mt-16 flex-wrap items-center justify-between gap-2 ${vistaAsistencia === VISTA.TARJETAS ? 'mx-auto w-full max-w-md' : ''}`}
+          >
+            <SelectorVistaAsistencia vista={vistaAsistencia} onCambiar={cambiarVistaAsistencia} />
+
             <DatePicker
               selected={fechaAsistencia}
-              onChange={setFechaAsistencia}
+              onChange={(fecha) => { if (fecha) confirmarSiHayCambios(() => setFechaAsistencia(fecha)); }}
               locale={es}
-              dateFormat="dd/MM/yyyy"
+              dateFormat="EEE d MMM"
               maxDate={new Date()}
-              wrapperClassName="w-full"
+              wrapperClassName="!w-auto shrink-0"
+              popperPlacement="bottom-end"
               popperContainer={datepickerPopperContainer}
-              customInput={
-                <input
-                  id="docente-fecha-asistencia"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
-                />
-              }
+              customInput={<BotonFecha />}
             />
           </div>
 
-          {!loadingAsistencia && registros.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {[
-                { key: 'presentes', label: 'Presentes', color: 'text-green-600', bg: 'bg-green-50' },
-                { key: 'ausentes', label: 'Ausentes', color: 'text-red-600', bg: 'bg-red-50' },
-                { key: 'justificados', label: 'Justif.', color: 'text-yellow-700', bg: 'bg-yellow-50' },
-              ].map(({ key, label, color, bg }) => (
-                <div key={key} className={`flex items-center gap-2 p-2.5 rounded-xl ${bg}`}>
-                  <Users size={15} className={color} />
-                  <div>
-                    <p className={`text-sm font-bold leading-none ${color}`}>{conteos[key]}</p>
-                    <p className={`text-[10px] ${color}`}>{label}</p>
-                  </div>
-                </div>
-              ))}
+          {pendienteEnvio && (
+            <div role="status" className="flex flex-col gap-2 rounded-2xl p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4" style={{ background: '#fef3c7' }}>
+              <p className="flex items-start gap-2 text-sm" style={{ color: '#854d0e' }}>
+                <CloudOff size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span><strong className="font-semibold">Pendiente de envío.</strong> Se mandará sola cuando vuelva la conexión.</span>
+              </p>
+              <button
+                type="button"
+                onClick={enviarPendientes}
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold transition-transform active:scale-[0.97] sm:ml-auto"
+                style={{ color: '#854d0e' }}
+              >
+                <RefreshCw size={15} aria-hidden="true" /> Reintentar ahora
+              </button>
             </div>
           )}
 
-          <div className="space-y-2">
-            {loadingAsistencia ? (
-              [...Array(5)].map((_, i) => <SkeletonFila key={i} />)
-            ) : registros.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
-                <p className="text-sm">No hay alumnos registrados en esta sección.</p>
-              </div>
-            ) : (
-              registros.map((r, i) => (
-                <FilaAlumno
-                  key={`${r.alumno_id}-${i}`}
-                  registro={r}
-                  onMarcar={marcar}
-                  onObservacion={actualizarObservacion}
-                />
-              ))
-            )}
-          </div>
+          {borrador.pendiente && !pendienteEnvio && (
+            <AvisoBorrador
+              borrador={borrador.pendiente}
+              onRecuperar={borrador.recuperar}
+              onDescartar={borrador.descartar}
+            />
+          )}
 
-          {dirtyAsistencia && registros.length > 0 && (
-            <button
-              onClick={guardarAsistencia}
-              disabled={savingAsistencia}
-              className="w-full flex items-center justify-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50 min-h-[44px]"
-            >
-              {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              {savingAsistencia ? 'Guardando...' : 'Guardar asistencia'}
-            </button>
+          {vistaAsistencia === VISTA.TARJETAS ? (
+            <PaseListaTarjetas
+              key={`${materia?.grado_seccion}-${format(fechaAsistencia, 'yyyy-MM-dd')}`}
+              registros={registros}
+              loading={loadingAsistencia || loadingMateria}
+              titulo={materia?.nombre}
+              subtitulo={materia?.grado_seccion}
+              fecha={fechaAsistencia}
+              dirty={dirtyAsistencia}
+              saving={savingAsistencia}
+              onMarcar={marcar}
+              onObservacion={actualizarObservacion}
+              onRestaurar={restaurarRegistro}
+              onGuardar={guardarAsistencia}
+              anclaScrollRef={barraAsistenciaRef}
+            />
+          ) : (
+            <>
+            {!loadingAsistencia && registros.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'presentes', label: 'Presentes', color: 'text-[var(--green)]', bg: 'bg-[var(--green-light)]' },
+                  { key: 'ausentes', label: 'Ausentes', color: 'text-[var(--red)]', bg: 'bg-[var(--red-light)]' },
+                  { key: 'justificados', label: 'Justif.', color: 'text-[var(--yellow)]', bg: 'bg-[var(--yellow-light)]' },
+                ].map(({ key, label, color, bg }) => (
+                  <div key={key} className={`flex items-center gap-2 p-2.5 rounded-xl ${bg}`}>
+                    <Users size={15} className={color} />
+                    <div>
+                      <p className={`text-sm font-bold leading-none ${color}`}>{conteos[key]}</p>
+                      <p className={`text-xs ${color}`}>{label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {loadingAsistencia ? (
+                [...Array(5)].map((_, i) => <SkeletonFila key={i} />)
+              ) : registros.length === 0 ? (
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
+                  <p className="text-sm">No hay alumnos registrados en esta sección.</p>
+                </div>
+              ) : (
+                registros.map((r, i) => (
+                  <FilaAlumno
+                    key={`${r.alumno_id}-${i}`}
+                    registro={r}
+                    onMarcar={marcar}
+                    onObservacion={actualizarObservacion}
+                  />
+                ))
+              )}
+            </div>
+
+            {dirtyAsistencia && registros.length > 0 && (
+              <div className="space-y-2">
+                {sinMarcar > 0 && (
+                  <p className="text-xs text-center text-[var(--ash)]">
+                    Falta{sinMarcar === 1 ? '' : 'n'} {sinMarcar} alumno{sinMarcar === 1 ? '' : 's'} por marcar para poder guardar.
+                  </p>
+                )}
+                <button
+                  onClick={guardarAsistencia}
+                  disabled={savingAsistencia || sinMarcar > 0}
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--docente-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50 min-h-[44px]"
+                >
+                  {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {savingAsistencia ? 'Guardando...' : 'Guardar asistencia'}
+                </button>
+              </div>
+            )}
+            </>
           )}
         </div>
       )}
@@ -407,10 +466,10 @@ const DocenteMateriaDetalle = () => {
       {tab === 'plan-evaluacion' && (
         <div className="space-y-4">
           <div>
-            <label htmlFor="docente-lapso-plan" className="block text-xs font-medium text-gray-500 mb-1.5">Lapso</label>
+            <label htmlFor="docente-lapso-plan" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Lapso</label>
             <select
               id="docente-lapso-plan"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
               value={lapsoId}
               onChange={e => setLapsoId(e.target.value)}
             >
@@ -422,14 +481,14 @@ const DocenteMateriaDetalle = () => {
               ))}
             </select>
             {lapsoSeleccionado && !lapsoSeleccionado.activo && (
-              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-red-600">
+              <p className="text-[11px] mt-1.5 flex items-center gap-1 text-[var(--red)]">
                 <AlertTriangle size={11} /> Este lapso está cerrado — el plan y las notas son de solo lectura
               </p>
             )}
           </div>
 
           {!lapsoId ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
               <ClipboardList size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Selecciona un lapso para ver el plan de evaluación.</p>
             </div>
@@ -458,7 +517,7 @@ const DocenteMateriaDetalle = () => {
               {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={1} />)}
             </div>
           ) : materiales.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-10 text-center text-[var(--ash)]">
               <FileText size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Todavía no hay material publicado.</p>
             </div>
@@ -471,6 +530,50 @@ const DocenteMateriaDetalle = () => {
           )}
         </div>
       )}
+
+      <Modal
+        open={accionPendiente !== null}
+        onClose={cerrarConfirmacion}
+        size="sm"
+        titulo={<><AlertTriangle size={18} aria-hidden="true" /> Cambios sin guardar</>}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={cerrarConfirmacion}
+              className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-medium text-[var(--jet-mid)] hover:bg-[var(--ash-light)] transition-colors"
+            >
+              Seguir editando
+            </button>
+            <button
+              type="button"
+              onClick={descartarYContinuar}
+              className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--red-light)]"
+              style={{ color: 'var(--red)', boxShadow: 'inset 0 0 0 1px var(--red-light)' }}
+            >
+              Descartar cambios
+            </button>
+            <button
+              type="button"
+              onClick={guardarYContinuar}
+              disabled={savingAsistencia || sinMarcar > 0}
+              className="w-full sm:w-auto min-h-[44px] px-4 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-50"
+            >
+              {savingAsistencia ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {savingAsistencia ? 'Guardando...' : 'Guardar y continuar'}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm" style={{ color: 'var(--jet)' }}>
+          Hay asistencia marcada que todavía no se guardó. Si continúas sin guardar, esos cambios se pierden.
+        </p>
+        {sinMarcar > 0 && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--jet-mid)' }}>
+            Para guardar, primero marca a {sinMarcar === 1 ? 'el alumno que falta' : `los ${sinMarcar} alumnos que faltan`}.
+          </p>
+        )}
+      </Modal>
 
       {modalMaterial && (
         <ModalNuevoMaterial onClose={() => setModalMaterial(false)} onSubmit={publicarMaterial} />

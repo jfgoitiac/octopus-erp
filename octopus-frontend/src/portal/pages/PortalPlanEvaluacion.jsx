@@ -53,11 +53,11 @@ export default function PortalPlanEvaluacion() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <ClipboardList size={20} style={{ color: 'var(--portal-primary, #0fa3b1)' }} />
+        <h1 className="text-xl font-bold text-[var(--jet)] flex items-center gap-2">
+          <ClipboardList size={20} style={{ color: 'var(--portal-primary)' }} />
           Plan de evaluación
         </h1>
-        <p className="text-xs text-gray-400 mt-0.5">Actividades, fechas y calificaciones registradas</p>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Actividades, fechas y calificaciones registradas</p>
       </div>
 
       {loadingAlumnos ? <SkeletonCard lines={1} /> : (
@@ -71,26 +71,26 @@ export default function PortalPlanEvaluacion() {
 
 function plansContent(planes) {
   if (!planes.length) {
-    return <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-400">Aún no hay planes de evaluación publicados para este estudiante.</div>;
+    return <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-8 text-center text-sm text-[var(--ash)]">Aún no hay planes de evaluación publicados para este estudiante.</div>;
   }
   return planes.map((plan) => (
-    <section key={plan.plan_id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+    <section key={plan.plan_id} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-gray-800">{plan.materia}</h2>
-          <p className="text-xs text-gray-400">{plan.lapso}</p>
+          <h2 className="font-semibold text-[var(--jet)]">{plan.materia}</h2>
+          <p className="text-xs text-[var(--ash)]">{plan.lapso}</p>
         </div>
-        <span className="text-[11px] rounded-full bg-slate-100 px-2 py-1 text-slate-600">{plan.tipo_evaluacion === 'literal' ? 'Literal' : 'Numérica'}</span>
+        <span className="text-xs rounded-full bg-[var(--surface-sunken)] px-2 py-1 text-[var(--jet-mid)]">{plan.tipo_evaluacion === 'literal' ? 'Literal' : 'Numérica'}</span>
       </div>
       {plan.bloques.map((bloque) => (
-        <div key={bloque.id} className="rounded-xl bg-slate-50 p-3">
-          <p className="text-sm font-medium text-gray-700">{bloque.nombre}</p>
-          <ul className="mt-2 divide-y divide-slate-200">
+        <div key={bloque.id} className="rounded-xl bg-[var(--surface-sunken)] p-3">
+          <p className="text-sm font-medium text-[var(--jet-mid)]">{bloque.nombre}</p>
+          <ul className="mt-2 divide-y divide-[var(--border)]">
             {bloque.items.map((item) => {
               const nota = plan.tipo_evaluacion === 'literal' ? item.valor_letra : item.valor_numerico;
               return <li key={item.id} className="flex items-center justify-between gap-3 py-2 text-xs">
-                <div><p className="text-gray-700">{item.nombre}</p><p className="text-gray-400 flex items-center gap-1"><CalendarDays size={11} />{fecha(item.fecha)}</p></div>
-                <span className="font-semibold text-gray-700 whitespace-nowrap">{nota ?? 'Pendiente'}{plan.tipo_evaluacion !== 'literal' && nota != null && item.valor_maximo != null ? ` / ${item.valor_maximo}` : ''}</span>
+                <div><p className="text-[var(--jet-mid)]">{item.nombre}</p><p className="text-[var(--ash)] flex items-center gap-1"><CalendarDays size={11} />{fecha(item.fecha)}</p></div>
+                <span className="font-semibold text-[var(--jet-mid)] whitespace-nowrap">{nota ?? 'Pendiente'}{plan.tipo_evaluacion !== 'literal' && nota != null && item.valor_maximo != null ? ` / ${item.valor_maximo}` : ''}</span>
               </li>;
             })}
           </ul>

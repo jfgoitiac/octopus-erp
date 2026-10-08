@@ -41,7 +41,7 @@ const AnularAbonoModal = ({ abono, onClose, onAnulado }) => {
           <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl text-sm min-h-[40px]" style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
             Cancelar
           </button>
-          <button type="button" onClick={confirmar} disabled={guardando} className="px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[40px] disabled:opacity-60" style={{ background: '#dc2626' }}>
+          <button type="button" onClick={confirmar} disabled={guardando} className="px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[40px] disabled:opacity-60" style={{ background: 'var(--red)' }}>
             {guardando ? 'Anulando…' : 'Anular abono'}
           </button>
         </>
@@ -50,7 +50,7 @@ const AnularAbonoModal = ({ abono, onClose, onAnulado }) => {
       <p className="text-sm mb-3" style={{ color: 'var(--jet)' }}>
         Se anulará el abono de <strong>{fmtUsd(abono?.total_usd)}</strong> y las deudas que cubría volverán a quedar pendientes.
       </p>
-      <label htmlFor="cxc-anular-motivo" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+      <label htmlFor="cxc-anular-motivo" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
         Motivo
       </label>
       <textarea

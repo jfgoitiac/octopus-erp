@@ -4,7 +4,7 @@
  */
 export const SkeletonLine = ({ width = 'w-full', height = 'h-4', className = '' }) => (
   <div
-    className={`animate-pulse bg-gray-200 rounded ${width} ${height} ${className}`}
+    className={`animate-pulse bg-[var(--surface-sunken)] rounded ${width} ${height} ${className}`}
   />
 );
 
@@ -13,7 +13,7 @@ export const SkeletonLine = ({ width = 'w-full', height = 'h-4', className = '' 
  * Props: lines (número de líneas), className
  */
 const SkeletonCard = ({ lines = 3, className = '' }) => (
-  <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3 ${className}`}>
+  <div className={`bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-3 ${className}`}>
     <SkeletonLine width="w-2/5" height="h-3" />
     {Array.from({ length: lines }).map((_, i) => (
       <SkeletonLine

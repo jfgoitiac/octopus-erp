@@ -628,3 +628,15 @@ class ConsultasTests(CxcBase):
         self.assertEqual(
             self.client_cajero.get(f'{BASE}abonos/00000000-0000-0000-0000-000000000000/recibo/').status_code, 404,
         )
+
+    def test_punto_de_venta_misma_referencia_distinto_lote_no_es_duplicado(self):
+        VentaCantina.objects.create(
+            cajero=self.cajero, metodo_pago='punto_de_venta', area='libreria', banco_receptor=self.banco,
+            referencia='1234', numero_lote='0001', total_usd=Decimal('1'),
+            tasa_aplicada=Decimal('40'), total_ves=Decimal('40'),
+        )
+        kw = dict(metodo_pago='punto_de_venta', banco_receptor_id=self.banco.id)
+        self.assertIsNone(buscar_referencia_duplicada('1234', numero_lote='0002', **kw))
+        self.assertEqual(
+            buscar_referencia_duplicada('1234', numero_lote='0001', **kw)['origen'], 'cantina.VentaCantina',
+        )

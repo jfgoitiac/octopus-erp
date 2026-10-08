@@ -176,7 +176,7 @@ export default function CantinaReportes() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cantinareportes-desde" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Desde
           </label>
           <DatePicker
@@ -187,11 +187,11 @@ export default function CantinaReportes() {
             maxDate={parseLocalDate(fechaFin) || new Date()}
             wrapperClassName="w-36"
             popperContainer={datepickerPopperContainer}
-            customInput={<input className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
+            customInput={<input id="cantinareportes-desde" className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cantinareportes-hasta" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Hasta
           </label>
           <DatePicker
@@ -203,14 +203,14 @@ export default function CantinaReportes() {
             maxDate={new Date()}
             wrapperClassName="w-36"
             popperContainer={datepickerPopperContainer}
-            customInput={<input className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
+            customInput={<input id="cantinareportes-hasta" className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cantinareportes-alumno-opcional" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Alumno (opcional)
           </label>
-          <input
+          <input id="cantinareportes-alumno-opcional"
             type="text"
             value={alumnoId}
             onChange={e => setAlumnoId(e.target.value)}
@@ -220,10 +220,10 @@ export default function CantinaReportes() {
           />
         </div>
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cantinareportes-caja" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Caja
           </label>
-          <select
+          <select id="cantinareportes-caja"
             value={area}
             onChange={e => setArea(e.target.value)}
             className="w-full sm:w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
@@ -235,10 +235,10 @@ export default function CantinaReportes() {
           </select>
         </div>
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="cantinareportes-cajero" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Cajero
           </label>
-          <select
+          <select id="cantinareportes-cajero"
             value={cajeroId}
             onChange={e => setCajeroId(e.target.value)}
             className="w-full sm:w-40 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"

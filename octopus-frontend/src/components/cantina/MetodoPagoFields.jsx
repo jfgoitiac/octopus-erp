@@ -20,9 +20,9 @@ import {
 // el blur) y `disabled`.
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
-const LABEL_CLASS = 'block text-[11px] uppercase tracking-widest mb-1.5';
+const LABEL_CLASS = 'block text-xs uppercase tracking-widest mb-1.5';
 const INPUT_CLASS = 'w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]';
-const ACTIVE_STYLE = { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light, #e6f7f9)' };
+const ACTIVE_STYLE = { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' };
 const IDLE_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' };
 
 // `children` es una función que recibe el id para asociar label y control.
@@ -32,12 +32,12 @@ function Campo({ label, error, children }) {
     <div className="min-w-0">
       <label htmlFor={id} className={LABEL_CLASS} style={{ color: 'var(--ash)' }}>{label}</label>
       {children(id)}
-      {error && <p className="text-[11px] mt-1" style={{ color: '#ef4444' }}>{error}</p>}
+      {error && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{error}</p>}
     </div>
   );
 }
 
-const estiloCampo = (error) => (error ? { ...FIELD_STYLE, border: '1px solid #ef4444' } : FIELD_STYLE);
+const estiloCampo = (error) => (error ? { ...FIELD_STYLE, border: '1px solid var(--red)' } : FIELD_STYLE);
 
 export default function MetodoPagoFields({
   value, onChange, bancos = [], tasa = 0, metodosPermitidos,
@@ -123,9 +123,9 @@ export default function MetodoPagoFields({
             />
           </div>
           {enVes && !(tasa > 0) ? (
-            <p className="text-[11px] mt-1" style={{ color: '#b45309' }}>No hay tasa vigente: no se puede convertir a USD.</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--amber-ink)' }}>No hay tasa vigente: no se puede convertir a USD.</p>
           ) : equivalente && (
-            <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>{equivalente} · tasa {Number(tasa).toFixed(2)}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>{equivalente} · tasa {Number(tasa).toFixed(2)}</p>
           )}
           </>)}
         </Campo>
@@ -149,7 +149,7 @@ export default function MetodoPagoFields({
                 {bancosDelMetodo.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
               </select>
               {bancosDelMetodo.length === 0 && (
-                <p className="text-[11px] mt-1" style={{ color: '#b45309' }}>No hay bancos configurados para este método.</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--amber-ink)' }}>No hay bancos configurados para este método.</p>
               )}
               </>)}
             </Campo>

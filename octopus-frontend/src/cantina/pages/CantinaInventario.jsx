@@ -8,6 +8,7 @@ import {
 import ProductosTable from '../../components/cantina/inventario/ProductosTable';
 import ProductoFormModal from '../../components/cantina/inventario/ProductoFormModal';
 import MovimientoStockModal from '../../components/cantina/inventario/MovimientoStockModal';
+import EliminarProductoModal from '../../components/cantina/inventario/EliminarProductoModal';
 import AlertaStockBajo from '../../components/cantina/inventario/AlertaStockBajo';
 
 function SkeletonTabla() {
@@ -46,6 +47,7 @@ export default function CantinaInventario() {
 
   const [modalProducto, setModalProducto]   = useState(null); // { modo: 'crear'|'editar', producto }
   const [modalMovimiento, setModalMovimiento] = useState(null); // producto
+  const [productoAEliminar, setProductoAEliminar] = useState(null); // producto
 
   const abortRef = useRef(null);
 
@@ -129,10 +131,10 @@ export default function CantinaInventario() {
   };
 
   const handleEliminarProducto = async (producto) => {
-    if (!window.confirm(`¿Eliminar el producto "${producto.nombre}"? Esta acción no se puede deshacer.`)) return;
     try {
       await eliminarProducto(producto.id);
       toast.success('Producto eliminado.');
+      setProductoAEliminar(null);
       forzarRecarga();
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -226,7 +228,7 @@ export default function CantinaInventario() {
           productos={productos}
           onEditar={(p) => setModalProducto({ modo: 'editar', producto: p })}
           onAjustar={(p) => setModalMovimiento(p)}
-          onEliminar={handleEliminarProducto}
+          onEliminar={setProductoAEliminar}
         />
       )}
 
@@ -241,6 +243,12 @@ export default function CantinaInventario() {
           )}
         />
       )}
+
+      <EliminarProductoModal
+        producto={productoAEliminar}
+        onClose={() => setProductoAEliminar(null)}
+        onConfirmar={handleEliminarProducto}
+      />
 
       {modalMovimiento && (
         <MovimientoStockModal

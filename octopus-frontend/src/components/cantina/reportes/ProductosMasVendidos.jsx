@@ -1,4 +1,5 @@
 import { Package } from 'lucide-react';
+import { TablaScroll } from '../../ui/TablaScroll';
 
 // Tabla de productos más vendidos del rango (§6/§7.4 cantina.md, FASE 7).
 // Espera `productos`: [{ producto_id, nombre, cantidad_total, monto_total }, ...]
@@ -16,7 +17,8 @@ export default function ProductosMasVendidos({ productos = [] }) {
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
-      <table className="w-full text-sm">
+      <TablaScroll>
+      <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr style={{ background: 'var(--porcelain)' }}>
             <th className="text-left px-4 py-2.5 font-medium" style={{ color: 'var(--ash)' }}>Producto</th>
@@ -38,7 +40,7 @@ export default function ProductosMasVendidos({ productos = [] }) {
                   <div className="mt-1 h-1.5 rounded-full" style={{ background: 'var(--border-md)' }}>
                     <div
                       className="h-1.5 rounded-full"
-                      style={{ width: `${pct}%`, background: 'var(--pb, #0fa3b1)' }}
+                      style={{ width: `${pct}%`, background: 'var(--pb)' }}
                     />
                   </div>
                 </td>
@@ -51,6 +53,7 @@ export default function ProductosMasVendidos({ productos = [] }) {
           })}
         </tbody>
       </table>
+      </TablaScroll>
     </div>
   );
 }

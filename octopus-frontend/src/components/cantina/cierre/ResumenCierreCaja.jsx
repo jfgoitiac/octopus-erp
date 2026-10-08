@@ -11,28 +11,28 @@ const TARJETAS = [
     label: 'Total ventas del día',
     icon: DollarSign,
     color: 'var(--pb)',
-    bg: 'var(--pb-light, #e6f7f9)',
+    bg: 'var(--pb-light)',
   },
   {
     key: 'total_tarjeta',
     label: 'Cobrado con tarjeta prepago',
     icon: CreditCard,
-    color: '#0f766e',
-    bg: '#ccfbf1',
+    color: 'var(--teal)',
+    bg: 'var(--teal-light)',
   },
   {
     key: 'total_efectivo',
     label: 'Cobrado en efectivo',
     icon: Banknote,
-    color: '#b45309',
-    bg: '#fef3c7',
+    color: 'var(--amber-ink)',
+    bg: 'var(--yellow-light)',
   },
   {
     key: 'total_recargas_efectivo',
     label: 'Recargas en efectivo',
     icon: Wallet,
-    color: '#6d28d9',
-    bg: '#ede9fe',
+    color: 'var(--violet)',
+    bg: 'var(--violet-light)',
   },
 ];
 
@@ -52,7 +52,7 @@ export default function ResumenCierreCaja({ resumen }) {
             <Icon size={20} />
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
+            <p className="text-xs uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
               {label}
             </p>
             <p className="text-2xl font-bold font-mono mt-1" style={{ color: 'var(--jet)' }}>

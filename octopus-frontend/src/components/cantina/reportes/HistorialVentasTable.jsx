@@ -119,11 +119,11 @@ export default function HistorialVentasTable({ ventas = [] }) {
                   </td>
                   <td className="px-4 py-2.5">
                     {anulada ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
                         <Ban size={11} /> Anulada
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#dcfce7', color: '#15803d' }}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'var(--green-light)', color: 'var(--green)' }}>
                         Completada
                       </span>
                     )}
