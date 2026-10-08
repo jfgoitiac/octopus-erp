@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, Loader2, Save, UserCheck } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../../constants/asistencia';
-import { iniciales, prefiereMenosMovimiento } from './paseLista.utils';
+import { prefiereMenosMovimiento } from './paseLista.utils';
+import AvatarAlumno from './AvatarAlumno';
 
 const CONTADORES = [
   { estado: ESTADO.PRESENTE,    label: 'Presentes' },
@@ -140,9 +141,7 @@ const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMa
                     aria-label={`Editar a ${r.alumno_nombre || 'alumno'}: ${cfg.label}`}
                     className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-                      {iniciales(r.alumno_nombre)}
-                    </span>
+                    <AvatarAlumno nombre={r.alumno_nombre} foto={r.alumno_foto} className="h-9 w-9 rounded-xl text-xs" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium" style={{ color: 'var(--jet)' }}>{r.alumno_nombre}</span>
                       {r.observacion && <span className="block truncate text-xs" style={{ color: 'var(--jet-mid)' }}>{r.observacion}</span>}

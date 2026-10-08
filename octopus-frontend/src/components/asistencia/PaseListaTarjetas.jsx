@@ -219,6 +219,14 @@ const PaseListaTarjetas = ({
     if (fase === 'pase' && !expandido) primerBotonRef.current?.focus({ preventScroll: true });
   }, [fase, i, expandido]);
 
+  // Precarga la foto del siguiente alumno para que la tarjeta entre sin parpadeo.
+  const fotoSiguiente = registros[i + 1]?.alumno_foto;
+  useEffect(() => {
+    if (!fotoSiguiente) return;
+    const img = new Image();
+    img.src = fotoSiguiente;
+  }, [fotoSiguiente]);
+
   useEffect(() => () => {
     clearTimeout(timerRef.current);
     toast.dismiss(TOAST_DESHACER);

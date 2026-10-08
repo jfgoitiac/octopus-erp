@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { ChevronLeft, ChevronRight, ArrowRight, Clock } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../../constants/asistencia';
-import { iniciales } from './paseLista.utils';
+import AvatarAlumno from './AvatarAlumno';
 
 const SOMBRA_TARJETA = '0 1px 2px rgba(43,48,58,0.06), 0 12px 32px -8px rgba(43,48,58,0.18)';
 
@@ -44,7 +44,7 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
           className="inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-semibold tabular-nums"
           style={{ background: 'rgba(255,255,255,0.7)', color: 'var(--jet-mid)', border: '0.5px solid var(--border-md)' }}
         >
-          N.º {numero}
+          N.º {registro.numero_lista ?? numero}
         </span>
         {cfg && (
           <span
@@ -61,15 +61,11 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
           expandido ? 'flex-row items-center gap-3 pt-3' : 'flex-col items-center justify-center gap-3 sm:gap-4 text-center'
         }`}
       >
-        <div
-          aria-hidden="true"
-          className={`flex shrink-0 items-center justify-center rounded-2xl font-bold tracking-tight ${
-            expandido ? 'h-12 w-12 text-base' : 'h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl'
-          }`}
-          style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)', boxShadow: 'inset 0 0 0 1px rgba(15,163,177,0.15)' }}
-        >
-          {iniciales(alumno_nombre)}
-        </div>
+        <AvatarAlumno
+          nombre={alumno_nombre}
+          foto={registro.alumno_foto}
+          className={`rounded-2xl ${expandido ? 'h-12 w-12 text-base' : 'h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl'}`}
+        />
         <h2
           className={`font-semibold leading-tight tracking-tight line-clamp-2 break-words ${
             expandido ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl'
