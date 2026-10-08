@@ -1279,18 +1279,48 @@ class CorregirPagoMontoTests(TestCase):
         self.assertEqual(log.detalles['cuota_monto_usd_anterior'], '30.00')
         self.assertEqual(log.detalles['cuota_monto_usd_nuevo'], '50.00')
 
-    def test_ajustar_monto_total_solo_aplica_a_mensualidades(self):
+    def test_ajustar_monto_total_de_solvencia_deja_la_diferencia_como_deuda(self):
         pago, cuota = self._pago_con_cuota_solvencia()
         self.client.force_authenticate(user=self.admin)
 
         resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
             'cuota_monto_usd': '150.00',
-            'motivo': 'Intento de ajustar el total de una solvencia',
+            'motivo': 'La solvencia se había cargado con un monto menor',
         }, format='json')
-        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(resp.status_code, 200, resp.content)
 
         cuota.refresh_from_db()
-        self.assertEqual(cuota.monto_usd, Decimal('100.00'))
+        self.assertEqual(cuota.monto_usd, Decimal('150.00'))
+        self.assertEqual(cuota.monto_pagado, Decimal('100.00'))
+        self.assertFalse(cuota.pagado)
+
+    def test_ajustar_monto_total_de_proyecto_inversion_deja_la_diferencia_como_deuda(self):
+        from cobranza.services import tipo_cargo_proyecto_inversion
+
+        cuota = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=tipo_cargo_proyecto_inversion(),
+            monto_usd=Decimal('30.00'), monto_pagado=Decimal('30.00'),
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='proyecto_inversion', monto_usd=Decimal('30.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-PROYECTO-TOTAL-1', estatus='completado',
+        )
+        cuota.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuota_monto_usd': '50.00',
+            'motivo': 'El monto del proyecto de inversión estaba mal cargado',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        cuota.refresh_from_db()
+        self.assertEqual(cuota.monto_usd, Decimal('50.00'))
+        self.assertEqual(cuota.monto_pagado, Decimal('30.00'))
+        self.assertFalse(cuota.pagado)
+        self.assertTrue(cuota.monto_personalizado)
 
     def test_pago_ligado_a_proyecto_inversion_admite_editar_monto_y_abono(self):
         from cobranza.services import tipo_cargo_proyecto_inversion

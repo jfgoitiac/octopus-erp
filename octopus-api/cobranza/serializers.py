@@ -936,9 +936,10 @@ class CorreccionPagoSerializer(serializers.Serializer):
     cuota_monto_pagado = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal('0.00'), required=False
     )
-    # Nuevo monto TOTAL de la mensualidad ligada al pago (ej. se cobró a 30
-    # pero la tarifa correcta era 50). Solo aplica a mensualidades; lo
-    # abonado se conserva y la diferencia queda como deuda pendiente.
+    # Nuevo monto TOTAL de la cuota ligada al pago (mensualidad, proyecto de
+    # inversión, solvencia o inscripción; ej. se cobró a 30 pero la tarifa
+    # correcta era 50). Lo abonado se conserva y la diferencia queda como
+    # deuda pendiente.
     cuota_monto_usd = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False
     )
