@@ -70,7 +70,7 @@ const CobranzaInteligenteDashboard = () => {
 
     return (
         <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-6 pb-20">
-            <PageHeader titulo="Resultados de Cobranza Inteligente" descripcion="Efectividad, cartera y recuperación atribuida a la gestión." />
+            <PageHeader titulo="Resultados de cobranza" descripcion="Efectividad, cartera y recuperación atribuida a la gestión." />
             {loading && <Skeleton />}
             {apagada && (
                 <p className="text-sm text-center py-8" style={{ color: 'var(--ash)' }}>

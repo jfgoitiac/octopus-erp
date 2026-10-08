@@ -4009,3 +4009,20 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 - **Egresos**: el estado `pendiente_pago` existe pero no se usa en ningún flujo.
 - **`aplazadas_mes`** (tablero/informes) no muestra importe: el modelo de aplazamientos no guarda monto.
 - **Avisos de bandeja sin cuenta** (`AvisoBandeja` sin `cuenta`) no se filtran por sede.
+
+## Cobranza Inteligente — Fases 3 y 4 (08/10/2026)
+
+1. **"Cobrado al vencimiento" y "mora a N días"** (`cobranza/dashboard.py`) cuentan
+   una mensualidad como cobrada solo si quedó pagada por completo dentro del
+   plazo: `Mensualidad` no guarda la fecha de cada abono parcial.
+2. **Atribución de recuperación**: un pago se atribuye a la gestión si llega
+   dentro de 7 días de un mensaje o gestión registrada (regla del plan, visible
+   en el dashboard). No distingue entre varios canales.
+3. **Convenios**: las cuotas se marcan pagadas a mano; no se concilian
+   automáticamente contra `Pago`. Sin intereses, refinanciamiento ni firma.
+4. **Acciones de la bandeja** se aplican a todas las deudas del representante a
+   la vez (una petición por ciclo, sin transacción conjunta en el frontend).
+5. **Migración pendiente ajena**: `makemigrations --check` detecta un cambio
+   sin migrar en `notificaciones.PlantillaWhatsApp.id`.
+6. **Dependencias**: `http-ece` (vía `pywebpush`) no compila en el entorno cloud
+   de pruebas; los tests se corrieron sin ellas.
