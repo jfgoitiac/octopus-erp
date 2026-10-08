@@ -35,7 +35,7 @@ const WidgetProximasClases = ({ proximasClases, className = '' }) => (
                 to={`/portal-docente/materias/${h.materia.id}?tab=asistencia`}
                 aria-label="Marcar asistencia"
                 title="Marcar asistencia"
-                className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[var(--docente-primary)] hover:bg-[var(--docente-primary)]/10 transition-colors"
+                className="flex-shrink-0 w-11 h-11 -mr-2 rounded-full flex items-center justify-center text-[var(--docente-primary)] hover:bg-[var(--docente-primary)]/10 transition-colors"
               >
                 <ClipboardCheck size={16} />
               </Link>

@@ -35,7 +35,7 @@ const SaldoTarjetaCard = ({ saldoTarjeta, loading, onRecargar }) => {
         {esNegativo ? (
           <AlertTriangle size={18} className="text-[var(--red)] flex-shrink-0" aria-hidden="true" />
         ) : (
-          <Wallet size={18} className="text-[var(--portal-primary,#0fa3b1)] flex-shrink-0" aria-hidden="true" />
+          <Wallet size={18} className="text-[var(--portal-primary)] flex-shrink-0" aria-hidden="true" />
         )}
         <span className={`font-semibold text-sm ${esNegativo ? 'text-[var(--red)]' : 'text-[var(--jet-mid)]'}`}>
           Saldo de la tarjeta
@@ -59,7 +59,7 @@ const SaldoTarjetaCard = ({ saldoTarjeta, loading, onRecargar }) => {
 
       <button
         onClick={onRecargar}
-        className="mt-3 w-full flex items-center justify-center gap-2 bg-[var(--portal-primary,#0fa3b1)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] transition-colors min-h-[44px]"
+        className="mt-3 w-full flex items-center justify-center gap-2 bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] transition-colors min-h-[44px]"
       >
         <Wallet size={16} aria-hidden="true" />
         Recargar saldo

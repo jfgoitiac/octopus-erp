@@ -1,22 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
-import { AlertTriangle, Plus, X, Loader2, Paperclip, ImageIcon } from 'lucide-react';
+import { AlertTriangle, Plus, Loader2, Paperclip, ImageIcon } from 'lucide-react';
 
 import { useDocenteIncidentes } from '../hooks/useDocenteIncidentes';
 import { useDocenteMisMaterias } from '../hooks/useDocenteMisMaterias';
 import { useAlumnosSeccion } from '../hooks/useAlumnosSeccion';
 import SkeletonCard from '../../portal/components/SkeletonCard';
-import { useEscape } from '../../hooks/useEscape';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Modal } from '../../components/ui/Modal';
 
 const TAMANO_MAX_MB = 5;
 
 const SEVERIDADES = [
   { value: 'L', label: 'Leve', className: 'text-[var(--yellow)] bg-[var(--yellow-light)] border-[var(--yellow)]' },
-  { value: 'M', label: 'Moderado', className: 'text-[var(--yellow)] bg-[var(--yellow-light)] border-[var(--yellow)]' },
+  { value: 'M', label: 'Moderado', className: 'text-[var(--orange)] bg-[var(--orange-light)] border-[var(--orange)]' },
   { value: 'G', label: 'Grave', className: 'text-[var(--red)] bg-[var(--red-light)] border-[var(--red)]' },
 ];
 
@@ -40,11 +39,6 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
   const [descripcion, setDescripcion] = useState('');
   const [severidad, setSeveridad] = useState('L');
   const [adjunto, setAdjunto] = useState(null);
-  const containerRef = useRef(null);
-
-  useEscape(true, onClose);
-  useFocusTrap(containerRef);
-
   const handleArchivo = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,23 +58,27 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="nuevo-incidente-titulo"
-    >
-      <div ref={containerRef} className="bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="nuevo-incidente-titulo" className="font-bold text-[var(--jet)] flex items-center gap-2">
-            <AlertTriangle size={18} className="text-[var(--docente-primary)]" />
-            Nuevo incidente
-          </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-[var(--ash)]">
-            <X size={18} />
+    <Modal
+      open
+      onClose={onClose}
+      size="sm"
+      titulo={<span className="flex items-center gap-2"><AlertTriangle size={18} /> Nuevo incidente</span>}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-xl py-2.5 px-4 text-sm border border-[var(--border)] text-[var(--ash)] hover:bg-[var(--surface-sunken)] transition-colors min-h-[44px]">
+            Cancelar
           </button>
-        </div>
-
+          <button
+            type="button"
+            onClick={handleGuardar}
+            disabled={creando}
+            className="text-white rounded-xl py-2.5 px-4 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)] transition-colors"
+          >
+            {creando ? <><Loader2 size={14} className="animate-spin" /> Guardando…</> : 'Registrar'}
+          </button>
+        </>
+      }
+    >
         <div className="space-y-4">
           <div>
             <label htmlFor="nuevo-incidente-materia" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Materia</label>
@@ -117,12 +115,13 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
           )}
 
           <div>
-            <label className="block text-xs font-medium text-[var(--ash)] mb-1.5">Severidad</label>
-            <div className="flex gap-2">
+            <span className="block text-xs font-medium text-[var(--ash)] mb-1.5" id="severidad-label">Severidad</span>
+            <div className="flex gap-2" role="group" aria-labelledby="severidad-label">
               {SEVERIDADES.map(s => (
                 <button
                   key={s.value}
                   type="button"
+                  aria-pressed={severidad === s.value}
                   onClick={() => setSeveridad(s.value)}
                   className={`flex-1 py-2 rounded-xl text-xs font-medium border min-h-[44px] ${
                     severidad === s.value ? s.className : 'text-[var(--ash)] bg-[var(--surface)] border-[var(--border)]'
@@ -147,7 +146,7 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--ash)] mb-1.5">Foto (opcional, máx. {TAMANO_MAX_MB}MB)</label>
+            <span className="block text-xs font-medium text-[var(--ash)] mb-1.5">Foto (opcional, máx. {TAMANO_MAX_MB}MB)</span>
             {adjunto ? (
               <div className="flex items-center gap-3">
                 <span className="text-sm truncate text-[var(--jet-mid)]">{adjunto.name}</span>
@@ -164,24 +163,7 @@ const ModalNuevoIncidente = ({ onClose, onSubmit, creando }) => {
             )}
           </div>
         </div>
-
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl py-2.5 text-sm border border-[var(--border)] text-[var(--ash)] min-h-[44px]"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleGuardar}
-            disabled={creando}
-            className="flex-1 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)]"
-          >
-            {creando ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : 'Registrar'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -199,7 +181,7 @@ const DocenteIncidentes = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
             <AlertTriangle size={20} className="text-[var(--docente-primary)]" />
@@ -210,15 +192,16 @@ const DocenteIncidentes = () => {
         <button
           onClick={() => setModalAbierto(true)}
           aria-label="Nuevo incidente"
-          className="w-10 h-10 rounded-full bg-[var(--docente-primary)] text-white flex items-center justify-center flex-shrink-0"
+          className="w-11 h-11 rounded-full bg-[var(--docente-primary)] text-white flex items-center justify-center flex-shrink-0 hover:bg-[var(--docente-primary-dark)] transition-colors"
         >
           <Plus size={18} />
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0" role="group" aria-label="Filtrar por severidad">
         <button
           type="button"
+          aria-pressed={filtroSeveridad === ''}
           onClick={() => setFiltroSeveridad('')}
           className={`px-3 py-2 rounded-xl text-xs font-medium border min-h-[44px] flex-shrink-0 ${
             filtroSeveridad === '' ? 'text-[var(--jet-mid)] bg-[var(--surface-sunken)] border-[var(--border)]' : 'text-[var(--ash)] bg-[var(--surface)] border-[var(--border)]'
@@ -230,6 +213,7 @@ const DocenteIncidentes = () => {
           <button
             key={s.value}
             type="button"
+            aria-pressed={filtroSeveridad === s.value}
             onClick={() => setFiltroSeveridad(s.value)}
             className={`px-3 py-2 rounded-xl text-xs font-medium border min-h-[44px] flex-shrink-0 ${
               filtroSeveridad === s.value ? s.className : 'text-[var(--ash)] bg-[var(--surface)] border-[var(--border)]'
@@ -250,7 +234,7 @@ const DocenteIncidentes = () => {
           <p className="text-sm">No hay incidentes registrados.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
           {incidentes.map(inc => {
             const cfg = severidadCfg(inc.severidad);
             return (
@@ -260,7 +244,7 @@ const DocenteIncidentes = () => {
                     <p className="text-sm font-semibold text-[var(--jet)]">{inc.alumno_nombre}</p>
                     <p className="text-xs text-[var(--ash)] mt-0.5">{formatFecha(inc.fecha)}</p>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full border flex-shrink-0 ${cfg.className}`}>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${cfg.className}`}>
                     {inc.severidad_label || cfg.label}
                   </span>
                 </div>

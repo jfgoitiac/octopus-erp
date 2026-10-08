@@ -107,7 +107,7 @@ const PortalPerfil = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={subiendoFoto}
             aria-label="Cambiar foto de perfil"
-            className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[var(--portal-primary,#0fa3b1)] text-white flex items-center justify-center shadow-md ring-2 ring-white hover:opacity-90 transition-opacity disabled:opacity-60"
+            className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-[var(--portal-primary)] text-white flex items-center justify-center shadow-md ring-2 ring-white hover:opacity-90 transition-opacity disabled:opacity-60"
           >
             {subiendoFoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
           </button>
@@ -187,11 +187,11 @@ const PortalPerfil = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-[var(--border)]">
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)]">Usuario</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ash)]">Usuario</p>
             <p className="text-sm text-[var(--ash)] mt-1">{perfil?.username}</p>
           </div>
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
               <ShieldCheck size={11} /> Rol
             </p>
             <p className="text-sm text-[var(--ash)] mt-1 capitalize">{perfil?.rol}</p>
@@ -200,7 +200,7 @@ const PortalPerfil = () => {
 
         <div className="pt-1 border-t border-[var(--border)]">
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
               <IdCard size={11} /> Cédula
             </p>
             <p className="text-sm text-[var(--ash)] mt-1">{perfil?.cedula || '—'}</p>
@@ -210,7 +210,7 @@ const PortalPerfil = () => {
         <button
           type="submit"
           disabled={guardando || !dirty}
-          className="w-full flex items-center justify-center gap-2 bg-[var(--portal-primary,#0fa3b1)] hover:opacity-90 text-white font-semibold py-3 rounded-xl text-sm transition-opacity disabled:opacity-50 min-h-[44px]"
+          className="w-full flex items-center justify-center gap-2 bg-[var(--portal-primary)] hover:opacity-90 text-white font-semibold py-3 rounded-xl text-sm transition-opacity disabled:opacity-50 min-h-[44px]"
         >
           {guardando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {guardando ? 'Guardando...' : 'Guardar cambios'}

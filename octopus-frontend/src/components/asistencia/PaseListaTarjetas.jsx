@@ -8,7 +8,7 @@ import ResumenAsistencia from './ResumenAsistencia';
 import MarcadoRapido from './MarcadoRapido';
 import SkeletonTarjeta from './SkeletonTarjeta';
 import { useSwipeTarjeta } from './useSwipeTarjeta';
-import { SALIDA_POR_ESTADO, primerSinMarcar, requiereObservacion, prefiereMenosMovimiento, vibrar } from './paseLista.utils';
+import { SALIDA_POR_ESTADO, nombreLegible, primerSinMarcar, requiereObservacion, prefiereMenosMovimiento, vibrar } from './paseLista.utils';
 
 const MS_CONFIRMACION = 150;
 const MAX_DESHACER = 20;
@@ -224,7 +224,7 @@ const PaseListaTarjetas = ({
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  const anuncio = fase === 'pase' && actual ? `Alumno ${i + 1} de ${total}: ${actual.alumno_nombre || 'sin nombre'}` : '';
+  const anuncio = fase === 'pase' && actual ? `Alumno ${i + 1} de ${total}: ${nombreLegible(actual.alumno_nombre) || 'sin nombre'}` : '';
 
   let contenido;
   if (loading) {
@@ -279,7 +279,7 @@ const PaseListaTarjetas = ({
             disabled={!ultimoCambio}
             aria-keyshortcuts="Control+Z"
             aria-label={ultimoCambio
-              ? `Deshacer: ${ultimoCambio.previo.alumno_nombre || 'alumno'}, ${CONFIGS_ESTADO[ultimoCambio.estado]?.label}`
+              ? `Deshacer: ${nombreLegible(ultimoCambio.previo.alumno_nombre) || 'alumno'}, ${CONFIGS_ESTADO[ultimoCambio.estado]?.label}`
               : 'Deshacer (no hay cambios)'}
             className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-sm font-medium transition-[transform,opacity] active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
             style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb-mid)' }}

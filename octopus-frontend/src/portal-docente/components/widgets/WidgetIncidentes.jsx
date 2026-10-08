@@ -15,7 +15,7 @@ const formatFechaCorta = (fechaStr) => {
 // Mismos colores de severidad que DocenteIncidentes.jsx (leve/moderado/grave)
 const SEVERIDAD_PILL = {
   L: { label: 'Leve', className: 'bg-[var(--yellow-light)] text-[var(--yellow)]' },
-  M: { label: 'Moderado', className: 'bg-[var(--yellow-light)] text-[var(--yellow)]' },
+  M: { label: 'Moderado', className: 'bg-[var(--orange-light)] text-[var(--orange)]' },
   G: { label: 'Grave', className: 'bg-[var(--red-light)] text-[var(--red)]' },
 };
 
@@ -32,7 +32,7 @@ const WidgetIncidentes = ({ incidentes, className = '' }) => (
           <Link
             key={inc.id}
             to="/portal-docente/incidentes"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--red-light)]/40 transition-colors"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors"
           >
             <Avatar nombre={inc.alumno_nombre} />
             <div className="min-w-0 flex-1">

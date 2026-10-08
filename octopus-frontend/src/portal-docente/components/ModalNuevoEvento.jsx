@@ -1,8 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { CalendarPlus, X, Loader2 } from 'lucide-react';
-import { useEscape } from '../../hooks/useEscape';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { CalendarPlus, Loader2 } from 'lucide-react';
+import { Modal } from '../../components/ui/Modal';
 
 const TIPOS = [
   { value: 'recordatorio', label: 'Recordatorio' },
@@ -18,11 +17,6 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
   const [hora, setHora] = useState('');
   const [tipo, setTipo] = useState('recordatorio');
   const [descripcion, setDescripcion] = useState('');
-  const containerRef = useRef(null);
-
-  useEscape(true, onClose);
-  useFocusTrap(containerRef);
-
   const handleGuardar = async () => {
     if (!titulo.trim()) { toast.warning('Escribe un título para el evento.'); return; }
     if (!fecha) { toast.warning('Selecciona una fecha.'); return; }
@@ -37,23 +31,27 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="nuevo-evento-titulo"
-    >
-      <div ref={containerRef} className="bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="nuevo-evento-titulo" className="font-bold text-[var(--jet)] flex items-center gap-2">
-            <CalendarPlus size={18} className="text-[var(--docente-primary)]" />
-            Nuevo evento
-          </h3>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1 text-[var(--ash)]">
-            <X size={18} />
+    <Modal
+      open
+      onClose={onClose}
+      size="sm"
+      titulo={<span className="flex items-center gap-2"><CalendarPlus size={18} /> Nuevo evento</span>}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-xl py-2.5 px-4 text-sm border border-[var(--border)] text-[var(--ash)] hover:bg-[var(--surface-sunken)] transition-colors min-h-[44px]">
+            Cancelar
           </button>
-        </div>
-
+          <button
+            type="button"
+            onClick={handleGuardar}
+            disabled={creando}
+            className="text-white rounded-xl py-2.5 px-4 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)] transition-colors"
+          >
+            {creando ? <><Loader2 size={14} className="animate-spin" /> Guardando…</> : 'Agregar evento'}
+          </button>
+        </>
+      }
+    >
         <div className="space-y-4">
           <div>
             <label htmlFor="nuevo-evento-titulo-input" className="block text-xs font-medium text-[var(--ash)] mb-1.5">Título</label>
@@ -117,24 +115,7 @@ const ModalNuevoEvento = ({ fechaInicial, onClose, onSubmit, creando }) => {
             />
           </div>
         </div>
-
-        <div className="flex gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl py-2.5 text-sm border border-[var(--border)] text-[var(--ash)] min-h-[44px]"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleGuardar}
-            disabled={creando}
-            className="flex-1 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] bg-[var(--docente-primary)] hover:bg-[var(--docente-primary-dark)]"
-          >
-            {creando ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : 'Agregar evento'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

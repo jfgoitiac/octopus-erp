@@ -55,9 +55,13 @@ const DocentePerfil = () => {
       e.target.value = '';
       return;
     }
-    setPreviewFoto(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    setPreviewFoto(url);
     const ok = await subirFoto(file);
-    if (!ok) setPreviewFoto(null);
+    if (!ok) {
+      setPreviewFoto(null);
+      URL.revokeObjectURL(url);
+    }
     e.target.value = '';
   };
 
@@ -65,7 +69,7 @@ const DocentePerfil = () => {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-2xl mx-auto">
         <SkeletonCard lines={1} />
         <SkeletonCard lines={4} />
       </div>
@@ -73,7 +77,7 @@ const DocentePerfil = () => {
   }
 
   return (
-    <div className="space-y-4 pb-10">
+    <div className="space-y-4 pb-10 max-w-2xl mx-auto">
       <div>
         <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
           <User size={20} className="text-[var(--docente-primary)]" />
@@ -105,9 +109,9 @@ const DocentePerfil = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={subiendoFoto}
             aria-label="Cambiar foto de perfil"
-            className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[var(--docente-primary)] text-white flex items-center justify-center shadow-md ring-2 ring-white hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-60"
+            className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-[var(--docente-primary)] text-white flex items-center justify-center shadow-md ring-2 ring-[var(--surface)] hover:bg-[var(--docente-primary-dark)] transition-colors disabled:opacity-60"
           >
-            {subiendoFoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+            {subiendoFoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={16} />}
           </button>
 
           <input
@@ -171,11 +175,11 @@ const DocentePerfil = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-[var(--border)]">
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)]">Usuario</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ash)]">Usuario</p>
             <p className="text-sm text-[var(--ash)] mt-1">{perfil?.username}</p>
           </div>
           <div className="pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ash)] flex items-center gap-1">
               <ShieldCheck size={11} /> Rol
             </p>
             <p className="text-sm text-[var(--ash)] mt-1 capitalize">{perfil?.rol}</p>
@@ -195,7 +199,7 @@ const DocentePerfil = () => {
       {/* Link a cambiar contraseña */}
       <Link
         to="/portal-docente/cambiar-contrasena"
-        className="flex items-center justify-between bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 hover:shadow-md hover:-translate-y-0.5 transition-shadow"
+        className="flex items-center justify-between bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 hover:border-[var(--docente-primary)]/40 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[var(--docente-primary)]/10 text-[var(--docente-primary)] flex items-center justify-center">

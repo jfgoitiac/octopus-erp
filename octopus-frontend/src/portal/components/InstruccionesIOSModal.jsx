@@ -14,7 +14,7 @@ const InstruccionesIOSModal = ({ open, onClose }) => (
         type="button"
         onClick={onClose}
         className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-        style={{ background: 'var(--portal-primary, #0fa3b1)' }}
+        style={{ background: 'var(--portal-primary)' }}
       >
         Entendido
       </button>
@@ -25,7 +25,7 @@ const InstruccionesIOSModal = ({ open, onClose }) => (
         <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-xs font-bold">1</span>
         <span>
           Abre esta página en <strong>Safari</strong> y toca el botón Compartir{' '}
-          <Share size={16} className="inline -mt-0.5 text-[var(--portal-primary,#0fa3b1)]" aria-label="Compartir" />{' '}
+          <Share size={16} className="inline -mt-0.5 text-[var(--portal-primary)]" aria-label="Compartir" />{' '}
           de la barra inferior.
         </span>
       </li>
@@ -33,7 +33,7 @@ const InstruccionesIOSModal = ({ open, onClose }) => (
         <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-xs font-bold">2</span>
         <span>
           Desliza y elige <strong>Agregar a pantalla de inicio</strong>{' '}
-          <SquarePlus size={16} className="inline -mt-0.5 text-[var(--portal-primary,#0fa3b1)]" aria-hidden="true" />.
+          <SquarePlus size={16} className="inline -mt-0.5 text-[var(--portal-primary)]" aria-hidden="true" />.
         </span>
       </li>
       <li className="flex items-start gap-3">

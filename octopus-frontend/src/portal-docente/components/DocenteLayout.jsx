@@ -6,6 +6,14 @@ import { useConfigColegio } from '../hooks/useConfigColegio';
 import DesktopRail from './DesktopRail';
 import { enviarPendientes } from '../utils/colaAsistencia';
 
+const NAV_ITEMS = [
+  { to: '/portal-docente', end: true, icon: LayoutDashboard, label: 'Inicio' },
+  { to: '/portal-docente/materias', icon: BookOpen, label: 'Materias' },
+  { to: '/portal-docente/mensajes', icon: MessageCircle, label: 'Mensajes' },
+  { to: '/portal-docente/incidentes', icon: AlertTriangle, label: 'Incidentes' },
+  { to: '/portal-docente/perfil', icon: UserCircle, label: 'Perfil' },
+];
+
 const DocenteLayout = () => {
   const { logout } = useContext(AuthContext);
   const { nombre_colegio: nombreColegio, logo_url: logoColegio } = useConfigColegio();
@@ -27,12 +35,12 @@ const DocenteLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--docente-bg)]">
+    <div className="min-h-dvh bg-[var(--docente-bg)]">
       <DesktopRail />
 
       {/* Header */}
       <header className="bg-[var(--surface)] border-b border-[var(--border)] sticky top-0 z-10 md:pl-20">
-        <div className="max-w-[480px] md:max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-[480px] sm:max-w-2xl md:max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {enDashboard ? (
               logoColegio ? (
@@ -50,14 +58,14 @@ const DocenteLayout = () => {
                 <button
                   onClick={() => navigate(-1)}
                   aria-label="Regresar"
-                  className="text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors -ml-1 p-1"
+                  className="text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors -ml-2 p-2.5"
                 >
                   <ArrowLeft size={20} />
                 </button>
                 <Link
                   to="/portal-docente"
                   aria-label="Ir al inicio"
-                  className="text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors p-1"
+                  className="text-[var(--ash)] hover:text-[var(--jet-mid)] transition-colors p-2.5"
                 >
                   <Home size={20} />
                 </Link>
@@ -70,7 +78,7 @@ const DocenteLayout = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-[var(--ash)] hover:text-[var(--red)] transition-colors text-sm"
+              className="flex items-center gap-1.5 text-[var(--ash)] hover:text-[var(--red)] transition-colors text-sm min-h-[44px] px-2"
               aria-label="Cerrar sesión"
             >
               <LogOut size={16} />
@@ -80,60 +88,27 @@ const DocenteLayout = () => {
         </div>
       </header>
 
-      {/* Contenido principal — pb-32 para que la bottom nav no tape contenido */}
-      <main className="max-w-[480px] md:max-w-7xl mx-auto px-4 md:px-6 py-5 pb-32 sm:pb-10 md:pl-20">
+      {/* Contenido principal — pb-28 para que la bottom nav no tape contenido */}
+      <main className="max-w-[480px] sm:max-w-2xl md:max-w-7xl mx-auto px-4 md:px-6 py-5 pb-28 md:pb-10 md:pl-20">
         <Outlet />
       </main>
 
-      {/* Bottom navigation — solo móvil */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] z-10 sm:hidden">
-        <div className="max-w-[480px] mx-auto flex items-center justify-around">
-          <NavLink
-            to="/portal-docente"
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <LayoutDashboard size={22} />
-            <span className="text-[10px] font-medium">Inicio</span>
-          </NavLink>
-          <NavLink
-            to="/portal-docente/materias"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <BookOpen size={22} />
-            <span className="text-[10px] font-medium">Mis Materias</span>
-          </NavLink>
-          <NavLink
-            to="/portal-docente/mensajes"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <MessageCircle size={22} />
-            <span className="text-[10px] font-medium">Mensajes</span>
-          </NavLink>
-          <NavLink
-            to="/portal-docente/incidentes"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <AlertTriangle size={22} />
-            <span className="text-[10px] font-medium">Incidentes</span>
-          </NavLink>
-          <NavLink
-            to="/portal-docente/perfil"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <UserCircle size={22} />
-            <span className="text-[10px] font-medium">Perfil</span>
-          </NavLink>
+      {/* Bottom navigation — hasta md; desde md lo reemplaza DesktopRail */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] z-10 md:hidden pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-[480px] sm:max-w-2xl mx-auto flex items-stretch">
+          {NAV_ITEMS.map(({ to, end, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex flex-1 flex-col items-center gap-0.5 py-2 px-1 min-h-[56px] justify-center transition-colors ${isActive ? 'text-[var(--docente-primary)]' : 'text-[var(--ash)]'}`
+              }
+            >
+              <Icon size={22} />
+              <span className="text-[11px] font-medium">{label}</span>
+            </NavLink>
+          ))}
         </div>
       </nav>
     </div>

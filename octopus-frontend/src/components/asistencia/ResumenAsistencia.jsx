@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, CloudUpload, Loader2, Save, UserCheck } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../../constants/asistencia';
-import { prefiereMenosMovimiento } from './paseLista.utils';
+import { nombreLegible, prefiereMenosMovimiento } from './paseLista.utils';
 import AvatarAlumno from './AvatarAlumno';
 
 const CONTADORES = [
@@ -146,12 +146,12 @@ const ResumenAsistencia = ({ registros, dirty, saving, onGuardar, onEditar, onMa
                   <button
                     type="button"
                     onClick={() => onEditar(indice)}
-                    aria-label={`Editar a ${r.alumno_nombre || 'alumno'}: ${cfg.label}`}
+                    aria-label={`Editar a ${nombreLegible(r.alumno_nombre) || 'alumno'}: ${cfg.label}`}
                     className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--ash-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
                   >
                     <AvatarAlumno nombre={r.alumno_nombre} foto={r.alumno_foto} className="h-9 w-9 rounded-xl text-xs" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium" style={{ color: 'var(--jet)' }}>{r.alumno_nombre}</span>
+                      <span className="block truncate text-sm font-medium" style={{ color: 'var(--jet)' }}>{nombreLegible(r.alumno_nombre)}</span>
                       {r.observacion && <span className="block truncate text-xs" style={{ color: 'var(--jet-mid)' }}>{r.observacion}</span>}
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: cfg.activeStyle.background, color: cfg.activeStyle.color }}>

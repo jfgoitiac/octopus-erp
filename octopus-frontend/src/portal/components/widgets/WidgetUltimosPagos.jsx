@@ -45,12 +45,12 @@ const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
     <section className="portal-card portal-card--soft p-5 h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Clock size={16} className="text-[var(--portal-primary,#0fa3b1)]" />
+          <Clock size={16} className="text-[var(--portal-primary)]" />
           <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Últimos pagos</h2>
         </div>
         <Link
           to="/portal/historial"
-          className="flex items-center gap-1 text-sm text-[var(--portal-primary,#0fa3b1)] py-2 px-1 -mx-1 min-h-[44px] hover:underline"
+          className="flex items-center gap-1 text-sm text-[var(--portal-primary)] py-2 px-1 -mx-1 min-h-[44px] hover:underline"
         >
           Ver todos <ArrowRight size={14} />
         </Link>

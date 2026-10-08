@@ -43,7 +43,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
           El detalle sigue disponible de forma secundaria, sin repetir importes. */}
       {variosAlumnos && tieneDeuda && (
         <details className="mb-3 rounded-xl bg-[var(--surface)]/70 px-3 py-2 text-xs text-[var(--jet-mid)]">
-          <summary className="cursor-pointer font-medium text-[var(--portal-primary,#0fa3b1)]">Ver conceptos incluidos</summary>
+          <summary className="cursor-pointer font-medium text-[var(--portal-primary)]">Ver conceptos incluidos</summary>
           <p className="mt-2 leading-relaxed">Incluye {mensualidades.length} mensualidad{mensualidades.length === 1 ? '' : 'es'} pendiente{mensualidades.length === 1 ? '' : 's'} y {otrosConceptos.length} concepto{otrosConceptos.length === 1 ? '' : 's'} adicional{otrosConceptos.length === 1 ? '' : 'es'}, correspondientes a todos tus hijos.</p>
         </details>
       )}
@@ -62,7 +62,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
                 )}
                 <p className="text-xs text-[var(--red)]">{m.dias_mora} días de mora</p>
                 {m.porcentaje_beca_aplicado > 0 && (
-                  <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-primary,#0fa3b1)]/10 text-[var(--portal-primary,#0fa3b1)]">
+                  <span className="inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-primary)]/10 text-[var(--portal-primary)]">
                     Beca -{m.porcentaje_beca_aplicado}%
                   </span>
                 )}
@@ -75,7 +75,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
                   <>
                     <p className="text-xs text-[var(--ash)] line-through">REF. {fmtMonto(m.monto_usd)}</p>
                     <MontoRef usd={m.monto_total} tasaBcv={tasaBcv} colorRef="text-[var(--red)]" />
-                    <p className="text-[10px] text-[var(--red)] font-medium">
+                    <p className="text-xs text-[var(--red)] font-medium">
                       + REF. {fmtMonto(m.monto_recargo)} {m.nombre_recargo}
                     </p>
                   </>
@@ -83,7 +83,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
                   <>
                     <p className="text-xs text-[var(--ash)] line-through">REF. {fmtMonto(m.monto_usd)}</p>
                     <MontoRef usd={m.monto_total} tasaBcv={tasaBcv} colorRef="text-[var(--green)]" />
-                    <p className="text-[10px] text-[var(--green)] font-medium">
+                    <p className="text-xs text-[var(--green)] font-medium">
                       - REF. {fmtMonto(m.monto_descuento)} {m.nombre_descuento}
                     </p>
                   </>
@@ -92,7 +92,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
                 )}
                 <button
                   onClick={() => onPagar(m)}
-                  className="px-3 py-1.5 rounded-lg bg-[var(--portal-primary,#0fa3b1)]/10 text-[var(--portal-primary,#0fa3b1)] text-sm font-medium min-h-[44px] flex items-center hover:bg-[var(--portal-primary,#0fa3b1)]/20 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-[var(--portal-primary)]/10 text-[var(--portal-primary)] text-sm font-medium min-h-[44px] flex items-center hover:bg-[var(--portal-primary)]/20 transition-colors"
                 >
                   Pagar
                 </button>
@@ -125,7 +125,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       )}
 
       {variosAlumnos && mensualidades.length > 0 && (
-        <button onClick={() => onPagar(mensualidades[0])} className="w-full min-h-[44px] rounded-xl bg-[var(--portal-primary,#0fa3b1)] text-sm font-semibold text-white transition-opacity hover:opacity-90">Registrar comprobante de pago</button>
+        <button onClick={() => onPagar(mensualidades[0])} className="w-full min-h-[44px] rounded-xl bg-[var(--portal-primary)] text-sm font-semibold text-white transition-opacity hover:opacity-90">Registrar comprobante de pago</button>
       )}
 
       {tieneDeuda && <NotaTasaBcv tasaBcv={tasaBcv} className="mt-3" />}

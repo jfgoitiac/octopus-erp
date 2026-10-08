@@ -89,11 +89,11 @@ const PortalComunicaciones = () => {
             <div
               key={c.id}
               className={`bg-[var(--surface)] rounded-2xl p-4 border ${c.leido ? 'border-[var(--border)]' : ''}`}
-              style={c.leido ? undefined : { borderColor: 'color-mix(in srgb, var(--portal-primary, #0fa3b1) 30%, white)' }}
+              style={c.leido ? undefined : { borderColor: 'color-mix(in srgb, var(--portal-primary) 30%, white)' }}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  {!c.leido && <span className="w-2 h-2 rounded-full bg-[var(--portal-primary,#0fa3b1)] flex-shrink-0" />}
+                  {!c.leido && <span className="w-2 h-2 rounded-full bg-[var(--portal-primary)] flex-shrink-0" />}
                   <p className="text-sm font-medium text-[var(--jet)] truncate">{c.titulo}</p>
                 </div>
                 <span className="text-xs text-[var(--ash)] flex-shrink-0">{formatFecha(c.fecha_publicacion)}</span>
@@ -107,7 +107,7 @@ const PortalComunicaciones = () => {
                     href={c.adjunto}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary,#0fa3b1)]"
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary)]"
                   >
                     <Paperclip size={13} /> Ver adjunto
                   </a>
@@ -123,7 +123,7 @@ const PortalComunicaciones = () => {
                       onClick={() => handleConfirmar(c.id)}
                       disabled={confirmando === c.id}
                       className="text-xs font-medium px-3 py-1.5 rounded-full text-white disabled:opacity-50 min-h-[32px]"
-                      style={{ background: 'var(--portal-primary, #0fa3b1)' }}
+                      style={{ background: 'var(--portal-primary)' }}
                     >
                       {confirmando === c.id ? 'Confirmando...' : 'He leído'}
                     </button>

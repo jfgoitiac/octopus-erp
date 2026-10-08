@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { ChevronLeft, ChevronRight, ArrowRight, Clock } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../../constants/asistencia';
 import AvatarAlumno from './AvatarAlumno';
+import { nombreLegible } from './paseLista.utils';
 
 const SOMBRA_TARJETA = '0 1px 2px rgba(43,48,58,0.06), 0 12px 32px -8px rgba(43,48,58,0.18)';
 
@@ -22,14 +23,15 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
   style,
   ...rest
 }) {
-  const { alumno_id, alumno_nombre, estado, observacion } = registro;
+  const { alumno_id, estado, observacion } = registro;
+  const alumno_nombre = nombreLegible(registro.alumno_nombre);
   const cfg = estado ? CONFIGS_ESTADO[estado] : null;
   const inputId = `pl-obs-${alumno_id}`;
 
   return (
     <article
       ref={cardRef}
-      className={`absolute inset-0 flex flex-col rounded-2xl bg-white overflow-hidden select-none ${className}`}
+      className={`absolute inset-0 flex flex-col rounded-2xl bg-white overflow-hidden select-none [container-type:size] ${className}`}
       style={{ boxShadow: SOMBRA_TARJETA, border: '0.5px solid var(--border-md)', ...style }}
       {...rest}
     >
@@ -89,13 +91,16 @@ const TarjetaAlumno = memo(function TarjetaAlumno({
             )}
           </div>
 
-          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-center sm:gap-4 sm:px-6">
+          {/* Avatar, nombre y espacios se escalan con la altura real de la
+              tarjeta (cqh, la tarjeta es contenedor de tamaño): en pantallas
+              bajas o con zoom el nombre nunca queda cortado por el borde. */}
+          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-[clamp(0.375rem,4cqh,1rem)] px-5 py-2 text-center sm:px-6">
             <AvatarAlumno
               nombre={alumno_nombre}
               foto={registro.alumno_foto}
-              className="h-20 w-20 rounded-2xl text-2xl sm:h-24 sm:w-24 sm:text-3xl"
+              className="h-[clamp(2.75rem,30cqh,6rem)] w-[clamp(2.75rem,30cqh,6rem)] rounded-2xl text-[clamp(1rem,11cqh,1.875rem)]"
             />
-            <h2 className="line-clamp-2 break-words text-xl font-semibold leading-tight tracking-tight sm:text-2xl" style={{ color: 'var(--jet)' }}>
+            <h2 className="line-clamp-2 break-words text-[clamp(1.0625rem,8cqh,1.5rem)] font-semibold leading-tight tracking-tight" style={{ color: 'var(--jet)' }}>
               {alumno_nombre || 'Alumno sin nombre'}
             </h2>
           </div>

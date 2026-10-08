@@ -46,7 +46,7 @@ const PortalLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-dvh bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-[420px]">
         {/* Logo / branding */}
         <div className="flex flex-col items-center mb-8 gap-3">
@@ -79,7 +79,7 @@ const PortalLogin = () => {
                   onChange={(e) => setCedulaOEmail(e.target.value)}
                   placeholder="Ej: V-12345678 o correo@ejemplo.com"
                   autoComplete="username"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
                   disabled={submitting}
                 />
               </div>
@@ -99,7 +99,7 @@ const PortalLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   autoComplete="current-password"
-                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary,#0fa3b1)]/30 focus:border-[var(--portal-primary,#0fa3b1)] transition-colors"
+                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
                   disabled={submitting}
                 />
                 <button
@@ -117,7 +117,7 @@ const PortalLogin = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[var(--portal-primary,#0fa3b1)] hover:bg-[color-mix(in_srgb,var(--portal-primary,#0fa3b1)_85%,black)] text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-[var(--portal-primary)] hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
             >
               {submitting ? (
                 <>
@@ -131,7 +131,7 @@ const PortalLogin = () => {
 
             <Link
               to="/portal/olvide-contrasena"
-              className="block text-center text-sm text-[var(--portal-primary,#0fa3b1)] hover:underline mt-1"
+              className="block text-center text-sm text-[var(--portal-primary)] hover:underline mt-1"
             >
               ¿Olvidaste tu contraseña?
             </Link>
