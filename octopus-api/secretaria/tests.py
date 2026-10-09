@@ -925,6 +925,49 @@ class PermisosRolSecretariaTest(TestCase):
                 self.assertEqual(self._client_como(rol).get(url).status_code, 403, (rol, url))
             self.assertNotEqual(self._client_como('secretaria').get(url).status_code, 403, url)
 
+    def test_matricula_grado_incluye_datos_del_representante_y_exporta(self):
+        import io
+        from openpyxl import load_workbook
+        rep = Representante.objects.create(
+            cedula='V40000001', nombre='Luisa', apellido='Pérez', telefono='04141112233',
+            correo='luisa@example.com', direccion='Av. <Principal> & Calle 5, Casa 2',
+        )
+        Alumno.objects.create(nombre='Ana', apellido='Gómez', grado_seccion='1er Grado A', representante=rep)
+        client = self._client_como('secretaria')
+        params = {'grado': '1er Grado A'}
+
+        resp = client.get('/api/secretaria/matricula-grado/', params)
+        self.assertEqual(resp.status_code, 200)
+        por_apellido = {a['apellido']: a for a in resp.data['alumnos']}
+        con = por_apellido['Gómez']
+        self.assertEqual(con['representante_nombre'], 'Luisa Pérez')
+        self.assertEqual(con['representante_cedula'], 'V40000001')
+        self.assertEqual(con['representante_correo'], 'luisa@example.com')
+        self.assertEqual(con['representante_direccion'], 'Av. <Principal> & Calle 5, Casa 2')
+        self.assertEqual(con['representante_telefono'], '04141112233')
+        self.assertEqual(con['genero'], 'masculino')
+        self.assertEqual(con['genero_display'], 'Masculino')
+        self.assertEqual(con['genero_letra'], 'M')
+
+        resp = client.get('/api/secretaria/matricula-grado/exportar-excel/', params)
+        self.assertEqual(resp.status_code, 200)
+        ws = load_workbook(io.BytesIO(resp.content)).active
+        encabezado = [c.value for c in ws[4]]
+        self.assertEqual(encabezado, [
+            'N°', 'Cédula Escolar', 'Nombres', 'Apellidos', 'Género', 'Representante',
+            'Cédula Representante', 'Correo', 'Teléfono', 'Dirección',
+        ])
+        self.assertEqual(ws['E5'].value, 'M')
+        self.assertEqual(ws['F5'].value, 'Luisa Pérez')
+        self.assertEqual(ws['J5'].value, 'Av. <Principal> & Calle 5, Casa 2')
+        self.assertEqual(ws.freeze_panes, 'A5')
+        self.assertIn('1', ws['A6'].value)
+
+        resp = client.get('/api/secretaria/matricula-grado/exportar-pdf/', params)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/pdf')
+        self.assertTrue(resp.content.startswith(b'%PDF'))
+
     def test_representantes_secretaria_crea_y_edita_pero_no_carga_proyecto(self):
         datos = {
             'cedula': 'V31000001', 'nombre': 'Ana', 'apellido': 'Prueba',

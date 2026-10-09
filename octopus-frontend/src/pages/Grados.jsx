@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   GraduationCap, Users, ArrowDownUp,
   FileSpreadsheet, FileText, ChevronRight, Loader2, Search,
@@ -7,12 +8,18 @@ import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
+import FichaAlumnoModal from '../components/grados/FichaAlumnoModal';
+
+const letraGenero = (g) => ({ masculino: 'M', femenino: 'F' }[String(g || '').toLowerCase()] ?? '');
 
 const COLUMNAS_ALUMNOS = [
   { key: 'num', label: '#' },
   { key: 'cedula', label: 'Cédula Escolar' },
   { key: 'nombres', label: 'Nombres' },
   { key: 'apellidos', label: 'Apellidos' },
+  { key: 'genero', label: 'Género' },
+  { key: 'representante', label: 'Representante', className: 'hidden md:table-cell' },
+  { key: 'telefono', label: 'Teléfono', className: 'hidden md:table-cell' },
 ];
 
 const ORDEN_OPTS = [
@@ -138,16 +145,16 @@ function BarraControles({ buscar, onBuscar, orden, onCambiarOrden, exportando, o
     <div className="flex flex-wrap items-center gap-3">
       <div className="relative mr-auto">
         <label htmlFor="buscar-alumno" className="sr-only">
-          Buscar alumno por nombre o cédula
+          Buscar alumno por nombre, cédula o representante
         </label>
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
         <input
           id="buscar-alumno"
           type="text"
-          placeholder="Buscar alumno..."
+          placeholder="Buscar alumno o representante..."
           value={buscar}
           onChange={e => onBuscar(e.target.value)}
-          className="pl-8 pr-3 py-1.5 text-sm rounded-lg outline-none w-44 sm:w-52"
+          className="pl-8 pr-3 py-1.5 text-sm rounded-lg outline-none w-56 sm:w-72"
           style={{
             border:     '0.5px solid var(--border-md)',
             background: 'var(--porcelain)',
@@ -211,7 +218,7 @@ function BarraControles({ buscar, onBuscar, orden, onCambiarOrden, exportando, o
 
 // ── TablaAlumnos ──────────────────────────────────────────────────────────────
 
-function TablaAlumnos({ alumnos, buscar }) {
+function TablaAlumnos({ alumnos, buscar, onVerFicha }) {
   if (alumnos.length === 0) {
     return (
       <div
@@ -237,11 +244,32 @@ function TablaAlumnos({ alumnos, buscar }) {
             <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle font-mono text-xs" style={{ color: 'var(--ash)' }}>
               {mostrarCedula(alumno.cedula_escolar)}
             </td>
-            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle" style={{ color: 'var(--jet)' }}>
-              {alumno.nombre}
+            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle">
+              <button
+                type="button"
+                onClick={() => onVerFicha(alumno)}
+                aria-label={`Ver ficha de ${alumno.nombre} ${alumno.apellido}`}
+                className="rounded-md text-left font-medium underline-offset-2 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pb)]"
+                style={{ color: 'var(--pb)' }}
+              >
+                {alumno.nombre}
+              </button>
             </td>
             <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle font-medium" style={{ color: 'var(--jet)' }}>
               {alumno.apellido}
+            </td>
+            <td className="px-3 py-3 sm:px-4 sm:py-4 align-middle text-center text-xs font-semibold" style={{ color: 'var(--jet)' }}>
+              {letraGenero(alumno.genero) || <span style={{ color: 'var(--ash)', opacity: 0.7 }}>—</span>}
+            </td>
+            <td
+              className="hidden md:table-cell px-3 py-3 sm:px-4 sm:py-4 align-middle max-w-[14rem] truncate"
+              style={{ color: 'var(--jet)' }}
+              title={alumno.representante_nombre || undefined}
+            >
+              {alumno.representante_nombre || <span style={{ color: 'var(--ash)', opacity: 0.7 }}>—</span>}
+            </td>
+            <td className="hidden md:table-cell px-3 py-3 sm:px-4 sm:py-4 align-middle whitespace-nowrap text-xs" style={{ color: 'var(--ash)' }}>
+              {alumno.representante_telefono || <span style={{ opacity: 0.7 }}>—</span>}
             </td>
           </tr>
         ))}
@@ -269,6 +297,8 @@ export default function Grados() {
     cambiarOrden,
     exportar,
   } = useMatriculaGrado();
+
+  const [alumnoFicha, setAlumnoFicha] = useState(null);
 
   return (
     <div>
@@ -328,12 +358,14 @@ export default function Grados() {
 
               {loadingAlumnos
                 ? <SkeletonTabla />
-                : <TablaAlumnos alumnos={alumnosFiltrados} buscar={buscar} />
+                : <TablaAlumnos alumnos={alumnosFiltrados} buscar={buscar} onVerFicha={setAlumnoFicha} />
               }
             </>
           )}
         </div>
       </div>
+
+      <FichaAlumnoModal alumno={alumnoFicha} onClose={() => setAlumnoFicha(null)} />
     </div>
   );
 }

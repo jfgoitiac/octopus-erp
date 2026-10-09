@@ -1594,6 +1594,44 @@ class GradosListView(APIView):
         return Response(list(grados))
 
 
+def _rep_matricula(a):
+    """Datos del representante para los listados/exportaciones de matrícula ('' si no hay)."""
+    r = a.representante
+    if not r:
+        return {'nombre': '', 'cedula': '', 'correo': '', 'direccion': '', 'telefono': ''}
+    return {
+        'nombre':    f"{r.nombre} {r.apellido}".strip(),
+        'cedula':    r.cedula or '',
+        'correo':    r.correo or '',
+        'direccion': (r.direccion or '').strip(),
+        'telefono':  r.telefono or '',
+    }
+
+
+def _genero_letra(a):
+    g = (a.genero or '').lower()
+    return 'M' if g == 'masculino' else 'F' if g == 'femenino' else ''
+
+
+def _alumnos_matricula_grado(grado, orden):
+    qs = Alumno.objects.filter(activo=True, grado_seccion=grado).select_related('representante')
+    return qs.order_by('cedula_escolar') if orden == 'cedula' else qs.order_by('apellido', 'nombre')
+
+
+MATRICULA_HEADERS = [
+    'N°', 'Cédula Escolar', 'Nombres', 'Apellidos', 'Género', 'Representante',
+    'Cédula Representante', 'Correo', 'Teléfono', 'Dirección',
+]
+
+
+def _fila_matricula(idx, a):
+    r = _rep_matricula(a)
+    return [
+        idx, _cedula_visible(a.cedula_escolar), a.nombre, a.apellido, _genero_letra(a),
+        r['nombre'], r['cedula'], r['correo'], r['telefono'], r['direccion'],
+    ]
+
+
 class MatriculaGradoView(APIView):
     """Devuelve la lista de alumnos de un grado con orden configurable."""
     permission_classes = [permissions.IsAuthenticated, IsSecretariaOrAbove]
@@ -1617,85 +1655,115 @@ class MatriculaGradoView(APIView):
         else:
             qs = qs.order_by('apellido', 'nombre')
 
-        data = [
-            {
+        data = []
+        for a in qs:
+            r = _rep_matricula(a)
+            data.append({
                 'id':               a.id,
                 'cedula_escolar':   a.cedula_escolar,
                 'nombre':           a.nombre,
                 'apellido':         a.apellido,
                 'genero':           a.genero,
+                'genero_display':   a.get_genero_display(),
+                'genero_letra':     _genero_letra(a),
                 'grado_seccion':    a.grado_seccion,
                 'estatus_financiero': estatus_financiero_actual(a),
-                'representante_nombre': f"{a.representante.nombre} {a.representante.apellido}" if a.representante else '',
-                'representante_telefono': a.representante.telefono if a.representante else '',
-            }
-            for a in qs
-        ]
+                'representante_nombre':    r['nombre'],
+                'representante_cedula':    r['cedula'],
+                'representante_correo':    r['correo'],
+                'representante_direccion': r['direccion'],
+                'representante_telefono':  r['telefono'],
+            })
         return Response({'grado': grado, 'total': len(data), 'alumnos': data})
 
 
 class ExportarMatriculaGradoExcelView(APIView):
-    """Exporta la matrícula de un grado a Excel."""
+    """Exporta la matrícula de un grado a Excel (con datos del representante)."""
     permission_classes = [permissions.IsAuthenticated, IsSecretariaOrAbove]
 
     def get(self, request):
-        from cobranza.exports import ExcelExporter
-
         grado = request.query_params.get('grado', '').strip()
         orden = request.query_params.get('orden', 'apellido')
 
         if not grado:
             return Response({"error": "Debe especificar el parámetro 'grado'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        qs = Alumno.objects.filter(activo=True, grado_seccion=grado).select_related('representante')
-        qs = qs.order_by('cedula_escolar') if orden == 'cedula' else qs.order_by('apellido', 'nombre')
-
-        # Construir manualmente para agregar numeración y encabezado de grado
         from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
         from django.http import HttpResponse
         from django.utils import timezone
 
+        qs = _alumnos_matricula_grado(grado, orden)
         nombre_completo = _nombre_grado_completo(grado)
+        ncols = len(MATRICULA_HEADERS)
+        ultima = get_column_letter(ncols)
 
         wb = Workbook()
         ws = wb.active
         ws.title = "Matrícula"
 
-        title_font  = Font(bold=True, size=13)
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill("solid", fgColor="1E3A5F")
-        center      = Alignment(horizontal="center")
+        azul        = "1E3A5F"
+        thin        = Side(style="thin", color="CBD5E1")
+        borde       = Border(left=thin, right=thin, top=thin, bottom=thin)
+        zebra       = PatternFill("solid", fgColor="F4F7FB")
+        header_fill = PatternFill("solid", fgColor=azul)
 
-        ws.merge_cells('A1:D1')
+        ws.merge_cells(f'A1:{ultima}1')
         ws['A1'] = f"Matrícula — {nombre_completo}"
-        ws['A1'].font      = title_font
-        ws['A1'].alignment = center
+        ws['A1'].font      = Font(bold=True, size=14, color=azul)
+        ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 24
 
-        ws.merge_cells('A2:D2')
-        ws['A2'] = f"Generado: {timezone.now().strftime('%d/%m/%Y %H:%M')}"
-        ws['A2'].alignment = center
+        ws.merge_cells(f'A2:{ultima}2')
+        ws['A2'] = (
+            f"Orden: {'Por cédula' if orden == 'cedula' else 'Alfabético'}  |  "
+            f"Generado: {timezone.localtime().strftime('%d/%m/%Y %H:%M')}"
+        )
+        ws['A2'].font      = Font(italic=True, size=10, color="666666")
+        ws['A2'].alignment = Alignment(horizontal="center", vertical="center")
 
-        headers = ['N°', 'Cédula Escolar', 'Nombres', 'Apellidos']
-        ws.append([])
-        ws.append(headers)
-        header_row = ws.max_row
-        for cell in ws[header_row]:
-            cell.font      = header_font
+        header_row = 4
+        for c, h in enumerate(MATRICULA_HEADERS, start=1):
+            cell = ws.cell(row=header_row, column=c, value=h)
+            cell.font      = Font(bold=True, color="FFFFFF")
             cell.fill      = header_fill
-            cell.alignment = center
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border    = borde
+        ws.row_dimensions[header_row].height = 22
 
+        total = 0
         for idx, alumno in enumerate(qs, start=1):
-            ws.append([
-                idx,
-                _cedula_visible(alumno.cedula_escolar),
-                alumno.nombre,
-                alumno.apellido,
-            ])
+            total = idx
+            row = header_row + idx
+            for c, valor in enumerate(_fila_matricula(idx, alumno), start=1):
+                cell = ws.cell(row=row, column=c, value=valor)
+                cell.border = borde
+                cell.alignment = Alignment(
+                    horizontal="center" if c in (1, 2, 5, 7, 9) else "left",
+                    vertical="top" if c == ncols else "center",
+                    wrap_text=(c in (6, 8, ncols)),
+                )
+                if idx % 2 == 0:
+                    cell.fill = zebra
 
-        col_widths = [5, 18, 24, 24]
-        for i, w in enumerate(col_widths, start=1):
-            ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+        fila_total = header_row + total + 1
+        ws.merge_cells(start_row=fila_total, start_column=1, end_row=fila_total, end_column=ncols)
+        cell = ws.cell(row=fila_total, column=1, value=f"Total de alumnos: {total}")
+        cell.font      = Font(bold=True, color=azul)
+        cell.alignment = Alignment(horizontal="right", vertical="center")
+        cell.fill      = PatternFill("solid", fgColor="E8EEF6")
+
+        for i, w in enumerate([6, 17, 22, 22, 9, 28, 17, 32, 16, 45], start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
+        ws.auto_filter.ref = f"A{header_row}:{ultima}{header_row + total}"
+        ws.page_setup.orientation = 'landscape'
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.print_title_rows = f'{header_row}:{header_row}'
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         nombre_archivo = grado.replace(' ', '_').replace('/', '-')
@@ -1706,7 +1774,7 @@ class ExportarMatriculaGradoExcelView(APIView):
 
 
 class ExportarMatriculaGradoPDFView(APIView):
-    """Exporta la matrícula de un grado a PDF con reportlab."""
+    """Exporta la matrícula de un grado a PDF apaisado con reportlab."""
     permission_classes = [permissions.IsAuthenticated, IsSecretariaOrAbove]
 
     def get(self, request):
@@ -1715,7 +1783,8 @@ class ExportarMatriculaGradoPDFView(APIView):
         from reportlab.lib.units import cm
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+        from xml.sax.saxutils import escape
         from django.http import HttpResponse
         from django.utils import timezone
         import io
@@ -1726,64 +1795,83 @@ class ExportarMatriculaGradoPDFView(APIView):
         if not grado:
             return Response({"error": "Debe especificar el parámetro 'grado'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        qs = Alumno.objects.filter(activo=True, grado_seccion=grado).select_related('representante')
-        qs = qs.order_by('cedula_escolar') if orden == 'cedula' else qs.order_by('apellido', 'nombre')
-
+        qs = _alumnos_matricula_grado(grado, orden)
         nombre_completo = _nombre_grado_completo(grado)
 
         buffer = io.BytesIO()
-        doc    = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1.5*cm, bottomMargin=1.5*cm, leftMargin=2*cm, rightMargin=2*cm)
+        pagina = landscape(letter)
+        margen = 1.2 * cm
+        doc = SimpleDocTemplate(
+            buffer, pagesize=pagina, topMargin=1.2*cm, bottomMargin=1.4*cm,
+            leftMargin=margen, rightMargin=margen,
+            title=f"Matrícula {nombre_completo}",
+        )
+        ancho_util = pagina[0] - 2 * margen
 
+        primary = colors.HexColor('#1E3A5F')
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle('title', parent=styles['Title'], fontSize=14, spaceAfter=4, alignment=TA_CENTER)
-        sub_style   = ParagraphStyle('sub',   parent=styles['Normal'], fontSize=9, spaceAfter=12, alignment=TA_CENTER, textColor=colors.HexColor('#666666'))
+        title_style = ParagraphStyle('mtitle', parent=styles['Title'], fontSize=16, leading=20,
+                                     spaceAfter=2, alignment=TA_CENTER, textColor=primary)
+        sub_style   = ParagraphStyle('msub', parent=styles['Normal'], fontSize=9, spaceAfter=10,
+                                     alignment=TA_CENTER, textColor=colors.HexColor('#666666'))
+        total_style = ParagraphStyle('mtotal', parent=styles['Normal'], fontSize=10, alignment=TA_RIGHT,
+                                     textColor=primary, fontName='Helvetica-Bold')
+        head_style  = ParagraphStyle('mhead', parent=styles['Normal'], fontName='Helvetica-Bold',
+                                     fontSize=8, leading=10, alignment=TA_CENTER, textColor=colors.white)
+        cell_style  = ParagraphStyle('mcell', parent=styles['Normal'], fontSize=7.5, leading=9.5)
+        cell_center = ParagraphStyle('mcellc', parent=cell_style, alignment=TA_CENTER)
 
-        primary_color = colors.HexColor('#1E3A5F')
+        def p(texto, estilo=cell_style):
+            return Paragraph(escape(str(texto or '')), estilo)
 
         elements = [
-            Paragraph(f"Lista de Matrícula — {nombre_completo}", title_style),
-            Paragraph(f"Orden: {'Por Cédula' if orden == 'cedula' else 'Alfabético'} &nbsp;|&nbsp; Generado: {timezone.now().strftime('%d/%m/%Y %H:%M')}", sub_style),
-            Spacer(1, 0.3*cm),
+            Paragraph(escape(f"Lista de Matrícula — {nombre_completo}"), title_style),
+            Paragraph(
+                f"Orden: {'Por cédula' if orden == 'cedula' else 'Alfabético'} &nbsp;|&nbsp; "
+                f"Generado: {timezone.localtime().strftime('%d/%m/%Y %H:%M')}", sub_style),
         ]
 
-        table_data = [['N°', 'Cédula Escolar', 'Nombres', 'Apellidos']]
+        # Única fila de encabezado: la de arriba de la tabla (se repite en cada página).
+        table_data = [[Paragraph(escape(h), head_style) for h in MATRICULA_HEADERS]]
+        total = 0
         for idx, alumno in enumerate(qs, start=1):
+            total = idx
+            f = _fila_matricula(idx, alumno)
             table_data.append([
-                str(idx),
-                _cedula_visible(alumno.cedula_escolar),
-                alumno.nombre,
-                alumno.apellido,
+                p(f[0], cell_center), p(f[1], cell_center), p(f[2]), p(f[3]), p(f[4], cell_center), p(f[5]),
+                p(f[6], cell_center), p(f[7]), p(f[8], cell_center), p(f[9]),
             ])
 
-        col_widths = [1.2*cm, 4*cm, 6.5*cm, 6.5*cm]
+        proporciones = [3, 9, 10, 10, 6.5, 12.5, 9.5, 15, 9, 18.5]
+        suma = float(sum(proporciones))
+        col_widths = [ancho_util * x / suma for x in proporciones]
+
         table = Table(table_data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
-            # Encabezado
-            ('BACKGROUND',   (0, 0), (-1, 0),  primary_color),
-            ('TEXTCOLOR',    (0, 0), (-1, 0),  colors.white),
-            ('FONTNAME',     (0, 0), (-1, 0),  'Helvetica-Bold'),
-            ('FONTSIZE',     (0, 0), (-1, 0),  9),
-            ('ALIGN',        (0, 0), (-1, 0),  'CENTER'),
-            ('BOTTOMPADDING',(0, 0), (-1, 0),  7),
-            ('TOPPADDING',   (0, 0), (-1, 0),  7),
-            # Filas de datos
-            ('FONTNAME',     (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE',     (0, 1), (-1, -1), 9),
-            ('ALIGN',        (0, 1), (0, -1),  'CENTER'),
-            ('ALIGN',        (1, 1), (1, -1),  'CENTER'),
-            ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F7FB')]),
-            ('TOPPADDING',   (0, 1), (-1, -1), 5),
-            ('BOTTOMPADDING',(0, 1), (-1, -1), 5),
-            ('GRID',         (0, 0), (-1, -1), 0.4, colors.HexColor('#CCCCCC')),
+            ('BACKGROUND',    (0, 0), (-1, 0),  primary),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, 0),  7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0),  7),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F7FB')]),
+            ('TOPPADDING',    (0, 1), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
+            ('LINEBELOW',     (0, 1), (-1, -1), 0.3, colors.HexColor('#D5DCE6')),
+            ('BOX',           (0, 0), (-1, -1), 0.5, colors.HexColor('#B8C2D0')),
         ]))
         elements.append(table)
+        elements.append(Spacer(1, 0.4*cm))
+        elements.append(Paragraph(f"Total de alumnos: {total}", total_style))
 
-        # Pie de página con total
-        elements.append(Spacer(1, 0.5*cm))
-        elements.append(Paragraph(f"Total de alumnos: {len(table_data) - 1}", sub_style))
+        def _pie(canvas, doc_):
+            canvas.saveState()
+            canvas.setFont('Helvetica', 8)
+            canvas.setFillColor(colors.HexColor('#888888'))
+            canvas.drawRightString(pagina[0] - margen, 0.7*cm, f"Página {doc_.page}")
+            canvas.restoreState()
 
-        doc.build(elements)
+        doc.build(elements, onFirstPage=_pie, onLaterPages=_pie)
         buffer.seek(0)
 
         nombre_archivo = grado.replace(' ', '_').replace('/', '-')

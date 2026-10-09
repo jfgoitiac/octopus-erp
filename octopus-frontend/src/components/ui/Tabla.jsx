@@ -22,7 +22,7 @@ export function Tabla({ columnas = [], children, minWidth = 640, vacio }) {
               scope="col"
               className={`px-3 py-3 sm:px-4 text-xs uppercase tracking-wider whitespace-nowrap ${
                 col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-              }`}
+              } ${col.className || ''}`}
               style={{ color: 'var(--ash)', fontWeight: 'var(--fw-medium)' }}
             >
               {col.label}

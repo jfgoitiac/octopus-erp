@@ -144,7 +144,7 @@ export function useMatriculaGrado() {
   const alumnosFiltrados = useMemo(() => {
     if (!buscar.trim()) return alumnos;
     return alumnos.filter(a => coincideBusqueda(
-      `${a.nombre} ${a.apellido} ${a.cedula_escolar || ''}`,
+      `${a.nombre} ${a.apellido} ${a.cedula_escolar || ''} ${a.representante_nombre || ''}`,
       buscar,
     ));
   }, [alumnos, buscar]);
