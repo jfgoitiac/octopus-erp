@@ -21,6 +21,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
+from common.busqueda import filtrar_busqueda
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -408,22 +409,16 @@ def _resolver_y_filtrar(request):
     buscar = (request.query_params.get('buscar') or '').strip()
     if buscar:
         if nivel == 'alumno':
-            qs = qs.filter(
-                Q(alumno__nombre__icontains=buscar) |
-                Q(alumno__apellido__icontains=buscar) |
-                Q(alumno__cedula_escolar__icontains=buscar) |
-                Q(alumno__representante__nombre__icontains=buscar) |
-                Q(alumno__representante__apellido__icontains=buscar) |
-                Q(alumno__representante__cedula__icontains=buscar)
-            ).distinct()
+            qs = filtrar_busqueda(qs, buscar, [
+                'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
+                'alumno__representante__nombre', 'alumno__representante__apellido',
+                'alumno__representante__cedula',
+            ]).distinct()
         else:
-            qs = qs.filter(
-                Q(representante__nombre__icontains=buscar) |
-                Q(representante__apellido__icontains=buscar) |
-                Q(representante__cedula__icontains=buscar) |
-                Q(representante__alumnos__nombre__icontains=buscar) |
-                Q(representante__alumnos__apellido__icontains=buscar)
-            ).distinct()
+            qs = filtrar_busqueda(qs, buscar, [
+                'representante__nombre', 'representante__apellido', 'representante__cedula',
+                'representante__alumnos__nombre', 'representante__alumnos__apellido',
+            ]).distinct()
 
     return qs, nivel, tiene_monto_pagado, tiene_numero_cuota, info, clave, None
 

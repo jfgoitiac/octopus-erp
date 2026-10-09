@@ -12,6 +12,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.busqueda import filtrar_busqueda
 from config.pagination import StandardResultsPagination
 
 from .image_pipeline import generar_variantes_webp
@@ -150,7 +151,7 @@ class PaginaListCreateAdminView(APIView):
 
         search = request.query_params.get('search')
         if search:
-            qs = qs.filter(Q(titulo__icontains=search) | Q(slug__icontains=search))
+            qs = filtrar_busqueda(qs, search, ['titulo', 'slug'])
 
         paginator = self.pagination_class()
         pagina_actual = paginator.paginate_queryset(qs, request, view=self)
@@ -624,7 +625,7 @@ class ArticuloListCreateAdminView(APIView):
 
         search = request.query_params.get('search')
         if search:
-            qs = qs.filter(Q(titulo__icontains=search) | Q(resumen__icontains=search))
+            qs = filtrar_busqueda(qs, search, ['titulo', 'resumen'])
 
         paginator = self.pagination_class()
         pagina_actual = paginator.paginate_queryset(qs, request, view=self)
@@ -726,7 +727,7 @@ class MediaListCreateAdminView(APIView):
         qs = Media.objects.all()
         search = request.query_params.get('search')
         if search:
-            qs = qs.filter(alt_text__icontains=search)
+            qs = filtrar_busqueda(qs, search, ['alt_text'])
 
         paginator = self.pagination_class()
         pagina_actual = paginator.paginate_queryset(qs, request, view=self)
@@ -996,7 +997,7 @@ class ArticuloListaPublicaView(APIView):
 
         search = request.query_params.get('search')
         if search:
-            qs = qs.filter(Q(titulo__icontains=search) | Q(resumen__icontains=search))
+            qs = filtrar_busqueda(qs, search, ['titulo', 'resumen'])
 
         qs = qs.order_by('-publicado_en', '-creado_en')
 

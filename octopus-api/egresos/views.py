@@ -1,3 +1,4 @@
+from common.busqueda import filtrar_busqueda
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -64,7 +65,7 @@ class ArticulosView(APIView):
         qs=ArticuloFrecuente.objects.filter(activo=True)
         for campo in ('proveedor','categoria'):
             if request.query_params.get(campo): qs=qs.filter(**{campo:request.query_params[campo]})
-        if request.query_params.get('q'): qs=qs.filter(nombre__icontains=request.query_params['q'])
+        if request.query_params.get('q'): qs=filtrar_busqueda(qs,request.query_params['q'],['nombre'])
         return Response(ArticuloFrecuenteSerializer(qs,many=True).data)
 
 class ConfiguracionView(APIView):

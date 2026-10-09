@@ -126,6 +126,10 @@ class BuscadorTests(CxcBase):
         self.assertEqual(data[0]['alumnos'][0]['nombre'], 'Luisito')
         self.assertEqual(data[0]['alumnos'][0]['grado_seccion'], '3ro A')
 
+    def test_busqueda_sin_tildes_ni_mayusculas(self):
+        Representante.objects.filter(pk=self.rep.pk).update(nombre='María', apellido='González')
+        self.assertEqual([r['id'] for r in self.buscar('GONZALEZ maria')], [self.rep.id])
+
     def test_por_cedula_escolar_del_alumno(self):
         self.assertEqual([r['id'] for r in self.buscar('CE-001')], [self.rep.id])
 

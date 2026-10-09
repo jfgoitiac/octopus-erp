@@ -6,6 +6,7 @@ accesible tiene el módulo encendido (PLAN_COBRANZA_INTELIGENTE.md §3).
 from datetime import date
 
 from django.db.models import Q
+from common.busqueda import filtrar_busqueda
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -100,13 +101,12 @@ class CarteraCiclosView(ListAPIView):
             qs = qs.filter(responsable__username=p['responsable'])
         if p.get('buscar', '').strip():
             t = p['buscar'].strip()
-            qs = qs.filter(
-                Q(mensualidad__alumno__nombre__icontains=t)
-                | Q(mensualidad__alumno__apellido__icontains=t)
-                | Q(mensualidad__alumno__representante__nombre__icontains=t)
-                | Q(mensualidad__alumno__representante__apellido__icontains=t)
-                | Q(mensualidad__alumno__representante__cedula__icontains=t)
-            )
+            qs = filtrar_busqueda(qs, t, [
+                'mensualidad__alumno__nombre', 'mensualidad__alumno__apellido',
+                'mensualidad__alumno__representante__nombre',
+                'mensualidad__alumno__representante__apellido',
+                'mensualidad__alumno__representante__cedula',
+            ])
 
         page = self.paginate_queryset(qs.order_by('fecha_vencimiento', 'id'))
         hoy = date.today()

@@ -1,3 +1,4 @@
+from common.busqueda import filtrar_busqueda
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound
 from cobranza.permissions import filtrar_por_sede
@@ -13,7 +14,7 @@ class ProveedorViewSet(BaseFinanzas):
     def get_queryset(self):
         q=self.request.query_params.get('q',''); activo=self.request.query_params.get('activo')
         qs=Proveedor.objects.all()
-        if q: qs=qs.filter(razon_social__icontains=q) | qs.filter(rif__icontains=q)
+        if q: qs=filtrar_busqueda(qs,q,['razon_social','rif','nombre_comercial'])
         if activo is not None: qs=qs.filter(activo=activo.lower()=='true')
         return qs
     def perform_create(self, serializer): serializer.save(creado_por=self.request.user)

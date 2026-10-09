@@ -2217,3 +2217,21 @@ class AsistenciaRosterTests(TestCase):
         filas = {f['alumno_id']: f for f in self._get()}
         self.assertEqual(filas[self.alvarez.id]['alumno_genero'], 'femenino')
         self.assertEqual(filas[self.zapata.id]['alumno_genero'], 'masculino')
+
+
+class DocentesBusquedaTolerantePorAcentosTests(TestCase):
+    def test_search_ignora_tildes_y_acepta_palabras_en_cualquier_orden(self):
+        admin = crear_usuario('directora_busq', 'director')
+        user = crear_usuario('profe_jose', 'docente')
+        user.first_name, user.last_name = 'José', 'Pérez'
+        user.save(update_fields=['first_name', 'last_name'])
+        Docente.objects.create(user=user, especialidad='Matemáticas')
+        otro = crear_usuario('profe_otro', 'docente')
+        Docente.objects.create(user=otro)
+
+        client = APIClient()
+        client.force_authenticate(user=admin)
+        for texto in ('perez jose', 'JOSE perez', 'matematicas'):
+            resp = client.get('/api/academico/docentes/', {'search': texto})
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual([d['username'] for d in resp.data], ['profe_jose'], texto)

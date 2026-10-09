@@ -21,7 +21,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cobranza.exports import ExcelExporter
-from secretaria.models import Representante
+from common.busqueda import filtrar_busqueda
+from secretaria.models import Alumno, Representante
 
 from . import services_cxc
 from .models import (
@@ -77,7 +78,7 @@ def _representante_anotado(pk, area=None):
 # Buscador
 # ─────────────────────────────────────────────
 class BuscarRepresentanteCxcView(APIView):
-    """GET ?q=: cada palabra debe coincidir (icontains) con cédula/nombre/apellido
+    """GET ?q=: cada palabra debe coincidir (sin tildes) con cédula/nombre/apellido
     del representante o nombre/apellido/cédula escolar de uno de sus alumnos activos."""
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
@@ -89,15 +90,16 @@ class BuscarRepresentanteCxcView(APIView):
         # Activos, más cualquier inactivo que todavía tenga saldo pendiente.
         con_saldo = Exists(CargoCantina.objects.filter(representante=OuterRef('pk'), estado='pendiente'))
         qs = Representante.objects.filter(Q(activo=True) | con_saldo)
+        # Cada palabra puede caer en el representante o en un alumno activo
+        # (tolerante a tildes/mayúsculas; palabras en cualquier orden).
         for palabra in q.split():
-            qs = qs.filter(
-                Q(cedula__icontains=palabra)
-                | Q(nombre__icontains=palabra)
-                | Q(apellido__icontains=palabra)
-                | Q(alumnos__activo=True, alumnos__nombre__icontains=palabra)
-                | Q(alumnos__activo=True, alumnos__apellido__icontains=palabra)
-                | Q(alumnos__activo=True, alumnos__cedula_escolar__icontains=palabra)
-            )
+            por_rep = filtrar_busqueda(
+                Representante.objects.all(), palabra, ['cedula', 'nombre', 'apellido']
+            ).values('pk')
+            por_alumno = filtrar_busqueda(
+                Alumno.objects.filter(activo=True), palabra, ['nombre', 'apellido', 'cedula_escolar']
+            ).values('representante_id')
+            qs = qs.filter(Q(pk__in=por_rep) | Q(pk__in=por_alumno))
         # Se filtra por ids para que el distinct() no choque con las anotaciones.
         ids = list(qs.order_by('apellido', 'nombre').values_list('pk', flat=True).distinct()[:MAX_RESULTADOS_BUSCADOR * 5])
         ids = list(dict.fromkeys(ids))[:MAX_RESULTADOS_BUSCADOR]

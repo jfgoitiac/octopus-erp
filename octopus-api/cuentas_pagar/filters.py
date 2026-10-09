@@ -1,3 +1,4 @@
+from common.busqueda import filtrar_busqueda
 from datetime import timedelta
 
 from django.db.models import Q
@@ -40,7 +41,7 @@ def filtrar_cuentas(queryset, params):
     if params.get('situacion'): queryset=filtrar_por_situacion(queryset, params['situacion'])
     if params.get('desde'): queryset=queryset.filter(fecha_vencimiento__gte=params['desde'])
     if params.get('hasta'): queryset=queryset.filter(fecha_vencimiento__lte=params['hasta'])
-    if params.get('q'): queryset=queryset.filter(Q(numero__icontains=params['q'])|Q(concepto__icontains=params['q']))
+    if params.get('q'): queryset=filtrar_busqueda(queryset,params['q'],['numero','concepto','proveedor__razon_social'])
     return queryset
 
 

@@ -12,6 +12,7 @@ import { columnasInforme } from '../components/egresos/reportes/columnasInforme'
 import { descargarReporteEgresosPDF } from '../utils/egresosPDF';
 import { descargarReporteEgresosExcel } from '../utils/egresosExcel';
 import { useInstitucionPDF } from '../hooks/useInstitucionPDF';
+import { coincideBusqueda } from '../utils/busqueda';
 
 const INFORMES = [
   ['relacion-detallada', 'Relación detallada'], ['por-categoria', 'Por categoría'], ['por-proveedor', 'Por proveedor'], ['por-sede', 'Por sede'],
@@ -28,9 +29,9 @@ export default function ReportesEgresos() {
   const [fiscalActivo, setFiscalActivo] = useState(true); const institucion = useInstitucionPDF();
   const columnas = useMemo(() => columnasInforme(informe, fiscalActivo, filtros.moneda), [informe, fiscalActivo, filtros.moneda]);
   const visibles = useMemo(() => filas.filter((fila) => {
-    const proveedor = String(fila.proveedor || fila.proveedor__razon_social || '').toLowerCase();
-    const categoria = String(fila.categoria || fila.categoria__nombre || '').toLowerCase();
-    return (!filtros.proveedor || proveedor.includes(filtros.proveedor.toLowerCase())) && (!filtros.categoria || categoria.includes(filtros.categoria.toLowerCase()));
+    const proveedor = String(fila.proveedor || fila.proveedor__razon_social || '');
+    const categoria = String(fila.categoria || fila.categoria__nombre || '');
+    return coincideBusqueda(proveedor, filtros.proveedor) && coincideBusqueda(categoria, filtros.categoria);
   }), [filas, filtros.proveedor, filtros.categoria]);
   const cargar = useCallback(async () => {
     setCargando(true);

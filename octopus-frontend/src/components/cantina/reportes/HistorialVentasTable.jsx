@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale/es';
 import { descargarReciboVenta } from '../../../api/cantina.service';
 
 import { TablaScroll } from '../../ui/TablaScroll';
+import { coincideBusqueda } from '../../../utils/busqueda';
 import { etiquetaMetodo } from '../metodoPagoUtils';
 import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 
@@ -27,13 +28,8 @@ export default function HistorialVentasTable({ ventas = [] }) {
   const [imprimiendoId, setImprimiendoId] = useState(null);
 
   const ventasFiltradas = useMemo(() => {
-    const q = filtro.trim().toLowerCase();
-    if (!q) return ventas;
-    return ventas.filter(v => {
-      const numero = String(v.id ?? '').toLowerCase();
-      const alumno = (v.alumno_nombre ?? '').toLowerCase();
-      return numero.includes(q) || alumno.includes(q);
-    });
+    if (!filtro.trim()) return ventas;
+    return ventas.filter(v => coincideBusqueda(`${v.id ?? ''} ${v.alumno_nombre ?? ''}`, filtro));
   }, [ventas, filtro]);
 
   const reimprimir = async (venta) => {

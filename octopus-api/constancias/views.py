@@ -1,3 +1,4 @@
+from common.busqueda import filtrar_busqueda
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -511,7 +512,7 @@ class ConstanciaEmitidaListView(generics.ListAPIView):
 
         numero = params.get('numero')
         if numero:
-            qs = qs.filter(numero__icontains=numero)
+            qs = filtrar_busqueda(qs, numero, ['numero'])
 
         desde = params.get('desde')
         if desde:

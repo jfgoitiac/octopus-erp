@@ -1,6 +1,7 @@
 import django_filters
 from django.db.models import Q
 from .models import Pago, Mensualidad
+from common.busqueda import filtrar_busqueda
 
 
 class PagoFilter(django_filters.FilterSet):
@@ -19,7 +20,7 @@ class PagoFilter(django_filters.FilterSet):
       - monto_min               : Monto USD mínimo (inclusivo)
       - monto_max               : Monto USD máximo (inclusivo)
       - representante_documento : Búsqueda parcial (icontains) en cédula/doc. del representante
-      - buscar                  : Búsqueda parcial (icontains) por cédula/nombre del representante
+      - buscar                  : Búsqueda tolerante (sin tildes, multi-palabra) por cédula/nombre del representante
                                    o nombre/apellido del alumno — un solo campo para el operador
                                    que no necesariamente recuerda cédulas de memoria (ver
                                    ClasificacionPagosTab). No reemplaza a representante_documento,
@@ -53,12 +54,10 @@ class PagoFilter(django_filters.FilterSet):
         value = (value or '').strip()
         if not value:
             return queryset
-        return queryset.filter(
-            Q(representante_documento__icontains=value)
-            | Q(representante_nombre__icontains=value)
-            | Q(alumno__nombre__icontains=value)
-            | Q(alumno__apellido__icontains=value)
-        )
+        return filtrar_busqueda(queryset, value, [
+            'representante_documento', 'representante_nombre',
+            'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
+        ])
 
     class Meta:
         model = Pago

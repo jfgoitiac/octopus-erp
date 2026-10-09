@@ -8,6 +8,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.busqueda import filtrar_busqueda
 from authentication.serializers import PerfilDocenteSerializer, PerfilFotoSerializer
 from secretaria.models import Alumno, ConfiguracionGrado, ConfiguracionSistema
 from .filters import AsistenciaFilter, IncidenteFilter, NotaFilter
@@ -313,12 +314,9 @@ class DocentesView(APIView):
 
         buscar = request.query_params.get('search')
         if buscar:
-            qs = qs.filter(
-                Q(user__first_name__icontains=buscar)
-                | Q(user__last_name__icontains=buscar)
-                | Q(user__username__icontains=buscar)
-                | Q(especialidad__icontains=buscar)
-            )
+            qs = filtrar_busqueda(qs, buscar, [
+                'user__first_name', 'user__last_name', 'user__username', 'especialidad',
+            ])
 
         return Response(DocenteSerializer(qs, many=True).data)
 

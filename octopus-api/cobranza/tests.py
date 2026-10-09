@@ -2678,3 +2678,33 @@ class RegistrarPagoInscripcionAbonoTest(TestCase):
         c.refresh_from_db()
         self.assertTrue(c.pagado)
         self.assertEqual(c.monto_pagado, Decimal('10.00'))
+
+
+class BusquedaTolerantePagosTest(TestCase):
+    """buscar en PagoFilter ignora tildes/mayúsculas y acepta palabras en cualquier orden."""
+
+    def setUp(self):
+        rep = Representante.objects.create(
+            cedula="V99887766", nombre="José", apellido="Pérez", correo="jose.perez@example.com"
+        )
+        self.alumno = Alumno.objects.create(
+            nombre="Niño", apellido="Pérez", cedula_escolar="E84000777",
+            fecha_nacimiento=date(2015, 3, 10), representante=rep,
+        )
+        user = User.objects.create_user(username='cajero_busq', password='password123')
+        tasa = TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        self.pago = Pago.objects.create(
+            alumno=self.alumno, monto_usd=Decimal('10.00'), metodo_pago='efectivo',
+            usuario_receptor=user, tasa_aplicada=Decimal('40.00'),
+            representante_documento="V99887766", representante_nombre="José Pérez",
+        )
+
+    def _buscar(self, texto):
+        from .filters import PagoFilter
+        return PagoFilter({'buscar': texto}, queryset=Pago.objects.all()).qs
+
+    def test_sin_tildes_y_orden_libre(self):
+        self.assertIn(self.pago, self._buscar('jose perez'))
+        self.assertIn(self.pago, self._buscar('PEREZ nino'))
+        self.assertIn(self.pago, self._buscar('e84000777'))
+        self.assertNotIn(self.pago, self._buscar('maria'))

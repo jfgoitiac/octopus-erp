@@ -27,6 +27,7 @@ from authentication.views import IsSystemAdminOrDirector, EsPersonalCobranza, Is
 from usuarios.models import LogAuditoria
 from config.pagination import StandardResultsPagination
 from .permissions import filtrar_por_sede, sedes_permitidas_ids
+from common.busqueda import filtrar_busqueda
 
 logger = logging.getLogger(__name__)
 
@@ -1499,10 +1500,7 @@ class ConsultaComprobantesView(APIView):
 
         alumno_nombre = request.query_params.get('alumno_nombre', '').strip()
         if alumno_nombre:
-            qs = qs.filter(
-                Q(alumno__nombre__icontains=alumno_nombre) |
-                Q(alumno__apellido__icontains=alumno_nombre)
-            )
+            qs = filtrar_busqueda(qs, alumno_nombre, ['alumno__nombre', 'alumno__apellido'])
 
         fi_str = request.query_params.get('fecha_inicio', '').strip()
         ff_str = request.query_params.get('fecha_fin', '').strip()
@@ -2677,12 +2675,10 @@ class DesgloseContableView(APIView):
         if buscar:
             buscar = buscar.strip()
             if buscar:
-                qs = qs.filter(
-                    Q(representante_documento__icontains=buscar)
-                    | Q(representante_nombre__icontains=buscar)
-                    | Q(alumno__nombre__icontains=buscar)
-                    | Q(alumno__apellido__icontains=buscar)
-                )
+                qs = filtrar_busqueda(qs, buscar, [
+                    'representante_documento', 'representante_nombre',
+                    'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
+                ])
 
         # Cache del "pago principal" (con M2M prefetched) por operacion_uuid,
         # igual criterio que ComprobanteSerializer._get_principal_con_conceptos,
@@ -2964,15 +2960,11 @@ class ResumenConciliacionView(APIView):
 
         qs_busqueda = base_qs
         if buscar:
-            qs_busqueda = qs_busqueda.filter(
-                Q(alumno__nombre__icontains=buscar) |
-                Q(alumno__apellido__icontains=buscar) |
-                Q(alumno__cedula_escolar__icontains=buscar) |
-                Q(alumno__representante__nombre__icontains=buscar) |
-                Q(alumno__representante__apellido__icontains=buscar) |
-                Q(alumno__representante__cedula__icontains=buscar) |
-                Q(referencia__icontains=buscar)
-            )
+            qs_busqueda = filtrar_busqueda(qs_busqueda, buscar, [
+                'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
+                'alumno__representante__nombre', 'alumno__representante__apellido',
+                'alumno__representante__cedula', 'referencia',
+            ])
 
         representantes_ordenados = list(
             qs_busqueda.values('alumno__representante_id')
@@ -3394,13 +3386,10 @@ class ListaMorososView(APIView):
         )
 
         if buscar:
-            qs = qs.filter(
-                Q(nombre__icontains=buscar) |
-                Q(apellido__icontains=buscar) |
-                Q(cedula_escolar__icontains=buscar) |
-                Q(representante__nombre__icontains=buscar) |
-                Q(representante__cedula__icontains=buscar)
-            )
+            qs = filtrar_busqueda(qs, buscar, [
+                'nombre', 'apellido', 'cedula_escolar',
+                'representante__nombre', 'representante__apellido', 'representante__cedula',
+            ])
         return qs
 
     def get(self, request):

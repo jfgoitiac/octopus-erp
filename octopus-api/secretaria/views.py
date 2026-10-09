@@ -1197,11 +1197,7 @@ class ExportarAlumnosExcelView(APIView):
             config.periodo_escolar_activo if config else None,
         )
         if buscar:
-            qs = qs.filter(
-                DQ(nombre__icontains=buscar) |
-                DQ(apellido__icontains=buscar) |
-                DQ(cedula_escolar__icontains=buscar)
-            )
+            qs = filtrar_busqueda(qs, buscar, ['nombre', 'apellido', 'cedula_escolar'])
 
         columns = [
             ('Nombre',          'nombre'),
@@ -1232,12 +1228,7 @@ class ExportarRepresentantesExcelView(APIView):
         ).order_by('apellido', 'nombre')
 
         if buscar:
-            qs = qs.filter(
-                DQ(cedula__icontains=buscar)   |
-                DQ(nombre__icontains=buscar)   |
-                DQ(apellido__icontains=buscar) |
-                DQ(correo__icontains=buscar)
-            )
+            qs = filtrar_busqueda(qs, buscar, ['cedula', 'nombre', 'apellido', 'correo'])
         if min_hijos:
             try:
                 qs = qs.filter(cantidad_alumnos__gte=int(min_hijos))
