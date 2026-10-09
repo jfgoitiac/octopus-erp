@@ -43,7 +43,7 @@ CAMPOS_EDITABLES_CORRECCION = ('metodo_pago', 'referencia', 'numero_lote', 'banc
 # Campos de monto: requieren rol admin/director/sistemas (chequeado en la vista
 # vía IsSystemAdminOrDirector) y solo se pueden tocar si el pago está ligado a
 # lo sumo a UNA "cuota" en total, contando las 4 M2M — ver `elegibilidad_monto()`.
-CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_monto_pagado', 'cuota_monto_usd')
+CAMPOS_EDITABLES_CORRECCION_MONTO = ('monto_usd', 'cuota_monto_pagado', 'cuota_monto_usd', 'cuotas')
 
 
 def fecha_en_cierre_validado(usuario, fecha):
@@ -145,26 +145,71 @@ def elegibilidad_monto(pago: Pago) -> dict:
         ('proyecto_inversion', list(pago.proyectos_inversion_pagados.all())),
         ('inscripcion', list(pago.cuotas_inscripcion_pagadas.all())),
     )
-    total_ligadas = sum(len(objs) for _, objs in buckets)
+    cuotas = [{'tipo': tipo, 'obj': obj} for tipo, objs in buckets for obj in objs]
 
-    if total_ligadas > 1:
+    if len(cuotas) > 1:
+        # El monto del pago no se toca (no hay forma de repartir el cambio),
+        # pero cada cuota ligada se puede corregir por separado: quien corrige
+        # indica el valor final de cada una (ver `cambios['cuotas']`).
         return {
             'editable': False,
             'razon': (
-                'Este pago está ligado a más de una cuota/mensualidad — no se puede '
-                'determinar con certeza cuánto corresponde a cada una. Contactar a '
-                'Sistemas para un ajuste manual.'
+                'Este pago está ligado a varias cuotas — no se puede determinar con '
+                'certeza cuánto corresponde a cada una, así que el monto del pago no '
+                'se modifica. Sí puedes ajustar cada cuota por separado.'
             ),
             'cuota': None,
+            'cuotas': cuotas,
         }
 
-    for tipo, objs in buckets:
-        if objs:
-            return {'editable': True, 'razon': None, 'cuota': {'tipo': tipo, 'obj': objs[0]}}
+    if cuotas:
+        return {'editable': True, 'razon': None, 'cuota': cuotas[0], 'cuotas': cuotas}
 
-    return {'editable': True, 'razon': None, 'cuota': None}
+    return {'editable': True, 'razon': None, 'cuota': None, 'cuotas': []}
 
 
+def _ajustar_cuota(cuota, tipo, total_nuevo, abono_nuevo):
+    """
+    Aplica a `cuota` un nuevo monto total (`total_nuevo`) y/o un nuevo abono
+    absoluto (`abono_nuevo`); cualquiera puede ser None (sin cambio). Lo
+    abonado se conserva si solo cambia el total, y la diferencia queda como
+    deuda.
+    """
+    if total_nuevo is not None and total_nuevo <= 0:
+        raise ValidationError({'cuota_monto_usd': 'El monto total de la cuota debe ser mayor a 0.'})
+    total = total_nuevo if total_nuevo is not None else cuota.monto_usd
+    if abono_nuevo is None:
+        if cuota.pagado and cuota.monto_pagado <= 0:
+            # Fila legada: marcada pagada sin abono registrado — se conserva
+            # lo cobrado (el monto anterior) para que, si el total sube, quede
+            # el saldo pendiente en vez de asumir pago completo.
+            abono_nuevo = cuota.monto_usd
+        else:
+            abono_nuevo = cuota.monto_pagado
+    if abono_nuevo < 0 or abono_nuevo > total:
+        raise ValidationError({
+            'cuota_monto_pagado': (
+                f'El monto pagado de la cuota debe estar entre 0 y '
+                f'{total} (monto total de la cuota).'
+            )
+        })
+    if total_nuevo is not None:
+        # Override manual: propagar_monto_global() no debe pisarlo luego.
+        # CuotaSolvencia no tiene el flag (su monto ya es siempre por alumno).
+        cuota.monto_usd = total_nuevo
+        if hasattr(cuota, 'monto_personalizado'):
+            cuota.monto_personalizado = True
+    if tipo in ('mensualidad', 'inscripcion'):
+        # Mensualidad/CuotaInscripcion.save() interpretan pagado=True con
+        # monto_pagado < monto_usd como "se pagó por el total" y suben
+        # monto_pagado en vez de bajarlo. Hay que resetear `pagado` a mano
+        # para que save() derive el estado real del monto_pagado corregido.
+        cuota.pagado = False
+    cuota.monto_pagado = abono_nuevo
+    cuota.save()
+
+
+@transaction.atomic
 def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
     """
     Función A: edición in-place de un pago ya existente. Además de
@@ -227,40 +272,22 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
         pago.monto_ves = (monto_usd_nuevo * pago.tasa_aplicada).quantize(Decimal('0.01'))
 
     if cuota_monto_pagado_nuevo is not None or cuota_monto_usd_nuevo is not None:
-        total_nuevo = cuota_monto_usd_nuevo if cuota_monto_usd_nuevo is not None else cuota_afectada.monto_usd
-        if cuota_monto_pagado_nuevo is not None:
-            abono_nuevo = cuota_monto_pagado_nuevo
-        elif cuota_afectada.pagado and cuota_afectada.monto_pagado <= 0:
-            # Fila legada: marcada pagada sin abono registrado — se conserva
-            # lo cobrado (el monto anterior) para que, si el total sube, quede
-            # el saldo pendiente en vez de asumir pago completo.
-            abono_nuevo = cuota_afectada.monto_usd
-        else:
-            abono_nuevo = cuota_afectada.monto_pagado
-        if abono_nuevo < 0 or abono_nuevo > total_nuevo:
-            raise ValidationError({
-                'cuota_monto_pagado': (
-                    f'El monto pagado de la cuota debe estar entre 0 y '
-                    f'{total_nuevo} (monto total de la cuota).'
-                )
-            })
-        if cuota_monto_usd_nuevo is not None:
-            # Override manual: propagar_monto_global() no debe pisarlo luego.
-            # CuotaSolvencia no tiene el flag (su monto ya es siempre por alumno).
-            cuota_afectada.monto_usd = cuota_monto_usd_nuevo
-            if hasattr(cuota_afectada, 'monto_personalizado'):
-                cuota_afectada.monto_personalizado = True
-        if cuota_info['tipo'] in ('mensualidad', 'inscripcion'):
-            # Mensualidad.save() tiene una compatibilidad especial (ver su
-            # docstring): si `pagado` ya estaba en True y el monto_pagado
-            # nuevo es menor a monto_usd, lo interpreta como "se pagó por el
-            # total" y sincroniza monto_pagado hacia ARRIBA en vez de
-            # bajarlo. Hay que resetear `pagado` a mano para que save()
-            # derive el estado real a partir del monto_pagado que sí estamos
-            # corrigiendo explícitamente.
-            cuota_afectada.pagado = False
-        cuota_afectada.monto_pagado = abono_nuevo
-        cuota_afectada.save()
+        _ajustar_cuota(
+            cuota_afectada, cuota_info['tipo'], cuota_monto_usd_nuevo, cuota_monto_pagado_nuevo
+        )
+
+    # Pago ligado a varias cuotas: cada una se corrige por separado con los
+    # valores finales que indica quien corrige (no se infiere ningún reparto).
+    cuotas_nuevas = cambios.get('cuotas')
+    if cuotas_nuevas:
+        ligadas = {(c['tipo'], c['obj'].id): c['obj'] for c in elegibilidad_monto(pago)['cuotas']}
+        for item in cuotas_nuevas:
+            cuota = ligadas.get((item['tipo'], item['id']))
+            if cuota is None:
+                raise ValidationError({'cuotas': 'Una de las cuotas indicadas no está ligada a este pago.'})
+            _ajustar_cuota(
+                cuota, item['tipo'], item.get('cuota_monto_usd'), item.get('cuota_monto_pagado')
+            )
 
     # Se antepone el motivo a las observaciones. Si vinieron observaciones
     # nuevas en `cambios`, esas son la base sobre la que se antepone el

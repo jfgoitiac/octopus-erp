@@ -912,6 +912,18 @@ class PagoCreateSerializer(serializers.Serializer):
         return data
 
 
+class CorreccionCuotaSerializer(serializers.Serializer):
+    """Corrección de UNA cuota ligada a un pago multi-cuota (ver CorreccionPagoSerializer)."""
+    tipo = serializers.ChoiceField(choices=['solvencia', 'mensualidad', 'proyecto_inversion', 'inscripcion'])
+    id = serializers.IntegerField()
+    cuota_monto_usd = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False
+    )
+    cuota_monto_pagado = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal('0.00'), required=False
+    )
+
+
 class CorreccionPagoSerializer(serializers.Serializer):
     """
     Función A del módulo de Corrección de Pagos: campos que se pueden
@@ -945,6 +957,9 @@ class CorreccionPagoSerializer(serializers.Serializer):
     cuota_monto_usd = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False
     )
+    # Pago ligado a VARIAS cuotas: el monto del pago no se toca, pero cada
+    # cuota se corrige por separado con sus valores finales.
+    cuotas = CorreccionCuotaSerializer(many=True, required=False)
 
 
 class AnularPagoSerializer(serializers.Serializer):

@@ -1279,6 +1279,73 @@ class CorregirPagoMontoTests(TestCase):
         self.assertEqual(log.detalles['cuota_monto_usd_anterior'], '30.00')
         self.assertEqual(log.detalles['cuota_monto_usd_nuevo'], '50.00')
 
+    def test_pago_multicuota_permite_corregir_cada_cuota_por_separado(self):
+        # Caso real: un mismo pago cubre proyecto de inversión + inscripción.
+        from cobranza.models import CuotaInscripcion
+        from cobranza.services import tipo_cargo_proyecto_inversion
+        from usuarios.models import LogAuditoria
+
+        proyecto = CuotaProyectoInversion.objects.create(
+            representante=self.representante, periodo_escolar='2025-2026',
+            tipo_concepto=tipo_cargo_proyecto_inversion(),
+            monto_usd=Decimal('30.00'), monto_pagado=Decimal('30.00'),
+        )
+        inscripcion = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2025-2026',
+            monto_usd=Decimal('40.00'), monto_pagado=Decimal('40.00'),
+        )
+        pago = Pago.objects.create(
+            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='transferencia',
+            concepto='mixto', monto_usd=Decimal('70.00'), tasa_aplicada=Decimal('40.00'),
+            referencia='TRF-MULTI-1', estatus='completado',
+        )
+        proyecto.pagos.add(pago)
+        inscripcion.pagos.add(pago)
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.get(f'/api/cobranza/pagos/{pago.id}/elegibilidad-monto/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertFalse(resp.data['editable_monto'])
+        self.assertEqual(len(resp.data['cuotas']), 2)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuotas': [{
+                'tipo': 'proyecto_inversion', 'id': proyecto.id,
+                'cuota_monto_usd': '50.00', 'cuota_monto_pagado': '30.00',
+            }],
+            'motivo': 'El proyecto de inversión se cargó con un monto menor',
+        }, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        proyecto.refresh_from_db()
+        inscripcion.refresh_from_db()
+        pago.refresh_from_db()
+        self.assertEqual(proyecto.monto_usd, Decimal('50.00'))
+        self.assertEqual(proyecto.monto_pagado, Decimal('30.00'))
+        self.assertFalse(proyecto.pagado)
+        self.assertEqual(inscripcion.monto_pagado, Decimal('40.00'))
+        self.assertTrue(inscripcion.pagado)
+        self.assertEqual(pago.monto_usd, Decimal('70.00'))
+
+        log = LogAuditoria.objects.get(accion='CORREGIR_PAGO_MONTO', detalles__pago_id=pago.id)
+        self.assertEqual(len(log.detalles['cuotas']), 1)
+        self.assertEqual(log.detalles['cuotas'][0]['cuota_monto_usd_nuevo'], '50.00')
+
+    def test_pago_multicuota_rechaza_cuota_no_ligada(self):
+        from cobranza.models import CuotaInscripcion
+
+        otra = CuotaInscripcion.objects.create(
+            alumno=self.alumno, periodo_escolar='2024-2025', monto_usd=Decimal('40.00'),
+        )
+        pago, _ = self._pago_con_cuota_solvencia()
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.patch(f'/api/cobranza/pagos/{pago.id}/corregir/', {
+            'cuotas': [{'tipo': 'inscripcion', 'id': otra.id, 'cuota_monto_usd': '10.00'}],
+            'motivo': 'Intento de tocar una cuota ajena al pago',
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
     def test_ajustar_monto_total_de_solvencia_deja_la_diferencia_como_deuda(self):
         pago, cuota = self._pago_con_cuota_solvencia()
         self.client.force_authenticate(user=self.admin)
