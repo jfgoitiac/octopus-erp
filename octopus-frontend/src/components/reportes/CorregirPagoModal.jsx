@@ -57,6 +57,14 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
     const [montoUsd, setMontoUsd] = useState(String(pago.monto_usd ?? ''));
     const [cuotaMontoPagado, setCuotaMontoPagado] = useState('');
     const [cuotaMontoUsd, setCuotaMontoUsd] = useState('');
+    // Pago ligado a varias cuotas: una fila editable por cuota (valores finales).
+    const [cuotasEdit, setCuotasEdit] = useState([]);
+
+    const actualizarCuotaEdit = (clave, campo, valor) => {
+        setCuotasEdit(prev => prev.map(c => (
+            `${c.tipo}-${c.id}` === clave ? { ...c, [campo]: valor } : c
+        )));
+    };
 
     useEffect(() => {
         if (!puedeEditarMonto) return;
@@ -70,6 +78,11 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                 if (data.cuota?.monto_usd != null) {
                     setCuotaMontoUsd(String(data.cuota.monto_usd));
                 }
+                setCuotasEdit((data.cuotas || []).map(c => ({
+                    ...c,
+                    nuevoTotal: String(c.monto_usd),
+                    nuevoAbono: String(c.monto_pagado),
+                })));
             })
             .catch(err => {
                 if (err.name !== 'CanceledError') {
@@ -100,8 +113,19 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
             || Number(cuotaMontoPagado) < 0
             || Number(cuotaMontoPagado) > totalCuotaEfectivo);
 
+    // Cuotas multi-cuota con algún dato inválido (total > 0, abono entre 0 y total).
+    const cuotasEditInvalidas = cuotasEdit.some(c => (
+        c.nuevoTotal === '' || Number(c.nuevoTotal) <= 0
+        || c.nuevoAbono === '' || Number(c.nuevoAbono) < 0
+        || Number(c.nuevoAbono) > Number(c.nuevoTotal)
+    ));
+
     const handleGuardar = async () => {
         setTouched(true);
+        if (puedeEditarMonto && cuotasEditInvalidas) {
+            toast.warning('Revisa las cuotas: el total debe ser mayor a 0 y el abono estar entre 0 y el total.');
+            return;
+        }
         if (loteInvalido) {
             toast.warning('El número de lote debe tener 4 dígitos.');
             return;
@@ -142,6 +166,19 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                 if (cuotaConAbono && Number(cuotaMontoPagado) !== Number(cuotaConAbono.monto_pagado)) {
                     payload.cuota_monto_pagado = cuotaMontoPagado;
                 }
+            }
+            if (puedeEditarMonto && cuotasEdit.length > 0) {
+                // Solo las cuotas que cambiaron, con sus valores finales.
+                const cambiadas = cuotasEdit
+                    .filter(c => Number(c.nuevoTotal) !== Number(c.monto_usd)
+                        || Number(c.nuevoAbono) !== Number(c.monto_pagado))
+                    .map(c => ({
+                        tipo: c.tipo,
+                        id: c.id,
+                        cuota_monto_usd: c.nuevoTotal,
+                        cuota_monto_pagado: c.nuevoAbono,
+                    }));
+                if (cambiadas.length > 0) payload.cuotas = cambiadas;
             }
             await corregirPago(pago.id, payload);
             onGuardado();
@@ -291,6 +328,56 @@ const CorregirPagoModal = ({ pago, bancosDisponibles, onClose, onGuardado }) => 
                     <p className="text-xs p-2.5 rounded-lg" style={{ background: 'var(--bg)', color: 'var(--ash)' }}>
                         {elegibilidad.razon}
                     </p>
+                )}
+                {puedeEditarMonto && !cargandoElegibilidad && cuotasEdit.length > 0 && (
+                    <div className="space-y-3">
+                        <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--jet)' }}>
+                            Cuotas ligadas a este pago
+                        </p>
+                        {cuotasEdit.map(c => {
+                            const clave = `${c.tipo}-${c.id}`;
+                            const totalInvalido = c.nuevoTotal === '' || Number(c.nuevoTotal) <= 0;
+                            const abonoInvalido = c.nuevoAbono === '' || Number(c.nuevoAbono) < 0
+                                || Number(c.nuevoAbono) > Number(c.nuevoTotal);
+                            return (
+                                <div key={clave} className="p-3 rounded-lg space-y-2"
+                                    style={{ border: '0.5px solid var(--border-md)' }}>
+                                    <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{c.etiqueta}</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                                Monto total (USD)
+                                            </label>
+                                            <input
+                                                type="number" min="0.01" step="0.01"
+                                                value={c.nuevoTotal}
+                                                onChange={e => actualizarCuotaEdit(clave, 'nuevoTotal', e.target.value)}
+                                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                                style={{ border: `0.5px solid ${touched && totalInvalido ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                                Abonado (USD)
+                                            </label>
+                                            <input
+                                                type="number" min="0" step="0.01"
+                                                value={c.nuevoAbono}
+                                                onChange={e => actualizarCuotaEdit(clave, 'nuevoAbono', e.target.value)}
+                                                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                                style={{ border: `0.5px solid ${touched && abonoInvalido ? 'var(--red)' : 'var(--border-md)'}`, color: 'var(--jet)' }}
+                                            />
+                                            {touched && abonoInvalido && (
+                                                <p className="text-[10px] mt-1" style={{ color: 'var(--red)' }}>
+                                                    Debe estar entre 0 y el total.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 )}
                 {puedeEditarMonto && !cargandoElegibilidad && elegibilidad?.editable_monto && (
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">

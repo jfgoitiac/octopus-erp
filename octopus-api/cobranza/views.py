@@ -2144,6 +2144,17 @@ class ClasificacionPagoCreateView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+def _etiqueta_cuota(tipo, obj):
+    """Texto corto para identificar una cuota en el modal "Corregir Pago"."""
+    if tipo == 'mensualidad':
+        return f'Mensualidad {obj.mes}/{obj.anio}'
+    if tipo == 'proyecto_inversion':
+        return f'{obj.tipo_concepto.nombre} {obj.periodo_escolar} (cuota {obj.numero_cuota})'
+    if tipo == 'inscripcion':
+        return f'Inscripción {obj.periodo_escolar}'
+    return f'Solvencia {obj.periodo_escolar}'
+
+
 class ElegibilidadMontoCorreccionView(APIView):
     """
     Consulta previa para el modal "Corregir Pago": indica si el pago admite
@@ -2169,10 +2180,25 @@ class ElegibilidadMontoCorreccionView(APIView):
                 'monto_usd': str(obj.monto_usd),
                 'monto_pagado': str(obj.monto_pagado),
             }
+        # Solo con varias cuotas ligadas: el front las lista para corregir
+        # cada una por separado (el monto del pago no es editable en ese caso).
+        cuotas_payload = []
+        if len(info['cuotas']) > 1:
+            cuotas_payload = [
+                {
+                    'tipo': c['tipo'],
+                    'id': c['obj'].id,
+                    'etiqueta': _etiqueta_cuota(c['tipo'], c['obj']),
+                    'monto_usd': str(c['obj'].monto_usd),
+                    'monto_pagado': str(c['obj'].monto_pagado),
+                }
+                for c in info['cuotas']
+            ]
         return Response({
             'editable_monto': info['editable'],
             'razon': info['razon'],
             'cuota': cuota_payload,
+            'cuotas': cuotas_payload,
         })
 
 
@@ -2229,6 +2255,14 @@ class CorregirPagoView(APIView):
 
         cuota_monto_usd_anterior = cuota_obj_previa.monto_usd if cuota_obj_previa is not None else None
 
+        # Pago multi-cuota: foto de cada cuota ANTES de corregir, para la auditoría.
+        cuotas_previas = {}
+        if cambios.get('cuotas'):
+            cuotas_previas = {
+                (c['tipo'], c['obj'].id): (c['obj'].monto_usd, c['obj'].monto_pagado)
+                for c in correcciones.elegibilidad_monto(pago)['cuotas']
+            }
+
         try:
             pago_actualizado = correcciones.corregir_pago(pago, cambios, request.user, motivo)
         except DjangoValidationError as e:
@@ -2260,6 +2294,23 @@ class CorregirPagoView(APIView):
                     cuota_obj_previa.refresh_from_db()
                     detalles['cuota_monto_pagado_anterior'] = str(cuota_monto_pagado_anterior)
                     detalles['cuota_monto_pagado_nuevo'] = str(cuota_obj_previa.monto_pagado)
+            if cuotas_previas:
+                actuales = {
+                    (c['tipo'], c['obj'].id): (c['obj'].monto_usd, c['obj'].monto_pagado)
+                    for c in correcciones.elegibilidad_monto(pago_actualizado)['cuotas']
+                }
+                detalles['cuotas'] = [
+                    {
+                        'cuota_tipo': tipo,
+                        'cuota_id': cuota_id,
+                        'cuota_monto_usd_anterior': str(antes[0]),
+                        'cuota_monto_usd_nuevo': str(actuales[(tipo, cuota_id)][0]),
+                        'cuota_monto_pagado_anterior': str(antes[1]),
+                        'cuota_monto_pagado_nuevo': str(actuales[(tipo, cuota_id)][1]),
+                    }
+                    for (tipo, cuota_id), antes in cuotas_previas.items()
+                    if antes != actuales[(tipo, cuota_id)]
+                ]
             LogAuditoria.objects.create(
                 usuario=request.user,
                 accion="CORREGIR_PAGO_MONTO",
