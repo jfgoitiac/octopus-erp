@@ -11,7 +11,11 @@ const COLUMNAS = [
 ];
 
 const EstadoBadge = ({ alumno }) => {
-    const estado = !alumno.activo ? 'Retirado' : (alumno.grado_seccion ? 'Inscrito' : 'Sin inscribir');
+    // estado_inscripcion lo calcula el backend contra el período activo; grado_seccion es solo respaldo
+    const inscrito = alumno.estado_inscripcion
+        ? alumno.estado_inscripcion === 'inscrito'
+        : !!alumno.grado_seccion;
+    const estado = !alumno.activo ? 'Retirado' : (inscrito ? 'Inscrito' : 'Sin inscribir');
     const styles = {
         Inscrito:     { background: '#dcfce7', color: '#16a34a' },
         Retirado:     { background: 'var(--red-light)', color: 'var(--red)' },
@@ -50,12 +54,13 @@ const TablaAlumnos = ({
     onAjustarDeuda,
     onAjustarInscripcion,
     onIrCobranza,
+    vacio = 'No se encontraron estudiantes con esos datos.',
 }) => {
     return (
         <Tabla
             columnas={COLUMNAS}
             minWidth={700}
-            vacio="No se encontraron estudiantes con esos datos."
+            vacio={vacio}
         >
             {alumnos.map((alumno) => (
                         <tr key={alumno.id}>

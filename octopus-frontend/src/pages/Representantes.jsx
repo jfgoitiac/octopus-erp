@@ -1,5 +1,5 @@
 import { useEffect, useContext } from 'react';
-import { Search, UserPlus, Download, Loader2 } from 'lucide-react';
+import { Search, UserPlus, UserX, Download, Loader2 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { ROLE_GROUPS } from '../constants/roles';
 import { useRepresentantes } from '../hooks/useRepresentantes';
@@ -89,6 +89,20 @@ const Representantes = () => {
                             className="sm:w-[120px]"
                         />
                     </div>
+                    <button
+                        onClick={() => rep.setSinInscribir(!rep.sinInscribir)}
+                        aria-pressed={rep.sinInscribir}
+                        className="flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-medium min-h-[44px] w-full sm:w-auto"
+                        style={{
+                            border: '0.5px solid var(--border-md)',
+                            background: rep.sinInscribir ? 'var(--jet)' : 'transparent',
+                            color: rep.sinInscribir ? '#fff' : 'var(--ash)',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        <UserX size={14} />
+                        Con alumnos sin inscribir
+                    </button>
                     <div className="flex gap-2">
                     {canEditar && (
                         <button

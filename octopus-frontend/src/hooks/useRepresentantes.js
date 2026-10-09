@@ -38,6 +38,9 @@ export function useRepresentantes() {
     // Cambiar búsqueda o filtro reinicia siempre a la página 1
     const setBusqueda = useCallback((v) => { setBusquedaRaw(v); setPage(1); }, []);
     const setMinHijos = useCallback((v) => { setMinHijosRaw(v); setPage(1); }, []);
+    // Solo representantes con algún alumno activo sin inscribir en el período activo
+    const [sinInscribir, setSinInscribirRaw] = useState(false);
+    const setSinInscribir = useCallback((v) => { setSinInscribirRaw(v); setPage(1); }, []);
 
     // --- Export ---
     const [exportingExcel, setExportingExcel] = useState(false);
@@ -75,6 +78,7 @@ export function useRepresentantes() {
             const params = new URLSearchParams();
             if (busqueda.trim()) params.append('buscar', busqueda.trim());
             if (minHijos) params.append('min_hijos', minHijos);
+            if (sinInscribir) params.append('sin_inscribir', 'true');
             params.append('page', String(page));
             params.append('page_size', String(PAGE_SIZE));
             const res = await axiosInstance.get(`secretaria/representantes/?${params}`, { signal });
@@ -87,7 +91,7 @@ export function useRepresentantes() {
         } finally {
             setLoading(false);
         }
-    }, [busqueda, minHijos, page]);
+    }, [busqueda, minHijos, sinInscribir, page]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -315,7 +319,7 @@ export function useRepresentantes() {
 
     return {
         // Lista
-        representantes, loading, busqueda, setBusqueda, minHijos, setMinHijos,
+        representantes, loading, busqueda, setBusqueda, minHijos, setMinHijos, sinInscribir, setSinInscribir,
         // Paginación
         page, setPage, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), pageSize: PAGE_SIZE,
         // Export

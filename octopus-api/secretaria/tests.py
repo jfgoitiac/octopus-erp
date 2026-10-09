@@ -947,3 +947,59 @@ class PermisosRolSecretariaTest(TestCase):
                 f'/api/secretaria/representantes/{rep.id}/', {'telefono': '04148888888'}, format='json',
             )
             self.assertEqual(resp.status_code, 403, rol)
+
+
+class FiltroSinInscribirTest(TestCase):
+    """Filtro `inscripcion` del listado de alumnos y `sin_inscribir` de representantes."""
+
+    PERIODO = '2030-2031'
+
+    def setUp(self):
+        from datetime import date
+        self.client = APIClient()
+        self.user = User.objects.create_superuser(username='sistemas_filtro', password='clave123456')
+        token = str(RefreshToken.for_user(self.user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        ConfiguracionSistema.objects.create(
+            fecha_inicio_inscripciones=date(2030, 6, 1),
+            fecha_fin_inscripciones=date(2030, 8, 31),
+            fecha_inicio_ano_escolar=date(2030, 9, 1),
+            fecha_fin_ano_escolar=date(2031, 7, 31),
+            periodo_escolar_activo=self.PERIODO,
+        )
+        ConfiguracionGrado.objects.get_or_create(grado_seccion='1ro A', defaults={'cupos_maximos': 50})
+        self.rep_inscrito = Representante.objects.create(cedula='V9000001', nombre='Ana', apellido='Uno')
+        self.rep_pendiente = Representante.objects.create(cedula='V9000002', nombre='Beto', apellido='Dos')
+        self.inscrito = Alumno.objects.create(
+            cedula_escolar='9001', nombre='Inscrito', apellido='Uno', representante=self.rep_inscrito)
+        self.pendiente = Alumno.objects.create(
+            cedula_escolar='9002', nombre='Pendiente', apellido='Dos', representante=self.rep_pendiente)
+        Inscripcion.objects.create(
+            alumno=self.inscrito, periodo_escolar=self.PERIODO, grado_seccion='1ro A',
+            tipo_ingreso='nuevo', documentos_completos=True, usuario_registro=self.user)
+
+    def _ids(self, url):
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        rows = resp.data['results'] if isinstance(resp.data, dict) and 'results' in resp.data else resp.data
+        return {r['id'] for r in rows}
+
+    def test_alumnos_sin_inscribir(self):
+        ids = self._ids('/api/secretaria/alumnos/?inscripcion=sin_inscribir')
+        self.assertEqual(ids, {self.pendiente.id})
+
+    def test_alumnos_inscritos(self):
+        ids = self._ids('/api/secretaria/alumnos/?inscripcion=inscrito')
+        self.assertEqual(ids, {self.inscrito.id})
+
+    def test_sin_filtro_devuelve_todos(self):
+        ids = self._ids('/api/secretaria/alumnos/')
+        self.assertEqual(ids, {self.inscrito.id, self.pendiente.id})
+
+    def test_exportar_respeta_filtro(self):
+        resp = self.client.get('/api/secretaria/exportar-alumnos-excel/?inscripcion=sin_inscribir')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_representantes_con_alumnos_sin_inscribir(self):
+        ids = self._ids('/api/secretaria/representantes/?sin_inscribir=true')
+        self.assertEqual(ids, {self.rep_pendiente.id})

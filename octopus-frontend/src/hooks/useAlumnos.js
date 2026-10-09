@@ -35,14 +35,18 @@ export function useAlumnos() {
     // --- Lista ---
     const [alumnos, setAlumnos] = useState([]);
     const [busqueda, setBusquedaRaw] = useState('');
-    const [mostrarInactivos, setMostrarInactivosRaw] = useState(false);
+    // vista: 'activos' | 'inscritos' | 'sin_inscribir' | 'retirados'
+    const [vista, setVistaRaw] = useState('activos');
+    const mostrarInactivos = vista === 'retirados';
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
+    // Debounce solo al teclear: cambios de vista/página consultan de inmediato
+    const busquedaConsultadaRef = useRef('');
 
     // Cambiar búsqueda o filtro reinicia siempre a la página 1
     const setBusqueda = useCallback((v) => { setBusquedaRaw(v); setPage(1); }, []);
-    const setMostrarInactivos = useCallback((v) => { setMostrarInactivosRaw(v); setPage(1); }, []);
+    const setVista = useCallback((v) => { setVistaRaw(v); setPage(1); }, []);
 
     // --- Configuración montos ---
     const [montoDefecto, setMontoDefecto] = useState('35.00');
@@ -108,6 +112,8 @@ export function useAlumnos() {
         try {
             const params = new URLSearchParams();
             if (mostrarInactivos) params.append('todos', 'true');
+            if (vista === 'inscritos') params.append('inscripcion', 'inscrito');
+            if (vista === 'sin_inscribir') params.append('inscripcion', 'sin_inscribir');
             if (busqueda) params.append('buscar', busqueda);
             params.append('page', String(page));
             params.append('page_size', String(PAGE_SIZE));
@@ -123,13 +129,15 @@ export function useAlumnos() {
         } finally {
             setLoading(false);
         }
-    }, [mostrarInactivos, busqueda, page]);
+    }, [mostrarInactivos, vista, busqueda, page]);
 
     useEffect(() => {
         const controller = new AbortController();
-        const timer = setTimeout(() => fetchData(controller.signal), 500);
+        const delay = busqueda !== busquedaConsultadaRef.current ? 400 : 0;
+        busquedaConsultadaRef.current = busqueda;
+        const timer = setTimeout(() => fetchData(controller.signal), delay);
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [fetchData]);
+    }, [fetchData, busqueda]);
 
     // La configuración de montos no depende de la búsqueda/filtro: se carga una sola vez al montar
     useEffect(() => {
@@ -281,6 +289,8 @@ export function useAlumnos() {
             const params = new URLSearchParams();
             if (busqueda.trim()) params.append('buscar', busqueda.trim());
             if (mostrarInactivos) params.append('todos', 'true');
+            if (vista === 'inscritos') params.append('inscripcion', 'inscrito');
+            if (vista === 'sin_inscribir') params.append('inscripcion', 'sin_inscribir');
             const res = await axiosInstance.get(
                 `secretaria/exportar-alumnos-excel/?${params}`,
                 { responseType: 'blob' }
@@ -546,7 +556,7 @@ export function useAlumnos() {
 
     return {
         // Lista
-        alumnos, setAlumnos, busqueda, setBusqueda, mostrarInactivos, setMostrarInactivos, loading, fetchData,
+        alumnos, setAlumnos, busqueda, setBusqueda, vista, setVista, mostrarInactivos, loading, fetchData,
         // Paginación
         page, setPage, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), pageSize: PAGE_SIZE,
         // Config

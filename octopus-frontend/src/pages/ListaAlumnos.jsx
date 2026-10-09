@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Settings, Save, UserMinus, RefreshCcw, PlusCircle, Download, Loader2, X } from 'lucide-react';
+import { Search, Settings, Save, UserMinus, UserCheck, UserX, Users, RefreshCcw, PlusCircle, Download, Loader2, X } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { sincronizarTasa } from '../api/cobranza.service';
@@ -22,6 +22,13 @@ import ModalConfirmarPropagacionMontos from '../components/configuracion/ModalCo
 import Pagination from '../components/shared/Pagination';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
+
+const VISTAS = [
+    { key: 'activos',       label: 'Activos',       Icon: Users },
+    { key: 'inscritos',     label: 'Inscritos',     Icon: UserCheck },
+    { key: 'sin_inscribir', label: 'Sin inscribir', Icon: UserX },
+    { key: 'retirados',     label: 'Retirados',     Icon: UserMinus },
+];
 
 const ListaAlumnos = () => {
     const { user } = useContext(AuthContext);
@@ -214,21 +221,6 @@ const ListaAlumnos = () => {
                     </div>
 
                     <button
-                        onClick={() => alumnos.setMostrarInactivos(!alumnos.mostrarInactivos)}
-                        aria-pressed={alumnos.mostrarInactivos}
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px]"
-                        style={{
-                            border: '0.5px solid var(--border-md)',
-                            background: alumnos.mostrarInactivos ? 'var(--jet)' : 'transparent',
-                            color: alumnos.mostrarInactivos ? '#fff' : 'var(--ash)',
-                        }}>
-                        <UserMinus size={16} />
-                        <span className="text-sm font-bold">
-                            {alumnos.mostrarInactivos ? 'Ver Activos' : 'Ver Retirados'}
-                        </span>
-                    </button>
-
-                    <button
                         onClick={handleSyncTasa}
                         aria-label="Sincronizar tasa BCV"
                         className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] ${loadingTasa ? 'animate-pulse' : ''}`}
@@ -236,22 +228,47 @@ const ListaAlumnos = () => {
                         <RefreshCcw size={18} />
                         <span className="text-sm font-bold">Bs. {tasa.toLocaleString('es-VE')}</span>
                     </button>
-
-                    <div className="relative flex-1 md:w-72">
-                        <Search className="absolute left-3 top-2.5" style={{ color: 'var(--ash)' }} size={18} />
-                        <input
-                            type="search"
-                            placeholder="Buscar Estudiante..."
-                            aria-label="Buscar estudiante"
-                            className="w-full px-3 py-2 pl-10 rounded-lg outline-none"
-                            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
-                            value={alumnos.busqueda}
-                            onChange={(e) => alumnos.setBusqueda(e.target.value)}
-                        />
-                    </div>
                 </div>
                 }
             />
+
+            {/* ── Búsqueda + vistas ── */}
+            <div className="flex flex-col gap-2 mb-4 lg:flex-row lg:items-center lg:gap-3">
+                <div className="relative w-full lg:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} size={18} />
+                    <input
+                        type="search"
+                        placeholder="Buscar estudiante o representante…"
+                        aria-label="Buscar estudiante o representante"
+                        className="w-full px-3 py-2 pl-10 rounded-lg outline-none min-h-[44px]"
+                        style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+                        value={alumnos.busqueda}
+                        onChange={(e) => alumnos.setBusqueda(e.target.value)}
+                    />
+                </div>
+                <div role="group" aria-label="Filtrar por estado"
+                     className="flex gap-1 overflow-x-auto p-1 rounded-xl max-w-full"
+                     style={{ background: 'var(--ash-light)' }}>
+                    {VISTAS.map(({ key, label, Icon }) => {
+                        const activa = alumnos.vista === key;
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => alumnos.setVista(key)}
+                                aria-pressed={activa}
+                                className="flex items-center gap-1.5 px-3 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap min-h-[40px] transition-colors"
+                                style={{
+                                    background: activa ? '#fff' : 'transparent',
+                                    color: activa ? 'var(--jet)' : 'var(--ash)',
+                                    boxShadow: activa ? '0 1px 2px rgba(0,0,0,.08)' : 'none',
+                                }}>
+                                <Icon size={14} />
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
 
             {/* ── Tabla ── */}
             <Card padding="none">
@@ -261,6 +278,9 @@ const ListaAlumnos = () => {
                 ) : (
                     <TablaAlumnos
                         alumnos={alumnos.alumnos}
+                        vacio={alumnos.vista === 'sin_inscribir' && !alumnos.busqueda
+                            ? 'No hay alumnos pendientes de inscribir. Todos tienen grado en el período activo.'
+                            : undefined}
                         isSecretaria={isSecretaria}
                         isCajero={isCajero}
                         puedeAsignarGrado={puedeAsignarGrado}
