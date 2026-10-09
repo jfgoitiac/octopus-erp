@@ -11,10 +11,8 @@ const COLUMNAS = [
 ];
 
 const EstadoBadge = ({ alumno }) => {
-    // estado_inscripcion lo calcula el backend contra el período activo; grado_seccion es solo respaldo
-    const inscrito = alumno.estado_inscripcion
-        ? alumno.estado_inscripcion === 'inscrito'
-        : !!alumno.grado_seccion;
+    // Inscrito = tiene grado asignado; sin grado queda 'Sin inscribir'
+    const inscrito = !!alumno.grado_seccion;
     const estado = !alumno.activo ? 'Retirado' : (inscrito ? 'Inscrito' : 'Sin inscribir');
     const styles = {
         Inscrito:     { background: '#dcfce7', color: '#16a34a' },

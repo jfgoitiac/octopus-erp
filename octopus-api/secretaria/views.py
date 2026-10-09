@@ -633,23 +633,17 @@ def _eliminar_alumno_definitivo(alumno, usuario):
     Pago.objects.filter(alumno=alumno).delete()
     Inscripcion.objects.filter(alumno=alumno).delete()
     alumno.delete()
-def filtrar_inscripcion(qs, valor, periodo_activo):
-    """Filtra alumnos ACTIVOS por estado de inscripción en el período activo.
+def filtrar_inscripcion(qs, valor):
+    """Filtra alumnos ACTIVOS por estado de inscripción.
 
-    'sin_inscribir' = sin Inscripcion del período activo (incluye los que nunca
-    tuvieron grado). Mismo criterio que `estado_inscripcion` del serializer.
-    Sin período activo configurado se cae a la presencia de grado_seccion.
+    Un alumno está inscrito cuando tiene grado asignado (`grado_seccion`) y
+    'sin_inscribir' cuando no lo tiene: asignar grado lo inscribe, quitarlo lo
+    deja sin inscribir.
     """
     if valor not in ('inscrito', 'sin_inscribir'):
         return qs
-    qs = qs.filter(activo=True)
-    if periodo_activo:
-        inscrito = models.Exists(
-            Inscripcion.objects.filter(alumno_id=models.OuterRef('pk'), periodo_escolar=periodo_activo)
-        )
-        qs = qs.annotate(_inscrito_filtro=inscrito)
-        return qs.filter(_inscrito_filtro=(valor == 'inscrito'))
     con_grado = models.Q(grado_seccion__isnull=False) & ~models.Q(grado_seccion='')
+    qs = qs.filter(activo=True)
     return qs.filter(con_grado) if valor == 'inscrito' else qs.exclude(con_grado)
 
 
@@ -732,7 +726,7 @@ class AlumnoListView(viewsets.ModelViewSet):
             qs = qs.filter(estatus_financiero='becado')
 
         # Filtro por estado de inscripción (inscrito | sin_inscribir)
-        qs = filtrar_inscripcion(qs, self.request.query_params.get('inscripcion', ''), periodo_activo)
+        qs = filtrar_inscripcion(qs, self.request.query_params.get('inscripcion', ''))
 
         # Búsqueda por nombre, cédula o representante
         qs = filtrar_busqueda(
@@ -1191,11 +1185,7 @@ class ExportarAlumnosExcelView(APIView):
             qs = qs.filter(en_mora=False).exclude(estatus_financiero='becado')
         elif estatus == 'becado':
             qs = qs.filter(estatus_financiero='becado')
-        config = ConfiguracionSistema.objects.first()
-        qs = filtrar_inscripcion(
-            qs, request.query_params.get('inscripcion', ''),
-            config.periodo_escolar_activo if config else None,
-        )
+        qs = filtrar_inscripcion(qs, request.query_params.get('inscripcion', ''))
         if buscar:
             qs = filtrar_busqueda(qs, buscar, ['nombre', 'apellido', 'cedula_escolar'])
 
@@ -1963,10 +1953,10 @@ class RepresentanteViewSet(viewsets.ModelViewSet):
         min_hijos = self.request.query_params.get('min_hijos')
         if min_hijos is not None:
             qs = qs.filter(cantidad_alumnos__gte=int(min_hijos))
-        # Representantes con al menos un alumno activo sin inscribir en el período activo
+        # Representantes con al menos un alumno activo sin grado asignado
         if self.request.query_params.get('sin_inscribir', '').lower() == 'true':
             pendientes = filtrar_inscripcion(
-                Alumno.objects.filter(representante=models.OuterRef('pk')), 'sin_inscribir', periodo,
+                Alumno.objects.filter(representante=models.OuterRef('pk')), 'sin_inscribir',
             )
             qs = qs.filter(models.Exists(pendientes))
         return qs.order_by('apellido', 'nombre')

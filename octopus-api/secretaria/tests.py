@@ -1017,9 +1017,8 @@ class FiltroSinInscribirTest(TestCase):
             cedula_escolar='9001', nombre='Inscrito', apellido='Uno', representante=self.rep_inscrito)
         self.pendiente = Alumno.objects.create(
             cedula_escolar='9002', nombre='Pendiente', apellido='Dos', representante=self.rep_pendiente)
-        Inscripcion.objects.create(
-            alumno=self.inscrito, periodo_escolar=self.PERIODO, grado_seccion='1ro A',
-            tipo_ingreso='nuevo', documentos_completos=True, usuario_registro=self.user)
+        # Inscrito = tiene grado asignado (no depende del registro de Inscripcion)
+        Alumno.objects.filter(pk=self.inscrito.pk).update(grado_seccion='1ro A')
 
     def _ids(self, url):
         resp = self.client.get(url)
@@ -1034,6 +1033,13 @@ class FiltroSinInscribirTest(TestCase):
     def test_alumnos_inscritos(self):
         ids = self._ids('/api/secretaria/alumnos/?inscripcion=inscrito')
         self.assertEqual(ids, {self.inscrito.id})
+
+    def test_asignar_grado_lo_inscribe_y_quitarlo_lo_deja_sin_inscribir(self):
+        Alumno.objects.filter(pk=self.pendiente.pk).update(grado_seccion='1ro A')
+        self.assertEqual(self._ids('/api/secretaria/alumnos/?inscripcion=sin_inscribir'), set())
+        Alumno.objects.filter(pk=self.pendiente.pk).update(grado_seccion='')
+        self.assertEqual(
+            self._ids('/api/secretaria/alumnos/?inscripcion=sin_inscribir'), {self.pendiente.id})
 
     def test_sin_filtro_devuelve_todos(self):
         ids = self._ids('/api/secretaria/alumnos/')
