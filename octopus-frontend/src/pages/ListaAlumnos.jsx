@@ -70,7 +70,13 @@ const ListaAlumnos = () => {
     }, [showConfig]);
 
     // Atajo "N": abre el modal de Registrar Alumno (ignora si se está escribiendo
-    // en un campo o si ya hay algún modal abierto)
+    // en un campo o si ya hay algún modal abierto). Lee el estado vía ref para
+    // registrar el listener una sola vez en lugar de en cada render.
+    const estadoAtajoRef = useRef(null);
+    useEffect(() => {
+        estadoAtajoRef.current = { alumnos, mensualidades, cuotaInscripcion, showFichaSidebar, showConfig };
+    });
+
     useEffect(() => {
         if (!isSecretaria) return;
         const handleKeyN = (e) => {
@@ -78,17 +84,19 @@ const ListaAlumnos = () => {
             if (e.ctrlKey || e.metaKey || e.altKey) return;
             const tag = e.target.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+            const s = estadoAtajoRef.current;
+            if (!s) return;
             if (
-                alumnos.showRegisterModal || alumnos.showEditModal || alumnos.showAsignarGradoModal ||
-                alumnos.showRetirarModal || alumnos.alumnoParaReactivar || alumnos.alumnoParaQuitarGrado ||
-                mensualidades.showModal || cuotaInscripcion.showModal || showFichaSidebar || showConfig
+                s.alumnos.showRegisterModal || s.alumnos.showEditModal || s.alumnos.showAsignarGradoModal ||
+                s.alumnos.showRetirarModal || s.alumnos.alumnoParaReactivar || s.alumnos.alumnoParaQuitarGrado ||
+                s.mensualidades.showModal || s.cuotaInscripcion.showModal || s.showFichaSidebar || s.showConfig
             ) return;
             e.preventDefault();
-            alumnos.setShowRegisterModal(true);
+            s.alumnos.setShowRegisterModal(true);
         };
         document.addEventListener('keydown', handleKeyN);
         return () => document.removeEventListener('keydown', handleKeyN);
-    }, [isSecretaria, alumnos, mensualidades.showModal, cuotaInscripcion.showModal, showFichaSidebar, showConfig]);
+    }, [isSecretaria]);
 
     const handleSyncTasa = async () => {
         try {

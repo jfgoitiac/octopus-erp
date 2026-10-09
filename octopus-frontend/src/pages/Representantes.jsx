@@ -40,21 +40,23 @@ const Representantes = () => {
 
     const rep = useRepresentantes();
 
+    const { confirmDelete, setConfirmDelete, confirmDeleteDefinitivo, setConfirmDeleteDefinitivo } = rep;
+
     // Cerrar modal de eliminación con Escape
     useEffect(() => {
-        if (!rep.confirmDelete) return;
-        const handler = (e) => { if (e.key === 'Escape') rep.setConfirmDelete(null); };
+        if (!confirmDelete) return;
+        const handler = (e) => { if (e.key === 'Escape') setConfirmDelete(null); };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [rep.confirmDelete, rep.setConfirmDelete]);
+    }, [confirmDelete, setConfirmDelete]);
 
     // Cerrar modal de eliminación definitiva con Escape
     useEffect(() => {
-        if (!rep.confirmDeleteDefinitivo) return;
-        const handler = (e) => { if (e.key === 'Escape') rep.setConfirmDeleteDefinitivo(null); };
+        if (!confirmDeleteDefinitivo) return;
+        const handler = (e) => { if (e.key === 'Escape') setConfirmDeleteDefinitivo(null); };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [rep.confirmDeleteDefinitivo, rep.setConfirmDeleteDefinitivo]);
+    }, [confirmDeleteDefinitivo, setConfirmDeleteDefinitivo]);
 
     return (
         <div className="flex flex-col gap-4">
