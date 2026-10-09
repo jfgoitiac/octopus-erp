@@ -3,8 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const SECCIONES = [
   { clave: 'egresos', label: 'Egresos', descripcion: 'Compras y pagos registrados', base: '/egresos', icono: ReceiptText, items: [
-    { to: '/egresos', label: 'Movimientos', icono: List, end: true },
-    { to: '/egresos/tablero', label: 'Resumen', icono: BarChart3 },
+    { to: '/egresos', label: 'Resumen', icono: BarChart3, end: true },
+    { to: '/egresos/movimientos', label: 'Movimientos', icono: List },
     { to: '/egresos/reportes', label: 'Informes', icono: FileBarChart2 },
   ] },
   { clave: 'cxp', label: 'Cuentas por pagar', descripcion: 'Deuda y programación a proveedores', base: '/cuentas-por-pagar', icono: WalletCards, items: [

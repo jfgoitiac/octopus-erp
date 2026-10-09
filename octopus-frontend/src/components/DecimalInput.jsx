@@ -1,4 +1,4 @@
-const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocus, max }) => {
+const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocus, max, 'aria-label': ariaLabel }) => {
     const handleChange = (e) => {
         const digits = e.target.value.replace(/\D/g, '');
         if (!digits || parseInt(digits, 10) === 0) { onChange(''); return; }
@@ -16,6 +16,7 @@ const DecimalInput = ({ value, onChange, className, style, placeholder, autoFocu
             value={value}
             onChange={handleChange}
             autoFocus={autoFocus}
+            aria-label={ariaLabel}
         />
     );
 };

@@ -311,6 +311,11 @@ function App() {
               <Route element={<EgresosLayout />}>
               <Route path="egresos" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
+                  <TableroEgresos />
+                </ProtectedRoute>
+              } />
+              <Route path="egresos/movimientos" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
                   <Egresos />
                 </ProtectedRoute>
               } />
@@ -318,11 +323,8 @@ function App() {
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
                   <ReportesEgresos />
                 </ProtectedRoute>
-              } />              <Route path="egresos/tablero" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
-                  <TableroEgresos />
-                </ProtectedRoute>
-              } /><Route path="cuentas-por-pagar" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CuentasPorPagar /></ProtectedRoute>} /><Route path="cuentas-por-pagar/tablero" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><TableroCuentasPorPagar /></ProtectedRoute>} /><Route path="cuentas-por-pagar/calendario" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CalendarioPagos /></ProtectedRoute>} /><Route path="cuentas-por-pagar/reportes" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><ReportesCuentasPorPagar /></ProtectedRoute>} /><Route path="cuentas-por-pagar/recurrentes" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><PlantillasRecurrentes /></ProtectedRoute>} /><Route path="cuentas-por-pagar/configuracion" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><ConfiguracionRecordatorios /></ProtectedRoute>} />
+              } />
+              <Route path="egresos/tablero" element={<Navigate to="/egresos" replace />} /><Route path="cuentas-por-pagar" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CuentasPorPagar /></ProtectedRoute>} /><Route path="cuentas-por-pagar/tablero" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><TableroCuentasPorPagar /></ProtectedRoute>} /><Route path="cuentas-por-pagar/calendario" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><CalendarioPagos /></ProtectedRoute>} /><Route path="cuentas-por-pagar/reportes" element={<ProtectedRoute allowedRoles={ROLE_GROUPS.ADMIN_CENTRAL}><ReportesCuentasPorPagar /></ProtectedRoute>} /><Route path="cuentas-por-pagar/recurrentes" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><PlantillasRecurrentes /></ProtectedRoute>} /><Route path="cuentas-por-pagar/configuracion" element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}><ConfiguracionRecordatorios /></ProtectedRoute>} />
               </Route>              <Route path="egresos/nuevo" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR]}>
                   <EgresoForm />

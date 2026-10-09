@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from .filters import egresos_visibles
 from .models import ArticuloFrecuente, ComprobanteEgreso, ConfiguracionEgresos, Egreso
 from .permissions import EsAdministradorODirector
+from .reportes import sin_comprobante
 from .serializers import (ArticuloFrecuenteSerializer, ComprobanteSerializer, ConfiguracionEgresosSerializer,
                           EgresoSerializer)
 from .services import anular, calcular_totales, duplicar, guardar_contado
@@ -23,6 +24,7 @@ class EgresoViewSet(viewsets.ModelViewSet):
             if self.request.query_params.get(campo): qs=qs.filter(**{campo:self.request.query_params[campo]})
         if self.request.query_params.get('desde'): qs=qs.filter(fecha_emision__gte=self.request.query_params['desde'])
         if self.request.query_params.get('hasta'): qs=qs.filter(fecha_emision__lte=self.request.query_params['hasta'])
+        if self.request.query_params.get('sin_comprobante') == '1': qs=sin_comprobante(qs.exclude(estado='anulado'))
         return qs
     def perform_update(self, serializer):
         if serializer.instance.estado != 'borrador': raise ValidationError('Solo se editan borradores.')
