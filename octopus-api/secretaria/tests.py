@@ -1052,3 +1052,7 @@ class FiltroSinInscribirTest(TestCase):
     def test_representantes_con_alumnos_sin_inscribir(self):
         ids = self._ids('/api/secretaria/representantes/?sin_inscribir=true')
         self.assertEqual(ids, {self.rep_pendiente.id})
+
+    def test_exportar_representantes_respeta_filtro(self):
+        resp = self.client.get('/api/secretaria/exportar-representantes-excel/?sin_inscribir=true')
+        self.assertEqual(resp.status_code, 200)

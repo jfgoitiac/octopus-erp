@@ -1224,6 +1224,10 @@ class ExportarRepresentantesExcelView(APIView):
                 qs = qs.filter(cantidad_alumnos__gte=int(min_hijos))
             except ValueError:
                 pass
+        if request.query_params.get('sin_inscribir', '').lower() == 'true':
+            qs = qs.filter(models.Exists(filtrar_inscripcion(
+                Alumno.objects.filter(representante=models.OuterRef('pk')), 'sin_inscribir',
+            )))
 
         columns = [
             ('Cédula',          'cedula'),

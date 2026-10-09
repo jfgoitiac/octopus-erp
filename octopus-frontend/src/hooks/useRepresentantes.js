@@ -236,6 +236,7 @@ export function useRepresentantes() {
             const params = new URLSearchParams();
             if (busqueda.trim()) params.append('buscar', busqueda.trim());
             if (minHijos) params.append('min_hijos', minHijos);
+            if (sinInscribir) params.append('sin_inscribir', 'true');
             const res = await axiosInstance.get(
                 `secretaria/exportar-representantes-excel/?${params}`,
                 { responseType: 'blob' }

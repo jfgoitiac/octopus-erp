@@ -106,7 +106,7 @@ const TablaAlumnos = ({
                                     {/* UX-6: aria-label en todos los botones de icono */}
                                     <button
                                         onClick={() => onVerFicha(alumno)}
-                                        className="p-2 rounded-lg transition-all"
+                                        className="p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                         title="Ver Ficha" aria-label="Ver ficha del alumno"
                                         style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                         <FileText size={18} />
@@ -114,7 +114,7 @@ const TablaAlumnos = ({
 
                                     <button
                                         onClick={() => onEditarAlumno(alumno)}
-                                        className="p-2 rounded-lg transition-all"
+                                        className="p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                         title="Editar Información" aria-label="Editar información del alumno"
                                         style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                         {/* C-1 fix: editingId en lugar de editForm.id */}
@@ -126,7 +126,7 @@ const TablaAlumnos = ({
                                     {puedeAsignarGrado && (
                                         <button
                                             onClick={() => onAsignarGrado(alumno)}
-                                            className="p-2 rounded-lg transition-all"
+                                            className="p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                             title="Asignar Grado" aria-label="Asignar grado al alumno"
                                             style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                             <GraduationCap size={18} />
@@ -136,7 +136,7 @@ const TablaAlumnos = ({
                                     {isSecretaria && alumno.grado_seccion && (
                                         <button
                                             onClick={() => onQuitarGrado(alumno)}
-                                            className="p-2 rounded-lg transition-all"
+                                            className="p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                             title="Quitar Grado" aria-label="Quitar grado al alumno"
                                             style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
                                             <XCircle size={18} />
@@ -147,7 +147,7 @@ const TablaAlumnos = ({
                                         <button
                                             onClick={() => onRetirar(alumno)}
                                             disabled={!isSecretaria}
-                                            className={`p-2 rounded-lg transition-all ${!isSecretaria ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                            className={`p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 ${!isSecretaria ? 'opacity-30 cursor-not-allowed' : ''}`}
                                             title="Retirar Alumno" aria-label="Retirar alumno"
                                             style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
                                             <UserMinus size={18} />
@@ -156,7 +156,7 @@ const TablaAlumnos = ({
                                         <button
                                             onClick={() => onReactivar(alumno)}
                                             disabled={!isSecretaria}
-                                            className={`p-2 rounded-lg transition-all ${!isSecretaria ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                            className={`p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 ${!isSecretaria ? 'opacity-30 cursor-not-allowed' : ''}`}
                                             title="Reactivar Alumno" aria-label="Reactivar alumno"
                                             style={{ background: '#dcfce7', color: '#16a34a' }}>
                                             <RefreshCcw size={18} />
@@ -166,7 +166,7 @@ const TablaAlumnos = ({
                                     {isCajero && (
                                         <button
                                             onClick={() => onAjustarDeuda(alumno)}
-                                            className="p-2 rounded-lg transition-all"
+                                            className="p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                             title="Ajustar Deuda" aria-label="Ajustar deuda del alumno"
                                             style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                             <DollarSign size={18} />
@@ -176,7 +176,7 @@ const TablaAlumnos = ({
                                     {isCajero && (
                                         <button
                                             onClick={() => onAjustarInscripcion(alumno)}
-                                            className="p-2 rounded-lg transition-all"
+                                            className="p-2 rounded-lg transition-all flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                             title="Ajustar Inscripción" aria-label="Ajustar monto de inscripción del alumno"
                                             style={{ background: 'var(--ash-light)', color: 'var(--ash)' }}>
                                             <Receipt size={18} />
@@ -186,7 +186,7 @@ const TablaAlumnos = ({
                                     <button
                                         onClick={() => onIrCobranza(alumno)}
                                         disabled={!isCajero}
-                                        className={`p-2 rounded-lg flex items-center gap-1 transition-all ${!isCajero ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                        className={`p-2 rounded-lg flex items-center justify-center gap-1 transition-all min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 ${!isCajero ? 'opacity-30 cursor-not-allowed' : ''}`}
                                         title="Ir a Cobranza" aria-label="Ir a módulo de cobranza"
                                         style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
                                         <ExternalLink size={16} />
