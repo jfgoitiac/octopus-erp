@@ -3,8 +3,10 @@ import {
     Loader2, Eye, EyeOff, Save, Mail, MessageCircle,
     CheckCircle2, XCircle, Bell, Send,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useConfiguracionNotificaciones, AREAS_EMAIL } from '../hooks/useConfiguracionNotificaciones';
+import { useCobranzaInteligente } from '../hooks/useCobranzaInteligente';
 
 // ─── Primitive form components (defined at module level to prevent remount on re-render) ───
 
@@ -18,7 +20,7 @@ const FieldLabel = ({ children, htmlFor }) => (
     </label>
 );
 
-const TextInput = ({ id, fieldKey, form, setField, placeholder, type = 'text' }) => (
+const TextInput = ({ id, fieldKey, form, setField, placeholder, type = 'text', readOnly = false }) => (
     <input
         id={id ?? fieldKey}
         type={type}
@@ -26,6 +28,8 @@ const TextInput = ({ id, fieldKey, form, setField, placeholder, type = 'text' })
         style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
         value={form[fieldKey]}
         placeholder={placeholder}
+        readOnly={readOnly}
+        aria-readonly={readOnly || undefined}
         onChange={e =>
             setField(fieldKey, type === 'number' ? (Number(e.target.value) || '') : e.target.value)
         }
@@ -126,6 +130,10 @@ const ConfiguracionNotificaciones = () => {
         setField, setPerfilField,
         saveEmailArea, saveWhatsApp, saveMora, sendTest,
     } = useConfiguracionNotificaciones();
+
+    // Con Cobranza Inteligente encendida los días de aviso antiguos no se usan (§1.8).
+    const { estado: estadoCI } = useCobranzaInteligente();
+    const ciEncendida = !!estadoCI?.activo;
 
     const toggleSecret = (key) =>
         setVisibleSecrets(prev => ({ ...prev, [key]: !prev[key] }));
@@ -378,24 +386,36 @@ const ConfiguracionNotificaciones = () => {
                                 Días transcurridos desde el vencimiento de la mensualidad para cada aviso.
                                 El día 0 (factura generada) es fijo; estos tres hitos son configurables.
                             </p>
-                            <div className="grid sm:grid-cols-3 gap-4">
+                            {ciEncendida && (
+                                <div
+                                    role="note"
+                                    className="rounded-lg p-3 text-sm"
+                                    style={{ background: '#fffbeb', border: '0.5px solid #fcd34d', color: '#92400e' }}
+                                >
+                                    Con Cobranza Inteligente encendida, estos días no se usan. Los recordatorios se configuran en{' '}
+                                    <Link to="/cobranza/inteligente/automatizaciones" className="font-semibold underline">
+                                        Cobranza Inteligente → Automatizaciones
+                                    </Link>
+                                </div>
+                            )}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
                                     <FieldLabel htmlFor="dias_recordatorio_1">Primer recordatorio (días)</FieldLabel>
-                                    <TextInput fieldKey="dias_recordatorio_1" form={form} setField={setField} placeholder="5" type="number" />
+                                    <TextInput fieldKey="dias_recordatorio_1" form={form} setField={setField} placeholder="5" type="number" readOnly={ciEncendida} />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="dias_recordatorio_2">Segundo aviso (días)</FieldLabel>
-                                    <TextInput fieldKey="dias_recordatorio_2" form={form} setField={setField} placeholder="10" type="number" />
+                                    <TextInput fieldKey="dias_recordatorio_2" form={form} setField={setField} placeholder="10" type="number" readOnly={ciEncendida} />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="dias_alerta_director">Alerta al director (días)</FieldLabel>
-                                    <TextInput fieldKey="dias_alerta_director" form={form} setField={setField} placeholder="15" type="number" />
+                                    <TextInput fieldKey="dias_alerta_director" form={form} setField={setField} placeholder="15" type="number" readOnly={ciEncendida} />
                                 </div>
                             </div>
                             <div className="pt-2">
                                 <button
                                     onClick={saveMora}
-                                    disabled={savingMora}
+                                    disabled={savingMora || ciEncendida}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
                                     style={{ background: 'var(--pb)' }}
                                 >
