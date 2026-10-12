@@ -13,10 +13,11 @@ Garantías: un aviso por (representante, regla, día) por clave única; un solo
 mensaje por representante y día; nada sale con el módulo apagado, en modo
 sombra, fuera de horario, sobre deudas saldadas o con pagos en revisión.
 
-WhatsApp: hoy se envía texto libre por el proveedor ya configurado. Dejado
-listo para conectar plantillas aprobadas por Meta (necesarias fuera de la
-ventana de 24 h): `notificaciones.services.enviar_whatsapp` ya acepta
-`template_data`; ver TODO_META_TEMPLATES en `_enviar_whatsapp`.
+WhatsApp: si la regla tiene `plantilla_meta` (y el proveedor es Meta) el
+recordatorio sale como plantilla aprobada con botones de respuesta rápida (Ya
+pagué / Necesito un acuerdo / Hablar con alguien; ver `flujo_botones`), lo que
+permite escribir fuera de la ventana de 24 h. Sin `plantilla_meta` se envía
+texto libre por el proveedor configurado, como siempre.
 """
 import logging
 from datetime import date, timedelta
@@ -290,7 +291,7 @@ def construir_mensaje(rep, ciclos, regla):
         cierre = ''
     else:
         saludo = f"*{cfg['nombre_colegio']}*\n\nHola {rep.nombre},"
-        cierre = (f"\n\nPuede pagar desde el portal: {cfg['portal_url']}"
+        cierre = (f"\n\nPuede pagar desde el portal: {cfg['link_pago']}"
                   "\nSi ya realizó el pago, ignore este mensaje.")
     texto = f"{saludo} {intro}\n" + "\n".join(lineas) + f"\n\nTotal: {monto_txt}{nota}{cierre}"
     return _ASUNTOS.get(regla.plantilla, 'Aviso de pago'), texto
@@ -300,19 +301,47 @@ def _html(texto):
     return '<p>' + escape(texto).replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
 
 
-def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True):
+def _parametros_plantilla(rep, ciclos):
+    """
+    Variables posicionales del cuerpo de las plantillas de cobro de Meta (v4 §6):
+    {{1}} nombre, {{2}} alumnos, {{3}} saldo USD, {{4}} referencia en Bs (tasa de
+    AHORA), {{5}} vencimiento más próximo, {{6}} link al portal (sección de pago).
+    """
+    from notificaciones.services import _config_colegio, montos_ref
+    total = sum((_saldo(c) for c in ciclos), Decimal('0.00'))
+    alumnos = sorted({f'{c.mensualidad.alumno.nombre} {c.mensualidad.alumno.apellido}' for c in ciclos})
+    vence = min(c.fecha_vencimiento for c in ciclos)
+    return [
+        rep.nombre,
+        ', '.join(alumnos[:-1]) + ' y ' + alumnos[-1] if len(alumnos) > 1 else ''.join(alumnos),
+        f'{total:.2f}',
+        montos_ref(total)['monto_bs'] or '-',
+        vence.strftime('%d/%m/%Y'),
+        _config_colegio()['link_pago'],
+    ]
+
+
+def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True, regla=None, ciclos=()):
     from notificaciones import conversaciones
-    from notificaciones.services import enviar_whatsapp, pop_ultimo_wa_message_id
-    # TODO_META_TEMPLATES: al aprobarse las plantillas en Meta, pasar aquí
-    # template_data={'nombre': ..., 'idioma': 'es', 'parametros': [...]} para
-    # poder escribir fuera de la ventana de 24 h.
+    from notificaciones.services import _proveedor_whatsapp, enviar_whatsapp, pop_ultimo_wa_message_id
+    from .flujo_botones import BOTONES_RECORDATORIO
+    plantilla = regla.plantilla_meta if (regla and regla.destinatario == 'representante') else ''
+    template_data = None
+    if plantilla and ciclos and _proveedor_whatsapp() == 'meta':
+        template_data = {'nombre': plantilla, 'idioma': 'es', 'botones': list(BOTONES_RECORDATORIO),
+                         'parametros': _parametros_plantilla(rep, ciclos)}
     ok = bool(enviar_whatsapp(telefono, texto, tipo='cobranza_inteligente',
-                              representante_cedula=rep.cedula))
+                              representante_cedula=rep.cedula, template_data=template_data))
     wa_id = pop_ultimo_wa_message_id()
     if ok and registrar:
         # El saliente queda en la conversación del número (v4 §2.3); nunca rompe el envío.
+        extra = {}
+        if template_data:
+            extra = {'plantilla': plantilla, 'idioma': 'es', 'parametros': template_data['parametros'],
+                     'botones': template_data['botones']}
         conversaciones.registrar_saliente_cobro(
-            rep, telefono, texto, 'motor', envio=envio, wa_message_id=wa_id)
+            rep, telefono, texto, 'motor', envio=envio, wa_message_id=wa_id,
+            tipo='plantilla' if template_data else 'texto', payload_extra=extra)
     return ok
 
 
@@ -401,7 +430,8 @@ def procesar_envio(envio, ahora=None):
     resultados = []
     if 'whatsapp' in canales and telefono:
         resultados.append(_enviar_whatsapp(telefono, texto, rep, envio,
-                                           registrar=regla.destinatario == 'representante'))
+                                           registrar=regla.destinatario == 'representante',
+                                           regla=regla, ciclos=vigentes))
     if 'email' in canales and correo:
         resultados.append(_enviar_email(correo, asunto, texto, rep))
     if not resultados:

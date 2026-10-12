@@ -32,10 +32,9 @@ VENTANA_HORAS = 24
 DIAS_DEVOLUCION_AUTOMATICA = 3
 MAX_CUERPO = 4096
 
-# Fase C activa esto: con True, los adjuntos entrantes quedan `pendiente` y el
-# motor omite los envíos al representante hasta convertirlos o descartarlos.
-# Falso en la Fase B para no pausar a nadie sin una pantalla que lo resuelva.
-MARCAR_ADJUNTOS_PENDIENTES = False
+# Fase C: con True, los adjuntos entrantes quedan `pendiente` y el motor omite
+# los envíos al representante hasta convertirlos en comprobante o descartarlos.
+MARCAR_ADJUNTOS_PENDIENTES = True
 
 # Fase C: funciones `f(conversacion, mensaje) -> bool` (True = manejó el mensaje)
 # que se consultan con cada entrante antes de marcar `requiere_humano`.
@@ -314,6 +313,27 @@ def enviar_texto_sistema(conv, cuerpo, payload=None, ahora=None):
                               wa_message_id=wa_id, ahora=ahora)
 
 
+def enviar_lista_sistema(conv, cuerpo, boton, filas, payload=None, ahora=None):
+    """
+    Mensaje interactivo de lista (árbol de botones, v4 §1.6). `filas`:
+    [{'id', 'title' (máx. 24), 'description' (máx. 72)}]. Solo dentro de la ventana
+    de 24 h; no lanza error (devuelve None si no se pudo enviar).
+    """
+    ahora = ahora or timezone.now()
+    try:
+        if not ventana(conv, ahora)['abierta']:
+            return None
+        wa_id = _post_meta(conv.telefono, {'type': 'interactive', 'interactive': {
+            'type': 'list', 'body': {'text': cuerpo[:1024]},
+            'action': {'button': boton[:20], 'sections': [{'title': 'Opciones', 'rows': [
+                {'id': f['id'], 'title': f['title'][:24], 'description': f.get('description', '')[:72]}
+                for f in filas]}]}}})
+    except ErrorEnvio:
+        return None
+    return registrar_saliente(conv, 'lista', cuerpo, {**(payload or {}), 'origen': 'bot', 'filas': filas},
+                              wa_message_id=wa_id, ahora=ahora)
+
+
 def enviar_texto(conv, cuerpo, usuario, ahora=None):
     """
     Texto libre del cobrador. Solo con la ventana de 24 h abierta (si no,
@@ -401,7 +421,7 @@ def enviar_plantilla(conv, nombre, idioma, parametros, usuario, cuerpo='', ahora
 # ── Salientes de otros flujos (motor, cobro manual) ───────────────────────────
 
 def registrar_saliente_cobro(rep, telefono, texto, origen, usuario=None, envio=None, wa_message_id=None,
-                             tipo='texto'):
+                             tipo='texto', payload_extra=None):
     """
     Anota en la conversación del número un mensaje de cobro ya enviado por el
     motor o por Morosos. Nunca rompe el envío: ante cualquier error lo registra en el log.
@@ -412,7 +432,8 @@ def registrar_saliente_cobro(rep, telefono, texto, origen, usuario=None, envio=N
             return None
         conv = obtener_conversacion(tel)
         return registrar_saliente(
-            conv, tipo, texto, {'origen': origen}, usuario=usuario, wa_message_id=wa_message_id,
+            conv, tipo, texto, {**(payload_extra or {}), 'origen': origen}, usuario=usuario,
+            wa_message_id=wa_message_id,
             envio=envio)
     except Exception:
         logger.exception('No se pudo registrar el cobro de %s en la conversación', getattr(rep, 'id', rep))
@@ -421,12 +442,12 @@ def registrar_saliente_cobro(rep, telefono, texto, origen, usuario=None, envio=N
 
 # ── Consultas de apoyo ────────────────────────────────────────────────────────
 
-def q_visibles(sedes):
-    """Conversaciones de las sedes accesibles (más las sin vincular / sin sede)."""
-    q = Q(sede__isnull=True)
+def q_visibles(sedes, prefijo=''):
+    """Conversaciones de las sedes accesibles (más las sin vincular / sin sede). `prefijo`: 'conversacion__' desde un mensaje."""
+    q = Q(**{f'{prefijo}sede__isnull': True})
     reales = [s for s in sedes if s is not None]
     if reales:
-        q |= Q(sede_id__in=reales)
+        q |= Q(**{f'{prefijo}sede_id__in': reales})
     return q
 
 
@@ -443,9 +464,9 @@ def variables_conversacion(conv):
     from cobranza.models import CicloCobranza
     from .cobro_whatsapp import _datos_bancarios_texto
     rep = conv.representante
-    cfg = services._config_colegio()
+    cfg = services._config_colegio()   # `link_portal` abre la sección de pago (`?pagar=1`)
     vars_ = {'nombre': rep.nombre if rep else (conv.nombre_contacto or ''), 'saldo_usd': '',
-             'saldo_bs': '', 'alumnos': '', 'link_portal': cfg['portal_url'],
+             'saldo_bs': '', 'alumnos': '', 'link_portal': cfg['link_pago'],
              'datos_bancarios': _datos_bancarios_texto()}
     if rep is not None:
         ciclos = list(CicloCobranza.objects.filter(

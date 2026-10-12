@@ -1211,6 +1211,9 @@ class ReglaCobranza(models.Model):
     dia_relativo = models.SmallIntegerField()
     canal = models.CharField(max_length=10, choices=CANALES)
     plantilla = models.CharField(max_length=40)
+    # v4 (§1.6): nombre de la plantilla aprobada por Meta con botones de respuesta rápida
+    # (Ya pagué / Necesito un acuerdo / Hablar con alguien). Vacío = texto libre como siempre.
+    plantilla_meta = models.CharField(max_length=100, blank=True, default='')
     saldo_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.01'))
     destinatario = models.CharField(max_length=14, choices=DESTINATARIOS, default='representante')
     activa = models.BooleanField(default=True)

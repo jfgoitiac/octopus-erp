@@ -6,6 +6,8 @@ class CobranzaConfig(AppConfig):
 
     def ready(self):
         import cobranza.signals
+        # Conecta el árbol de botones de WhatsApp (v4 §1.6) al webhook de Meta.
+        from . import flujo_botones  # noqa: F401
         # Programar la tarea si no existe ya en cola
         from .tasks import actualizar_tasa_bcv_automatica
         # Repetir cada 24 horas (86400 segundos)

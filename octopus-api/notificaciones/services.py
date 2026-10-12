@@ -52,6 +52,10 @@ def _log(canal, tipo, destinatario, asunto, mensaje, estado, error='',
         logger.warning(f'No se pudo guardar log de notificacion: {e}')
 
 
+# Enlace al portal que abre la sección de pago (v4 §1.7): el portal lo lee como `?pagar=1`.
+LINK_PAGO_PORTAL = '/portal?pagar=1'
+
+
 def _config_colegio():
     try:
         from secretaria.models import ConfiguracionSistema
@@ -61,6 +65,7 @@ def _config_colegio():
                 'nombre_colegio': cfg.nombre_colegio or 'Mi Colegio',
                 'color_primario': getattr(cfg, 'color_primario', '#0fa3b1'),
                 'portal_url': getattr(settings, 'FRONTEND_URL', 'http://localhost:5173') + '/portal',
+                'link_pago': getattr(settings, 'FRONTEND_URL', 'http://localhost:5173') + LINK_PAGO_PORTAL,
             }
     except Exception:
         pass
@@ -68,6 +73,7 @@ def _config_colegio():
         'nombre_colegio': 'Mi Colegio',
         'color_primario': '#0fa3b1',
         'portal_url': getattr(settings, 'FRONTEND_URL', 'http://localhost:5173') + '/portal',
+        'link_pago': getattr(settings, 'FRONTEND_URL', 'http://localhost:5173') + LINK_PAGO_PORTAL,
     }
 
 
@@ -348,6 +354,21 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, templat
         logger.warning('Meta WhatsApp: faltan META_WHATSAPP_TOKEN o META_WHATSAPP_PHONE_ID')
         return False
     if template_data:
+        componentes = [{
+            'type': 'body',
+            'parameters': [
+                {'type': 'text', 'text': str(v)}
+                for v in template_data.get('parametros', [])
+            ],
+        }] if template_data.get('parametros') else []
+        # Botones de respuesta rápida de la plantilla (v4 §1.6): `botones` = ids que
+        # Meta devuelve en el webhook como `button.payload` al tocarlos, en el orden
+        # en que están definidos en la plantilla aprobada.
+        for i, boton_id in enumerate(template_data.get('botones') or []):
+            componentes.append({
+                'type': 'button', 'sub_type': 'quick_reply', 'index': str(i),
+                'parameters': [{'type': 'payload', 'payload': str(boton_id)}],
+            })
         payload = {
             'messaging_product': 'whatsapp',
             'to': numero.lstrip('+'),
@@ -355,13 +376,7 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, templat
             'template': {
                 'name': template_data['nombre'],
                 'language': {'code': template_data.get('idioma', 'es')},
-                'components': [{
-                    'type': 'body',
-                    'parameters': [
-                        {'type': 'text', 'text': str(v)}
-                        for v in template_data.get('parametros', [])
-                    ],
-                }] if template_data.get('parametros') else [],
+                'components': componentes,
             },
         }
     else:
