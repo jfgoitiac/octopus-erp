@@ -10,6 +10,7 @@ const ACCIONES = [
     { value: 'whatsapp_manual', label: 'WhatsApp manual enviado', texto: true },
     { value: 'nota', label: 'Nota', texto: true },
     { value: 'pausar', label: 'Pausar el seguimiento', motivo: true },
+    { value: 'reanudar', label: 'Reanudar el seguimiento' },
     { value: 'reclamo', label: 'Reclamo del representante (pausa)', texto: true },
     { value: 'cerrar', label: 'Descartar el caso', texto: true, fija: { motivo: 'descartada' } },
 ];
@@ -20,8 +21,8 @@ const estiloPri = { background: 'var(--pb)', color: '#fff' };
 const campo = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
 /* ── Modal de acción sobre los ciclos de un representante ── */
-export function ModalAccion({ fila, onClose, onHecho }) {
-    const [accion, setAccion] = useState('llamada');
+export function ModalAccion({ fila, onClose, onHecho, accionInicial = 'llamada' }) {
+    const [accion, setAccion] = useState(accionInicial);
     const [texto, setTexto] = useState('');
     const [guardando, setGuardando] = useState(false);
     const def = ACCIONES.find(a => a.value === accion);
