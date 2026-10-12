@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Hoy from './Hoy';
 
-const m = vi.hoisted(() => ({ hoy: vi.fn(), accion: vi.fn(), hecha: vi.fn(), toastError: vi.fn(), toastOk: vi.fn() }));
+const m = vi.hoisted(() => ({ hoy: vi.fn(), accion: vi.fn(), hecha: vi.fn(), iniciar: vi.fn(), toastError: vi.fn(), toastOk: vi.fn() }));
 
 vi.mock('../../../api/cobranza.service', () => ({
     getHoyInteligente: (...a) => m.hoy(...a),
     marcarTarjetaHecha: (...a) => m.hecha(...a),
+    iniciarConversacionInteligente: (...a) => m.iniciar(...a),
     accionCicloInteligente: (...a) => m.accion(...a),
     crearConvenioInteligente: vi.fn(),
 }));
@@ -25,7 +26,7 @@ const tarjeta = {
     representante: { id: 7, nombre: 'Maria Perez', cedula: 'V1', telefono: '0412' },
     ciclos: [3, 4],
     acciones: [
-        { accion: 'abrir_chat', etiqueta: 'Abrir chat', disponible: false },
+        { accion: 'abrir_chat', etiqueta: 'Abrir chat', disponible: true, conversacion: null },
         { accion: 'llamada', etiqueta: 'Registrar llamada', disponible: true, ciclo: 3 },
         { accion: 'pausar', etiqueta: 'Pausar', disponible: true, ciclo: 3 },
     ],
@@ -52,7 +53,15 @@ const datos = {
     }],
 };
 
-const montar = () => render(<MemoryRouter><Hoy /></MemoryRouter>);
+const Ruta = () => <p data-testid="ruta">{useLocation().pathname}</p>;
+const montar = () => render(
+    <MemoryRouter>
+        <Routes>
+            <Route path="/" element={<Hoy />} />
+            <Route path="/cobranza/inteligente/conversaciones/:id" element={<Ruta />} />
+        </Routes>
+    </MemoryRouter>,
+);
 
 describe('Hoy', () => {
     beforeEach(() => Object.values(m).forEach(f => f.mockReset()));
@@ -80,12 +89,31 @@ describe('Hoy', () => {
         await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Falla'));
     });
 
-    it('abrir_chat no disponible queda deshabilitado con tooltip', async () => {
+    it('abrir_chat sin conversación la inicia y navega a la devuelta', async () => {
         m.hoy.mockResolvedValue({ data: datos });
+        m.iniciar.mockResolvedValue({ data: { id: 55 } });
         montar();
-        const boton = await screen.findByRole('button', { name: 'Abrir chat' });
-        expect(boton).toBeDisabled();
-        expect(boton).toHaveAttribute('title', 'Disponible con Conversaciones');
+        await userEvent.click(await screen.findByRole('button', { name: 'Abrir chat' }));
+        expect(m.iniciar).toHaveBeenCalledWith(7);
+        expect(await screen.findByTestId('ruta')).toHaveTextContent('/cobranza/inteligente/conversaciones/55');
+    });
+
+    it('abrir_chat con conversación navega directo sin iniciar', async () => {
+        const t = { ...tarjeta, acciones: [{ accion: 'abrir_chat', etiqueta: 'Abrir chat', disponible: true, conversacion: 9 }] };
+        m.hoy.mockResolvedValue({ data: { ...datos, tarjetas: [t] } });
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Abrir chat' }));
+        expect(m.iniciar).not.toHaveBeenCalled();
+        expect(await screen.findByTestId('ruta')).toHaveTextContent('/cobranza/inteligente/conversaciones/9');
+    });
+
+    it('abrir_chat muestra el error si no se puede iniciar la conversación', async () => {
+        m.hoy.mockResolvedValue({ data: datos });
+        m.iniciar.mockRejectedValue({ response: { status: 400, data: { detail: 'Sin teléfono válido' } } });
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Abrir chat' }));
+        await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Sin teléfono válido'));
+        expect(screen.queryByTestId('ruta')).not.toBeInTheDocument();
     });
 
     it('registrar una llamada llama a la API por la deuda de la acción', async () => {

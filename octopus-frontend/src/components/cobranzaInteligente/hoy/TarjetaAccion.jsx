@@ -1,5 +1,9 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { iniciarConversacionInteligente } from '../../../api/cobranza.service';
+import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
 import { ETIQUETA_TIPO, haceTiempo } from './hoyUtils';
 
 const btn = 'w-full sm:w-auto px-3 py-2 rounded-xl text-sm font-medium min-h-11 disabled:opacity-50 flex items-center justify-center gap-2';
@@ -11,10 +15,37 @@ const ENLACES = {
     conciliar: '/conciliador',
     ver_envio: '/cobranza/historial-whatsapp',
     editar_representante: '/representantes',
-    abrir_chat: '/cobranza/inteligente/conversaciones',
 };
 // Acciones que se resuelven con ModalAccion (registrar llamada, pausar...).
 const ACCIONES_MODAL = ['llamada', 'pausar', 'nota', 'reanudar', 'reclamo', 'cerrar'];
+
+const RUTA_CHAT = '/cobranza/inteligente/conversaciones';
+
+/** Abre el chat: navega a la conversación existente o la inicia primero si aún no existe. */
+function BotonChat({ tarjeta, accion, estilo }) {
+    const navigate = useNavigate();
+    const [cargando, setCargando] = useState(false);
+    const abrir = async () => {
+        if (accion.conversacion) { navigate(`${RUTA_CHAT}/${accion.conversacion}`); return; }
+        if (!tarjeta.representante?.id) { toast.error('Este contacto no está vinculado a un representante'); return; }
+        setCargando(true);
+        try {
+            const { data } = await iniciarConversacionInteligente(tarjeta.representante.id);
+            const id = data?.id ?? data?.conversacion?.id;
+            if (!id) throw new Error('Respuesta sin conversación');
+            navigate(`${RUTA_CHAT}/${id}`);
+        } catch (err) {
+            toast.error(mensajeErrorInteligente(err));
+            setCargando(false);
+        }
+    };
+    return (
+        <button type="button" className={btn} style={estilo} onClick={abrir} disabled={cargando}>
+            {cargando && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+            {accion.etiqueta}
+        </button>
+    );
+}
 
 /** Tarjeta de acción: por qué aparece, botones con la acción sugerida y "marcar hecha". */
 export function TarjetaAccion({ tarjeta, onAbrirModal, onHecha, marcando }) {
@@ -48,6 +79,9 @@ export function TarjetaAccion({ tarjeta, onAbrirModal, onHecha, marcando }) {
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {(tarjeta.acciones || []).map((a, i) => {
                     const estilo = i === 0 ? estiloPri : estiloSec;
+                    if (a.accion === 'abrir_chat' && a.disponible) {
+                        return <BotonChat key={a.accion} tarjeta={tarjeta} accion={a} estilo={estilo} />;
+                    }
                     if (!a.disponible) {
                         return (
                             <button key={a.accion} type="button" disabled className={btn} style={estiloSec}
