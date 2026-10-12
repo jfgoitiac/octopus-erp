@@ -71,6 +71,12 @@ _reglas_recargo_detail = ReglaRecargoPagoViewSet.as_view({
     'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy',
 })
 
+from notificaciones.views_conversaciones import (
+    ArchivoMensajeView, ConversacionDetalleView, ConversacionesView, DevolverView, EnviarPlantillaView,
+    IniciarConversacionView, LeidaView, MensajesView, NotaView, PlantillasConversacionView,
+    RespuestaRapidaDetalleView, RespuestasRapidasView, TomarView, VincularView,
+)
+
 urlpatterns = [
     path('sincronizar-tasa/',              SincronizarTasaView.as_view(),          name='sincronizar-tasa'),
     path('stats/',                         DashboardStatsView.as_view(),           name='cobranza-stats'),
@@ -95,6 +101,20 @@ urlpatterns = [
     path('inteligente/motor/simulacion/',  SimulacionMotorView.as_view(),          name='cobranza-inteligente-simulacion'),
     path('inteligente/promesas/',          PromesasView.as_view(),                 name='cobranza-inteligente-promesas'),
     path('inteligente/representantes/<int:representante_id>/historial-cobros/', HistorialCobrosView.as_view(), name='cobranza-inteligente-historial-cobros'),
+    path('inteligente/conversaciones/',    ConversacionesView.as_view(),           name='cobranza-inteligente-conversaciones'),
+    path('inteligente/conversaciones/iniciar/', IniciarConversacionView.as_view(),  name='cobranza-inteligente-conversaciones-iniciar'),
+    path('inteligente/conversaciones/plantillas/', PlantillasConversacionView.as_view(), name='cobranza-inteligente-conversaciones-plantillas'),
+    path('inteligente/conversaciones/<int:conversacion_id>/', ConversacionDetalleView.as_view(), name='cobranza-inteligente-conversacion'),
+    path('inteligente/conversaciones/<int:conversacion_id>/mensajes/', MensajesView.as_view(), name='cobranza-inteligente-conversacion-mensajes'),
+    path('inteligente/conversaciones/<int:conversacion_id>/plantilla/', EnviarPlantillaView.as_view(), name='cobranza-inteligente-conversacion-plantilla'),
+    path('inteligente/conversaciones/<int:conversacion_id>/nota/', NotaView.as_view(), name='cobranza-inteligente-conversacion-nota'),
+    path('inteligente/conversaciones/<int:conversacion_id>/tomar/', TomarView.as_view(), name='cobranza-inteligente-conversacion-tomar'),
+    path('inteligente/conversaciones/<int:conversacion_id>/devolver/', DevolverView.as_view(), name='cobranza-inteligente-conversacion-devolver'),
+    path('inteligente/conversaciones/<int:conversacion_id>/vincular/', VincularView.as_view(), name='cobranza-inteligente-conversacion-vincular'),
+    path('inteligente/conversaciones/<int:conversacion_id>/leida/', LeidaView.as_view(), name='cobranza-inteligente-conversacion-leida'),
+    path('inteligente/mensajes/<int:mensaje_id>/archivo/', ArchivoMensajeView.as_view(), name='cobranza-inteligente-mensaje-archivo'),
+    path('inteligente/respuestas-rapidas/', RespuestasRapidasView.as_view(),        name='cobranza-inteligente-respuestas-rapidas'),
+    path('inteligente/respuestas-rapidas/<int:pk>/', RespuestaRapidaDetalleView.as_view(), name='cobranza-inteligente-respuesta-rapida'),
     path('inteligente/dashboard/',         DashboardInteligenteView.as_view(),     name='cobranza-inteligente-dashboard'),
     path('inteligente/linea-base/',        LineaBaseView.as_view(),                name='cobranza-inteligente-linea-base'),
     path('inteligente/envios/',            EnviosCobranzaView.as_view(),           name='cobranza-inteligente-envios'),
