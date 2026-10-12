@@ -15,10 +15,9 @@ Este módulo contiene:
     tope semanal y para el "un solo mensaje por día");
   - `historial_cobros`: historial unificado con etiqueta de origen.
 
-Ganchos para las fases B y C (conversaciones y comprobantes por WhatsApp):
-`conversacion_humana` y `comprobante_whatsapp_pendiente` devuelven False hasta
-que existan `ConversacionWhatsApp` / adjuntos entrantes; `_registrar_en_conversacion`
-es el punto donde el saliente se anotará en el hilo.
+Conversaciones (fase B): `conversacion_humana` mira `ConversacionWhatsApp`,
+`comprobante_whatsapp_pendiente` mira los adjuntos entrantes pendientes (los
+resuelve la fase C) y `_registrar_en_conversacion` anota el cobro manual en el hilo.
 """
 import uuid
 from dataclasses import dataclass, field
@@ -121,21 +120,36 @@ def hubo_envio_automatico_hoy(rep, ahora):
         representante=rep, estado=EnvioCobranza.ENVIADO, enviado_en__gte=_inicio_del_dia(ahora)).exists()
 
 
-# ── Ganchos de las fases B y C ─────────────────────────────────────────────────
+# ── Conversaciones y comprobantes de WhatsApp (fases B y C) ────────────────────
 
 def conversacion_humana(rep):
-    """Fase B: True si el cobrador tomó la conversación de WhatsApp del representante."""
-    return False
+    """True si el cobrador tomó la conversación de WhatsApp del representante."""
+    from notificaciones.models import ConversacionWhatsApp
+    return ConversacionWhatsApp.objects.filter(
+        representante=rep, estado=ConversacionWhatsApp.HUMANO).exists()
 
 
 def comprobante_whatsapp_pendiente(rep):
-    """Fase C: True si el representante envió un comprobante por WhatsApp aún sin resolver."""
-    return False
+    """
+    True si el representante envió por WhatsApp un comprobante aún sin resolver
+    (adjunto entrante con `estado_adjunto='pendiente'`; la fase C lo convierte o
+    lo descarta).
+    """
+    from notificaciones.models import MensajeWhatsApp
+    return MensajeWhatsApp.objects.filter(
+        conversacion__representante=rep, direccion=MensajeWhatsApp.ENTRANTE,
+        estado_adjunto=MensajeWhatsApp.ADJUNTO_PENDIENTE).exists()
 
 
 def _registrar_en_conversacion(rep, canal, texto, usuario, origen):
-    """Fase B: anotar el saliente en la ConversacionWhatsApp del representante."""
-    return None
+    """Anota el cobro manual (solo WhatsApp) en la conversación del representante."""
+    if canal not in ('whatsapp', 'ambos'):
+        return None
+    from notificaciones import conversaciones, services
+    wa_id = services.pop_ultimo_wa_message_id() if origen == ORIGEN_MANUAL_API else None
+    return conversaciones.registrar_saliente_cobro(
+        rep, rep.telefono, texto, origen, usuario=usuario, wa_message_id=wa_id,
+        tipo='plantilla' if origen == ORIGEN_MANUAL_API else 'texto')
 
 
 # ── Veredicto único ────────────────────────────────────────────────────────────

@@ -300,13 +300,20 @@ def _html(texto):
     return '<p>' + escape(texto).replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
 
 
-def _enviar_whatsapp(telefono, texto, rep):
-    from notificaciones.services import enviar_whatsapp
+def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True):
+    from notificaciones import conversaciones
+    from notificaciones.services import enviar_whatsapp, pop_ultimo_wa_message_id
     # TODO_META_TEMPLATES: al aprobarse las plantillas en Meta, pasar aquí
     # template_data={'nombre': ..., 'idioma': 'es', 'parametros': [...]} para
     # poder escribir fuera de la ventana de 24 h.
-    return bool(enviar_whatsapp(telefono, texto, tipo='cobranza_inteligente',
-                                representante_cedula=rep.cedula))
+    ok = bool(enviar_whatsapp(telefono, texto, tipo='cobranza_inteligente',
+                              representante_cedula=rep.cedula))
+    wa_id = pop_ultimo_wa_message_id()
+    if ok and registrar:
+        # El saliente queda en la conversación del número (v4 §2.3); nunca rompe el envío.
+        conversaciones.registrar_saliente_cobro(
+            rep, telefono, texto, 'motor', envio=envio, wa_message_id=wa_id)
+    return ok
 
 
 def _enviar_email(correo, asunto, texto, rep):
@@ -370,7 +377,7 @@ def procesar_envio(envio, ahora=None):
         _omitir(envio, 'cobro_manual_hoy', vigentes)
         return envio.estado
 
-    # Ganchos de las fases B y C: hoy devuelven False (ver control_envios).
+    # Conversación tomada por el cobrador / comprobante recibido por WhatsApp (ver control_envios).
     if regla.destinatario == 'representante' and conversacion_humana(rep):
         _omitir(envio, 'conversacion_humana', vigentes)
         return envio.estado
@@ -393,7 +400,8 @@ def procesar_envio(envio, ahora=None):
     asunto, texto = construir_mensaje(rep, vigentes, regla)
     resultados = []
     if 'whatsapp' in canales and telefono:
-        resultados.append(_enviar_whatsapp(telefono, texto, rep))
+        resultados.append(_enviar_whatsapp(telefono, texto, rep, envio,
+                                           registrar=regla.destinatario == 'representante'))
     if 'email' in canales and correo:
         resultados.append(_enviar_email(correo, asunto, texto, rep))
     if not resultados:

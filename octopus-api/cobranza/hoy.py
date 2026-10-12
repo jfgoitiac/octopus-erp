@@ -10,9 +10,9 @@ acciones sugeridas. Marcar una tarjeta como hecha deja un EventoCiclo
 `tarjeta_hecha`; la tarjeta no vuelve a salir hasta que su condición se dispare
 de nuevo (ver `desde` de cada tarjeta).
 
-Ganchos para las fases B y C (conversaciones y comprobantes por WhatsApp):
-`registrar_fuente` permite que otros módulos aporten tarjetas sin tocar este
-archivo. Las tarjetas previstas y su clave son:
+Fuentes registradas por otros módulos (`registrar_fuente`, sin tocar este
+archivo): `notificaciones/hoy_fuentes.py` aporta las de conversaciones (fase B) y
+la fase C aportará la de comprobantes. Claves:
   - `conversacion_espera:<id>`        conversación con requiere_humano o sin respuesta > 2 h
   - `conversacion_tomada:<id>`        takeover sin mensajes del cobrador > 24 h
   - `comprobante_whatsapp:<mensaje>`  comprobante recibido sin asignar
@@ -110,7 +110,7 @@ def _tarjetas_bandeja(ctx):
             titulo=f"{rep['nombre']}: {'caso crítico' if critico else 'caso prioritario'} sin gestión reciente",
             por_que=f['razones'], representante=rep, desde=inicio_dia,
             acciones=[
-                _accion('abrir_chat', 'Abrir chat', disponible=False),   # fase B
+                _accion('abrir_chat', 'Abrir chat'),
                 _accion('llamada', 'Registrar llamada', ciclo=f['ciclos'][0]),
                 _accion('pausar', 'Pausar', ciclo=f['ciclos'][0]),
             ],
@@ -163,7 +163,7 @@ def _tarjetas_promesas_vencidas(ctx):
                                f'({dias} días)', 'puntos': 0},
                      {'texto': 'Sus deudas ya volvieron al ciclo de cobranza', 'puntos': 0}],
             representante=_rep(c.representante), desde=_aware(cuota.fecha),
-            acciones=[_accion('abrir_chat', 'Escribir', disponible=False),   # fase B
+            acciones=[_accion('abrir_chat', 'Escribir'),
                       _accion('llamada', 'Registrar llamada', ciclo=ciclos[0] if ciclos else None)],
             ciclos=ciclos, urgente=True,
             detalle={'convenio': c.id, 'fecha_promesa': cuota.fecha, 'monto_usd': str(cuota.monto_usd),
@@ -236,7 +236,29 @@ def _todas_las_tarjetas(ctx):
     tarjetas = []
     for fuente in (*FUENTES_BASE, *FUENTES_TARJETAS):
         tarjetas.extend(fuente(ctx))
+    _completar_abrir_chat(tarjetas)
     return tarjetas
+
+
+def _completar_abrir_chat(tarjetas):
+    """
+    Habilita los botones `abrir_chat` (fase B): les agrega `conversacion`, el id
+    de la conversación de WhatsApp del representante (la más reciente), o None si
+    todavía no existe (el frontend la crea con POST conversaciones/iniciar/).
+    """
+    from notificaciones.models import ConversacionWhatsApp
+    reps = {t['representante']['id'] for t in tarjetas if t['representante']
+            and any(a['accion'] == 'abrir_chat' for a in t['acciones'])}
+    por_rep = {}
+    if reps:
+        for conv_id, rep_id in ConversacionWhatsApp.objects.filter(
+                representante_id__in=reps).order_by('actualizado_en').values_list('id', 'representante_id'):
+            por_rep[rep_id] = conv_id   # la más reciente queda al final
+    for t in tarjetas:
+        for a in t['acciones']:
+            if a['accion'] == 'abrir_chat':
+                a['disponible'] = True
+                a.setdefault('conversacion', por_rep.get(t['representante']['id']) if t['representante'] else None)
 
 
 def _hechas(ahora):
@@ -285,7 +307,8 @@ def contadores(sedes, hoy=None, ahora=None):
     hoy = hoy or date.today()
     ahora = ahora or timezone.now()
     tarjetas = _tarjetas_visibles(_contexto(sedes, hoy, ahora))
-    no_leidos = 0   # fase B: suma de ConversacionWhatsApp.no_leidos
+    from notificaciones.conversaciones import total_no_leidos
+    no_leidos = total_no_leidos(sedes)
     urgentes = sum(1 for t in tarjetas if t['urgente'])
     return {
         'no_leidos': no_leidos, 'tarjetas_urgentes': urgentes, 'total_tarjetas': len(tarjetas),
