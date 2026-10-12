@@ -238,3 +238,18 @@ export const convertirAdjuntoComprobante = (mensajeId, datos) =>
 
 export const descartarAdjunto = (mensajeId, datos) =>
     apiClient.post(`${BASE_INT}/adjuntos/${mensajeId}/descartar/`, datos);
+
+export const eliminarRespuestaRapida = (id) =>
+    apiClient.delete(`${BASE_INT}/respuestas-rapidas/${id}/`);
+
+// Reglas del motor (línea de tiempo −5…+30). `todas=1` incluye las inactivas.
+// OJO: el backend v3 aún no expone este recurso; la pestaña Automatizaciones degrada
+// a solo lectura (reglas por defecto) si responde 404/405.
+export const getReglasCobranza = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/reglas/`, { params: { ...parametrosSede(sedeId), todas: 1 }, signal });
+
+export const crearReglaCobranza = (datos, sedeId) =>
+    apiClient.post(`${BASE_INT}/reglas/`, datos, { params: parametrosSede(sedeId) });
+
+export const actualizarReglaCobranza = (id, datos) =>
+    apiClient.patch(`${BASE_INT}/reglas/${id}/`, datos);
