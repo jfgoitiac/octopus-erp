@@ -3,6 +3,9 @@ from .views_gestion import (
     AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, CuotaConvenioPagadaView,
     DashboardInteligenteView, LineaBaseView, PagosRevisionView,
 )
+from .views_hoy import (
+    ContadoresView, HistorialCobrosView, HoyView, PromesasView, SimulacionMotorView, TarjetaHechaView,
+)
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
 from .views import (
     ActualizarCuotaInscripcionView,
@@ -86,6 +89,12 @@ urlpatterns = [
     path('inteligente/convenios/',         ConveniosView.as_view(),                name='cobranza-inteligente-convenios'),
     path('inteligente/convenios/cuotas/<int:cuota_id>/pagar/', CuotaConvenioPagadaView.as_view(), name='cobranza-inteligente-cuota-pagar'),
     path('inteligente/convenios/<int:convenio_id>/cancelar/', CancelarConvenioView.as_view(), name='cobranza-inteligente-convenio-cancelar'),
+    path('inteligente/hoy/',               HoyView.as_view(),                      name='cobranza-inteligente-hoy'),
+    path('inteligente/hoy/tarjetas/<str:clave>/hecha/', TarjetaHechaView.as_view(), name='cobranza-inteligente-tarjeta-hecha'),
+    path('inteligente/contadores/',        ContadoresView.as_view(),               name='cobranza-inteligente-contadores'),
+    path('inteligente/motor/simulacion/',  SimulacionMotorView.as_view(),          name='cobranza-inteligente-simulacion'),
+    path('inteligente/promesas/',          PromesasView.as_view(),                 name='cobranza-inteligente-promesas'),
+    path('inteligente/representantes/<int:representante_id>/historial-cobros/', HistorialCobrosView.as_view(), name='cobranza-inteligente-historial-cobros'),
     path('inteligente/dashboard/',         DashboardInteligenteView.as_view(),     name='cobranza-inteligente-dashboard'),
     path('inteligente/linea-base/',        LineaBaseView.as_view(),                name='cobranza-inteligente-linea-base'),
     path('inteligente/envios/',            EnviosCobranzaView.as_view(),           name='cobranza-inteligente-envios'),

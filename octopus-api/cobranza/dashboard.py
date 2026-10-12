@@ -177,12 +177,7 @@ def _modulo(sedes):
     return filas
 
 
-def calcular_dashboard(sedes, hoy=None, ahora=None):
-    hoy = hoy or date.today()
-    ahora = ahora or timezone.now()
-    ciclos = CicloCobranza.objects.filter(q_sedes(sedes, 'mensualidad__alumno__'))
-    abiertos = ciclos.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS).select_related('mensualidad')
-
+def cartera_mes(sedes, hoy):
     mes = (
         Mensualidad.objects.filter(mes=hoy.month, anio=hoy.year, alumno__activo=True)
         .exclude(alumno__estatus_financiero='becado').filter(q_sedes(sedes, 'alumno__'))
@@ -190,13 +185,28 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
     agregados = mes.aggregate(facturado=Sum('monto_usd'), cobrado=Sum('monto_pagado'))
     facturado = agregados['facturado'] or Decimal('0.00')
     cobrado = agregados['cobrado'] or Decimal('0.00')
+    return {
+        'facturado_usd': str(facturado), 'cobrado_usd': str(cobrado),
+        'pendiente_usd': str(facturado - cobrado), 'cobrado_pct': _pct(cobrado, facturado),
+    }
 
+
+def distribucion_por_etapa(abiertos):
+    """`abiertos`: ciclos abiertos con `mensualidad` cargada."""
     distribucion = {e: {'casos': 0, 'saldo_usd': Decimal('0.00')}
                     for e in (*CicloCobranza.ETAPAS_CALCULADAS, CicloCobranza.PAUSADA)}
     for c in abiertos:
         d = distribucion[c.estado]
         d['casos'] += 1
         d['saldo_usd'] += c.mensualidad.monto_usd - c.mensualidad.monto_pagado
+    return {k: {'casos': v['casos'], 'saldo_usd': str(v['saldo_usd'])} for k, v in distribucion.items()}
+
+
+def calcular_dashboard(sedes, hoy=None, ahora=None):
+    hoy = hoy or date.today()
+    ahora = ahora or timezone.now()
+    ciclos = CicloCobranza.objects.filter(q_sedes(sedes, 'mensualidad__alumno__'))
+    abiertos = ciclos.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS).select_related('mensualidad')
 
     cambios = {}
     for detalle in EventoCiclo.objects.filter(
@@ -212,14 +222,10 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
     )
     return {
         'fecha': hoy,
-        'cartera_mes': {
-            'facturado_usd': str(facturado), 'cobrado_usd': str(cobrado),
-            'pendiente_usd': str(facturado - cobrado), 'cobrado_pct': _pct(cobrado, facturado),
-        },
+        'cartera_mes': cartera_mes(sedes, hoy),
         'efectividad': efectividad,
         'comparacion_linea_base': _comparacion(efectividad, _linea_base(sedes)),
-        'distribucion_por_etapa': {
-            k: {'casos': v['casos'], 'saldo_usd': str(v['saldo_usd'])} for k, v in distribucion.items()},
+        'distribucion_por_etapa': distribucion_por_etapa(abiertos),
         'cambios_de_etapa_7_dias': cambios,
         'bandeja': {
             'casos_abiertos': len(bandeja),

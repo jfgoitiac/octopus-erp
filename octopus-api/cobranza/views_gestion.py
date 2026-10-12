@@ -128,7 +128,8 @@ class PagosRevisionView(APIView):
 
 def _serializar_convenio(c):
     return {
-        'id': c.id, 'estado': c.estado, 'notas': c.notas, 'creado_en': c.creado_en,
+        'id': c.id, 'estado': c.estado, 'tipo': c.tipo, 'origen': c.origen, 'notas': c.notas,
+        'creado_en': c.creado_en,
         'representante': c.representante_id,
         'ciclos': list(c.ciclos.values_list('id', flat=True)),
         'cuotas': [{'id': q.id, 'numero': q.numero, 'fecha': q.fecha, 'monto_usd': str(q.monto_usd),
@@ -138,7 +139,7 @@ def _serializar_convenio(c):
 
 class ConveniosView(APIView):
     """
-    GET  /inteligente/convenios/?representante=<id>
+    GET  /inteligente/convenios/?representante=<id>&tipo=convenio|promesa
     POST /inteligente/convenios/ {representante_id, ciclo_ids, cuotas:[{fecha, monto}], notas}
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
@@ -150,6 +151,8 @@ class ConveniosView(APIView):
         qs = ConvenioPago.objects.filter(ciclos__in=_ciclos(sedes)).distinct().prefetch_related('cuotas')
         if request.query_params.get('representante'):
             qs = qs.filter(representante_id=request.query_params['representante'])
+        if request.query_params.get('tipo') in dict(ConvenioPago.TIPOS):
+            qs = qs.filter(tipo=request.query_params['tipo'])
         return Response({'results': [_serializar_convenio(c) for c in qs]})
 
     def post(self, request):
