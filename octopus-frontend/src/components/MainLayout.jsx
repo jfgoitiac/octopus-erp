@@ -25,8 +25,6 @@ const PAGE_TITLES = {
   '/configuracion':      'Configuración',
   '/configuracion/notificaciones': 'Configuración de Notificaciones',
   '/configuracion/cobranza-inteligente': 'Cobranza Inteligente',
-  '/cobranza/inteligente': 'Gestión de cobranza',
-  '/cobranza/inteligente/resultados': 'Resultados de cobranza',
   '/nomina':             'Nómina',
   '/pagos':              'Pagos',
   '/recibos':            'Recibos de Pago',
@@ -61,7 +59,8 @@ const MainLayout = () => {
   const { user, logout } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
-  const title = PAGE_TITLES[location.pathname] || 'Octopus ERP';
+  const title = PAGE_TITLES[location.pathname]
+    || (location.pathname.startsWith('/cobranza/inteligente') ? 'Cobranza Inteligente' : 'Octopus ERP');
   const initials = inicialesUsuario(user);
   const isFullPage = FULL_HEIGHT_PAGES.includes(location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);

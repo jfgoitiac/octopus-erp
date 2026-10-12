@@ -67,8 +67,12 @@ const Conciliador              = lazy(() => import('./pages/Conciliador'));
 const Auditoria                = lazy(() => import('./pages/Auditoria'));
 const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
-const CobranzaInteligenteGestion = lazy(() => import('./pages/CobranzaInteligenteGestion'));
-const CobranzaInteligenteDashboard = lazy(() => import('./pages/CobranzaInteligenteDashboard'));
+const CobranzaInteligente = lazy(() => import('./pages/CobranzaInteligente'));
+const CobranzaHoy = lazy(() => import('./components/cobranzaInteligente/hoy/Hoy'));
+const CobranzaCartera = lazy(() => import('./components/cobranzaInteligente/cartera/Cartera'));
+const CobranzaConversaciones = lazy(() => import('./components/cobranzaInteligente/conversaciones/Conversaciones'));
+const CobranzaAutomatizaciones = lazy(() => import('./components/cobranzaInteligente/automatizaciones/Automatizaciones'));
+const CobranzaReportes = lazy(() => import('./components/cobranzaInteligente/reportes/ReportesCobranza'));
 const ConfiguracionCobranzaInteligente = lazy(() => import('./pages/ConfiguracionCobranzaInteligente'));
 const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
 const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/PlantillaEditorConstancia'));
@@ -418,14 +422,25 @@ function App() {
               } />
               <Route path="cobranza/inteligente" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO, ROLES.SISTEMAS]}>
-                  <CobranzaInteligenteGestion />
+                  <CobranzaInteligente />
                 </ProtectedRoute>
-              } />
-              <Route path="cobranza/inteligente/resultados" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
-                  <CobranzaInteligenteDashboard />
-                </ProtectedRoute>
-              } />
+              }>
+                <Route index element={<CobranzaHoy />} />
+                <Route path="cartera" element={<CobranzaCartera />} />
+                <Route path="conversaciones/:conversacionId?" element={<CobranzaConversaciones />} />
+                <Route path="automatizaciones" element={
+                  <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SISTEMAS]}>
+                    <CobranzaAutomatizaciones />
+                  </ProtectedRoute>
+                } />
+                <Route path="reportes" element={
+                  <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SISTEMAS]}>
+                    <CobranzaReportes />
+                  </ProtectedRoute>
+                } />
+                {/* Marcadores y enlaces viejos de la antigua pantalla Resultados */}
+                <Route path="resultados" element={<Navigate to="/cobranza/inteligente/reportes" replace />} />
+              </Route>
               <Route path="configuracion/cobranza-inteligente" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
                   <ConfiguracionCobranzaInteligente />

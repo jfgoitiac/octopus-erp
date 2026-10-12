@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useSede } from '../context/SedeContext';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
+import { useContadoresCobranza } from '../hooks/useContadoresCobranza';
 import SedeSwitcher from './SedeSwitcher';
 import logoColegioFallback from '../assets/logo-colegio.png';
 import {
@@ -47,8 +48,7 @@ const navSections = [
     items: [
       { name: 'Cobranza',      path: '/cobranza',      icon: Calculator,   roles: ['director','cobranza','administrador','cajero'] },
       { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero'] },
-      { name: 'Gestión inteligente', path: '/cobranza/inteligente', icon: Sparkles, roles: ['director','cobranza','administrador','cajero','sistemas'] },
-      { name: 'Resultados cobranza', path: '/cobranza/inteligente/resultados', icon: Sparkles, roles: ['director','administrador','sistemas'] },
+      { name: 'Cobranza Inteligente', path: '/cobranza/inteligente', match: ['/cobranza/inteligente'], icon: Sparkles, badge: 'cobranzaInteligente', roles: ['director','cobranza','administrador','cajero','sistemas'] },
       { name: 'Revisar pagos', path: '/comprobantes/revision', icon: ReceiptText, roles: ['director','sistemas','cobranza','administrador'] },
       { name: 'Solvencia',     path: '/cobranza/solvencia', icon: BadgeCheck, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
@@ -109,6 +109,21 @@ const slugify = (label) =>
     .replace(/[áéíóúñ]/g, (c) => ACENTOS[c])
     .replace(/[^a-z0-9]+/g, '-');
 
+// Badge numérico de la entrada de Cobranza Inteligente (no leídos + urgentes).
+const BadgeCobranzaInteligente = () => {
+  const { total } = useContadoresCobranza();
+  if (!total) return null;
+  return (
+    <span
+      className="ml-auto shrink-0 rounded-full px-1.5 text-xs font-semibold text-white"
+      style={{ background: 'var(--red)' }}
+      aria-label={`${total} pendientes`}
+    >
+      {total > 99 ? '99+' : total}
+    </span>
+  );
+};
+
 // Ítem de navegación único — usado tanto en los grupos como en la sección de Favoritos.
 // El botón de fijar es hermano del Link (no anidado) para no meter un <button>
 // interactivo dentro de un <a> interactivo.
@@ -140,6 +155,7 @@ const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFa
       >
         <Icon size={15} style={{ color: isActive ? 'var(--pb)' : 'var(--ash)', flexShrink: 0 }} />
         <span className="truncate">{item.name}</span>
+        {item.badge === 'cobranzaInteligente' && <BadgeCobranzaInteligente />}
       </Link>
       <button
         type="button"
