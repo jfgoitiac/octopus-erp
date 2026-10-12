@@ -223,7 +223,7 @@ class WebhookTest(ConvBase):
         self.assertEqual((m.tipo, m.cuerpo), ('imagen', 'comprobante'))
         self.assertTrue(m.adjunto.name.startswith('whatsapp_adjuntos/'))
         self.assertTrue(m.adjunto.name.endswith('.png'))
-        self.assertEqual(m.estado_adjunto, '')   # Fase C activa el estado `pendiente`
+        self.assertEqual(m.estado_adjunto, 'pendiente')   # Fase C: queda por asignar
 
     def test_media_invalida_o_muy_grande_no_se_guarda(self):
         def get(url, **kw):
