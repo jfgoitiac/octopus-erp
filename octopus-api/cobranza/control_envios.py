@@ -289,3 +289,19 @@ def historial_cobros(representante, limite=50):
     for f in filas:
         f['origen_etiqueta'] = ETIQUETAS_ORIGEN[f['origen']]
     return filas[:limite]
+
+
+# ── Toggle ─────────────────────────────────────────────────────────────────────
+
+def inteligente_activa_para_representante(representante):
+    """
+    True si alguna sede donde el representante tiene alumnos activos tiene
+    Cobranza Inteligente encendida: solo entonces el cobro manual pasa por
+    esta puerta. Con el toggle apagado el cobro manual funciona como siempre.
+    """
+    from .inteligente import sedes_con_inteligente_activa
+    activas = sedes_con_inteligente_activa()
+    if not activas:
+        return False
+    sedes = set(representante.alumnos.filter(activo=True).values_list('sede_id', flat=True))
+    return bool(sedes & activas)

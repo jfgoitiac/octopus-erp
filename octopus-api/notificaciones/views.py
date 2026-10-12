@@ -326,6 +326,18 @@ def _grupo_moroso_de(request, representante_cedula):
     return None
 
 
+def _control_cobro(cedula):
+    """
+    Cobranza Inteligente (v4 §1.8): (representante, activo). `activo` es True
+    solo si alguna sede del representante tiene el toggle encendido; con el
+    toggle apagado todo el cobro manual funciona exactamente como antes.
+    """
+    from secretaria.models import Representante
+    from cobranza.control_envios import inteligente_activa_para_representante
+    rep = Representante.objects.filter(cedula=cedula).first()
+    return rep, bool(rep and inteligente_activa_para_representante(rep))
+
+
 class PlantillasWhatsAppView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
@@ -434,7 +446,18 @@ class PrevisualizarCobroWhatsAppView(APIView):
         telefono = _normalizar_telefono(grupo['representante_telefono'])
         log = ultimo_envio(cedula)
 
-        return Response({
+        control = None
+        rep, activo = _control_cobro(cedula)
+        if activo:
+            from cobranza.control_envios import ORIGEN_MANUAL_API, ORIGEN_MANUAL_WAME, puede_enviar_cobro
+            control = {
+                'activo': True,
+                # Modo A (wa.me): solo avisos; Modo B (API): puede haber bloqueos.
+                'modo_a': puede_enviar_cobro(rep, 'whatsapp', ORIGEN_MANUAL_WAME).as_dict(),
+                'modo_b': puede_enviar_cobro(rep, 'whatsapp', ORIGEN_MANUAL_API).as_dict(),
+            }
+
+        respuesta = {
             'mensaje': mensaje,
             'telefono': telefono,
             'telefono_valido': bool(telefono),
@@ -452,7 +475,10 @@ class PrevisualizarCobroWhatsAppView(APIView):
             ],
             'envio_reciente': hubo_envio_reciente(cedula),
             'ultimo_envio_fecha': log.fecha_envio if log else None,
-        })
+        }
+        if control is not None:
+            respuesta['control'] = control
+        return Response(respuesta)
 
 
 class RegistrarEnvioManualCobroWhatsAppView(APIView):
@@ -493,6 +519,12 @@ class RegistrarEnvioManualCobroWhatsAppView(APIView):
             alumno_nombre=', '.join(a['nombre'] for a in grupo['alumnos']),
             proveedor='wa.me',
         )
+        # Cobranza Inteligente encendida: el cobro queda en el historial del
+        # ciclo y cuenta para el tope semanal (§1.8). Apagada: nada cambia.
+        rep, activo = _control_cobro(cedula)
+        if activo:
+            from cobranza.control_envios import ORIGEN_MANUAL_WAME, registrar_cobro
+            registrar_cobro(rep, 'whatsapp', ORIGEN_MANUAL_WAME, request.user, mensaje)
         return Response({'id': log.id, 'fecha_envio': log.fecha_envio}, status=status.HTTP_201_CREATED)
 
 
@@ -536,6 +568,23 @@ class EnviarCobroWhatsAppView(APIView):
                 {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
                 status=404,
             )
+        # Cobranza Inteligente encendida: mismas verificaciones que el motor (§1.8).
+        rep, activo = _control_cobro(cedula)
+        if activo:
+            from cobranza.control_envios import ORIGEN_MANUAL_API, puede_enviar_cobro
+            veredicto = puede_enviar_cobro(rep, 'whatsapp', ORIGEN_MANUAL_API)
+            if not veredicto.permitido:
+                return Response(
+                    {'error': veredicto.bloqueos[0]['mensaje'], 'bloqueado': True,
+                     'motivo': veredicto.bloqueos[0]['codigo'], 'bloqueos': veredicto.bloqueos},
+                    status=400,
+                )
+            if veredicto.avisos and not confirmar:
+                return Response(
+                    {'error': veredicto.avisos[0]['mensaje'], 'requiere_confirmacion': True,
+                     'avisos': veredicto.avisos},
+                    status=409,
+                )
         if hubo_envio_reciente(cedula) and not confirmar:
             return Response(
                 {'error': 'Ya se envió un cobro a este representante en las últimas 24 horas.',
@@ -564,6 +613,9 @@ class EnviarCobroWhatsAppView(APIView):
         if log:
             log.modo = 'automatico'
             log.save(update_fields=['modo'])
+        if activo:
+            from cobranza.control_envios import registrar_cobro
+            registrar_cobro(rep, 'whatsapp', ORIGEN_MANUAL_API, request.user, mensaje)
         return Response({'id': log.id if log else None, 'estado': 'enviado'})
 
 
