@@ -147,3 +147,67 @@ export const getHistorialCobranzaInteligente = (sedeId, signal) =>
         params: sedeId ? { sede: sedeId } : undefined,
         signal,
     });
+
+/* ── Cobranza Inteligente v4: Hoy, contadores, conversaciones (PLAN_COBRANZA_INTELIGENTE_V4 §2.4) ── */
+
+export const getHoyInteligente = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/hoy/`, { params: parametrosSede(sedeId), signal });
+
+export const marcarTarjetaHecha = (clave, datos) =>
+    apiClient.post(`${BASE_INT}/hoy/tarjetas/${encodeURIComponent(clave)}/hecha/`, datos);
+
+export const getContadoresInteligente = (sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/contadores/`, { params: parametrosSede(sedeId), signal });
+
+export const getSimulacionMotor = (fecha, sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/motor/simulacion/`, { params: { ...parametrosSede(sedeId), fecha }, signal });
+
+export const crearPromesaInteligente = (datos) =>
+    apiClient.post(`${BASE_INT}/promesas/`, datos);
+
+// `params` admite `desde` (ISO) y `filtro`; con `desde` solo devuelve lo cambiado.
+export const getConversacionesInteligente = (params, signal) =>
+    apiClient.get(`${BASE_INT}/conversaciones/`, { params, signal });
+
+export const getMensajesConversacion = (conversacionId, desde, signal) =>
+    apiClient.get(`${BASE_INT}/conversaciones/${conversacionId}/mensajes/`, {
+        params: desde ? { desde } : undefined,
+        signal,
+    });
+
+// `datos` puede ser un objeto { texto } o un FormData si lleva adjunto.
+export const enviarMensajeConversacion = (conversacionId, datos) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/mensajes/`, datos);
+
+export const enviarPlantillaConversacion = (conversacionId, datos) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/plantilla/`, datos);
+
+export const crearNotaConversacion = (conversacionId, datos) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/nota/`, datos);
+
+export const tomarConversacion = (conversacionId) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/tomar/`);
+
+export const devolverConversacion = (conversacionId) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/devolver/`);
+
+export const vincularConversacion = (conversacionId, datos) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/vincular/`, datos);
+
+export const marcarConversacionLeida = (conversacionId) =>
+    apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/leida/`);
+
+export const getRespuestasRapidas = (signal) =>
+    apiClient.get(`${BASE_INT}/respuestas-rapidas/`, { signal });
+
+export const crearRespuestaRapida = (datos) =>
+    apiClient.post(`${BASE_INT}/respuestas-rapidas/`, datos);
+
+export const actualizarRespuestaRapida = (id, datos) =>
+    apiClient.patch(`${BASE_INT}/respuestas-rapidas/${id}/`, datos);
+
+export const convertirAdjuntoComprobante = (mensajeId, datos) =>
+    apiClient.post(`${BASE_INT}/adjuntos/${mensajeId}/convertir-comprobante/`, datos);
+
+export const descartarAdjunto = (mensajeId, datos) =>
+    apiClient.post(`${BASE_INT}/adjuntos/${mensajeId}/descartar/`, datos);
