@@ -3,6 +3,8 @@ import { AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Modal } from '../ui/Modal';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
+import ConfirmarAvisosCobro, { ListaAvisosCobro } from './ConfirmarAvisosCobro';
+import { avisosModoA, bloqueosModoA, interpretarErrorCobro } from './controlCobro';
 import {
     listarPlantillasWhatsApp,
     previsualizarCobroWhatsApp,
@@ -17,11 +19,14 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
     const [cargando, setCargando] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
+    // Avisos del control de envíos (Cobranza Inteligente encendida) por confirmar.
+    const [avisosPendientes, setAvisosPendientes] = useState(null);
 
     const cargarPreview = async (id) => {
         if (!id || !representante?.cedula) return;
         setCargando(true);
         setConfirmarDuplicado(false);
+        setAvisosPendientes(null);
         try {
             const { data } = await previsualizarCobroWhatsApp({
                 representante_cedula: representante.cedula,
@@ -74,7 +79,10 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
         cargarPreview(id);
     };
 
-    const enviar = async () => {
+    const avisos = avisosModoA(preview);
+    const bloqueos = bloqueosModoA(preview);
+
+    const enviar = async (avisosConfirmados = false) => {
         if (!preview?.telefono_valido || !preview.telefono) {
             toast.error('El representante no tiene un teléfono válido.');
             return;
@@ -83,6 +91,16 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
             toast.error('Confirma que deseas enviar nuevamente este cobro.');
             return;
         }
+        if (bloqueos.length > 0) {
+            toast.error(bloqueos[0].mensaje);
+            return;
+        }
+        // Modo A: los avisos no bloquean, pero se confirman antes de abrir wa.me.
+        if (avisos.length > 0 && !avisosConfirmados) {
+            setAvisosPendientes(avisos);
+            return;
+        }
+        setAvisosPendientes(null);
         setEnviando(true);
         try {
             const telefono = preview.telefono.replace(/\+/g, '');
@@ -93,16 +111,19 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
                 representante_cedula: representante.cedula,
                 plantilla_id: Number(plantillaId),
                 mensaje,
-                confirmar: Boolean(confirmarDuplicado),
+                confirmar: Boolean(confirmarDuplicado || avisosConfirmados),
             });
             toast.success('Se abrió WhatsApp y se registró el aviso.');
             onClose();
         } catch (error) {
-            if (error?.response?.status === 409) {
+            const info = interpretarErrorCobro(error, 'No se pudo registrar el envío.');
+            if (info.tipo === 'confirmacion' && info.avisos.length > 0) {
+                setAvisosPendientes(info.avisos);
+            } else if (info.tipo === 'confirmacion') {
                 setConfirmarDuplicado(false);
                 toast.warning('Este representante ya recibió un aviso recientemente. Confirma el reenvío.');
             } else {
-                toast.error(error?.response?.data?.error || 'No se pudo registrar el envío.');
+                toast.error(info.mensaje);
             }
         } finally {
             setEnviando(false);
@@ -123,6 +144,7 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
     };
 
     return (
+        <>
         <Modal
             open={open}
             onClose={onClose}
@@ -132,7 +154,7 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
                 <button
                     type="button"
                     disabled={!puedeEnviar || enviando}
-                    onClick={enviar}
+                    onClick={() => enviar(false)}
                     className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: 'var(--pb)' }}
                 >
@@ -172,6 +194,8 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
                     </div>
                 )}
 
+                {avisos.length > 0 && <ListaAvisosCobro avisos={avisos} />}
+
                 {preview?.envio_reciente && (
                     <div className="rounded-lg p-3 text-sm" style={{ background: '#fffbeb', border: '0.5px solid #fcd34d', color: '#92400e' }}>
                         <div className="flex gap-2 font-semibold">
@@ -208,6 +232,14 @@ const ModalCobroWhatsApp = ({ open, onClose, representante }) => {
                 )}
             </div>
         </Modal>
+        <ConfirmarAvisosCobro
+            open={Boolean(avisosPendientes)}
+            avisos={avisosPendientes || []}
+            enviando={enviando}
+            onCancelar={() => setAvisosPendientes(null)}
+            onConfirmar={() => enviar(true)}
+        />
+        </>
     );
 };
 

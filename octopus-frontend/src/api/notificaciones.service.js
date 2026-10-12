@@ -26,3 +26,9 @@ export const listarLogsCobroWhatsApp = ({ page = 1, pageSize = 20 } = {}, signal
         params: { canal: 'whatsapp', tipo: 'cobro_whatsapp', page, page_size: pageSize },
         ...(signal ? { signal } : {}),
     });
+
+// Modo B (API de WhatsApp). Con Cobranza Inteligente encendida puede responder
+// 400 { bloqueado, motivo, bloqueos } o 409 { requiere_confirmacion, avisos };
+// se reintenta con `confirmar: true` (ver components/whatsapp/controlCobro.js).
+export const enviarCobroWhatsApp = (data) =>
+    apiClient.post('notificaciones/cobro-whatsapp/enviar/', data);
