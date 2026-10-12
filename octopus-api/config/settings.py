@@ -260,6 +260,9 @@ TWILIO_AUTH_TOKEN       = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM    = os.environ.get('TWILIO_WHATSAPP_FROM', '')
 META_WHATSAPP_TOKEN     = os.environ.get('META_WHATSAPP_TOKEN', '')
 META_WHATSAPP_PHONE_ID  = os.environ.get('META_WHATSAPP_PHONE_ID', '')
+# Webhook de Meta (conversaciones de Cobranza Inteligente): respaldo de los campos de ConfiguracionNotificaciones.
+META_APP_SECRET            = os.environ.get('META_APP_SECRET', '')
+META_WEBHOOK_VERIFY_TOKEN  = os.environ.get('META_WEBHOOK_VERIFY_TOKEN', '')
 # Plantilla aprobada por Meta para mandar el recibo de pago en PDF (encabezado
 # DOCUMENTO; cuerpo con {{1}} = nombre del representante, {{2}} = N° de recibo).
 # Vacía: el PDF solo llega si el representante escribió en las últimas 24h.
@@ -337,6 +340,11 @@ CELERY_BEAT_SCHEDULE = {
     'revisar-convenios-cobranza-inteligente': {
         'task': 'cobranza.tasks.revisar_convenios_cobranza_inteligente',
         'schedule': crontab(hour=7, minute=20),
+    },
+    # Conversaciones de WhatsApp: devuelve al automático las tomadas sin actividad del cobrador en 3 días
+    'devolver-conversaciones-inactivas': {
+        'task': 'notificaciones.tasks.devolver_conversaciones_inactivas',
+        'schedule': crontab(hour=7, minute=10),
     },
     'procesar-envios-cobranza-inteligente': {
         'task': 'cobranza.tasks.procesar_envios_cobranza_inteligente',

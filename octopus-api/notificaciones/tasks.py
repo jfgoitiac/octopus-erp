@@ -238,3 +238,21 @@ def task_notificar_mensaje_nuevo(mensaje_id):
         notificar_mensaje_directo(mensaje)
     except Exception as e:
         logger.error(f'task_notificar_mensaje_nuevo({mensaje_id}): {e}')
+
+
+@shared_task(name='notificaciones.tasks.procesar_webhook_meta')
+def procesar_webhook_meta(payload):
+    """Procesa un POST del webhook de Meta (ya con la firma validada). Idempotente:
+    Meta reintenta y el `wa_message_id` único evita duplicados."""
+    from notificaciones.webhook_meta import procesar_payload
+    return procesar_payload(payload)
+
+
+@shared_task(name='notificaciones.tasks.devolver_conversaciones_inactivas')
+def devolver_conversaciones_inactivas():
+    """Diaria: las conversaciones tomadas por el cobrador sin mensajes suyos en
+    3 días vuelven al automático (Cobranza Inteligente v4)."""
+    from notificaciones.conversaciones import devolver_inactivas
+    devueltas = devolver_inactivas()
+    logger.info('[Beat] devolver_conversaciones_inactivas: %s devueltas.', devueltas)
+    return f'Conversaciones devueltas: {devueltas}'

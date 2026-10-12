@@ -3,9 +3,21 @@ Servicio centralizado de notificaciones Octopus.
 Las credenciales se leen desde ConfiguracionNotificaciones (BD), con fallback a variables de entorno.
 """
 import logging
+import threading
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+# ID de mensaje (wamid) que Meta devolvió en el último envío de este hilo. Lo usa
+# Cobranza Inteligente para enlazar el saliente con las confirmaciones de entrega
+# del webhook sin cambiar el valor de retorno (bool) de `enviar_whatsapp`.
+_ultimo_envio = threading.local()
+
+
+def pop_ultimo_wa_message_id():
+    valor = getattr(_ultimo_envio, 'wa_message_id', None)
+    _ultimo_envio.wa_message_id = None
+    return valor
 
 
 def _notif_cfg():
@@ -262,6 +274,7 @@ def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alu
     Si es None (comportamiento por defecto, usado por notificar_mora,
     notificar_bienvenida_portal, notificar_pago_exitoso), se manda texto
     libre exactamente como antes."""
+    _ultimo_envio.wa_message_id = None
     numero = _normalizar_telefono(telefono)
     if not numero:
         return False
@@ -367,6 +380,11 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, templat
             timeout=10,
         )
         resp.raise_for_status()
+        try:
+            wamid = resp.json()['messages'][0]['id']
+            _ultimo_envio.wa_message_id = wamid if isinstance(wamid, str) else None
+        except Exception:
+            _ultimo_envio.wa_message_id = None
         _log('whatsapp', tipo, numero, '', mensaje, 'enviado',
              representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='meta')
         logger.info(f'WhatsApp Meta [{tipo}] -> {numero}')

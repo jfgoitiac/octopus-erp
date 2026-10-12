@@ -1,4 +1,5 @@
 from django.urls import path
+from .webhook_meta import WebhookMetaView
 from .views import (
     ProbarNotificacionView, ConfiguracionNotificacionesView, LogNotificacionesView,
     PerfilEmailRemitenteView,
@@ -8,6 +9,8 @@ from .views import (
 )
 
 urlpatterns = [
+    # Webhook de Meta (sin JWT; firma X-Hub-Signature-256). Ver WHATSAPP_META_WEBHOOK.md
+    path('whatsapp/webhook/',           WebhookMetaView.as_view()),
     path('probar/',                     ProbarNotificacionView.as_view()),
     path('configuracion/',              ConfiguracionNotificacionesView.as_view()),
     path('perfiles-email/<str:area>/',  PerfilEmailRemitenteView.as_view()),
