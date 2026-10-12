@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from .crypto_fields import EncryptedTextField
 
@@ -35,6 +36,15 @@ class ConfiguracionNotificaciones(models.Model):
     meta_whatsapp_phone_id = models.CharField(max_length=50, blank=True, default='')
     director_whatsapp = models.CharField(max_length=30, blank=True, default='',
                                           help_text='Número del director para alertas de mora día 15')
+    # Webhook de Meta (Cobranza Inteligente v4, conversaciones): ver WHATSAPP_META_WEBHOOK.md
+    meta_app_secret = EncryptedTextField(
+        blank=True, default='',
+        help_text='App Secret de la app de Meta: firma X-Hub-Signature-256 del webhook.')
+    meta_webhook_verify_token = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Token que se escribe en Meta al registrar el webhook (verificación GET).')
+    meta_waba_id = models.CharField(max_length=50, blank=True, default='',
+                                    help_text='ID de la cuenta de WhatsApp Business (WABA).')
 
     # ── Cronograma de recordatorios de mora ────────────────────────────────────
     # Días desde el vencimiento de la mensualidad. El día 0 (factura generada)
@@ -219,3 +229,112 @@ class PlantillaWhatsApp(models.Model):
         if self.predeterminada:
             PlantillaWhatsApp.objects.exclude(pk=self.pk).update(predeterminada=False)
         super().save(*args, **kwargs)
+
+
+# ── Conversaciones de WhatsApp (Cobranza Inteligente v4, Fase B) ──────────────
+
+class ConversacionWhatsApp(models.Model):
+    """Una conversación por número de WhatsApp (no por alumno). Se vincula al
+    representante solo si el teléfono normalizado coincide con UNO; si coincide
+    con varios o con ninguno queda sin vincular hasta que el cobrador decida."""
+
+    AUTOMATICO = 'automatico'
+    HUMANO = 'humano'
+    ESTADOS = ((AUTOMATICO, 'Automático'), (HUMANO, 'Atendida por el cobrador'))
+    ESPERANDO = (('', ''), ('comprobante', 'Comprobante'), ('fecha_acuerdo', 'Fecha de acuerdo'))
+
+    telefono = models.CharField(max_length=20, unique=True, help_text='E.164 con +, ej. +584121234567')
+    nombre_contacto = models.CharField(max_length=150, blank=True, default='',
+                                       help_text='Nombre del perfil de WhatsApp (viene del webhook).')
+    representante = models.ForeignKey(
+        'secretaria.Representante', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='conversaciones_whatsapp')
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    estado = models.CharField(max_length=10, choices=ESTADOS, default=AUTOMATICO, db_index=True)
+    requiere_humano = models.BooleanField(default=False)
+    tomada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    tomada_en = models.DateTimeField(null=True, blank=True)
+    ultimo_entrante_en = models.DateTimeField(null=True, blank=True)
+    ultimo_saliente_en = models.DateTimeField(null=True, blank=True)
+    # Último mensaje escrito por una persona (no por el sistema): base de la
+    # devolución automática a los 3 días y de las tarjetas de Hoy.
+    ultimo_humano_en = models.DateTimeField(null=True, blank=True)
+    no_leidos = models.PositiveIntegerField(default=0)
+    esperando = models.CharField(max_length=20, blank=True, default='', choices=ESPERANDO)
+    actualizado_en = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-actualizado_en', '-id']
+        verbose_name = 'Conversación de WhatsApp'
+        verbose_name_plural = 'Conversaciones de WhatsApp'
+
+    def __str__(self):
+        return f'{self.telefono} ({self.estado})'
+
+
+class MensajeWhatsApp(models.Model):
+    ENTRANTE = 'entrante'
+    SALIENTE = 'saliente'
+    NOTA = 'nota'
+    DIRECCIONES = ((ENTRANTE, 'Entrante'), (SALIENTE, 'Saliente'), (NOTA, 'Nota interna'))
+    TIPOS = (
+        ('texto', 'Texto'), ('imagen', 'Imagen'), ('documento', 'Documento'), ('boton', 'Botón'),
+        ('lista', 'Lista'), ('plantilla', 'Plantilla'), ('sistema', 'Sistema'),
+    )
+    ENTREGAS = (('enviado', 'Enviado'), ('entregado', 'Entregado'), ('leido', 'Leído'),
+                ('fallido', 'Fallido'))
+    ADJUNTO_PENDIENTE = 'pendiente'
+    ADJUNTO_CONVERTIDO = 'convertido'
+    ADJUNTO_DESCARTADO = 'descartado'
+    ESTADOS_ADJUNTO = (('', ''), (ADJUNTO_PENDIENTE, 'Pendiente'), (ADJUNTO_CONVERTIDO, 'Convertido'),
+                       (ADJUNTO_DESCARTADO, 'Descartado'))
+
+    conversacion = models.ForeignKey(
+        ConversacionWhatsApp, on_delete=models.CASCADE, related_name='mensajes')
+    direccion = models.CharField(max_length=10, choices=DIRECCIONES)
+    tipo = models.CharField(max_length=10, choices=TIPOS, default='texto')
+    cuerpo = models.TextField(blank=True, default='')
+    payload = models.JSONField(default=dict, blank=True)
+    wa_message_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    estado_entrega = models.CharField(max_length=10, choices=ENTREGAS, blank=True, default='')
+    adjunto = models.FileField(upload_to='whatsapp_adjuntos/%Y/%m/', null=True, blank=True)
+    estado_adjunto = models.CharField(max_length=10, choices=ESTADOS_ADJUNTO, blank=True, default='',
+                                      db_index=True)
+    enviado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    envio_cobranza = models.ForeignKey(
+        'cobranza.EnvioCobranza', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    creado_en = models.DateTimeField(default=timezone.now, db_index=True)
+    # Cambia también con las actualizaciones de entrega: base del hilo incremental (?desde=).
+    actualizado_en = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        ordering = ['creado_en', 'id']
+        verbose_name = 'Mensaje de WhatsApp'
+        verbose_name_plural = 'Mensajes de WhatsApp'
+
+    def __str__(self):
+        return f'{self.direccion} {self.tipo} #{self.pk}'
+
+
+class RespuestaRapida(models.Model):
+    """Texto reutilizable con variables ({nombre}, {saldo_usd}, {saldo_bs},
+    {alumnos}, {link_portal}, {datos_bancarios})."""
+
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.CASCADE, null=True, blank=True, related_name='+',
+        help_text='Vacío = disponible para todas las sedes.')
+    titulo = models.CharField(max_length=100)
+    cuerpo = models.TextField()
+    activa = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden', 'titulo', 'id']
+        verbose_name = 'Respuesta rápida'
+        verbose_name_plural = 'Respuestas rápidas'
+
+    def __str__(self):
+        return self.titulo

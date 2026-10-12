@@ -18,11 +18,13 @@ CAMPOS_WA = [
     'whatsapp_activo', 'whatsapp_proveedor', 'director_whatsapp',
     'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
     'meta_whatsapp_token', 'meta_whatsapp_phone_id',
+    # Webhook de Meta (conversaciones de Cobranza Inteligente)
+    'meta_app_secret', 'meta_webhook_verify_token', 'meta_waba_id',
 ]
 CAMPOS_MORA = [
     'dias_recordatorio_1', 'dias_recordatorio_2', 'dias_alerta_director',
 ]
-CAMPOS_SECRETOS = {'email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'}
+CAMPOS_SECRETOS = {'email_host_password', 'twilio_auth_token', 'meta_whatsapp_token', 'meta_app_secret'}
 CAMPOS_PERFIL_EMAIL = [
     'email_activo', 'email_host', 'email_port', 'email_use_tls',
     'email_host_user', 'email_host_password', 'email_from',

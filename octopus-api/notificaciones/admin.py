@@ -5,7 +5,8 @@ from .models import NotificacionLog, ConfiguracionNotificaciones, PerfilEmailRem
 # Campos que guardan credenciales/secretos (cifrados en reposo — ver
 # notificaciones/crypto_fields.py) y que por lo tanto NO deben mostrarse en
 # claro en el admin, igual que un campo de contraseña normal.
-CAMPOS_SECRETOS_CONFIG = ('email_host_password', 'twilio_auth_token', 'meta_whatsapp_token')
+CAMPOS_SECRETOS_CONFIG = ('email_host_password', 'twilio_auth_token', 'meta_whatsapp_token',
+                          'meta_app_secret')
 
 
 class ConfiguracionNotificacionesForm(forms.ModelForm):
@@ -36,7 +37,8 @@ class ConfiguracionNotificacionesAdmin(admin.ModelAdmin):
         ('WhatsApp', {
             'fields': ('whatsapp_activo', 'whatsapp_proveedor', 'director_whatsapp',
                        'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
-                       'meta_whatsapp_token', 'meta_whatsapp_phone_id'),
+                       'meta_whatsapp_token', 'meta_whatsapp_phone_id',
+                       'meta_app_secret', 'meta_webhook_verify_token', 'meta_waba_id'),
         }),
     )
 
