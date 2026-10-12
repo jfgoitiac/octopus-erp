@@ -27,18 +27,20 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .ciclos import dias_de_mora
+from .control_envios import (  # noqa: F401  (re-exportados: los usan pruebas y otros módulos)
+    DIAS_PERMITIDOS, HORA_FIN, HORA_INICIO, MAX_MENSAJES_SEMANA, canales_deseados,
+    canales_sin_baja, comprobante_whatsapp_pendiente, conversacion_humana, dentro_de_horario,
+    hubo_cobro_manual_hoy, mensajes_en_semana, proxima_ventana, tiene_pago_en_revision,
+)
 from .inteligente import corte_global_activo, obtener_configuracion
 from .models import (
-    BajaCobranza, CicloCobranza, EnvioCobranza, EventoCiclo, Pago, ReglaCobranza,
+    CicloCobranza, EnvioCobranza, EventoCiclo, ReglaCobranza,
 )
 
 logger = logging.getLogger(__name__)
 
 # ── Límites de contacto (valores por defecto de la Fase 0) ─────────────────────
-HORA_INICIO = 8            # 08:00
-HORA_FIN = 19              # hasta las 19:00 (exclusivo)
-DIAS_PERMITIDOS = range(0, 6)  # lunes a sábado (weekday 0-5)
-MAX_MENSAJES_SEMANA = 3
+# Viven en control_envios (puerta única de §1.8); aquí solo los de reintentos.
 MAX_INTENTOS = 3
 ESPERA_REINTENTO = (timedelta(hours=1), timedelta(hours=4))  # tras 1.er y 2.º fallo
 
@@ -96,21 +98,14 @@ def _saldo(ciclo):
 
 # ── Evaluación diaria ─────────────────────────────────────────────────────────
 
-def evaluar_reglas_sede(sede_id, hoy=None):
+def _candidatos(sede_id, hoy):
     """
-    Crea los EnvioCobranza que corresponden HOY (coincidencia exacta del día
-    relativo: nunca avisos atrasados). Idempotente. Devuelve contadores.
+    [(rep, regla, items)] de lo que corresponde HOY en la sede: una fila por
+    representante con la regla más avanzada entre sus deudas. Solo lectura.
     """
-    hoy = hoy or date.today()
-    cfg = obtener_configuracion(sede_id)
-    resumen = {'creados': 0, 'simulados': 0, 'repetidos': 0}
-    if not _modulo_efectivo(cfg):
-        return resumen
-
     reglas = _reglas_de_sede(sede_id)
     if not reglas:
-        return resumen
-
+        return []
     ciclos = (
         CicloCobranza.objects.filter(
             mensualidad__alumno__sede_id=sede_id,
@@ -126,10 +121,27 @@ def evaluar_reglas_sede(sede_id, hoy=None):
         rep = ciclo.mensualidad.alumno.representante
         por_representante.setdefault(rep.id, {'rep': rep, 'items': []})['items'].append((ciclo, regla))
 
+    resultado = []
     for datos in por_representante.values():
-        rep, items = datos['rep'], datos['items']
+        items = datos['items']
         # Si hay deudas en etapas distintas manda la más avanzada.
         regla = max((r for _, r in items), key=lambda r: (_GRAVEDAD_ETAPA[r.etapa], r.dia_relativo))
+        resultado.append((datos['rep'], regla, items))
+    return resultado
+
+
+def evaluar_reglas_sede(sede_id, hoy=None):
+    """
+    Crea los EnvioCobranza que corresponden HOY (coincidencia exacta del día
+    relativo: nunca avisos atrasados). Idempotente. Devuelve contadores.
+    """
+    hoy = hoy or date.today()
+    cfg = obtener_configuracion(sede_id)
+    resumen = {'creados': 0, 'simulados': 0, 'repetidos': 0}
+    if not _modulo_efectivo(cfg):
+        return resumen
+
+    for rep, regla, items in _candidatos(sede_id, hoy):
         # Un solo mensaje por representante y día.
         if EnvioCobranza.objects.filter(representante=rep, fecha=hoy).exists():
             resumen['repetidos'] += 1
@@ -153,34 +165,51 @@ def evaluar_reglas_sede(sede_id, hoy=None):
     return resumen
 
 
+def simular_reglas_sede(sede_id, fecha=None, ahora=None):
+    """
+    Evaluación EN SECO del motor (v4 §1.2 / §2.4): qué saldría en `fecha` con las
+    mismas reglas que `evaluar_reglas_sede`, sin crear ningún registro. Para cada
+    caso informa si saldría de verdad, si solo se simularía (modo sombra / etapa
+    apagada), si ya existe el envío de ese día o si alguna verificación lo
+    omitiría. El horario no se evalúa: el motor siempre reprograma al horario
+    permitido. Solo ve las deudas que existen hoy: las mensualidades futuras
+    que aún no se generaron no aparecen.
+    """
+    from .control_envios import ORIGEN_MOTOR, puede_enviar_cobro
+    fecha = fecha or date.today()
+    ahora = ahora or timezone.now()
+    cfg = obtener_configuracion(sede_id)
+    if not _modulo_efectivo(cfg):
+        return []
+    filas = []
+    for rep, regla, items in _candidatos(sede_id, fecha):
+        existente = EnvioCobranza.objects.filter(representante=rep, fecha=fecha).first()
+        ciclos = [c for c, _ in items]
+        if existente:
+            estado, motivos = 'ya_creado', []
+        elif not _envia_de_verdad(cfg, regla):
+            estado, motivos = 'solo_simulado', []
+        else:
+            veredicto = puede_enviar_cobro(rep, regla.canal, ORIGEN_MOTOR, ahora, ciclos,
+                                           ignorar_horario=True)
+            motivos = [b['codigo'] for b in veredicto.bloqueos]
+            estado = 'se_omitiria' if motivos else 'saldria'
+        filas.append({
+            'sede': sede_id, 'estado': estado, 'motivos_omision': motivos,
+            'representante': {'id': rep.id, 'nombre': f'{rep.nombre} {rep.apellido}',
+                              'cedula': rep.cedula},
+            'regla': {'id': regla.id, 'nombre': regla.nombre, 'dia_relativo': regla.dia_relativo,
+                      'etapa': regla.etapa, 'plantilla': regla.plantilla,
+                      'destinatario': regla.destinatario},
+            'canal': regla.canal,
+            'saldo_total_usd': str(sum((_saldo(c) for c in ciclos), Decimal('0.00'))),
+            'ciclos': [c.id for c in ciclos],
+            'envio_existente': existente.id if existente else None,
+        })
+    return filas
+
+
 # ── Verificaciones justo antes de enviar ───────────────────────────────────────
-
-def dentro_de_horario(ahora):
-    local = timezone.localtime(ahora)
-    return local.weekday() in DIAS_PERMITIDOS and HORA_INICIO <= local.hour < HORA_FIN
-
-
-def proxima_ventana(ahora):
-    """Primer instante permitido a partir de `ahora`."""
-    if dentro_de_horario(ahora):
-        return ahora
-    local = timezone.localtime(ahora)
-    candidato = local.replace(hour=HORA_INICIO, minute=0, second=0, microsecond=0)
-    if local >= candidato:
-        candidato += timedelta(days=1)
-    while candidato.weekday() not in DIAS_PERMITIDOS:
-        candidato += timedelta(days=1)
-    return candidato
-
-
-def _tiene_pago_en_revision(ciclo):
-    from portal.models import ComprobantePago
-    m = ciclo.mensualidad
-    return (
-        Pago.objects.filter(alumno_id=m.alumno_id, estatus='en_revision').exists()
-        or ComprobantePago.objects.filter(mensualidad=m, estatus='pendiente').exists()
-    )
-
 
 def _ciclos_vigentes(envio, regla):
     """Ciclos del envío que siguen abiertos, con saldo suficiente y sin pago en revisión."""
@@ -194,7 +223,7 @@ def _ciclos_vigentes(envio, regla):
             descartados.append((c, 'deuda_saldada'))
         elif _saldo(c) < regla.saldo_minimo:
             descartados.append((c, 'saldo_insuficiente'))
-        elif _tiene_pago_en_revision(c):
+        elif tiene_pago_en_revision(c):
             descartados.append((c, 'pago_en_revision'))
         else:
             vigentes.append(c)
@@ -202,12 +231,10 @@ def _ciclos_vigentes(envio, regla):
 
 
 def _canales_permitidos(regla, rep):
-    deseados = {'whatsapp': ['whatsapp'], 'email': ['email'], 'ambos': ['whatsapp', 'email'],
-                'interno': []}[regla.canal]
+    deseados = canales_deseados(regla.canal)
     if regla.destinatario != 'representante':
         return deseados  # los avisos al director no dependen de la baja del representante
-    bajas = set(BajaCobranza.objects.filter(representante=rep).values_list('canal', flat=True))
-    return [c for c in deseados if c not in bajas]
+    return canales_sin_baja(deseados, rep)
 
 
 def _omitir(envio, motivo, ciclos=()):
@@ -334,11 +361,21 @@ def procesar_envio(envio, ahora=None):
         _omitir(envio, descartados[0][1] if descartados else 'deuda_saldada')
         return envio.estado
 
-    enviados_semana = EnvioCobranza.objects.filter(
-        representante=rep, estado=EnvioCobranza.ENVIADO,
-        enviado_en__gte=ahora - timedelta(days=7)).count()
-    if regla.destinatario == 'representante' and enviados_semana >= MAX_MENSAJES_SEMANA:
+    # Los cobros manuales registrados (solo existen con el toggle encendido)
+    # cuentan para el tope semanal y para "un solo mensaje por día" (§1.8).
+    if regla.destinatario == 'representante' and mensajes_en_semana(rep, ahora) >= MAX_MENSAJES_SEMANA:
         _omitir(envio, 'limite_semanal', vigentes)
+        return envio.estado
+    if regla.destinatario == 'representante' and hubo_cobro_manual_hoy(rep, ahora):
+        _omitir(envio, 'cobro_manual_hoy', vigentes)
+        return envio.estado
+
+    # Ganchos de las fases B y C: hoy devuelven False (ver control_envios).
+    if regla.destinatario == 'representante' and conversacion_humana(rep):
+        _omitir(envio, 'conversacion_humana', vigentes)
+        return envio.estado
+    if regla.destinatario == 'representante' and comprobante_whatsapp_pendiente(rep):
+        _omitir(envio, 'comprobante_pendiente', vigentes)
         return envio.estado
 
     if regla.canal == 'interno':
