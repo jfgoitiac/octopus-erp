@@ -72,8 +72,9 @@ _reglas_recargo_detail = ReglaRecargoPagoViewSet.as_view({
 })
 
 from notificaciones.views_conversaciones import (
-    ArchivoMensajeView, ConversacionDetalleView, ConversacionesView, DevolverView, EnviarPlantillaView,
-    IniciarConversacionView, LeidaView, MensajesView, NotaView, PlantillasConversacionView,
+    ArchivoMensajeView, ConversacionDetalleView, ConversacionesView, ConvertirComprobanteView,
+    DescartarAdjuntoView, DevolverView, EnviarPlantillaView, IniciarConversacionView, LeidaView,
+    MensajesView, MensualidadesPendientesView, NotaView, PlantillasConversacionView,
     RespuestaRapidaDetalleView, RespuestasRapidasView, TomarView, VincularView,
 )
 
@@ -112,6 +113,9 @@ urlpatterns = [
     path('inteligente/conversaciones/<int:conversacion_id>/devolver/', DevolverView.as_view(), name='cobranza-inteligente-conversacion-devolver'),
     path('inteligente/conversaciones/<int:conversacion_id>/vincular/', VincularView.as_view(), name='cobranza-inteligente-conversacion-vincular'),
     path('inteligente/conversaciones/<int:conversacion_id>/leida/', LeidaView.as_view(), name='cobranza-inteligente-conversacion-leida'),
+    path('inteligente/conversaciones/<int:conversacion_id>/mensualidades-pendientes/', MensualidadesPendientesView.as_view(), name='cobranza-inteligente-conversacion-mensualidades'),
+    path('inteligente/adjuntos/<int:mensaje_id>/convertir-comprobante/', ConvertirComprobanteView.as_view(), name='cobranza-inteligente-adjunto-convertir'),
+    path('inteligente/adjuntos/<int:mensaje_id>/descartar/', DescartarAdjuntoView.as_view(), name='cobranza-inteligente-adjunto-descartar'),
     path('inteligente/mensajes/<int:mensaje_id>/archivo/', ArchivoMensajeView.as_view(), name='cobranza-inteligente-mensaje-archivo'),
     path('inteligente/respuestas-rapidas/', RespuestasRapidasView.as_view(),        name='cobranza-inteligente-respuestas-rapidas'),
     path('inteligente/respuestas-rapidas/<int:pk>/', RespuestaRapidaDetalleView.as_view(), name='cobranza-inteligente-respuesta-rapida'),

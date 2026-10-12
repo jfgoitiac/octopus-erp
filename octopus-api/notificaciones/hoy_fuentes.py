@@ -6,6 +6,7 @@ al arrancar la app (ver apps.py):
   conversacion_espera:<id>   requiere_humano, o el representante escribió y nadie
                              respondió en más de 2 h
   conversacion_tomada:<id>   tomada por el cobrador sin mensajes suyos en más de 24 h
+  comprobante_whatsapp:<id>  imagen o PDF recibido por WhatsApp sin asignar (Fase C)
 """
 from datetime import timedelta
 
@@ -14,7 +15,7 @@ from django.db.models import F, Q
 from cobranza.hoy import _accion, _tarjeta, registrar_fuente
 
 from .conversaciones import q_visibles
-from .models import ConversacionWhatsApp
+from .models import ConversacionWhatsApp, MensajeWhatsApp
 
 HORAS_SIN_RESPUESTA = 2
 HORAS_TOMADA_SIN_ACTIVIDAD = 24
@@ -96,3 +97,35 @@ def tarjetas_conversaciones_tomadas(ctx):
                      'horas_sin_actividad': horas}))
     return tarjetas
 
+
+
+@registrar_fuente
+def tarjetas_comprobantes_por_asignar(ctx):
+    """Comprobante recibido por WhatsApp sin asignar (el motor no le escribe al representante mientras tanto)."""
+    mensajes = (MensajeWhatsApp.objects
+                .filter(q_visibles(ctx.sedes, 'conversacion__'), direccion=MensajeWhatsApp.ENTRANTE,
+                        estado_adjunto=MensajeWhatsApp.ADJUNTO_PENDIENTE)
+                .select_related('conversacion__representante').order_by('creado_en'))
+    tarjetas = []
+    for m in mensajes:
+        c = m.conversacion
+        horas = max(0, int((ctx.ahora - m.creado_en).total_seconds() // 3600))
+        vinculado = c.representante_id is not None
+        acciones = [_accion('abrir_chat', 'Abrir chat', conversacion=c.id)]
+        if vinculado:
+            acciones.insert(0, _accion('convertir_comprobante', 'Asignar a mensualidad',
+                                       mensaje=m.id, conversacion=c.id))
+        acciones.append(_accion('descartar_comprobante', 'Descartar', mensaje=m.id, conversacion=c.id))
+        por_que = [{'texto': f'Envió un comprobante por WhatsApp hace {horas} h y falta asignarlo a una '
+                             'mensualidad; mientras tanto no recibe recordatorios', 'puntos': 0}]
+        if not vinculado:
+            por_que.append({'texto': 'La conversación no está vinculada a un representante: vincúlela '
+                                     'antes de asignar el comprobante', 'puntos': 0})
+        tarjetas.append(_tarjeta(
+            clave=f'comprobante_whatsapp:{m.id}', tipo='comprobante_whatsapp', prioridad=75,
+            titulo=f'{_nombre(c)}: comprobante recibido por WhatsApp sin asignar',
+            por_que=por_que, representante=_rep(c), desde=m.creado_en, acciones=acciones,
+            sede=c.sede_id, urgente=horas >= 24,
+            detalle={'conversacion': c.id, 'mensaje': m.id, 'telefono': c.telefono,
+                     'vinculado': vinculado, 'horas_sin_asignar': horas}))
+    return tarjetas

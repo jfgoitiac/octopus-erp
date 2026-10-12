@@ -17,6 +17,7 @@ from authentication.views import EsPersonalCobranza
 from cobranza.views_gestion import _apagada, _error, sedes_activas_accesibles
 from secretaria.models import Representante
 
+from . import comprobantes_whatsapp as comprobantes
 from . import conversaciones as srv
 from .models import ConversacionWhatsApp, MensajeWhatsApp, PlantillaWhatsApp, RespuestaRapida
 
@@ -118,7 +119,7 @@ def _responder_envio(accion):
         return accion(), None
     except srv.VentanaCerrada as e:
         return None, Response({'detail': str(e), 'ventana_cerrada': True}, status=status.HTTP_400_BAD_REQUEST)
-    except srv.ErrorConversacion as e:
+    except srv.ErrorConversacion as e:    # incluye AdjuntoNoResoluble
         return None, _error(str(e))
     except srv.ErrorEnvio as e:
         return None, Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
@@ -369,13 +370,81 @@ class ArchivoMensajeView(_Base):
         if not sedes:
             return _apagada()
         msg = MensajeWhatsApp.objects.filter(
-            Q(conversacion__sede__isnull=True)
-            | Q(conversacion__sede_id__in=[s for s in sedes if s is not None]), pk=mensaje_id).first()
+            srv.q_visibles(sedes, 'conversacion__'), pk=mensaje_id).first()
         if msg is None or not msg.adjunto:
             return _error('Archivo no encontrado.', status.HTTP_404_NOT_FOUND)
         tipo = mimetypes.guess_type(msg.adjunto.name)[0] or 'application/octet-stream'
         return FileResponse(msg.adjunto.open('rb'), content_type=tipo,
                             filename=msg.adjunto.name.rsplit('/', 1)[-1])
+
+
+# ── Comprobantes recibidos por WhatsApp (Fase C) ──────────────────────────────
+
+def _serializar_comprobante(c):
+    m = c.mensualidad
+    return {'id': c.id, 'estatus': c.estatus, 'mensualidad': m.id,
+            'alumno': f'{m.alumno.nombre} {m.alumno.apellido}', 'periodo': f'{m.get_mes_display()} {m.anio}',
+            'monto_usd': str(m.monto_usd)}
+
+
+class _AccionAdjunto(_Base):
+    """Base de las acciones sobre un adjunto entrante (mismos permisos y 409 "apagada")."""
+
+    def post(self, request, mensaje_id):
+        sedes = self.sedes(request)
+        if not sedes:
+            return _apagada()
+        msg = (MensajeWhatsApp.objects.select_related('conversacion__representante')
+               .filter(srv.q_visibles(sedes, 'conversacion__'), pk=mensaje_id).first())
+        if msg is None:
+            return _error('Mensaje no encontrado.', status.HTTP_404_NOT_FOUND)
+        return self.resolver(request, msg)
+
+
+class ConvertirComprobanteView(_AccionAdjunto):
+    """
+    POST adjuntos/<mensaje_id>/convertir-comprobante/
+         {mensualidades: [ids], referencia_bancaria?, metodo_pago?, banco_receptor_id?}
+    """
+
+    def resolver(self, request, msg):
+        d = request.data
+        creados, error = _responder_envio(lambda: comprobantes.convertir_en_comprobantes(
+            msg, d.get('mensualidades'), request.user, d.get('referencia_bancaria', ''),
+            d.get('metodo_pago') or 'transferencia', d.get('banco_receptor_id')))
+        if error:
+            return error
+        msg.refresh_from_db()
+        conv = ConversacionWhatsApp.objects.get(pk=msg.conversacion_id)
+        return Response({'mensaje': serializar_mensaje(msg),
+                         'comprobantes': [_serializar_comprobante(c) for c in creados],
+                         'conversacion': _con_ultimos([conv], timezone.now())[0]},
+                        status=status.HTTP_201_CREATED)
+
+
+class DescartarAdjuntoView(_AccionAdjunto):
+    """POST adjuntos/<mensaje_id>/descartar/ {motivo}"""
+
+    def resolver(self, request, msg):
+        _, error = _responder_envio(lambda: comprobantes.descartar(msg, request.data.get('motivo'), request.user))
+        if error:
+            return error
+        msg.refresh_from_db()
+        return Response({'mensaje': serializar_mensaje(msg)})
+
+
+class MensualidadesPendientesView(_Base):
+    """GET conversaciones/<id>/mensualidades-pendientes/ — qué mensualidades puede cubrir el comprobante."""
+
+    def get(self, request, conversacion_id):
+        sedes = self.sedes(request)
+        if not sedes:
+            return _apagada()
+        conv = self.conversacion(request, conversacion_id, sedes)
+        if conv is None:
+            return _error('Conversación no encontrada.', status.HTTP_404_NOT_FOUND)
+        filas = comprobantes.mensualidades_pendientes(conv.representante) if conv.representante else []
+        return Response({'representante': _rep(conv.representante), 'count': len(filas), 'results': filas})
 
 
 # ── Respuestas rápidas ────────────────────────────────────────────────────────
