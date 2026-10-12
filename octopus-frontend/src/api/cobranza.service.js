@@ -165,23 +165,37 @@ export const getSimulacionMotor = (fecha, sedeId, signal) =>
 export const crearPromesaInteligente = (datos) =>
     apiClient.post(`${BASE_INT}/promesas/`, datos);
 
-// `params` admite `desde` (ISO) y `filtro`; con `desde` solo devuelve lo cambiado.
+// Contrato: docs/CONTRATO_COBRANZA_V4_FASE_B.md.
+// `params` admite `desde` (ISO), `filtro`, `q`, `limite` y `sede`; con `desde` solo devuelve lo cambiado.
 export const getConversacionesInteligente = (params, signal) =>
     apiClient.get(`${BASE_INT}/conversaciones/`, { params, signal });
 
+export const getConversacionInteligente = (conversacionId, signal) =>
+    apiClient.get(`${BASE_INT}/conversaciones/${conversacionId}/`, { signal });
+
+// Devuelve la conversación del representante (la crea vacía si no existe).
+export const iniciarConversacionInteligente = (representanteId) =>
+    apiClient.post(`${BASE_INT}/conversaciones/iniciar/`, { representante_id: representanteId });
+
+// Sin `desde`: los últimos mensajes; con `desde` (ISO): lo creado o modificado desde entonces.
 export const getMensajesConversacion = (conversacionId, desde, signal) =>
     apiClient.get(`${BASE_INT}/conversaciones/${conversacionId}/mensajes/`, {
         params: desde ? { desde } : undefined,
         signal,
     });
 
-// `datos` puede ser un objeto { texto } o un FormData si lleva adjunto.
+// `datos` es { cuerpo } (JSON) o un FormData con `archivo` y `cuerpo` opcional.
 export const enviarMensajeConversacion = (conversacionId, datos) =>
     apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/mensajes/`, datos);
 
+export const getPlantillasConversacion = (signal) =>
+    apiClient.get(`${BASE_INT}/conversaciones/plantillas/`, { signal });
+
+// `datos`: { plantilla_id, parametros, idioma?, cuerpo? } o { nombre, idioma, parametros, cuerpo? }.
 export const enviarPlantillaConversacion = (conversacionId, datos) =>
     apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/plantilla/`, datos);
 
+// `datos`: { cuerpo }.
 export const crearNotaConversacion = (conversacionId, datos) =>
     apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/nota/`, datos);
 
@@ -191,11 +205,24 @@ export const tomarConversacion = (conversacionId) =>
 export const devolverConversacion = (conversacionId) =>
     apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/devolver/`);
 
+// `datos`: { representante_id }.
 export const vincularConversacion = (conversacionId, datos) =>
     apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/vincular/`, datos);
 
 export const marcarConversacionLeida = (conversacionId) =>
     apiClient.post(`${BASE_INT}/conversaciones/${conversacionId}/leida/`);
+
+// Descarga autenticada de un adjunto: devuelve un Blob (no sirve como `src` directo).
+export const descargarArchivoMensaje = (mensajeId, signal) =>
+    apiClient.get(`${BASE_INT}/mensajes/${mensajeId}/archivo/`, { responseType: 'blob', signal });
+
+// Respuestas rápidas con las variables de la conversación ya resueltas (`cuerpo_renderizado`).
+export const getRespuestasRapidasConversacion = (conversacionId, signal) =>
+    apiClient.get(`${BASE_INT}/respuestas-rapidas/`, { params: { conversacion: conversacionId }, signal });
+
+// Búsqueda de representantes (por nombre o cédula) para vincular una conversación.
+export const buscarRepresentantesVincular = (texto, signal) =>
+    apiClient.get('secretaria/representantes/', { params: { buscar: texto, page_size: 8 }, signal });
 
 export const getRespuestasRapidas = (signal) =>
     apiClient.get(`${BASE_INT}/respuestas-rapidas/`, { signal });
