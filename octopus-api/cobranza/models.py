@@ -1300,7 +1300,17 @@ class ConvenioPago(models.Model):
     representante = models.ForeignKey(
         'secretaria.Representante', on_delete=models.CASCADE, related_name='convenios_cobranza')
     ciclos = models.ManyToManyField(CicloCobranza, related_name='convenios')
+    # v4 (§1.5): una promesa de pago es un convenio de una sola cuota.
+    TIPO_CONVENIO = 'convenio'
+    TIPO_PROMESA = 'promesa'
+    TIPOS = ((TIPO_CONVENIO, 'Convenio'), (TIPO_PROMESA, 'Promesa de pago'))
+    ORIGEN_COBRADOR = 'cobrador'
+    ORIGEN_WHATSAPP = 'whatsapp'
+    ORIGENES = ((ORIGEN_COBRADOR, 'Cobrador'), (ORIGEN_WHATSAPP, 'WhatsApp (botón del representante)'))
+
     estado = models.CharField(max_length=10, choices=ESTADOS, default=VIGENTE, db_index=True)
+    tipo = models.CharField(max_length=10, choices=TIPOS, default=TIPO_CONVENIO)
+    origen = models.CharField(max_length=10, choices=ORIGENES, default=ORIGEN_COBRADOR)
     notas = models.TextField(blank=True, default='')
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')

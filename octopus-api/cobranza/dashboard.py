@@ -28,7 +28,8 @@ from .models import (
 )
 
 DIAS_ATRIBUCION = 7
-EVENTOS_DE_GESTION = ('mensaje_enviado', 'llamada_registrada', 'whatsapp_manual', 'nota', 'convenio_creado')
+EVENTOS_DE_GESTION = ('mensaje_enviado', 'llamada_registrada', 'whatsapp_manual', 'nota', 'convenio_creado',
+                      'cobro_manual')
 REGLA_ATRIBUCION = (
     f'Se atribuye a Cobranza Inteligente un pago que llega dentro de los {DIAS_ATRIBUCION} días '
     'siguientes a un mensaje o una gestión registrada sobre esa deuda.'

@@ -119,14 +119,20 @@ def cerrar_ciclo(ciclo, motivo, usuario, detalle=''):
 # ── Convenio de pago mínimo ────────────────────────────────────────────────────
 
 @transaction.atomic
-def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
+def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None,
+                   tipo=ConvenioPago.TIPO_CONVENIO, origen=ConvenioPago.ORIGEN_COBRADOR):
     """
     `cuotas`: lista de (fecha, monto). La suma debe igualar el saldo de las
     deudas incluidas (±0.01) y las fechas no pueden ser pasadas ni desordenadas.
     Pausa el ciclo de cada deuda con motivo 'convenio'.
+    `tipo='promesa'` (v4 §1.5) es un convenio de UNA sola cuota.
     """
     hoy = hoy or date.today()
     ciclos = list(ciclos)
+    if tipo not in dict(ConvenioPago.TIPOS) or origen not in dict(ConvenioPago.ORIGENES):
+        raise AccionInvalida('Tipo u origen de convenio inválido.')
+    if tipo == ConvenioPago.TIPO_PROMESA and len(cuotas) != 1:
+        raise AccionInvalida('Una promesa de pago tiene una sola cuota.')
     if not ciclos:
         raise AccionInvalida('Seleccione al menos una deuda.')
     if not cuotas:
@@ -147,7 +153,8 @@ def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
     if abs(saldo - total) > Decimal('0.01'):
         raise AccionInvalida(f'La suma de las cuotas ({total}) debe igualar el saldo ({saldo}).')
 
-    convenio = ConvenioPago.objects.create(representante=representante, notas=notas, creado_por=usuario)
+    convenio = ConvenioPago.objects.create(
+        representante=representante, notas=notas, creado_por=usuario, tipo=tipo, origen=origen)
     convenio.ciclos.set(ciclos)
     CuotaConvenio.objects.bulk_create([
         CuotaConvenio(convenio=convenio, numero=i, fecha=f, monto_usd=Decimal(m))
@@ -156,8 +163,22 @@ def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
     for c in ciclos:
         if c.estado != CicloCobranza.PAUSADA:
             pausar_ciclo(c, 'convenio', usuario)
-        _evento(c, 'convenio_creado', usuario, convenio=convenio.id, cuotas=len(cuotas))
+        _evento(c, 'convenio_creado', usuario, convenio=convenio.id, cuotas=len(cuotas), tipo_convenio=tipo)
     return convenio
+
+
+def crear_promesa(representante, ciclos, fecha, usuario, monto=None, notas='', hoy=None,
+                  origen=ConvenioPago.ORIGEN_COBRADOR):
+    """
+    Promesa de pago (v4 §1.5): convenio de una sola cuota. Sin `monto`, promete
+    el saldo completo de las deudas incluidas. Si no se cumple,
+    `revisar_convenios` la marca incumplida y las deudas vuelven al ciclo.
+    """
+    ciclos = list(ciclos)
+    if monto is None:
+        monto = sum((_saldo(c) for c in ciclos), Decimal('0.00'))
+    return crear_convenio(representante, ciclos, [(fecha, Decimal(monto))], usuario, notas, hoy,
+                          tipo=ConvenioPago.TIPO_PROMESA, origen=origen)
 
 
 def _reanudar_pausados_por_convenio(convenio, usuario=None, hoy=None):
