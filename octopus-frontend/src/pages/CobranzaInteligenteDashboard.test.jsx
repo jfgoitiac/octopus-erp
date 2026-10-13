@@ -1,0 +1,77 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import CobranzaInteligenteDashboard from './CobranzaInteligenteDashboard';
+
+const m = vi.hoisted(() => ({ resumen: vi.fn(), estado: vi.fn(), dashboard: vi.fn() }));
+
+vi.mock('../api/cobranza.service', () => ({
+    getResumenPorConcepto: (...a) => m.resumen(...a),
+    getEstadoPorConcepto: (...a) => m.estado(...a),
+    exportarEstadoPorConceptoExcel: vi.fn(),
+    getDashboardInteligente: (...a) => m.dashboard(...a),
+    guardarLineaBaseInteligente: vi.fn(),
+}));
+vi.mock('../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: null, sedes: [] }) }));
+vi.mock('../components/GradoSelect', () => ({ default: () => <select aria-label="Filtrar por grado" /> }));
+vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+const linea = (mes, anio, etiqueta) => ({
+    etiqueta, mes, anio, total: 4, pagados: 2, parciales: 1, pendientes: 1, porcentaje: 50, monto_pendiente_usd: '75.00',
+});
+const resumen = {
+    total_filas: 4, pagados: 2, parciales: 1, pendientes: 1, monto_cobrado_usd: '125.00', monto_pendiente_usd: '75.00',
+};
+const fila = {
+    nivel: 'alumno', alumno_id: 1, nombre: 'Ana Rojas', cedula_escolar: 'E1', grado_seccion: '1A',
+    representante: { id: 9, nombre: 'Luis Rojas', cedula: 'V9', telefono: '0414' },
+    monto_usd: '50.00', monto_pagado_usd: '0.00', saldo_usd: '50.00', estado: 'pendiente', fecha_pago: null, dias_atraso: 12,
+};
+const dashboard = {
+    efectividad: { cobrado_al_vencimiento_pct: 80, mora_15_pct: 12, base_meses: 3 },
+    comparacion_linea_base: { delta_cobrado_al_vencimiento_pp: 5, delta_mora_15_pp: -2 },
+    distribucion_por_etapa: { temprana: { casos: 2, saldo_usd: '100.00' } },
+    bandeja: { casos_abiertos: 7, antiguedad_max_dias: 20, casos_mas_de_15_dias: 3 },
+    pagos_por_conciliar: 2,
+    envios_7_dias: { enviado: 11, pendiente: 4 },
+    recuperado: { total_recuperado_usd: '300.00', atribuido_usd: '120.00', casos_atribuidos: 2, casos_totales: 5 },
+};
+
+const montar = (rol) => render(
+    <MemoryRouter>
+        <AuthContext.Provider value={{ user: { rol } }}>
+            <CobranzaInteligenteDashboard />
+        </AuthContext.Provider>
+    </MemoryRouter>,
+);
+
+describe('CobranzaInteligenteDashboard', () => {
+    beforeEach(() => {
+        Object.values(m).forEach(f => f.mockReset());
+        m.resumen.mockResolvedValue({ data: { lineas: [linea(9, 2025, 'Septiembre 2025'), linea(10, 2025, 'Octubre 2025')], totales: {} } });
+        m.estado.mockResolvedValue({ data: { count: 1, results: [fila], resumen } });
+        m.dashboard.mockResolvedValue({ data: dashboard });
+    });
+
+    it('muestra KPIs del mes, la tabla y los indicadores de gestión', async () => {
+        montar('director');
+        expect(await screen.findByText('$200,00')).toBeInTheDocument();
+        expect(screen.getByText('$125,00')).toBeInTheDocument();
+        expect(screen.getByText('63% del total')).toBeInTheDocument();
+        expect((await screen.findAllByText('Ana Rojas')).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Con deuda · 12 d').length).toBeGreaterThan(0);
+        expect(await screen.findByText('Casos por atender')).toBeInTheDocument();
+        expect(screen.getByText('11')).toBeInTheDocument();
+        expect(m.estado).toHaveBeenCalledWith(expect.objectContaining({ concepto: 'mensualidad', mes: 10, anio: 2025 }), expect.anything());
+    });
+
+    it('para cajero no pide los resultados de gestión (solo dirección)', async () => {
+        montar('cajero');
+        expect((await screen.findAllByText('Ana Rojas')).length).toBeGreaterThan(0);
+        await waitFor(() => expect(m.estado).toHaveBeenCalled());
+        expect(m.dashboard).not.toHaveBeenCalled();
+        expect(screen.queryByText('Gestión inteligente')).not.toBeInTheDocument();
+        expect(screen.queryByText('Recordatorios')).not.toBeInTheDocument();
+    });
+});
