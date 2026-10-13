@@ -80,7 +80,15 @@ class ProbarNotificacionView(APIView):
             resultados['email'] = 'enviado' if ok else 'fallido'
         if canal in ('whatsapp', 'ambos'):
             from notificaciones.services import enviar_whatsapp
-            ok = enviar_whatsapp(destino, mensaje, tipo='prueba')
+            sede_id = request.data.get('sede_id') or None
+            if sede_id is not None:
+                try:
+                    sede_id = int(sede_id)
+                except (TypeError, ValueError):
+                    return Response({'error': 'sede_id inválido.'}, status=400)
+                if not _sede_permitida(request.user, sede_id):
+                    return Response({'error': 'Sin permiso para esa sede.'}, status=403)
+            ok = enviar_whatsapp(destino, mensaje, tipo='prueba', sede=sede_id)
             resultados['whatsapp'] = 'enviado' if ok else 'fallido (revisar configuracion)'
         return Response({'resultados': resultados, 'destino': destino})
 
@@ -116,6 +124,7 @@ class ConfiguracionNotificacionesView(APIView):
                     status=400,
                 )
 
+        cambiados = []
         for campo, valor in datos.items():
             if campo not in campos_permitidos:
                 continue
@@ -123,8 +132,140 @@ class ConfiguracionNotificacionesView(APIView):
             if campo in CAMPOS_SECRETOS and (valor == '***' or str(valor).startswith('••••')):
                 continue
             setattr(cfg, campo, valor)
+            cambiados.append(campo)
         cfg.save()
+        if any(c in CAMPOS_WA for c in cambiados):
+            _auditar(request, 'Actualizó la configuración general de WhatsApp', {'campos': cambiados})
         return Response(_cfg_to_dict(cfg))
+
+
+# ── WhatsApp por sede (docs/CONTRATO_WHATSAPP_POR_SEDE.md) ────────────────────
+
+CAMPOS_WA_SEDE = [
+    'activo', 'numero_visible', 'meta_whatsapp_phone_id', 'meta_whatsapp_token',
+    'meta_waba_id', 'meta_app_secret', 'meta_webhook_verify_token',
+]
+CAMPOS_SECRETOS_WA_SEDE = {'meta_whatsapp_token', 'meta_app_secret'}
+
+
+def _auditar(request, accion, detalles):
+    """LogAuditoria sin valores: solo nombres de campos y ids (nunca secretos)."""
+    from usuarios.models import crear_log
+    try:
+        crear_log(request.user, accion, 'notificaciones', detalles,
+                  ip=request.META.get('REMOTE_ADDR'))
+    except Exception:
+        logger.exception('No se pudo registrar la auditoría: %s', accion)
+
+
+def _sede_permitida(user, sede_id):
+    from cobranza.permissions import sedes_permitidas_ids
+    permitidas = sedes_permitidas_ids(user)
+    return permitidas is None or int(sede_id) in permitidas
+
+
+def _sedes_del_usuario(user):
+    from multisede.models import Sede
+    from cobranza.permissions import sedes_permitidas_ids
+    qs = Sede.objects.filter(activa=True)
+    permitidas = sedes_permitidas_ids(user)
+    return qs if permitidas is None else qs.filter(pk__in=permitidas)
+
+
+def _wa_sede_to_dict(sede, fila):
+    """Config de una sede para la API: secretos enmascarados y qué número usa en la práctica."""
+    from .config_whatsapp import get_config_whatsapp
+    data = {c: getattr(fila, c) if fila else ('' if c != 'activo' else False) for c in CAMPOS_WA_SEDE}
+    _ocultar_secretos(data, CAMPOS_SECRETOS_WA_SEDE)
+    efectiva = get_config_whatsapp(sede.pk)
+    return {
+        'sede': {'id': sede.pk, 'nombre': sede.nombre},
+        **data,
+        'usa_configuracion_general': efectiva.origen != 'sede',
+        'efectiva': {'origen': efectiva.origen, 'phone_id': efectiva.phone_id,
+                     'numero_visible': efectiva.numero_visible, 'proveedor': efectiva.proveedor},
+    }
+
+
+class WhatsAppSedesView(APIView):
+    """GET: una entrada por sede accesible (config propia enmascarada o "usa la general")."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not _check_rol(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        from .models import ConfiguracionWhatsAppSede
+        sedes = list(_sedes_del_usuario(request.user))
+        filas = {f.sede_id: f for f in ConfiguracionWhatsAppSede.objects.filter(
+            sede__in=[s.pk for s in sedes])}
+        return Response({'results': [_wa_sede_to_dict(s, filas.get(s.pk)) for s in sedes]})
+
+
+class WhatsAppSedeDetailView(APIView):
+    """GET/PATCH/DELETE de la config de WhatsApp de UNA sede. DELETE = volver a la general."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _contexto(self, request, sede_id):
+        """(sede, fila, error_response)."""
+        if not _check_rol(request):
+            return None, None, Response({'error': 'Sin permiso.'}, status=403)
+        from multisede.models import Sede
+        from .models import ConfiguracionWhatsAppSede
+        sede = Sede.objects.filter(pk=sede_id, activa=True).first()
+        # Sede de otra persona = 404 (no se revela que existe).
+        if sede is None or not _sede_permitida(request.user, sede.pk):
+            return None, None, Response({'error': 'Sede no encontrada.'}, status=404)
+        return sede, ConfiguracionWhatsAppSede.objects.filter(sede=sede).first(), None
+
+    def get(self, request, sede_id):
+        sede, fila, error = self._contexto(request, sede_id)
+        return error or Response(_wa_sede_to_dict(sede, fila))
+
+    def patch(self, request, sede_id):
+        sede, fila, error = self._contexto(request, sede_id)
+        if error:
+            return error
+        from .models import ConfiguracionWhatsAppSede
+        from .config_whatsapp import get_config_whatsapp
+        fila = fila or ConfiguracionWhatsAppSede(sede=sede)
+        nuevos = {}
+        for campo, valor in request.data.items():
+            if campo not in CAMPOS_WA_SEDE:
+                continue
+            if campo in CAMPOS_SECRETOS_WA_SEDE and (valor == '***' or str(valor).startswith('••••')):
+                continue   # placeholder devuelto por la API: no es un cambio
+            nuevos[campo] = bool(valor) if campo == 'activo' else str(valor or '').strip()
+        pid = nuevos.get('meta_whatsapp_phone_id')
+        if pid:
+            if not pid.isdigit() or len(pid) > 50:
+                return Response({'error': 'El Phone Number ID debe contener solo dígitos (máx. 50).'}, status=400)
+            repetido = ConfiguracionWhatsAppSede.objects.filter(meta_whatsapp_phone_id=pid).exclude(
+                sede=sede).exists() or get_config_whatsapp(None).phone_id == pid
+            if repetido:
+                return Response({'error': 'Ese Phone Number ID ya lo usa otra sede o la configuración general.'},
+                                status=400)
+        for campo, valor in nuevos.items():
+            setattr(fila, campo, valor)
+        if fila.activo and not (fila.meta_whatsapp_token and fila.meta_whatsapp_phone_id):
+            return Response(
+                {'error': 'Para activar el número propio de la sede se requieren el token y el Phone Number ID.'},
+                status=400)
+        fila.save()
+        _auditar(request, 'Actualizó la configuración de WhatsApp de una sede', {
+            'sede_id': sede.pk, 'campos': sorted(nuevos),
+            'secretos_modificados': sorted(c for c in nuevos if c in CAMPOS_SECRETOS_WA_SEDE),
+            'activo': fila.activo})
+        return Response(_wa_sede_to_dict(sede, fila))
+
+    def delete(self, request, sede_id):
+        sede, fila, error = self._contexto(request, sede_id)
+        if error:
+            return error
+        if fila is not None:
+            fila.delete()
+            _auditar(request, 'Quitó la configuración de WhatsApp de una sede (vuelve a la general)',
+                     {'sede_id': sede.pk})
+        return Response(_wa_sede_to_dict(sede, None))
 
 
 class PerfilEmailRemitenteView(APIView):
@@ -538,7 +679,7 @@ class EnviarCobroWhatsAppView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     def post(self, request):
-        from .models import PlantillaWhatsApp, ConfiguracionNotificaciones, NotificacionLog
+        from .models import PlantillaWhatsApp, NotificacionLog
         from .services import enviar_whatsapp
         from .cobro_whatsapp import renderizar_mensaje_cobro, hubo_envio_reciente
 
@@ -548,8 +689,10 @@ class EnviarCobroWhatsAppView(APIView):
         if not cedula or not plantilla_id:
             return Response({'error': 'representante_cedula y plantilla_id son requeridos.'}, status=400)
 
-        cfg = ConfiguracionNotificaciones.objects.filter(pk=1).first()
-        if not (cfg and cfg.whatsapp_activo):
+        from .config_whatsapp import get_config_whatsapp, sede_id_de_representante
+        from secretaria.models import Representante
+        sede_id = sede_id_de_representante(Representante.objects.filter(cedula=cedula).first())
+        if not get_config_whatsapp(sede_id).activo:
             return Response(
                 {'error': 'WhatsApp automático no está activo. Use el envío manual (enlace wa.me).'},
                 status=400,
@@ -604,6 +747,7 @@ class EnviarCobroWhatsAppView(APIView):
                 'idioma': plantilla.idioma_meta,
                 'parametros': [grupo['representante_nombre'], str(grupo['monto_total'])],
             },
+            sede=sede_id,
         )
         if not ok:
             return Response({'error': 'No se pudo enviar el mensaje. Revise la configuración de WhatsApp.'},

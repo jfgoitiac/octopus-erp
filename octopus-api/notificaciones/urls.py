@@ -4,7 +4,7 @@ from .views import (
     ProbarNotificacionView, ConfiguracionNotificacionesView, LogNotificacionesView,
     PerfilEmailRemitenteView,
     PlantillasWhatsAppView, PlantillaWhatsAppDetailView, VariablesPlantillaWhatsAppView,
-    SuscripcionPushUsuarioView,
+    SuscripcionPushUsuarioView, WhatsAppSedesView, WhatsAppSedeDetailView,
     PrevisualizarCobroWhatsAppView, RegistrarEnvioManualCobroWhatsAppView, EnviarCobroWhatsAppView,
 )
 
@@ -13,6 +13,8 @@ urlpatterns = [
     path('whatsapp/webhook/',           WebhookMetaView.as_view()),
     path('probar/',                     ProbarNotificacionView.as_view()),
     path('configuracion/',              ConfiguracionNotificacionesView.as_view()),
+    path('whatsapp-sedes/',             WhatsAppSedesView.as_view()),
+    path('whatsapp-sedes/<int:sede_id>/', WhatsAppSedeDetailView.as_view()),
     path('perfiles-email/<str:area>/',  PerfilEmailRemitenteView.as_view()),
     path('push/usuario/',               SuscripcionPushUsuarioView.as_view()),
     path('logs/',                       LogNotificacionesView.as_view()),
