@@ -1,16 +1,19 @@
 import { useState, useContext } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/usePortalAuth';
 import { useBranding } from '../../context/useBranding';
 import BannerInstalarApp from '../components/BannerInstalarApp';
+import { destinoPortalSeguro } from '../utils/redirectPortal';
 
 const PortalLogin = () => {
   const { login, isAuthenticated, loading } = useContext(PortalAuthContext);
   const { nombreColegio, logoUrl } = useBranding();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const destino = destinoPortalSeguro(searchParams.get('redirect'));
 
   const [cedulaOEmail, setCedulaOEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +22,7 @@ const PortalLogin = () => {
 
   // Si ya está autenticado, redirigir al portal
   if (!loading && isAuthenticated) {
-    return <Navigate to="/portal" replace />;
+    return <Navigate to={destino} replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -32,7 +35,7 @@ const PortalLogin = () => {
     setSubmitting(true);
     try {
       const { debeCambiarPassword } = await login(cedulaOEmail.trim(), password);
-      navigate(debeCambiarPassword ? '/portal/cambiar-contrasena' : '/portal', { replace: true });
+      navigate(debeCambiarPassword ? '/portal/cambiar-contrasena' : destino, { replace: true });
     } catch (err) {
       const status = err?.response?.status;
       if (status === 401 || status === 400) {

@@ -4048,7 +4048,7 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 6. **Búsqueda de representantes en Conversaciones** usa
    `secretaria/representantes/?buscar=`; debería tener endpoint propio.
 7. **`src/modules/notifications`**: módulo legado sin migrar.
-8. **Portal**: ~~no abre el modal de pago con `?pagar=1`~~ RESUELTO (13/10/2026): `PortalDashboard` lo abre y limpia el parámetro. Pendiente menor: si el representante no está autenticado, el login no conserva `?pagar=1` tras iniciar sesión.
+8. **Portal**: ~~no abre el modal de pago con `?pagar=1`~~ RESUELTO (13/10/2026): `PortalDashboard` lo abre y limpia el parámetro. ~~El login no conserva `?pagar=1` tras iniciar sesión~~ RESUELTO (13/10/2026): `PortalProtectedRoute` redirige a `/portal/login?redirect=<path+query>` y `PortalLogin` vuelve a ese destino, validado como ruta interna `/portal/*` (`portal/utils/redirectPortal.js`; evita open redirect). Limitación: si además debe cambiar contraseña se pierde el destino.
 9. **Hoy**: ~~la tarjeta de comprobante no incluye `adjunto`~~ RESUELTO (13/10/2026):
    el modal de convertir usa `adjunto` de la tarjeta (`tarjeta.adjunto` o `detalle.adjunto`) y tolera que falte.
 10. **`getBancos`** devuelve lista simple o paginada según el caso; unificar.
