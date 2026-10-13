@@ -222,7 +222,9 @@ const Bloque = ({ className }) => <div className={`skeleton ${className}`} aria-
 const CobranzaInteligenteDashboard = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
-    const veResultados = ROLES_RESULTADOS.includes((user?.rol || '').toLowerCase().trim());
+    const rol = (user?.rol || '').toLowerCase().trim();
+    const veResultados = ROLES_RESULTADOS.includes(rol);
+    const configuraModulo = [ROLES.DIRECTOR, ROLES.SISTEMAS].includes(rol);
     const inteligente = useCargaInteligente(veResultados ? getDashboardInteligente : sinResultados);
     const { sedeId } = inteligente;
     const d = inteligente.data;
@@ -306,9 +308,11 @@ const CobranzaInteligenteDashboard = () => {
                         {inteligente.apagada && (
                             <p className="text-sm py-6 text-center" style={{ color: 'var(--ash)' }}>
                                 Los recordatorios automáticos están apagados en esta sede.{' '}
-                                <Link to="/configuracion/cobranza-inteligente" className="font-medium underline" style={{ color: 'var(--pb-mid)' }}>
-                                    Configurar
-                                </Link>
+                                {configuraModulo && (
+                                    <Link to="/configuracion#cobranza-inteligente" className="font-medium underline" style={{ color: 'var(--pb-mid)' }}>
+                                        Configurar
+                                    </Link>
+                                )}
                             </p>
                         )}
                     </Panel>

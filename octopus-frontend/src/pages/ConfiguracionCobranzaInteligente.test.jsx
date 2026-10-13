@@ -42,6 +42,13 @@ describe('ConfiguracionCobranzaInteligente', () => {
         expect(getMock).toHaveBeenCalledWith(1, expect.anything());
     });
 
+    it('embebida en Configuración no repite el encabezado de página', async () => {
+        getMock.mockResolvedValue(estado());
+        render(<ConfiguracionCobranzaInteligente embebido />);
+        expect(await screen.findByRole('switch', { name: 'Cobranza Inteligente' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    });
+
     it('encender pide confirmación y recién entonces llama a la API', async () => {
         getMock.mockResolvedValue(estado());
         patchMock.mockResolvedValue(estado({ activo: true, efectivo: true }));
