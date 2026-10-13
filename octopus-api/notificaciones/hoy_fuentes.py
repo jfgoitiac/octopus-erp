@@ -106,6 +106,7 @@ def tarjetas_comprobantes_por_asignar(ctx):
                 .filter(q_visibles(ctx.sedes, 'conversacion__'), direccion=MensajeWhatsApp.ENTRANTE,
                         estado_adjunto=MensajeWhatsApp.ADJUNTO_PENDIENTE)
                 .select_related('conversacion__representante').order_by('creado_en'))
+    from .views_conversaciones import serializar_adjunto
     tarjetas = []
     for m in mensajes:
         c = m.conversacion
@@ -121,11 +122,14 @@ def tarjetas_comprobantes_por_asignar(ctx):
         if not vinculado:
             por_que.append({'texto': 'La conversación no está vinculada a un representante: vincúlela '
                                      'antes de asignar el comprobante', 'puntos': 0})
+        adjunto = serializar_adjunto(m)
         tarjetas.append(_tarjeta(
             clave=f'comprobante_whatsapp:{m.id}', tipo='comprobante_whatsapp', prioridad=75,
             titulo=f'{_nombre(c)}: comprobante recibido por WhatsApp sin asignar',
             por_que=por_que, representante=_rep(c), desde=m.creado_en, acciones=acciones,
             sede=c.sede_id, urgente=horas >= 24,
             detalle={'conversacion': c.id, 'mensaje': m.id, 'telefono': c.telefono,
-                     'vinculado': vinculado, 'horas_sin_asignar': horas}))
+                     'vinculado': vinculado, 'horas_sin_asignar': horas,
+                     'adjunto': adjunto}))
+        tarjetas[-1]['adjunto'] = adjunto
     return tarjetas

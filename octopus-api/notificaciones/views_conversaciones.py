@@ -58,12 +58,17 @@ def serializar_conversacion(c, ultimo=None, ahora=None):
     }
 
 
+def serializar_adjunto(m):
+    """Adjunto de un mensaje (None si no tiene). Lo comparten el hilo y la tarjeta de Hoy."""
+    if not m.adjunto:
+        return None
+    return {'id': m.id, 'url': f'/api/cobranza/inteligente/mensajes/{m.id}/archivo/',
+            'nombre': m.adjunto.name.rsplit('/', 1)[-1],
+            'tipo': mimetypes.guess_type(m.adjunto.name)[0] or '', 'estado': m.estado_adjunto}
+
+
 def serializar_mensaje(m):
-    adjunto = None
-    if m.adjunto:
-        adjunto = {'url': f'/api/cobranza/inteligente/mensajes/{m.id}/archivo/',
-                   'nombre': m.adjunto.name.rsplit('/', 1)[-1],
-                   'tipo': mimetypes.guess_type(m.adjunto.name)[0] or ''}
+    adjunto = serializar_adjunto(m)
     return {
         'id': m.id, 'direccion': m.direccion, 'tipo': m.tipo, 'cuerpo': m.cuerpo, 'payload': m.payload,
         'estado_entrega': m.estado_entrega, 'adjunto': adjunto, 'estado_adjunto': m.estado_adjunto,
