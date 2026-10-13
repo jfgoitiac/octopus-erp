@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Conversaciones from './Conversaciones';
@@ -108,24 +108,35 @@ describe('Conversaciones', () => {
     });
 
     it('envía un texto con inserción optimista y reconcilia con la respuesta', async () => {
+        // Bajo carga de la suite completa jsdom es lento: se pega el texto (no se teclea carácter a
+        // carácter) y toda espera usa findBy/waitFor con un margen holgado, sin sleeps.
+        const espera = { timeout: 8000 };
         const real = { ...mensajes[3], id: 99, cuerpo: 'Buenas tardes', creado_en: '2026-07-20T10:30:00-04:00' };
         let resolver;
         m.enviar.mockReturnValue(new Promise(r => { resolver = r; }));
         const user = userEvent.setup();
         montar('/cobranza/inteligente/conversaciones/4');
-        await screen.findByRole('log', { name: 'Mensajes' });
+        await screen.findByRole('log', { name: 'Mensajes' }, espera);
+        // Al abrir, el hilo marca la conversación como leída y aplica su respuesta (estado automático)
+        // cuando llega. Si llegara después del envío pisaría la conversación "humano", así que se espera
+        // a que esa respuesta ya esté aplicada antes de enviar (causa de la falla bajo carga).
+        await waitFor(() => expect(m.leida).toHaveBeenCalledWith(4), espera);
+        await act(async () => { await m.leida.mock.results[0].value; });
 
-        await user.type(screen.getByLabelText('Mensaje'), 'Buenas tardes');
-        await user.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
-        expect(await screen.findByText('Buenas tardes')).toBeInTheDocument();
-        expect(screen.getByRole('img', { name: 'Enviando' })).toBeInTheDocument();
+        await user.click(await screen.findByLabelText('Mensaje', undefined, espera));
+        await user.paste('Buenas tardes');
+        await user.click(await screen.findByRole('button', { name: 'Enviar mensaje' }, espera));
+        expect(await screen.findByText('Buenas tardes', undefined, espera)).toBeInTheDocument();
+        expect(await screen.findByRole('img', { name: 'Enviando' }, espera)).toBeInTheDocument();
 
-        resolver({ data: { mensaje: real, conversacion: { ...convMaria, estado: 'humano', tomada_por: { id: 2, nombre: 'Ana Cobranza' } } } });
-        await waitFor(() => expect(screen.queryByRole('img', { name: 'Enviando' })).not.toBeInTheDocument());
-        expect(screen.getAllByText('Buenas tardes')).toHaveLength(1);
+        // Sin no_leidos: con no_leidos > 0 el hilo vuelve a marcar leída y esa respuesta (estado
+        // automático del mock) pisaba la conversación "humano" cuando llegaba tarde.
+        resolver({ data: { mensaje: real, conversacion: { ...convMaria, no_leidos: 0, estado: 'humano', tomada_por: { id: 2, nombre: 'Ana Cobranza' } } } });
+        await waitFor(() => expect(screen.queryByRole('img', { name: 'Enviando' })).not.toBeInTheDocument(), espera);
+        await waitFor(() => expect(screen.getAllByText('Buenas tardes')).toHaveLength(1), espera);
         expect(m.enviar).toHaveBeenCalledWith(4, { cuerpo: 'Buenas tardes' });
-        expect(await screen.findByText('Atendido por Ana Cobranza')).toBeInTheDocument();
-    });
+        expect(await screen.findByText('Atendido por Ana Cobranza', undefined, espera)).toBeInTheDocument();
+    }, 20000);
 
     it('si el envío falla, quita el mensaje optimista, avisa y conserva el texto', async () => {
         m.enviar.mockRejectedValue({ response: { status: 502, data: { detail: 'Meta rechazó el mensaje.' } } });
