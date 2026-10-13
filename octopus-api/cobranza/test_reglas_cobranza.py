@@ -44,6 +44,7 @@ class ListarTest(ReglasBase):
         self.assertEqual(dias, sorted(dias))
         self.assertNotIn(7, dias)
         self.assertEqual(r.data['count'], len(REGLAS_POR_DEFECTO) - 1)
+        self.assertEqual(r.data['limites'], {'dia_min': -30, 'dia_max': 90})
         todas = self.api.get(URL, {'sede': self.sede.id, 'todas': 1})
         self.assertEqual(todas.data['count'], len(REGLAS_POR_DEFECTO))
         fila = todas.data['results'][0]

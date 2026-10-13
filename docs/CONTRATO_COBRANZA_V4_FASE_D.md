@@ -36,7 +36,7 @@ Es lo que la pestaña Automatizaciones ya espera (`getReglasCobranza`, `crearReg
 
 ### GET `reglas/?sede=&todas=1`
 
-`{ "count": 7, "results": [regla, …] }` ordenado por `dia_relativo`. Sin `todas=1` solo las activas. Si la sede **no tiene reglas propias** se devuelven las globales con `heredada: true` (así las usa el motor). El frontend ya acepta lista o `{results}`.
+`{ "count": 7, "results": [regla, …], "limites": { "dia_min": -30, "dia_max": 90 } }` ordenado por `dia_relativo`. `limites` (nuevo) es el rango permitido de `dia_relativo` (constante única del backend; fuera de él POST/PATCH dan `400`); el frontend puede leerlo en vez de fijar −30…90. Sin `todas=1` solo las activas. Si la sede **no tiene reglas propias** se devuelven las globales con `heredada: true` (así las usa el motor). El frontend ya acepta lista o `{results}`.
 
 ### POST `reglas/?sede=`
 

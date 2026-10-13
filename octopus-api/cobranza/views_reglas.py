@@ -26,7 +26,8 @@ from .models import ReglaCobranza
 from .motor import PLANTILLAS_TEXTO
 from .permissions import sedes_permitidas_ids
 
-DIA_MIN, DIA_MAX = -30, 90
+DIA_MIN, DIA_MAX = -30, 90  # única fuente del rango de `dia_relativo`; se expone en GET reglas/ como `limites`
+LIMITES = {'dia_min': DIA_MIN, 'dia_max': DIA_MAX}
 CAMPOS_ESCRIBIBLES = (
     'nombre', 'etapa', 'dia_relativo', 'canal', 'plantilla', 'plantilla_meta', 'plantilla_meta_b',
     'saldo_minimo', 'destinatario', 'activa', 'recordatorio_extra_paga_tarde',
@@ -192,7 +193,7 @@ class ReglasView(APIView):
         if request.query_params.get('todas') not in ('1', 'true', 'True'):
             reglas = reglas.filter(activa=True)
         filas = [serializar_regla(r, heredada) for r in reglas.order_by('dia_relativo', 'id')]
-        return Response({'count': len(filas), 'results': filas})
+        return Response({'count': len(filas), 'results': filas, 'limites': LIMITES})
 
     def post(self, request):
         sede_id, error = _sede_de(request)
