@@ -12,6 +12,8 @@ import { ConversacionesSkeleton } from './ConversacionesSkeleton';
 import { FichaConversacion } from './FichaConversacion';
 import { HiloMensajes } from './HiloMensajes';
 import { ModalEnviarPlantilla } from './ModalEnviarPlantilla';
+import { ModalConvertirComprobante } from './ModalConvertirComprobante';
+import { ModalDescartarComprobante } from './ModalDescartarComprobante';
 import { ModalVincularRepresentante } from './ModalVincularRepresentante';
 import { RUTA_CONVERSACIONES, segundosRestantes } from './conversacionesUtils';
 
@@ -50,6 +52,8 @@ const Conversaciones = () => {
 
     const [modal, setModal] = useState(null); // 'plantilla' | 'vincular' | 'ficha'
     const cerrarModal = useCallback(() => setModal(null), []);
+    const [adjuntoModal, setAdjuntoModal] = useState(null); // { tipo: 'convertir' | 'descartar', mensaje }
+    const cerrarAdjunto = useCallback(() => setAdjuntoModal(null), []);
     const seleccionar = useCallback((id) => navigate(`${RUTA_CONVERSACIONES}/${id}`), [navigate]);
     const volver = useCallback(() => navigate(RUTA_CONVERSACIONES), [navigate]);
 
@@ -71,7 +75,9 @@ const Conversaciones = () => {
 
             <div className={`${activaId ? 'flex' : 'hidden lg:flex'} flex-col min-h-0 min-w-0`}>
                 {activaId ? (
-                    <HiloMensajes hilo={hilo} onVolver={volver} onAbrirFicha={() => setModal('ficha')} onAbrirPlantilla={() => setModal('plantilla')} />
+                    <HiloMensajes hilo={hilo} onVolver={volver} onAbrirFicha={() => setModal('ficha')} onAbrirPlantilla={() => setModal('plantilla')}
+                        onConvertir={(mensaje) => setAdjuntoModal({ tipo: 'convertir', mensaje })}
+                        onDescartar={(mensaje) => setAdjuntoModal({ tipo: 'descartar', mensaje })} />
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center gap-2 p-6 text-center" style={{ color: 'var(--ash)' }}>
                         <MessagesSquare size={32} aria-hidden="true" />
@@ -89,6 +95,11 @@ const Conversaciones = () => {
             </Modal>
             <ModalEnviarPlantilla open={modal === 'plantilla'} onClose={cerrarModal} onEnviar={hilo.enviarPlantilla} fueraDeVentana={fueraDeVentana} />
             <ModalVincularRepresentante open={modal === 'vincular'} onClose={cerrarModal} onVincular={hilo.vincular} conversacion={conv} />
+            <ModalConvertirComprobante open={adjuntoModal?.tipo === 'convertir'} onClose={cerrarAdjunto}
+                mensajeId={adjuntoModal?.mensaje?.id} conversacionId={activaId} adjunto={adjuntoModal?.mensaje?.adjunto}
+                onHecho={hilo.aplicarResolucion} />
+            <ModalDescartarComprobante open={adjuntoModal?.tipo === 'descartar'} onClose={cerrarAdjunto}
+                mensajeId={adjuntoModal?.mensaje?.id} onHecho={hilo.aplicarResolucion} />
         </section>
     );
 };

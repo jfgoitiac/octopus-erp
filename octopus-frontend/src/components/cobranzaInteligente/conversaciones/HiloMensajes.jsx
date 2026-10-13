@@ -24,7 +24,7 @@ function HiloSkeleton() {
  * Panel del hilo: encabezado (con botón atrás en móvil), banner de takeover, mensajes con
  * separadores de día y compositor fijo abajo. `hilo` es lo que devuelve useHiloConversacion.
  */
-export function HiloMensajes({ hilo, onVolver, onAbrirFicha, onAbrirPlantilla }) {
+export function HiloMensajes({ hilo, onVolver, onAbrirFicha, onAbrirPlantilla, onConvertir, onDescartar }) {
     const { conversacion, mensajes, loading, error } = hilo;
     const contenedor = useRef(null);
     const pegado = useRef(true);
@@ -75,6 +75,8 @@ export function HiloMensajes({ hilo, onVolver, onAbrirFicha, onAbrirPlantilla })
                     {conversacion && (
                         <p className="text-xs truncate" style={{ color: 'var(--ash)' }}>
                             {conversacion.telefono}{conversacion.representante ? '' : ' · Sin vincular'}
+                            {conversacion.esperando === 'comprobante' ? ' · Esperando comprobante…' : ''}
+                            {conversacion.esperando === 'fecha_acuerdo' ? ' · Esperando fecha de acuerdo…' : ''}
                         </p>
                     )}
                 </div>
@@ -109,7 +111,7 @@ export function HiloMensajes({ hilo, onVolver, onAbrirFicha, onAbrirPlantilla })
                                             {etiquetaDia(m.creado_en)}
                                         </p>
                                     )}
-                                    <BurbujaMensaje mensaje={m} />
+                                    <BurbujaMensaje mensaje={m} onConvertir={onConvertir} onDescartar={onDescartar} />
                                 </Fragment>
                             );
                         })}

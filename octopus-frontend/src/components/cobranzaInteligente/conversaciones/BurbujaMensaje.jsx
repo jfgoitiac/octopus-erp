@@ -1,6 +1,6 @@
 import { AlertCircle, Bot, Check, CheckCheck, Clock, StickyNote } from 'lucide-react';
 import { AdjuntoMensaje } from './AdjuntoMensaje';
-import { ESTADOS_ENTREGA, horaMensaje } from './conversacionesUtils';
+import { ESTADOS_ADJUNTO, ESTADOS_ENTREGA, filasLista, horaMensaje, textoResuelto } from './conversacionesUtils';
 
 /** Ícono y color del estado de entrega de un saliente (✓ enviado, ✓✓ entregado, ✓✓ azul leído, ! fallido). */
 function EstadoEntrega({ estado, pendiente, errores }) {
@@ -22,10 +22,50 @@ function EstadoEntrega({ estado, pendiente, errores }) {
     return <Icono size={14} role="img" aria-label={etiqueta} style={{ color: estado === 'leido' ? 'var(--pb)' : 'var(--ash)' }} />;
 }
 
+const ETIQUETA_BOTON = { YA_PAGUE: 'Ya pagué', NECESITO_ACUERDO: 'Necesito un acuerdo', HABLAR: 'Hablar con alguien' };
+
+/** Estado del comprobante recibido; mientras está pendiente ofrece asignarlo a una mensualidad o descartarlo. */
+function EstadoAdjunto({ mensaje, onConvertir, onDescartar }) {
+    const estado = ESTADOS_ADJUNTO[mensaje.estado_adjunto];
+    if (!estado) return null;
+    const { payload = {} } = mensaje;
+    const resuelto = textoResuelto(payload.resuelto_en);
+    const detalle = mensaje.estado_adjunto === 'descartado' && payload.motivo_descarte
+        ? `Motivo: ${payload.motivo_descarte}`
+        : mensaje.estado_adjunto === 'convertido' && payload.comprobantes?.length
+            ? `${payload.comprobantes.length} comprobante${payload.comprobantes.length === 1 ? '' : 's'} en revisión`
+            : '';
+    return (
+        <div className="rounded-xl p-2 space-y-2" style={{ background: estado.fondo }}>
+            <p className="text-xs font-semibold" style={{ color: estado.color }}>{estado.etiqueta}</p>
+            {detalle && <p className="text-xs break-words" style={{ color: 'var(--jet)' }}>{detalle}</p>}
+            {resuelto && <p className="text-[11px]" style={{ color: 'var(--jet-mid)' }}>Resuelto el {resuelto}</p>}
+            {mensaje.estado_adjunto === 'pendiente' && (onConvertir || onDescartar) && (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    {onConvertir && (
+                        <button type="button" onClick={() => onConvertir(mensaje)}
+                            className="w-full sm:w-auto min-h-11 px-3 py-2 rounded-xl text-sm font-medium"
+                            style={{ background: 'var(--pb)', color: '#fff' }}>
+                            Asignar a mensualidad
+                        </button>
+                    )}
+                    {onDescartar && (
+                        <button type="button" onClick={() => onDescartar(mensaje)}
+                            className="w-full sm:w-auto min-h-11 px-3 py-2 rounded-xl text-sm font-medium"
+                            style={{ border: '1px solid var(--border-md)', color: 'var(--jet)', background: 'var(--surface)' }}>
+                            Descartar
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 const ETIQUETA_ORIGEN = { motor: 'Recordatorio automático', bot: 'Respuesta automática', manual_wame: 'Cobro manual', manual_api: 'Cobro manual' };
 
 /** Una burbuja del hilo: entrante, saliente, nota interna o aviso del sistema. */
-export function BurbujaMensaje({ mensaje }) {
+export function BurbujaMensaje({ mensaje, onConvertir, onDescartar }) {
     const { direccion, tipo, cuerpo, payload = {}, adjunto, enviado_por: autor } = mensaje;
 
     if (tipo === 'sistema') {
@@ -77,10 +117,32 @@ export function BurbujaMensaje({ mensaje }) {
                 {payload.media_error && !adjunto && (
                     <p className="text-xs italic" style={{ color: 'var(--red)' }}>No se pudo descargar el adjunto recibido.</p>
                 )}
-                {(tipo === 'boton' || tipo === 'lista') && (
+                {adjunto && !saliente && !nota && (
+                    <EstadoAdjunto mensaje={mensaje} onConvertir={onConvertir} onDescartar={onDescartar} />
+                )}
+                {(tipo === 'boton' || tipo === 'lista') && !saliente && (
                     <p className="text-[11px]" style={{ color: 'var(--jet-mid)' }}>Respondió con una opción</p>
                 )}
                 {textoCuerpo && <p className="text-sm whitespace-pre-wrap break-words">{textoCuerpo}</p>}
+                {tipo === 'lista' && saliente && filasLista(payload).length > 0 && (
+                    <ul className="space-y-1" aria-label="Opciones ofrecidas">
+                        {filasLista(payload).map(f => (
+                            <li key={f.id || f.title} className="rounded-lg px-2 py-1 text-xs" style={{ background: 'var(--surface)', border: '0.5px solid var(--border)' }}>
+                                <span className="font-medium">{f.title}</span>
+                                {f.description && <span className="block" style={{ color: 'var(--jet-mid)' }}>{f.description}</span>}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {tipo === 'plantilla' && saliente && Array.isArray(payload.botones) && payload.botones.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5" aria-label="Botones de la plantilla">
+                        {payload.botones.map(b => (
+                            <li key={b} className="rounded-full px-2.5 py-1 text-xs" style={{ background: 'var(--surface)', border: '0.5px solid var(--border-md)' }}>
+                                {ETIQUETA_BOTON[b] || b}
+                            </li>
+                        ))}
+                    </ul>
+                )}
                 <div className="flex items-center justify-end gap-1.5 text-[11px]" style={{ color: 'var(--ash)' }}>
                     <time dateTime={mensaje.creado_en}>{horaMensaje(mensaje.creado_en)}</time>
                     {saliente && <EstadoEntrega estado={mensaje.estado_entrega} pendiente={mensaje.pendiente} errores={payload.errores} />}

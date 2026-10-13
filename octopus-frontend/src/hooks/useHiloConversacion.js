@@ -169,6 +169,12 @@ export function useHiloConversacion(conversacionId, { onConversacion, usuario } 
         }
     }, [aplicarConversacion]);
 
+    /** Aplica la respuesta de convertir/descartar: el mensaje resuelto y, si viene, la conversación. */
+    const aplicarResolucion = useCallback((data) => {
+        if (data?.mensaje) reconciliar(null, data.mensaje);
+        aplicarConversacion(data?.conversacion);
+    }, [aplicarConversacion]);
+
     const accion = useCallback(async (fn, exito, fallo) => {
         setOcupado(true);
         try {
@@ -203,7 +209,7 @@ export function useHiloConversacion(conversacionId, { onConversacion, usuario } 
         error: actual ? estado.error : null,
         loading: !!conversacionId && !actual,
         ocupado,
-        enviar, enviarNota, enviarPlantilla, tomar, devolver, vincular,
+        enviar, enviarNota, enviarPlantilla, aplicarResolucion, tomar, devolver, vincular,
     };
 }
 
