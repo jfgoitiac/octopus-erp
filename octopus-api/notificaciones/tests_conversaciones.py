@@ -148,7 +148,9 @@ class WebhookTest(ConvBase):
             'type': 'list_reply', 'list_reply': {'id': 'dias_7', 'title': 'En 7 días'}}}))
         tipos = list(MensajeWhatsApp.objects.order_by('id').values_list('tipo', 'payload__boton_id'))
         self.assertEqual(tipos, [('boton', 'YA_PAGUE'), ('lista', 'dias_7')])
-        self.assertFalse(ConversacionWhatsApp.objects.get().requiere_humano)
+        # Desde la Fase C, "Ya pagué" es un botón conocido (no marca) pero una fila de lista
+        # desconocida ('dias_7') sí pasa a una persona (v4 §1.6).
+        self.assertTrue(ConversacionWhatsApp.objects.get().requiere_humano)
 
     def test_status_read_actualiza_la_entrega_y_no_retrocede(self):
         conv = self.conversacion()
