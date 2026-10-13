@@ -131,3 +131,31 @@ export const armarCuerpo = (plantilla, valores) => {
     });
     return texto;
 };
+
+/** Estado de un comprobante recibido por WhatsApp (`estado_adjunto` del mensaje). */
+export const ESTADOS_ADJUNTO = {
+    pendiente: { etiqueta: 'Comprobante por asignar', color: 'var(--amber-ink)', fondo: 'var(--yellow-light)' },
+    convertido: { etiqueta: 'Convertido en comprobante de pago', color: 'var(--green)', fondo: 'var(--ash-light)' },
+    descartado: { etiqueta: 'Comprobante descartado', color: 'var(--jet-mid)', fondo: 'var(--ash-light)' },
+};
+
+export const METODOS_PAGO = [
+    { valor: 'transferencia', etiqueta: 'Transferencia' },
+    { valor: 'pago_movil', etiqueta: 'Pago móvil' },
+    { valor: 'punto_de_venta', etiqueta: 'Punto de venta' },
+    { valor: 'zelle', etiqueta: 'Zelle' },
+    { valor: 'efectivo', etiqueta: 'Efectivo' },
+    { valor: 'otro', etiqueta: 'Otro' },
+];
+
+export const MAX_MOTIVO_DESCARTE = 300;
+
+/** "Resuelto el 12 de octubre a las 14:05" a partir de `payload.resuelto_en`; '' si falta o no es válido. */
+export const textoResuelto = (iso) => {
+    const d = aFecha(iso);
+    return d ? format(d, "d 'de' MMMM 'a las' HH:mm", { locale: es }) : '';
+};
+
+/** Filas de un mensaje interactivo de lista (`payload.filas`), sólo las que tienen título. */
+export const filasLista = (payload) =>
+    (Array.isArray(payload?.filas) ? payload.filas : []).filter(f => f && f.title);
