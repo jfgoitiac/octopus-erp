@@ -4,6 +4,7 @@ import { Loader2, Phone, HandCoins, MessageSquare } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { TablaScroll } from '../../ui/TablaScroll';
 import EtapaCobranza from '../../morosos/EtapaCobranza';
+import { PerfilPagadorBadge } from '../shared/PerfilPagadorBadge';
 import { ModalAccion } from '../shared/ModalAccionCiclo';
 import { ModalConvenio } from '../shared/ModalConvenio';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
@@ -164,6 +165,8 @@ export function FichaRepresentante({ fila, pagosRevision = [], onClose, onCambio
                         <div className="rounded-2xl p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
                             <p className="text-xs mb-1" style={{ color: 'var(--ash)' }}>Etapa</p>
                             <EtapaCobranza etapa={fila.etapa} />
+                            <p className="text-xs mt-2 mb-1" style={{ color: 'var(--ash)' }}>Perfil de pagador</p>
+                            <PerfilPagadorBadge perfil={expediente?.perfil_pagador ?? fila.perfil_pagador} cargando={loading} />
                         </div>
                         <div className="rounded-2xl p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
                             <p className="text-xs" style={{ color: 'var(--ash)' }}>Cédula</p>

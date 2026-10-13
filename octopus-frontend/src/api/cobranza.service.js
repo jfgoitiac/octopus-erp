@@ -251,8 +251,8 @@ export const eliminarRespuestaRapida = (id) =>
     apiClient.delete(`${BASE_INT}/respuestas-rapidas/${id}/`);
 
 // Reglas del motor (línea de tiempo −5…+30). `todas=1` incluye las inactivas.
-// OJO: el backend v3 aún no expone este recurso; la pestaña Automatizaciones degrada
-// a solo lectura (reglas por defecto) si responde 404/405.
+// Contrato: docs/CONTRATO_COBRANZA_V4_FASE_D.md. Si responde 404/405 (backend viejo), la
+// pestaña Automatizaciones degrada a solo lectura con las reglas por defecto.
 export const getReglasCobranza = (sedeId, signal) =>
     apiClient.get(`${BASE_INT}/reglas/`, { params: { ...parametrosSede(sedeId), todas: 1 }, signal });
 
@@ -261,3 +261,11 @@ export const crearReglaCobranza = (datos, sedeId) =>
 
 export const actualizarReglaCobranza = (id, datos) =>
     apiClient.patch(`${BASE_INT}/reglas/${id}/`, datos);
+
+// Fase D: proyección de caja de la semana de `fecha` (AAAA-MM-DD) y reporte A/B (7 días).
+export const getProyeccionCaja = (fecha, sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/proyeccion-caja/`, { params: { ...parametrosSede(sedeId), ...(fecha ? { fecha } : {}) }, signal });
+
+// `params`: { desde, hasta, regla } opcionales (AAAA-MM-DD).
+export const getReporteAB = (params, sedeId, signal) =>
+    apiClient.get(`${BASE_INT}/ab/reporte/`, { params: { ...parametrosSede(sedeId), ...params }, signal });

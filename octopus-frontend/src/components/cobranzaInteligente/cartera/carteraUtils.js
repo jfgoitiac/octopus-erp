@@ -86,6 +86,7 @@ export function agruparCartera(ciclos = [], pagosRevision = [], convenios = []) 
             detalle,
             saldo_total_usd: saldo.toFixed(2),
             dias_mora_max: Math.max(0, ...detalle.map(c => c.dias_mora || 0)),
+            perfil_pagador: detalle.find(c => c.perfil_pagador)?.perfil_pagador ?? null,
             etapa: masGrave(detalle.map(c => c.estado)),
             alumnos: [...new Set(detalle.map(c => c.alumno?.nombre).filter(Boolean))],
             ultimo_contacto: contactos.length ? contactos[contactos.length - 1] : null,

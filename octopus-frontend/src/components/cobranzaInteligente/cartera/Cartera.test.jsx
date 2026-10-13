@@ -50,6 +50,13 @@ describe('carteraUtils', () => {
         expect(filas[0].representante.id).toBe(8); // más mora primero
     });
 
+    it('propaga el perfil de pagador al renglón del representante', () => {
+        const perfil = { codigo: 'cronico', etiqueta: 'Crónico' };
+        const filas = agruparCartera([ciclo(1, maria, { perfil_pagador: perfil }), ciclo(2, jose)], [], []);
+        expect(filas.find(x => x.representante.id === 7).perfil_pagador).toEqual(perfil);
+        expect(filas.find(x => x.representante.id === 8).perfil_pagador).toBeNull();
+    });
+
     it('la búsqueda ignora tildes y mayúsculas, y los filtros combinan', () => {
         const filas = agruparCartera(ciclos, [pagoRev], [convenio]);
         expect(filtrarCartera(filas, { ...FILTROS_INICIALES, buscar: 'maria perez' })).toHaveLength(1);
@@ -75,6 +82,18 @@ describe('Cartera', () => {
         expect(await screen.findByText('María Pérez')).toBeInTheDocument();
         expect(screen.getByText('José Gómez')).toBeInTheDocument();
         expect(screen.getByText('$50.00')).toBeInTheDocument();
+    });
+
+    it('muestra el perfil de pagador en la cartera y en la ficha', async () => {
+        const user = userEvent.setup();
+        m.cartera.mockResolvedValue([ciclo(1, maria, { perfil_pagador: { codigo: 'paga_tarde', etiqueta: 'Paga tarde pero paga' } }), ciclos[2]]);
+        m.expediente.mockResolvedValue({ data: { representante: maria, perfil_pagador: { codigo: 'moroso_nuevo', etiqueta: 'Moroso nuevo' }, ciclos: [], eventos: [] } });
+        render(<Cartera />);
+        await screen.findByText('María Pérez');
+        expect(screen.getAllByTestId('perfil-pagador')[0]).toHaveTextContent('Paga tarde pero paga');
+        await user.click(screen.getByRole('button', { name: /abrir ficha de maría pérez/i }));
+        const dialogo = await screen.findByRole('dialog');
+        expect(await within(dialogo).findByText('Moroso nuevo')).toBeInTheDocument();
     });
 
     it('filtra por texto sin tildes y por "Con pago en revisión"', async () => {

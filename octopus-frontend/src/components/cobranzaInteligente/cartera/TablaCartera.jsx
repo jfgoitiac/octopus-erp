@@ -1,6 +1,7 @@
 import { useEsEscritorio } from './useEsEscritorio';
 import { TablaScroll } from '../../ui/TablaScroll';
 import EtapaCobranza from '../../morosos/EtapaCobranza';
+import { PerfilPagadorBadge } from '../shared/PerfilPagadorBadge';
 import { formatearFecha, formatearRelativa, formatearUsd } from './carteraUtils';
 
 const textoProxima = (f) => {
@@ -30,6 +31,7 @@ function TarjetaFila({ fila, onAbrir }) {
                     </div>
                     <EtapaCobranza etapa={fila.etapa} />
                 </div>
+                {fila.perfil_pagador && <div><PerfilPagadorBadge perfil={fila.perfil_pagador} /></div>}
                 <div className="flex items-baseline justify-between gap-2">
                     <span className="text-lg font-bold" style={{ color: fila.dias_mora_max > 0 ? 'var(--red)' : 'var(--jet)' }}>
                         {formatearUsd(fila.saldo_total_usd)}
@@ -76,11 +78,12 @@ export function TablaCartera({ filas, onAbrir }) {
 
     return (
         <TablaScroll>
-            <table className="w-full min-w-[56rem] text-sm" aria-label="Cartera de representantes">
+            <table className="w-full min-w-[64rem] text-sm" aria-label="Cartera de representantes">
                 <thead style={{ color: 'var(--ash)', borderBottom: '1px solid var(--border)' }}>
                     <tr>
                         <th scope="col" className={TH}>Representante</th>
                         <th scope="col" className={TH}>Etapa</th>
+                        <th scope="col" className={TH}>Perfil</th>
                         <th scope="col" className={`${TH} text-right`}>Saldo</th>
                         <th scope="col" className={TH}>Último contacto</th>
                         <th scope="col" className={TH}>Próxima acción</th>
@@ -101,6 +104,7 @@ export function TablaCartera({ filas, onAbrir }) {
                                 <div className="text-xs" style={{ color: 'var(--ash)' }}>{f.representante.cedula}</div>
                             </td>
                             <td className={TD}><EtapaCobranza etapa={f.etapa} /></td>
+                            <td className={TD}><PerfilPagadorBadge perfil={f.perfil_pagador} /></td>
                             <td className={`${TD} text-right font-semibold`} style={{ color: f.dias_mora_max > 0 ? 'var(--red)' : 'var(--jet)' }}>
                                 {formatearUsd(f.saldo_total_usd)}
                                 {f.dias_mora_max > 0 && <div className="text-xs font-normal" style={{ color: 'var(--ash)' }}>{f.dias_mora_max} días de mora</div>}
