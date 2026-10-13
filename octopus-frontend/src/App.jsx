@@ -70,6 +70,7 @@ const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNoti
 const CobranzaInteligenteGestion = lazy(() => import('./pages/CobranzaInteligenteGestion'));
 const CobranzaInteligenteDashboard = lazy(() => import('./pages/CobranzaInteligenteDashboard'));
 const ConfiguracionCobranzaInteligente = lazy(() => import('./pages/ConfiguracionCobranzaInteligente'));
+const CobranzaInteligenteConversacion = lazy(() => import('./pages/CobranzaInteligenteConversacion'));
 const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
 const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/PlantillaEditorConstancia'));
 const EmisionConstancias       = lazy(() => import('./pages/constancias/EmisionConstancias'));
@@ -424,6 +425,11 @@ function App() {
               <Route path="cobranza/inteligente/gestion" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO, ROLES.SISTEMAS]}>
                   <CobranzaInteligenteGestion />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/inteligente/representantes/:id" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO, ROLES.SISTEMAS]}>
+                  <CobranzaInteligenteConversacion />
                 </ProtectedRoute>
               } />
               <Route path="cobranza/inteligente/resultados" element={<Navigate to="/cobranza/inteligente" replace />} />
