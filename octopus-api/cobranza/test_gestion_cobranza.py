@@ -257,3 +257,72 @@ class ConversacionApiTest(GestionBase):
     def test_representante_sin_deudas_404(self):
         self.config()
         self.assertEqual(self.api.get(self.url()).status_code, 404)
+
+
+class WhatsAppEntranteTest(GestionBase):
+    """Respuestas del representante por webhook y contestación desde la conversación."""
+
+    def setUp(self):
+        super().setUp()
+        self.api = APIClient()
+        self.api.force_authenticate(self.admin)
+
+    def meta(self, cuerpo, secreto='secreto'):
+        import hashlib, hmac, json
+        crudo = json.dumps(cuerpo).encode()
+        firma = 'sha256=' + hmac.new(secreto.encode(), crudo, hashlib.sha256).hexdigest()
+        return APIClient().post('/api/notificaciones/whatsapp/webhook/meta/', crudo,
+                                content_type='application/json', HTTP_X_HUB_SIGNATURE_256=firma)
+
+    def mensaje(self, texto='Pago el viernes', wamid='wamid.1', de='584121234567'):
+        return {'entry': [{'changes': [{'value': {'messages': [
+            {'from': de, 'id': wamid, 'type': 'text', 'text': {'body': texto}}]}}]}]}
+
+    def test_verificacion_meta(self):
+        with self.settings(META_WEBHOOK_VERIFY_TOKEN='tok'):
+            url = '/api/notificaciones/whatsapp/webhook/meta/'
+            ok = APIClient().get(url, {'hub.mode': 'subscribe', 'hub.verify_token': 'tok', 'hub.challenge': '42'})
+            self.assertEqual((ok.status_code, ok.content), (200, b'42'))
+            self.assertEqual(APIClient().get(url, {'hub.mode': 'subscribe', 'hub.verify_token': 'x'}).status_code, 403)
+
+    def test_firma_invalida_rechazada_y_valida_guarda_sin_duplicar(self):
+        from notificaciones.models import NotificacionLog
+        with self.settings(META_APP_SECRET='secreto'):
+            self.assertEqual(self.meta(self.mensaje(), secreto='otro').status_code, 403)
+            self.assertEqual(self.meta(self.mensaje()).data, {'recibidos': 1})
+            self.assertEqual(self.meta(self.mensaje()).data, {'recibidos': 0})   # reintento de Meta
+        log = NotificacionLog.objects.get(tipo='respuesta_whatsapp')
+        self.assertEqual((log.representante_cedula, log.mensaje), ('V1', 'Pago el viernes'))
+
+    def test_twilio_exige_firma(self):
+        from notificaciones.models import NotificacionLog
+        import base64, hashlib, hmac
+        url = 'http://testserver/api/notificaciones/whatsapp/webhook/twilio/'
+        datos = {'From': 'whatsapp:+584121234567', 'Body': 'Hola', 'MessageSid': 'SM1', 'NumMedia': '0'}
+        firma = base64.b64encode(hmac.new(b'tw', (url + ''.join(f'{k}{datos[k]}' for k in sorted(datos))).encode(),
+                                          hashlib.sha1).digest()).decode()
+        with self.settings(TWILIO_AUTH_TOKEN='tw'):
+            self.assertEqual(APIClient().post(url, datos, HTTP_X_TWILIO_SIGNATURE='mala').status_code, 403)
+            self.assertEqual(APIClient().post(url, datos, HTTP_X_TWILIO_SIGNATURE=firma).status_code, 200)
+        self.assertTrue(NotificacionLog.objects.filter(tipo='respuesta_whatsapp', representante_cedula='V1').exists())
+
+    def test_respuesta_aparece_en_bandeja_y_conversacion_hasta_contestarla(self):
+        self.ciclo(dia_limite=1)
+        with self.settings(META_APP_SECRET='secreto'):
+            self.meta(self.mensaje())
+        fila = gestion.calcular_bandeja(CicloCobranza.objects.all())[0]
+        self.assertEqual(fila['accion_sugerida']['codigo'], 'responder')
+        url = f'/api/cobranza/inteligente/representantes/{self.rep.id}/conversacion/'
+        r = self.api.get(url)
+        entrantes = [i for i in r.data['linea_de_tiempo'] if i.get('autor') == 'representante']
+        self.assertEqual([i['texto'] for i in entrantes], ['Pago el viernes'])
+        self.assertTrue(r.data['whatsapp']['ventana_abierta'])
+        # Sin proveedor configurado la API no puede enviar: se usa el enlace (modo manual).
+        self.assertEqual(self.api.post(url, {'accion': 'responder', 'texto': 'Gracias', 'modo': 'api'},
+                                       format='json').status_code, 400)
+        r = self.api.post(url, {'accion': 'responder', 'texto': 'Gracias, quedamos atentos', 'modo': 'manual'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertIn(('personal', 'Gracias, quedamos atentos'),
+                      [(i['autor'], i['texto']) for i in r.data['linea_de_tiempo'] if i['clase'] == 'mensaje'])
+        fila = gestion.calcular_bandeja(CicloCobranza.objects.all())[0]
+        self.assertNotEqual(fila['accion_sugerida']['codigo'], 'responder')

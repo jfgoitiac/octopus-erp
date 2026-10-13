@@ -4,22 +4,29 @@ lo que le escribió el bot (motor de Cobranza Inteligente y avisos de mora),
 lo que le escribió el personal (cobros por WhatsApp) y lo que pasó con sus
 deudas (gestiones, convenios, pausas, takeover, pagos). Solo lectura.
 
-Las respuestas del representante todavía NO llegan: falta el webhook de
-WhatsApp entrante (ver NOTAS_TECNICAS.md).
+Las respuestas del representante llegan por el webhook de WhatsApp entrante
+(notificaciones/whatsapp_entrante.py) y se le contesta desde aquí.
 """
-from .gestion import MOTIVO_GESTION_HUMANA, calcular_bandeja
+from .gestion import MOTIVO_GESTION_HUMANA, AccionInvalida, calcular_bandeja, registrar_cobro_whatsapp
 from .models import CicloCobranza, EnvioCobranza, EventoCiclo
 
 LIMITE = 200
 # Eventos que ya aparecen como mensaje (NotificacionLog) o que no aportan a la conversación.
 EVENTOS_OMITIDOS = {'mensaje_enviado', 'aviso_interno', 'responsable_asignado'}
 # Tipos de NotificacionLog que escribe una persona; el resto los escribe el sistema.
-TIPOS_PERSONAL = {'cobro_whatsapp'}
+TIPOS_PERSONAL = {'cobro_whatsapp', 'respuesta_personal'}
 
 
 def _deuda(ciclo):
     m = ciclo.mensualidad
     return f'{m.alumno.nombre} · {m.get_mes_display()} {m.anio}'
+
+
+def _autor(tipo):
+    from notificaciones.whatsapp_entrante import TIPO_ENTRANTE
+    if tipo == TIPO_ENTRANTE:
+        return 'representante'
+    return 'personal' if tipo in TIPOS_PERSONAL else 'bot'
 
 
 def _mensajes(rep):
@@ -28,7 +35,7 @@ def _mensajes(rep):
         representante_cedula=rep.cedula, canal__in=('whatsapp', 'email')).order_by('-fecha_envio')[:LIMITE]
     return [{
         'id': f'log-{log.id}', 'clase': 'mensaje',
-        'autor': 'personal' if log.tipo in TIPOS_PERSONAL else 'bot',
+        'autor': _autor(log.tipo),
         'canal': log.canal, 'asunto': log.asunto, 'texto': log.mensaje, 'estado': log.estado,
         'modo': log.modo, 'fecha': log.fecha_envio,
     } for log in logs]
@@ -87,4 +94,41 @@ def construir_conversacion(rep, ciclos_qs):
         'razones': fila['razones'] if fila else [],
         'puntaje': fila['puntaje'] if fila else 0,
         'linea_de_tiempo': linea,
+        'whatsapp': _estado_whatsapp(rep),
     }
+
+
+def _estado_whatsapp(rep):
+    from notificaciones.services import _proveedor_whatsapp
+    from notificaciones.whatsapp_entrante import ventana_abierta
+    # Fuera de la ventana de 24 h la API solo admite plantillas aprobadas: se usa el enlace wa.me.
+    return {'api': bool(_proveedor_whatsapp()), 'ventana_abierta': ventana_abierta(rep.cedula)}
+
+
+def responder(rep, usuario, texto, modo):
+    """
+    Contesta al representante. modo='api' envía por el proveedor (solo dentro de
+    la ventana de 24 h); modo='manual' registra lo que la persona envió por wa.me.
+    """
+    from notificaciones.models import NotificacionLog
+    from notificaciones.services import _normalizar_telefono, enviar_whatsapp
+    texto = (texto or '').strip()
+    if not texto:
+        raise AccionInvalida('Escribe un mensaje.')
+    if modo == 'api':
+        estado = _estado_whatsapp(rep)
+        if not (estado['api'] and estado['ventana_abierta']):
+            raise AccionInvalida('Fuera de la ventana de 24 h de WhatsApp: envíalo con el enlace o con una plantilla.')
+        if not enviar_whatsapp(rep.telefono, texto, tipo='respuesta_personal', representante_cedula=rep.cedula):
+            raise AccionInvalida('No se pudo enviar el mensaje. Revisa la configuración de WhatsApp.')
+        log = NotificacionLog.objects.filter(tipo='respuesta_personal', representante_cedula=rep.cedula).first()
+        log.modo = 'automatico'
+        log.save(update_fields=['modo'])
+    elif modo == 'manual':
+        log = NotificacionLog.objects.create(
+            canal='whatsapp', tipo='respuesta_personal', modo='manual', estado='enviado', proveedor='wa.me',
+            destinatario=_normalizar_telefono(rep.telefono) or rep.telefono, mensaje=texto[:4000],
+            representante_cedula=rep.cedula)
+    else:
+        raise AccionInvalida('Modo desconocido. Use api o manual.')
+    registrar_cobro_whatsapp(rep.id, usuario, texto, log.id)

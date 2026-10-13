@@ -16,7 +16,7 @@ from authentication.views import EsPersonalCobranza, IsDirector, IsSystemAdminOr
 from secretaria.models import Representante
 
 from . import gestion
-from .conversacion import construir_conversacion
+from .conversacion import construir_conversacion, responder
 from .dashboard import calcular_dashboard, q_sedes
 from .inteligente import sedes_con_inteligente_activa
 from .models import CicloCobranza, ConvenioPago, CuotaConvenio, LineaBaseCobranza
@@ -118,7 +118,8 @@ class AccionCicloView(APIView):
 class ConversacionView(APIView):
     """
     GET  /inteligente/representantes/<id>/conversacion/ — línea de tiempo de mensajes y gestiones.
-    POST accion: tomar (takeover: el bot deja de escribir) | devolver (vuelve el bot).
+    POST accion: tomar (takeover: el bot deja de escribir) | devolver (vuelve el bot) |
+         responder (texto, modo: api | manual).
     """
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
@@ -140,14 +141,17 @@ class ConversacionView(APIView):
         rep, ciclos, error = self._contexto(request, representante_id)
         if error:
             return error
+        d = request.data
         acciones = {'tomar': gestion.tomar_conversacion, 'devolver': gestion.devolver_al_bot}
-        accion = acciones.get(request.data.get('accion'))
-        if accion is None:
-            return _error('Acción desconocida. Use tomar o devolver.')
+        if d.get('accion') not in (*acciones, 'responder'):
+            return _error('Acción desconocida. Use tomar, devolver o responder.')
         abiertos = ciclos.filter(mensualidad__alumno__representante=rep,
                                  estado__in=CicloCobranza.ESTADOS_ABIERTOS).select_related('responsable')
         try:
-            accion(list(abiertos), request.user)
+            if d['accion'] == 'responder':
+                responder(rep, request.user, d.get('texto', ''), d.get('modo', 'manual'))
+            else:
+                acciones[d['accion']](list(abiertos), request.user)
         except gestion.AccionInvalida as e:
             return _error(str(e))
         return Response(construir_conversacion(rep, ciclos))

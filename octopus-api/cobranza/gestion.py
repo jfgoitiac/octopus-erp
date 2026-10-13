@@ -24,9 +24,11 @@ TIPOS_GESTION = {
 }
 DIAS_PAGO_REVISION_VIEJO = 3
 DIAS_SIN_RESPUESTA = 7
+DIAS_RESPUESTA_PENDIENTE = 3
 # Pausa de un "takeover": una persona tomó la conversación y el bot deja de escribir.
 MOTIVO_GESTION_HUMANA = 'gestion_humana'
 ACCIONES_SUGERIDAS = {
+    'responder': 'Responder al representante',
     'revisar_pago': 'Revisar el pago en revisión',
     'renegociar': 'Llamar y renegociar el convenio',
     'verificar_contacto': 'Verificar el teléfono y llamar',
@@ -266,7 +268,9 @@ def _razon(razones, texto, puntos):
 
 def _accion_sugerida(f):
     """Primera regla que aplica, de la más urgente a la más general."""
-    if f['pago_viejo']:
+    if f['respuesta_pendiente']:
+        codigo = 'responder'
+    elif f['pago_viejo']:
         codigo = 'revisar_pago'
     elif f['incumplido']:
         codigo = 'renegociar'
@@ -281,6 +285,28 @@ def _accion_sugerida(f):
     else:
         codigo = 'enviar_recordatorio'
     return {'codigo': codigo, 'texto': ACCIONES_SUGERIDAS[codigo]}
+
+
+def _respuestas_sin_contestar(por_rep, ahora):
+    """
+    Representantes que escribieron por WhatsApp en los últimos días y no tienen
+    una gestión humana posterior (toda gestión actualiza `ultima_accion_en`).
+    """
+    from notificaciones.models import NotificacionLog
+    from notificaciones.whatsapp_entrante import TIPO_ENTRANTE
+    cedula_a_rep = {ciclos[0].mensualidad.alumno.representante.cedula: rep_id for rep_id, ciclos in por_rep.items()}
+    ultima = {}
+    for cedula, fecha in NotificacionLog.objects.filter(
+            tipo=TIPO_ENTRANTE, representante_cedula__in=cedula_a_rep,
+            fecha_envio__gte=ahora - timedelta(days=DIAS_RESPUESTA_PENDIENTE)
+    ).values_list('representante_cedula', 'fecha_envio'):
+        ultima[cedula] = max(fecha, ultima.get(cedula, fecha))
+    pendientes = set()
+    for cedula, fecha in ultima.items():
+        rep_id = cedula_a_rep[cedula]
+        if not any(c.ultima_accion_en and c.ultima_accion_en > fecha for c in por_rep[rep_id]):
+            pendientes.add(rep_id)
+    return pendientes
 
 
 def _etapa(ciclo):
@@ -326,6 +352,7 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     incumplidos = set(ConvenioPago.objects.filter(
         representante_id__in=ids, estado=ConvenioPago.INCUMPLIDO,
         creado_en__gte=ahora - timedelta(days=60)).values_list('representante_id', flat=True))
+    respuestas = _respuestas_sin_contestar(por_rep, ahora)
     proximos = set(CuotaConvenio.objects.filter(
         convenio__representante_id__in=ids, convenio__estado=ConvenioPago.VIGENTE, pagada=False,
         fecha__lte=hoy + timedelta(days=3)).values_list('convenio__representante_id', flat=True))
@@ -356,10 +383,12 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
             _razon(razones, 'Convenio incumplido', 15)
         if rep_id in proximos:
             _razon(razones, 'Cuota de convenio próxima a vencer', 5)
+        if rep_id in respuestas:
+            _razon(razones, 'Respondió por WhatsApp y nadie le ha contestado', 25)
 
         requiere_atencion = bool(
             morosos or rep_id in pagos_viejos or rep_id in fallidos
-            or rep_id in incumplidos or rep_id in proximos)
+            or rep_id in incumplidos or rep_id in proximos or rep_id in respuestas)
         if not requiere_atencion:
             continue
         rep = ciclos[0].mensualidad.alumno.representante
@@ -376,7 +405,7 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
             'responsable': responsable.get_username() if responsable else None,
             'gestion_humana': bool(tomados),
             'accion_sugerida': _accion_sugerida({
-                'pago_viejo': rep_id in pagos_viejos, 'incumplido': rep_id in incumplidos,
+                'respuesta_pendiente': rep_id in respuestas, 'pago_viejo': rep_id in pagos_viejos, 'incumplido': rep_id in incumplidos,
                 'fallido': rep_id in fallidos, 'cuota_proxima': rep_id in proximos,
                 'dias_max': dias_max, 'deudas': len(ciclos),
                 'sin_respuesta': rep_id in avisos_viejos and bool(morosos),
