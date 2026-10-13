@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.contrib.auth import get_user_model
 
@@ -55,8 +57,12 @@ def asignar_rol_portal(user):
 class ComprobantePago(models.Model):
     """
     Comprobante de transferencia o depósito subido por el representante
-    para justificar el pago de una mensualidad pendiente.
+    para justificar el pago de una o varias mensualidades pendientes.
     El personal administrativo luego aprueba o rechaza el comprobante.
+
+    PAGO CONJUNTO: una sola transferencia puede cubrir mensualidades de
+    varios hijos del mismo representante. ``mensualidad`` es la principal y
+    ``mensualidades`` todas las cubiertas (siempre incluye la principal).
 
     ANTIFRAUDE:
     - referencia_bancaria: número de transacción/referencia que el representante
@@ -76,6 +82,13 @@ class ComprobantePago(models.Model):
         on_delete=models.CASCADE,
         related_name='comprobantes',
         verbose_name='Mensualidad'
+    )
+    mensualidades = models.ManyToManyField(
+        'cobranza.Mensualidad',
+        related_name='comprobantes_cubiertos',
+        blank=True,
+        verbose_name='Mensualidades cubiertas',
+        help_text='Todas las mensualidades que paga este comprobante (incluye la principal).',
     )
     archivo = models.FileField(
         upload_to='comprobantes/',
@@ -145,6 +158,41 @@ class ComprobantePago(models.Model):
                 name='unique_referencia_comprobante_activo',
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        creando = self._state.adding
+        super().save(*args, **kwargs)
+        if creando:
+            self.mensualidades.add(self.mensualidad_id)
+
+    def mensualidades_cubiertas(self):
+        """Mensualidades que cubre, en orden estable. Usa el prefetch si existe."""
+        return sorted(self.mensualidades.all(), key=lambda m: (m.anio, m.mes, m.alumno_id, m.id))
+
+    @property
+    def monto_usd_total(self):
+        return sum((m.monto_usd for m in self.mensualidades_cubiertas()), Decimal('0'))
+
+    def alumnos_cubiertos(self):
+        """Alumnos distintos de las mensualidades cubiertas, en orden."""
+        alumnos = {}
+        for m in self.mensualidades_cubiertas():
+            alumnos.setdefault(m.alumno_id, m.alumno)
+        return list(alumnos.values())
+
+    def nombres_alumnos(self):
+        """Ej. 'María Pérez, José Pérez'."""
+        return ', '.join(f'{a.nombre} {a.apellido}' for a in self.alumnos_cubiertos())
+
+    def descripcion_mensualidades(self):
+        """Ej. 'Septiembre 2026 (María Pérez), Septiembre 2026 (José Pérez)'."""
+        cubiertas = self.mensualidades_cubiertas()
+        varios = len({m.alumno_id for m in cubiertas}) > 1
+        return ', '.join(
+            f'{m.get_mes_display()} {m.anio}'
+            + (f' ({m.alumno.nombre} {m.alumno.apellido})' if varios else '')
+            for m in cubiertas
+        )
 
     def __str__(self):
         return (
