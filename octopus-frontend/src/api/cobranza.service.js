@@ -133,6 +133,12 @@ export const pagarCuotaConvenio = (cuotaId) =>
 export const cancelarConvenioInteligente = (convenioId) =>
     apiClient.post(`${BASE_INT}/convenios/${convenioId}/cancelar/`);
 
+export const getConversacionInteligente = (representanteId, signal) =>
+    apiClient.get(`${BASE_INT}/representantes/${representanteId}/conversacion/`, { signal });
+
+export const accionConversacionInteligente = (representanteId, accion) =>
+    apiClient.post(`${BASE_INT}/representantes/${representanteId}/conversacion/`, { accion });
+
 export const getDashboardInteligente = (sedeId, signal) =>
     apiClient.get(`${BASE_INT}/dashboard/`, { params: parametrosSede(sedeId), signal });
 

@@ -3,34 +3,27 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
-import { Sparkles, Plus, Trash2, Loader2, ChevronLeft } from 'lucide-react';
-import { Modal } from '../components/ui/Modal';
+import { Sparkles, ChevronLeft, MessagesSquare, UserCheck } from 'lucide-react';
+import WhatsAppIcon from '../components/ui/WhatsAppIcon';
+import AccionSugerida from '../components/cobranzaInteligente/AccionSugerida';
+import { useAccionesCaso } from '../hooks/useAccionesCaso';
 import { Card } from '../components/ui/Card';
 import { PageHeader } from '../components/ui/PageHeader';
 import { TablaScroll } from '../components/ui/TablaScroll';
 import { useCargaInteligente, mensajeErrorInteligente } from '../hooks/useCargaInteligente';
 import {
     getBandejaInteligente, getPagosRevisionInteligente, getConveniosInteligente,
-    accionCicloInteligente, crearConvenioInteligente, pagarCuotaConvenio, cancelarConvenioInteligente,
+    pagarCuotaConvenio, cancelarConvenioInteligente,
 } from '../api/cobranza.service';
 
 const cargarConvenios = (_sedeId, signal) => getConveniosInteligente(signal);
 const fecha = (iso) => format(parseISO(iso), "d 'de' MMM yyyy", { locale: es });
 
-const ACCIONES = [
-    { value: 'llamada', label: 'Llamada realizada', texto: true },
-    { value: 'whatsapp_manual', label: 'WhatsApp manual enviado', texto: true },
-    { value: 'nota', label: 'Nota', texto: true },
-    { value: 'pausar', label: 'Pausar el seguimiento', motivo: true },
-    { value: 'reclamo', label: 'Reclamo del representante (pausa)', texto: true },
-    { value: 'cerrar', label: 'Descartar el caso', texto: true, fija: { motivo: 'descartada' } },
-];
 const ESTADO_CONVENIO = { vigente: 'Vigente', cumplido: 'Cumplido', incumplido: 'Incumplido', cancelado: 'Cancelado' };
 
 const btn = 'w-full sm:w-auto px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50';
 const estiloSec = { border: '1px solid var(--border-md)', color: 'var(--jet)', background: 'var(--surface)' };
 const estiloPri = { background: 'var(--pb)', color: '#fff' };
-const campo = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 
 const Skeleton = () => (
     <div className="space-y-3 animate-pulse" aria-hidden="true">
@@ -42,144 +35,14 @@ const Vacio = ({ children }) => (
     <p className="text-sm text-center py-8" style={{ color: 'var(--ash)' }}>{children}</p>
 );
 
-/* ── Modal de acción sobre los ciclos de un representante ── */
-function ModalAccion({ fila, onClose, onHecho }) {
-    const [accion, setAccion] = useState('llamada');
-    const [texto, setTexto] = useState('');
-    const [guardando, setGuardando] = useState(false);
-    const def = ACCIONES.find(a => a.value === accion);
-
-    const enviar = async () => {
-        setGuardando(true);
-        try {
-            for (const cicloId of fila.ciclos) {
-                await accionCicloInteligente(cicloId, {
-                    accion,
-                    ...(def.motivo ? { motivo: texto } : { texto }),
-                    ...(def.fija || {}),
-                });
-            }
-            toast.success('Acción registrada');
-            onHecho();
-        } catch (err) {
-            toast.error(mensajeErrorInteligente(err));
-        } finally {
-            setGuardando(false);
-        }
-    };
-
-    return (
-        <Modal
-            open
-            onClose={() => !guardando && onClose()}
-            titulo={`Acción · ${fila.representante.nombre}`}
-            footer={
-                <>
-                    <button type="button" className={btn} style={estiloSec} onClick={onClose} disabled={guardando}>Cancelar</button>
-                    <button type="button" className={`${btn} flex items-center justify-center gap-2`} style={estiloPri}
-                        onClick={enviar} disabled={guardando}>
-                        {guardando && <Loader2 size={16} className="animate-spin" />}Registrar
-                    </button>
-                </>
-            }
-        >
-            <div className="space-y-3 text-sm">
-                <div>
-                    <label htmlFor="accion-tipo" className="block text-xs mb-1" style={{ color: 'var(--ash)' }}>Acción</label>
-                    <select id="accion-tipo" value={accion} onChange={e => setAccion(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg" style={campo}>
-                        {ACCIONES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label htmlFor="accion-texto" className="block text-xs mb-1" style={{ color: 'var(--ash)' }}>
-                        {def.motivo ? 'Motivo (obligatorio)' : 'Detalle'}
-                    </label>
-                    <textarea id="accion-texto" rows={3} maxLength={500} value={texto}
-                        onChange={e => setTexto(e.target.value)} className="w-full px-3 py-2 rounded-lg" style={campo} />
-                </div>
-            </div>
-        </Modal>
-    );
-}
-
-/* ── Modal de convenio de pago ── */
-function ModalConvenio({ fila, onClose, onHecho }) {
-    const [cuotas, setCuotas] = useState([{ fecha: '', monto: fila.saldo_total_usd }]);
-    const [guardando, setGuardando] = useState(false);
-    const suma = cuotas.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
-    const cambiar = (i, k, v) => setCuotas(cs => cs.map((c, j) => (j === i ? { ...c, [k]: v } : c)));
-
-    const crear = async () => {
-        setGuardando(true);
-        try {
-            await crearConvenioInteligente({
-                representante_id: fila.representante.id, ciclo_ids: fila.ciclos, cuotas,
-            });
-            toast.success('Convenio creado');
-            onHecho();
-        } catch (err) {
-            toast.error(mensajeErrorInteligente(err));
-        } finally {
-            setGuardando(false);
-        }
-    };
-
-    return (
-        <Modal
-            open size="lg"
-            onClose={() => !guardando && onClose()}
-            titulo={`Convenio · ${fila.representante.nombre}`}
-            footer={
-                <>
-                    <button type="button" className={btn} style={estiloSec} onClick={onClose} disabled={guardando}>Cancelar</button>
-                    <button type="button" className={`${btn} flex items-center justify-center gap-2`} style={estiloPri}
-                        onClick={crear} disabled={guardando || cuotas.some(c => !c.fecha)}>
-                        {guardando && <Loader2 size={16} className="animate-spin" />}Crear convenio
-                    </button>
-                </>
-            }
-        >
-            <div className="space-y-3 text-sm">
-                <p style={{ color: 'var(--ash)' }}>
-                    Saldo a cubrir: <strong>${fila.saldo_total_usd}</strong>. Mientras el convenio esté vigente,
-                    se pausa el seguimiento; si una cuota se incumple, el caso vuelve a la bandeja.
-                </p>
-                {cuotas.map((c, i) => (
-                    <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <input type="date" aria-label={`Fecha cuota ${i + 1}`} value={c.fecha}
-                            onChange={e => cambiar(i, 'fecha', e.target.value)} className="w-full px-3 py-2 rounded-lg" style={campo} />
-                        <input type="number" min="0" step="0.01" aria-label={`Monto cuota ${i + 1}`} value={c.monto}
-                            onChange={e => cambiar(i, 'monto', e.target.value)} className="w-full px-3 py-2 rounded-lg" style={campo} />
-                        {cuotas.length > 1 && (
-                            <button type="button" aria-label={`Quitar cuota ${i + 1}`} className="p-2 self-end sm:self-auto"
-                                onClick={() => setCuotas(cs => cs.filter((_, j) => j !== i))}>
-                                <Trash2 size={16} />
-                            </button>
-                        )}
-                    </div>
-                ))}
-                <button type="button" className="flex items-center gap-1 text-sm font-medium" style={{ color: 'var(--pb)' }}
-                    onClick={() => setCuotas(cs => [...cs, { fecha: '', monto: '' }])}>
-                    <Plus size={16} />Agregar cuota
-                </button>
-                <p style={{ color: Math.abs(suma - parseFloat(fila.saldo_total_usd)) > 0.01 ? 'var(--red)' : 'var(--green)' }}>
-                    Suma de cuotas: ${suma.toFixed(2)}
-                </p>
-            </div>
-        </Modal>
-    );
-}
-
 /* ── Pestañas ── */
 function Bandeja() {
     const { data, loading, apagada, recargar } = useCargaInteligente(getBandejaInteligente);
-    const [modal, setModal] = useState(null); // { tipo: 'accion' | 'convenio', fila }
+    const { ejecutar, modales } = useAccionesCaso(recargar);
 
     if (loading) return <Skeleton />;
     if (apagada) return <Vacio>Cobranza Inteligente está apagada en esta sede.</Vacio>;
     if (!data?.results.length) return <Vacio>Nada requiere atención hoy.</Vacio>;
-    const hecho = () => { setModal(null); recargar(); };
 
     return (
         <>
@@ -196,6 +59,12 @@ function Bandeja() {
                                         {f.ciclos.length} deuda(s) · ${f.saldo_total_usd} · {f.dias_mora_max} días de mora
                                         {f.responsable ? ` · ${f.responsable}` : ''}
                                     </p>
+                                    {f.gestion_humana && (
+                                        <p className="inline-flex items-center gap-1 mt-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+                                            style={{ background: 'var(--violet-light)', color: 'var(--violet)' }}>
+                                            <UserCheck size={12} />En manos de {f.responsable ?? 'una persona'} · bot en pausa
+                                        </p>
+                                    )}
                                     <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Por qué aparece">
                                         {f.razones.map(r => (
                                             <li key={r.texto} className="text-xs rounded-full px-2 py-0.5"
@@ -208,18 +77,29 @@ function Bandeja() {
                                 <span className="text-lg font-bold shrink-0" style={{ color: 'var(--red)' }}
                                     title="Puntaje de prioridad">{f.puntaje} pts</span>
                             </div>
-                            <div className="flex flex-col gap-2 sm:flex-row mt-3">
-                                <button type="button" className={btn} style={estiloPri}
-                                    onClick={() => setModal({ tipo: 'accion', fila: f })}>Registrar acción</button>
-                                <button type="button" className={btn} style={estiloSec}
-                                    onClick={() => setModal({ tipo: 'convenio', fila: f })}>Crear convenio</button>
+                            {f.accion_sugerida && (
+                                <div className="mt-3">
+                                    <AccionSugerida accion={f.accion_sugerida} onClick={() => ejecutar(f, f.accion_sugerida.codigo)} />
+                                </div>
+                            )}
+                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap mt-3">
+                                <Link to={`/cobranza/inteligente/representantes/${f.representante.id}`} className="btn btn-secondary w-full sm:w-auto">
+                                    <MessagesSquare size={16} />Conversación
+                                </Link>
+                                <button type="button" className="btn btn-secondary w-full sm:w-auto" disabled={!f.representante.telefono}
+                                    onClick={() => ejecutar(f, 'whatsapp')}>
+                                    <WhatsAppIcon size={16} />WhatsApp
+                                </button>
+                                <button type="button" className="btn btn-secondary w-full sm:w-auto"
+                                    onClick={() => ejecutar(f, 'llamada')}>Registrar acción</button>
+                                <button type="button" className="btn btn-secondary w-full sm:w-auto"
+                                    onClick={() => ejecutar(f, 'convenio')}>Crear convenio</button>
                             </div>
                         </Card>
                     </li>
                 ))}
             </ul>
-            {modal?.tipo === 'accion' && <ModalAccion fila={modal.fila} onClose={() => setModal(null)} onHecho={hecho} />}
-            {modal?.tipo === 'convenio' && <ModalConvenio fila={modal.fila} onClose={() => setModal(null)} onHecho={hecho} />}
+            {modales}
         </>
     );
 }
