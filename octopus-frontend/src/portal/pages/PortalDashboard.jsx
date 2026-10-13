@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { PortalAuthContext } from '../context/PortalAuthContext';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
@@ -70,6 +70,28 @@ const PortalDashboard = () => {
       toast.info('No tienes mensualidades vencidas pendientes.');
     }
   };
+
+  // Enlace de cobranza `/portal?pagar=1`: abre el modal de pago una vez cargado el
+  // dashboard y limpia el parámetro para que un refresh no lo reabra. La apertura se
+  // deriva (no se setea en un efecto): `pagarPorEnlace` se captura al montar.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [pagarPorEnlace] = useState(() => searchParams.get('pagar') === '1');
+  const [enlaceAtendido, setEnlaceAtendido] = useState(false);
+  const vencidaDeEnlace = pagarPorEnlace && !loading && !enlaceAtendido
+    ? resumen?.mensualidades_vencidas?.[0] : null;
+  const hayParametro = searchParams.has('pagar');
+
+  useEffect(() => {
+    if (!hayParametro || loading) return;
+    if (pagarPorEnlace && !resumen?.mensualidades_vencidas?.[0]) {
+      toast.info('No tienes mensualidades vencidas pendientes.');
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('pagar');
+      return next;
+    }, { replace: true });
+  }, [hayParametro, loading, pagarPorEnlace, resumen, setSearchParams]);
 
   return (
     <div className="space-y-5">
@@ -168,12 +190,13 @@ const PortalDashboard = () => {
 
       {/* Modal comprobante */}
       <ComprobantePagoModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        mensualidad={mensualidadSeleccionada}
+        isOpen={modalOpen || !!vencidaDeEnlace}
+        onClose={() => { setModalOpen(false); setEnlaceAtendido(true); }}
+        mensualidad={mensualidadSeleccionada ?? vencidaDeEnlace}
         tasaBcv={resumen?.tasa_bcv}
         onSuccess={() => {
           setModalOpen(false);
+          setEnlaceAtendido(true);
           cargarDashboard();
         }}
       />
