@@ -171,3 +171,44 @@ class EditarTest(ReglasBase):
         api = APIClient()
         api.force_authenticate(u)
         self.assertEqual(api.patch(f'{URL}{self.regla().id}/', {'activa': False}, format='json').status_code, 404)
+
+
+class CopiarGlobalesTest(ReglasBase):
+    URL_COPIAR = URL + 'copiar-globales/'
+
+    def setUp(self):
+        super().setUp()
+        self.otra = Sede.objects.create(nombre='Sede Sur')
+        ReglaCobranza.objects.create(sede=None, nombre='G1', etapa='temprana', dia_relativo=2,
+                                     canal='email', plantilla='seguimiento_1')
+
+    def test_copia_las_globales_a_la_sede_que_hereda(self):
+        globales = ReglaCobranza.objects.filter(sede__isnull=True).count()
+        r = self.api.post(self.URL_COPIAR, {'sede': self.otra.id}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual((r.data['count'], r.data['copiadas']), (globales, globales))
+        self.assertEqual(len(r.data['results']), globales)
+        self.assertTrue(all(f['sede'] == self.otra.id and not f['heredada'] for f in r.data['results']))
+        self.assertEqual(ReglaCobranza.objects.filter(sede__isnull=True).count(), globales)
+        self.assertTrue(LogAuditoria.objects.filter(accion='COBRANZA_REGLAS_COPIADAS_DE_GLOBALES').exists())
+
+    def test_idempotente_si_ya_tiene_propias(self):
+        self.api.post(self.URL_COPIAR, {'sede': self.otra.id}, format='json')
+        propias = ReglaCobranza.objects.filter(sede=self.otra).count()
+        r = self.api.post(self.URL_COPIAR + f'?sede={self.otra.id}', format='json')
+        self.assertEqual((r.status_code, r.data['copiadas'], r.data['count']), (200, 0, propias))
+        self.assertEqual(ReglaCobranza.objects.filter(sede=self.otra).count(), propias)
+        self.assertEqual(LogAuditoria.objects.filter(accion='COBRANZA_REGLAS_COPIADAS_DE_GLOBALES').count(), 1)
+
+    def test_sin_sede_es_400(self):
+        self.assertEqual(self.api.post(self.URL_COPIAR, {}, format='json').status_code, 400)
+        self.assertEqual(self.api.post(self.URL_COPIAR, {'sede': 'x'}, format='json').status_code, 400)
+
+    def test_permisos(self):
+        api = APIClient()
+        api.force_authenticate(self.usuario('cobranza', 'cob1'))
+        self.assertEqual(api.post(self.URL_COPIAR, {'sede': self.otra.id}, format='json').status_code, 403)
+        u = self.usuario('director', 'dir1')
+        PermisoSede.objects.create(user=u, sede=self.sede, rol='director', activo=True)
+        api.force_authenticate(u)
+        self.assertEqual(api.post(self.URL_COPIAR, {'sede': self.otra.id}, format='json').status_code, 404)

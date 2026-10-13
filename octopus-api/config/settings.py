@@ -14,6 +14,9 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _SECRET_KEY_DEFAULT)
 
 # SEGURIDAD: el default es False para que un deploy sin configurar no quede en DEBUG.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+
+# Pruebas: bloquea las llamadas salientes a graph.facebook.com (ver config/test_runner.py).
+TEST_RUNNER = 'config.test_runner.RunnerSinMeta'
 # En desarrollo (DEBUG=True, HTTP puro) la cookie NO puede ser Secure o el navegador
 # la descarta y se pierde el refresh token. En producción (DEBUG=False, HTTPS) default True.
 # Siempre se puede forzar con la variable de entorno AUTH_COOKIE_SECURE.

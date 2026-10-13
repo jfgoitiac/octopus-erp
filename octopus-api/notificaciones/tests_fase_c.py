@@ -19,6 +19,7 @@ from cobranza.test_motor_cobranza import AHORA, HOY, WA
 from portal.models import ComprobantePago
 
 from . import conversaciones as srv
+from .views_conversaciones import serializar_adjunto
 from .models import ConversacionWhatsApp, MensajeWhatsApp
 from .tests_conversaciones import (
     API, PNG, TELEFONO, ConvBase, payload_texto, respuesta_meta,
@@ -294,6 +295,18 @@ class ComprobanteEntranteTest(FaseCBase):
                          ['convertir_comprobante', 'abrir_chat', 'descartar_comprobante'])
         self.assertEqual(t['detalle']['mensaje'], m.id)
         self.assertEqual(t['representante']['id'], self.rep.id)
+        # adjunto: mismo formato que el hilo de conversaciones
+        self.assertEqual(t['adjunto'], serializar_adjunto(m))
+        self.assertEqual(t['detalle']['adjunto'], t['adjunto'])
+        self.assertEqual((t['adjunto']['id'], t['adjunto']['estado'], t['adjunto']['tipo']),
+                         (m.id, 'pendiente', 'image/png'))
+        self.assertEqual(t['adjunto']['url'], f'/api/cobranza/inteligente/mensajes/{m.id}/archivo/')
+
+    def test_llamadas_a_meta_quedan_bloqueadas_en_pruebas(self):
+        import requests
+        r = requests.post('https://graph.facebook.com/v19.0/1/messages', json={}, timeout=1)
+        self.assertEqual(r.status_code, 403)
+        self.assertIn('bloqueada', r.text)
 
     def test_comprobante_sin_vincular_no_ofrece_convertir(self):
         with meta_ok(), patch('requests.get', side_effect=media_get):
