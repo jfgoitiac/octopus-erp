@@ -99,6 +99,23 @@ describe('Hoy', () => {
         expect(screen.getByText('Juan Soto')).toBeInTheDocument();
     });
 
+    it('muestra el resumen de proyección de caja solo si el contrato lo trae', async () => {
+        m.hoy.mockResolvedValue({ data: datos });
+        const { unmount } = montar();
+        await screen.findByText(/El sistema enviará 41 recordatorios/);
+        expect(screen.queryByTestId('proyeccion-resumen')).not.toBeInTheDocument();
+        unmount();
+        m.hoy.mockResolvedValue({ data: { ...datos, proyeccion_caja: {
+            semana: { desde: '2026-07-20', hasta: '2026-07-26' }, casos: 3, comprometido_usd: '80.00', esperado_usd: '37.50',
+            por_fuente: { promesas: { casos: 1 }, convenios: { casos: 2 } },
+        } } });
+        montar();
+        const r = await screen.findByTestId('proyeccion-resumen');
+        expect(r).toHaveTextContent('$37.50 esperados de $80.00 comprometidos');
+        expect(r).toHaveTextContent('20 jul – 26 jul 2026');
+        expect(r).toHaveTextContent('1 de promesas · 2 de convenios');
+    });
+
     it('si está apagada (409) lo dice sin error', async () => {
         m.hoy.mockRejectedValue({ response: { status: 409 } });
         montar();
