@@ -1,10 +1,12 @@
+import { useEffect, useState } from 'react';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     Bot, User, Mail, Check, CheckCheck, AlertCircle, Phone, StickyNote, FilePlus, TrendingUp, UserCheck,
-    PauseCircle, PlayCircle, CircleCheck, XCircle, Handshake, BellOff, FlaskConical, Info,
+    PauseCircle, PlayCircle, CircleCheck, XCircle, Handshake, BellOff, FlaskConical, Info, FileText,
 } from 'lucide-react';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
+import { descargarAdjuntoWhatsApp } from '../../api/notificaciones.service';
 
 /* Paleta del chat (tonos de WhatsApp, propios de esta vista). */
 const CHAT = {
@@ -58,6 +60,39 @@ function Entrega({ estado }) {
     return <CheckCheck size={15} style={{ color: CHAT.visto }} aria-label="Enviado" />;
 }
 
+/** Archivo que mandó el representante: se baja con la sesión (no hay URL pública). */
+function Adjunto({ adjunto }) {
+    const [url, setUrl] = useState(null);
+    const [error, setError] = useState(false);
+    useEffect(() => {
+        const controller = new AbortController();
+        let creada = null;
+        descargarAdjuntoWhatsApp(adjunto.id, controller.signal)
+            .then(res => { creada = URL.createObjectURL(res.data); setUrl(creada); })
+            .catch(err => { if (err?.code !== 'ERR_CANCELED') setError(true); });
+        return () => { controller.abort(); if (creada) URL.revokeObjectURL(creada); };
+    }, [adjunto.id]);
+
+    if (error) return <p className="text-xs italic" style={{ color: CHAT.tenue }}>No se pudo cargar el archivo.</p>;
+    if (!url) return <div className="skeleton w-56 max-w-full h-32 !rounded-md mb-1" aria-label="Cargando archivo" />;
+    const [familia] = adjunto.tipo.split('/');
+    if (familia === 'image') {
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                <img src={url} alt="Imagen enviada por el representante" className="rounded-md max-h-72 w-auto max-w-full" />
+            </a>
+        );
+    }
+    if (familia === 'audio') return <audio controls src={url} className="mb-1 w-60 max-w-full" />;
+    if (familia === 'video') return <video controls src={url} className="mb-1 rounded-md max-h-72 max-w-full" />;
+    return (
+        <a href={url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 mb-1 rounded-md px-3 py-2 text-sm font-medium" style={{ background: '#f0f2f5' }}>
+            <FileText size={18} style={{ color: 'var(--red)' }} />Abrir documento
+        </a>
+    );
+}
+
 /** Mensaje enviado al representante (bot o personal). `primero` dibuja la colita del grupo. */
 function Burbuja({ item, primero }) {
     const entrante = item.autor === 'representante';
@@ -81,8 +116,9 @@ function Burbuja({ item, primero }) {
                 {item.asunto && item.canal === 'email' && (
                     <p className="flex items-center gap-1 text-sm font-semibold"><Mail size={13} />{item.asunto}</p>
                 )}
+                {item.adjunto && <Adjunto adjunto={item.adjunto} />}
                 <p className="text-sm whitespace-pre-wrap break-words leading-snug">
-                    {item.texto || <em style={{ color: CHAT.tenue }}>(sin texto)</em>}
+                    {item.texto || (!item.adjunto && <em style={{ color: CHAT.tenue }}>(sin texto)</em>)}
                     {/* Reserva el espacio de la hora para que no se monte sobre el texto. */}
                     <span className="inline-block w-16" aria-hidden="true" />
                 </p>

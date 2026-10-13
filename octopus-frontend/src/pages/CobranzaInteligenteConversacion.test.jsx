@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import CobranzaInteligenteConversacion from './CobranzaInteligenteConversacion';
 
-const m = vi.hoisted(() => ({ get: vi.fn(), accion: vi.fn() }));
+const m = vi.hoisted(() => ({ get: vi.fn(), accion: vi.fn(), adjunto: vi.fn() }));
 
 vi.mock('../api/cobranza.service', () => ({
     getConversacionInteligente: (...a) => m.get(...a),
@@ -12,6 +12,7 @@ vi.mock('../api/cobranza.service', () => ({
     accionCicloInteligente: vi.fn(),
     crearConvenioInteligente: vi.fn(),
 }));
+vi.mock('../api/notificaciones.service', () => ({ descargarAdjuntoWhatsApp: (...a) => m.adjunto(...a) }));
 vi.mock('../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: null, sedes: [] }) }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -96,5 +97,19 @@ describe('CobranzaInteligenteConversacion', () => {
         await waitFor(() => expect(m.accion).toHaveBeenCalledWith('7', 'responder', { texto: 'Recibido', modo: 'api' }));
         expect(abrir).not.toHaveBeenCalled();
         abrir.mockRestore();
+    });
+
+    it('muestra la imagen que mandó el representante', async () => {
+        const datos = conversacion(true);
+        datos.linea_de_tiempo.push({ id: 'log-9', clase: 'mensaje', autor: 'representante', canal: 'whatsapp',
+            texto: 'El comprobante', estado: 'recibido', fecha: '2026-10-11T12:00:00Z', adjunto: { id: 9, tipo: 'image/jpeg' } });
+        m.get.mockResolvedValue({ data: datos });
+        m.adjunto.mockResolvedValue({ data: new Blob(['x'], { type: 'image/jpeg' }) });
+        URL.createObjectURL = vi.fn(() => 'blob:imagen');
+        URL.revokeObjectURL = vi.fn();
+        montar();
+        const img = await screen.findByAltText('Imagen enviada por el representante');
+        expect(img).toHaveAttribute('src', 'blob:imagen');
+        expect(m.adjunto).toHaveBeenCalledWith(9, expect.anything());
     });
 });

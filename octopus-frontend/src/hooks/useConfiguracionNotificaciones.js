@@ -16,6 +16,10 @@ export const EMPTY_FORM = {
     twilio_whatsapp_from: '',
     meta_whatsapp_token: '',
     meta_whatsapp_phone_id: '',
+    meta_app_secret: '',
+    // Solo lectura: los genera el backend para registrar el webhook de respuestas.
+    meta_webhook_verify_token: '',
+    webhooks_whatsapp: null,
     director_whatsapp: '',
     dias_recordatorio_1: 5,
     dias_recordatorio_2: 10,
@@ -32,14 +36,14 @@ export const EMPTY_PERFIL_EMAIL = {
     email_from: '',
 };
 
-const SECRET_FIELDS = ['email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'];
+const SECRET_FIELDS = ['email_host_password', 'twilio_auth_token', 'meta_whatsapp_token', 'meta_app_secret'];
 
 const isSecretMasked = (val) => typeof val === 'string' && val.startsWith('••••');
 
 const WHATSAPP_KEYS = [
     'whatsapp_activo', 'whatsapp_proveedor',
     'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
-    'meta_whatsapp_token', 'meta_whatsapp_phone_id', 'director_whatsapp',
+    'meta_whatsapp_token', 'meta_whatsapp_phone_id', 'meta_app_secret', 'director_whatsapp',
 ];
 
 const MORA_KEYS = ['dias_recordatorio_1', 'dias_recordatorio_2', 'dias_alerta_director'];

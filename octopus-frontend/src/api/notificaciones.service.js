@@ -26,3 +26,6 @@ export const listarLogsCobroWhatsApp = ({ page = 1, pageSize = 20 } = {}, signal
         params: { canal: 'whatsapp', tipo: 'cobro_whatsapp', page, page_size: pageSize },
         ...(signal ? { signal } : {}),
     });
+
+export const descargarAdjuntoWhatsApp = (id, signal) =>
+    apiClient.get(`notificaciones/whatsapp/adjuntos/${id}/`, { responseType: 'blob', signal });

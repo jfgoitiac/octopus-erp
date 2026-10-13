@@ -1,8 +1,9 @@
 import { useRef, useContext, useState } from 'react';
 import {
     Loader2, Eye, EyeOff, Save, Mail, MessageCircle,
-    CheckCircle2, XCircle, Bell, Send,
+    CheckCircle2, XCircle, Bell, Send, Copy, Webhook,
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
 import { useConfiguracionNotificaciones, AREAS_EMAIL } from '../hooks/useConfiguracionNotificaciones';
 
@@ -83,6 +84,31 @@ const Toggle = ({ fieldKey, form, setField, label }) => (
     </div>
 );
 
+const CampoCopiable = ({ etiqueta, valor }) => {
+    const copiar = async () => {
+        try {
+            await navigator.clipboard.writeText(valor);
+            toast.success(`${etiqueta} copiado.`);
+        } catch {
+            toast.error('No se pudo copiar. Selecciónalo y cópialo a mano.');
+        }
+    };
+    return (
+        <div>
+            <FieldLabel>{etiqueta}</FieldLabel>
+            <div className="flex items-stretch gap-2">
+                <input readOnly value={valor} onFocus={e => e.target.select()} aria-label={etiqueta}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm font-mono outline-none"
+                    style={{ border: '0.5px solid var(--border-md)', background: 'var(--bg)', color: 'var(--jet)' }} />
+                <button type="button" onClick={copiar} aria-label={`Copiar ${etiqueta}`}
+                    className="shrink-0 px-3 rounded-lg" style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)', background: '#fff' }}>
+                    <Copy size={15} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // ─── Skeleton ───
 
 const CardSkeleton = () => (
@@ -116,6 +142,7 @@ const ConfiguracionNotificaciones = () => {
         email_host_password: false,
         twilio_auth_token: false,
         meta_whatsapp_token: false,
+        meta_app_secret: false,
     });
 
     const {
@@ -337,6 +364,34 @@ const ConfiguracionNotificaciones = () => {
                                         <FieldLabel htmlFor="meta_whatsapp_phone_id">Phone Number ID</FieldLabel>
                                         <TextInput fieldKey="meta_whatsapp_phone_id" form={form} setField={setField} placeholder="ID del número en Meta Business" />
                                     </div>
+                                    <div>
+                                        <FieldLabel htmlFor="meta_app_secret">App Secret (para validar las respuestas)</FieldLabel>
+                                        <SecretInput
+                                            fieldKey="meta_app_secret"
+                                            form={form}
+                                            setField={setField}
+                                            show={visibleSecrets.meta_app_secret}
+                                            onToggle={() => toggleSecret('meta_app_secret')}
+                                            placeholder="Configuración básica de la app en developers.facebook.com"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {form.whatsapp_proveedor && form.webhooks_whatsapp && (
+                                <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--border-md)' }}>
+                                    <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--pb-mid)' }}>
+                                        <Webhook size={15} />Recepción de respuestas
+                                    </p>
+                                    <p className="text-xs" style={{ color: 'var(--jet-mid)' }}>
+                                        {form.whatsapp_proveedor === 'meta'
+                                            ? 'En Meta → WhatsApp → Configuración → Webhook, pega esta URL y el token, y suscríbete al campo "messages".'
+                                            : 'En Twilio → tu número de WhatsApp → "A message comes in", pega esta URL (método POST).'}
+                                    </p>
+                                    <CampoCopiable etiqueta="URL del webhook" valor={form.webhooks_whatsapp[form.whatsapp_proveedor]} />
+                                    {form.whatsapp_proveedor === 'meta' && (
+                                        <CampoCopiable etiqueta="Token de verificación" valor={form.meta_webhook_verify_token} />
+                                    )}
                                 </div>
                             )}
 
