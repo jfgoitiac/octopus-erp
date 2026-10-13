@@ -4040,8 +4040,13 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    fuera de Cobranza Inteligente (ver §9 del plan v4); pendiente consolidarlas.
 2. **`NotificacionLog` vs `MensajeWhatsApp`**: conviven dos registros de
    mensajes en paralelo; unificar.
-3. **`ConfiguracionNotificaciones` pk=1**: un solo número de WhatsApp por
-   instalación; no sirve para multi-sede con números distintos.
+3. **`ConfiguracionNotificaciones` pk=1**: ~~un solo número de WhatsApp por
+   instalación~~ RESUELTO (13/10/2026): `ConfiguracionWhatsAppSede` (credenciales
+   Meta por sede, cifradas) con fallback a la general vía
+   `get_config_whatsapp(sede)`; el webhook enruta por `phone_number_id` y valida la
+   firma con el secreto de la sede dueña. Ver `docs/CONTRATO_WHATSAPP_POR_SEDE.md`.
+   Pendiente menor (en ese contrato, "Límites conocidos"): `NotificacionLog` sin
+   sede, `director_whatsapp` y plantillas Meta siguen siendo globales.
 4. **ESLint `react-hooks/set-state-in-effect`** (~44 errores preexistentes):
    `MainLayout`, `EditorPlantillaWhatsApp`, `useUsuariosSede`, entre otros.
 5. **`conversaciones.MARCAR_ADJUNTOS_PENDIENTES`**: constante/flujo a revisar.
