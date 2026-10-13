@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { isSameDay, parseISO } from 'date-fns';
-import { ChevronLeft, Bot, UserCheck, Loader2, StickyNote, Phone, Mail, Info, Handshake } from 'lucide-react';
+import { ChevronLeft, Bot, UserCheck, Loader2, StickyNote, Phone, Mail, Handshake, SendHorizontal, Info } from 'lucide-react';
 import InitialsAvatar from '../components/shared/InitialsAvatar';
 import WhatsAppIcon from '../components/ui/WhatsAppIcon';
 import AccionSugerida from '../components/cobranzaInteligente/AccionSugerida';
@@ -11,6 +11,13 @@ import { useCargaInteligente, mensajeErrorInteligente } from '../hooks/useCargaI
 import { useAccionesCaso } from '../hooks/useAccionesCaso';
 import { getConversacionInteligente, accionConversacionInteligente } from '../api/cobranza.service';
 import { fmt } from '../utils/format';
+
+/* wa.me exige el número internacional sin "+": 0412… → 58412… */
+const enlaceWhatsApp = (telefono, texto) => {
+    const digitos = (telefono || '').replace(/\D/g, '');
+    const numero = digitos.startsWith('0') && digitos.length === 11 ? `58${digitos.slice(1)}` : digitos;
+    return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+};
 
 const iniciales = (nombre) => {
     const [n = '', ...resto] = nombre.split(' ');
@@ -52,7 +59,8 @@ function Encabezado({ d, tomando, onTomar, onDevolver }) {
     );
 }
 
-function Compositor({ d, tomando, onTomar, ejecutar, fila }) {
+function Compositor({ d, tomando, onTomar, ejecutar, fila, onResponder, enviando }) {
+    const [texto, setTexto] = useState('');
     if (!d.ciclos_abiertos.length) {
         return <p className="px-4 py-3 text-xs text-center" style={{ color: 'var(--ash)' }}>Este representante no tiene deudas abiertas.</p>;
     }
@@ -68,25 +76,43 @@ function Compositor({ d, tomando, onTomar, ejecutar, fila }) {
             </div>
         );
     }
+    const porApi = d.whatsapp.api && d.whatsapp.ventana_abierta;
+    const enviar = async (e) => {
+        e.preventDefault();
+        const mensaje = texto.trim();
+        if (!mensaje) return;
+        if (!porApi) window.open(enlaceWhatsApp(d.representante.telefono, mensaje), '_blank', 'noopener,noreferrer');
+        if (await onResponder(mensaje, porApi ? 'api' : 'manual')) setTexto('');
+    };
     return (
-        <div className="flex items-center gap-2 px-2 sm:px-3 py-2">
-            <button type="button" onClick={() => ejecutar(fila, 'nota')}
-                className="flex-1 min-w-0 flex items-center gap-2 rounded-full px-4 py-2.5 text-left text-sm"
-                style={{ background: '#fff', color: 'var(--ash)', border: '1px solid var(--border)' }}>
-                <StickyNote size={16} className="shrink-0" /><span className="truncate">Escribe una nota interna…</span>
-            </button>
-            <button type="button" onClick={() => ejecutar(fila, 'llamar')} aria-label="Registrar llamada" title="Registrar llamada"
-                className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center"
-                style={{ background: '#fff', color: 'var(--jet-mid)', border: '1px solid var(--border)' }}>
-                <Phone size={18} />
-            </button>
-            <button type="button" onClick={() => ejecutar(fila, 'whatsapp')} disabled={!d.representante.telefono}
-                aria-label="Enviar WhatsApp" title="Enviar WhatsApp"
-                className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-white disabled:opacity-50"
-                style={{ background: '#00a884', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }}>
-                <WhatsAppIcon size={20} className="[&_path]:fill-white" />
-            </button>
-        </div>
+        <form onSubmit={enviar} className="px-2 sm:px-3 py-2">
+            <div className="flex items-end gap-1.5 sm:gap-2">
+                <button type="button" onClick={() => ejecutar(fila, 'nota')} aria-label="Nota interna" title="Nota interna"
+                    className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center hover:bg-black/5" style={{ color: '#54656f' }}>
+                    <StickyNote size={20} />
+                </button>
+                <button type="button" onClick={() => ejecutar(fila, 'llamar')} aria-label="Registrar llamada" title="Registrar llamada"
+                    className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center hover:bg-black/5" style={{ color: '#54656f' }}>
+                    <Phone size={20} />
+                </button>
+                <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={1} maxLength={4000}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) enviar(e); }}
+                    placeholder="Mensaje" aria-label="Mensaje para el representante"
+                    className="flex-1 min-w-0 resize-none rounded-3xl px-4 py-2.5 text-base sm:text-sm max-h-32 outline-none"
+                    style={{ background: '#fff', color: '#111b21', border: '1px solid var(--border)' }} />
+                <button type="submit" disabled={enviando || !texto.trim() || !d.representante.telefono}
+                    aria-label="Enviar WhatsApp" title="Enviar WhatsApp"
+                    className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-white disabled:opacity-50"
+                    style={{ background: '#00a884', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }}>
+                    {enviando ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={19} />}
+                </button>
+            </div>
+            <p className="mt-1 px-2 text-[11px]" style={{ color: '#667781' }}>
+                {porApi
+                    ? 'Se envía por WhatsApp Business (el representante escribió en las últimas 24 h).'
+                    : 'Se abrirá WhatsApp con el mensaje listo y quedará registrado aquí.'}
+            </p>
+        </form>
     );
 }
 
@@ -121,9 +147,15 @@ function Ficha({ d, ejecutar, fila }) {
                             </li>
                         ))}
                     </ul>
-                    <button type="button" className="btn btn-secondary btn-sm w-full" onClick={() => ejecutar(fila, 'convenio')}>
-                        <Handshake size={14} />Crear convenio
-                    </button>
+                    <div className="grid grid-cols-1 gap-2">
+                        <button type="button" className="btn btn-secondary btn-sm w-full" onClick={() => ejecutar(fila, 'whatsapp')}
+                            disabled={!d.representante.telefono}>
+                            <WhatsAppIcon size={14} />Cobro con plantilla
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm w-full" onClick={() => ejecutar(fila, 'convenio')}>
+                            <Handshake size={14} />Crear convenio
+                        </button>
+                    </div>
                 </section>
             )}
 
@@ -156,6 +188,7 @@ const CobranzaInteligenteConversacion = () => {
     const { data: d, loading, apagada, recargar } = useCargaInteligente(cargador);
     const { ejecutar, modales } = useAccionesCaso(recargar);
     const [tomando, setTomando] = useState(false);
+    const [enviando, setEnviando] = useState(false);
     const scroll = useRef(null);
 
     useEffect(() => {
@@ -176,6 +209,19 @@ const CobranzaInteligenteConversacion = () => {
     };
     const onTomar = () => cambiar('tomar', 'Tomaste la conversación: el bot queda en pausa.');
     const onDevolver = () => cambiar('devolver', 'La conversación volvió al bot.');
+    const onResponder = async (texto, modo) => {
+        setEnviando(true);
+        try {
+            await accionConversacionInteligente(id, 'responder', { texto, modo });
+            recargar();
+            return true;
+        } catch (err) {
+            toast.error(mensajeErrorInteligente(err));
+            return false;
+        } finally {
+            setEnviando(false);
+        }
+    };
 
     if (apagada) {
         return <p className="text-sm text-center py-10" style={{ color: 'var(--ash)' }}>Cobranza Inteligente está apagada en esta sede.</p>;
@@ -213,16 +259,11 @@ const CobranzaInteligenteConversacion = () => {
                             </div>
                         );
                     })}
-                    {d && (
-                        <p className="flex items-center justify-center gap-1.5 text-[11px] text-center mt-4 mb-1 px-6" style={{ color: '#667781' }}>
-                            <Info size={12} className="shrink-0" />
-                            Las respuestas del representante aparecerán aquí cuando se conecte WhatsApp entrante.
-                        </p>
-                    )}
                 </LienzoChat>
 
                 <footer style={{ background: '#f0f2f5', borderTop: '1px solid var(--border)' }}>
-                    {d && <Compositor d={d} tomando={tomando} onTomar={onTomar} ejecutar={ejecutar} fila={fila} />}
+                    {d && <Compositor d={d} tomando={tomando} onTomar={onTomar} ejecutar={ejecutar} fila={fila}
+                        onResponder={onResponder} enviando={enviando} />}
                 </footer>
             </section>
 

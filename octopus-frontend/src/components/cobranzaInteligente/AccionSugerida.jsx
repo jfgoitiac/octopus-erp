@@ -1,9 +1,9 @@
-import { Phone, Handshake, ReceiptText, PhoneOff, Lightbulb } from 'lucide-react';
+import { Phone, Handshake, ReceiptText, PhoneOff, Lightbulb, Reply } from 'lucide-react';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 
 const ICONOS = {
     revisar_pago: ReceiptText, renegociar: Handshake, ofrecer_convenio: Handshake,
-    verificar_contacto: PhoneOff, llamar: Phone,
+    verificar_contacto: PhoneOff, llamar: Phone, responder: Reply,
 };
 
 /** Botón con la acción sugerida de un caso; `compacto` lo deja solo, `apilado` para columnas angostas. */

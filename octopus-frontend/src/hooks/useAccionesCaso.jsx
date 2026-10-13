@@ -19,6 +19,7 @@ export function useAccionesCaso(onHecho) {
 
     const ejecutar = (fila, codigo) => {
         if (codigo === 'revisar_pago') return navigate('/comprobantes/revision');
+        if (codigo === 'responder') return navigate(`/cobranza/inteligente/representantes/${fila.representante.id}`);
         if (POR_WHATSAPP.has(codigo)) return setModal({ tipo: 'whatsapp', fila });
         if (codigo === 'ofrecer_convenio' || codigo === 'convenio') return setModal({ tipo: 'convenio', fila });
         return setModal({ tipo: 'accion', fila, accion: POR_LLAMADA.has(codigo) ? 'llamada' : codigo });
