@@ -57,16 +57,11 @@ export function ComparacionAB() {
             subtitulo="Cuánto del saldo se pagó en los 7 días siguientes a cada envío. Es una lectura orientativa, sin prueba estadística.">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 mb-3">
                 <label className="text-xs w-full sm:w-44" style={{ color: 'var(--ash)' }}>Desde
-                    <DatePickerES value={desde} onChange={e => setDesde(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg" style={campo} />
+                    <DatePickerES clearable value={desde} onChange={e => setDesde(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg" style={campo} />
                 </label>
                 <label className="text-xs w-full sm:w-44" style={{ color: 'var(--ash)' }}>Hasta
-                    <DatePickerES value={hasta} onChange={e => setHasta(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg" style={campo} />
+                    <DatePickerES clearable value={hasta} onChange={e => setHasta(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg" style={campo} />
                 </label>
-                {(desde || hasta) && (
-                    <button type="button" onClick={() => { setDesde(''); setHasta(''); }}
-                        className="w-full sm:w-auto sm:self-end px-3 py-2 rounded-lg text-sm font-medium"
-                        style={{ border: '1px solid var(--border-md)', color: 'var(--jet)', background: 'var(--surface)' }}>Quitar fechas</button>
-                )}
             </div>
 
             {loading && <SkeletonLista filas={2} alto="h-32" />}

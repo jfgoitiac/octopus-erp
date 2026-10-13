@@ -20,7 +20,7 @@ function toISOString(date) {
     return `${y}-${m}-${d}`;
 }
 
-export default function DatePickerES({ value, onChange, className, style, name, required, placeholder, maxDate, minDate }) {
+export default function DatePickerES({ value, onChange, className, style, name, required, placeholder, maxDate, minDate, clearable = false }) {
     const selected = parseLocalDate(value);
 
     function handleChange(date) {
@@ -53,6 +53,11 @@ export default function DatePickerES({ value, onChange, className, style, name, 
             // su comportamiento.
             maxDate={maxDate ? parseLocalDate(maxDate) : undefined}
             minDate={minDate ? parseLocalDate(minDate) : undefined}
+            // `clearable` (opcional, apagado por defecto): muestra una "x" para vaciar la fecha;
+            // onChange recibe value '' como con cualquier otra selección vacía.
+            isClearable={clearable}
+            clearButtonTitle="Quitar fecha"
+            ariaLabelClose="Quitar fecha"
             showMonthDropdown
             showYearDropdown
             dropdownMode="scroll"

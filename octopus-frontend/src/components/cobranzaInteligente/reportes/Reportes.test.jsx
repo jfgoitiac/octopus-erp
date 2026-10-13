@@ -99,6 +99,17 @@ describe('ComparacionAB', () => {
         expect(m.ab).toHaveBeenCalledWith({}, 1, expect.anything());
     });
 
+    it('las fechas se pueden quitar desde el propio selector, sin botón aparte', async () => {
+        m.ab.mockResolvedValue({ data: { count: 1, results: [filaAB()] } });
+        render(<ComparacionAB />);
+        await screen.findByTestId('fila-ab');
+        expect(screen.queryByRole('button', { name: 'Quitar fechas' })).toBeNull();
+        await userEvent.type(screen.getByLabelText('Desde'), '20/07/2026');
+        await waitFor(() => expect(m.ab).toHaveBeenLastCalledWith({ desde: '2026-07-20' }, 1, expect.anything()));
+        await userEvent.click(screen.getByRole('button', { name: 'Quitar fecha' }));
+        await waitFor(() => expect(m.ab).toHaveBeenLastCalledWith({}, 1, expect.anything()));
+    });
+
     it('muestra la ventaja solo cuando el backend declara ganadora', async () => {
         m.ab.mockResolvedValue({ data: { count: 1, results: [filaAB({ muestra_suficiente: true, ganadora: 'B', diferencia_recuperado_pp: '-7.40' })] } });
         render(<ComparacionAB />);
