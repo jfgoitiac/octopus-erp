@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import CobranzaInteligenteGestion from './CobranzaInteligenteGestion';
 
 const m = vi.hoisted(() => ({
@@ -30,7 +31,7 @@ describe('CobranzaInteligenteGestion', () => {
 
     it('muestra el puntaje con sus razones', async () => {
         m.bandeja.mockResolvedValue({ data: { count: 1, results: [fila] } });
-        render(<CobranzaInteligenteGestion />);
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
         expect(await screen.findByText('Maria Perez')).toBeInTheDocument();
         expect(screen.getByText('25 pts')).toBeInTheDocument();
         expect(screen.getByText('Mora de 19 días (+19)')).toBeInTheDocument();
@@ -38,14 +39,14 @@ describe('CobranzaInteligenteGestion', () => {
 
     it('si está apagada (409) lo dice sin error', async () => {
         m.bandeja.mockRejectedValue({ response: { status: 409 } });
-        render(<CobranzaInteligenteGestion />);
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
         expect(await screen.findByText(/está apagada/)).toBeInTheDocument();
     });
 
     it('registrar una acción llama a la API por cada deuda', async () => {
         m.bandeja.mockResolvedValue({ data: { count: 1, results: [fila] } });
         m.accion.mockResolvedValue({});
-        render(<CobranzaInteligenteGestion />);
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
         await userEvent.click(await screen.findByText('Registrar acción'));
         await userEvent.click(screen.getByText('Registrar'));
         await waitFor(() => expect(m.accion).toHaveBeenCalledTimes(2));
@@ -55,7 +56,7 @@ describe('CobranzaInteligenteGestion', () => {
     it('el convenio parte con una cuota igual al saldo', async () => {
         m.bandeja.mockResolvedValue({ data: { count: 1, results: [fila] } });
         m.crear.mockResolvedValue({});
-        render(<CobranzaInteligenteGestion />);
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
         await userEvent.click(await screen.findByText('Crear convenio'));
         expect(screen.getByLabelText('Monto cuota 1')).toHaveValue(50);
         await userEvent.type(screen.getByLabelText('Fecha cuota 1'), '2030-01-15');

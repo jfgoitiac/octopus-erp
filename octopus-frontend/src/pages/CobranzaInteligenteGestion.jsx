@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
-import { Sparkles, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sparkles, Plus, Trash2, Loader2, ChevronLeft } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Card } from '../components/ui/Card';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -309,7 +310,8 @@ const CobranzaInteligenteGestion = () => {
     const { Vista } = PESTANAS.find(p => p.id === activa);
     return (
         <div className="w-full max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-20">
-            <PageHeader titulo="Gestión de cobranza" descripcion="Casos que requieren atención hoy, con la razón de cada prioridad." />
+            <PageHeader titulo="Gestión de cobranza" descripcion="Casos que requieren atención hoy, con la razón de cada prioridad."
+                acciones={<Link to="/cobranza/inteligente" className="btn btn-secondary w-full sm:w-auto"><ChevronLeft size={16} />Volver al dashboard</Link>} />
             <div role="tablist" className="flex gap-2 overflow-x-auto">
                 {PESTANAS.map(p => (
                     <button key={p.id} type="button" role="tab" aria-selected={activa === p.id}

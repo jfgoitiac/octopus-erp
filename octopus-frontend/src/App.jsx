@@ -418,14 +418,15 @@ function App() {
               } />
               <Route path="cobranza/inteligente" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO, ROLES.SISTEMAS]}>
-                  <CobranzaInteligenteGestion />
-                </ProtectedRoute>
-              } />
-              <Route path="cobranza/inteligente/resultados" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
                   <CobranzaInteligenteDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="cobranza/inteligente/gestion" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.COBRANZA, ROLES.CAJERO, ROLES.SISTEMAS]}>
+                  <CobranzaInteligenteGestion />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/inteligente/resultados" element={<Navigate to="/cobranza/inteligente" replace />} />
               <Route path="configuracion/cobranza-inteligente" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
                   <ConfiguracionCobranzaInteligente />
