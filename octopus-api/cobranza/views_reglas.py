@@ -56,11 +56,13 @@ class ErrorRegla(Exception):
 def _sede_de(request):
     """(sede_id, error). Sin `?sede=` = reglas globales (sede nula), como la configuración."""
     bruto = request.query_params.get('sede') or None
+    if bruto is None and request.method == 'POST' and hasattr(request.data, 'get'):
+        bruto = request.data.get('sede') or None  # el body también puede traer {sede}
     sede_id = None
     if bruto is not None:
         try:
             sede_id = int(bruto)
-        except ValueError:
+        except (TypeError, ValueError):
             return None, _error('Sede inválida.')
     permitidas = sedes_permitidas_ids(request.user)
     if permitidas is not None and sede_id not in permitidas:
@@ -211,6 +213,34 @@ class ReglasView(APIView):
         cuerpo = serializar_regla(regla)
         cuerpo['reglas_copiadas_de_globales'] = clonadas
         return Response(cuerpo, status=status.HTTP_201_CREATED)
+
+
+class CopiarGlobalesView(APIView):
+    """
+    POST /inteligente/reglas/copiar-globales/ {sede?} (o `?sede=`) -> 200 {count, results, copiadas}.
+    Si la sede solo hereda las reglas globales, las copia a la sede (misma lógica que el primer
+    POST de regla) para poder editarlas. Idempotente: si ya tiene propias no copia nada
+    (`copiadas: 0`). Mismos permisos y auditoría que el POST de reglas.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def post(self, request):
+        sede_id, error = _sede_de(request)
+        if error:
+            return error
+        if sede_id is None:
+            return _error('Indique la sede a la que copiar las reglas globales.')
+        with transaction.atomic():
+            copiadas = _clonar_globales_si_hereda(sede_id)
+            if copiadas:
+                LogAuditoria.objects.create(
+                    usuario=request.user, accion='COBRANZA_REGLAS_COPIADAS_DE_GLOBALES', modulo='COBRANZA',
+                    detalles={'sede': sede_id, 'copiadas': copiadas})
+        reglas = ReglaCobranza.objects.filter(sede_id=sede_id)
+        if request.query_params.get('todas') not in ('1', 'true', 'True'):
+            reglas = reglas.filter(activa=True)
+        filas = [serializar_regla(r) for r in reglas.order_by('dia_relativo', 'id')]
+        return Response({'count': len(filas), 'results': filas, 'copiadas': copiadas})
 
 
 class ReglaDetalleView(APIView):

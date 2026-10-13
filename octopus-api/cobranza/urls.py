@@ -3,7 +3,7 @@ from .views_gestion import (
     AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, CuotaConvenioPagadaView,
     DashboardInteligenteView, LineaBaseView, PagosRevisionView,
 )
-from .views_reglas import ReglaDetalleView, ReglasView
+from .views_reglas import CopiarGlobalesView, ReglaDetalleView, ReglasView
 from .views_hoy import (
     ContadoresView, HistorialCobrosView, HoyView, PerfilPagadorView, PromesasView, ProyeccionCajaView, ReporteABView, SimulacionMotorView, TarjetaHechaView,
 )
@@ -98,6 +98,7 @@ urlpatterns = [
     path('inteligente/convenios/cuotas/<int:cuota_id>/pagar/', CuotaConvenioPagadaView.as_view(), name='cobranza-inteligente-cuota-pagar'),
     path('inteligente/convenios/<int:convenio_id>/cancelar/', CancelarConvenioView.as_view(), name='cobranza-inteligente-convenio-cancelar'),
     path('inteligente/reglas/',            ReglasView.as_view(),                   name='cobranza-inteligente-reglas'),
+    path('inteligente/reglas/copiar-globales/', CopiarGlobalesView.as_view(), name='cobranza-inteligente-reglas-copiar-globales'),
     path('inteligente/reglas/<int:pk>/',   ReglaDetalleView.as_view(),             name='cobranza-inteligente-regla'),
     path('inteligente/hoy/',               HoyView.as_view(),                      name='cobranza-inteligente-hoy'),
     path('inteligente/hoy/tarjetas/<str:clave>/hecha/', TarjetaHechaView.as_view(), name='cobranza-inteligente-tarjeta-hecha'),
