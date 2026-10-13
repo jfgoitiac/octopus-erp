@@ -4,6 +4,7 @@ import { BarChart3, FileText, Image as ImageIcon, TrendingUp, History, Eye } fro
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getMetricasSitio } from '../api/sitio.service';
+import { diferir } from '../utils/diferir';
 
 const SkeletonCard = () => (
   <div className="rounded-xl p-5 animate-pulse space-y-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -20,7 +21,7 @@ const MetricasSitio = () => {
   const [metricas, setMetricas] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setLoading(true);
     getMetricasSitio(controller.signal)
@@ -32,7 +33,7 @@ const MetricasSitio = () => {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, []);
+  }), []);
 
   return (
     <div className="space-y-5 animate-fadeIn">

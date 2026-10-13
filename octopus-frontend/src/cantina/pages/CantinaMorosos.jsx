@@ -4,6 +4,7 @@ import { UserX } from 'lucide-react';
 import { getReporteMorosos } from '../../api/cantina.service';
 import MorosidadTable from '../../components/cantina/reportes/MorosidadTable';
 import AjustarCreditoModal from '../../components/cantina/tarjetas/AjustarCreditoModal';
+import { diferir } from '../../utils/diferir';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '15px' };
 
@@ -38,10 +39,10 @@ export default function CantinaMorosos() {
       .finally(() => setCargando(false));
   }, [diasMinAplicado]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     cargar();
     return () => abortRef.current?.abort();
-  }, [cargar]);
+  }), [cargar]);
 
   const handleFiltrar = (e) => {
     e.preventDefault();

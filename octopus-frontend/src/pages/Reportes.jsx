@@ -14,6 +14,7 @@ import PuntualidadTab from '../components/reportes/PuntualidadTab';
 import ReporteBecasTab from '../components/reportes/ReporteBecasTab';
 import PagosPorConceptoTab from '../components/reportes/PagosPorConceptoTab';
 import { PageHeader } from '../components/ui/PageHeader';
+import { diferir } from '../utils/diferir';
 
 const TABS = [
     { id: 'caja',          label: 'Cierre de Caja',        icon: Wallet,      group: 'diaria' },
@@ -51,10 +52,10 @@ const Reportes = () => {
             grado: searchParams.get('grado'),
         };
     });
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (deepLinkConcepto) setActiveTab('concepto');
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }), []);
     const limpiarDeepLink = useCallback(() => {
         setDeepLinkConcepto(null);
         setSearchParams({}, { replace: true });

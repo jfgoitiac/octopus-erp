@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
+import { diferir } from '../utils/diferir';
 
 const RevisionComprobantes = () => {
   const [items, setItems] = useState([]);
@@ -22,7 +23,7 @@ const RevisionComprobantes = () => {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => diferir(() => { cargar(); }), [cargar]);
 
   const verArchivo = async (item) => {
     if (!item.archivo_url) return toast.warning('Este comprobante no tiene archivo adjunto.');

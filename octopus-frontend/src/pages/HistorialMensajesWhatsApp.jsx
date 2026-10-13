@@ -6,6 +6,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
 import { listarLogsCobroWhatsApp } from '../api/notificaciones.service';
+import { diferir } from '../utils/diferir';
 
 const HistorialMensajesWhatsApp = () => {
     const [datos, setDatos] = useState({ results: [], total: 0, page: 1, page_size: 20 });
@@ -21,7 +22,7 @@ const HistorialMensajesWhatsApp = () => {
         }
     };
 
-    useEffect(() => { cargar(1); }, []);
+    useEffect(() => diferir(() => { cargar(1); }), []);
 
     const pagina = datos.page || 1;
     const totalPaginas = Math.max(1, Math.ceil((datos.total || 0) / (datos.page_size || 20)));

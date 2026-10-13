@@ -10,6 +10,7 @@ import ParametrosCreditoModal from '../../components/cantina/tarjetas/Parametros
 import AjustarCreditoModal from '../../components/cantina/tarjetas/AjustarCreditoModal';
 import TarjetasTable from '../../components/cantina/tarjetas/TarjetasTable';
 import { getTarjetas } from '../../api/cantina.service';
+import { diferir } from '../../utils/diferir';
 
 // Fase 2 de cantina.md (§7.3bis): pantalla desktop-first con las tres
 // acciones del ciclo de vida de la tarjeta QR, más el panel de configuración
@@ -83,10 +84,10 @@ export default function CantinaTarjetas() {
       .finally(() => setCargandoTarjetas(false));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     cargarTarjetas();
     return () => abortRef.current?.abort();
-  }, [cargarTarjetas]);
+  }), [cargarTarjetas]);
 
   const abrirReponer = (tarjeta) => {
     setTarjetaAReponer(tarjeta || null);

@@ -11,6 +11,7 @@ import { Card } from '../../components/ui/Card';
 import { Tabla } from '../../components/ui/Tabla';
 import { TableRowSkeleton } from '../../components/shared/Skeleton';
 import Pagination from '../../components/shared/Pagination';
+import { diferir } from '../../utils/diferir';
 
 const TIPO_LABEL = {
   estudio: 'Estudio',
@@ -59,11 +60,11 @@ export default function HistoricoConstancias() {
     }
   }, [buildParams]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     cargar(filtros, 1);
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }), []);
 
   const handleBuscar = () => {
     if (filtros.desde && filtros.hasta && filtros.desde > filtros.hasta) {

@@ -17,6 +17,7 @@ import CobranzaStep1 from './components/CobranzaStep1';
 import CobranzaStep2 from './components/CobranzaStep2';
 import ResumenPago from './components/ResumenPago';
 import Stepper from '../components/shared/Stepper';
+import { diferir } from '../utils/diferir';
 
 const MOTIVO_MIN_LEN = 10;
 
@@ -72,9 +73,9 @@ const Cobranza = () => {
     // fecha consultada — el operador puede seguir editándolo a mano después;
     // lo que escriba manda sobre la sugerencia (no se vuelve a sobreescribir
     // hasta el próximo cambio de fecha)..
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (retroActivo) setTasaManual(tasaSugerida != null ? String(tasaSugerida) : '');
-    }, [tasaSugerida, retroActivo, fechaPagoRetro]);
+    }), [tasaSugerida, retroActivo, fechaPagoRetro]);
 
     // Tasa efectiva usada en TODOS los cálculos en vivo de esta pantalla
     // (equivalentes Bs/USD, vuelto, totales, máximos por línea). Apagado el
@@ -237,13 +238,13 @@ const Cobranza = () => {
     // escribe un abono parcial (antes solo reaccionaba a la restricción de
     // adelanto: si el cajero elegía Efectivo Bs. y DESPUÉS tipeaba el monto
     // parcial, la línea se quedaba en Bs. sin forzar el cambio).
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (requiereDivisas) {
             setLineas(p => p.map(l =>
                 esDivisa(l.metodo_pago) ? l : { ...l, metodo_pago: 'efectivo', banco_receptor_id: '', monto_ves: '' }
             ));
         }
-    }, [requiereDivisas]);
+    }), [requiereDivisas]);
 
     const resetBusqueda = useCallback(() => {
         setRepresentanteNombre(''); setRepresentanteCedula(''); setAlumnosRep([]);
@@ -377,7 +378,7 @@ const Cobranza = () => {
         }
     }, []);
 
-    useEffect(() => { fetchFlagsDivisas(); }, [fetchFlagsDivisas]);
+    useEffect(() => diferir(() => { fetchFlagsDivisas(); }), [fetchFlagsDivisas]);
 
     // Alterna la inclusión de un alumno en la operación de pago (checkbox).
     const toggleAlumno = (alu) => {

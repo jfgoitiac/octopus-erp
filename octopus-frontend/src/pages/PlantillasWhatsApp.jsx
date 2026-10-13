@@ -13,6 +13,7 @@ import {
     listarPlantillasWhatsApp,
     previsualizarCobroWhatsApp,
 } from '../api/notificaciones.service';
+import { diferir } from '../utils/diferir';
 
 const PlantillasWhatsApp = () => {
     const [plantillas, setPlantillas] = useState([]);
@@ -38,7 +39,7 @@ const PlantillasWhatsApp = () => {
         }
     };
 
-    useEffect(() => { cargar(); }, []);
+    useEffect(() => diferir(() => { cargar(); }), []);
 
     const abrirNueva = () => {
         setSeleccionada(null);

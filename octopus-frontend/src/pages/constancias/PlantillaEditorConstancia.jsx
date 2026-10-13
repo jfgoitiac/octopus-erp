@@ -10,6 +10,7 @@ import { Card } from '../../components/ui/Card';
 import { Bone } from '../../components/shared/Skeleton';
 import PlaceholderRichEditor from '../../components/constancias/PlaceholderRichEditor';
 import { crearTokenGenero } from './plantillaTokens';
+import { diferir } from '../../utils/diferir';
 
 // Debe coincidir con constancias/models.py: TIPOS_CONSTANCIA / DESTINATARIOS_CONSTANCIA.
 const TIPOS = [
@@ -130,7 +131,7 @@ function PlaceholdersPanel({ destinatario, onInsertar }) {
   const [loading, setLoading] = useState(true);
   const [grupoAbierto, setGrupoAbierto] = useState(null);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setLoading(true);
     getPlaceholders(destinatario, controller.signal)
@@ -144,7 +145,7 @@ function PlaceholdersPanel({ destinatario, onInsertar }) {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [destinatario]);
+  }), [destinatario]);
 
   return (
     <Card titulo="Datos disponibles" subtitulo="Haz clic para insertar en el texto">
@@ -211,7 +212,7 @@ export default function PlantillaEditorConstancia() {
   const cuerpoEditorRef = useRef(null);
   const anexoEditorRef = useRef(null);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (esNueva) return;
     const controller = new AbortController();
     setLoading(true);
@@ -236,7 +237,7 @@ export default function PlantillaEditorConstancia() {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [id, esNueva, navigate]);
+  }), [id, esNueva, navigate]);
 
   const set = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }));
 

@@ -7,6 +7,7 @@ import { getCierreCajaHoy, cerrarCajaCantina } from '../../api/cantina.service';
 import ResumenCierreCaja from '../../components/cantina/cierre/ResumenCierreCaja';
 import TotalesPorMetodo from '../../components/cantina/cierre/TotalesPorMetodo';
 import { notificarAperturaCambiada, ETIQUETA_AREA } from '../aperturaEvento';
+import { diferir } from '../../utils/diferir';
 
 function SkeletonCierre() {
   return (
@@ -67,13 +68,13 @@ export default function CantinaCierreCaja() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     cargarCierre(controller.signal);
     return () => controller.abort();
-  }, [cargarCierre]);
+  }), [cargarCierre]);
 
   const handleCerrarCaja = async (e) => {
     e.preventDefault();

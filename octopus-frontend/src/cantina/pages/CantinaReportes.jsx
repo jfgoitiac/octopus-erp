@@ -9,6 +9,7 @@ import { getReporteVentas, exportarVentasExcel } from '../../api/cantina.service
 import VentasChart from '../../components/cantina/reportes/VentasChart';
 import ProductosMasVendidos from '../../components/cantina/reportes/ProductosMasVendidos';
 import HistorialVentasTable from '../../components/cantina/reportes/HistorialVentasTable';
+import { diferir } from '../../utils/diferir';
 
 // Nota de aislamiento (§6 cantina.md): este módulo NO importa DatePickerES de
 // src/components/ (genérico del admin) — registra el locale 'es' acá mismo,
@@ -94,14 +95,14 @@ export default function CantinaReportes() {
     }
   }, [fechaInicio, fechaFin, alumnoId, area, cajeroId]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!fechaInicio || !fechaFin) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     cargarReporte(controller.signal);
     return () => controller.abort();
-  }, [cargarReporte, fechaInicio, fechaFin]);
+  }), [cargarReporte, fechaInicio, fechaFin]);
 
   const handleExportar = async () => {
     if (exportando) return;

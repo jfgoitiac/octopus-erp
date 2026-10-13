@@ -10,6 +10,7 @@ import ProductoFormModal from '../../components/cantina/inventario/ProductoFormM
 import MovimientoStockModal from '../../components/cantina/inventario/MovimientoStockModal';
 import EliminarProductoModal from '../../components/cantina/inventario/EliminarProductoModal';
 import AlertaStockBajo from '../../components/cantina/inventario/AlertaStockBajo';
+import { diferir } from '../../utils/diferir';
 
 function SkeletonTabla() {
   return (
@@ -67,13 +68,13 @@ export default function CantinaInventario() {
     }
   }, [categoriaFiltro, areaFiltro]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     cargarProductos(controller.signal);
     return () => controller.abort();
-  }, [cargarProductos, refreshKey]);
+  }), [cargarProductos, refreshKey]);
 
   useEffect(() => {
     const controller = new AbortController();

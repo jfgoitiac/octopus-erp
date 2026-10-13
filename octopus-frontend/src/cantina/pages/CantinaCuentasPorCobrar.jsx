@@ -9,6 +9,7 @@ import EstadoCuentaCxc from '../../components/cantina/cxc/EstadoCuentaCxc';
 import {
   ROLES_ADMIN_CANTINA, listaDe, num, esCancelacion, mensajeError, descargarBlob,
 } from '../../components/cantina/cxc/utilsCxc';
+import { diferir } from '../../utils/diferir';
 
 const AREAS = [
   { value: '', label: 'Todas las áreas' },
@@ -68,11 +69,11 @@ export default function CantinaCuentasPorCobrar() {
       .finally(() => { if (!signal?.aborted) setCargadoPara(claveFiltros); });
   }, [area, soloDeuda, pagina, claveFiltros]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     cargar(controller.signal);
     return () => controller.abort();
-  }, [cargar]);
+  }), [cargar]);
 
   const cambiarFiltro = (setter) => (valor) => {
     setter(valor);

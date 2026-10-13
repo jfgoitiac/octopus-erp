@@ -14,6 +14,7 @@ import { printComprobanteCompacto } from '../utils/printComprobanteCompacto';
 import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
+import { diferir } from '../utils/diferir';
 
 const METODOS = [
   { value: '', label: 'Todos los métodos' },
@@ -214,11 +215,11 @@ export default function Comprobantes() {
     }
   }, [buildParams]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     fetchComprobantes(filters, 1);
     return () => { abortControllerRef.current?.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchComprobantes]);
+  }), [fetchComprobantes]);
 
   const handleSearch = () => {
     if (filters.fecha_inicio && filters.fecha_fin && filters.fecha_inicio > filters.fecha_fin) {

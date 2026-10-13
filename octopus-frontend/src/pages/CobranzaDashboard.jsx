@@ -6,6 +6,7 @@ import {
   Download, Loader2, CreditCard
 } from 'lucide-react';
 import axiosInstance from '../api/apiClient';
+import { diferir } from '../utils/diferir';
 
 const CobranzaDashboard = () => {
   const navigate = useNavigate();
@@ -29,9 +30,9 @@ const CobranzaDashboard = () => {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     fetchStats();
-  }, []);
+  }), []);
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter' && searchTerm) {

@@ -17,6 +17,7 @@ import {
   getConfiguracionSitio, patchConfiguracionSitio, getMenus, createMenu, actualizarItemsMenu,
   getPaginas, getArticulos,
 } from '../api/sitio.service';
+import { diferir } from '../utils/diferir';
 
 // URL del sitio público (octopus-sitio) — origin distinto al panel admin en
 // producción (deploy/nginx/clhma.com.conf: clhma.com sirve octopus-sitio/dist,
@@ -54,7 +55,7 @@ const TabConfig = () => {
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchConfig, []);
+  useEffect(() => diferir(fetchConfig), []);
 
   const handleChange = (field, value) => setConfig((c) => ({ ...c, [field]: value }));
   const handleRedChange = (red, value) =>
@@ -300,7 +301,7 @@ const TabMenu = () => {
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchMenus, []);
+  useEffect(() => diferir(fetchMenus), []);
 
   // Opciones para los <select> de destino de cada item (tipo 'pagina' /
   // 'articulo'). page_size alto porque son listas de referencia para un

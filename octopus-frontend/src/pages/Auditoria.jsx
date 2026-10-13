@@ -13,6 +13,7 @@ import { nombreUsuario, inicialesUsuario } from '../utils/nombreUsuario';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
+import { diferir } from '../utils/diferir';
 
 function parseISODate(str) {
     if (!str) return null;
@@ -309,9 +310,9 @@ const Auditoria = () => {
     }, [searchInput]);
 
     // Volver a la página 1 cuando cambian los filtros que afectan el resultado
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         setCurrentPage(1);
-    }, [fechaInicio, fechaFin, filtroModulo, busqueda]);
+    }), [fechaInicio, fechaFin, filtroModulo, busqueda]);
 
     const {
         loading, refreshing, exporting, exportingPagos, reporte, logs,
