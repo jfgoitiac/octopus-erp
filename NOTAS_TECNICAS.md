@@ -4111,13 +4111,9 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    `estado='recibido'`), sin modelo nuevo ni migraciones: `destinatario` guarda el
    número de ORIGEN y `asunto` el id del proveedor (para descartar reintentos del
    webhook). Si el volumen crece conviene un modelo `MensajeWhatsApp` propio con
-   índice por id externo. Los adjuntos (imagen, audio, documento) solo quedan como
-   "[tipo recibido]": no se descargan. Twilio se valida con la URL absoluta: detrás
+   índice por id externo. Twilio se valida con la URL absoluta: detrás
    de un proxy hace falta `SECURE_PROXY_SSL_HEADER`/`USE_X_FORWARDED_HOST` para que
-   la firma coincida. Meta exige configurar en el panel la URL
-   `/api/notificaciones/whatsapp/webhook/meta/` y las variables
-   `META_WEBHOOK_VERIFY_TOKEN` y `META_APP_SECRET`. No se avisa por push al
-   responsable cuando llega una respuesta (solo aparece en bandeja y conversación).
+   la firma coincida.
 2. **Takeover = pausa con motivo `gestion_humana`**: reutiliza `pausar_ciclo`, así
    que el motor ya no le escribe (no hubo migraciones). Si un ciclo ya estaba en
    pausa por otro motivo (convenio, reclamo), al tomarlo solo se asigna el
@@ -4136,3 +4132,26 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    `MainLayout` solo resuelve rutas exactas y muestra "Octopus ERP" (igual que
    las demás páginas de detalle).
 7. **Lint preexistente**: `src/pages/Horarios.test.jsx` (`waitFor` sin usar).
+
+## WhatsApp entrante: adjuntos, aviso push y configuración desde la app (13/10/2026)
+
+1. **Descarga síncrona**: el webhook descarga el adjunto antes de responder (máx.
+   16 MB, timeouts de 10–20 s). Si Meta reintenta por demora, la deduplicación por
+   id evita duplicados. Con mucho volumen conviene moverlo a una tarea de Celery.
+2. **Tipos permitidos**: imagen (jpeg/png/webp), audio, video mp4/3gpp y PDF. El
+   resto deja la nota "[Archivo no permitido: …]". No hay antivirus.
+3. **Almacenamiento**: `media/whatsapp_entrante/` con nombre aleatorio. Se sirve
+   por `/api/notificaciones/whatsapp/adjuntos/<id>/` (personal de cobranza con
+   acceso a la sede). OJO: si en producción el servidor web publica `/media/`
+   completo, esa carpeta también queda accesible por URL directa (difícil de
+   adivinar, pero pública): conviene excluirla en nginx.
+4. **Aviso push**: usa el tipo `mensaje` de las suscripciones del panel. Va al
+   responsable del caso; si no hay, a todos los usuarios activos con rol director,
+   administrador o cobranza (sin filtrar por sede).
+5. **Configuración desde la app**: token de verificación (se genera solo) y App
+   Secret de Meta viven en `ConfiguracionNotificaciones` (secreto cifrado). Las
+   variables del .env quedan como respaldo. El .env NO se edita desde la app a
+   propósito: se lee solo al arrancar, guarda secretos en texto plano y permitir
+   escribirlo desde la web abriría la puerta a tomar el servidor.
+6. **Lint preexistente**: `src/hooks/useConfiguracionNotificaciones.js`
+   (`set-state-in-effect`, línea del `useEffect` de carga). No se tocó.
