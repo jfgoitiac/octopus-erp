@@ -19,7 +19,7 @@ vi.mock('../../../api/cobranza.service', () => ({
     getBancos: () => Promise.resolve({ data: [] }),
     descargarArchivoMensaje: vi.fn(),
 }));
-vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
+vi.mock('../../../context/useSede', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('../../../hooks/usePolling', () => ({ usePolling: vi.fn() }));
 vi.mock('react-toastify', () => ({ toast: { success: (...a) => m.toastOk(...a), error: (...a) => m.toastError(...a) } }));
 // recharts no mide nada en jsdom: el contenedor responsivo se sustituye por un div.

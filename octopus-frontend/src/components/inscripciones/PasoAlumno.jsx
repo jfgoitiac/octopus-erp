@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserPlus, ArrowRight, ArrowLeft, AlertCircle, X, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { parse, format, isValid, differenceInYears } from 'date-fns';
@@ -33,10 +33,11 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
     const [fotoPreview,  setFotoPreview]  = useState(null);
     const [modalCompletar, setModalCompletar] = useState(false);
 
+    const cedulaRepresentante = datos.representante?.cedula ?? '';
     const fetchAlumnos = useCallback(async (signal) => {
         setLoading(true);
         try {
-            const cedula = datos.representante?.cedula ?? '';
+            const cedula = cedulaRepresentante;
             const res    = await fetchAlumnosPorRepresentante(cedula, signal);
             setAlumnos(res.data?.results ?? res.data ?? []);
         } catch (err) {
@@ -44,7 +45,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         } finally {
             setLoading(false);
         }
-    }, [datos.representante?.cedula]);
+    }, [cedulaRepresentante]);
 
     useEffect(() => {
         const controller = new AbortController();

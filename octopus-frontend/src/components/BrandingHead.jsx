@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useBranding } from '../context/BrandingContext';
+import { useBranding } from '../context/useBranding';
 
 // index.html trae un <title>/<link rel="icon"> estáticos como fallback visual
 // mientras carga el JS — este componente los sobreescribe en runtime con los

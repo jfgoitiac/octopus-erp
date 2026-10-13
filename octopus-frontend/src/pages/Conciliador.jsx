@@ -349,7 +349,7 @@ export default function Conciliador() {
     showClearConfirm, setShowClearConfirm,
     page, setPage,
     bankInfo, fileRef,
-    processFile, handleDrop, handleFileInput,
+    handleDrop, handleFileInput,
     handleSearch, openSearch, clearFile,
   } = useConciliador();
 

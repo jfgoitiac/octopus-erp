@@ -23,7 +23,7 @@ import BecasTab from '../components/configuracion/BecasTab';
 import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
-import { useBranding } from '../context/BrandingContext';
+import { useBranding } from '../context/useBranding';
 
 const TIPO_LABELS = {
     transferencia:  'Transferencia',

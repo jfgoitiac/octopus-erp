@@ -32,7 +32,7 @@ vi.mock('../../../api/cobranza.service', () => ({
     convertirAdjuntoComprobante: vi.fn(),
     descartarAdjunto: vi.fn(),
 }));
-vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
+vi.mock('../../../context/useSede', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('../../../hooks/usePolling', () => ({ usePolling: vi.fn() }));
 vi.mock('react-toastify', () => ({ toast: { success: (...a) => m.toastOk(...a), error: (...a) => m.toastError(...a) } }));
 

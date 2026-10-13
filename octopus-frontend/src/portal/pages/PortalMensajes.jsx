@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { MessageCircle } from 'lucide-react';
 import { getDashboard } from '../api/portal.service';
 import { usePortalMensajes } from '../hooks/usePortalMensajes';
-import { useAlumnoActivo } from '../context/AlumnoActivoContext';
+import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import EstudianteSelector from '../components/EstudianteSelector';
 import ChatMensajes from '../../components/mensajes/ChatMensajes';
 

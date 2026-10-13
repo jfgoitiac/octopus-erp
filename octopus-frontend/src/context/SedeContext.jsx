@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
 import { tokenStore } from '../api/tokenStore';
 
-export const SedeContext = createContext(null);
+import { SedeContext } from './useSede';
 
 export const SedeProvider = ({ children }) => {
   const [sedeActiva, setSedeActiva] = useState(null);
@@ -68,5 +68,3 @@ export const SedeProvider = ({ children }) => {
     </SedeContext.Provider>
   );
 };
-
-export const useSede = () => useContext(SedeContext);

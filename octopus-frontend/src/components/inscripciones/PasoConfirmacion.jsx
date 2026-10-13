@@ -1,4 +1,3 @@
-import React from 'react';
 import { Info, Check, Loader2, ArrowLeft } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';

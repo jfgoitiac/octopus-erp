@@ -66,7 +66,9 @@ export function useEstadoPorConcepto({
         if (!concepto) return;
         setExportingExcel(true);
         try {
-            const { page: _p, page_size: _ps, ...paramsSinPaginar } = buildParams();
+            const paramsSinPaginar = buildParams();
+            delete paramsSinPaginar.page;
+            delete paramsSinPaginar.page_size;
             const res = await exportarEstadoPorConceptoExcel(paramsSinPaginar);
             const url = URL.createObjectURL(new Blob([res.data], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -2,7 +2,7 @@ import { useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
 import { useContadoresCobranza } from '../hooks/useContadoresCobranza';

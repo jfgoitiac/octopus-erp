@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { BrandingContext, DEFAULTS } from './useBranding';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
@@ -23,21 +24,6 @@ const resolverUrl = (url) => {
   if (!url) return '';
   return /^https?:\/\//i.test(url) ? url : `${API_BASE}${url}`;
 };
-
-const DEFAULTS = {
-  nombreColegio: '',
-  colorPrimario: '#0fa3b1',
-  colorSecundario: '#1f3864',
-  logoUrl: '',
-  tituloWeb: '',
-  descripcionWeb: '',
-  faviconUrl: '',
-  vapidPublicKey: '',
-  nombreApp: '',
-  iconoAppUrl: '',
-};
-
-const BrandingContext = createContext({ ...DEFAULTS, loading: true, refreshBranding: () => {} });
 
 export const BrandingProvider = ({ children }) => {
   const [branding, setBranding] = useState(DEFAULTS);
@@ -84,5 +70,3 @@ export const BrandingProvider = ({ children }) => {
 
   return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
 };
-
-export const useBranding = () => useContext(BrandingContext);

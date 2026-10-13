@@ -4,7 +4,7 @@ import { Lock, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { confirmarResetPassword } from '../api/portal.service';
-import { useBranding } from '../../context/BrandingContext';
+import { useBranding } from '../../context/useBranding';
 
 const PortalRestablecerContrasena = () => {
   const { nombreColegio, logoUrl } = useBranding();

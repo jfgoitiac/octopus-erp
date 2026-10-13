@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { Card } from '../../ui/Card';
 import DatePickerES from '../../DatePickerES';
 import { SkeletonLista } from '../shared/SkeletonLista';
-import { useSede } from '../../../context/SedeContext';
+import { useSede } from '../../../context/useSede';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
 import { getReporteAB } from '../../../api/cobranza.service';
 import { etiquetaDia } from '../automatizaciones/automatizacionesUtils';

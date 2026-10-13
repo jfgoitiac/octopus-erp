@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { PortalAuthContext } from '../context/PortalAuthContext';
+import { PortalAuthContext } from '../context/usePortalAuth';
 
 // Skeleton fullscreen mientras carga
 const FullscreenSkeleton = () => (

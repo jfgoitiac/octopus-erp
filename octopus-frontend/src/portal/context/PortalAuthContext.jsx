@@ -1,11 +1,10 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import portalClient from '../api/portalClient';
+import { PortalAuthContext } from './usePortalAuth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
-
-export const PortalAuthContext = createContext(null);
 
 export const PortalAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -113,5 +112,3 @@ export const PortalAuthProvider = ({ children }) => {
     </PortalAuthContext.Provider>
   );
 };
-
-export const usePortalAuth = () => useContext(PortalAuthContext);

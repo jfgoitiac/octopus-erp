@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboardConsolidado } from '../api/multisede.service';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 
 export const useMultiSedeDashboard = () => {
   const { setSedes } = useSede();

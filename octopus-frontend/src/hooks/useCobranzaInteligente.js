@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 import {
     getCobranzaInteligente,
     actualizarCobranzaInteligente,

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboard } from '../api/portal.service';
 import { getRendimientoAlumnoPortal } from '../api/academico.service';
-import { useAlumnoActivo } from '../context/AlumnoActivoContext';
+import { useAlumnoActivo } from '../context/useAlumnoActivo';
 
 export function useRendimientoPortal() {
   const [alumnos, setAlumnos] = useState([]);

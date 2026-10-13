@@ -133,11 +133,12 @@ const ConstructorPaginas = ({ pagina }) => {
   const menuRef = useRef(null);
   const iframeRef = useRef(null);
 
+  const paginaId = pagina?.id;
   const fetchSecciones = useCallback(async (signal) => {
-    if (!pagina?.id) { setSecciones([]); return; }
+    if (!paginaId) { setSecciones([]); return; }
     setLoading(true);
     try {
-      const res = await getSecciones(pagina.id, signal);
+      const res = await getSecciones(paginaId, signal);
       const ordenadas = [...res.data].sort((a, b) => a.orden - b.orden);
       setSecciones(ordenadas);
     } catch (err) {
@@ -147,7 +148,7 @@ const ConstructorPaginas = ({ pagina }) => {
     } finally {
       setLoading(false);
     }
-  }, [pagina?.id]);
+  }, [paginaId]);
 
   useEffect(() => {
     const controller = new AbortController();

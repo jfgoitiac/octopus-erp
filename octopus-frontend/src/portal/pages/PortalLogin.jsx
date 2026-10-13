@@ -3,8 +3,8 @@ import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
-import { PortalAuthContext } from '../context/PortalAuthContext';
-import { useBranding } from '../../context/BrandingContext';
+import { PortalAuthContext } from '../context/usePortalAuth';
+import { useBranding } from '../../context/useBranding';
 import BannerInstalarApp from '../components/BannerInstalarApp';
 
 const PortalLogin = () => {

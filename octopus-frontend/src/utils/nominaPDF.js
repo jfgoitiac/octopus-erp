@@ -58,11 +58,11 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
     let y;
     if (encabezadoPersonalizado) {
         // Banner de ancho completo ya maquetado por el colegio — reemplaza el bloque logo+texto.
-        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, HDR_TOP, RM - LM, BANNER_H); } catch (_) {}
+        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, HDR_TOP, RM - LM, BANNER_H); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
         y = HDR_TOP + BANNER_H + 4;
     } else {
         // Logo del colegio (base64 proveniente de useInstitucionPDF — omitido si null)
-        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, HDR_TOP, LOGO_SIZE, LOGO_SIZE); } catch (_) {}
+        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, HDR_TOP, LOGO_SIZE, LOGO_SIZE); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
 
         // Texto centrado en el espacio restante a la derecha del logo
         const txtX = LM + LOGO_SIZE + 2;
@@ -219,7 +219,7 @@ function _buildReciboAVECDoc(emp, data, calc, cesta, institucion) {
     // ── Pie de página con dirección ─────────────────────────────────────────
     if (piePaginaPersonalizado) {
         const FOOTER_H = (RM - LM) / (2200 / 220);
-        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch (_) {}
+        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
     } else {
         doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
         doc.line(LM, H - 14, RM, H - 14);
@@ -247,11 +247,11 @@ export function generarReciboSimplePDF(emp, data, institucion = {}) {
 
     let y;
     if (encabezadoPersonalizado) {
-        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, 8, RM - LM, 35); } catch (_) {}
+        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, 8, RM - LM, 35); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
         y = 8 + 35 + 4;
     } else {
         y = 10;
-        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
+        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
 
         y = 14;
         doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
@@ -325,7 +325,7 @@ export function generarReciboSimplePDF(emp, data, institucion = {}) {
     doc.text('Firma del Empleado', W/2, y + 4, { align: 'center' });
     if (piePaginaPersonalizado) {
         const FOOTER_H = (RM - LM) / (2200 / 220);
-        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch (_) {}
+        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
     } else {
         doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
         doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W/2, H - 8, { align: 'center' });
@@ -462,11 +462,11 @@ export function reciboSimpleBytes(emp, data, institucion = {}) {
 
     let y;
     if (encabezadoPersonalizado) {
-        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, 8, RM - LM, 35); } catch (_) {}
+        try { doc.addImage(encabezadoPersonalizado, 'PNG', LM, 8, RM - LM, 35); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
         y = 8 + 35 + 4;
     } else {
         y = 10;
-        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch (_) {}
+        if (logoColegio) try { doc.addImage(logoColegio, 'PNG', LM, y, 22, 22); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
 
         y = 14;
         doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
@@ -540,7 +540,7 @@ export function reciboSimpleBytes(emp, data, institucion = {}) {
     doc.text('Firma del Empleado', W/2, y + 4, { align: 'center' });
     if (piePaginaPersonalizado) {
         const FOOTER_H = (RM - LM) / (2200 / 220);
-        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch (_) {}
+        try { doc.addImage(piePaginaPersonalizado, 'PNG', LM, H - FOOTER_H - 4, RM - LM, FOOTER_H); } catch { /* imagen opcional: si jsPDF no puede cargarla se omite */ }
     } else {
         doc.setFontSize(6.5); doc.setTextColor(150, 150, 150);
         doc.text('Documento generado automáticamente — Sistema de Gestión Escolar', W/2, H - 8, { align: 'center' });

@@ -11,7 +11,7 @@ vi.mock('../../../api/cobranza.service', () => ({
     getProyeccionCaja: (...a) => m.proy(...a),
     getReporteAB: (...a) => m.ab(...a),
 }));
-vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
+vi.mock('../../../context/useSede', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: (...a) => m.toastError(...a) } }));
 
 const cero = { casos: 0, comprometido_usd: '0.00', esperado_usd: '0.00' };

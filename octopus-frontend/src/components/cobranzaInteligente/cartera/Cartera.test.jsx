@@ -20,7 +20,7 @@ vi.mock('../../../api/cobranza.service', () => ({
     crearConvenioInteligente: vi.fn(),
     accionCicloInteligente: vi.fn(),
 }));
-vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
+vi.mock('../../../context/useSede', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('../../../hooks/usePolling', () => ({ usePolling: vi.fn() }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { iniciales } from './iniciales';
 
-export const iniciales = (nombre = '') =>
-  nombre.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() || '').join('') || '?';
 
 // Avatar — si hay `foto` (URL) se muestra la imagen real recortada en círculo;
 // si no, iniciales sobre un degradé de marca con anillo de contraste.

@@ -5,7 +5,7 @@ import { Card } from '../../ui/Card';
 import { TablaScroll } from '../../ui/TablaScroll';
 import { SkeletonLista } from '../shared/SkeletonLista';
 import { PerfilPagadorBadge } from '../shared/PerfilPagadorBadge';
-import { useSede } from '../../../context/SedeContext';
+import { useSede } from '../../../context/useSede';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
 import { getProyeccionCaja } from '../../../api/cobranza.service';
 import { hoyISO } from '../automatizaciones/automatizacionesUtils';

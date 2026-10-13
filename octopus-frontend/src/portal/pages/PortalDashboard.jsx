@@ -1,8 +1,8 @@
 import { useState, useEffect, useContext, useCallback } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { PortalAuthContext } from '../context/PortalAuthContext';
-import { useAlumnoActivo } from '../context/AlumnoActivoContext';
+import { PortalAuthContext } from '../context/usePortalAuth';
+import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import { getDashboard } from '../api/portal.service';
 import { usePortalHeroExtra } from '../hooks/usePortalHeroExtra';
 import EstudianteSelector from '../components/EstudianteSelector';

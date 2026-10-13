@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
 import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, ClipboardList, Menu, X, Download } from 'lucide-react';
-import { usePortalAuth } from '../context/PortalAuthContext';
+import { usePortalAuth } from '../context/usePortalAuth';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
-import { useBranding } from '../../context/BrandingContext';
+import { useBranding } from '../../context/useBranding';
 import NotificacionesModal from './NotificacionesModal';
 import RepresentanteRail from './RepresentanteRail';
 import BannerInstalarApp from './BannerInstalarApp';

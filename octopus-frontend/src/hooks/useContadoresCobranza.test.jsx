@@ -4,7 +4,7 @@ import { useContadoresCobranza } from './useContadoresCobranza';
 
 const m = vi.hoisted(() => ({ contadores: vi.fn() }));
 vi.mock('../api/cobranza.service', () => ({ getContadoresInteligente: (...a) => m.contadores(...a) }));
-vi.mock('../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 } }) }));
+vi.mock('../context/useSede', () => ({ useSede: () => ({ sedeActiva: { id: 1 } }) }));
 vi.mock('./usePolling', () => ({ usePolling: vi.fn() }));
 
 describe('useContadoresCobranza', () => {

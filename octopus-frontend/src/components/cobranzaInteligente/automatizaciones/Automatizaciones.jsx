@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Settings, Info } from 'lucide-react';
-import { useSede } from '../../../context/SedeContext';
+import { useSede } from '../../../context/useSede';
 import { SkeletonLista } from '../shared/SkeletonLista';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
 import { getReglasCobranza, getCobranzaInteligente } from '../../../api/cobranza.service';

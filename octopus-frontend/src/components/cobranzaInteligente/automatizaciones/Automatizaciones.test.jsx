@@ -22,7 +22,7 @@ vi.mock('../../../api/cobranza.service', () => ({
     actualizarRespuestaRapida: vi.fn(),
     eliminarRespuestaRapida: (...a) => m.elimRapida(...a),
 }));
-vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
+vi.mock('../../../context/useSede', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('react-toastify', () => ({ toast: { success: (...a) => m.toastOk(...a), error: (...a) => m.toastError(...a) } }));
 
 const regla = { id: 3, nombre: 'Seguimiento cordial', dia_relativo: 3, etapa: 'temprana', canal: 'whatsapp', plantilla: 'seguimiento_1', destinatario: 'representante', activa: true, saldo_minimo: '0.01' };

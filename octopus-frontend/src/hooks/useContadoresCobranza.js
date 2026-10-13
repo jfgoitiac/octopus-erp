@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 import { usePolling } from './usePolling';
 import { getContadoresInteligente } from '../api/cobranza.service';
 

@@ -11,7 +11,7 @@ import { TablaScroll } from '../components/ui/TablaScroll';
 import GradoSelect from '../components/GradoSelect';
 import { INPUT_STYLE } from '../constants/styles';
 import { usePaquetesHorario, useGradosPaquete } from '../hooks/usePaquetesHorario';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 
 const ESTADO_ESTILO = {
   borrador:  { background: '#f4f4f5', color: 'var(--ash)' },

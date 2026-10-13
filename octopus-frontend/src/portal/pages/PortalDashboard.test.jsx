@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import PortalDashboard from './PortalDashboard';
-import { PortalAuthContext } from '../context/PortalAuthContext';
+import { PortalAuthContext } from '../context/usePortalAuth';
 
 const m = vi.hoisted(() => ({ dashboard: vi.fn(), toastInfo: vi.fn(), toastError: vi.fn() }));
 
 vi.mock('../api/portal.service', () => ({ getDashboard: (...a) => m.dashboard(...a) }));
 vi.mock('react-toastify', () => ({ toast: { info: (...a) => m.toastInfo(...a), error: (...a) => m.toastError(...a) } }));
-vi.mock('../context/AlumnoActivoContext', () => ({
+vi.mock('../context/useAlumnoActivo', () => ({
   useAlumnoActivo: () => ({ alumnoActivo: null, setAlumnoActivo: vi.fn(), sincronizarConLista: vi.fn() }),
 }));
 vi.mock('../hooks/usePortalHeroExtra', () => ({

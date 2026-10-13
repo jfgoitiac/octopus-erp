@@ -5,9 +5,8 @@ import { ChevronLeft, ChevronRight, Receipt, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getDashboard, getHistorial, getReciboPago } from '../api/portal.service';
 import { descargarPdf, nombreArchivoPdf } from '../../utils/pdfArchivo';
-import { useAlumnoActivo } from '../context/AlumnoActivoContext';
+import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import EstudianteSelector from '../components/EstudianteSelector';
-import SkeletonCard from '../components/SkeletonCard';
 import { SkeletonLine } from '../components/SkeletonCard';
 
 const formatFecha = (fechaStr) => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useInscripcion } from '../hooks/useInscripcion';
 import { BarraProgreso }     from '../components/inscripciones/BarraProgreso';
 import { PasoRepresentante } from '../components/inscripciones/PasoRepresentante';

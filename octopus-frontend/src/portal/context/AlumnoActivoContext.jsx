@@ -1,8 +1,7 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { AlumnoActivoContext } from './useAlumnoActivo';
 
 const STORAGE_KEY = 'portal_alumno_activo_id';
-
-export const AlumnoActivoContext = createContext(null);
 
 /**
  * Alumno seleccionado en el portal, compartido entre Dashboard, Historial,
@@ -56,5 +55,3 @@ export const AlumnoActivoProvider = ({ children }) => {
     </AlumnoActivoContext.Provider>
   );
 };
-
-export const useAlumnoActivo = () => useContext(AlumnoActivoContext);

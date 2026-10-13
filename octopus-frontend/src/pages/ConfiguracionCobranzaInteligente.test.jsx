@@ -14,7 +14,7 @@ vi.mock('../api/cobranza.service', () => ({
     actualizarCobranzaInteligente: (...a) => patchMock(...a),
     getHistorialCobranzaInteligente: () => Promise.resolve({ data: { results: [] } }),
 }));
-vi.mock('../context/SedeContext', () => ({ useSede: () => sedeState }));
+vi.mock('../context/useSede', () => ({ useSede: () => sedeState }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const estado = (extra = {}) => ({

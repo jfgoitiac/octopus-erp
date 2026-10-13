@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { suscribirPush, desuscribirPush } from '../api/notificaciones.service';
-import { useBranding } from '../../context/BrandingContext';
+import { useBranding } from '../../context/useBranding';
 import { limpiarServiceWorkersEnDev } from '../../utils/devServiceWorker';
 
 export const isPushSupported = () =>

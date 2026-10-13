@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Save, Loader2, Trash2, AlertTriangle, UserRound } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { INPUT_STYLE } from '../../constants/styles';
-import { useSede } from '../../context/SedeContext';
+import { useSede } from '../../context/useSede';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 import { Modal } from '../ui/Modal';
 

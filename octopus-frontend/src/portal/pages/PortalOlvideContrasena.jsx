@@ -4,7 +4,7 @@ import { Mail, ArrowLeft, MailCheck } from 'lucide-react';
 import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
 import { solicitarResetPassword } from '../api/portal.service';
-import { useBranding } from '../../context/BrandingContext';
+import { useBranding } from '../../context/useBranding';
 
 const PortalOlvideContrasena = () => {
   const { nombreColegio, logoUrl } = useBranding();

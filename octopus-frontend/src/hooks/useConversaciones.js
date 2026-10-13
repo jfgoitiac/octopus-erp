@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 import { usePolling } from './usePolling';
 import { getConversacionesInteligente } from '../api/cobranza.service';
 import {

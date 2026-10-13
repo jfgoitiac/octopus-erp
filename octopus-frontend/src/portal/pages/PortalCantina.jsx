@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboard, getSaldoTarjetaCantina, getHistorialConsumoCantina, getCuentaCantina } from '../api/portal.service';
-import { useAlumnoActivo } from '../context/AlumnoActivoContext';
+import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
 import HistorialConsumoList from '../components/HistorialConsumoList';

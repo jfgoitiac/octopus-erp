@@ -1,4 +1,4 @@
-import { useBranding } from '../../context/BrandingContext';
+import { useBranding } from '../../context/useBranding';
 
 // Adaptador delgado sobre el BrandingContext compartido (antes pegaba a su
 // propio endpoint, duplicando el fetch que ya hacen PortalLayout y

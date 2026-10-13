@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
     DollarSign, Building2, Smartphone, CreditCard, Banknote,
 } from 'lucide-react';
@@ -51,7 +51,6 @@ const metodoPagoIcons = {
 
 const Cobranza = () => {
     const location = useLocation();
-    const navigate = useNavigate();
     const { tasa: tasaBCV, error: tasaError, ultimaActualizacion, refetch: refetchTasa } = useTasaBCV();
 
     // ── Modo retroactivo: el dinero ya se recibió en una fecha pasada. Cuando

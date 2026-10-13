@@ -3,7 +3,7 @@ import { ClipboardList, CalendarDays } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getDashboard } from '../api/portal.service';
 import { getPlanesEvaluacionAlumnoPortal } from '../api/academico.service';
-import { useAlumnoActivo } from '../context/AlumnoActivoContext';
+import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SkeletonCard from '../components/SkeletonCard';
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { useSede } from '../context/SedeContext';
+import { useSede } from '../context/useSede';
 
 export const mensajeErrorInteligente = (err) =>
     err?.response?.data?.detail || 'No se pudo completar la acción. Intenta de nuevo.';

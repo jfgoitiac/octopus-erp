@@ -6,11 +6,6 @@ import { Modal } from '../ui/Modal';
 import { useBecas } from '../../hooks/useBecas';
 import ModalBeca from './ModalBeca';
 
-const TIPO_LABELS = {
-    academica: 'Académica', deportiva: 'Deportiva', socioeconomica: 'Socioeconómica',
-    hermanos: 'Hermanos', empleado: 'Hijo de Empleado', otra: 'Otra',
-};
-
 const fechaCorta = (iso) => {
     if (!iso) return '—';
     try { return format(new Date(`${iso}T00:00:00`), 'dd/MM/yyyy', { locale: es }); }

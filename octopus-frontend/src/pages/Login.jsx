@@ -2,9 +2,9 @@ import { useState, useContext } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getLandingRoute } from '../constants/roles';
-import { Lock, User, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import logoColegioFallback from '../assets/logo-colegio.png';
-import { useBranding } from '../context/BrandingContext';
+import { useBranding } from '../context/useBranding';
 import { toast } from 'react-toastify';
 
 const classifyAuthError = (err) => {
