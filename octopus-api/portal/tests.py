@@ -644,6 +644,120 @@ class AdminComprobantesTests(PortalTestBase):
         self.assertEqual(self.comprobante.estatus, 'rechazado')
 
 
+class PortalComprobanteConjuntoTests(PortalTestBase):
+    """
+    Pago conjunto: el representante paga con UNA transferencia las
+    mensualidades de varios hijos y sube un solo comprobante para todas.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.hermano = crear_alumno(self.rep, 'E84000002', nombre='Jose', apellido='Perez')
+        hoy = date.today()
+        self.mens_hermano = crear_mensualidad(self.hermano, hoy.month, hoy.year, monto='40.00')
+
+    def _subir(self, ids, referencia='REF-CONJ-1', nombre='pago.png'):
+        archivo = SimpleUploadedFile(nombre, PNG_BYTES, content_type='image/png')
+        with mock.patch('portal.tasks.notificar_comprobante_subido.delay'):
+            return self.client.post('/api/portal/comprobante/', {
+                'mensualidad_ids': ids,
+                'archivo': archivo,
+                'referencia_bancaria': referencia,
+            }, format='multipart')
+
+    def _auth_admin(self):
+        admin = User.objects.create_user(
+            username='cobranza_conj', password='clave123456', email='cc@example.com'
+        )
+        asignar_rol(admin, 'cobranza')
+        from rest_framework_simplejwt.tokens import RefreshToken
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {RefreshToken.for_user(admin).access_token}'
+        )
+
+    def _aprobar(self, comprobante):
+        self._auth_admin()
+        with mock.patch('portal.services.notificar_pago_aprobado') as notif:
+            resp = self.client.patch(
+                f'/api/portal/admin/comprobantes/{comprobante.id}/', {'estatus': 'aprobado'},
+            )
+        return resp, notif
+
+    def test_un_comprobante_cubre_mensualidades_de_varios_hijos(self):
+        self.auth_portal()
+        resp = self._subir([self.mensualidad.id, self.mens_hermano.id])
+        self.assertEqual(resp.status_code, 201, resp.content)
+        comprobante = ComprobantePago.objects.get()
+        self.assertEqual(
+            set(comprobante.mensualidades.values_list('id', flat=True)),
+            {self.mensualidad.id, self.mens_hermano.id},
+        )
+        self.assertEqual(set(resp.data['mensualidades']), {self.mensualidad.id, self.mens_hermano.id})
+        self.assertEqual(comprobante.monto_usd_total, Decimal('75.00'))
+
+    def test_mensualidad_ajena_en_el_conjunto_404_sin_crear_nada(self):
+        rep2, _, _ = crear_representante_con_portal('V22222222', 'rep2@example.com', 'otra-clave-123')
+        ajena = crear_mensualidad(crear_alumno(rep2, 'E84000009'), date.today().month, date.today().year)
+        self.auth_portal()
+        resp = self._subir([self.mensualidad.id, ajena.id])
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(ComprobantePago.objects.count(), 0)
+
+    def test_id_invalido_400(self):
+        self.auth_portal()
+        resp = self._subir([self.mensualidad.id, 'abc'])
+        self.assertEqual(resp.status_code, 400)
+
+    def test_mensualidad_con_comprobante_pendiente_bloquea_el_conjunto(self):
+        self.auth_portal()
+        self.assertEqual(self._subir([self.mens_hermano.id], referencia='REF-A').status_code, 201)
+        resp = self._subir([self.mensualidad.id, self.mens_hermano.id], referencia='REF-B', nombre='b.png')
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertIn('Jose', resp.data['error'])
+        self.assertEqual(ComprobantePago.objects.count(), 1)
+
+    def test_la_misma_referencia_no_se_reusa_en_otro_comprobante(self):
+        self.auth_portal()
+        self.assertEqual(self._subir([self.mensualidad.id]).status_code, 201)
+        resp = self._subir([self.mens_hermano.id], nombre='otro.png')
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertIn('mismo envío', resp.data['error'])
+
+    def test_aprobar_genera_un_solo_pago_por_el_total_enlazado_a_todas(self):
+        self.auth_portal()
+        self._subir([self.mensualidad.id, self.mens_hermano.id])
+        comprobante = ComprobantePago.objects.get()
+        resp, notif = self._aprobar(comprobante)
+        self.assertEqual(resp.status_code, 200, resp.content)
+        for m in (self.mensualidad, self.mens_hermano):
+            m.refresh_from_db()
+            self.assertTrue(m.pagado)
+        pago = Pago.objects.get()
+        self.assertEqual(pago.monto_usd, Decimal('75.00'))
+        self.assertEqual(pago.referencia, 'REF-CONJ-1')
+        self.assertEqual(
+            set(pago.mensualidades_pagadas.values_list('id', flat=True)),
+            {self.mensualidad.id, self.mens_hermano.id},
+        )
+        self.assertEqual(notif.call_count, 2)
+
+    def test_admin_lista_el_conjunto_con_monto_total(self):
+        self.auth_portal()
+        self._subir([self.mensualidad.id, self.mens_hermano.id])
+        self._auth_admin()
+        item = self.client.get('/api/portal/admin/comprobantes/').data[0]
+        self.assertEqual(Decimal(item['monto_usd']), Decimal('75.00'))
+        self.assertIn('Jose Perez', item['alumno'])
+        self.assertIn('(Jose Perez)', item['mensualidad'])
+
+    def test_comprobante_creado_sin_m2m_cubre_su_mensualidad_principal(self):
+        comprobante = ComprobantePago.objects.create(
+            mensualidad=self.mensualidad,
+            archivo=SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png'),
+        )
+        self.assertEqual(list(comprobante.mensualidades.all()), [self.mensualidad])
+
+
 @override_settings(PORTAL_EMAIL_DIRECTOR='director@example.com')
 class RecordatoriosCobranzaTests(PortalTestBase):
     """Flujo de recordatorios automáticos día 0/5/10/15."""

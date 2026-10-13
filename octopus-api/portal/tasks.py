@@ -31,9 +31,10 @@ def notificar_comprobante_subido(comprobante_id):
             'mensualidad__alumno__representante'
         ).get(id=comprobante_id)
 
-        alumno = comprobante.mensualidad.alumno
-        representante = alumno.representante
-        mensualidad = comprobante.mensualidad
+        representante = comprobante.mensualidad.alumno.representante
+        alumnos = comprobante.nombres_alumnos()
+        grados = ', '.join(a.grado_seccion or 'Sin grado' for a in comprobante.alumnos_cubiertos())
+        monto_usd = comprobante.monto_usd_total
 
         # Push a cobranza/administración (no depende de que haya emails destino).
         try:
@@ -45,7 +46,7 @@ def notificar_comprobante_subido(comprobante_id):
                     perfil__esta_activo=True, is_active=True),
                 'comprobante', 'Comprobante de pago pendiente',
                 f'{representante.nombre} {representante.apellido} · '
-                f'{alumno.nombre} {alumno.apellido} · ${mensualidad.monto_usd}',
+                f'{alumnos} · ${monto_usd}',
                 url='/comprobantes/revision', tipo_log='comprobante',
             )
         except Exception as e:
@@ -75,14 +76,14 @@ def notificar_comprobante_subido(comprobante_id):
             logger.warning(f'No hay destinatarios para notificación de comprobante {comprobante_id}')
             return
 
-        asunto = f'[Octopus] Comprobante de pago pendiente — {alumno.nombre} {alumno.apellido}'
+        asunto = f'[Octopus] Comprobante de pago pendiente — {alumnos}'
         mensaje = (
             f'El representante {representante.nombre} {representante.apellido} '
             f'(Cédula: {representante.cedula}) ha subido un comprobante de pago.\n\n'
-            f'Alumno: {alumno.nombre} {alumno.apellido}\n'
-            f'Grado: {alumno.grado_seccion or "Sin grado"}\n'
-            f'Mensualidad: {mensualidad.get_mes_display()} {mensualidad.anio}\n'
-            f'Monto: ${mensualidad.monto_usd} USD\n\n'
+            f'Alumno(s): {alumnos}\n'
+            f'Grado(s): {grados}\n'
+            f'Mensualidad(es): {comprobante.descripcion_mensualidades()}\n'
+            f'Monto: ${monto_usd} USD\n\n'
             f'Ingrese al panel administrativo para revisar y aprobar o rechazar el comprobante.'
         )
 

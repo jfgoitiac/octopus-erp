@@ -258,23 +258,24 @@ def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, s
     comprobantes = (
         filtrar_por_sede(user, ComprobantePago.objects.filter(**filtros), campo='mensualidad__alumno__sede')
         .select_related('mensualidad__alumno__representante')
+        .prefetch_related('mensualidades__alumno')
         .order_by('-fecha_subida')
     )
     tasa = TasaCambio.objects.order_by('-fecha').first()
     tasa_valor = tasa.valor_bs if tasa else Decimal('1')
     for c in comprobantes:
-        alumno = c.mensualidad.alumno
-        rep = alumno.representante
+        rep = c.mensualidad.alumno.representante
         resultados.append({
             'operacion_uuid': None,
             'comprobante_id': c.id,
             'tipo': 'comprobante_pendiente',
             'referencia': c.referencia_bancaria,
             'fecha': timezone.localtime(c.fecha_subida).date().isoformat(),
-            'monto_ves': str((c.mensualidad.monto_usd * tasa_valor).quantize(CENT)),
+            # Pago conjunto: el comprobante cubre todas sus mensualidades.
+            'monto_ves': str((c.monto_usd_total * tasa_valor).quantize(CENT)),
             'representante_id': rep.id,
             'representante': f'{rep.nombre} {rep.apellido}'.strip(),
-            'alumnos': [f'{alumno.nombre} {alumno.apellido}'.strip()],
+            'alumnos': [f'{a.nombre} {a.apellido}'.strip() for a in c.alumnos_cubiertos()],
             'pagos_ids': [],
             'conciliado': False,
             'lote_id': None,
@@ -400,8 +401,9 @@ MAX_OPERACIONES_POR_MOVIMIENTO = 20
 def _resolver_operacion(user, banco, operacion_uuid, comprobante_id):
     """
     Resuelve UNA operación a conciliar (dentro de la transacción del llamador).
-    Un comprobante pendiente se aprueba aquí. Devuelve
-    (operacion_uuid, pagos, comprobante|None, advertencias, (mensualidad, pago)|None).
+    Un comprobante pendiente se aprueba aquí (un solo Pago aunque cubra
+    varias mensualidades). Devuelve
+    (operacion_uuid, pagos, comprobante|None, advertencias, [(mensualidad, pago)]).
     """
     if bool(operacion_uuid) == bool(comprobante_id):
         raise ErrorConciliacion('Indique operacion_uuid o comprobante_id (solo uno).')
@@ -419,7 +421,7 @@ def _resolver_operacion(user, banco, operacion_uuid, comprobante_id):
         raise ErrorConciliacion('Operación no encontrada para ese banco.', status.HTTP_404_NOT_FOUND)
     if ConciliacionBancaria.objects.filter(operacion_uuid=operacion_uuid).exists():
         raise ErrorConciliacion('Esta operación ya fue conciliada.')
-    return operacion_uuid, pagos, None, [], None
+    return operacion_uuid, pagos, None, [], []
 
 
 def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_banco, monto_banco,
@@ -477,8 +479,7 @@ def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_ba
                 monto_op = sum((p.monto_ves for p in pagos), Decimal('0')).quantize(CENT)
                 nuevas.append((op_uuid, pagos, comprobante, monto_op))
                 advertencias.extend(adv)
-                if notif:
-                    notificar.append(notif)
+                notificar.extend(notif)
 
             monto_sistema = (
                 sum((c.monto_operacion_ves for c in previas), Decimal('0'))
@@ -569,7 +570,7 @@ def conciliar_item(user, banco, *, operacion_uuid, comprobante_id, referencia_ba
 
 def _aprobar_comprobante(user, banco, comprobante_id):
     """Aprueba el comprobante vía servicio. Devuelve
-    (comprobante, [pago], advertencias, (mensualidad, pago)) o lanza ErrorConciliacion."""
+    (comprobante, [pago], advertencias, [(mensualidad, pago)]) o lanza ErrorConciliacion."""
     from portal.models import ComprobantePago
     from portal.services import ComprobanteNoEncontrado, ComprobanteYaProcesado, aprobar_comprobante
 
@@ -586,7 +587,7 @@ def _aprobar_comprobante(user, banco, comprobante_id):
     if visible.banco_receptor_id != banco.id:
         raise ErrorConciliacion('El comprobante pertenece a otro banco receptor.')
     try:
-        comprobante, pago, mensualidad, advertencias = aprobar_comprobante(
+        comprobante, pago, mensualidades, advertencias = aprobar_comprobante(
             comprobante_id, user,
             observaciones='Aprobado automáticamente por conciliación bancaria',
         )
@@ -594,7 +595,7 @@ def _aprobar_comprobante(user, banco, comprobante_id):
         raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
     except ComprobanteYaProcesado as exc:
         raise ErrorConciliacion(f'Este comprobante ya fue procesado (estatus actual: {exc.estatus}).')
-    return comprobante, [pago], advertencias, (mensualidad, pago)
+    return comprobante, [pago], advertencias, [(m, pago) for m in mensualidades]
 
 
 class ConciliarOperacionView(APIView):

@@ -178,7 +178,7 @@ def _tiene_pago_en_revision(ciclo):
     m = ciclo.mensualidad
     return (
         Pago.objects.filter(alumno_id=m.alumno_id, estatus='en_revision').exists()
-        or ComprobantePago.objects.filter(mensualidad=m, estatus='pendiente').exists()
+        or ComprobantePago.objects.filter(mensualidades=m, estatus='pendiente').exists()
     )
 
 

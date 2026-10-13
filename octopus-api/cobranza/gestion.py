@@ -319,7 +319,7 @@ def pagos_en_revision(sede_ids=None, ahora=None):
     filas = []
     pagos = Pago.objects.filter(estatus='en_revision').select_related('alumno__representante')
     comprobantes = ComprobantePago.objects.filter(estatus='pendiente').select_related(
-        'mensualidad__alumno__representante')
+        'mensualidad__alumno__representante').prefetch_related('mensualidades__alumno')
     for p in pagos:
         if sede_ids is not None and p.alumno.sede_id not in sede_ids:
             continue
@@ -333,14 +333,15 @@ def pagos_en_revision(sede_ids=None, ahora=None):
         })
     for c in comprobantes:
         a = c.mensualidad.alumno
+        cubiertas = c.mensualidades_cubiertas()
         if sede_ids is not None and a.sede_id not in sede_ids:
             continue
         rep = a.representante
         filas.append({
             'tipo': 'comprobante', 'id': c.id, 'desde': c.fecha_subida,
             'dias_espera': max((ahora - c.fecha_subida).days, 0),
-            'monto_usd': str(c.mensualidad.monto_usd - c.mensualidad.monto_pagado),
-            'alumno': f'{a.nombre} {a.apellido}',
+            'monto_usd': str(sum((m.monto_usd - m.monto_pagado for m in cubiertas), Decimal('0'))),
+            'alumno': c.nombres_alumnos(),
             'representante': {'id': rep.id, 'nombre': f'{rep.nombre} {rep.apellido}', 'cedula': rep.cedula},
         })
     return sorted(filas, key=lambda f: -f['dias_espera'])

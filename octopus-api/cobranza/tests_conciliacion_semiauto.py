@@ -264,6 +264,35 @@ class ConciliarTest(BaseConciliacionTest):
         self.assertIn(pago, conc.lote.pagos.all())
         notif.assert_called_once()
 
+    def test_comprobante_conjunto_de_hermanos_se_lista_y_concilia_como_una_operacion(self):
+        """Un comprobante del portal que cubre las mensualidades de dos hijos
+        suma ambas en el candidato y, al conciliarlo, genera un solo Pago."""
+        mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
+        mens_h = Mensualidad.objects.create(alumno=self.hermano, mes=9, anio=2026, monto_usd=Decimal('15.00'))
+        comp = ComprobantePago.objects.create(
+            mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
+            referencia_bancaria='88776655', metodo_pago='transferencia', banco_receptor=self.banco,
+        )
+        comp.mensualidades.add(mens_h)
+
+        cand = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '6655'}).data['resultados'][0]
+        self.assertEqual(Decimal(cand['monto_ves']), Decimal('1000.00'))
+        self.assertEqual(sorted(cand['alumnos']), ['Ana Mena', 'Luis Mena'])
+
+        with patch('portal.services.notificar_pago_aprobado') as notif, \
+                self.captureOnCommitCallbacks(execute=True):
+            r = self.client.post(URL_CONC, {
+                'comprobante_id': comp.id, 'banco': self.banco.id,
+                'transaccion': {'referencia': '88776655', 'fecha': '2026-10-01', 'monto': '1000.00'},
+                'tolerancia': 200, 'observacion': '', 'archivo': 'e.pdf',
+            }, format='json')
+            self.assertEqual(r.status_code, 201, r.data)
+        pago = Pago.objects.get()
+        self.assertEqual(pago.monto_ves, Decimal('1000.00'))
+        self.assertEqual(set(pago.mensualidades_pagadas.all()), {mens, mens_h})
+        self.assertEqual(Decimal(r.data['conciliacion']['diferencia_ves']), Decimal('0.00'))
+        self.assertEqual(notif.call_count, 2)
+
     def test_comprobante_fuera_de_tolerancia_sin_observacion_no_se_aprueba(self):
         mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
         comp = ComprobantePago.objects.create(

@@ -394,10 +394,10 @@ class ComprobantePagoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComprobantePago
         fields = [
-            'id', 'mensualidad', 'archivo', 'fecha_subida',
+            'id', 'mensualidad', 'mensualidades', 'archivo', 'fecha_subida',
             'estatus', 'estatus_display', 'observaciones'
         ]
-        read_only_fields = ['fecha_subida', 'estatus', 'subido_por_ip']
+        read_only_fields = ['mensualidades', 'fecha_subida', 'estatus', 'subido_por_ip']
 
     def get_estatus_display(self, obj):
         return obj.get_estatus_display()

@@ -34,16 +34,18 @@ def resolver_comprobante(comprobante_id, nuevo_estatus, usuario, observaciones='
 
     Usa un ``atomic`` propio (anidable): toda la parte monetaria hace rollback
     si algo falla, y NO se traga las excepciones. Devuelve
-    ``(comprobante, pago_creado, mensualidad, advertencias)``.
+    ``(comprobante, pago_creado, mensualidades, advertencias)`` (``None`` y
+    lista vacía al rechazar).
     Lanza ``ComprobanteNoEncontrado`` / ``ComprobanteYaProcesado``.
 
     Al APROBAR:
-    - Marca la mensualidad como pagada.
-    - Crea un ``Pago`` vinculado (auditoría y coherencia del sistema).
+    - Marca como pagadas TODAS las mensualidades cubiertas (pago conjunto
+      de hermanos) y crea UN ``Pago`` por el total enlazado a todas ellas
+      (mismo criterio que caja): el conciliador lo ve como una operación.
     - Acumula advertencias antifraude (referencia / hash de archivo repetidos).
     """
     advertencias = []
-    mensualidad = None
+    mensualidades = []
     pago_creado = None
 
     with transaction.atomic():
@@ -54,7 +56,7 @@ def resolver_comprobante(comprobante_id, nuevo_estatus, usuario, observaciones='
         try:
             comprobante = ComprobantePago.objects.select_for_update().select_related(
                 'mensualidad__alumno'
-            ).get(id=comprobante_id)
+            ).prefetch_related('mensualidades__alumno').get(id=comprobante_id)
         except ComprobantePago.DoesNotExist:
             raise ComprobanteNoEncontrado()
 
@@ -66,8 +68,7 @@ def resolver_comprobante(comprobante_id, nuevo_estatus, usuario, observaciones='
         comprobante.save()
 
         if nuevo_estatus == 'aprobado':
-            mensualidad = comprobante.mensualidad
-            alumno = mensualidad.alumno
+            mensualidades = comprobante.mensualidades_cubiertas()
 
             # --- ANTIFRAUDE: verificar referencia antes de aprobar ---
             # Filtra por la misma clave compuesta (referencia, metodo_pago,
@@ -147,39 +148,42 @@ def resolver_comprobante(comprobante_id, nuevo_estatus, usuario, observaciones='
                         "Podría ser el mismo documento presentado dos veces."
                     )
 
-            if not mensualidad.pagado:
-                mensualidad.pagado = True
-                mensualidad.fecha_pago = timezone.now()
-                mensualidad.save()
+            # Pago conjunto: igual que caja, UNA transferencia = UN Pago por el
+            # total, enlazado a todas las mensualidades cubiertas (la referencia
+            # bancaria es única entre pagos activos). Si algo falla, la
+            # excepción sale del atomic() y revierte TODO.
+            for mensualidad in mensualidades:
+                if not mensualidad.pagado:
+                    mensualidad.pagado = True
+                    mensualidad.fecha_pago = timezone.now()
+                    mensualidad.save()
 
-            # Crear registro Pago para mantener coherencia de auditoría.
-            # Si algo de esto falla, la excepción sale del atomic() y
-            # revierte TODO (comprobante, mensualidad.pagado incluidos).
             tasa = TasaCambio.objects.order_by('-fecha').first()
             tasa_valor = tasa.valor_bs if tasa else 1
-
+            monto_usd = comprobante.monto_usd_total
             pago_creado = Pago.objects.create(
-                alumno=alumno,
+                alumno=comprobante.mensualidad.alumno,
                 usuario_receptor=usuario,
                 metodo_pago=comprobante.metodo_pago or 'transferencia',
                 banco_receptor=comprobante.banco_receptor,
                 concepto='mensualidad',
-                monto_usd=mensualidad.monto_usd,
+                monto_usd=monto_usd,
                 tasa_aplicada=tasa_valor,
-                monto_ves=(mensualidad.monto_usd * tasa_valor).quantize(Decimal('0.01')),
+                monto_ves=(monto_usd * tasa_valor).quantize(Decimal('0.01')),
                 referencia=referencia or f'COMP-{comprobante.id}',
                 observaciones=(
                     f'Pago aprobado desde comprobante del portal #{comprobante.id}'
                 ),
                 estatus='completado',
             )
-            mensualidad.pagos.add(pago_creado)
+            pago_creado.mensualidades_pagadas.set(mensualidades)
             # Recalcular con el criterio canónico: aprobar un comprobante
             # de un mes no implica solvencia si debe meses anteriores.
             from cobranza.mora import sincronizar_estatus_alumno
-            sincronizar_estatus_alumno(alumno)
+            for alumno in {m.alumno_id: m.alumno for m in mensualidades}.values():
+                sincronizar_estatus_alumno(alumno)
 
-    return comprobante, pago_creado, mensualidad, advertencias
+    return comprobante, pago_creado, mensualidades, advertencias
 
 
 def aprobar_comprobante(comprobante_id, usuario, observaciones=''):
