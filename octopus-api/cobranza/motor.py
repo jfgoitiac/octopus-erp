@@ -37,6 +37,7 @@ from .inteligente import corte_global_activo, obtener_configuracion
 from .models import (
     CicloCobranza, EnvioCobranza, EventoCiclo, ReglaCobranza,
 )
+from .perfil_pagador import PAGA_TARDE, perfiles_de
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ _GRAVEDAD_ETAPA = {
     ReglaCobranza.ETAPA_TEMPRANA: 1,
     ReglaCobranza.ETAPA_PRIORITARIA: 2,
 }
+
+# Día del recordatorio extra para el perfil "Paga tarde" (fase D, opcional por regla).
+DIA_RECORDATORIO_EXTRA = -3
 
 # Reglas por defecto (tabla del plan, Fase 2 / semana 5)
 REGLAS_POR_DEFECTO = (
@@ -84,6 +88,22 @@ def _reglas_de_sede(sede_id):
     return {r.dia_relativo: r for r in propias}
 
 
+def _regla_extra(reglas):
+    """Regla con el recordatorio extra en −3 (si no hay regla propia en ese día)."""
+    if DIA_RECORDATORIO_EXTRA in reglas:
+        return None
+    for r in sorted(reglas.values(), key=lambda r: r.dia_relativo):
+        if (r.recordatorio_extra_paga_tarde and r.destinatario == 'representante'
+                and r.canal != 'interno'):
+            return r
+    return None
+
+
+def es_recordatorio_extra(items, hoy):
+    """True si el candidato salió por el recordatorio extra en −3 y no por el día de su regla."""
+    return any(dias_de_mora(c.fecha_vencimiento, hoy) != r.dia_relativo for c, r in items)
+
+
 def _modulo_efectivo(cfg):
     return cfg.activo and not corte_global_activo()
 
@@ -113,10 +133,22 @@ def _candidatos(sede_id, hoy):
             estado__in=[e for e in CicloCobranza.ESTADOS_ABIERTOS if e != CicloCobranza.PAUSADA])
         .select_related('mensualidad__alumno__representante')
     )
+    ciclos = list(ciclos)
+    extra = _regla_extra(reglas)
+    perfiles = {}
+    if extra is not None:
+        # Solo se clasifica a quienes tienen una deuda que vence en 3 días.
+        reps_extra = {c.mensualidad.alumno.representante_id for c in ciclos
+                      if dias_de_mora(c.fecha_vencimiento, hoy) == DIA_RECORDATORIO_EXTRA}
+        perfiles = perfiles_de(reps_extra, hoy)
     por_representante = {}
     for ciclo in ciclos:
         # dias_de_mora = hoy - vencimiento: coincide con dia_relativo tal cual.
-        regla = reglas.get(dias_de_mora(ciclo.fecha_vencimiento, hoy))
+        dias = dias_de_mora(ciclo.fecha_vencimiento, hoy)
+        regla = reglas.get(dias)
+        if (regla is None and extra is not None and dias == DIA_RECORDATORIO_EXTRA
+                and perfiles.get(ciclo.mensualidad.alumno.representante_id) == PAGA_TARDE):
+            regla = extra
         if regla is None or _saldo(ciclo) < regla.saldo_minimo:
             continue
         rep = ciclo.mensualidad.alumno.representante
@@ -153,6 +185,9 @@ def evaluar_reglas_sede(sede_id, hoy=None):
             'saldo_total': str(sum((_saldo(c) for c, _ in items), Decimal('0.00'))),
             'dia_relativo': regla.dia_relativo,
         }
+        if es_recordatorio_extra(items, hoy):
+            detalle['dia_relativo'] = DIA_RECORDATORIO_EXTRA
+            detalle['extra'] = 'paga_tarde'
         try:
             with transaction.atomic():
                 EnvioCobranza.objects.create(
@@ -206,6 +241,7 @@ def simular_reglas_sede(sede_id, fecha=None, ahora=None):
             'saldo_total_usd': str(sum((_saldo(c) for c in ciclos), Decimal('0.00'))),
             'ciclos': [c.id for c in ciclos],
             'envio_existente': existente.id if existente else None,
+            'recordatorio_extra': es_recordatorio_extra(items, fecha),
         })
     return filas
 

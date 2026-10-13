@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 from authentication.views import EsPersonalCobranza
 from secretaria.models import Representante
 
-from . import control_envios, gestion, hoy as servicio_hoy
+from . import control_envios, gestion, hoy as servicio_hoy, perfil_pagador
 from .views_gestion import _apagada, _ciclos, _error, _serializar_convenio, sedes_activas_accesibles
 
 
@@ -134,3 +134,24 @@ class HistorialCobrosView(APIView):
             return _error('No encontrado.', status.HTTP_404_NOT_FOUND)
         filas = control_envios.historial_cobros(rep)
         return Response({'representante': rep.id, 'count': len(filas), 'results': filas})
+
+
+class PerfilPagadorView(APIView):
+    """
+    GET /inteligente/representantes/<id>/perfil-pagador/
+    Perfil de pagador del representante y los meses que lo explican (últimos 6).
+    Mismo acceso que el historial de cobros (404 si no tiene alumnos en sedes accesibles).
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request, representante_id):
+        sedes = sedes_activas_accesibles(request.user)
+        if not sedes:
+            return _apagada()
+        filtro = Q(sede_id__in=[s for s in sedes if s is not None])
+        if None in sedes:
+            filtro |= Q(sede__isnull=True)
+        rep = Representante.objects.filter(pk=representante_id).first()
+        if rep is None or not rep.alumnos.filter(filtro).exists():
+            return _error('No encontrado.', status.HTTP_404_NOT_FOUND)
+        return Response({'representante': rep.id, **perfil_pagador.detalle_de(rep.id, _hoy())})

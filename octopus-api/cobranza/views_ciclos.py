@@ -17,6 +17,7 @@ from secretaria.models import Representante
 
 from .ciclos import dias_de_mora
 from .inteligente import sedes_con_inteligente_activa
+from . import perfil_pagador
 from .models import CicloCobranza, EventoCiclo
 from .permissions import sedes_permitidas_ids
 
@@ -49,12 +50,12 @@ def _filtro_sedes_activas(user, sede_param=None):
     return q
 
 
-def serializar_ciclo(ciclo, hoy):
+def serializar_ciclo(ciclo, hoy, perfiles=None):
     m = ciclo.mensualidad
     a = m.alumno
     r = a.representante
     dias = dias_de_mora(ciclo.fecha_vencimiento, hoy)
-    return {
+    fila = {
         'id': ciclo.id,
         'mensualidad_id': m.id,
         'alumno': {'id': a.id, 'nombre': f'{a.nombre} {a.apellido}', 'grado': a.grado_seccion},
@@ -72,6 +73,10 @@ def serializar_ciclo(ciclo, hoy):
         'proxima_accion': ciclo.proxima_accion,
         'proxima_accion_fecha': ciclo.proxima_accion_fecha,
     }
+    if perfiles is not None:
+        # fase D: perfil de pagador del representante (null si no se calculó)
+        fila['perfil_pagador'] = (perfil_pagador.descriptor(perfiles[r.id]) if r.id in perfiles else None)
+    return fila
 
 
 class CarteraCiclosView(ListAPIView):
@@ -110,7 +115,8 @@ class CarteraCiclosView(ListAPIView):
 
         page = self.paginate_queryset(qs.order_by('fecha_vencimiento', 'id'))
         hoy = date.today()
-        return self.get_paginated_response([serializar_ciclo(c, hoy) for c in page])
+        perfiles = perfil_pagador.perfiles_de({c.mensualidad.alumno.representante_id for c in page}, hoy)
+        return self.get_paginated_response([serializar_ciclo(c, hoy, perfiles) for c in page])
 
 
 class ExpedienteRepresentanteView(APIView):
@@ -141,10 +147,12 @@ class ExpedienteRepresentanteView(APIView):
             EventoCiclo.objects.filter(ciclo__in=ciclos)
             .select_related('usuario').order_by('-creado_en', '-id')[:50]
         )
+        perfiles = perfil_pagador.perfiles_de([rep.id], hoy)
         return Response({
             'representante': {'id': rep.id, 'nombre': f'{rep.nombre} {rep.apellido}', 'cedula': rep.cedula},
+            'perfil_pagador': perfil_pagador.descriptor(perfiles[rep.id]),
             'saldo_total_usd': str(sum(c.mensualidad.monto_usd - c.mensualidad.monto_pagado for c in abiertos)),
-            'ciclos': [serializar_ciclo(c, hoy) for c in ciclos],
+            'ciclos': [serializar_ciclo(c, hoy, perfiles) for c in ciclos],
             'eventos': [
                 {'id': e.id, 'ciclo_id': e.ciclo_id, 'tipo': e.tipo, 'detalle': e.detalle,
                  'usuario': e.usuario.get_username() if e.usuario_id else None,

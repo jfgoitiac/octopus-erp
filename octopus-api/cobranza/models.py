@@ -1217,6 +1217,9 @@ class ReglaCobranza(models.Model):
     saldo_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.01'))
     destinatario = models.CharField(max_length=14, choices=DESTINATARIOS, default='representante')
     activa = models.BooleanField(default=True)
+    # v4 fase D: además de su día, esta regla se envía en el día −3 a los representantes con
+    # perfil "Paga tarde" (cobranza/perfil_pagador.py). Una sola regla por sede puede llevarlo.
+    recordatorio_extra_paga_tarde = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['dia_relativo']

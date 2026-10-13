@@ -29,7 +29,7 @@ from .permissions import sedes_permitidas_ids
 DIA_MIN, DIA_MAX = -30, 90
 CAMPOS_ESCRIBIBLES = (
     'nombre', 'etapa', 'dia_relativo', 'canal', 'plantilla', 'plantilla_meta',
-    'saldo_minimo', 'destinatario', 'activa',
+    'saldo_minimo', 'destinatario', 'activa', 'recordatorio_extra_paga_tarde',
 )
 
 
@@ -43,6 +43,7 @@ def serializar_regla(r, heredada=False):
         'nombre': r.nombre, 'etapa': r.etapa, 'dia_relativo': r.dia_relativo,
         'canal': r.canal, 'plantilla': r.plantilla, 'plantilla_meta': r.plantilla_meta,
         'saldo_minimo': str(r.saldo_minimo), 'destinatario': r.destinatario, 'activa': r.activa,
+        'recordatorio_extra_paga_tarde': r.recordatorio_extra_paga_tarde,
     }
 
 
@@ -110,11 +111,24 @@ def _validar(datos, parcial, actual=None):
                 raise ErrorRegla('El saldo mínimo debe ser un número.')
             if valor < 0 or valor > Decimal('99999999.99'):
                 raise ErrorRegla('El saldo mínimo debe ser mayor o igual a 0.')
-        elif campo == 'activa':
+        elif campo in ('activa', 'recordatorio_extra_paga_tarde'):
             if not isinstance(valor, bool):
-                raise ErrorRegla('«activa» debe ser verdadero o falso.')
+                raise ErrorRegla(f'«{campo}» debe ser verdadero o falso.')
         limpio[campo] = valor
     return limpio
+
+
+def _validar_extra(sede_id, final, excluir_id=None):
+    """`final`: valores resultantes de la regla (los enviados más los que ya tenía)."""
+    if not final.get('recordatorio_extra_paga_tarde'):
+        return
+    if final.get('destinatario', 'representante') != 'representante' or final.get('canal') == 'interno':
+        raise ErrorRegla('El recordatorio extra solo aplica a reglas para el representante por WhatsApp o email.')
+    otras = ReglaCobranza.objects.filter(sede_id=sede_id, recordatorio_extra_paga_tarde=True)
+    if excluir_id:
+        otras = otras.exclude(pk=excluir_id)
+    if otras.exists():
+        raise ErrorRegla('Ya hay otra regla con el recordatorio extra para quienes pagan tarde; solo puede haber una.')
 
 
 def _clonar_globales_si_hereda(sede_id):
@@ -174,6 +188,7 @@ class ReglasView(APIView):
             return error
         try:
             datos = _validar(request.data, parcial=False)
+            _validar_extra(sede_id, {'destinatario': 'representante', **datos})
             with transaction.atomic():
                 clonadas = _clonar_globales_si_hereda(sede_id)
                 if _dia_ocupado(sede_id, datos['dia_relativo']):
@@ -201,6 +216,9 @@ class ReglaDetalleView(APIView):
             nuevo_dia = datos.get('dia_relativo', regla.dia_relativo)
             if nuevo_dia != regla.dia_relativo and _dia_ocupado(regla.sede_id, nuevo_dia, regla.pk):
                 raise ErrorRegla(f'Ya existe una regla para el día {nuevo_dia:+d}.')
+            _validar_extra(regla.sede_id, {
+                'destinatario': regla.destinatario, 'canal': regla.canal,
+                'recordatorio_extra_paga_tarde': regla.recordatorio_extra_paga_tarde, **datos}, regla.pk)
         except ErrorRegla as e:
             return _error(str(e))
         antes = serializar_regla(regla)

@@ -5,7 +5,7 @@ from .views_gestion import (
 )
 from .views_reglas import ReglaDetalleView, ReglasView
 from .views_hoy import (
-    ContadoresView, HistorialCobrosView, HoyView, PromesasView, SimulacionMotorView, TarjetaHechaView,
+    ContadoresView, HistorialCobrosView, HoyView, PerfilPagadorView, PromesasView, SimulacionMotorView, TarjetaHechaView,
 )
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
 from .views import (
@@ -105,6 +105,7 @@ urlpatterns = [
     path('inteligente/motor/simulacion/',  SimulacionMotorView.as_view(),          name='cobranza-inteligente-simulacion'),
     path('inteligente/promesas/',          PromesasView.as_view(),                 name='cobranza-inteligente-promesas'),
     path('inteligente/representantes/<int:representante_id>/historial-cobros/', HistorialCobrosView.as_view(), name='cobranza-inteligente-historial-cobros'),
+    path('inteligente/representantes/<int:representante_id>/perfil-pagador/', PerfilPagadorView.as_view(), name='cobranza-inteligente-perfil-pagador'),
     path('inteligente/conversaciones/',    ConversacionesView.as_view(),           name='cobranza-inteligente-conversaciones'),
     path('inteligente/conversaciones/iniciar/', IniciarConversacionView.as_view(),  name='cobranza-inteligente-conversaciones-iniciar'),
     path('inteligente/conversaciones/plantillas/', PlantillasConversacionView.as_view(), name='cobranza-inteligente-conversaciones-plantillas'),
