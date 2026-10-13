@@ -180,6 +180,24 @@ def _normalizar_telefono(tel):
     return None
 
 
+def _detalle_error_meta(e):
+    """Texto del error para el log. raise_for_status() solo dice '400 Client
+    Error'; el motivo real (token inválido, número no permitido, plantilla
+    inexistente...) viene en el cuerpo JSON de la respuesta de Meta."""
+    resp = getattr(e, 'response', None)
+    if resp is None:
+        return str(e)
+    try:
+        err = resp.json().get('error', {})
+        partes = [f'HTTP {resp.status_code}', f"code {err.get('code')}", err.get('message', '')]
+        detalle = (err.get('error_data') or {}).get('details')
+        if detalle:
+            partes.append(detalle)
+        return ' | '.join(str(p) for p in partes if p)
+    except ValueError:
+        return f'HTTP {resp.status_code} | {resp.text[:800]}'
+
+
 def _proveedor_whatsapp():
     """'twilio', 'meta' o '' según ConfiguracionNotificaciones (BD) o settings."""
     cfg = _notif_cfg()
@@ -245,9 +263,9 @@ def enviar_whatsapp_documento(telefono, contenido, nombre_archivo, caption, tipo
         logger.info(f'WhatsApp Meta documento [{tipo}] -> {numero}')
         return True
     except Exception as e:
-        _log('whatsapp', tipo, numero, '', caption, 'fallido', error=str(e),
+        _log('whatsapp', tipo, numero, '', caption, 'fallido', error=_detalle_error_meta(e),
              representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='meta')
-        logger.error(f'Error Meta documento -> {numero}: {e}')
+        logger.error(f'Error Meta documento -> {numero}: {_detalle_error_meta(e)}')
         return False
 
 
@@ -372,9 +390,9 @@ def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, templat
         logger.info(f'WhatsApp Meta [{tipo}] -> {numero}')
         return True
     except Exception as e:
-        _log('whatsapp', tipo, numero, '', mensaje, 'fallido', error=str(e),
+        _log('whatsapp', tipo, numero, '', mensaje, 'fallido', error=_detalle_error_meta(e),
              representante_cedula=representante_cedula, alumno_nombre=alumno_nombre, proveedor='meta')
-        logger.error(f'Error Meta -> {numero}: {e}')
+        logger.error(f'Error Meta -> {numero}: {_detalle_error_meta(e)}')
         return False
 
 
