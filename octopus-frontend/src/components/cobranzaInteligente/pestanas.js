@@ -17,3 +17,6 @@ export const pestanasPorRol = (rol) => {
     const r = (rol || '').toLowerCase().trim();
     return PESTANAS_COBRANZA.filter(p => p.roles.includes(r));
 };
+
+/** Ruta de una pestaña por su id, para enlazarla sin escribir la URL a mano. */
+export const rutaPestana = (id) => PESTANAS_COBRANZA.find(p => p.id === id)?.to ?? PESTANAS_COBRANZA[0].to;

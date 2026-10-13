@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Hoy from './Hoy';
+import { rutaPestana } from '../pestanas';
 
 const m = vi.hoisted(() => ({ mens: vi.fn(), convertir: vi.fn(), descartar: vi.fn(), hoy: vi.fn(), accion: vi.fn(), hecha: vi.fn(), iniciar: vi.fn(), toastError: vi.fn(), toastOk: vi.fn() }));
 
@@ -115,6 +116,7 @@ describe('Hoy', () => {
         expect(r).toHaveTextContent('$37.50 esperados de $80.00 comprometidos');
         expect(r).toHaveTextContent('20 jul – 26 jul 2026');
         expect(r).toHaveTextContent('1 de promesas · 2 de convenios');
+        expect(within(r).getByRole('link', { name: 'Ver detalle' })).toHaveAttribute('href', rutaPestana('reportes'));
     });
 
     it('si está apagada (409) lo dice sin error', async () => {

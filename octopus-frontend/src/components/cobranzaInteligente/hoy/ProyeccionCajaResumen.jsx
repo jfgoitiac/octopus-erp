@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
 import { usd } from './hoyUtils';
 import { rangoSemana } from '../reportes/reportesUtils';
+import { rutaPestana } from '../pestanas';
 
 /** Resumen compacto de la proyección de caja de la semana; el detalle está en Reportes. */
 export function ProyeccionCajaResumen({ proyeccion }) {
@@ -20,7 +21,7 @@ export function ProyeccionCajaResumen({ proyeccion }) {
                 </p>
                 <p className="text-xs" style={{ color: 'var(--ash)' }}>
                     {proyeccion.casos} {proyeccion.casos === 1 ? 'caso' : 'casos'} · {promesas?.casos ?? 0} de promesas · {convenios?.casos ?? 0} de convenios ·{' '}
-                    <Link to="/cobranza/inteligente/reportes" className="underline">Ver detalle</Link>
+                    <Link to={rutaPestana('reportes')} className="underline">Ver detalle</Link>
                 </p>
             </div>
         </div>
