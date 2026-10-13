@@ -326,3 +326,78 @@ class WhatsAppEntranteTest(GestionBase):
                       [(i['autor'], i['texto']) for i in r.data['linea_de_tiempo'] if i['clase'] == 'mensaje'])
         fila = gestion.calcular_bandeja(CicloCobranza.objects.all())[0]
         self.assertNotEqual(fila['accion_sugerida']['codigo'], 'responder')
+
+
+class WhatsAppEntranteMejorasTest(WhatsAppEntranteTest):
+    """Configuración desde la app, adjuntos y aviso push."""
+
+    def respuesta(self, datos, contenido=b'', cabeceras=None):
+        from unittest.mock import MagicMock
+        r = MagicMock(status_code=200, content=contenido, headers=cabeceras or {})
+        r.json.return_value = datos
+        r.raise_for_status.return_value = None
+        return r
+
+    def test_configuracion_desde_la_app(self):
+        from notificaciones.models import ConfiguracionNotificaciones
+        from authentication.models import PerfilUsuario
+        PerfilUsuario.objects.update_or_create(user=self.admin, defaults={'rol': 'director'})
+        self.api.force_authenticate(type(self.admin).objects.get(pk=self.admin.pk))  # sin el perfil cacheado
+        r = self.api.get('/api/notificaciones/configuracion/')
+        self.assertEqual(r.status_code, 200, r.data)
+        token = r.data['meta_webhook_verify_token']
+        self.assertTrue(len(token) > 20)
+        self.assertTrue(r.data['webhooks_whatsapp']['meta'].endswith('/api/notificaciones/whatsapp/webhook/meta/'))
+        r = self.api.patch('/api/notificaciones/configuracion/', {'meta_app_secret': 'secreto'}, format='json')
+        self.assertEqual(r.data['meta_app_secret'], '••••reto')
+        self.assertEqual(ConfiguracionNotificaciones.objects.get(pk=1).meta_app_secret, 'secreto')
+        # El webhook usa lo guardado en la app, sin variables de entorno.
+        ok = APIClient().get('/api/notificaciones/whatsapp/webhook/meta/',
+                             {'hub.mode': 'subscribe', 'hub.verify_token': token, 'hub.challenge': '7'})
+        self.assertEqual(ok.content, b'7')
+        self.assertEqual(self.meta(self.mensaje()).data, {'recibidos': 1})
+
+    def mensaje_imagen(self, mime='image/jpeg'):
+        return {'entry': [{'changes': [{'value': {'messages': [{
+            'from': '584121234567', 'id': 'wamid.img', 'type': 'image',
+            'image': {'id': 'MEDIA1', 'mime_type': mime, 'caption': 'El comprobante'}}]}}]}]}
+
+    def test_descarga_y_sirve_el_adjunto(self):
+        from unittest.mock import patch
+        from notificaciones.models import NotificacionLog
+        respuestas = [self.respuesta({'url': 'https://lookaside/x', 'mime_type': 'image/jpeg', 'file_size': 4}),
+                      self.respuesta({}, contenido=b'\xff\xd8ok')]
+        with self.settings(META_APP_SECRET='secreto'), patch('requests.get', side_effect=respuestas) as get:
+            self.meta(self.mensaje_imagen())
+        self.assertEqual(get.call_args_list[0].args[0], 'https://graph.facebook.com/v19.0/MEDIA1')
+        log = NotificacionLog.objects.get(tipo='respuesta_whatsapp')
+        self.assertEqual((log.mensaje, log.adjunto_tipo), ('El comprobante', 'image/jpeg'))
+        r = self.api.get(f'/api/notificaciones/whatsapp/adjuntos/{log.id}/')
+        self.assertEqual((r.status_code, b''.join(r.streaming_content)), (200, b'\xff\xd8ok'))
+        self.assertEqual(APIClient().get(f'/api/notificaciones/whatsapp/adjuntos/{log.id}/').status_code, 401)
+        self.ciclo(dia_limite=1)
+        conv = self.api.get(f'/api/cobranza/inteligente/representantes/{self.rep.id}/conversacion/').data
+        self.assertEqual([i['adjunto'] for i in conv['linea_de_tiempo'] if i.get('autor') == 'representante'],
+                         [{'id': log.id, 'tipo': 'image/jpeg'}])
+
+    def test_tipo_no_permitido_o_fallo_deja_constancia(self):
+        from unittest.mock import patch
+        from notificaciones.models import NotificacionLog
+        respuestas = [self.respuesta({'url': 'u', 'mime_type': 'application/x-msdownload', 'file_size': 3}),
+                      self.respuesta({}, contenido=b'exe')]
+        with self.settings(META_APP_SECRET='secreto'), patch('requests.get', side_effect=respuestas):
+            self.meta(self.mensaje_imagen('application/x-msdownload'))
+        log = NotificacionLog.objects.get(tipo='respuesta_whatsapp')
+        self.assertFalse(log.adjunto)
+        self.assertIn('Archivo no permitido', log.mensaje)
+
+    def test_avisa_por_push_al_responsable(self):
+        from unittest.mock import patch
+        c = self.ciclo(dia_limite=1)
+        gestion.tomar_conversacion([c], self.admin)
+        with self.settings(META_APP_SECRET='secreto'), patch('notificaciones.services.push_usuarios') as push:
+            self.meta(self.mensaje())
+        usuarios, tipo, titulo, cuerpo, url = push.call_args.args
+        self.assertEqual((list(usuarios), tipo, cuerpo), ([self.admin], 'mensaje', 'Pago el viernes'))
+        self.assertIn('respondió por WhatsApp', titulo)
+        self.assertEqual(url, f'/cobranza/inteligente/representantes/{self.rep.id}')

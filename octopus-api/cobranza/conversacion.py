@@ -38,6 +38,7 @@ def _mensajes(rep):
         'autor': _autor(log.tipo),
         'canal': log.canal, 'asunto': log.asunto, 'texto': log.mensaje, 'estado': log.estado,
         'modo': log.modo, 'fecha': log.fecha_envio,
+        'adjunto': {'id': log.id, 'tipo': log.adjunto_tipo} if log.adjunto else None,
     } for log in logs]
 
 
