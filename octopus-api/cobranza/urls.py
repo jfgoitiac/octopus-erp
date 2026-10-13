@@ -1,6 +1,7 @@
 from django.urls import path
 from .views_gestion import (
-    AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, CuotaConvenioPagadaView,
+    AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, ConversacionView,
+    CuotaConvenioPagadaView,
     DashboardInteligenteView, LineaBaseView, PagosRevisionView,
 )
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
@@ -99,6 +100,7 @@ urlpatterns = [
     path('inteligente/envios/',            EnviosCobranzaView.as_view(),           name='cobranza-inteligente-envios'),
     path('inteligente/sombra/resumen/',    ResumenSombraView.as_view(),            name='cobranza-inteligente-sombra-resumen'),
     path('inteligente/cartera/',           CarteraCiclosView.as_view(),            name='cobranza-inteligente-cartera'),
+    path('inteligente/representantes/<int:representante_id>/conversacion/', ConversacionView.as_view(), name='cobranza-inteligente-conversacion'),
     path('inteligente/representantes/<int:representante_id>/expediente/', ExpedienteRepresentanteView.as_view(), name='cobranza-inteligente-expediente'),
     path('inteligente/configuracion/historial/', HistorialCobranzaInteligenteView.as_view(), name='cobranza-inteligente-historial'),
     path('inteligente/configuracion/',     ConfiguracionCobranzaInteligenteView.as_view(), name='cobranza-inteligente-configuracion'),

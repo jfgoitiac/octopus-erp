@@ -406,6 +406,15 @@ class VariablesPlantillaWhatsAppView(APIView):
         return Response(TOKENS_DISPONIBLES)
 
 
+def _registrar_en_cobranza(request, cedula, mensaje, log_id):
+    """El cobro enviado queda como gestión en las deudas abiertas de Cobranza Inteligente."""
+    from cobranza.gestion import registrar_cobro_whatsapp
+    from secretaria.models import Representante
+    rep = Representante.objects.filter(cedula=cedula).first()
+    if rep:
+        registrar_cobro_whatsapp(rep.id, request.user, mensaje, log_id)
+
+
 class PrevisualizarCobroWhatsAppView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
@@ -488,11 +497,12 @@ class RegistrarEnvioManualCobroWhatsAppView(APIView):
 
         log = NotificacionLog.objects.create(
             canal='whatsapp', tipo='cobro_whatsapp', modo='manual', estado='enviado',
-            destinatario=telefono, mensaje=mensaje[:500],
+            destinatario=telefono, mensaje=mensaje[:4000],
             representante_cedula=cedula,
             alumno_nombre=', '.join(a['nombre'] for a in grupo['alumnos']),
             proveedor='wa.me',
         )
+        _registrar_en_cobranza(request, cedula, mensaje, log.id)
         return Response({'id': log.id, 'fecha_envio': log.fecha_envio}, status=status.HTTP_201_CREATED)
 
 
@@ -564,6 +574,7 @@ class EnviarCobroWhatsAppView(APIView):
         if log:
             log.modo = 'automatico'
             log.save(update_fields=['modo'])
+        _registrar_en_cobranza(request, cedula, mensaje, log.id if log else None)
         return Response({'id': log.id if log else None, 'estado': 'enviado'})
 
 

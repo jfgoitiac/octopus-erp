@@ -16,6 +16,7 @@ from authentication.views import EsPersonalCobranza, IsDirector, IsSystemAdminOr
 from secretaria.models import Representante
 
 from . import gestion
+from .conversacion import construir_conversacion
 from .dashboard import calcular_dashboard, q_sedes
 from .inteligente import sedes_con_inteligente_activa
 from .models import CicloCobranza, ConvenioPago, CuotaConvenio, LineaBaseCobranza
@@ -112,6 +113,44 @@ class AccionCicloView(APIView):
         return Response({'id': ciclo.id, 'estado': ciclo.estado, 'motivo_pausa': ciclo.motivo_pausa,
                          'motivo_cierre': ciclo.motivo_cierre,
                          'responsable': ciclo.responsable.get_username() if ciclo.responsable_id else None})
+
+
+class ConversacionView(APIView):
+    """
+    GET  /inteligente/representantes/<id>/conversacion/ — línea de tiempo de mensajes y gestiones.
+    POST accion: tomar (takeover: el bot deja de escribir) | devolver (vuelve el bot).
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def _contexto(self, request, representante_id):
+        sedes = sedes_activas_accesibles(request.user)
+        if not sedes:
+            return None, None, _apagada()
+        ciclos = _ciclos(sedes)
+        rep = Representante.objects.filter(pk=representante_id).first()
+        if rep is None or not ciclos.filter(mensualidad__alumno__representante=rep).exists():
+            return None, None, _error('No encontrado.', status.HTTP_404_NOT_FOUND)
+        return rep, ciclos, None
+
+    def get(self, request, representante_id):
+        rep, ciclos, error = self._contexto(request, representante_id)
+        return error or Response(construir_conversacion(rep, ciclos))
+
+    def post(self, request, representante_id):
+        rep, ciclos, error = self._contexto(request, representante_id)
+        if error:
+            return error
+        acciones = {'tomar': gestion.tomar_conversacion, 'devolver': gestion.devolver_al_bot}
+        accion = acciones.get(request.data.get('accion'))
+        if accion is None:
+            return _error('Acción desconocida. Use tomar o devolver.')
+        abiertos = ciclos.filter(mensualidad__alumno__representante=rep,
+                                 estado__in=CicloCobranza.ESTADOS_ABIERTOS).select_related('responsable')
+        try:
+            accion(list(abiertos), request.user)
+        except gestion.AccionInvalida as e:
+            return _error(str(e))
+        return Response(construir_conversacion(rep, ciclos))
 
 
 class PagosRevisionView(APIView):

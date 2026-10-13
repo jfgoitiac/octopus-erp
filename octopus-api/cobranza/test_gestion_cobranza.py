@@ -166,3 +166,93 @@ class ApiTest(GestionBase):
         d = calcular_dashboard({self.sede.id}, HOY, AHORA)
         self.assertEqual(d['distribucion_por_etapa'][c.estado]['casos'], 1)
         self.assertEqual(d['recuperado']['casos_totales'], 0)
+
+
+class AccionSugeridaYTakeoverTest(GestionBase):
+    def test_sugiere_recordatorio_en_mora_temprana(self):
+        self.ciclo(dia_limite=1)   # 19 días de mora, sin otras señales
+        f = gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA)[0]
+        self.assertEqual(f['accion_sugerida']['codigo'], 'enviar_recordatorio')
+        self.assertFalse(f['gestion_humana'])
+
+    def test_sugiere_convenio_con_varias_deudas(self):
+        alumno = self.alumno('E1', 1)
+        for mes in (5, 6, 7):
+            self.mens(alumno, mes=mes)
+        self.config()
+        evaluar_ciclos_sede(self.sede.id, HOY)
+        f = gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA)[0]
+        self.assertEqual(f['accion_sugerida']['codigo'], 'ofrecer_convenio')
+
+    def test_takeover_calla_al_bot_pero_sigue_en_bandeja(self):
+        c = self.ciclo(dia_limite=1)
+        etapa = c.estado
+        gestion.tomar_conversacion([c], self.admin)
+        c.refresh_from_db()
+        self.assertEqual((c.estado, c.motivo_pausa, c.responsable), (CicloCobranza.PAUSADA, 'gestion_humana', self.admin))
+        filas = gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA)
+        self.assertEqual(len(filas), 1)
+        self.assertTrue(filas[0]['gestion_humana'])
+        gestion.devolver_al_bot([c], self.admin)
+        c.refresh_from_db()
+        self.assertEqual(c.estado, etapa)
+        with self.assertRaises(gestion.AccionInvalida):
+            gestion.devolver_al_bot([c], self.admin)
+
+    def test_devolver_respeta_otras_pausas(self):
+        c = self.ciclo(dia_limite=1)
+        gestion.pausar_ciclo(c, 'reclamo', self.admin)
+        with self.assertRaises(gestion.AccionInvalida):
+            gestion.devolver_al_bot([c], self.admin)
+
+    def test_proxima_accion_se_guarda_y_se_limpia(self):
+        c = self.ciclo(dia_limite=1)
+        self.assertEqual(gestion.actualizar_proximas_acciones(CicloCobranza.objects.all(), HOY), 1)
+        c.refresh_from_db()
+        self.assertEqual((c.proxima_accion, c.proxima_accion_fecha), ('Enviar recordatorio por WhatsApp', HOY))
+        gestion.pausar_ciclo(c, 'reclamo', self.admin)
+        gestion.actualizar_proximas_acciones(CicloCobranza.objects.all(), HOY)
+        c.refresh_from_db()
+        self.assertEqual(c.proxima_accion, '')
+
+
+class ConversacionApiTest(GestionBase):
+    def setUp(self):
+        super().setUp()
+        self.api = APIClient()
+        self.api.force_authenticate(self.admin)
+
+    def url(self):
+        return f'/api/cobranza/inteligente/representantes/{self.rep.id}/conversacion/'
+
+    def test_linea_de_tiempo_une_mensajes_y_gestiones_sin_duplicar(self):
+        from notificaciones.models import NotificacionLog
+        c = self.ciclo(dia_limite=1)
+        gestion.registrar_gestion(c, 'llamada', self.admin, 'prometió pagar')
+        log = NotificacionLog.objects.create(canal='whatsapp', tipo='cobro_whatsapp', estado='enviado',
+                                             destinatario='0412', mensaje='Hola Maria', representante_cedula='V1')
+        gestion.registrar_cobro_whatsapp(self.rep.id, self.admin, 'Hola Maria', log.id)
+        r = self.api.get(self.url())
+        self.assertEqual(r.status_code, 200, r.data)
+        linea = r.data['linea_de_tiempo']
+        mensajes = [i for i in linea if i['clase'] == 'mensaje']
+        self.assertEqual([(m['autor'], m['texto']) for m in mensajes], [('personal', 'Hola Maria')])
+        self.assertTrue(any(i.get('tipo') == 'llamada_registrada' for i in linea))
+        self.assertFalse(any(i.get('tipo') == 'whatsapp_manual' for i in linea))
+        self.assertEqual(r.data['accion_sugerida']['codigo'], 'enviar_recordatorio')
+        # El cobro sí cuenta como gestión de la deuda (atribución).
+        self.assertTrue(EventoCiclo.objects.filter(ciclo=c, tipo='whatsapp_manual').exists())
+
+    def test_tomar_y_devolver_por_api(self):
+        self.ciclo(dia_limite=1)
+        r = self.api.post(self.url(), {'accion': 'tomar'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data['gestion_humana'], {'activa': True, 'responsable': 'admin'})
+        self.assertTrue(any(i.get('texto') == 'gestion_humana' for i in r.data['linea_de_tiempo']))
+        r = self.api.post(self.url(), {'accion': 'devolver'}, format='json')
+        self.assertFalse(r.data['gestion_humana']['activa'])
+        self.assertEqual(self.api.post(self.url(), {'accion': 'otra'}, format='json').status_code, 400)
+
+    def test_representante_sin_deudas_404(self):
+        self.config()
+        self.assertEqual(self.api.get(self.url()).status_code, 404)

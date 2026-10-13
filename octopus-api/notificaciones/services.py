@@ -32,7 +32,7 @@ def _log(canal, tipo, destinatario, asunto, mensaje, estado, error='',
         from .models import NotificacionLog
         NotificacionLog.objects.create(
             canal=canal, tipo=tipo, destinatario=destinatario,
-            asunto=asunto, mensaje=mensaje[:500], estado=estado,
+            asunto=asunto, mensaje=mensaje[:4000], estado=estado,
             error_detalle=error[:1000], representante_cedula=representante_cedula,
             alumno_nombre=alumno_nombre, proveedor=proveedor,
         )
