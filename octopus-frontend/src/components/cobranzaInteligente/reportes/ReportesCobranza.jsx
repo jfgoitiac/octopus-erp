@@ -1,5 +1,7 @@
 import { Card } from '../../ui/Card';
 import { LineaBase } from './LineaBase';
+import { ProyeccionCaja } from './ProyeccionCaja';
+import { ComparacionAB } from './ComparacionAB';
 import { ModuloApagado } from '../shared/ModuloApagado';
 import { useCargaInteligente } from '../../../hooks/useCargaInteligente';
 import { getDashboardInteligente } from '../../../api/cobranza.service';
@@ -80,6 +82,9 @@ const ReportesCobranza = () => {
                             {' '}{d.bandeja.casos_mas_de_15_dias} con más de 15 días
                         </p>
                     </Card>
+
+                    <ProyeccionCaja />
+                    <ComparacionAB />
 
                     {!d.comparacion_linea_base && <LineaBase sedeId={sedeId} onGuardada={recargar} />}
                 </>
