@@ -4033,3 +4033,32 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    administración y dirección. Otros eventos (circulares, mora, etc.) siguen
    solo por email o push de representantes; `tipos_activos` no es editable
    desde la UI (se activa todo con la campana).
+
+## Cobranza Inteligente v4 — Fases A a D (13/10/2026)
+
+1. **Pantallas de cobranza fuera del módulo unificado**: 6 pantallas siguen
+   fuera de Cobranza Inteligente (ver §9 del plan v4); pendiente consolidarlas.
+2. **`NotificacionLog` vs `MensajeWhatsApp`**: conviven dos registros de
+   mensajes en paralelo; unificar.
+3. **`ConfiguracionNotificaciones` pk=1**: un solo número de WhatsApp por
+   instalación; no sirve para multi-sede con números distintos.
+4. **ESLint `react-hooks/set-state-in-effect`** (~44 errores preexistentes):
+   `MainLayout`, `EditorPlantillaWhatsApp`, `useUsuariosSede`, entre otros.
+5. **`conversaciones.MARCAR_ADJUNTOS_PENDIENTES`**: constante/flujo a revisar.
+6. **Búsqueda de representantes en Conversaciones** usa
+   `secretaria/representantes/?buscar=`; debería tener endpoint propio.
+7. **`src/modules/notifications`**: módulo legado sin migrar.
+8. **Portal**: no abre el modal de pago con `?pagar=1` (pendiente del contrato C).
+9. **Hoy**: la tarjeta de comprobante no incluye `adjunto`; el modal de convertir
+   no muestra vista previa desde Hoy.
+10. **`getBancos`** devuelve lista simple o paginada según el caso; unificar.
+11. **PATCH de regla heredada**: un usuario de sede recibe 404; hay que hacer
+    POST antes (copia de reglas globales).
+12. **Reporte A/B**: sin prueba estadística; parciales cuentan al cerrar el
+    ciclo; cambiar plantillas con comparación en curso mezcla resultados.
+13. **Perfil de pagador y proyección**: se calculan al vuelo sin caché; la
+    probabilidad usa el perfil actual, no el vigente al crear la cuota.
+14. **Tests**: pruebas de Meta intentan salir a `graph.facebook.com` (falta
+    mock); revisar `tests_conversaciones.py` por contradicciones Fase B/C.
+15. **Sin validación en navegador**: nada de este módulo se probó en 360/768/
+    1366/1920; pendiente de verificación visual.
