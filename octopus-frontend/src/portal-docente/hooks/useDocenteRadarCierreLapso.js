@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getRadarCierreLapso } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 // Sin toast de error a propósito: alimenta un slide secundario del hero
 // (mismo criterio que useDocenteProximasEvaluaciones) — si falla, simplemente
@@ -29,7 +30,7 @@ export function useDocenteRadarCierreLapso(diasAnticipacion = 5) {
     }
   }, [diasAnticipacion]);
 
-  useEffect(() => { fetchRadar(); }, [fetchRadar]);
+  useEffect(() => diferir(() => { fetchRadar(); }), [fetchRadar]);
 
   return { radar, loading };
 }

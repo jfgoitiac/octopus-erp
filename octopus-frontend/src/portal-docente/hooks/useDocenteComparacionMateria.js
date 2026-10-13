@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getComparacionMateria } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 // Sin toast de error a propósito: es contexto secundario dentro del tab de
 // notas, no debe interrumpir al docente si falla.
@@ -33,7 +34,7 @@ export function useDocenteComparacionMateria(materiaId, lapsoId) {
     }
   }, [materiaId, lapsoId]);
 
-  useEffect(() => { fetchComparacion(); }, [fetchComparacion]);
+  useEffect(() => diferir(() => { fetchComparacion(); }), [fetchComparacion]);
 
   return { comparacion, loading };
 }

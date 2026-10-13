@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getProximasEvaluaciones } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 // Sin toast de error a propósito: alimenta un slide secundario del hero
 // (mismo criterio que otros widgets "de apoyo" del dashboard) — si falla,
@@ -29,7 +30,7 @@ export function useDocenteProximasEvaluaciones(limite = 5) {
     }
   }, [limite]);
 
-  useEffect(() => { fetchProximasEvaluaciones(); }, [fetchProximasEvaluaciones]);
+  useEffect(() => diferir(() => { fetchProximasEvaluaciones(); }), [fetchProximasEvaluaciones]);
 
   return { proximasEvaluaciones, loading };
 }

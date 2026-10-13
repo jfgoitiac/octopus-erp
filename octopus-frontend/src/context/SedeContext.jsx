@@ -3,6 +3,7 @@ import apiClient from '../api/apiClient';
 import { tokenStore } from '../api/tokenStore';
 
 import { SedeContext } from './useSede';
+import { diferir } from '../utils/diferir';
 
 export const SedeProvider = ({ children }) => {
   const [sedeActiva, setSedeActiva] = useState(null);
@@ -33,7 +34,7 @@ export const SedeProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     cargarSedes();
     // Re-cargar si el token cambia (login/logout en otra pestaña)
     const handleStorage = (e) => {
@@ -44,7 +45,7 @@ export const SedeProvider = ({ children }) => {
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  }), []);
 
   const cambiarSede = (sede) => {
     setSedeActiva(sede);

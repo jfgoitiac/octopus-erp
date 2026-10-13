@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getLapsos, getNotasGrado } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 /**
  * Progreso de carga de notas por materia para el lapso activo.
@@ -57,7 +58,7 @@ export function useDocenteProgresoNotas(materias) {
     }
   }, [materias]);
 
-  useEffect(() => { fetchProgreso(); }, [fetchProgreso]);
+  useEffect(() => diferir(() => { fetchProgreso(); }), [fetchProgreso]);
 
   return { progreso, lapsoActivo, loading };
 }

@@ -7,6 +7,7 @@ import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
 import HistorialConsumoList from '../components/HistorialConsumoList';
 import RecargarTarjetaModal from '../components/RecargarTarjetaModal';
 import CuentaCantinaCard from '../components/CuentaCantinaCard';
+import { diferir } from '../../utils/diferir';
 
 const PortalCantina = () => {
   const [alumnos, setAlumnos] = useState([]);
@@ -100,20 +101,20 @@ const PortalCantina = () => {
   }, []);
 
   // Cargar saldo cuando cambia el alumno activo
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
     cargarSaldo(alumnoActivo.id, controller.signal);
     return () => controller.abort();
-  }, [alumnoActivo, cargarSaldo]);
+  }), [alumnoActivo, cargarSaldo]);
 
   // Cargar historial cuando cambia el alumno activo o la página
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
     cargarHistorial(alumnoActivo.id, pagina, controller.signal);
     return () => controller.abort();
-  }, [alumnoActivo, pagina, cargarHistorial]);
+  }), [alumnoActivo, pagina, cargarHistorial]);
 
   const handleSelectAlumno = (alumno) => {
     setAlumnoActivo(alumno);

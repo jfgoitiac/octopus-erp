@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMiPerfil, actualizarMiPerfil, subirFotoPerfil } from '../api/perfil.service';
+import { diferir } from '../../utils/diferir';
 
 export function useDocentePerfil() {
   const [perfil, setPerfil] = useState(null);
@@ -29,7 +30,7 @@ export function useDocentePerfil() {
     }
   }, []);
 
-  useEffect(() => { fetchPerfil(); }, [fetchPerfil]);
+  useEffect(() => diferir(() => { fetchPerfil(); }), [fetchPerfil]);
 
   const guardarPerfil = useCallback(async (datos) => {
     setGuardando(true);

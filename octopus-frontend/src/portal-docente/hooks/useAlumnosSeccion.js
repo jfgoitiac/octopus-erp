@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { getRosterSeccion } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 /**
  * Lista de alumnos (id, nombre) de una sección — reutiliza el roster que
@@ -37,7 +38,7 @@ export function useAlumnosSeccion(gradoSeccion) {
     }
   }, [gradoSeccion]);
 
-  useEffect(() => { fetchAlumnos(); }, [fetchAlumnos]);
+  useEffect(() => diferir(() => { fetchAlumnos(); }), [fetchAlumnos]);
 
   return { alumnos, loading };
 }

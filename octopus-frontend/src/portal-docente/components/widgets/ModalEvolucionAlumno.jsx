@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { TrendingDown, LineChart } from 'lucide-react';
 import { getRendimientoAlumno } from '../../api/academico.service';
 import { Modal } from '../../../components/ui/Modal';
+import { diferir } from '../../../utils/diferir';
 
 // Sparkline SVG simple hecho a mano (sin librería nueva) — traza el promedio
 // general a través de los lapsos disponibles.
@@ -62,7 +63,7 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
   const [rendimiento, setRendimiento] = useState(null);
   const [loading, setLoading] = useState(true);
   const abortRef = useRef(null);
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
@@ -74,7 +75,7 @@ const ModalEvolucionAlumno = ({ alumnoId, onClose }) => {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [alumnoId]);
+  }), [alumnoId]);
 
   const enRiesgo = rendimiento?.en_riesgo;
 

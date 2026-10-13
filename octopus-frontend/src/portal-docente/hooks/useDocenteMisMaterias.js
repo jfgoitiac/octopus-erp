@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMisMaterias } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 export function useDocenteMisMaterias() {
   const [materias, setMaterias] = useState([]);
@@ -27,7 +28,7 @@ export function useDocenteMisMaterias() {
     }
   }, []);
 
-  useEffect(() => { fetchMaterias(); }, [fetchMaterias]);
+  useEffect(() => diferir(() => { fetchMaterias(); }), [fetchMaterias]);
 
   return { materias, loading, refetch: fetchMaterias };
 }

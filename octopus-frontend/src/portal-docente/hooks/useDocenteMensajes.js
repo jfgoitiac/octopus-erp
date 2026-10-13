@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMensajes, enviarMensaje, marcarMensajeLeido } from '../api/comunicacion.service';
+import { diferir } from '../../utils/diferir';
 
 export function useDocenteMensajes(alumnoId) {
   const [mensajes, setMensajes] = useState([]);
@@ -29,7 +30,7 @@ export function useDocenteMensajes(alumnoId) {
     }
   }, [alumnoId]);
 
-  useEffect(() => { fetchMensajes(); }, [fetchMensajes]);
+  useEffect(() => diferir(() => { fetchMensajes(); }), [fetchMensajes]);
 
   const enviar = useCallback(async (cuerpo) => {
     if (!alumnoId) return false;

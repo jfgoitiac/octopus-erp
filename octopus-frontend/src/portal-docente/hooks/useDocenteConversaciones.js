@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMensajes } from '../api/comunicacion.service';
+import { diferir } from '../../utils/diferir';
 
 /**
  * Agrupa la bandeja plana de mensajes (GET comunicacion/mensajes/ sin filtro)
@@ -55,7 +56,7 @@ export function useDocenteConversaciones() {
     }
   }, []);
 
-  useEffect(() => { fetchConversaciones(); }, [fetchConversaciones]);
+  useEffect(() => diferir(() => { fetchConversaciones(); }), [fetchConversaciones]);
 
   return { conversaciones, mensajes, loading, refetch: fetchConversaciones };
 }

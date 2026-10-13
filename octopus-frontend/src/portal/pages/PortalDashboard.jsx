@@ -13,6 +13,7 @@ import WidgetResumenFinanciero from '../components/widgets/WidgetResumenFinancie
 import WidgetProximosVencimientos from '../components/widgets/WidgetProximosVencimientos';
 import WidgetUltimosPagos from '../components/widgets/WidgetUltimosPagos';
 import WidgetFamiliaHoy from '../components/widgets/WidgetFamiliaHoy';
+import { diferir } from '../../utils/diferir';
 
 const PortalDashboard = () => {
   const { user } = useContext(PortalAuthContext);
@@ -39,11 +40,11 @@ const PortalDashboard = () => {
     }
   }, [sincronizarConLista]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     cargarDashboard(controller.signal);
     return () => controller.abort();
-  }, [cargarDashboard]);
+  }), [cargarDashboard]);
 
   const { avisosSinLeer, alertaRendimiento, loadingAvisos, loadingRendimiento } =
     usePortalHeroExtra(dashboardData?.alumnos);

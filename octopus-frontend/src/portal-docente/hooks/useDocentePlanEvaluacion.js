@@ -6,6 +6,7 @@ import {
   getNotasPlan,
   guardarNotasPlan,
 } from '../api/planEvaluacion.service';
+import { diferir } from '../../utils/diferir';
 
 /**
  * Plan de Evaluación (bloques/ítems) + notas cargadas sobre ese plan, para
@@ -51,7 +52,7 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
     }
   }, [materiaId, lapsoId]);
 
-  useEffect(() => { fetchPlan(); }, [fetchPlan]);
+  useEffect(() => diferir(() => { fetchPlan(); }), [fetchPlan]);
 
   const fetchNotas = useCallback(async () => {
     if (!materiaId || !lapsoId || !plan) { setAlumnos([]); return; }
@@ -72,7 +73,7 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
     }
   }, [materiaId, lapsoId, plan]);
 
-  useEffect(() => { fetchNotas(); }, [fetchNotas]);
+  useEffect(() => diferir(() => { fetchNotas(); }), [fetchNotas]);
 
   const guardarPlan = useCallback(async (bloques) => {
     setSavingPlan(true);

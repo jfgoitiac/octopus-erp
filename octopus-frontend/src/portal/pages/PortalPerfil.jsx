@@ -5,6 +5,7 @@ import { Camera, User, Mail, Phone, IdCard, Save, Loader2, KeyRound, ChevronRigh
 
 import { usePortalPerfil } from '../hooks/usePortalPerfil';
 import SkeletonCard from '../components/SkeletonCard';
+import { diferir } from '../../utils/diferir';
 
 const TAMANO_MAX_MB = 5;
 
@@ -15,7 +16,7 @@ const PortalPerfil = () => {
   const [previewFoto, setPreviewFoto] = useState(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (perfil) {
       setForm({
         first_name: perfil.first_name || '',
@@ -25,7 +26,7 @@ const PortalPerfil = () => {
       });
       setDirty(false);
     }
-  }, [perfil]);
+  }), [perfil]);
 
   const nombreCompleto = `${form.first_name} ${form.last_name}`.trim() || perfil?.username || 'Representante';
 

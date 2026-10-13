@@ -28,6 +28,7 @@ import TarjetaMaterial from '../../components/materiales/TarjetaMaterial';
 import ModalNuevoMaterial from '../../components/materiales/ModalNuevoMaterial';
 import SkeletonCard from '../../portal/components/SkeletonCard';
 import PlanEvaluacionPanel from '../components/planEvaluacion/PlanEvaluacionPanel';
+import { diferir } from '../../utils/diferir';
 
 const TABS = [
   { id: 'notas', label: 'Notas', icon: BookOpen },
@@ -71,7 +72,7 @@ const DocenteMateriaDetalle = () => {
   const [materia, setMateria] = useState(null);
   const [loadingMateria, setLoadingMateria] = useState(true);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setLoadingMateria(true);
     getMateria(materiaId, controller.signal)
@@ -87,7 +88,7 @@ const DocenteMateriaDetalle = () => {
         if (!controller.signal.aborted) setLoadingMateria(false);
       });
     return () => controller.abort();
-  }, [materiaId]);
+  }), [materiaId]);
 
   // ── Tab Notas ──────────────────────────────────────────────────────────
   const [lapsos, setLapsos] = useState([]);
@@ -111,7 +112,7 @@ const DocenteMateriaDetalle = () => {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!lapsoId) { setNotas([]); return; }
     const controller = new AbortController();
     setLoadingNotas(true);
@@ -129,7 +130,7 @@ const DocenteMateriaDetalle = () => {
         if (!controller.signal.aborted) setLoadingNotas(false);
       });
     return () => controller.abort();
-  }, [materiaId, lapsoId]);
+  }), [materiaId, lapsoId]);
 
   const lapsoSeleccionado = lapsos.find(l => String(l.id) === String(lapsoId));
   const { comparacion } = useDocenteComparacionMateria(materiaId, lapsoId);

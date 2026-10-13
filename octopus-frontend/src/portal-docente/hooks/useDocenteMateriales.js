@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMateriales, createMaterial, deleteMaterial } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 export function useDocenteMateriales(materiaId) {
   const [materiales, setMateriales] = useState([]);
@@ -28,7 +29,7 @@ export function useDocenteMateriales(materiaId) {
     }
   }, [materiaId]);
 
-  useEffect(() => { fetchMateriales(); }, [fetchMateriales]);
+  useEffect(() => diferir(() => { fetchMateriales(); }), [fetchMateriales]);
 
   const publicarMaterial = useCallback(async (datos) => {
     try {

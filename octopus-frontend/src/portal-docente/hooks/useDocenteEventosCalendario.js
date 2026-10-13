@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getEventosCalendario, createEventoCalendario, deleteEventoCalendario } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 export function useDocenteEventosCalendario(mes, anio) {
   const [eventos, setEventos] = useState([]);
@@ -28,7 +29,7 @@ export function useDocenteEventosCalendario(mes, anio) {
     }
   }, [mes, anio]);
 
-  useEffect(() => { fetchEventos(); }, [fetchEventos]);
+  useEffect(() => diferir(() => { fetchEventos(); }), [fetchEventos]);
 
   const crearEvento = useCallback(async (datos) => {
     setCreando(true);

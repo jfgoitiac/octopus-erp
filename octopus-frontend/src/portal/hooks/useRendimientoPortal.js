@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { getDashboard } from '../api/portal.service';
 import { getRendimientoAlumnoPortal } from '../api/academico.service';
 import { useAlumnoActivo } from '../context/useAlumnoActivo';
+import { diferir } from '../../utils/diferir';
 
 export function useRendimientoPortal() {
   const [alumnos, setAlumnos] = useState([]);
@@ -15,7 +16,7 @@ export function useRendimientoPortal() {
   const abortRef = useRef(null);
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setLoadingAlumnos(true);
     getDashboard(controller.signal)
@@ -30,9 +31,9 @@ export function useRendimientoPortal() {
       })
       .finally(() => setLoadingAlumnos(false));
     return () => controller.abort();
-  }, [sincronizarConLista]);
+  }), [sincronizarConLista]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!alumnoActivo) { setRendimiento(null); return; }
 
     abortRef.current?.abort();
@@ -47,7 +48,7 @@ export function useRendimientoPortal() {
         toast.error('No se pudo cargar el rendimiento académico.');
       })
       .finally(() => { if (!controller.signal.aborted) setLoadingRendimiento(false); });
-  }, [alumnoActivo]);
+  }), [alumnoActivo]);
 
   return {
     alumnos, alumnoActivo, setAlumnoActivo, loadingAlumnos,

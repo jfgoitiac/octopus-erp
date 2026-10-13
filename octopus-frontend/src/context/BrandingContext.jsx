@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { BrandingContext, DEFAULTS } from './useBranding';
+import { diferir } from '../utils/diferir';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
@@ -57,11 +58,11 @@ export const BrandingProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     fetchBranding(controller.signal);
     return () => controller.abort();
-  }, [fetchBranding]);
+  }), [fetchBranding]);
 
   const value = useMemo(
     () => ({ ...branding, loading, refreshBranding: () => fetchBranding() }),

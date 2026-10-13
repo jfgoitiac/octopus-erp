@@ -11,6 +11,7 @@ import {
 
 import { useDocentePlanEvaluacion } from '../../hooks/useDocentePlanEvaluacion';
 import SkeletonCard from '../../../portal/components/SkeletonCard';
+import { diferir } from '../../../utils/diferir';
 
 const nuevoId = () => `tmp-${Math.random().toString(36).slice(2)}${Date.now()}`;
 
@@ -55,7 +56,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
   const [editando, setEditando] = useState(false);
   const [bloquesForm, setBloquesForm] = useState([]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (editando) return; // no pisar cambios en curso
     if (plan?.bloques?.length) {
       setBloquesForm(plan.bloques.map(b => ({
@@ -65,7 +66,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
     } else {
       setBloquesForm([]);
     }
-  }, [plan, editando]);
+  }), [plan, editando]);
 
   const iniciarEdicion = () => {
     setBloquesForm(plan?.bloques?.length
@@ -138,7 +139,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
   // al editar la celda de nuevo o al reintentar guardar.
   const [celdasConError, setCeldasConError] = useState(() => new Set());
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (dirtyNotas) return;
     setNotasLocal(alumnos.map(al => ({
       alumno_id: al.alumno_id,
@@ -150,7 +151,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
         return acc;
       }, {}),
     })));
-  }, [alumnos, dirtyNotas, esLiteral]);
+  }), [alumnos, dirtyNotas, esLiteral]);
 
   const bloquesPlan = useMemo(() => plan?.bloques || [], [plan]);
 

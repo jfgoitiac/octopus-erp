@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAlertasRiesgo } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 // Sin toast de error a propósito: alimenta un slide secundario del hero
 // (mismo criterio que useDocenteProximasEvaluaciones) — si falla, simplemente
@@ -29,7 +30,7 @@ export function useDocenteAlertasRiesgo() {
     }
   }, []);
 
-  useEffect(() => { fetchAlertasRiesgo(); }, [fetchAlertasRiesgo]);
+  useEffect(() => diferir(() => { fetchAlertasRiesgo(); }), [fetchAlertasRiesgo]);
 
   return { alertasRiesgo, loading };
 }

@@ -3,6 +3,7 @@ import { Upload, X, FileText, CheckCircle, AlertCircle, Hash, Camera, Wallet } f
 import { toast } from 'react-toastify';
 import { recargarTarjetaCantina, getBancos } from '../api/portal.service';
 import { Modal } from '../../components/ui/Modal';
+import { diferir } from '../../utils/diferir';
 
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -81,9 +82,9 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
   }, [isOpen]);
 
   // Efectivo Bolívares es cash físico → moneda fija en VES, sin datos bancarios
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (metodoPago === 'efectivo_ves') setMoneda('ves');
-  }, [metodoPago]);
+  }), [metodoPago]);
 
   if (!isOpen || !alumno) return null;
 

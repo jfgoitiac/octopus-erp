@@ -5,6 +5,7 @@ import { Camera, User, Mail, Save, Loader2, KeyRound, ChevronRight, ShieldCheck 
 
 import { useDocentePerfil } from '../hooks/useDocentePerfil';
 import SkeletonCard from '../../portal/components/SkeletonCard';
+import { diferir } from '../../utils/diferir';
 
 const TAMANO_MAX_MB = 5;
 
@@ -15,7 +16,7 @@ const DocentePerfil = () => {
   const [previewFoto, setPreviewFoto] = useState(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (perfil) {
       setForm({
         first_name: perfil.first_name || '',
@@ -24,7 +25,7 @@ const DocentePerfil = () => {
       });
       setDirty(false);
     }
-  }, [perfil]);
+  }), [perfil]);
 
   const nombreCompleto = `${form.first_name} ${form.last_name}`.trim() || perfil?.username || 'Docente';
 

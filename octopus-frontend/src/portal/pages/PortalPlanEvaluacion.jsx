@@ -6,6 +6,7 @@ import { getPlanesEvaluacionAlumnoPortal } from '../api/academico.service';
 import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SkeletonCard from '../components/SkeletonCard';
+import { diferir } from '../../utils/diferir';
 
 const fecha = (value) => value
   ? new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`))
@@ -19,7 +20,7 @@ export default function PortalPlanEvaluacion() {
   const [loadingPlanes, setLoadingPlanes] = useState(false);
   const abortRef = useRef(null);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setLoadingAlumnos(true);
     getDashboard(controller.signal)
@@ -33,9 +34,9 @@ export default function PortalPlanEvaluacion() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoadingAlumnos(false); });
     return () => controller.abort();
-  }, [sincronizarConLista]);
+  }), [sincronizarConLista]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!alumnoActivo?.id) { setPlanes([]); return; }
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -48,7 +49,7 @@ export default function PortalPlanEvaluacion() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoadingPlanes(false); });
     return () => controller.abort();
-  }, [alumnoActivo?.id]);
+  }), [alumnoActivo?.id]);
 
   return (
     <div className="space-y-4">

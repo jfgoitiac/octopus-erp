@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMiHorario } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 export function useDocenteHorarioSemana(limite = 5) {
   const [proximasClases, setProximasClases] = useState([]);
@@ -27,7 +28,7 @@ export function useDocenteHorarioSemana(limite = 5) {
     }
   }, [limite]);
 
-  useEffect(() => { fetchHorario(); }, [fetchHorario]);
+  useEffect(() => diferir(() => { fetchHorario(); }), [fetchHorario]);
 
   return { proximasClases, loading, refetch: fetchHorario };
 }

@@ -6,6 +6,7 @@ import { usePortalMensajes } from '../hooks/usePortalMensajes';
 import { useAlumnoActivo } from '../context/useAlumnoActivo';
 import EstudianteSelector from '../components/EstudianteSelector';
 import ChatMensajes from '../../components/mensajes/ChatMensajes';
+import { diferir } from '../../utils/diferir';
 
 const PortalMensajes = () => {
   const [alumnos, setAlumnos] = useState([]);
@@ -27,11 +28,11 @@ const PortalMensajes = () => {
     }
   }, [sincronizarConLista]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     cargarAlumnos(controller.signal);
     return () => controller.abort();
-  }, [cargarAlumnos]);
+  }), [cargarAlumnos]);
 
   const { mensajes, loading, enviando, enviar, marcarLeido } = usePortalMensajes(alumnoActivo?.id);
 

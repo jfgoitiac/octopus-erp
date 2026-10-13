@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getCirculares } from '../api/comunicacion.service';
 import { getRendimientoAlumnoPortal } from '../api/academico.service';
+import { diferir } from '../../utils/diferir';
 
 const UMBRAL_RENDIMIENTO = 10;
 
@@ -28,7 +29,7 @@ export function usePortalHeroExtra(alumnos) {
     [alumnos]
   );
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     const listaAlumnos = alumnos || [];
 
@@ -96,7 +97,7 @@ export function usePortalHeroExtra(alumnos) {
     Promise.allSettled([fetchAvisos, fetchRendimiento]);
 
     return () => controller.abort();
-  }, [alumnosKey]);
+  }), [alumnosKey]);
 
   return { avisosSinLeer, alertaRendimiento, loadingAvisos, loadingRendimiento };
 }
