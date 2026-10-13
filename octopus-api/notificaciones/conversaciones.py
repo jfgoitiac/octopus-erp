@@ -17,12 +17,11 @@ from datetime import timedelta
 from decimal import Decimal
 
 import requests
-from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
-from . import services
+from . import config_whatsapp, services
 from .models import ConversacionWhatsApp, MensajeWhatsApp
 
 logger = logging.getLogger(__name__)
@@ -86,29 +85,34 @@ def representante_unico_por_telefono(telefono_e164):
 
 def sede_de_representante(rep):
     """Sede de sus alumnos activos si es una sola; si hay varias, None."""
-    if rep is None:
-        return None
-    sedes = set(rep.alumnos.filter(activo=True).values_list('sede_id', flat=True))
-    return sedes.pop() if len(sedes) == 1 else None
+    return config_whatsapp.sede_id_de_representante(rep)
 
 
-def obtener_conversacion(telefono, nombre_contacto='', ahora=None):
+def obtener_conversacion(telefono, nombre_contacto='', ahora=None, sede_id=None, phone_id=''):
     """
     La conversación del número (se crea si no existe). Intenta vincular al
     representante mientras no lo esté. `telefono` ya normalizado (E.164).
+
+    `phone_id` / `sede_id` (solo el webhook): número de la colegio por el que
+    escribió la familia y la sede dueña de ese número. La respuesta sale por el
+    mismo número, y la conversación sin sede toma la del número.
     """
     ahora = ahora or timezone.now()
     conv, creada = ConversacionWhatsApp.objects.get_or_create(
         telefono=telefono, defaults={'nombre_contacto': (nombre_contacto or '')[:150],
                                      'actualizado_en': ahora})
     cambios = {}
+    if phone_id and conv.phone_id_entrante != phone_id:
+        cambios['phone_id_entrante'] = phone_id
     if nombre_contacto and conv.nombre_contacto != nombre_contacto[:150]:
         cambios['nombre_contacto'] = nombre_contacto[:150]
     if conv.representante_id is None:
         rep = representante_unico_por_telefono(telefono)
         if rep is not None:
             cambios['representante'] = rep
-            cambios['sede_id'] = sede_de_representante(rep)
+            cambios['sede_id'] = sede_de_representante(rep) or conv.sede_id
+    if sede_id and conv.sede_id is None and cambios.get('sede_id') is None:
+        cambios['sede_id'] = sede_id
     if cambios:
         for k, v in cambios.items():
             setattr(conv, k, v)
@@ -267,10 +271,25 @@ def marcar_leida(conv, ahora=None):
 
 # ── Envío por Meta Cloud API ──────────────────────────────────────────────────
 
-def _credenciales():
-    cfg = services._notif_cfg()
-    token = (cfg.meta_whatsapp_token if cfg else '') or getattr(settings, 'META_WHATSAPP_TOKEN', '')
-    phone_id = (cfg.meta_whatsapp_phone_id if cfg else '') or getattr(settings, 'META_WHATSAPP_PHONE_ID', '')
+def config_de_conversacion(conv):
+    """
+    Credenciales para escribirle a esta conversación: el número por el que
+    escribió la familia (su ventana de 24 h es de ese número); si nunca escribió,
+    el de su sede o, en su defecto, la general.
+    """
+    if conv is not None and conv.phone_id_entrante:
+        cfg = config_whatsapp.config_por_phone_id(conv.phone_id_entrante)
+        if cfg is not None:
+            return cfg
+    sede_id = None
+    if conv is not None:
+        sede_id = conv.sede_id or sede_de_representante(conv.representante)
+    return config_whatsapp.get_config_whatsapp(sede_id)
+
+
+def _credenciales(conv=None):
+    cfg = config_de_conversacion(conv)
+    token, phone_id = cfg.token, cfg.phone_id
     if not (token and phone_id):
         raise ErrorEnvio('WhatsApp (Meta) no está configurado: faltan el token o el ID del número.')
     return token, phone_id
@@ -284,9 +303,10 @@ def _wa_id_de(resp):
         return None
 
 
-def _post_meta(telefono, cuerpo_meta):
-    """POST /messages; devuelve el wa_message_id (o None si Meta no lo informó)."""
-    token, phone_id = _credenciales()
+def _post_meta(conv, cuerpo_meta):
+    """POST /messages por el número de la conversación; devuelve el wa_message_id (o None si Meta no lo informó)."""
+    token, phone_id = _credenciales(conv)
+    telefono = conv.telefono
     payload = {'messaging_product': 'whatsapp', 'to': telefono.lstrip('+'), **cuerpo_meta}
     try:
         resp = requests.post(
@@ -306,7 +326,7 @@ def enviar_texto_sistema(conv, cuerpo, payload=None, ahora=None):
     try:
         if not ventana(conv, ahora)['abierta']:
             return None
-        wa_id = _post_meta(conv.telefono, {'type': 'text', 'text': {'body': cuerpo}})
+        wa_id = _post_meta(conv, {'type': 'text', 'text': {'body': cuerpo}})
     except ErrorEnvio:
         return None
     return registrar_saliente(conv, 'texto', cuerpo, {**(payload or {}), 'origen': 'bot'},
@@ -323,7 +343,7 @@ def enviar_lista_sistema(conv, cuerpo, boton, filas, payload=None, ahora=None):
     try:
         if not ventana(conv, ahora)['abierta']:
             return None
-        wa_id = _post_meta(conv.telefono, {'type': 'interactive', 'interactive': {
+        wa_id = _post_meta(conv, {'type': 'interactive', 'interactive': {
             'type': 'list', 'body': {'text': cuerpo[:1024]},
             'action': {'button': boton[:20], 'sections': [{'title': 'Opciones', 'rows': [
                 {'id': f['id'], 'title': f['title'][:24], 'description': f.get('description', '')[:72]}
@@ -350,7 +370,7 @@ def enviar_texto(conv, cuerpo, usuario, ahora=None):
         raise VentanaCerrada(
             'Pasaron más de 24 horas desde el último mensaje del representante: '
             'solo puede enviar una plantilla aprobada.')
-    wa_id = _post_meta(conv.telefono, {'type': 'text', 'text': {'body': cuerpo}})
+    wa_id = _post_meta(conv, {'type': 'text', 'text': {'body': cuerpo}})
     msg = registrar_saliente(conv, 'texto', cuerpo, usuario=usuario, wa_message_id=wa_id,
                              humano=True, ahora=ahora)
     if conv.estado == ConversacionWhatsApp.AUTOMATICO:
@@ -371,7 +391,7 @@ def enviar_documento(conv, archivo, caption, usuario, ahora=None):
     error = validar_comprobante(archivo)
     if error:
         raise ErrorConversacion(error)
-    token, phone_id = _credenciales()
+    token, phone_id = _credenciales(conv)
     es_imagen = archivo.content_type.startswith('image/')
     try:
         archivo.seek(0)
@@ -390,7 +410,7 @@ def enviar_documento(conv, archivo, caption, usuario, ahora=None):
     else:
         cuerpo_meta = {'type': 'document',
                        'document': {'id': media_id, 'filename': archivo.name, 'caption': caption}}
-    wa_id = _post_meta(conv.telefono, cuerpo_meta)
+    wa_id = _post_meta(conv, cuerpo_meta)
     archivo.seek(0)
     msg = registrar_saliente(
         conv, 'imagen' if es_imagen else 'documento', caption, {'nombre_archivo': archivo.name},
@@ -411,7 +431,7 @@ def enviar_plantilla(conv, nombre, idioma, parametros, usuario, cuerpo='', ahora
     if parametros:
         plantilla['components'] = [{'type': 'body', 'parameters': [
             {'type': 'text', 'text': p} for p in parametros]}]
-    wa_id = _post_meta(conv.telefono, {'type': 'template', 'template': plantilla})
+    wa_id = _post_meta(conv, {'type': 'template', 'template': plantilla})
     return registrar_saliente(
         conv, 'plantilla', (cuerpo or '').strip() or f'[Plantilla: {nombre}]',
         {'plantilla': nombre, 'idioma': idioma or 'es', 'parametros': parametros},

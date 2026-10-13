@@ -390,15 +390,19 @@ def _parametros_plantilla(rep, ciclos):
 
 def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True, regla=None, ciclos=(), variante=''):
     from notificaciones import conversaciones
+    from notificaciones.config_whatsapp import sede_id_de_representante
     from notificaciones.services import _proveedor_whatsapp, enviar_whatsapp, pop_ultimo_wa_message_id
     from .flujo_botones import BOTONES_RECORDATORIO
+    # Sale por el número de la sede de la familia (o el de la sede de la regla); sin número propio, el general.
+    sede_id = sede_id_de_representante(rep) or (regla.sede_id if regla else None)
     plantilla = plantilla_meta_de(regla, variante) if (regla and regla.destinatario == 'representante') else ''
     template_data = None
-    if plantilla and ciclos and _proveedor_whatsapp() == 'meta':
+    if plantilla and ciclos and _proveedor_whatsapp(sede_id) == 'meta':
         template_data = {'nombre': plantilla, 'idioma': 'es', 'botones': list(BOTONES_RECORDATORIO),
                          'parametros': _parametros_plantilla(rep, ciclos)}
     ok = bool(enviar_whatsapp(telefono, texto, tipo='cobranza_inteligente',
-                              representante_cedula=rep.cedula, template_data=template_data))
+                              representante_cedula=rep.cedula, template_data=template_data,
+                              sede=sede_id))
     wa_id = pop_ultimo_wa_message_id()
     if ok and registrar:
         # El saliente queda en la conversación del número (v4 §2.3); nunca rompe el envío.

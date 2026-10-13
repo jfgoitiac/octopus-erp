@@ -198,16 +198,15 @@ def _normalizar_telefono(tel):
     return None
 
 
-def _proveedor_whatsapp():
-    """'twilio', 'meta' o '' según ConfiguracionNotificaciones (BD) o settings."""
-    cfg = _notif_cfg()
-    proveedor = (cfg.whatsapp_proveedor if (cfg and cfg.whatsapp_activo) else None) \
-        or getattr(settings, 'WHATSAPP_PROVIDER', '')
-    return (proveedor or '').lower()
+def _proveedor_whatsapp(sede=None):
+    """'twilio', 'meta' o '' según la config de la sede (si tiene la suya) o la general."""
+    from .config_whatsapp import get_config_whatsapp
+    return get_config_whatsapp(sede).proveedor
 
 
 def enviar_whatsapp_documento(telefono, contenido, nombre_archivo, caption, tipo='otro',
-                              representante_cedula='', alumno_nombre='', parametros_plantilla=None):
+                              representante_cedula='', alumno_nombre='', parametros_plantilla=None,
+                              sede=None):
     """Envía un PDF como documento de WhatsApp (solo Meta Cloud API: sube el
     archivo a /media y lo manda por su id; Twilio exigiría una URL pública).
 
@@ -220,11 +219,11 @@ def enviar_whatsapp_documento(telefono, contenido, nombre_archivo, caption, tipo
     Devuelve True si Meta aceptó el envío; False si el proveedor no es Meta,
     faltan credenciales o falló (el caller puede caer al texto)."""
     numero = _normalizar_telefono(telefono)
-    if not numero or _proveedor_whatsapp() != 'meta':
+    if not numero or _proveedor_whatsapp(sede) != 'meta':
         return False
-    cfg      = _notif_cfg()
-    token    = (cfg.meta_whatsapp_token    if cfg else '') or getattr(settings, 'META_WHATSAPP_TOKEN', '')
-    phone_id = (cfg.meta_whatsapp_phone_id if cfg else '') or getattr(settings, 'META_WHATSAPP_PHONE_ID', '')
+    from .config_whatsapp import get_config_whatsapp
+    cfg      = get_config_whatsapp(sede)
+    token, phone_id = cfg.token, cfg.phone_id
     if not all([token, phone_id]):
         return False
     plantilla = getattr(settings, 'WHATSAPP_PLANTILLA_RECIBO', '')
@@ -270,7 +269,7 @@ def enviar_whatsapp_documento(telefono, contenido, nombre_archivo, caption, tipo
 
 
 def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alumno_nombre='',
-                     template_data=None):
+                     template_data=None, sede=None):
     """Envia WhatsApp segun proveedor configurado en BD o fallback a settings.
 
     `template_data`, si viene, envia un mensaje de plantilla aprobada por Meta
@@ -279,16 +278,20 @@ def enviar_whatsapp(telefono, mensaje, tipo='otro', representante_cedula='', alu
     Forma esperada: {'nombre': str, 'idioma': str, 'parametros': [str, ...]}.
     Si es None (comportamiento por defecto, usado por notificar_mora,
     notificar_bienvenida_portal, notificar_pago_exitoso), se manda texto
-    libre exactamente como antes."""
+    libre exactamente como antes.
+
+    `sede` (Sede o id): si tiene credenciales propias de WhatsApp el envío sale
+    por su número; si no (o es None) usa la configuración general."""
     _ultimo_envio.wa_message_id = None
     numero = _normalizar_telefono(telefono)
     if not numero:
         return False
-    proveedor = _proveedor_whatsapp()
+    proveedor = _proveedor_whatsapp(sede)
     if proveedor == 'twilio':
         return _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data)
     elif proveedor == 'meta':
-        return _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data)
+        return _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data,
+                        sede=sede)
     else:
         _log('whatsapp', tipo, numero, '', mensaje, 'pendiente',
              error='WHATSAPP_PROVIDER no configurado',
@@ -343,10 +346,10 @@ def _wa_twilio(numero, mensaje, tipo, representante_cedula, alumno_nombre, templ
         return False
 
 
-def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data=None):
-    cfg      = _notif_cfg()
-    token    = (cfg.meta_whatsapp_token    if cfg else '') or getattr(settings, 'META_WHATSAPP_TOKEN', '')
-    phone_id = (cfg.meta_whatsapp_phone_id if cfg else '') or getattr(settings, 'META_WHATSAPP_PHONE_ID', '')
+def _wa_meta(numero, mensaje, tipo, representante_cedula, alumno_nombre, template_data=None, sede=None):
+    from .config_whatsapp import get_config_whatsapp
+    cfg      = get_config_whatsapp(sede)
+    token, phone_id = cfg.token, cfg.phone_id
     if not all([token, phone_id]):
         _log('whatsapp', tipo, numero, '', mensaje, 'fallido',
              error='Credenciales Meta no configuradas',
@@ -588,7 +591,7 @@ def notificar_mora(mensualidad, dias_mora, tipo):
         tel = (dir_wa or rep.telefono) if tipo == 'mora_dia_15' else rep.telefono
         enviar_whatsapp(tel, mensajes_wa[tipo], tipo=tipo,
                         representante_cedula=rep.cedula,
-                        alumno_nombre=ctx['nombre_alumno'])
+                        alumno_nombre=ctx['nombre_alumno'], sede=alumno.sede_id)
 
     # Push: solo dia 5/10 (dia 0 satura, dia 15 va al director que no es
     # usuario del portal).
@@ -626,8 +629,10 @@ def notificar_bienvenida_portal(representante, contrasena_inicial):
             f'Contrasena: {contrasena_inicial}\n\n'
             f'Ingrese en: {cfg["portal_url"]}'
         )
+        from .config_whatsapp import sede_id_de_representante
         enviar_whatsapp(representante.telefono, msg, tipo='bienvenida',
-                        representante_cedula=representante.cedula)
+                        representante_cedula=representante.cedula,
+                        sede=sede_id_de_representante(representante))
 
 
 def notificar_reset_password_portal(representante, uid, token):
@@ -821,11 +826,11 @@ def notificar_pago_exitoso(mensualidad, pago):
         enviado_pdf = pdf_bytes is not None and enviar_whatsapp_documento(
             rep.telefono, pdf_bytes, nombre_pdf, msg, tipo='pago_exitoso',
             representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
-            parametros_plantilla=[rep.nombre, ctx['numero_recibo']],
+            parametros_plantilla=[rep.nombre, ctx['numero_recibo']], sede=alumno.sede_id,
         )
         if not enviado_pdf:
             enviar_whatsapp(rep.telefono, msg, tipo='pago_exitoso',
-                            representante_cedula=rep.cedula)
+                            representante_cedula=rep.cedula, sede=alumno.sede_id)
 
     usuario_portal = _usuario_portal_de(rep)
     if usuario_portal:

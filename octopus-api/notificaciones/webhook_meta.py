@@ -19,7 +19,6 @@ import unicodedata
 from datetime import datetime, timezone as dt_timezone
 
 import requests
-from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.http import HttpResponse
@@ -28,7 +27,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import conversaciones, services
+from . import config_whatsapp, conversaciones
 from .models import ConversacionWhatsApp, MensajeWhatsApp
 
 logger = logging.getLogger(__name__)
@@ -46,13 +45,53 @@ _EXTENSION_POR_MIME = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': 
 # ── Firma y configuración ─────────────────────────────────────────────────────
 
 def _app_secret():
-    cfg = services._notif_cfg()
-    return (cfg.meta_app_secret if cfg else '') or getattr(settings, 'META_APP_SECRET', '')
+    """App Secret general (compatibilidad); la firma por sede va en `_secretos_requeridos`."""
+    return config_whatsapp.get_config_whatsapp(None).app_secret
+
+
+def _phone_ids(payload):
+    ids = []
+    for entry in (payload.get('entry') or []) if isinstance(payload, dict) else []:
+        for change in (entry.get('changes') or []) if isinstance(entry, dict) else []:
+            value = change.get('value') if isinstance(change, dict) else None
+            pid = ((value or {}).get('metadata') or {}).get('phone_number_id', '')
+            if pid and pid not in ids:
+                ids.append(pid)
+    return ids
+
+
+def _secretos_requeridos(cuerpo):
+    """
+    Secretos con los que debe firmarse el POST: el de la sede dueña de cada
+    Phone Number ID del payload y el general para los números sin dueño (o si
+    no hay ninguno). Meta firma con el secreto de UNA app, así que un payload
+    legítimo cumple todos a la vez; uno armado con el secreto de una sede para
+    colar eventos de otra no.
+    """
+    try:
+        payload = json.loads(cuerpo or b'{}')
+    except ValueError:
+        payload = {}
+    secretos, usa_general = [], False
+    for pid in _phone_ids(payload):
+        dueño = config_whatsapp.config_por_phone_id(pid)
+        if dueño is not None and dueño.origen == config_whatsapp.ORIGEN_SEDE:
+            secretos.append(dueño.app_secret)
+        else:
+            usa_general = True
+    if usa_general or not secretos:
+        secretos.append(_app_secret())
+    return secretos
+
+
+def firma_de_payload_valida(cuerpo, cabecera):
+    secretos = _secretos_requeridos(cuerpo)
+    return all(firma_valida(cuerpo, cabecera, s) for s in secretos)
 
 
 def _verify_token():
-    cfg = services._notif_cfg()
-    return (cfg.meta_webhook_verify_token if cfg else '') or getattr(settings, 'META_WEBHOOK_VERIFY_TOKEN', '')
+    """Token de verificación general (compatibilidad)."""
+    return config_whatsapp.get_config_whatsapp(None).verify_token
 
 
 def firma_valida(cuerpo, cabecera, secreto):
@@ -68,15 +107,15 @@ class WebhookMetaView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        token = _verify_token()
-        if (request.query_params.get('hub.mode') == 'subscribe' and token
-                and hmac.compare_digest(request.query_params.get('hub.verify_token', ''), token)):
+        recibido = request.query_params.get('hub.verify_token', '')
+        if (request.query_params.get('hub.mode') == 'subscribe' and any(
+                hmac.compare_digest(recibido, t) for t in config_whatsapp.verify_tokens())):
             return HttpResponse(request.query_params.get('hub.challenge', ''), content_type='text/plain')
         return HttpResponse('Forbidden', status=403, content_type='text/plain')
 
     def post(self, request):
         cuerpo = request.body
-        if not firma_valida(cuerpo, request.META.get('HTTP_X_HUB_SIGNATURE_256', ''), _app_secret()):
+        if not firma_de_payload_valida(cuerpo, request.META.get('HTTP_X_HUB_SIGNATURE_256', '')):
             return HttpResponse('Firma inválida', status=403, content_type='text/plain')
         try:
             payload = json.loads(cuerpo or b'{}')
@@ -99,22 +138,23 @@ class WebhookMetaView(APIView):
 def procesar_payload(payload):
     """Procesa un POST de Meta ya validado. Devuelve contadores. Un mensaje malo no frena a los demás."""
     resumen = {'mensajes': 0, 'duplicados': 0, 'estados': 0, 'ignorados': 0}
-    phone_id = ''
-    cfg = services._notif_cfg()
-    if cfg:
-        phone_id = cfg.meta_whatsapp_phone_id or ''
+    general = config_whatsapp.get_config_whatsapp(None)
     for entry in payload.get('entry') or []:
         for change in entry.get('changes') or []:
             value = change.get('value') or {}
             recibido_en = (value.get('metadata') or {}).get('phone_number_id', '')
-            if phone_id and recibido_en and recibido_en != phone_id:
-                resumen['ignorados'] += 1   # otro número de la misma app de Meta
+            # Enrutado por Phone Number ID: sede dueña del número, el general, o (si el
+            # general no tiene Phone ID, instalación vieja) todo va al general.
+            dueño = config_whatsapp.config_por_phone_id(recibido_en) if recibido_en else None
+            if dueño is None and general.phone_id and recibido_en and recibido_en != general.phone_id:
+                resumen['ignorados'] += 1   # número que no es de ninguna sede ni el general
                 continue
+            entrada = dueño if (dueño is not None and dueño.origen == config_whatsapp.ORIGEN_SEDE) else None
             contactos = {c.get('wa_id'): (c.get('profile') or {}).get('name', '')
                          for c in value.get('contacts') or []}
             for m in value.get('messages') or []:
                 try:
-                    resultado = procesar_mensaje(m, contactos)
+                    resultado = procesar_mensaje(m, contactos, entrada=entrada, phone_id=recibido_en)
                 except Exception:
                     logger.exception('Error procesando el mensaje entrante %s', m.get('id'))
                     continue
@@ -177,8 +217,9 @@ def _extraer(m):
     return 'texto', f'[Mensaje de tipo "{tipo_meta}" no soportado]', base, False
 
 
-def procesar_mensaje(m, contactos=None):
-    """Devuelve 'mensajes', 'duplicados' o 'ignorados'."""
+def procesar_mensaje(m, contactos=None, entrada=None, phone_id=''):
+    """Devuelve 'mensajes', 'duplicados' o 'ignorados'. `entrada`: ConfigWhatsApp de
+    la sede dueña del número por el que llegó (None = número general)."""
     wa_id = m.get('id')
     if not wa_id:
         return 'ignorados'
@@ -192,7 +233,8 @@ def procesar_mensaje(m, contactos=None):
         return 'ignorados'
     ahora = timezone.now()
     conv = conversaciones.obtener_conversacion(
-        telefono, (contactos or {}).get(m.get('from'), ''), ahora)
+        telefono, (contactos or {}).get(m.get('from'), ''), ahora,
+        sede_id=entrada.sede_id if entrada else None, phone_id=phone_id)
     tipo, cuerpo, payload, reconocido = _extraer(m)
     try:
         msg = conversaciones.registrar_entrante(
@@ -287,14 +329,14 @@ def _reintentar_en_motor(msg):
 
 # ── Media entrante ────────────────────────────────────────────────────────────
 
-def descargar_media(media_id, mime_hint='', nombre_hint=''):
+def descargar_media(media_id, mime_hint='', nombre_hint='', conv=None):
     """
     GET /{media_id} → URL temporal → descarga con el token. Devuelve un
     SimpleUploadedFile validado con las mismas reglas del portal (10 MB; JPG,
     PNG, WEBP o PDF; magic bytes). Lanza ValueError con el motivo si no sirve.
     """
     from pagos_comunes.comprobantes import COMPROBANTE_MAX_BYTES, validar_comprobante
-    token, _ = conversaciones._credenciales()
+    token, _ = conversaciones._credenciales(conv)
     auth = {'Authorization': f'Bearer {token}'}
     info = requests.get(f'{conversaciones.GRAPH_URL}/{media_id}', headers=auth, timeout=15)
     info.raise_for_status()
@@ -323,7 +365,8 @@ def _guardar_media(msg):
     if not media_id:
         return
     try:
-        archivo = descargar_media(media_id, msg.payload.get('mime_type', ''), msg.payload.get('filename', ''))
+        archivo = descargar_media(media_id, msg.payload.get('mime_type', ''), msg.payload.get('filename', ''),
+                                  conv=msg.conversacion)
     except Exception as e:
         logger.warning('No se pudo descargar la media %s: %s', media_id, e)
         msg.payload = {**msg.payload, 'media_error': str(e)[:200]}
