@@ -78,9 +78,22 @@ class ProbarNotificacionView(APIView):
             ok = enviar_email(destino, 'Prueba de notificacion -- Octopus', html, tipo='prueba', area=area)
             resultados['email'] = 'enviado' if ok else 'fallido'
         if canal in ('whatsapp', 'ambos'):
-            from notificaciones.services import enviar_whatsapp
-            ok = enviar_whatsapp(destino, mensaje, tipo='prueba')
-            resultados['whatsapp'] = 'enviado' if ok else 'fallido (revisar configuracion)'
+            from notificaciones.services import enviar_whatsapp, _proveedor_whatsapp
+            from .models import NotificacionLog
+            # Con Meta la prueba va como la plantilla 'hello_world' (viene
+            # aprobada en toda cuenta nueva): el texto libre solo se entrega
+            # dentro de la ventana de 24h y Meta lo descarta en silencio fuera
+            # de ella, así que una prueba "enviada" podía no llegar nunca.
+            plantilla = None
+            if _proveedor_whatsapp() == 'meta':
+                plantilla = {'nombre': 'hello_world', 'idioma': 'en_US'}
+            ok = enviar_whatsapp(destino, mensaje, tipo='prueba', template_data=plantilla)
+            if ok:
+                resultados['whatsapp'] = 'enviado'
+            else:
+                ultimo = NotificacionLog.objects.filter(canal='whatsapp', tipo='prueba').order_by('-id').first()
+                motivo = ultimo.error_detalle if ultimo and ultimo.error_detalle else 'revisar configuracion'
+                resultados['whatsapp'] = f'fallido: {motivo}'
         return Response({'resultados': resultados, 'destino': destino})
 
 
