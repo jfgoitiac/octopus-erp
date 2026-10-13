@@ -4058,3 +4058,26 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    `mensualidad.monto_usd * tasa vigente hoy` (igual que al aprobarlo); no se
    usa el monto declarado por el representante porque `ComprobantePago` no lo
    guarda.
+
+## Conciliador: pago conjunto de hermanos (13/10/2026)
+
+1. **Origen del problema en el portal**: `ComprobantePago` apunta a UNA
+   mensualidad y su referencia es única entre comprobantes activos
+   (`unique_referencia_comprobante_activo` + ANTIFRAUDE 4 en `portal/views.py`).
+   Un representante que paga a dos hijos con una sola transferencia no puede
+   subir el mismo comprobante para ambas mensualidades. El conciliador ya
+   soporta N operaciones por línea del banco, pero el portal debería permitir
+   un comprobante que cubra varias mensualidades del mismo representante
+   (relación M2M o "comprobante padre"). No implementado.
+2. **Caja con referencias "variantes"**: `Pago.clean` rechaza dos pagos con la
+   misma referencia+método+banco, así que cuando caja registra por separado a
+   los hermanos termina escribiendo variantes (otros ceros, otros dígitos
+   iniciales). Lo correcto es registrarlos en UNA transacción multi-alumno
+   (ya soportado por `RegistrarPagoSerializer`). Conviene un aviso en caja.
+3. **Lint preexistente**: `src/hooks/useConciliacionSemiauto.js` dispara
+   `react-hooks/set-state-in-effect` en `useEffect(() => { fetchLoteAbierto(); })`.
+   Existía antes de este cambio; no se tocó.
+4. **Copias denormalizadas**: `ConciliacionBancaria` conserva
+   `monto_banco_ves`/`monto_sistema_ves`/`diferencia_ves`/`fuera_tolerancia`
+   como copia del `MovimientoBancarioConciliado` para no romper consumidores
+   (resumen de caja, detalle de lote). La fuente de verdad es el movimiento.
