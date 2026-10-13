@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
-import { crearReglaCobranza, actualizarReglaCobranza, getReglasCobranza } from '../../../api/cobranza.service';
+import { crearReglaCobranza, actualizarReglaCobranza, copiarReglasGlobales } from '../../../api/cobranza.service';
 import { VistaPreviaMensaje } from './VistaPreviaMensaje';
 import {
     ETAPAS, CANALES, DESTINATARIOS, PLANTILLAS, mensajeDeRegla, normalizarReglas, aplicaAB, aplicaExtra, validarRegla, datosRegla,
@@ -37,22 +37,13 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
     const error = validarRegla(f);
 
     /**
-     * Una regla heredada de las globales no se puede editar en la sede: las propias reemplazan a las
-     * globales y el PATCH solo opera sobre reglas de la sede. Por contrato el POST copia primero las
-     * globales a la sede (solo si la sede no tiene reglas propias), pero si el día ya existe responde
-     * 400 y revierte la copia. Por eso se hace un POST de una regla auxiliar INACTIVA en un día libre
-     * (esto copia las globales) y luego se edita con PATCH la copia del día original.
+     * Una regla heredada de las globales no se puede editar en la sede: el PATCH solo opera sobre
+     * reglas de la sede. Se copian primero las globales (endpoint idempotente) y se edita con PATCH
+     * la copia que ocupa el día original; el día sí se puede cambiar.
      */
     const guardarHeredada = async (datos) => {
-        const ocupados = new Set(normalizarReglas((await getReglasCobranza(sedeId)).data).map(r => r.dia_relativo));
-        let libre = 90;
-        while (ocupados.has(libre) && libre > -30) libre -= 1;
-        await crearReglaCobranza({
-            ...datos, nombre: 'Regla auxiliar (copia de las globales)', dia_relativo: libre, activa: false,
-            plantilla_meta_b: '', recordatorio_extra_paga_tarde: false,
-        }, sedeId);
-        const lista = normalizarReglas((await getReglasCobranza(sedeId)).data);
-        const copia = lista.find(r => !r.heredada && r.dia_relativo === datos.dia_relativo);
+        const { data } = await copiarReglasGlobales(sedeId);
+        const copia = normalizarReglas(data).find(r => !r.heredada && r.dia_relativo === regla.dia_relativo);
         if (!copia) throw new Error('copia no encontrada');
         return actualizarReglaCobranza(copia.id, datos);
     };
@@ -94,7 +85,7 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
                         <input id="rg-nombre" className={inputCls} style={campo} value={f.nombre} onChange={e => set('nombre', e.target.value)} />
                     </Campo>
                     <Campo id="rg-dia" label="Día relativo al vencimiento (−30 … +90)">
-                        <input id="rg-dia" type="number" min="-30" max="90" disabled={heredada} className={inputCls} style={campo} value={f.dia_relativo} onChange={e => set('dia_relativo', e.target.value)} />
+                        <input id="rg-dia" type="number" min="-30" max="90" className={inputCls} style={campo} value={f.dia_relativo} onChange={e => set('dia_relativo', e.target.value)} />
                     </Campo>
                     <Campo id="rg-etapa" label="Etapa">
                         <select id="rg-etapa" className={inputCls} style={campo} value={f.etapa} onChange={e => set('etapa', e.target.value)}>
@@ -128,7 +119,7 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
                 </div>
                 {heredada && (
                     <p className="text-xs" role="note" style={{ color: 'var(--ash)' }}>
-                        Esta regla viene de las reglas globales. Al guardar, la sede recibe una copia de todas las globales (más una regla auxiliar inactiva) y se edita la copia; el día no se puede cambiar.
+                        Esta regla viene de las reglas globales. Al guardar, la sede recibe una copia de todas las globales y se edita la copia.
                     </p>
                 )}
                 {f.plantilla_meta_b.trim() && (

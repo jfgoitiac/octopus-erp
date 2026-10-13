@@ -259,6 +259,11 @@ export const getReglasCobranza = (sedeId, signal) =>
 export const crearReglaCobranza = (datos, sedeId) =>
     apiClient.post(`${BASE_INT}/reglas/`, datos, { params: parametrosSede(sedeId) });
 
+// Copia las reglas globales a la sede para poder editarlas. Idempotente (si la sede ya tiene propias
+// no copia nada). 200 { count, results, copiadas }; `todas=1` incluye las inactivas en `results`.
+export const copiarReglasGlobales = (sedeId) =>
+    apiClient.post(`${BASE_INT}/reglas/copiar-globales/`, { sede: sedeId }, { params: { todas: 1 } });
+
 export const actualizarReglaCobranza = (id, datos) =>
     apiClient.patch(`${BASE_INT}/reglas/${id}/`, datos);
 
