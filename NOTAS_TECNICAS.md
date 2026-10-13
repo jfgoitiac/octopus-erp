@@ -4081,3 +4081,26 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    `monto_banco_ves`/`monto_sistema_ves`/`diferencia_ves`/`fuera_tolerancia`
    como copia del `MovimientoBancarioConciliado` para no romper consumidores
    (resumen de caja, detalle de lote). La fuente de verdad es el movimiento.
+
+## Dashboard unificado de Cobranza Inteligente (13/10/2026)
+
+1. **"Sin inscripción" no disponible**: la dona "Estado de pagos" muestra Al día /
+   Abono parcial / Con deuda a partir de `estado-por-concepto` (mensualidades).
+   Ningún endpoint de cobranza devuelve alumnos activos sin inscripción pagada
+   junto con las mensualidades del mes; haría falta cruzarlo con `CuotaInscripcion`.
+2. **Recordatorios sin desglose por canal**: `dashboard.py::calcular_dashboard`
+   agrupa `envios_7_dias` solo por `estado`. `EnvioCobranza.canal` existe, pero no
+   se agrega por canal, así que el panel no puede separar WhatsApp de correo.
+3. **"Último pago" real**: la tabla muestra `fecha_pago` de la mensualidad del mes
+   elegido, no el último pago del estudiante (el endpoint no lo expone).
+4. **Doble consulta del mes**: los KPIs y la tabla llaman a `estado-por-concepto`
+   por separado porque el `resumen` del listado respeta los filtros de grado y
+   búsqueda. Un endpoint de resumen con montos cobrados por mes evitaría la
+   segunda llamada (hoy `estado-por-concepto/resumen/` no trae `monto_cobrado`).
+5. **Resultados restringidos por rol**: `DashboardInteligenteView` solo responde a
+   director/administrador/sistemas; cobranza y cajero ven el dashboard sin las
+   secciones "Recordatorios" y "Gestión inteligente".
+6. **Lint preexistente**: `useEstadoPorConcepto.js` (`set-state-in-effect`, `_p`/`_ps`
+   sin uso) y `MainLayout.jsx` (`set-state-in-effect`). No se tocaron.
+7. **`InitialsAvatar` arma clases dinámicas** (`w-${size}`): Tailwind solo genera
+   las que aparezcan literales en algún archivo; tamaños poco usados quedan sin estilo.
