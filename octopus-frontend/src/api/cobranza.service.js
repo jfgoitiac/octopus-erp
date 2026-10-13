@@ -233,9 +233,17 @@ export const crearRespuestaRapida = (datos) =>
 export const actualizarRespuestaRapida = (id, datos) =>
     apiClient.patch(`${BASE_INT}/respuestas-rapidas/${id}/`, datos);
 
+// Comprobantes recibidos por WhatsApp. Contrato: docs/CONTRATO_COBRANZA_V4_FASE_C.md.
+// Mensualidades impagas del representante vinculado (selector del modal de conversión).
+export const getMensualidadesPendientes = (conversacionId, signal) =>
+    apiClient.get(`${BASE_INT}/conversaciones/${conversacionId}/mensualidades-pendientes/`, { signal });
+
+// `datos`: { mensualidades: [ids], referencia_bancaria?, metodo_pago?, banco_receptor_id? }.
+// 201 { mensaje, comprobantes, conversacion }.
 export const convertirAdjuntoComprobante = (mensajeId, datos) =>
     apiClient.post(`${BASE_INT}/adjuntos/${mensajeId}/convertir-comprobante/`, datos);
 
+// `datos`: { motivo } (obligatorio, máx. 300). 200 { mensaje }.
 export const descartarAdjunto = (mensajeId, datos) =>
     apiClient.post(`${BASE_INT}/adjuntos/${mensajeId}/descartar/`, datos);
 
