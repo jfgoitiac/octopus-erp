@@ -63,6 +63,48 @@ class ConfiguracionNotificaciones(models.Model):
         return 'Configuración de Notificaciones'
 
 
+class ConfiguracionWhatsAppSede(models.Model):
+    """Credenciales de WhatsApp (Meta Cloud API) propias de una sede.
+
+    Si la sede no tiene fila, o la fila no está `activo`, hereda la
+    configuración general (`ConfiguracionNotificaciones` pk=1). Toda lectura
+    pasa por `notificaciones.config_whatsapp.get_config_whatsapp(sede)`; nadie
+    debe leer estos campos directamente para enviar. Ver
+    docs/CONTRATO_WHATSAPP_POR_SEDE.md."""
+
+    sede = models.OneToOneField(
+        'multisede.Sede', on_delete=models.CASCADE, related_name='config_whatsapp')
+    activo = models.BooleanField(
+        default=False, help_text='Apagado = la sede usa la configuración general.')
+    numero_visible = models.CharField(
+        max_length=30, blank=True, default='',
+        help_text='Número que ven las familias (informativo), ej. +58 412 1234567.')
+    meta_whatsapp_phone_id = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text='Phone Number ID de Meta: identifica el número y enruta el webhook.')
+    meta_whatsapp_token = EncryptedTextField(blank=True, default='')
+    meta_waba_id = models.CharField(max_length=50, blank=True, default='')
+    meta_app_secret = EncryptedTextField(
+        blank=True, default='',
+        help_text='Vacío = se usa el App Secret general (misma app de Meta).')
+    meta_webhook_verify_token = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Vacío = se usa el token de verificación general.')
+    actualizada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración de WhatsApp por sede'
+        verbose_name_plural = 'Configuraciones de WhatsApp por sede'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['meta_whatsapp_phone_id'], name='uniq_wa_sede_phone_id',
+                condition=~models.Q(meta_whatsapp_phone_id='')),
+        ]
+
+    def __str__(self):
+        return f'WhatsApp de {self.sede} ({"activo" if self.activo else "hereda"})'
+
+
 class PerfilEmailRemitente(models.Model):
     """Credenciales SMTP por área — cada módulo envía con su propio remitente
     (ej. cobranza@clhma.com para pagos, controldeestudios@clhma.com para
@@ -262,6 +304,9 @@ class ConversacionWhatsApp(models.Model):
     # devolución automática a los 3 días y de las tarjetas de Hoy.
     ultimo_humano_en = models.DateTimeField(null=True, blank=True)
     no_leidos = models.PositiveIntegerField(default=0)
+    # Phone Number ID por el que escribió la familia la última vez: la respuesta
+    # sale por ese mismo número (la ventana de 24 h es por número).
+    phone_id_entrante = models.CharField(max_length=50, blank=True, default='')
     esperando = models.CharField(max_length=20, blank=True, default='', choices=ESPERANDO)
     actualizado_en = models.DateTimeField(default=timezone.now, db_index=True)
 

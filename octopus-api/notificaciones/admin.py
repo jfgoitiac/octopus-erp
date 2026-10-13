@@ -1,6 +1,9 @@
 from django import forms
 from django.contrib import admin
-from .models import NotificacionLog, ConfiguracionNotificaciones, PerfilEmailRemitente, SuscripcionPush
+from .models import (
+    ConfiguracionNotificaciones, ConfiguracionWhatsAppSede, NotificacionLog, PerfilEmailRemitente,
+    SuscripcionPush,
+)
 
 # Campos que guardan credenciales/secretos (cifrados en reposo — ver
 # notificaciones/crypto_fields.py) y que por lo tanto NO deben mostrarse en
@@ -60,3 +63,18 @@ class PerfilEmailRemitenteAdmin(admin.ModelAdmin):
                        'email_use_tls', 'email_host_user', 'email_host_password', 'email_from'),
         }),
     )
+
+
+class ConfiguracionWhatsAppSedeForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionWhatsAppSede
+        fields = '__all__'
+        widgets = {c: forms.PasswordInput(render_value=False)
+                   for c in ('meta_whatsapp_token', 'meta_app_secret')}
+
+
+@admin.register(ConfiguracionWhatsAppSede)
+class ConfiguracionWhatsAppSedeAdmin(admin.ModelAdmin):
+    form = ConfiguracionWhatsAppSedeForm
+    list_display = ['sede', 'activo', 'numero_visible', 'meta_whatsapp_phone_id']
+    list_filter = ['activo']
