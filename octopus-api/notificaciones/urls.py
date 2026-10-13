@@ -5,6 +5,7 @@ from .views import (
     PlantillasWhatsAppView, PlantillaWhatsAppDetailView, VariablesPlantillaWhatsAppView,
     SuscripcionPushUsuarioView,
     PrevisualizarCobroWhatsAppView, RegistrarEnvioManualCobroWhatsAppView, EnviarCobroWhatsAppView,
+    WebhookMetaWhatsAppView, WebhookTwilioWhatsAppView,
 )
 
 urlpatterns = [
@@ -22,4 +23,8 @@ urlpatterns = [
     path('cobro-whatsapp/previsualizar/',           PrevisualizarCobroWhatsAppView.as_view()),
     path('cobro-whatsapp/registrar-envio-manual/',  RegistrarEnvioManualCobroWhatsAppView.as_view()),
     path('cobro-whatsapp/enviar/',                  EnviarCobroWhatsAppView.as_view()),
+
+    # WhatsApp entrante (públicos, protegidos por la firma del proveedor)
+    path('whatsapp/webhook/meta/',                  WebhookMetaWhatsAppView.as_view()),
+    path('whatsapp/webhook/twilio/',                WebhookTwilioWhatsAppView.as_view()),
 ]

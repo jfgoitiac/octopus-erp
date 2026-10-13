@@ -627,3 +627,52 @@ class SuscripcionPushUsuarioView(APIView):
                 endpoint=endpoint, usuario=request.user).update(activa=False):
             return Response({'error': 'Suscripción no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WebhookMetaWhatsAppView(APIView):
+    """
+    Webhook de Meta Cloud API para mensajes ENTRANTES.
+    GET: verificación de la suscripción (hub.verify_token == META_WEBHOOK_VERIFY_TOKEN).
+    POST: exige X-Hub-Signature-256 firmada con META_APP_SECRET. Siempre 200 si la
+    firma es válida, para que Meta no reintente por un mensaje que no se pudo asociar.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.conf import settings
+        from django.http import HttpResponse
+        token = getattr(settings, 'META_WEBHOOK_VERIFY_TOKEN', '')
+        p = request.query_params
+        if p.get('hub.mode') == 'subscribe' and token and p.get('hub.verify_token') == token:
+            return HttpResponse(p.get('hub.challenge', ''), content_type='text/plain')
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def post(self, request):
+        import json
+        from .whatsapp_entrante import firma_meta_valida, procesar_meta
+        cuerpo = request.body
+        if not firma_meta_valida(cuerpo, request.headers.get('X-Hub-Signature-256', '')):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        try:
+            payload = json.loads(cuerpo or b'{}')
+        except ValueError:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response({'recibidos': procesar_meta(payload)})
+
+
+class WebhookTwilioWhatsAppView(APIView):
+    """Webhook de Twilio para mensajes ENTRANTES (exige X-Twilio-Signature)."""
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from django.http import HttpResponse
+        from .whatsapp_entrante import firma_twilio_valida, procesar_twilio
+        parametros = request.POST.dict()
+        if not firma_twilio_valida(request.build_absolute_uri(), parametros,
+                                   request.headers.get('X-Twilio-Signature', '')):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        procesar_twilio(parametros)
+        # TwiML vacío: no se responde automáticamente al representante.
+        return HttpResponse('<Response></Response>', content_type='text/xml')

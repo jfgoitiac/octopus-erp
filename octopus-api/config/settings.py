@@ -260,6 +260,9 @@ TWILIO_AUTH_TOKEN       = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM    = os.environ.get('TWILIO_WHATSAPP_FROM', '')
 META_WHATSAPP_TOKEN     = os.environ.get('META_WHATSAPP_TOKEN', '')
 META_WHATSAPP_PHONE_ID  = os.environ.get('META_WHATSAPP_PHONE_ID', '')
+# Webhook de WhatsApp entrante (Meta): token de verificación y secreto de la app para la firma.
+META_WEBHOOK_VERIFY_TOKEN = os.environ.get('META_WEBHOOK_VERIFY_TOKEN', '')
+META_APP_SECRET         = os.environ.get('META_APP_SECRET', '')
 # Plantilla aprobada por Meta para mandar el recibo de pago en PDF (encabezado
 # DOCUMENTO; cuerpo con {{1}} = nombre del representante, {{2}} = N° de recibo).
 # Vacía: el PDF solo llega si el representante escribió en las últimas 24h.
