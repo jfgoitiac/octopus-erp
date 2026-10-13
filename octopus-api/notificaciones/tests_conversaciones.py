@@ -142,7 +142,7 @@ class WebhookTest(ConvBase):
         m = c.mensajes.get()
         self.assertEqual((m.direccion, m.tipo, m.cuerpo), ('entrante', 'texto', '¿Cuánto debo?'))
 
-    def test_boton_e_interactive_se_guardan_sin_marcar_requiere_humano(self):
+    def test_boton_e_interactive_se_guardan_y_lista_desconocida_marca_requiere_humano(self):
         self.postear(payload_texto(tipo='button', wa_id='w1', extra={'button': {'payload': 'YA_PAGUE', 'text': 'Ya pagué'}}))
         self.postear(payload_texto(tipo='interactive', wa_id='w2', extra={'interactive': {
             'type': 'list_reply', 'list_reply': {'id': 'dias_7', 'title': 'En 7 días'}}}))
