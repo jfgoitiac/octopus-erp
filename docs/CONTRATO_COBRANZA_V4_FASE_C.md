@@ -92,7 +92,7 @@ Misma forma que las demás (`clave` estable para `.../hecha/`):
 
 | `tipo` | `clave` | Cuándo | Acciones | `detalle` |
 |---|---|---|---|---|
-| `comprobante_whatsapp` | `comprobante_whatsapp:<mensaje_id>` | adjunto entrante con `estado_adjunto: "pendiente"`. `urgente` a partir de 24 h. `representante` es `null` si la conversación no está vinculada | **`convertir_comprobante`** "Asignar a mensualidad" (`mensaje`, `conversacion`; **solo si hay representante vinculado**), `abrir_chat` (`conversacion`), **`descartar_comprobante`** "Descartar" (`mensaje`, `conversacion`) | `conversacion`, `mensaje`, `telefono`, `vinculado`, `horas_sin_asignar` |
+| `comprobante_whatsapp` | `comprobante_whatsapp:<mensaje_id>` | adjunto entrante con `estado_adjunto: "pendiente"`. `urgente` a partir de 24 h. `representante` es `null` si la conversación no está vinculada | **`convertir_comprobante`** "Asignar a mensualidad" (`mensaje`, `conversacion`; **solo si hay representante vinculado**), `abrir_chat` (`conversacion`), **`descartar_comprobante`** "Descartar" (`mensaje`, `conversacion`) | `conversacion`, `mensaje`, `telefono`, `vinculado`, `horas_sin_asignar`, `adjunto` |
 
 `convertir_comprobante` abre el modal de conversión (mensualidades de `mensualidades-pendientes/` + datos opcionales); `descartar_comprobante` pide el motivo. La tarjeta desaparece al resolver el adjunto. Cuenta en el KPI de comprobantes por aprobar y en el badge `urgentes` del sidebar si es urgente. Si no hay representante vinculado, la acción útil es `abrir_chat` → vincular.
 
@@ -106,3 +106,8 @@ Misma forma que las demás (`clave` estable para `.../hecha/`):
 - **`{link_portal}`** (respuestas rápidas y recordatorios): ahora es `<dominio>/portal?pagar=1`, el enlace que abre la sección de pago. El portal de representantes debe abrir el modal "Pagar por transferencia" cuando recibe `?pagar=1` (pendiente del frontend del portal; mientras tanto el enlace aterriza en el dashboard del portal, donde está el botón). También lo usa el texto libre de los recordatorios del motor.
 - **`motor/simulacion/` y `EnvioCobranza.motivo_omision`**: `comprobante_pendiente` ya es real ("Comprobante por WhatsApp sin resolver").
 - **Configuración / Meta**: las plantillas de cobro (`cobro_preventivo`, `cobro_vence_hoy`, `cobro_seguimiento`, `cobro_prioritario`) deben crearse en Meta con **3 botones de respuesta rápida** en el orden indicado arriba y 6 variables en el cuerpo; el nombre aprobado se carga en `ReglaCobranza.plantilla_meta`.
+
+## Cambios posteriores
+
+- **Tarjeta `comprobante_whatsapp`: campo `adjunto`.** La tarjeta trae `adjunto` (también repetido en `detalle.adjunto`) con el mismo formato que `adjunto` de un mensaje del hilo: `{ id, url, nombre, tipo, estado }`. `id` es el id del mensaje, `url` es `/api/cobranza/inteligente/mensajes/<id>/archivo/` (descarga autenticada; sirve de preview para imágenes), `tipo` el MIME (`image/png`, `application/pdf`…) y `estado` el `estado_adjunto` (`pendiente` mientras la tarjeta está visible). Es `null` solo si el mensaje no conserva archivo.
+- **Pruebas:** las llamadas salientes a `graph.facebook.com` quedan bloqueadas por el runner (`config/test_runner.py`, `TEST_RUNNER` en settings): responden `403` simulado sin salir a la red.

@@ -44,6 +44,10 @@ Obligatorios: `nombre` (máx. 100), `etapa`, `dia_relativo`, `canal`, `plantilla
 
 **Regla de herencia:** las reglas propias de una sede *reemplazan* a las globales. Por eso, si la sede solo hereda, el primer POST **copia primero las globales** a la sede y luego crea la nueva (`reglas_copiadas_de_globales` > 0): la sede no pierde el resto de la línea de tiempo sin querer. Al encender el módulo la sede ya recibe las reglas por defecto, así que normalmente es 0.
 
+### POST `reglas/copiar-globales/`
+
+Body opcional `{ "sede": <id> }` (también vale `?sede=`; es obligatoria: sin sede `400`, la sede ajena `404`). Si la sede **solo hereda** las reglas globales, las copia a la sede (misma lógica que el primer POST de regla) para poder editarlas una a una. **Idempotente:** si la sede ya tiene reglas propias no copia nada. Respuesta `200`: `{ "count": n, "results": [regla, …], "copiadas": k }`, con las reglas propias de la sede (`heredada: false`; solo activas salvo `?todas=1`); `copiadas` es 0 si ya tenía propias. Mismos permisos que el POST de reglas (director / administrador / sistemas; `403` al resto) y se audita en `LogAuditoria` como `COBRANZA_REGLAS_COPIADAS_DE_GLOBALES` (`detalles: {sede, copiadas}`) solo cuando copió algo. No responde 409 "apagada".
+
 ### PATCH `reglas/<id>/`
 
 Edición parcial de cualquier campo anterior; `sede` no se puede cambiar. Una regla global solo la edita quien tiene acceso a todas las sedes (el resto recibe `404`). Cada alta o cambio deja un `LogAuditoria` (`COBRANZA_REGLA_CREADA` / `COBRANZA_REGLA_EDITADA`, con el antes y el después).
@@ -157,7 +161,7 @@ Alternada y **estable por representante**: id impar = **A**, id par = **B** (el 
 
 | Tipo | Detalle |
 |---|---|
-| Rutas nuevas | `GET/POST reglas/`, `PATCH reglas/<id>/`, `GET representantes/<id>/perfil-pagador/`, `GET proyeccion-caja/`, `GET ab/reporte/` |
+| Rutas nuevas | `GET/POST reglas/`, `POST reglas/copiar-globales/`, `PATCH reglas/<id>/`, `GET representantes/<id>/perfil-pagador/`, `GET proyeccion-caja/`, `GET ab/reporte/` |
 | Campos nuevos | `ReglaCobranza.recordatorio_extra_paga_tarde`, `ReglaCobranza.plantilla_meta_b`, `EnvioCobranza.variante` |
 | Respuestas ampliadas | `cartera/` y `expediente/` (`perfil_pagador`), `hoy/` (`proyeccion_caja`), `envios/` y `motor/simulacion/` (`variante`; simulación también `recordatorio_extra`) |
 | Comportamiento automático | Extra −3 para "Paga tarde" (si la regla lo pide); plantilla de Meta según variante A/B |
