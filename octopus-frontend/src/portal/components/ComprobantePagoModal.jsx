@@ -10,7 +10,12 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const METODOS_CON_REFERENCIA = ['transferencia', 'pago_movil', 'punto_de_venta', 'zelle'];
 const ETIQUETAS_DATOS = { titular: 'Titular', identificacion: 'Cédula / RIF', numero_cuenta: 'Número de cuenta', telefono: 'Teléfono', correo: 'Correo Zelle', instrucciones: 'Indicaciones' };
 
-const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess, tasaBcv = null }) => {
+const montoDe = (m) => Number(m.monto_total ?? m.monto_usd);
+
+// `mensualidad`: la que abrió el modal (queda marcada). `mensualidades`: todas
+// las pendientes de la familia; con una sola transferencia el representante
+// puede pagar varias (p. ej. de distintos hijos) en un mismo comprobante.
+const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, mensualidades = [], onSuccess, tasaBcv = null }) => {
   const [archivo, setArchivo] = useState(null);
   const [preview, setPreview] = useState(null);
   const [esPDF, setEsPDF] = useState(false);
@@ -18,12 +23,13 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess, tasaBcv
   const [metodos, setMetodos] = useState([]);
   const [metodoSeleccionado, setMetodoSeleccionado] = useState(null);
   const [referencia, setReferencia] = useState('');
+  const [seleccion, setSeleccion] = useState(null);
   const inputRef = useRef(null);
   const timerRef = useRef(null);
 
   const cerrar = useCallback(() => {
     clearTimeout(timerRef.current);
-    setArchivo(null); setPreview(null); setEsPDF(false); setEstado('idle'); setReferencia(''); setMetodoSeleccionado(null);
+    setArchivo(null); setPreview(null); setEsPDF(false); setEstado('idle'); setReferencia(''); setMetodoSeleccionado(null); setSeleccion(null);
     onClose();
   }, [onClose]);
 
@@ -34,6 +40,11 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess, tasaBcv
 
   if (!isOpen || !mensualidad) return null;
 
+  const opciones = [mensualidad, ...mensualidades.filter(m => m.id !== mensualidad.id)];
+  const idsSeleccionados = seleccion ?? [mensualidad.id];
+  const seleccionadas = opciones.filter(m => idsSeleccionados.includes(m.id));
+  const total = seleccionadas.reduce((suma, m) => suma + montoDe(m), 0);
+  const alternar = (id) => setSeleccion(idsSeleccionados.includes(id) ? idsSeleccionados.filter(x => x !== id) : [...idsSeleccionados, id]);
   const metodoPago = metodoSeleccionado?.metodo || '';
   const referenciaObligatoria = METODOS_CON_REFERENCIA.includes(metodoPago);
   const seleccionarArchivo = (event) => {
@@ -45,20 +56,22 @@ const ComprobantePagoModal = ({ isOpen, onClose, mensualidad, onSuccess, tasaBcv
     if (file.type === 'application/pdf') { setEsPDF(true); setPreview(null); } else { setEsPDF(false); setPreview(URL.createObjectURL(file)); }
   };
   const enviar = async () => {
+    if (!seleccionadas.length) return toast.warning('Selecciona al menos una mensualidad.');
     if (!metodoSeleccionado) return toast.warning('Selecciona el método de pago.');
     if (!archivo) return toast.warning('Selecciona un archivo primero.');
     if (referenciaObligatoria && !referencia.trim()) return toast.warning('Debes ingresar el número de referencia o confirmación.');
     setEstado('uploading');
     try {
       const bancoId = ['transferencia', 'pago_movil'].includes(metodoPago) ? metodoSeleccionado.banco_id : '';
-      await subirComprobante(mensualidad.id, archivo, referencia.trim(), metodoPago, bancoId);
+      await subirComprobante(seleccionadas.map(m => m.id), archivo, referencia.trim(), metodoPago, bancoId);
       setEstado('success'); toast.success('Comprobante enviado correctamente. Pendiente de revisión.'); onSuccess?.(); timerRef.current = setTimeout(cerrar, 1500);
     } catch (err) { setEstado('error'); toast.error(err?.response?.data?.error || 'Error al subir el comprobante. Intenta nuevamente.'); }
   };
 
-  return <Modal open onClose={cerrar} size="sm" titulo="Enviar comprobante" footer={<button type="button" onClick={enviar} disabled={!archivo || !metodoSeleccionado || estado === 'uploading' || estado === 'success'} className="w-full bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl min-h-[44px] disabled:opacity-50 flex items-center justify-center gap-2">{estado === 'uploading' ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Enviando…</> : <><Upload size={16} />Enviar comprobante</>}</button>}>
+  return <Modal open onClose={cerrar} size="sm" titulo="Enviar comprobante" footer={<button type="button" onClick={enviar} disabled={!archivo || !metodoSeleccionado || !seleccionadas.length || estado === 'uploading' || estado === 'success'} className="w-full bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl min-h-[44px] disabled:opacity-50 flex items-center justify-center gap-2">{estado === 'uploading' ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />Enviando…</> : <><Upload size={16} />Enviar comprobante</>}</button>}>
     <div className="space-y-4">
-      <p className="text-xs text-[var(--ash)]">{mensualidad.mes_nombre} {mensualidad.anio} — REF. {fmtMonto(mensualidad.monto_total ?? mensualidad.monto_usd)}{tasaBcv ? ` · Bs. ${fmtMonto(montoEnBs(mensualidad.monto_total ?? mensualidad.monto_usd, tasaBcv))}` : ''}</p>
+      {opciones.length > 1 && <fieldset className="space-y-2"><legend className="text-xs font-semibold text-[var(--jet-mid)]">¿Qué mensualidades pagaste con esta transferencia?</legend>{opciones.map(m => <label key={m.id} className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 min-h-[44px] cursor-pointer"><input type="checkbox" checked={idsSeleccionados.includes(m.id)} onChange={() => alternar(m.id)} className="w-5 h-5 shrink-0 accent-[var(--portal-primary)]" /><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[var(--jet-mid)]">{m.mes_nombre} {m.anio}</span>{m.alumno_nombre && <span className="block text-xs text-[var(--ash)] truncate">{m.alumno_nombre}</span>}</span><span className="text-sm text-[var(--jet-mid)] shrink-0">REF. {fmtMonto(montoDe(m))}</span></label>)}</fieldset>}
+      <p className="text-xs text-[var(--ash)]">{opciones.length > 1 ? `${seleccionadas.length} ${seleccionadas.length === 1 ? 'mensualidad' : 'mensualidades'}` : `${mensualidad.mes_nombre} ${mensualidad.anio}`} — REF. {fmtMonto(total)}{tasaBcv ? ` · Bs. ${fmtMonto(montoEnBs(total, tasaBcv))}` : ''}</p>
       <div className="space-y-2" role="group" aria-labelledby="comprobante-metodo"><p id="comprobante-metodo" className="text-xs font-semibold text-[var(--jet-mid)]">Selecciona cómo realizaste el pago</p>{metodos.length === 0 ? <p className="text-xs rounded-xl bg-[var(--yellow-light)] text-[var(--yellow)] px-3 py-2.5">No hay métodos disponibles. Contacta a administración.</p> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{metodos.map(metodo => <button key={metodo.id} type="button" aria-pressed={metodoSeleccionado?.id === metodo.id} onClick={() => { setMetodoSeleccionado(metodo); setReferencia(''); }} className={`text-left rounded-xl border px-3 py-2.5 min-h-[44px] ${metodoSeleccionado?.id === metodo.id ? 'border-[var(--portal-primary)] bg-[var(--portal-primary)]/10' : 'border-[var(--border)] bg-[var(--surface)]'}`}><p className="text-sm font-semibold text-[var(--jet-mid)]">{metodo.nombre}</p><p className="text-xs text-[var(--ash)]">{metodo.banco}</p></button>)}</div>}</div>
       {metodoSeleccionado && <><div className="rounded-xl bg-[var(--surface-sunken)] p-3 space-y-1.5"><p className="text-xs font-semibold text-[var(--jet-mid)]">Datos para {metodoSeleccionado.nombre}</p><p className="text-xs font-medium text-[var(--jet-mid)]">{metodoSeleccionado.banco}</p>{Object.entries(metodoSeleccionado.datos || {}).filter(([, valor]) => valor).map(([campo, valor]) => <p key={campo} className="text-xs text-[var(--jet-mid)]"><span className="text-[var(--ash)]">{ETIQUETAS_DATOS[campo] || campo}:</span> {valor}</p>)}</div>
         {!archivo ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] focus-within:border-[var(--portal-primary)] min-h-[90px]"><Camera size={26} className="text-[var(--portal-primary)]" /><span className="text-sm font-medium text-[var(--jet-mid)]">Cámara</span><input type="file" accept="image/*" capture="environment" className="sr-only" onChange={seleccionarArchivo} /></label><label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] focus-within:border-[var(--portal-primary)] min-h-[90px]"><Upload size={26} className="text-[var(--ash)]" /><span className="text-sm font-medium text-[var(--jet-mid)]">Archivo</span><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={seleccionarArchivo} /></label></div> : <div className="relative">{esPDF ? <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[var(--surface-sunken)] text-[var(--portal-primary)]"><FileText size={40} /><span className="text-sm text-[var(--jet-mid)] break-all">{archivo.name}</span></div> : <img src={preview} alt="Vista previa del comprobante" className="w-full max-h-48 rounded-2xl object-contain bg-[var(--surface-sunken)]" />}<button type="button" onClick={() => { setArchivo(null); setPreview(null); setEsPDF(false); setEstado('idle'); }} className="absolute top-1 right-1 w-11 h-11 bg-black/50 rounded-full flex items-center justify-center" aria-label="Quitar archivo"><X size={14} className="text-white" /></button></div>}

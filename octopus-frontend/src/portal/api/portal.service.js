@@ -22,15 +22,16 @@ export const getHistorial = (alumnoId, page = 1, signal) => {
 };
 
 /**
- * Sube un comprobante de pago (multipart/form-data).
- * @param {number|string} mensualidadId
+ * Sube un comprobante de pago (multipart/form-data). Un mismo comprobante
+ * puede cubrir varias mensualidades (pago conjunto de hermanos).
+ * @param {number|string|Array<number|string>} mensualidadIds
  * @param {File} archivo
  * @param {string} referenciaBancaria  Nº de referencia/confirmación de la transacción
  * @param {string} metodoPago          transferencia | pago_movil | zelle | punto_de_venta
  */
-export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = '', metodoPago = 'transferencia', bancoReceptorId = '') => {
+export const subirComprobante = (mensualidadIds, archivo, referenciaBancaria = '', metodoPago = 'transferencia', bancoReceptorId = '') => {
   const formData = new FormData();
-  formData.append('mensualidad_id', mensualidadId);
+  [].concat(mensualidadIds).forEach((id) => formData.append('mensualidad_ids', id));
   formData.append('archivo', archivo);
   formData.append('metodo_pago', metodoPago);
   if (referenciaBancaria) {

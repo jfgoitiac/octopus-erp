@@ -171,6 +171,7 @@ const PortalDashboard = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         mensualidad={mensualidadSeleccionada}
+        mensualidades={[...(resumen?.mensualidades_vencidas || []), ...(resumen?.proximos_vencimientos || [])]}
         tasaBcv={resumen?.tasa_bcv}
         onSuccess={() => {
           setModalOpen(false);
