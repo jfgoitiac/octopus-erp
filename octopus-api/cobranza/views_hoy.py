@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 from authentication.views import EsPersonalCobranza
 from secretaria.models import Representante
 
-from . import control_envios, gestion, hoy as servicio_hoy, perfil_pagador, proyeccion
+from . import ab, control_envios, gestion, hoy as servicio_hoy, perfil_pagador, proyeccion
 from .views_gestion import _apagada, _ciclos, _error, _serializar_convenio, sedes_activas_accesibles
 
 
@@ -175,3 +175,25 @@ class ProyeccionCajaView(APIView):
         except ValueError:
             return _error('Fecha inválida (use AAAA-MM-DD).')
         return Response(proyeccion.calcular_proyeccion(sedes, _hoy(), fecha))
+
+
+class ReporteABView(APIView):
+    """
+    GET /inteligente/ab/reporte/?regla=<id>&desde=AAAA-MM-DD&hasta=AAAA-MM-DD&sede=
+    Comparación de las variantes A y B de las plantillas de Meta por regla, con lo
+    recuperado a 7 días. `desde`/`hasta` filtran por la fecha del envío. Ver cobranza/ab.py.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request):
+        sedes = sedes_activas_accesibles(request.user, request.query_params.get('sede'))
+        if not sedes:
+            return _apagada()
+        p = request.query_params
+        try:
+            desde = date.fromisoformat(p['desde']) if p.get('desde') else None
+            hasta = date.fromisoformat(p['hasta']) if p.get('hasta') else None
+            regla = int(p['regla']) if p.get('regla') else None
+        except ValueError:
+            return _error('Parámetros inválidos (fechas AAAA-MM-DD, regla numérica).')
+        return Response(ab.reporte_ab(sedes, _ahora(), regla, desde, hasta))

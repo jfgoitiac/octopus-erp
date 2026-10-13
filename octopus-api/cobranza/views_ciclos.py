@@ -207,7 +207,7 @@ class EnviosCobranzaView(ListAPIView):
         page = self.paginate_queryset(qs.order_by('-fecha', '-id'))
         return self.get_paginated_response([
             {
-                'id': e.id, 'fecha': e.fecha, 'estado': e.estado, 'canal': e.canal,
+                'id': e.id, 'fecha': e.fecha, 'estado': e.estado, 'canal': e.canal, 'variante': e.variante,
                 'motivo_omision': e.motivo_omision, 'intentos': e.intentos,
                 'regla': {'nombre': e.regla.nombre, 'dia_relativo': e.regla.dia_relativo,
                           'etapa': e.regla.etapa},

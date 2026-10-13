@@ -28,7 +28,7 @@ from .permissions import sedes_permitidas_ids
 
 DIA_MIN, DIA_MAX = -30, 90
 CAMPOS_ESCRIBIBLES = (
-    'nombre', 'etapa', 'dia_relativo', 'canal', 'plantilla', 'plantilla_meta',
+    'nombre', 'etapa', 'dia_relativo', 'canal', 'plantilla', 'plantilla_meta', 'plantilla_meta_b',
     'saldo_minimo', 'destinatario', 'activa', 'recordatorio_extra_paga_tarde',
 )
 
@@ -42,6 +42,8 @@ def serializar_regla(r, heredada=False):
         'id': r.id, 'sede': r.sede_id, 'heredada': heredada,
         'nombre': r.nombre, 'etapa': r.etapa, 'dia_relativo': r.dia_relativo,
         'canal': r.canal, 'plantilla': r.plantilla, 'plantilla_meta': r.plantilla_meta,
+        'plantilla_meta_b': r.plantilla_meta_b,
+        'ab_activo': bool(r.plantilla_meta and r.plantilla_meta_b),
         'saldo_minimo': str(r.saldo_minimo), 'destinatario': r.destinatario, 'activa': r.activa,
         'recordatorio_extra_paga_tarde': r.recordatorio_extra_paga_tarde,
     }
@@ -100,7 +102,7 @@ def _validar(datos, parcial, actual=None):
         elif campo == 'plantilla':
             if valor not in PLANTILLAS_TEXTO:
                 raise ErrorRegla(f'Plantilla de texto desconocida. Válidas: {", ".join(PLANTILLAS_TEXTO)}.')
-        elif campo == 'plantilla_meta':
+        elif campo in ('plantilla_meta', 'plantilla_meta_b'):
             valor = str(valor or '').strip()
             if len(valor) > 100:
                 raise ErrorRegla('El nombre de la plantilla de Meta admite máximo 100 caracteres.')
@@ -129,6 +131,14 @@ def _validar_extra(sede_id, final, excluir_id=None):
         otras = otras.exclude(pk=excluir_id)
     if otras.exists():
         raise ErrorRegla('Ya hay otra regla con el recordatorio extra para quienes pagan tarde; solo puede haber una.')
+
+
+def _validar_ab(final):
+    a, b = final.get('plantilla_meta', ''), final.get('plantilla_meta_b', '')
+    if b and not a:
+        raise ErrorRegla('Para comparar plantillas A/B primero defina la plantilla de Meta A.')
+    if b and a == b:
+        raise ErrorRegla('Las plantillas A y B deben ser distintas.')
 
 
 def _clonar_globales_si_hereda(sede_id):
@@ -189,6 +199,7 @@ class ReglasView(APIView):
         try:
             datos = _validar(request.data, parcial=False)
             _validar_extra(sede_id, {'destinatario': 'representante', **datos})
+            _validar_ab(datos)
             with transaction.atomic():
                 clonadas = _clonar_globales_si_hereda(sede_id)
                 if _dia_ocupado(sede_id, datos['dia_relativo']):
@@ -219,6 +230,7 @@ class ReglaDetalleView(APIView):
             _validar_extra(regla.sede_id, {
                 'destinatario': regla.destinatario, 'canal': regla.canal,
                 'recordatorio_extra_paga_tarde': regla.recordatorio_extra_paga_tarde, **datos}, regla.pk)
+            _validar_ab({'plantilla_meta': regla.plantilla_meta, 'plantilla_meta_b': regla.plantilla_meta_b, **datos})
         except ErrorRegla as e:
             return _error(str(e))
         antes = serializar_regla(regla)

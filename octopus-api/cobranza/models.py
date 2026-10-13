@@ -1214,6 +1214,9 @@ class ReglaCobranza(models.Model):
     # v4 (§1.6): nombre de la plantilla aprobada por Meta con botones de respuesta rápida
     # (Ya pagué / Necesito un acuerdo / Hablar con alguien). Vacío = texto libre como siempre.
     plantilla_meta = models.CharField(max_length=100, blank=True, default='')
+    # v4 fase D (A/B): segunda plantilla de Meta. Con ambas definidas, la mitad de los
+    # representantes (por paridad de su id) recibe la A y la otra mitad la B.
+    plantilla_meta_b = models.CharField(max_length=100, blank=True, default='')
     saldo_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.01'))
     destinatario = models.CharField(max_length=14, choices=DESTINATARIOS, default='representante')
     activa = models.BooleanField(default=True)
@@ -1256,6 +1259,8 @@ class EnvioCobranza(models.Model):
     fecha = models.DateField()
     estado = models.CharField(max_length=10, choices=ESTADOS, db_index=True)
     canal = models.CharField(max_length=10, blank=True, default='')
+    # v4 fase D (A/B): 'A' | 'B' si la regla tenía dos plantillas al crearse el envío; '' si no.
+    variante = models.CharField(max_length=1, blank=True, default='')
     motivo_omision = models.CharField(max_length=40, blank=True, default='')
     detalle = models.JSONField(default=dict, blank=True)
     intentos = models.PositiveSmallIntegerField(default=0)

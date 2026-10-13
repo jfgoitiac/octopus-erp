@@ -104,6 +104,29 @@ def es_recordatorio_extra(items, hoy):
     return any(dias_de_mora(c.fecha_vencimiento, hoy) != r.dia_relativo for c, r in items)
 
 
+VARIANTE_A, VARIANTE_B = 'A', 'B'
+
+
+def variante_para(rep, regla):
+    """
+    Variante A/B de la regla para el representante (v4 fase D): '' si la regla no tiene dos
+    plantillas de Meta o no es un aviso por WhatsApp al representante. La asignación es
+    estable y alterna por representante (id impar = A, id par = B): el mismo representante
+    ve siempre la misma variante.
+    """
+    if (regla.destinatario != 'representante' or regla.canal not in ('whatsapp', 'ambos')
+            or not regla.plantilla_meta or not regla.plantilla_meta_b):
+        return ''
+    return VARIANTE_A if rep.id % 2 else VARIANTE_B
+
+
+def plantilla_meta_de(regla, variante):
+    """Nombre de la plantilla de Meta que corresponde a la variante del envío."""
+    if variante == VARIANTE_B and regla.plantilla_meta_b:
+        return regla.plantilla_meta_b
+    return regla.plantilla_meta
+
+
 def _modulo_efectivo(cfg):
     return cfg.activo and not corte_global_activo()
 
@@ -183,6 +206,8 @@ def evaluar_reglas_sede(sede_id, hoy=None):
         detalle = {
             'ciclos': [c.id for c, _ in items],
             'saldo_total': str(sum((_saldo(c) for c, _ in items), Decimal('0.00'))),
+            # saldo de cada ciclo al crear el envío: base del reporte A/B (lo recuperado a 7 días)
+            'saldos': {str(c.id): str(_saldo(c)) for c, _ in items},
             'dia_relativo': regla.dia_relativo,
         }
         if es_recordatorio_extra(items, hoy):
@@ -192,6 +217,7 @@ def evaluar_reglas_sede(sede_id, hoy=None):
             with transaction.atomic():
                 EnvioCobranza.objects.create(
                     representante=rep, regla=regla, fecha=hoy, canal=regla.canal,
+                    variante=variante_para(rep, regla),
                     estado=EnvioCobranza.PENDIENTE if real else EnvioCobranza.SIMULADO,
                     detalle=detalle)
         except IntegrityError:
@@ -242,6 +268,7 @@ def simular_reglas_sede(sede_id, fecha=None, ahora=None):
             'ciclos': [c.id for c in ciclos],
             'envio_existente': existente.id if existente else None,
             'recordatorio_extra': es_recordatorio_extra(items, fecha),
+            'variante': variante_para(rep, regla),
         })
     return filas
 
@@ -361,11 +388,11 @@ def _parametros_plantilla(rep, ciclos):
     ]
 
 
-def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True, regla=None, ciclos=()):
+def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True, regla=None, ciclos=(), variante=''):
     from notificaciones import conversaciones
     from notificaciones.services import _proveedor_whatsapp, enviar_whatsapp, pop_ultimo_wa_message_id
     from .flujo_botones import BOTONES_RECORDATORIO
-    plantilla = regla.plantilla_meta if (regla and regla.destinatario == 'representante') else ''
+    plantilla = plantilla_meta_de(regla, variante) if (regla and regla.destinatario == 'representante') else ''
     template_data = None
     if plantilla and ciclos and _proveedor_whatsapp() == 'meta':
         template_data = {'nombre': plantilla, 'idioma': 'es', 'botones': list(BOTONES_RECORDATORIO),
@@ -379,6 +406,8 @@ def _enviar_whatsapp(telefono, texto, rep, envio=None, registrar=True, regla=Non
         if template_data:
             extra = {'plantilla': plantilla, 'idioma': 'es', 'parametros': template_data['parametros'],
                      'botones': template_data['botones']}
+            if variante:
+                extra['variante'] = variante
         conversaciones.registrar_saliente_cobro(
             rep, telefono, texto, 'motor', envio=envio, wa_message_id=wa_id,
             tipo='plantilla' if template_data else 'texto', payload_extra=extra)
@@ -471,7 +500,7 @@ def procesar_envio(envio, ahora=None):
     if 'whatsapp' in canales and telefono:
         resultados.append(_enviar_whatsapp(telefono, texto, rep, envio,
                                            registrar=regla.destinatario == 'representante',
-                                           regla=regla, ciclos=vigentes))
+                                           regla=regla, ciclos=vigentes, variante=envio.variante))
     if 'email' in canales and correo:
         resultados.append(_enviar_email(correo, asunto, texto, rep))
     if not resultados:
