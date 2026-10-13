@@ -11,6 +11,7 @@ import {
   AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
   esCancelacion, mensajeError, abrirReciboAbono, abrirReciboVenta,
 } from './utilsCxc';
+import { diferir } from '../../../utils/diferir';
 
 const ESTADO_STYLE = {
   pendiente: { label: 'Pendiente', color: 'var(--amber-ink)', bg: 'var(--yellow-light)' },
@@ -78,11 +79,11 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
       .finally(() => { if (!signal?.aborted) setCargadoPara(`${representanteId}|${area}`); });
   }, [representanteId, area]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     cargar(controller.signal);
     return () => controller.abort();
-  }, [cargar]);
+  }), [cargar]);
 
   const refrescar = () => {
     cargar();

@@ -7,6 +7,7 @@ import { updateSeccion } from '../../../api/sitio.service';
 import BibliotecaMedia from '../BibliotecaMedia';
 import { resolverImagenUrl } from './bloques/utils';
 import { Modal } from '../../ui/Modal';
+import { diferir } from '../../../utils/diferir';
 
 const AUTOSAVE_DELAY_MS = 600;
 
@@ -193,7 +194,7 @@ const PanelPropiedadesBloque = ({ seccion = null, onChange }) => {
   const timeoutRef = useRef(null);
   const seccionIdRef = useRef(null);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!seccion) return;
     seccionIdRef.current = seccion.id;
     setContenido(seccion.contenido || {});
@@ -201,7 +202,7 @@ const PanelPropiedadesBloque = ({ seccion = null, onChange }) => {
     setConfigEstilo(seccion.config_estilo || { ancho: 'contenido', espaciado_top: 'md', espaciado_bottom: 'md', fondo: 'blanco' });
     setSinGuardar(false);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  }, [seccion?.id]);
+  }), [seccion?.id]);
 
   const guardar = async (nuevoContenido, nuevaAnimacion, nuevoConfigEstilo) => {
     setGuardando(true);

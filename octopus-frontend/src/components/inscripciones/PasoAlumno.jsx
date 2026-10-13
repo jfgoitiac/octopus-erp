@@ -9,6 +9,7 @@ import ModalCompletarAlumno from './ModalCompletarAlumno';
 import { camposFaltantesAlumno } from '../../utils/inscripcionValidacion';
 import { mostrarCedula } from '../../utils/cedulaEscolar';
 import { Card } from '../ui/Card';
+import { diferir } from '../../utils/diferir';
 
 const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_BYTES_FOTO = 5 * 1024 * 1024; // 5 MB
@@ -47,11 +48,11 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         }
     }, [cedulaRepresentante]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         fetchAlumnos(controller.signal);
         return () => controller.abort();
-    }, [fetchAlumnos]);
+    }), [fetchAlumnos]);
 
     const handleNewAlumnoChange = (e) => {
         const { name, value } = e.target;

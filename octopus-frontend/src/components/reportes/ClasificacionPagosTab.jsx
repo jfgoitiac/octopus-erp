@@ -23,6 +23,7 @@ import {
 import BancoSelect from './BancoSelect';
 import { Card } from '../ui/Card';
 import { Tabla } from '../ui/Tabla';
+import { diferir } from '../../utils/diferir';
 
 const DESGLOSE_MES_COLUMNAS = [
     { key: 'concepto', label: 'Concepto' },
@@ -174,9 +175,9 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         return () => clearTimeout(t);
     }, [clasifBusqueda]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         setClasifPage(1);
-    }, [clasifFechaInicio, clasifFechaFin, clasifEstado, clasifConceptoExport, clasifBancoExport]);
+    }), [clasifFechaInicio, clasifFechaFin, clasifEstado, clasifConceptoExport, clasifBancoExport]);
 
     const fetchClasificacion = useCallback(async (fi, ff, busqueda, estado, concepto, banco, page) => {
         setLoadingClasif(true);
@@ -204,12 +205,12 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchClasificacion(
             clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced, clasifEstado,
             clasifConceptoExport, clasifBancoExport, clasifPage,
         );
-    }, [
+    }), [
         fetchClasificacion, clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
         clasifEstado, clasifConceptoExport, clasifBancoExport, clasifPage,
     ]);
@@ -239,12 +240,12 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
 
     // No depende de clasifPage: getDesgloseContable no pagina, trae TODO el
     // rango filtrado de una vez (a diferencia de fetchClasificacion).
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchDesglose(
             clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
             clasifEstado, clasifConceptoExport, clasifBancoExport,
         );
-    }, [
+    }), [
         fetchDesglose, clasifFechaInicio, clasifFechaFin, clasifBusquedaDebounced,
         clasifEstado, clasifConceptoExport, clasifBancoExport,
     ]);
@@ -297,9 +298,9 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
     // La selección de acción masiva se limpia cada vez que cambia el set de
     // pagos en pantalla (nueva página, filtro, o refresco tras clasificar) —
     // evita quedarse con ids seleccionados que ya no corresponden a lo visible.
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         setSeleccionados(new Set());
-    }, [clasifPagos]);
+    }), [clasifPagos]);
 
     const toggleSeleccion = (id) => setSeleccionados(prev => {
         const next = new Set(prev);
@@ -370,13 +371,13 @@ const ClasificacionPagosTab = ({ bancosDisponibles, onSeleccionarPago, registerU
     // ESTADO_CLASIF_STYLE): así el trabajo pendiente queda expandido y a la
     // vista, sin tener que abrir grupo por grupo para encontrarlo. El usuario
     // igual puede expandir/colapsar cualquier grupo manualmente después.
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         setRepsColapsados(new Set(
             gruposPorRepresentante
                 .filter(g => g.pagos.every(p => p.estado_clasificacion === 'completo_manual'))
                 .map(g => g.clave),
         ));
-    }, [gruposPorRepresentante]);
+    }), [gruposPorRepresentante]);
 
     const toggleRep = (clave) => setRepsColapsados(prev => {
         const next = new Set(prev);

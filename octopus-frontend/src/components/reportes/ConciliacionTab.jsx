@@ -14,6 +14,7 @@ import {
 } from '../../constants/reportes';
 import BancoSelect from './BancoSelect';
 import { Card } from '../ui/Card';
+import { diferir } from '../../utils/diferir';
 
 const DETALLE_PAGE_SIZE = 15;
 
@@ -64,7 +65,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
     }, [detalleBusqueda]);
 
     /* Cambiar el rango de fechas, método, estatus o banco reinicia la página a 1 */
-    useEffect(() => { setDetallePage(1); }, [detalleFechaInicio, detalleFechaFin, detalleMetodo, detalleEstatus, detalleBanco]);
+    useEffect(() => diferir(() => { setDetallePage(1); }), [detalleFechaInicio, detalleFechaFin, detalleMetodo, detalleEstatus, detalleBanco]);
 
     const fetchDetallePagos = useCallback(async (fi, ff, page, buscar, metodo, estatus, banco) => {
         setLoadingDetalle(true);
@@ -118,9 +119,9 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
 
     /* Carga automática: reacciona a fecha/página/búsqueda/filtros sin requerir
        que el operador haga clic en "Buscar". */
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchDetallePagos(detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus, detalleBanco);
-    }, [fetchDetallePagos, detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus, detalleBanco]);
+    }), [fetchDetallePagos, detalleFechaInicio, detalleFechaFin, detallePage, detalleBusquedaDebounced, detalleMetodo, detalleEstatus, detalleBanco]);
 
     const fetchLoteHistorial = useCallback(async () => {
         setLoadingLoteHistorial(true);
@@ -134,7 +135,7 @@ const ConciliacionTab = ({ bancosDisponibles, onClasificarPago, clasificandoPago
         }
     }, []);
 
-    useEffect(() => { fetchLoteHistorial(); }, [fetchLoteHistorial]);
+    useEffect(() => diferir(() => { fetchLoteHistorial(); }), [fetchLoteHistorial]);
 
     const toggleLoteExpandido = async (loteId) => {
         if (loteExpandidoId === loteId) {

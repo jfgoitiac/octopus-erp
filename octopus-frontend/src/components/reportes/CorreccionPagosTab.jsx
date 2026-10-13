@@ -14,6 +14,7 @@ import AnularPagoModal from './AnularPagoModal';
 import CargarPagoRetroactivoModal from './CargarPagoRetroactivoModal';
 import { Card } from '../ui/Card';
 import { Tabla } from '../ui/Tabla';
+import { diferir } from '../../utils/diferir';
 
 const PAGE_SIZE = 20;
 
@@ -59,9 +60,9 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
         return () => clearTimeout(t);
     }, [busqueda]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         setPage(1);
-    }, [fechaInicio, fechaFin, metodoPago, estatus]);
+    }), [fechaInicio, fechaFin, metodoPago, estatus]);
 
     const fetchPagos = useCallback(async (fi, ff, buscar, metodo, est, pageNum) => {
         setLoading(true);
@@ -88,9 +89,9 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchPagos(fechaInicio, fechaFin, busquedaDebounced, metodoPago, estatus, page);
-    }, [fetchPagos, fechaInicio, fechaFin, busquedaDebounced, metodoPago, estatus, page]);
+    }), [fetchPagos, fechaInicio, fechaFin, busquedaDebounced, metodoPago, estatus, page]);
 
     const refrescar = useCallback(() => {
         fetchPagos(fechaInicio, fechaFin, busquedaDebounced, metodoPago, estatus, page);

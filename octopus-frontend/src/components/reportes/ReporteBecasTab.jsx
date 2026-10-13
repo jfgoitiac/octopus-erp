@@ -7,6 +7,7 @@ import { CardSkeleton } from '../shared/Skeleton';
 import { getErrorMessage } from '../../constants/reportes';
 import { Card } from '../ui/Card';
 import { TablaScroll } from '../ui/TablaScroll';
+import { diferir } from '../../utils/diferir';
 
 const TIPO_COLORS = ['#0fa3b1', '#f59e0b', '#dc2626', '#7c3aed', '#16a34a', '#64748b'];
 
@@ -26,7 +27,7 @@ const ReporteBecasTab = () => {
         }
     }, []);
 
-    useEffect(() => { fetchReporte(); }, [fetchReporte]);
+    useEffect(() => diferir(() => { fetchReporte(); }), [fetchReporte]);
 
     const exportarExcel = () => {
         if (!reporte || reporte.detalle.length === 0) return;

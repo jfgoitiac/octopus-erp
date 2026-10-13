@@ -9,6 +9,7 @@ import { esBolivares, requiereBanco } from '../../utils/metodosPago';
 import { useTasaPorFecha } from '../../hooks/useTasaPorFecha';
 import { fmt } from '../../utils/formato';
 import { Modal } from '../ui/Modal';
+import { diferir } from '../../utils/diferir';
 
 const MOTIVO_MIN_LEN = 10;
 
@@ -104,10 +105,10 @@ const CargarPagoRetroactivoModal = ({ bancosDisponibles, onClose, onGuardado }) 
         loading: tasaSugerenciaLoading,
     } = useTasaPorFecha(enBolivares ? fechaPago : null);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (enBolivares) setTasaAplicada(tasaSugerida != null ? String(tasaSugerida) : '');
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tasaSugerida, enBolivares, fechaPago]);
+    }), [tasaSugerida, enBolivares, fechaPago]);
 
     const tasaAplicadaNum = parseFloat(tasaAplicada);
     const desviacionAlta = enBolivares && tasaSugerida > 0 && !isNaN(tasaAplicadaNum) && tasaAplicadaNum > 0

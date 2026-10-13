@@ -7,6 +7,7 @@ import FiltrosConcepto from './pagos-concepto/FiltrosConcepto';
 import LineasConcepto from './pagos-concepto/LineasConcepto';
 import DetalleConceptoModal from './pagos-concepto/DetalleConceptoModal';
 import PagosConceptoSkeleton from './pagos-concepto/PagosConceptoSkeleton';
+import { diferir } from '../../utils/diferir';
 
 /**
  * Pestaña "Pagos por concepto" de Reportes: elige un concepto cobrable
@@ -27,13 +28,13 @@ const PagosPorConceptoTab = ({ deepLink, onDeepLinkConsumido }) => {
 
     // Selecciona el primer concepto disponible una vez cargados, si no vino
     // ya fijado por deep-link.
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (!concepto && conceptos.length > 0) setConcepto(conceptos[0].clave);
-    }, [conceptos, concepto]);
+    }), [conceptos, concepto]);
 
     // Deep-link: al llegar filtros desde la tarjeta del dashboard, abrir el
     // modal de detalle directamente sobre el concepto/mes/grado indicados.
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (!deepLink || conceptos.length === 0) return;
         setConcepto(deepLink.concepto);
         setModalFiltro({
@@ -43,7 +44,7 @@ const PagosPorConceptoTab = ({ deepLink, onDeepLinkConsumido }) => {
         });
         onDeepLinkConsumido?.();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [deepLink, conceptos.length]);
+    }), [deepLink, conceptos.length]);
 
     const conceptoActual = useMemo(
         () => conceptos.find(c => c.clave === concepto) || null,

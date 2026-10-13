@@ -12,6 +12,7 @@ import {
 import Pagination from '../shared/Pagination';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import GuardarComoModal from './GuardarComoModal';
+import { diferir } from '../../utils/diferir';
 
 const PAGE_SIZE = 20;
 
@@ -60,11 +61,11 @@ const TablaPaginas = ({ onEditar, onNueva, onAbrirEditorVisual }) => {
     }
   }, [page, estado, search]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     fetchPaginas(controller.signal);
     return () => controller.abort();
-  }, [fetchPaginas]);
+  }), [fetchPaginas]);
 
   const handleTogglePublicar = async (pagina) => {
     try {

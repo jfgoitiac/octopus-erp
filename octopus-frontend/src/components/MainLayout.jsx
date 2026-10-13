@@ -10,6 +10,7 @@ import { inicialesUsuario } from '../utils/nombreUsuario';
 import octopusSymbol from '../assets/octopus-symbol.svg';
 import CampanaCxP from './cuentasPagar/tablero/CampanaCxP';
 import BotonNotificacionesPush from './BotonNotificacionesPush';
+import { diferir } from '../utils/diferir';
 
 const PAGE_TITLES = {
   '/':                   'Panel de control',
@@ -67,7 +68,7 @@ const MainLayout = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
-  useEffect(() => { setSidebarOpen(false); setProfileOpen(false); }, [location.pathname]);
+  useEffect(() => diferir(() => { setSidebarOpen(false); setProfileOpen(false); }), [location.pathname]);
 
   useEffect(() => {
     if (!profileOpen) return;

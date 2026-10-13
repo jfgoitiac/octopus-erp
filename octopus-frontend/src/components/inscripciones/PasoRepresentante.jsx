@@ -5,6 +5,7 @@ import { buscarRepresentante } from '../../api/inscripciones.service';
 import ModalCompletarRepresentante from './ModalCompletarRepresentante';
 import { camposFaltantesRepresentante, PARENTESCO_OPTIONS } from '../../utils/inscripcionValidacion';
 import { Card } from '../ui/Card';
+import { diferir } from '../../utils/diferir';
 
 const LABELS = {
     nombre:   'Nombre',
@@ -35,7 +36,7 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
     const [modalCompletar, setModalCompletar] = useState(false);
 
     // Debounce con AbortController — evita race condition entre requests en vuelo
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         setRepBuscado(false);
         if (cedulaInput.length <= 6) return;
 
@@ -74,7 +75,7 @@ export const PasoRepresentante = ({ datos, setDatos, onContinuar }) => {
             clearTimeout(timeoutId);
             controller.abort();
         };
-    }, [cedulaInput, setDatos]);
+    }), [cedulaInput, setDatos]);
 
     const handleFormChange = (e) => {
         const { name, value } = e.target;

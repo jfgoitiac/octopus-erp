@@ -6,6 +6,7 @@ import { TableRowSkeleton } from '../shared/Skeleton';
 import { currentYearMonth, fmt, getErrorMessage, MONTH_NAMES, inputStyle } from '../../constants/reportes';
 import { Card } from '../ui/Card';
 import { Tabla } from '../ui/Tabla';
+import { diferir } from '../../utils/diferir';
 
 const HISTORICO_COLUMNAS = [
     { key: 'fecha', label: 'Fecha' },
@@ -35,7 +36,7 @@ const HistoricoMensualTab = () => {
         }
     }, []);
 
-    useEffect(() => { fetchHistorico(mesAno); }, [fetchHistorico, mesAno]);
+    useEffect(() => diferir(() => { fetchHistorico(mesAno); }), [fetchHistorico, mesAno]);
 
     const totalesMes = useMemo(() =>
         histDias.reduce(

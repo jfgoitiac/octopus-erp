@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import { CardSkeleton } from '../shared/Skeleton';
 import { today, fmt, fmtInt, getErrorMessage, METODO_LABELS, ESTATUS_STYLE, inputStyle } from '../../constants/reportes';
 import { Card } from '../ui/Card';
+import { diferir } from '../../utils/diferir';
 
 const CierreCajaTab = () => {
     const [caja, setCaja] = useState({
@@ -53,7 +54,7 @@ const CierreCajaTab = () => {
         }
     }, []);
 
-    useEffect(() => { fetchCierre(today(), today()); }, [fetchCierre]);
+    useEffect(() => diferir(() => { fetchCierre(today(), today()); }), [fetchCierre]);
 
     const handleExportExcel = async () => {
         setExportingExcel(true);

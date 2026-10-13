@@ -6,6 +6,7 @@ import DatePickerES from '../DatePickerES';
 import { CardSkeleton } from '../shared/Skeleton';
 import { getErrorMessage, today, MONTH_NAMES, CURRENT_YEAR } from '../../constants/reportes';
 import { Card } from '../ui/Card';
+import { diferir } from '../../utils/diferir';
 
 const PuntualidadTab = () => {
     const [puntualidad, setPuntualidad] = useState({ total: 0, atrasado: 0, a_tiempo: 0, adelantado: 0 });
@@ -31,9 +32,9 @@ const PuntualidadTab = () => {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchPuntualidad(puntGranularidad, puntAnio, puntMes, puntFecha);
-    }, [fetchPuntualidad, puntGranularidad, puntAnio, puntMes, puntFecha]);
+    }), [fetchPuntualidad, puntGranularidad, puntAnio, puntMes, puntFecha]);
 
     const { total, atrasado, a_tiempo, adelantado } = puntualidad;
     const pct = (v) => total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';

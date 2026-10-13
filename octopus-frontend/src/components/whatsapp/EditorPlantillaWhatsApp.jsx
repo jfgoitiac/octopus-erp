@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bold, Italic, Save } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { obtenerVariablesWhatsApp } from '../../api/notificaciones.service';
+import { diferir } from '../../utils/diferir';
 
 const TIPOS = [
     ['recordatorio', 'Recordatorio amable'],
@@ -30,7 +31,7 @@ export default function EditorPlantillaWhatsApp({ plantilla, onGuardar, guardand
     const textareaRef = useRef(null);
     const seleccionRef = useRef({ inicio: 0, fin: 0 });
 
-    useEffect(() => setFormulario({ ...vacia, ...plantilla }), [plantilla]);
+    useEffect(() => diferir(() => setFormulario({ ...vacia, ...plantilla })), [plantilla]);
 
     useEffect(() => {
         obtenerVariablesWhatsApp()

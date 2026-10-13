@@ -3,13 +3,14 @@ import { Save, Loader2, BookOpen } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getMaterias } from '../../api/academico.service';
 import { Modal } from '../ui/Modal';
+import { diferir } from '../../utils/diferir';
 
 export const ModalAsignarMaterias = ({ docente, saving, onClose, onSave }) => {
   const [materias, setMaterias] = useState([]);
   const [loadingMaterias, setLoadingMaterias] = useState(true);
   const [seleccionadas, setSeleccionadas] = useState(() => new Set((docente?.materias || []).map(m => m.id)));
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setLoadingMaterias(true);
     getMaterias(undefined, controller.signal)
@@ -20,7 +21,7 @@ export const ModalAsignarMaterias = ({ docente, saving, onClose, onSave }) => {
       })
       .finally(() => { if (!controller.signal.aborted) setLoadingMaterias(false); });
     return () => controller.abort();
-  }, []);
+  }), []);
 
   const toggle = (id) => {
     setSeleccionadas(prev => {

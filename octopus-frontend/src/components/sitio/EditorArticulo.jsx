@@ -13,6 +13,7 @@ import {
 } from '../../api/sitio.service';
 import BibliotecaMedia from './BibliotecaMedia';
 import { Modal } from '../ui/Modal';
+import { diferir } from '../../utils/diferir';
 
 const ESTADO_STYLE = {
   publicado: { background: '#dcfce7', color: '#16a34a' },
@@ -80,9 +81,9 @@ const EditorArticulo = ({ articulo = null, onGuardado = () => {}, onCancelar = (
       .catch(() => toast.error('No se pudieron cargar las categorías.'));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!slugTocado) setSlug(slugify(titulo));
-  }, [titulo, slugTocado]);
+  }), [titulo, slugTocado]);
 
   const handleSlugChange = (e) => {
     setSlugTocado(true);

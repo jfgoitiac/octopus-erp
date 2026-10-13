@@ -12,6 +12,7 @@ import {
 import TrendBadge from './TrendBadge';
 import { Card } from '../ui/Card';
 import { Tabla } from '../ui/Tabla';
+import { diferir } from '../../utils/diferir';
 
 const BusinessIntelligenceTab = () => {
     const [biStats, setBiStats] = useState(null);
@@ -62,7 +63,7 @@ const BusinessIntelligenceTab = () => {
         }
     }, []);
 
-    useEffect(() => { fetchBI(biAnioFiltro); }, [fetchBI, biAnioFiltro]);
+    useEffect(() => diferir(() => { fetchBI(biAnioFiltro); }), [fetchBI, biAnioFiltro]);
 
     return (
         <section>

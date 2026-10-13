@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Loader2, User, Search, Paperclip, AlertTriangle } from 'lucide-react';
 import { buscarAlumnos } from '../../api/secretaria.service';
 import { Modal } from '../ui/Modal';
+import { diferir } from '../../utils/diferir';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const TAMANO_MAX_MB = 5;
@@ -32,7 +33,7 @@ export default function ModalNuevoIncidente({ onClose, onSubmit }) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (busqueda.length < 2 || alumno) { setResultados([]); setShowDropdown(false); return; }
     const timer = setTimeout(async () => {
       abortRef.current?.abort();
@@ -51,7 +52,7 @@ export default function ModalNuevoIncidente({ onClose, onSubmit }) {
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [busqueda, alumno]);
+  }), [busqueda, alumno]);
 
   useEffect(() => {
     if (!showDropdown) return;

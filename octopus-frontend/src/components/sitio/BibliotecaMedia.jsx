@@ -5,6 +5,7 @@ import { getMedia, subirMedia, deleteMedia, updateMedia } from '../../api/sitio.
 import Pagination from '../shared/Pagination';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import { Modal } from '../ui/Modal';
+import { diferir } from '../../utils/diferir';
 
 const PAGE_SIZE = 20;
 const MAX_MB = 15;
@@ -56,11 +57,11 @@ const BibliotecaMedia = ({ onSeleccionar = null }) => {
     }
   }, [page, search]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     fetchMedia(controller.signal);
     return () => controller.abort();
-  }, [fetchMedia]);
+  }), [fetchMedia]);
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];

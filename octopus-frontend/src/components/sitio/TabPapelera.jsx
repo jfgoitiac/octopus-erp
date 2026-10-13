@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale';
 import { getPaginasPapelera, restaurarPaginaDePapelera, deletePagina } from '../../api/sitio.service';
 import Pagination from '../shared/Pagination';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { diferir } from '../../utils/diferir';
 
 const PAGE_SIZE = 20;
 
@@ -39,11 +40,11 @@ const TabPapelera = () => {
     }
   }, [page]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     fetchPapelera(controller.signal);
     return () => controller.abort();
-  }, [fetchPapelera]);
+  }), [fetchPapelera]);
 
   const handleRestaurar = async (pagina) => {
     setRestaurandoId(pagina.id);

@@ -6,6 +6,7 @@ import { Inbox, Check, XCircle, Loader2, Hash } from 'lucide-react';
 import {
   getRecargasPendientes, aprobarRecarga, rechazarRecarga,
 } from '../../../api/cantina.service';
+import { diferir } from '../../../utils/diferir';
 
 const METODO_LABELS = {
   transferencia: 'Transferencia',
@@ -60,10 +61,10 @@ export default function RecargasPendientesList({ refreshSignal }) {
       .finally(() => setCargando(false));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     cargar();
     return () => abortRef.current?.abort();
-  }, [cargar, refreshSignal]);
+  }), [cargar, refreshSignal]);
 
   const handleAprobar = async (id) => {
     setProcesandoId(id);

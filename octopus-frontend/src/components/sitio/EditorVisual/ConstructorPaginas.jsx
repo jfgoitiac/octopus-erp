@@ -21,6 +21,7 @@ import GuardarComoModal from '../GuardarComoModal';
 import PreviewBloque from './PreviewBloque';
 import PanelPropiedadesBloque from './PanelPropiedadesBloque';
 import { contenidoPorDefecto, CONFIG_ESTILO_DEFAULT } from './bloques/utils';
+import { diferir } from '../../../utils/diferir';
 
 const TIPOS = [
   { value: 'hero', label: 'Hero', icon: ImageIcon },
@@ -150,12 +151,12 @@ const ConstructorPaginas = ({ pagina }) => {
     }
   }, [paginaId]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     setSeleccionadaId(null);
     fetchSecciones(controller.signal);
     return () => controller.abort();
-  }, [fetchSecciones]);
+  }), [fetchSecciones]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -175,11 +176,11 @@ const ConstructorPaginas = ({ pagina }) => {
 
   // Vista en vivo (Fase 3): se apaga y se resetea al cambiar de página — un
   // token de preview es de una sola página, no tiene sentido arrastrarlo.
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     setVistaEnVivoActiva(false);
     setTokenVistaEnVivo(null);
     setIframeListo(false);
-  }, [pagina?.id]);
+  }), [pagina?.id]);
 
   useEffect(() => {
     if (!vistaEnVivoActiva || !pagina?.id || tokenVistaEnVivo) return;

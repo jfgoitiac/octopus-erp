@@ -10,6 +10,7 @@ import {
 } from '../../api/sitio.service';
 import Pagination from '../shared/Pagination';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { diferir } from '../../utils/diferir';
 
 const PAGE_SIZE = 20;
 
@@ -58,11 +59,11 @@ const TablaArticulos = ({ onEditar, onNuevo }) => {
     }
   }, [page, estado, categoria, search]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     fetchArticulos(controller.signal);
     return () => controller.abort();
-  }, [fetchArticulos]);
+  }), [fetchArticulos]);
 
   useEffect(() => {
     getCategorias()
