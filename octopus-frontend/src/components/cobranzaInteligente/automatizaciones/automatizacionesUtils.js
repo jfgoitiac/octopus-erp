@@ -73,6 +73,36 @@ export const normalizarReglas = (data) => {
     return [...lista].sort((a, b) => a.dia_relativo - b.dia_relativo);
 };
 
+/** La comparación A/B solo aplica a avisos de WhatsApp al representante (contrato Fase D §4). */
+export const aplicaAB = (f) => ['whatsapp', 'ambos'].includes(f?.canal) && f?.destinatario === 'representante';
+/** El recordatorio extra en −3 solo vale para avisos al representante que no sean internos (§2). */
+export const aplicaExtra = (f) => f?.destinatario === 'representante' && f?.canal !== 'interno';
+
+/** Valida en el cliente lo que el backend rechaza con 400; devuelve el mensaje o ''. */
+export const validarRegla = (f) => {
+    const a = String(f.plantilla_meta ?? '').trim();
+    const b = String(f.plantilla_meta_b ?? '').trim();
+    if (!String(f.nombre ?? '').trim()) return 'El nombre es obligatorio.';
+    if (b && !a) return 'Para usar la variante B primero define la plantilla de Meta A.';
+    if (a && b && a === b) return 'Las plantillas A y B deben ser distintas.';
+    return '';
+};
+
+/** Cuerpo para POST/PATCH: solo campos editables (id, sede, heredada y ab_activo los ignora el backend). */
+export const datosRegla = (f) => ({
+    nombre: String(f.nombre).trim(),
+    etapa: f.etapa,
+    dia_relativo: Number(f.dia_relativo),
+    canal: f.canal,
+    plantilla: f.plantilla,
+    plantilla_meta: String(f.plantilla_meta ?? '').trim(),
+    plantilla_meta_b: String(f.plantilla_meta_b ?? '').trim(),
+    saldo_minimo: f.saldo_minimo,
+    destinatario: f.destinatario,
+    activa: f.activa,
+    recordatorio_extra_paga_tarde: aplicaExtra(f) && !!f.recordatorio_extra_paga_tarde,
+});
+
 export const etiquetaDia = (d) => (d === 0 ? 'Día 0' : d > 0 ? `+${d}` : `−${Math.abs(d)}`);
 export const descripcionDia = (d) => (d === 0 ? 'El día del vencimiento'
     : d > 0 ? `${d} día${d === 1 ? '' : 's'} después del vencimiento`

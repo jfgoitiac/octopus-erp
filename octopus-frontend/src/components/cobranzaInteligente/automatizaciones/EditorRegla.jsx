@@ -3,9 +3,11 @@ import { toast } from 'react-toastify';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
-import { crearReglaCobranza, actualizarReglaCobranza } from '../../../api/cobranza.service';
+import { crearReglaCobranza, actualizarReglaCobranza, getReglasCobranza } from '../../../api/cobranza.service';
 import { VistaPreviaMensaje } from './VistaPreviaMensaje';
-import { ETAPAS, CANALES, DESTINATARIOS, PLANTILLAS, mensajeDeRegla } from './automatizacionesUtils';
+import {
+    ETAPAS, CANALES, DESTINATARIOS, PLANTILLAS, mensajeDeRegla, normalizarReglas, aplicaAB, aplicaExtra, validarRegla, datosRegla,
+} from './automatizacionesUtils';
 
 const btn = 'w-full sm:w-auto px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50';
 const campo = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
@@ -26,18 +28,43 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
         etapa: regla?.etapa ?? 'temprana', canal: regla?.canal ?? 'whatsapp',
         plantilla: regla?.plantilla ?? PLANTILLAS[0], destinatario: regla?.destinatario ?? 'representante',
         saldo_minimo: regla?.saldo_minimo ?? '0.01', activa: regla?.activa ?? true,
-        // Solo si el backend lo expone en la respuesta de la regla.
-        ...(regla && 'plantilla_meta' in regla ? { plantilla_meta: regla.plantilla_meta ?? '' } : {}),
+        plantilla_meta: regla?.plantilla_meta ?? '', plantilla_meta_b: regla?.plantilla_meta_b ?? '',
+        recordatorio_extra_paga_tarde: regla?.recordatorio_extra_paga_tarde ?? false,
     });
     const [guardando, setGuardando] = useState(false);
     const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
-    const tienePlantillaMeta = 'plantilla_meta' in f;
+    const heredada = !nueva && !!regla.heredada && !!sedeId;
+    const error = validarRegla(f);
+
+    /**
+     * Una regla heredada de las globales no se puede editar en la sede: las propias reemplazan a las
+     * globales y el PATCH solo opera sobre reglas de la sede. Por contrato el POST copia primero las
+     * globales a la sede (solo si la sede no tiene reglas propias), pero si el día ya existe responde
+     * 400 y revierte la copia. Por eso se hace un POST de una regla auxiliar INACTIVA en un día libre
+     * (esto copia las globales) y luego se edita con PATCH la copia del día original.
+     */
+    const guardarHeredada = async (datos) => {
+        const ocupados = new Set(normalizarReglas((await getReglasCobranza(sedeId)).data).map(r => r.dia_relativo));
+        let libre = 90;
+        while (ocupados.has(libre) && libre > -30) libre -= 1;
+        await crearReglaCobranza({
+            ...datos, nombre: 'Regla auxiliar (copia de las globales)', dia_relativo: libre, activa: false,
+            plantilla_meta_b: '', recordatorio_extra_paga_tarde: false,
+        }, sedeId);
+        const lista = normalizarReglas((await getReglasCobranza(sedeId)).data);
+        const copia = lista.find(r => !r.heredada && r.dia_relativo === datos.dia_relativo);
+        if (!copia) throw new Error('copia no encontrada');
+        return actualizarReglaCobranza(copia.id, datos);
+    };
 
     const guardar = async () => {
         setGuardando(true);
-        const datos = { ...f, dia_relativo: Number(f.dia_relativo) };
+        const datos = datosRegla(f);
         try {
-            const res = nueva ? await crearReglaCobranza(datos, sedeId) : await actualizarReglaCobranza(regla.id, datos);
+            let res;
+            if (nueva) res = await crearReglaCobranza(datos, sedeId);
+            else if (heredada) res = await guardarHeredada(datos);
+            else res = await actualizarReglaCobranza(regla.id, datos);
             toast.success(nueva ? 'Regla creada' : 'Regla actualizada');
             onGuardada(res?.data);
         } catch (err) {
@@ -47,7 +74,7 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
         }
     };
 
-    const invalida = !f.nombre.trim() || f.dia_relativo === '' || Number.isNaN(Number(f.dia_relativo));
+    const invalida = !!error || f.dia_relativo === '' || Number.isNaN(Number(f.dia_relativo));
 
     return (
         <Modal open size="lg" onClose={() => !guardando && onClose()} titulo={nueva ? 'Nueva regla' : `Editar regla · ${regla.nombre}`}
@@ -66,8 +93,8 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
                     <Campo id="rg-nombre" label="Nombre">
                         <input id="rg-nombre" className={inputCls} style={campo} value={f.nombre} onChange={e => set('nombre', e.target.value)} />
                     </Campo>
-                    <Campo id="rg-dia" label="Día relativo al vencimiento (−5 … +30)">
-                        <input id="rg-dia" type="number" className={inputCls} style={campo} value={f.dia_relativo} onChange={e => set('dia_relativo', e.target.value)} />
+                    <Campo id="rg-dia" label="Día relativo al vencimiento (−30 … +90)">
+                        <input id="rg-dia" type="number" min="-30" max="90" disabled={heredada} className={inputCls} style={campo} value={f.dia_relativo} onChange={e => set('dia_relativo', e.target.value)} />
                     </Campo>
                     <Campo id="rg-etapa" label="Etapa">
                         <select id="rg-etapa" className={inputCls} style={campo} value={f.etapa} onChange={e => set('etapa', e.target.value)}>
@@ -92,15 +119,41 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
                     <Campo id="rg-saldo" label="Saldo mínimo (USD)">
                         <input id="rg-saldo" type="number" min="0" step="0.01" className={inputCls} style={campo} value={f.saldo_minimo} onChange={e => set('saldo_minimo', e.target.value)} />
                     </Campo>
-                    {tienePlantillaMeta && (
-                        <Campo id="rg-meta" label="Plantilla de Meta (opcional)">
-                            <input id="rg-meta" className={inputCls} style={campo} value={f.plantilla_meta} onChange={e => set('plantilla_meta', e.target.value)} />
-                        </Campo>
-                    )}
+                    <Campo id="rg-meta" label="Plantilla de Meta A (opcional)">
+                        <input id="rg-meta" className={inputCls} style={campo} value={f.plantilla_meta} onChange={e => set('plantilla_meta', e.target.value)} />
+                    </Campo>
+                    <Campo id="rg-meta-b" label="Plantilla de Meta B (opcional, A/B)">
+                        <input id="rg-meta-b" className={inputCls} style={campo} value={f.plantilla_meta_b} onChange={e => set('plantilla_meta_b', e.target.value)} />
+                    </Campo>
                 </div>
+                {heredada && (
+                    <p className="text-xs" role="note" style={{ color: 'var(--ash)' }}>
+                        Esta regla viene de las reglas globales. Al guardar, la sede recibe una copia de todas las globales (más una regla auxiliar inactiva) y se edita la copia; el día no se puede cambiar.
+                    </p>
+                )}
+                {f.plantilla_meta_b.trim() && (
+                    <p className="text-xs" role="note" style={{ color: 'var(--ash)' }}>
+                        {aplicaAB(f)
+                            ? 'Comparación A/B activa: cada representante recibe siempre la misma variante. Cambiar las plantillas con la prueba en curso mezcla los resultados.'
+                            : 'La comparación A/B solo se activa en avisos por WhatsApp (o WhatsApp y email) al representante.'}
+                    </p>
+                )}
+                {error && f.nombre.trim() && <p className="text-xs" role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
                 <label className="flex items-center gap-2" style={{ color: 'var(--jet)' }}>
                     <input type="checkbox" checked={f.activa} onChange={e => set('activa', e.target.checked)} />Regla activa
                 </label>
+                {aplicaExtra(f) && (
+                    <label className="flex items-start gap-2" style={{ color: 'var(--jet)' }}>
+                        <input type="checkbox" className="mt-1" checked={f.recordatorio_extra_paga_tarde}
+                            onChange={e => set('recordatorio_extra_paga_tarde', e.target.checked)} />
+                        <span>
+                            Recordatorio extra a quienes pagan tarde
+                            <span className="block text-xs" style={{ color: 'var(--ash)' }}>
+                                Además de su día, esta regla se envía 3 días antes del vencimiento a los representantes con perfil «Paga tarde pero paga». Solo una regla por sede.
+                            </span>
+                        </span>
+                    </label>
+                )}
                 <VistaPreviaMensaje texto={mensajeDeRegla(f)} />
             </div>
         </Modal>

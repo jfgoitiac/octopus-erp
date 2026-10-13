@@ -7,12 +7,12 @@ import { reemplazarVariables, mensajeDeRegla } from './automatizacionesUtils';
 
 const m = vi.hoisted(() => ({
     reglas: vi.fn(), config: vi.fn(), sim: vi.fn(), rapidas: vi.fn(), crearRapida: vi.fn(),
-    elimRapida: vi.fn(), actRegla: vi.fn(), toastError: vi.fn(), toastOk: vi.fn(),
+    elimRapida: vi.fn(), actRegla: vi.fn(), crearRegla: vi.fn(), toastError: vi.fn(), toastOk: vi.fn(),
 }));
 
 vi.mock('../../../api/cobranza.service', () => ({
     getReglasCobranza: (...a) => m.reglas(...a),
-    crearReglaCobranza: vi.fn(),
+    crearReglaCobranza: (...a) => m.crearRegla(...a),
     actualizarReglaCobranza: (...a) => m.actRegla(...a),
     getCobranzaInteligente: (...a) => m.config(...a),
     getSimulacionMotor: (...a) => m.sim(...a),
@@ -72,11 +72,46 @@ describe('Automatizaciones', () => {
         expect(m.toastOk).toHaveBeenCalled();
     });
 
-    it('solo muestra plantilla_meta si viene en la respuesta', async () => {
-        m.reglas.mockResolvedValue({ data: [{ ...regla, plantilla_meta: 'recordatorio_v1' }] });
+    it('edita las plantillas de Meta A/B y el recordatorio extra', async () => {
+        m.reglas.mockResolvedValue({ data: [{ ...regla, plantilla_meta: 'recordatorio_v1', plantilla_meta_b: 'recordatorio_v2', ab_activo: true }] });
+        m.actRegla.mockResolvedValue({ data: regla });
         montar();
-        await userEvent.click(await screen.findByRole('button', { name: /editar regla/i }));
-        expect(screen.getByLabelText(/plantilla de meta/i)).toHaveValue('recordatorio_v1');
+        expect(await screen.findByText('A/B')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /editar regla/i }));
+        expect(screen.getByLabelText(/plantilla de meta a/i)).toHaveValue('recordatorio_v1');
+        expect(screen.getByLabelText(/plantilla de meta b/i)).toHaveValue('recordatorio_v2');
+        await userEvent.click(screen.getByLabelText(/recordatorio extra a quienes pagan tarde/i));
+        await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+        await waitFor(() => expect(m.actRegla).toHaveBeenCalledWith(3, expect.objectContaining({
+            plantilla_meta: 'recordatorio_v1', plantilla_meta_b: 'recordatorio_v2', recordatorio_extra_paga_tarde: true,
+        })));
+        expect(m.actRegla.mock.calls[0][1]).not.toHaveProperty('heredada');
+    });
+
+    it('no deja guardar B sin A ni A igual a B', async () => {
+        montar();
+        await userEvent.click(await screen.findAllByRole('button', { name: /editar regla/i }).then(b => b[0]));
+        await userEvent.type(screen.getByLabelText(/plantilla de meta b/i), 'solo_b');
+        expect(screen.getByRole('alert')).toHaveTextContent(/primero define la plantilla de Meta A/i);
+        expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+        await userEvent.type(screen.getByLabelText(/plantilla de meta a/i), 'solo_b');
+        expect(screen.getByRole('alert')).toHaveTextContent(/distintas/i);
+    });
+
+    it('al editar una regla heredada hace primero POST (copia las globales) y luego PATCH a la copia', async () => {
+        const heredadas = [{ ...regla, id: 10, heredada: true }, { ...regla, id: 11, dia_relativo: -5, nombre: 'Preventivo', heredada: true }];
+        const copias = [{ ...regla, id: 20, heredada: false }, { ...regla, id: 21, dia_relativo: -5, heredada: false }];
+        m.reglas.mockResolvedValueOnce({ data: heredadas }).mockResolvedValueOnce({ data: heredadas }).mockResolvedValue({ data: copias });
+        m.crearRegla.mockResolvedValue({ data: { id: 22 } });
+        m.actRegla.mockResolvedValue({ data: regla });
+        montar();
+        expect(await screen.findAllByText('Heredada de las globales')).toHaveLength(2);
+        await userEvent.click(screen.getByRole('button', { name: /editar regla seguimiento cordial/i }));
+        expect(screen.getByLabelText(/día relativo/i)).toBeDisabled();
+        await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+        await waitFor(() => expect(m.actRegla).toHaveBeenCalledWith(20, expect.objectContaining({ dia_relativo: 3 })));
+        expect(m.crearRegla).toHaveBeenCalledWith(expect.objectContaining({ activa: false, dia_relativo: 90 }), 1);
+        expect(m.crearRegla.mock.invocationCallOrder[0]).toBeLessThan(m.actRegla.mock.invocationCallOrder[0]);
     });
 
     it('el simulador lista qué saldría y por qué se omite', async () => {

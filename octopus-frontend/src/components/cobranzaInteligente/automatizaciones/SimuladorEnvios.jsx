@@ -73,6 +73,7 @@ export function SimuladorEnvios({ sedeId }) {
                                     </div>
                                     <p className="text-xs break-words" style={{ color: 'var(--ash)' }}>
                                         {it.regla?.nombre} · {etiqueta(CANALES, it.canal)} · ${it.saldo_total_usd}
+                                        {it.variante ? ` · Variante ${it.variante}` : ''}{it.recordatorio_extra ? ' · Recordatorio extra (paga tarde)' : ''}
                                     </p>
                                     {it.estado === 'se_omitiria' && it.motivos_omision?.length > 0 && (
                                         <ul className="text-xs list-disc pl-4" style={{ color: 'var(--red)' }}>

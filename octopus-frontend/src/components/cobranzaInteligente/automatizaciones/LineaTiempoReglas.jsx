@@ -1,5 +1,9 @@
 import { Pencil, Plus } from 'lucide-react';
-import { CANALES, DESTINATARIOS, etiqueta, etiquetaDia, descripcionDia } from './automatizacionesUtils';
+import { aplicaAB, CANALES, DESTINATARIOS, etiqueta, etiquetaDia, descripcionDia } from './automatizacionesUtils';
+
+const Chip = ({ children }) => (
+    <span className="px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'var(--yellow-light)', color: 'var(--jet)' }}>{children}</span>
+);
 
 const COLOR_ETAPA = {
     preventiva: 'var(--pb)',
@@ -7,7 +11,7 @@ const COLOR_ETAPA = {
     prioritaria: 'var(--red)',
 };
 
-/** Reglas −5…+30 como línea de tiempo vertical (mobile-first). */
+/** Reglas por día relativo al vencimiento como línea de tiempo vertical (mobile-first). */
 export function LineaTiempoReglas({ reglas, soloLectura, onEditar, onNueva }) {
     return (
         <div className="space-y-3">
@@ -39,6 +43,11 @@ export function LineaTiempoReglas({ reglas, soloLectura, onEditar, onNueva }) {
                                 <p className="text-xs break-words" style={{ color: 'var(--ash)' }}>
                                     {descripcionDia(r.dia_relativo)} · {etiqueta(CANALES, r.canal)} · a {etiqueta(DESTINATARIOS, r.destinatario).toLowerCase()}
                                 </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {r.heredada && <Chip>Heredada de las globales</Chip>}
+                                    {(r.ab_activo ?? (r.plantilla_meta && r.plantilla_meta_b && aplicaAB(r))) && <Chip>A/B</Chip>}
+                                    {r.recordatorio_extra_paga_tarde && <Chip>Extra −3 · paga tarde</Chip>}
+                                </div>
                             </div>
                             {!soloLectura && (
                                 <button type="button" onClick={() => onEditar(r)} aria-label={`Editar regla ${r.nombre}`}
