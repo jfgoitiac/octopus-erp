@@ -4068,7 +4068,27 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    subir el mismo comprobante para ambas mensualidades. El conciliador ya
    soporta N operaciones por línea del banco, pero el portal debería permitir
    un comprobante que cubra varias mensualidades del mismo representante
-   (relación M2M o "comprobante padre"). No implementado.
+   (relación M2M o "comprobante padre"). **Resuelto (13/10/2026)**: M2M
+   `ComprobantePago.mensualidades` (la FK `mensualidad` queda como principal;
+   migración `portal 0007` con datos). El portal envía `mensualidad_ids` y el
+   modal "Pagar por transferencia" permite marcar mensualidades de varios
+   hijos. Al aprobar se crea UN `Pago` por el total enlazado a todas (mismo
+   criterio que caja), así el conciliador lo ve como una sola operación.
+   Pendiente relacionado:
+   - El dashboard del portal no sabe qué mensualidades ya tienen comprobante
+     en revisión: el modal las ofrece igual y el backend responde 409.
+     Convendría exponer ese estado en `mensualidades_vencidas`.
+   - El `Pago` aprobado desde el portal usa `monto_usd` de la mensualidad,
+     mientras el modal muestra `monto_total` (con recargo/descuento
+     prospectivo). Diferencia preexistente; revisar criterio.
+   - El `Pago` conjunto queda con `alumno` = titular (el de la mensualidad
+     principal), igual que en caja: los listados por alumno basados en
+     `Pago.alumno` solo muestran al titular.
+   - Lint preexistente: `src/portal/pages/PortalDashboard.jsx` dispara
+     `react-hooks/set-state-in-effect` en el `useEffect` que llama a
+     `cargarDashboard`. No se tocó.
+   - `src/pages/RevisionComprobantes.jsx` formatea la fecha con
+     `toLocaleDateString` en vez de date-fns (regla del proyecto). No se tocó.
 2. **Caja con referencias "variantes"**: `Pago.clean` rechaza dos pagos con la
    misma referencia+método+banco, así que cuando caja registra por separado a
    los hermanos termina escribiendo variantes (otros ceros, otros dígitos
