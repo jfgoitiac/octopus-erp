@@ -16,6 +16,7 @@ vi.mock('../../../api/cobranza.service', () => ({
     convertirAdjuntoComprobante: (...a) => m.convertir(...a),
     descartarAdjunto: (...a) => m.descartar(...a),
     getBancos: () => Promise.resolve({ data: [] }),
+    descargarArchivoMensaje: vi.fn(),
 }));
 vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('../../../hooks/usePolling', () => ({ usePolling: vi.fn() }));
@@ -212,6 +213,24 @@ describe('Hoy', () => {
         }));
         expect(m.toastOk).toHaveBeenCalled();
         await waitFor(() => expect(m.hoy).toHaveBeenCalledTimes(2));
+    });
+
+    it('el modal de conversión desde la tarjeta muestra la vista previa del adjunto cuando viene en la tarjeta', async () => {
+        const adjunto = { url: '/x', nombre: 'pago.pdf', tipo: 'application/pdf' };
+        m.hoy.mockResolvedValue({ data: { ...datos, tarjetas: [{ ...comprobante, adjunto }] } });
+        m.mens.mockResolvedValue(mensualidades);
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Asignar a mensualidad' }));
+        expect(await within(screen.getByRole('dialog')).findByRole('button', { name: /pago\.pdf/ })).toBeInTheDocument();
+    });
+
+    it('el modal de conversión tolera una tarjeta sin adjunto', async () => {
+        m.hoy.mockResolvedValue({ data: { ...datos, tarjetas: [comprobante] } });
+        m.mens.mockResolvedValue(mensualidades);
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Asignar a mensualidad' }));
+        expect(await screen.findByRole('checkbox', { name: /Ana Perez/ })).toBeInTheDocument();
+        expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /pago\.pdf/ })).toBeNull();
     });
 
     it('descartar exige un motivo y llama a la API', async () => {

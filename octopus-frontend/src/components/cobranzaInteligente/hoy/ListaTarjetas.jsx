@@ -26,6 +26,8 @@ export function ListaTarjetas({ tarjetas = [], onCambio }) {
                 tipo: accion.accion === 'convertir_comprobante' ? 'convertir' : 'descartar',
                 mensajeId: accion.mensaje ?? tarjeta.detalle?.mensaje,
                 conversacionId: accion.conversacion ?? tarjeta.detalle?.conversacion,
+                // Misma forma que en el hilo de Conversaciones; puede faltar (backend viejo).
+                adjunto: tarjeta.adjunto ?? tarjeta.detalle?.adjunto ?? null,
             });
             return;
         }
@@ -73,7 +75,7 @@ export function ListaTarjetas({ tarjetas = [], onCambio }) {
                     onClose={() => setModal(null)} onHecho={hecho} />
             )}
             <ModalConvertirComprobante open={modal?.tipo === 'convertir'} onClose={() => setModal(null)}
-                mensajeId={modal?.mensajeId} conversacionId={modal?.conversacionId} onHecho={hecho} />
+                mensajeId={modal?.mensajeId} conversacionId={modal?.conversacionId} adjunto={modal?.adjunto} onHecho={hecho} />
             <ModalDescartarComprobante open={modal?.tipo === 'descartar'} onClose={() => setModal(null)}
                 mensajeId={modal?.mensajeId} onHecho={hecho} />
             {modal?.tipo === 'convenio' && <ModalConvenio fila={modal.fila} onClose={() => setModal(null)} onHecho={hecho} />}
