@@ -31,7 +31,7 @@ const Automatizaciones = () => {
     useEffect(() => {
         const c = new AbortController();
         getReglasCobranza(sedeId, c.signal)
-            .then(r => setReglas({ cargando: false, items: normalizarReglas(r.data), soloLectura: false }))
+            .then(r => setReglas({ cargando: false, items: normalizarReglas(r.data), soloLectura: false, limites: r.data?.limites }))
             .catch(err => {
                 if (err?.code === 'ERR_CANCELED') return;
                 // El backend aún no expone las reglas: se muestran las de por defecto, solo lectura.
@@ -92,7 +92,7 @@ const Automatizaciones = () => {
             <Seccion titulo="Simulador: qué saldría un día"><SimuladorEnvios sedeId={sedeId} /></Seccion>
             <Seccion titulo="Respuestas rápidas"><RespuestasRapidas /></Seccion>
 
-            {editando && <EditorRegla regla={editando} sedeId={sedeId} onClose={() => setEditando(null)} onGuardada={alGuardar} />}
+            {editando && <EditorRegla regla={editando} sedeId={sedeId} limites={reglas.limites}onClose={() => setEditando(null)} onGuardada={alGuardar} />}
         </div>
     );
 };

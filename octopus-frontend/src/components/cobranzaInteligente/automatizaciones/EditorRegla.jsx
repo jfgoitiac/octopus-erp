@@ -21,7 +21,10 @@ const Campo = ({ id, label, children }) => (
 );
 
 /** Editor de una regla (crear o editar) dentro de un Modal. */
-export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
+// Respaldo si el backend no envía `limites` en GET reglas/ (la fuente es DIA_MIN/DIA_MAX del backend).
+const LIMITES_DEFECTO = { dia_min: -30, dia_max: 90 };
+
+export function EditorRegla({ regla, sedeId, limites = LIMITES_DEFECTO, onClose, onGuardada }) {
     const nueva = !regla?.id;
     const [f, setF] = useState({
         nombre: regla?.nombre ?? '', dia_relativo: regla?.dia_relativo ?? 0,
@@ -84,8 +87,8 @@ export function EditorRegla({ regla, sedeId, onClose, onGuardada }) {
                     <Campo id="rg-nombre" label="Nombre">
                         <input id="rg-nombre" className={inputCls} style={campo} value={f.nombre} onChange={e => set('nombre', e.target.value)} />
                     </Campo>
-                    <Campo id="rg-dia" label="Día relativo al vencimiento (−30 … +90)">
-                        <input id="rg-dia" type="number" min="-30" max="90" className={inputCls} style={campo} value={f.dia_relativo} onChange={e => set('dia_relativo', e.target.value)} />
+                    <Campo id="rg-dia" label={`Día relativo al vencimiento (${limites.dia_min} … +${limites.dia_max})`}>
+                        <input id="rg-dia" type="number" min={limites.dia_min} max={limites.dia_max} className={inputCls} style={campo} value={f.dia_relativo} onChange={e => set('dia_relativo', e.target.value)} />
                     </Campo>
                     <Campo id="rg-etapa" label="Etapa">
                         <select id="rg-etapa" className={inputCls} style={campo} value={f.etapa} onChange={e => set('etapa', e.target.value)}>
