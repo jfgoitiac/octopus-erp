@@ -4104,3 +4104,30 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    sin uso) y `MainLayout.jsx` (`set-state-in-effect`). No se tocaron.
 7. **`InitialsAvatar` arma clases dinámicas** (`w-${size}`): Tailwind solo genera
    las que aparezcan literales en algún archivo; tamaños poco usados quedan sin estilo.
+
+## Conversación de cobranza, takeover y acción sugerida (13/10/2026)
+
+1. **Falta WhatsApp entrante (lo principal para un CRM real)**: la conversación
+   solo muestra lo que el colegio envía (bot, personal) y lo que pasó con las
+   deudas. Para ver las respuestas del representante hace falta un webhook de
+   Meta/Twilio (`POST` público con verificación de firma), un modelo de mensaje
+   entrante asociado al `Representante` por teléfono y la ventana de 24 h de
+   Meta para responder con texto libre. La UI ya contempla `autor='representante'`
+   (burbuja blanca a la izquierda). Requiere aprobación antes de implementarse.
+2. **Takeover = pausa con motivo `gestion_humana`**: reutiliza `pausar_ciclo`, así
+   que el motor ya no le escribe (no hubo migraciones). Si un ciclo ya estaba en
+   pausa por otro motivo (convenio, reclamo), al tomarlo solo se asigna el
+   responsable y "devolver al bot" no lo reanuda.
+3. **Texto de los mensajes**: `notificaciones/services.py::_log` truncaba a 500
+   caracteres; se subió a 4000 (`mensaje` es `TextField`, sin migración). Los
+   mensajes viejos siguen cortados. Los envíos en modo sombra no generan texto
+   (no se construye el mensaje): la conversación los muestra como aviso.
+4. **`proxima_accion`** se recalcula una vez al día (tarea de las 7:30, tras
+   evaluar ciclos). En pantalla la acción sugerida se calcula en vivo.
+5. **Tests de backend sin ejecutar en este entorno** (no hay Django instalado):
+   `cobranza/test_gestion_cobranza.py` (clases `AccionSugeridaYTakeoverTest` y
+   `ConversacionApiTest`). Correr `python manage.py test cobranza.test_gestion_cobranza`.
+6. **Título del encabezado** para `/cobranza/inteligente/representantes/:id`:
+   `MainLayout` solo resuelve rutas exactas y muestra "Octopus ERP" (igual que
+   las demás páginas de detalle).
+7. **Lint preexistente**: `src/pages/Horarios.test.jsx` (`waitFor` sin usar).
