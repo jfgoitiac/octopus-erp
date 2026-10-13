@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from multisede.models import PermisoSede, Sede
 from portal.models import ComprobantePago
 
-from .models import ConciliacionBancaria, LoteRevisionCaja, Mensualidad, Pago
+from .models import ConciliacionBancaria, LoteRevisionCaja, Mensualidad, MovimientoBancarioConciliado, Pago
 from .tests_conciliacion_semiauto import PNG_BYTES, BaseConciliacionTest, crear_usuario
 
 URL_CAND = '/api/cobranza/conciliacion/candidatos/'
@@ -124,7 +124,7 @@ class PropuestasTest(MasivaBase):
         self.assertEqual(pa['alumnos'], ['Luis Mena'])
         self.assertEqual(r.data['resumen'], {
             'total': 3, 'exactas': 1, 'dentro_tolerancia': 1, 'fuera_tolerancia': 1,
-            'ambiguas': 0, 'sin_banco': 0,
+            'ambiguas': 0, 'sin_banco': 0, 'pagos_conjuntos': 0,
         })
         self.assertEqual(r.data['sin_operacion'], [])
 
@@ -204,8 +204,13 @@ class PropuestasTest(MasivaBase):
         lote = LoteRevisionCaja.objects.create(
             usuario=self.user, estado='abierto', fecha_inicio=date(2026, 10, 1), fecha_fin=date(2026, 10, 1),
         )
+        mov = MovimientoBancarioConciliado.objects.create(
+            banco=self.banco, referencia='100001', fecha=date(2026, 10, 2), monto_banco_ves=Decimal('400'),
+            monto_sistema_ves=Decimal('400'), diferencia_ves=Decimal('0'), tolerancia_aplicada_ves=Decimal('200'),
+        )
         ConciliacionBancaria.objects.create(
-            lote=lote, operacion_uuid=otro.operacion_uuid, banco=self.banco, referencia_banco='100001',
+            lote=lote, movimiento=mov, monto_operacion_ves=Decimal('400'),
+            operacion_uuid=otro.operacion_uuid, banco=self.banco, referencia_banco='100001',
             fecha_banco=date(2026, 10, 2), monto_banco_ves=Decimal('400'), monto_sistema_ves=Decimal('400'),
             diferencia_ves=Decimal('0'), tolerancia_aplicada_ves=Decimal('200'), usuario=self.user,
         )
@@ -341,12 +346,16 @@ class ConfirmarMasivaTest(MasivaBase):
         self.assertEqual(len(r2.data['errores']), 1)
         self.assertEqual(ConciliacionBancaria.objects.count(), 1)
 
-    def test_misma_linea_dos_veces_en_la_peticion(self):
+    def test_misma_linea_dos_veces_en_la_peticion_se_evalua_como_conjunto(self):
+        """Dos ítems con la misma línea se concilian juntos: 800 en sistema contra
+        400 en el banco queda fuera de tolerancia y, sin observación, no pasa ninguno."""
         a = self.pago_en(aware(2026, 10, 2), referencia='00100001')
         b = self.pago_en(aware(2026, 10, 2), referencia='99100001')
         r = self.confirma([self.item(a.operacion_uuid), self.item(b.operacion_uuid)])
-        self.assertEqual(len(r.data['conciliadas']), 1)
-        self.assertEqual(r.data['errores'][0]['indice'], 1)
+        self.assertEqual(r.data['conciliadas'], [])
+        self.assertEqual([e['indice'] for e in r.data['errores']], [0, 1])
+        self.assertIn('observación', r.data['errores'][0]['error'])
+        self.assertEqual(ConciliacionBancaria.objects.count(), 0)
 
     def test_comprobante_se_aprueba_y_concilia_y_error_no_lo_aprueba(self):
         ok = self.comprobante(referencia='88776655', fecha_subida=aware(2026, 10, 2), mes=9)

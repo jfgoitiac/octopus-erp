@@ -3036,6 +3036,9 @@ class ResumenConciliacionView(APIView):
                 'diferencia_ves': str(conc.diferencia_ves),
                 'fuera_tolerancia': conc.fuera_tolerancia,
                 'observacion': conc.observacion,
+                # Parte de esta operación cuando la transferencia cubre varias (pago conjunto).
+                'monto_operacion_ves': str(conc.monto_operacion_ves),
+                'movimiento_id': conc.movimiento_id,
             } if conc else None
             rid = p['representante_id']
             por_representante.setdefault(rid, []).append(p)

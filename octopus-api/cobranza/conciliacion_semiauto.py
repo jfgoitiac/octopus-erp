@@ -7,6 +7,10 @@ Decisiones (ver PROMPT_MODULO_CONCILIADOR.md):
   - Match por los últimos 4–6 dígitos de la referencia, mismo banco receptor.
   - La unidad conciliable es la OPERACIÓN (operacion_uuid): una transferencia
     puede cubrir a varios hermanos.
+  - Una línea del banco (MovimientoBancarioConciliado) puede cubrir VARIAS
+    operaciones (pago conjunto: caja registró por separado las mensualidades
+    de los hermanos). La diferencia se evalúa sobre la suma, y una línea
+    conciliada a medias puede completarse después.
   - La diferencia (banco - sistema) se recalcula en el servidor. Si supera la
     tolerancia se exige una observación; igual se puede conciliar.
   - El excedente solo se registra: no se toca ningún saldo.
@@ -16,8 +20,10 @@ Decisiones (ver PROMPT_MODULO_CONCILIADOR.md):
 import logging
 import re
 import uuid
+from collections import Counter
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from itertools import combinations
 
 from django.db import IntegrityError, transaction
 from django.db.models import Max, Min
@@ -26,7 +32,10 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import BancoInstitucional, ConciliacionBancaria, LoteRevisionCaja, Pago, TasaCambio
+from .models import (
+    BancoInstitucional, ConciliacionBancaria, LoteRevisionCaja, MovimientoBancarioConciliado, Pago,
+    TasaCambio,
+)
 from .permissions import filtrar_por_sede
 
 logger = logging.getLogger(__name__)
@@ -105,6 +114,25 @@ def serializar_conciliacion(c):
         'observacion': c.observacion,
         'archivo_estado_cuenta': c.archivo_estado_cuenta,
         'comprobante_aprobado_id': c.comprobante_aprobado_id,
+        'movimiento_id': c.movimiento_id,
+        'monto_operacion_ves': str(c.monto_operacion_ves),
+    }
+
+
+def serializar_movimiento(m, total_operaciones=None):
+    """Línea del banco ya conciliada, con sus agregados (puede cubrir varias operaciones)."""
+    return {
+        'id': m.id,
+        'banco_id': m.banco_id,
+        'referencia': m.referencia,
+        'fecha': m.fecha.isoformat(),
+        'monto_banco_ves': str(m.monto_banco_ves),
+        'monto_sistema_ves': str(m.monto_sistema_ves),
+        'diferencia_ves': str(m.diferencia_ves),
+        'fuera_tolerancia': m.fuera_tolerancia,
+        'total_operaciones': (
+            m.conciliaciones.count() if total_operaciones is None else total_operaciones
+        ),
     }
 
 
@@ -208,6 +236,7 @@ def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, s
             'referencia': primero.referencia,
             'fecha': _fecha_pago(primero).isoformat(),
             'monto_ves': str(sum((p.monto_ves for p in items), Decimal('0')).quantize(CENT)),
+            'representante_id': rep.id,
             'representante': f'{rep.nombre} {rep.apellido}'.strip(),
             'alumnos': alumnos,
             'pagos_ids': [p.id for p in items],
@@ -243,6 +272,7 @@ def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, s
             'referencia': c.referencia_bancaria,
             'fecha': timezone.localtime(c.fecha_subida).date().isoformat(),
             'monto_ves': str((c.mensualidad.monto_usd * tasa_valor).quantize(CENT)),
+            'representante_id': rep.id,
             'representante': f'{rep.nombre} {rep.apellido}'.strip(),
             'alumnos': [f'{alumno.nombre} {alumno.apellido}'.strip()],
             'pagos_ids': [],
@@ -292,7 +322,41 @@ class CandidatosConciliacionView(APIView):
         resultados = listar_operaciones(
             request.user, banco_id, sufijo=ref or None, desde=desde, hasta=hasta,
         )
-        return Response({'resultados': resultados[:MAX_RESULTADOS]})
+        return Response({
+            'resultados': resultados[:MAX_RESULTADOS],
+            'movimientos_previos': listar_movimientos_previos(banco_id, sufijo=ref or None, desde=desde, hasta=hasta),
+        })
+
+
+def listar_movimientos_previos(banco_id, *, sufijo=None, desde=None, hasta=None):
+    """
+    Líneas del banco ya conciliadas (movimientos) que coinciden con la búsqueda.
+    El modal las usa para avisar que, al elegir esa línea, las operaciones se
+    AGREGAN al movimiento (completar un pago conjunto) y para calcular la
+    diferencia sobre el total del movimiento.
+    """
+    qs = MovimientoBancarioConciliado.objects.filter(banco_id=banco_id)
+    if sufijo:
+        qs = qs.filter(referencia__endswith=sufijo)
+    if desde:
+        qs = qs.filter(fecha__gte=desde)
+    if hasta:
+        qs = qs.filter(fecha__lte=hasta)
+    movimientos = list(qs.order_by('-fecha')[:MAX_RESULTADOS])
+    ops = {}
+    for c in ConciliacionBancaria.objects.filter(movimiento__in=movimientos).only('movimiento_id', 'operacion_uuid'):
+        ops.setdefault(c.movimiento_id, []).append(c.operacion_uuid)
+    alumnos_por_op = {}
+    for p in Pago.objects.filter(
+        operacion_uuid__in=[u for lista in ops.values() for u in lista],
+    ).select_related('alumno'):
+        alumnos_por_op.setdefault(p.operacion_uuid, set()).add(f'{p.alumno.nombre} {p.alumno.apellido}'.strip())
+    resultado = []
+    for m in movimientos:
+        data = serializar_movimiento(m, total_operaciones=len(ops.get(m.id, [])))
+        data['alumnos'] = sorted({a for u in ops.get(m.id, []) for a in alumnos_por_op.get(u, ())})
+        resultado.append(data)
+    return resultado
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -330,86 +394,177 @@ def parsear_tolerancia(valor):
         raise ErrorConciliacion(str(exc))
 
 
-def conciliar_item(user, banco, *, operacion_uuid, comprobante_id, referencia_banco,
-                   fecha_banco, monto_banco, tolerancia, observacion='', archivo=''):
-    """
-    Concilia UNA operación (o aprueba un comprobante pendiente y lo concilia).
-    Lógica única compartida por `conciliar/` y `auto/confirmar/`.
+MAX_OPERACIONES_POR_MOVIMIENTO = 20
 
-    Atómica por sí misma (savepoint si ya hay una transacción abierta): ante
-    cualquier ErrorConciliacion no queda ningún efecto. Devuelve
-    (conciliacion, lote, advertencias).
+
+def _resolver_operacion(user, banco, operacion_uuid, comprobante_id):
+    """
+    Resuelve UNA operación a conciliar (dentro de la transacción del llamador).
+    Un comprobante pendiente se aprueba aquí. Devuelve
+    (operacion_uuid, pagos, comprobante|None, advertencias, (mensualidad, pago)|None).
     """
     if bool(operacion_uuid) == bool(comprobante_id):
         raise ErrorConciliacion('Indique operacion_uuid o comprobante_id (solo uno).')
-    if operacion_uuid:
-        try:
-            operacion_uuid = uuid.UUID(str(operacion_uuid))
-        except ValueError:
-            raise ErrorConciliacion('operacion_uuid inválido.')
+    if comprobante_id:
+        comprobante, pagos, advertencias, notificar = _aprobar_comprobante(user, banco, comprobante_id)
+        return pagos[0].operacion_uuid, pagos, comprobante, advertencias, notificar
+    try:
+        operacion_uuid = uuid.UUID(str(operacion_uuid))
+    except ValueError:
+        raise ErrorConciliacion('operacion_uuid inválido.')
+    pagos = list(filtrar_por_sede(user, Pago.objects.filter(
+        operacion_uuid=operacion_uuid, banco_receptor=banco, estatus='completado',
+    ), campo='sede').select_related('alumno'))
+    if not pagos:
+        raise ErrorConciliacion('Operación no encontrada para ese banco.', status.HTTP_404_NOT_FOUND)
+    if ConciliacionBancaria.objects.filter(operacion_uuid=operacion_uuid).exists():
+        raise ErrorConciliacion('Esta operación ya fue conciliada.')
+    return operacion_uuid, pagos, None, [], None
+
+
+def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_banco, monto_banco,
+                         tolerancia, observacion='', archivo=''):
+    """
+    Concilia una línea del estado de cuenta contra UNA O VARIAS operaciones
+    (`operaciones`: [{operacion_uuid | comprobante_id}]). Lógica única
+    compartida por `conciliar/` y `auto/confirmar/`.
+
+    Caso típico de varias: el representante paga con una sola transferencia
+    las mensualidades de dos hijos que caja registró como operaciones
+    separadas. La diferencia (banco − sistema) se evalúa sobre la SUMA.
+
+    Si la línea ya había sido conciliada (movimiento existente), las
+    operaciones se AGREGAN a ese movimiento y se recalcula la diferencia del
+    conjunto: así se completa un pago conjunto conciliado a medias. El monto
+    de la línea debe coincidir con el ya registrado.
+
+    Antifraude: si el movimiento mezcla operaciones de representantes
+    distintos se exige observación (igual que al superar la tolerancia).
+
+    Atómica por sí misma (savepoint si ya hay una transacción abierta): ante
+    cualquier ErrorConciliacion no queda ningún efecto (ni la aprobación de
+    comprobantes). Devuelve (conciliaciones_nuevas, lote, advertencias, movimiento).
+    """
+    if not isinstance(operaciones, list) or not operaciones:
+        raise ErrorConciliacion('Indique al menos una operación a conciliar.')
+    if len(operaciones) > MAX_OPERACIONES_POR_MOVIMIENTO:
+        raise ErrorConciliacion(f'Máximo {MAX_OPERACIONES_POR_MOVIMIENTO} operaciones por transacción del banco.')
     observacion = str(observacion or '').strip()
     archivo = str(archivo or '').strip()[:255]
 
-    # La línea del banco no puede reutilizarse (verificación temprana; la
-    # restricción única de la BD cubre la carrera).
-    if ConciliacionBancaria.objects.filter(
-        banco=banco, referencia_banco=referencia_banco, fecha_banco=fecha_banco,
-    ).exists():
-        raise ErrorConciliacion('Esa transacción del estado de cuenta ya fue usada en otra conciliación.')
-
     advertencias = []
-    pago_notificar = None
     try:
         with transaction.atomic():
-            comprobante = None
-            if comprobante_id:
-                comprobante, pagos, advertencias, pago_notificar = _aprobar_comprobante(
-                    user, banco, comprobante_id,
+            movimiento = MovimientoBancarioConciliado.objects.select_for_update().filter(
+                banco=banco, referencia=referencia_banco, fecha=fecha_banco,
+            ).first()
+            if movimiento and movimiento.monto_banco_ves != monto_banco:
+                raise ErrorConciliacion(
+                    f'Esa transacción del estado de cuenta ya fue conciliada con un monto de '
+                    f'{movimiento.monto_banco_ves} Bs; el monto enviado ({monto_banco} Bs) no coincide.'
                 )
-                operacion_uuid = pagos[0].operacion_uuid
-            else:
-                pagos = list(filtrar_por_sede(user, Pago.objects.filter(
-                    operacion_uuid=operacion_uuid, banco_receptor=banco, estatus='completado',
-                ), campo='sede'))
-                if not pagos:
-                    raise ErrorConciliacion('Operación no encontrada para ese banco.', status.HTTP_404_NOT_FOUND)
-                if ConciliacionBancaria.objects.filter(operacion_uuid=operacion_uuid).exists():
-                    raise ErrorConciliacion('Esta operación ya fue conciliada.')
+            previas = list(movimiento.conciliaciones.all()) if movimiento else []
 
-            monto_sistema = sum((p.monto_ves for p in pagos), Decimal('0')).quantize(CENT)
+            nuevas, vistas, notificar = [], {c.operacion_uuid for c in previas}, []
+            for item in operaciones:
+                item = item if isinstance(item, dict) else {}
+                op_uuid, pagos, comprobante, adv, notif = _resolver_operacion(
+                    user, banco, item.get('operacion_uuid') or None, item.get('comprobante_id') or None,
+                )
+                if op_uuid in vistas:
+                    raise ErrorConciliacion('Una misma operación aparece más de una vez en la transacción.')
+                vistas.add(op_uuid)
+                monto_op = sum((p.monto_ves for p in pagos), Decimal('0')).quantize(CENT)
+                nuevas.append((op_uuid, pagos, comprobante, monto_op))
+                advertencias.extend(adv)
+                if notif:
+                    notificar.append(notif)
+
+            monto_sistema = (
+                sum((c.monto_operacion_ves for c in previas), Decimal('0'))
+                + sum((n[3] for n in nuevas), Decimal('0'))
+            ).quantize(CENT)
             diferencia = (monto_banco - monto_sistema).quantize(CENT)
             fuera = abs(diferencia) > tolerancia
             if fuera and not observacion:
-                # Al propagar la excepción se revierte la aprobación del comprobante.
+                # Al propagar la excepción se revierte la aprobación de comprobantes.
                 raise ErrorConciliacion('La diferencia supera la tolerancia: la observación es obligatoria.')
 
+            representantes = {p.alumno.representante_id for n in nuevas for p in n[1]}
+            if previas:
+                representantes |= set(Pago.objects.filter(
+                    operacion_uuid__in=[c.operacion_uuid for c in previas],
+                ).values_list('alumno__representante_id', flat=True))
+            if len(representantes) > 1 and not observacion:
+                raise ErrorConciliacion(
+                    'La transacción cubre pagos de representantes distintos: la observación es obligatoria.'
+                )
+
+            agregados = {
+                'monto_sistema_ves': monto_sistema, 'diferencia_ves': diferencia,
+                'fuera_tolerancia': fuera, 'tolerancia_aplicada_ves': tolerancia,
+            }
+            if movimiento is None:
+                movimiento = MovimientoBancarioConciliado.objects.create(
+                    banco=banco, referencia=referencia_banco, fecha=fecha_banco,
+                    monto_banco_ves=monto_banco, **agregados,
+                )
+            else:
+                for campo, valor in agregados.items():
+                    setattr(movimiento, campo, valor)
+                movimiento.save(update_fields=[*agregados, 'actualizado_en'])
+                # Las conciliaciones previas guardan copia de los agregados: se sincronizan.
+                movimiento.conciliaciones.update(
+                    monto_sistema_ves=monto_sistema, diferencia_ves=diferencia, fuera_tolerancia=fuera,
+                )
+
             lote = _obtener_o_crear_lote_abierto(user)
-            conciliacion = ConciliacionBancaria.objects.create(
-                lote=lote,
-                operacion_uuid=operacion_uuid,
-                banco=banco,
-                referencia_banco=referencia_banco,
-                fecha_banco=fecha_banco,
-                monto_banco_ves=monto_banco,
-                monto_sistema_ves=monto_sistema,
-                diferencia_ves=diferencia,
-                tolerancia_aplicada_ves=tolerancia,
-                fuera_tolerancia=fuera,
-                observacion=observacion,
-                archivo_estado_cuenta=archivo,
-                comprobante_aprobado=comprobante,
-                usuario=user,
-            )
-            lote.pagos.add(*pagos)
+            creadas = []
+            for op_uuid, pagos, comprobante, monto_op in nuevas:
+                creadas.append(ConciliacionBancaria.objects.create(
+                    lote=lote,
+                    movimiento=movimiento,
+                    operacion_uuid=op_uuid,
+                    monto_operacion_ves=monto_op,
+                    banco=banco,
+                    referencia_banco=referencia_banco,
+                    fecha_banco=fecha_banco,
+                    monto_banco_ves=monto_banco,
+                    monto_sistema_ves=monto_sistema,
+                    diferencia_ves=diferencia,
+                    tolerancia_aplicada_ves=tolerancia,
+                    fuera_tolerancia=fuera,
+                    observacion=observacion,
+                    archivo_estado_cuenta=archivo,
+                    comprobante_aprobado=comprobante,
+                    usuario=user,
+                ))
+                lote.pagos.add(*pagos)
             _recalcular_fechas(lote)
 
-            if pago_notificar:
-                mensualidad, pago = pago_notificar
+            if notificar:
                 from portal.services import notificar_pago_aprobado
-                transaction.on_commit(lambda: notificar_pago_aprobado(mensualidad, pago))
+
+                def _notificar(pendientes=tuple(notificar)):
+                    for mensualidad, pago in pendientes:
+                        notificar_pago_aprobado(mensualidad, pago)
+                transaction.on_commit(_notificar)
     except IntegrityError:
         raise ErrorConciliacion('La operación o la línea del estado de cuenta ya fue conciliada.')
-    return conciliacion, lote, advertencias
+    return creadas, lote, advertencias, movimiento
+
+
+def conciliar_item(user, banco, *, operacion_uuid, comprobante_id, referencia_banco,
+                   fecha_banco, monto_banco, tolerancia, observacion='', archivo=''):
+    """Atajo de `conciliar_movimiento` para una sola operación.
+    Devuelve (conciliacion, lote, advertencias)."""
+    creadas, lote, advertencias, _mov = conciliar_movimiento(
+        user, banco,
+        operaciones=[{'operacion_uuid': operacion_uuid, 'comprobante_id': comprobante_id}],
+        referencia_banco=referencia_banco, fecha_banco=fecha_banco, monto_banco=monto_banco,
+        tolerancia=tolerancia, observacion=observacion, archivo=archivo,
+    )
+    return creadas[0], lote, advertencias
 
 
 def _aprobar_comprobante(user, banco, comprobante_id):
@@ -446,9 +601,14 @@ class ConciliarOperacionView(APIView):
     """
     POST cobranza/conciliacion/conciliar/
 
-    Body: { operacion_uuid | comprobante_id, banco,
-            transaccion: {referencia, fecha, monto},
+    Body: { operaciones: [{operacion_uuid | comprobante_id}, ...]
+              (o, compatible: operacion_uuid | comprobante_id),
+            banco, transaccion: {referencia, fecha, monto},
             tolerancia?, observacion?, archivo? }
+
+    Varias operaciones = una sola transferencia que cubre varias operaciones
+    del sistema (ej. mensualidades de hermanos). Si la línea del banco ya
+    estaba conciliada, las operaciones se agregan a ese movimiento.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -457,13 +617,16 @@ class ConciliarOperacionView(APIView):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
         data = request.data
-        operacion_uuid = data.get('operacion_uuid') or None
-        comprobante_id = data.get('comprobante_id') or None
-        if bool(operacion_uuid) == bool(comprobante_id):
-            return Response(
-                {'error': 'Indique operacion_uuid o comprobante_id (solo uno).'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        operaciones = data.get('operaciones')
+        if operaciones is None:
+            operacion_uuid = data.get('operacion_uuid') or None
+            comprobante_id = data.get('comprobante_id') or None
+            if bool(operacion_uuid) == bool(comprobante_id):
+                return Response(
+                    {'error': 'Indique operacion_uuid o comprobante_id (solo uno).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            operaciones = [{'operacion_uuid': operacion_uuid, 'comprobante_id': comprobante_id}]
         try:
             banco = BancoInstitucional.objects.get(id=int(data.get('banco')))
         except (TypeError, ValueError, BancoInstitucional.DoesNotExist):
@@ -472,9 +635,8 @@ class ConciliarOperacionView(APIView):
         try:
             referencia_banco, fecha_banco, monto_banco = parsear_transaccion(data.get('transaccion'))
             tolerancia = parsear_tolerancia(data.get('tolerancia'))
-            conciliacion, lote, advertencias = conciliar_item(
-                request.user, banco,
-                operacion_uuid=operacion_uuid, comprobante_id=comprobante_id,
+            creadas, lote, advertencias, movimiento = conciliar_movimiento(
+                request.user, banco, operaciones=operaciones,
                 referencia_banco=referencia_banco, fecha_banco=fecha_banco,
                 monto_banco=monto_banco, tolerancia=tolerancia,
                 observacion=data.get('observacion'), archivo=data.get('archivo'),
@@ -483,7 +645,9 @@ class ConciliarOperacionView(APIView):
             return Response({'error': exc.mensaje}, status=exc.http_status)
 
         respuesta = {
-            'conciliacion': serializar_conciliacion(conciliacion),
+            'conciliacion': serializar_conciliacion(creadas[0]),
+            'conciliaciones': [serializar_conciliacion(c) for c in creadas],
+            'movimiento': serializar_movimiento(movimiento),
             'lote': serializar_lote(lote),
         }
         if advertencias:
@@ -631,6 +795,89 @@ def _asignar(ops, lineas, tolerancia):
     return pares, {i: c for i, c in ady.items() if i not in pares}
 
 
+MAX_OPS_GRUPO = 6  # por representante y línea: acota las combinaciones (2^6)
+
+
+def _lineas_disponibles(banco, transacciones, tolerancia):
+    """
+    Líneas del estado de cuenta que todavía pueden conciliarse:
+      - las libres (sin movimiento), y
+      - las ya conciliadas cuyo movimiento quedó con EXCEDENTE fuera de
+        tolerancia (banco > sistema): típicamente un pago conjunto de
+        hermanos del que solo se concilió una mensualidad. Se marcan con
+        `_previo` (monto ya conciliado) y `_reps_previos` (representantes).
+    El resto de las líneas usadas se ignora por completo.
+    """
+    movimientos = {
+        (m.referencia, m.fecha): m
+        for m in MovimientoBancarioConciliado.objects.filter(
+            banco=banco, fecha__in={t['fecha'] for t in transacciones},
+        )
+    }
+    reps_por_mov = {}
+    abiertos = [m.id for m in movimientos.values() if m.diferencia_ves > tolerancia]
+    if abiertos:
+        ops_por_mov = {}
+        for mov_id, op in ConciliacionBancaria.objects.filter(
+            movimiento_id__in=abiertos,
+        ).values_list('movimiento_id', 'operacion_uuid'):
+            ops_por_mov.setdefault(op, mov_id)
+        for op, rep in Pago.objects.filter(
+            operacion_uuid__in=list(ops_por_mov),
+        ).values_list('operacion_uuid', 'alumno__representante_id'):
+            reps_por_mov.setdefault(ops_por_mov[op], set()).add(rep)
+
+    lineas = []
+    for t in transacciones:
+        m = movimientos.get((t['referencia'], t['fecha']))
+        if m is None:
+            lineas.append(t)
+        elif m.id in reps_por_mov and m.monto_banco_ves == t['monto']:
+            lineas.append({**t, '_previo': m.monto_sistema_ves, '_reps_previos': reps_por_mov[m.id]})
+    return lineas
+
+
+def _agrupar(ops, lineas, pares, tolerancia):
+    """
+    Pago conjunto: asigna una línea del banco que no quedó emparejada 1:1 a un
+    CONJUNTO de operaciones del MISMO representante cuya suma la cuadra
+    (dentro de la tolerancia). En una línea ya conciliada con excedente
+    (`_previo`), el conjunto completa lo que falta, puede ser de una sola
+    operación y debe ser de un representante que ya está en el movimiento.
+
+    Solo propone resoluciones únicas (`_elegir_unica`) y descarta conjuntos que
+    se disputan una misma operación: ante la duda, el operador decide.
+    Devuelve {j_linea: (i_op, ...)}.
+    """
+    ops_libres = [i for i in range(len(ops)) if i not in pares]
+    tomadas = set(pares.values())
+    elegidos = {}
+    for j, t in enumerate(lineas):
+        if j in tomadas:
+            continue
+        con_previo = '_previo' in t
+        objetivo = t['monto'] - (t['_previo'] if con_previo else Decimal('0'))
+        por_rep = {}
+        for i in ops_libres:
+            rep = ops[i].get('representante_id')
+            if j in ops[i]['_lineas_todas'] and (not con_previo or rep in t['_reps_previos']):
+                por_rep.setdefault(rep, []).append(i)
+        opciones = []
+        for idxs in por_rep.values():
+            idxs = idxs[:MAX_OPS_GRUPO]
+            for r in range(1 if con_previo else 2, len(idxs) + 1):
+                for combo in combinations(idxs, r):
+                    d = abs(objetivo - sum((ops[i]['_monto'] for i in combo), Decimal('0')))
+                    if d <= tolerancia:
+                        opciones.append((combo, d))
+        if opciones:
+            combo = _elegir_unica(opciones, tolerancia)
+            if combo:
+                elegidos[j] = combo
+    uso = Counter(i for combo in elegidos.values() for i in combo)
+    return {j: combo for j, combo in elegidos.items() if all(uso[i] == 1 for i in combo)}
+
+
 class PropuestasConciliacionView(APIView):
     """
     POST cobranza/conciliacion/auto/propuestas/  (solo lectura)
@@ -667,11 +914,7 @@ class PropuestasConciliacionView(APIView):
         except ErrorConciliacion as exc:
             return Response({'error': exc.mensaje}, status=exc.http_status)
 
-        # Líneas ya usadas: se ignoran por completo.
-        usadas = set(ConciliacionBancaria.objects.filter(banco=banco).values_list(
-            'referencia_banco', 'fecha_banco',
-        ))
-        lineas = [t for t in transacciones if (t['referencia'], t['fecha']) not in usadas]
+        lineas = _lineas_disponibles(banco, transacciones, tolerancia)
 
         ops = listar_operaciones(
             request.user, banco.id, desde=desde, hasta=hasta, solo_no_conciliadas=True,
@@ -680,12 +923,18 @@ class PropuestasConciliacionView(APIView):
         lineas_con_op = set()
         for op in ops:
             op['_monto'] = Decimal(op['monto_ves'])
-            op['_lineas'] = [
+            op['_lineas_todas'] = [
                 j for j, t in enumerate(lineas) if _refs_coinciden(op['referencia'], t['referencia'], digitos)
             ]
-            lineas_con_op.update(op['_lineas'])
+            # El emparejamiento 1:1 solo usa líneas libres; las ya conciliadas
+            # (con excedente) solo se completan en la pasada de pago conjunto.
+            op['_lineas'] = [j for j in op['_lineas_todas'] if '_previo' not in lineas[j]]
+            lineas_con_op.update(op['_lineas_todas'])
 
         pares, pendientes = _asignar(ops, lineas, tolerancia)
+        grupos = _agrupar(ops, lineas, pares, tolerancia)
+        grupo_de = {i: j for j, combo in grupos.items() for i in combo}
+        tomadas_por_grupo = set(grupos)
 
         propuestas = []
         resumen = {
@@ -697,18 +946,34 @@ class PropuestasConciliacionView(APIView):
             'fuera_tolerancia': 'fuera_tolerancia', 'ambigua': 'ambiguas', 'sin_banco': 'sin_banco',
         }
         for i, op in enumerate(ops):
-            tx, candidatas, dif = None, [], None
-            if i in pares:
-                t = lineas[pares[i]]
+            tx, candidatas, dif, grupo, por_defecto = None, [], None, None, op['tipo'] == 'pago'
+            if i in pares or i in grupo_de:
+                j = pares[i] if i in pares else grupo_de[i]
+                t = lineas[j]
                 tx = _tx_json(t)
-                d = (t['monto'] - op['_monto']).quantize(CENT)
+                monto_sistema = op['_monto']
+                if i in grupo_de:
+                    combo = grupos[j]
+                    previo = t.get('_previo') or Decimal('0')
+                    monto_sistema = previo + sum((ops[k]['_monto'] for k in combo), Decimal('0'))
+                    grupo = {
+                        'clave': f"{t['referencia']}|{t['fecha'].isoformat()}",
+                        'operaciones': len(combo),
+                        'monto_sistema_ves': str(monto_sistema.quantize(CENT)),
+                        'monto_previo_ves': str(previo.quantize(CENT)) if '_previo' in t else None,
+                    }
+                    # Un pago conjunto se marca entero o no se marca.
+                    por_defecto = all(ops[k]['tipo'] == 'pago' for k in combo)
+                d = (t['monto'] - monto_sistema).quantize(CENT)
                 dif = str(d)
                 estado = 'exacta' if d == 0 else 'dentro_tolerancia' if abs(d) <= tolerancia else 'fuera_tolerancia'
-            elif pendientes.get(i):
-                estado = 'ambigua'
-                candidatas = [_tx_json(lineas[j]) for j in sorted(pendientes[i])]
             else:
-                estado = 'sin_banco'
+                restantes = (pendientes.get(i) or set()) - tomadas_por_grupo
+                if restantes:
+                    estado = 'ambigua'
+                    candidatas = [_tx_json(lineas[j]) for j in sorted(restantes)]
+                else:
+                    estado = 'sin_banco'
             propuestas.append({
                 'id': i,
                 'estado': estado,
@@ -723,13 +988,17 @@ class PropuestasConciliacionView(APIView):
                 'transaccion': tx,
                 'candidatas': candidatas,
                 'diferencia_ves': dif,
-                'seleccionada_por_defecto': estado in ('exacta', 'dentro_tolerancia') and op['tipo'] == 'pago',
+                'grupo': grupo,
+                'seleccionada_por_defecto': estado in ('exacta', 'dentro_tolerancia') and por_defecto,
             })
             resumen['total'] += 1
             resumen[clave_resumen[estado]] += 1
+        resumen['pagos_conjuntos'] = len(grupos)
 
-        # Líneas del banco sin ninguna operación asociada (ni siquiera candidata).
-        sin_operacion = [_tx_json(t) for j, t in enumerate(lineas) if j not in lineas_con_op]
+        # Líneas libres del banco sin ninguna operación asociada (ni siquiera candidata).
+        sin_operacion = [
+            _tx_json(t) for j, t in enumerate(lineas) if j not in lineas_con_op and '_previo' not in t
+        ]
         return Response({'propuestas': propuestas, 'resumen': resumen, 'sin_operacion': sin_operacion})
 
 
@@ -739,8 +1008,10 @@ class ConfirmarMasivaView(APIView):
 
     Body: {banco, tolerancia?, archivo?, items: [{operacion_uuid | comprobante_id,
            transaccion: {referencia, fecha, monto}, observacion?}]}
-    Cada ítem usa `conciliar_item` (misma lógica que `conciliar/`) en su propio
-    savepoint: un error no revierte los demás. Máx. 500 ítems.
+    Los ítems con la misma transacción (referencia + fecha) se concilian juntos
+    como un pago conjunto vía `conciliar_movimiento` (misma lógica que
+    `conciliar/`), cada grupo en su propio savepoint: un error no revierte los
+    demás grupos. Máx. 500 ítems.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -768,26 +1039,53 @@ class ConfirmarMasivaView(APIView):
             return Response({'error': exc.mensaje}, status=status.HTTP_400_BAD_REQUEST)
         archivo = data.get('archivo')
 
+        # Los ítems que apuntan a la MISMA línea del banco (referencia + fecha)
+        # forman un pago conjunto: se concilian juntos y la diferencia se
+        # evalúa sobre su suma. Cada grupo va en su propio savepoint.
         conciliadas, errores = [], []
+        grupos = {}
         for indice, item in enumerate(items):
             try:
                 if not isinstance(item, dict):
                     raise ErrorConciliacion('Ítem inválido.')
                 ref, fecha, monto = parsear_transaccion(item.get('transaccion'))
+            except ErrorConciliacion as exc:
+                errores.append({'indice': indice, 'error': exc.mensaje})
+                continue
+            grupos.setdefault((ref, fecha), []).append((indice, item, monto))
+
+        for (ref, fecha), miembros in grupos.items():
+            indices = [m[0] for m in miembros]
+            try:
+                montos = {m[2] for m in miembros}
+                if len(montos) > 1:
+                    raise ErrorConciliacion('Los ítems de una misma transacción del banco traen montos distintos.')
+                observaciones = []
+                for _i, item, _m in miembros:
+                    obs = str(item.get('observacion') or '').strip()
+                    if obs and obs not in observaciones:
+                        observaciones.append(obs)
                 with transaction.atomic():
-                    conciliacion, _lote, advertencias = conciliar_item(
+                    creadas, _lote, advertencias, _mov = conciliar_movimiento(
                         request.user, banco,
-                        operacion_uuid=item.get('operacion_uuid') or None,
-                        comprobante_id=item.get('comprobante_id') or None,
-                        referencia_banco=ref, fecha_banco=fecha, monto_banco=monto,
-                        tolerancia=tolerancia, observacion=item.get('observacion'), archivo=archivo,
+                        operaciones=[
+                            {'operacion_uuid': item.get('operacion_uuid') or None,
+                             'comprobante_id': item.get('comprobante_id') or None}
+                            for _i, item, _m in miembros
+                        ],
+                        referencia_banco=ref, fecha_banco=fecha, monto_banco=montos.pop(),
+                        tolerancia=tolerancia, observacion=' | '.join(observaciones), archivo=archivo,
                     )
-                entrada = {'indice': indice, 'conciliacion_id': conciliacion.id}
+            except ErrorConciliacion as exc:
+                errores.extend({'indice': i, 'error': exc.mensaje} for i in indices)
+                continue
+            for i, conciliacion in zip(indices, creadas):
+                entrada = {'indice': i, 'conciliacion_id': conciliacion.id}
                 if advertencias:
                     entrada['advertencias'] = advertencias
                 conciliadas.append(entrada)
-            except ErrorConciliacion as exc:
-                errores.append({'indice': indice, 'error': exc.mensaje})
+        conciliadas.sort(key=lambda c: c['indice'])
+        errores.sort(key=lambda e: e['indice'])
 
         lote = _lote_abierto(request.user)
         return Response({

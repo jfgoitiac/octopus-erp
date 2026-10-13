@@ -896,17 +896,69 @@ class LoteRevisionCaja(models.Model):
         return f"Lote #{self.pk} ({self.fecha_inicio} — {self.fecha_fin}) por {self.usuario}"
 
 
+class MovimientoBancarioConciliado(models.Model):
+    """
+    Línea del estado de cuenta bancario ya consumida por la conciliación.
+
+    Relación 1:N con ConciliacionBancaria: una sola transferencia puede cubrir
+    varias operaciones del sistema (ej. un representante paga con una única
+    transferencia las mensualidades de dos hijos que caja registró por
+    separado). La diferencia y la tolerancia se evalúan sobre la SUMA de las
+    operaciones del movimiento, no sobre cada una por separado.
+
+    La unicidad (banco, referencia, fecha) es lo que impide que la misma línea
+    del banco se use en dos conciliaciones independientes.
+    """
+    banco = models.ForeignKey(
+        BancoInstitucional, on_delete=models.PROTECT, related_name='movimientos_conciliados',
+    )
+    referencia = models.CharField(max_length=100)
+    fecha = models.DateField()
+    monto_banco_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    # Agregados del movimiento: se recalculan cada vez que se le suma una operación.
+    monto_sistema_ves = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    diferencia_ves = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    tolerancia_aplicada_ves = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    fuera_tolerancia = models.BooleanField(default=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        constraints = [
+            # Una línea del estado de cuenta no se usa en dos conciliaciones.
+            models.UniqueConstraint(
+                fields=['banco', 'referencia', 'fecha'],
+                name='unico_movimiento_bancario_conciliado',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Movimiento {self.referencia} {self.fecha} ({self.banco})"
+
+
 class ConciliacionBancaria(models.Model):
     """
     Resultado de conciliar UNA operación (operacion_uuid) contra una línea del
-    estado de cuenta bancario. Pertenece a un lote de revisión (abierto hasta
-    que el operador lo finaliza). Solo registra la diferencia: no modifica
-    saldos (el saldo a favor por excedente es deuda técnica).
+    estado de cuenta bancario (`movimiento`). Varias operaciones pueden
+    compartir el mismo movimiento (pago conjunto de hermanos). Pertenece a un
+    lote de revisión (abierto hasta que el operador lo finaliza). Solo
+    registra la diferencia: no modifica saldos (el saldo a favor por
+    excedente es deuda técnica).
+
+    referencia_banco / fecha_banco / monto_banco_ves / monto_sistema_ves /
+    diferencia_ves / fuera_tolerancia son una copia de los agregados del
+    movimiento (se mantienen sincronizados) para no romper a los consumidores
+    existentes; `monto_operacion_ves` es la parte de ESTA operación.
     """
     lote = models.ForeignKey(
         LoteRevisionCaja, on_delete=models.CASCADE, related_name='conciliaciones',
     )
+    movimiento = models.ForeignKey(
+        MovimientoBancarioConciliado, on_delete=models.PROTECT, related_name='conciliaciones',
+    )
     operacion_uuid = models.UUIDField(db_index=True)
+    monto_operacion_ves = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     banco = models.ForeignKey(
         BancoInstitucional, on_delete=models.PROTECT, related_name='conciliaciones',
     )
@@ -934,11 +986,7 @@ class ConciliacionBancaria(models.Model):
         constraints = [
             # Una operación no se concilia dos veces.
             models.UniqueConstraint(fields=['operacion_uuid'], name='unica_conciliacion_por_operacion'),
-            # Una línea del estado de cuenta no se usa dos veces.
-            models.UniqueConstraint(
-                fields=['banco', 'referencia_banco', 'fecha_banco'],
-                name='unica_linea_banco_conciliada',
-            ),
+            # La unicidad de la línea del banco vive en MovimientoBancarioConciliado.
         ]
 
     def __str__(self):
