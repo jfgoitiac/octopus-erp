@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useConfiguracionNotificaciones, AREAS_EMAIL } from '../hooks/useConfiguracionNotificaciones';
 import { useCobranzaInteligente } from '../hooks/useCobranzaInteligente';
+import WhatsAppPorSede from '../components/configuracion/WhatsAppPorSede';
 
 // ─── Primitive form components (defined at module level to prevent remount on re-render) ───
 
@@ -374,6 +375,9 @@ const ConfiguracionNotificaciones = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* ─── Card WhatsApp por sede (solo con 2 o más sedes) ─── */}
+                    <WhatsAppPorSede />
 
                     {/* ─── Card Cronograma de recordatorios de mora ─── */}
                     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>

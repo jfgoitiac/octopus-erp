@@ -8,6 +8,7 @@ const { ciState } = vi.hoisted(() => ({ ciState: { estado: { activo: false } } }
 vi.mock('../hooks/useCobranzaInteligente', () => ({
     useCobranzaInteligente: () => ({ estado: ciState.estado }),
 }));
+vi.mock('../components/configuracion/WhatsAppPorSede', () => ({ default: () => null }));
 vi.mock('../hooks/useConfiguracionNotificaciones', () => ({
     AREAS_EMAIL: [{ value: 'general', label: 'General' }],
     useConfiguracionNotificaciones: () => ({
