@@ -22,8 +22,10 @@ Perfiles (se evalúan en este orden):
 Los umbrales son constantes de módulo, ajustables con el colegio piloto.
 """
 import calendar
+import uuid
 from datetime import date, datetime
 
+from django.core.cache import cache
 from django.utils import timezone
 
 from .ciclos import DIA_LIMITE_POR_DEFECTO
@@ -34,6 +36,7 @@ DIAS_GRACIA = 3
 CRONICO_MIN_IMPAGAS = 3
 CRONICO_MIN_EVALUABLES = 4
 PAGA_TARDE_MIN_TARDES = 2
+CACHE_TTL = 300  # 5 min; además se invalida al cambiar mensualidades/pagos/alumnos del representante
 
 PUNTUAL = 'puntual'
 PAGA_TARDE = 'paga_tarde'
@@ -115,19 +118,47 @@ def _mensualidades(representante_ids, hoy):
     )
 
 
+def _clave_version(representante_id):
+    return f'perfil_pagador:ver:{representante_id}'
+
+
+def _claves(ids, hoy):
+    """{id: clave}; la clave incluye `hoy` y la versión del representante (se cambia al invalidar)."""
+    versiones = cache.get_many([_clave_version(i) for i in ids])
+    return {i: f'perfil_pagador:{i}:{versiones.get(_clave_version(i), "0")}:{hoy.isoformat()}' for i in ids}
+
+
+def invalidar_cache(representante_id):
+    """Descarta las filas cacheadas del representante (cualquier día) cambiando su versión."""
+    if representante_id:
+        cache.set(_clave_version(representante_id), uuid.uuid4().hex, None)
+
+
 def filas_de(representante_ids, hoy=None):
-    """{representante_id: [fila]} con las mensualidades evaluables de la ventana."""
+    """{representante_id: [fila]} con las mensualidades evaluables de la ventana (caché corta por representante y día)."""
     hoy = hoy or date.today()
     ids = list(representante_ids)
     resultado = {i: [] for i in ids}
     if not ids:
         return resultado
-    for m in _mensualidades(ids, hoy):
+    claves = _claves(ids, hoy)
+    cacheadas = cache.get_many(list(claves.values()))
+    faltan = []
+    for i in ids:
+        filas = cacheadas.get(claves[i])
+        if filas is None:
+            faltan.append(i)
+        else:
+            resultado[i] = filas
+    if not faltan:
+        return resultado
+    for m in _mensualidades(faltan, hoy):
         fila = _fila(m, hoy)
         if fila:
             resultado[m.alumno.representante_id].append(fila)
-    for filas in resultado.values():
-        filas.sort(key=lambda f: f['vencimiento'])
+    for i in faltan:
+        resultado[i].sort(key=lambda f: f['vencimiento'])
+    cache.set_many({claves[i]: resultado[i] for i in faltan}, CACHE_TTL)
     return resultado
 
 

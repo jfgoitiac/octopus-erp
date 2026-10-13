@@ -6,6 +6,7 @@ envíos reales de WhatsApp/email están simulados con mocks.
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -35,6 +36,7 @@ EM = 'notificaciones.services.enviar_email'
 
 class MotorBase(TestCase):
     def setUp(self):
+        cache.clear()  # caché del perfil de pagador: tests deterministas
         self.sede = Sede.objects.create(nombre='Sede Norte')
         self.rep = Representante.objects.create(
             cedula='V1', nombre='Maria', apellido='Perez', telefono='04121234567',

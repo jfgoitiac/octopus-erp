@@ -77,3 +77,25 @@ def sincronizar_ciclo_cobranza_inteligente(sender, instance, created, **kwargs):
         logging.getLogger(__name__).warning(
             f'No se pudo sincronizar el ciclo de la Mensualidad {instance.id}: {e}'
         )
+
+
+# --- Caché del perfil de pagador (cobranza/perfil_pagador.py): se invalida al cambiar
+# mensualidades, pagos o alumnos del representante; el TTL corto cubre el resto.
+from secretaria.models import Alumno
+from . import perfil_pagador
+
+
+@receiver(post_save, sender=Mensualidad)
+@receiver(post_delete, sender=Mensualidad)
+def invalidar_perfil_por_mensualidad(sender, instance, **kwargs):
+    perfil_pagador.invalidar_cache(instance.alumno.representante_id)
+
+
+@receiver(post_save, sender=Pago)
+def invalidar_perfil_por_pago(sender, instance, **kwargs):
+    perfil_pagador.invalidar_cache(instance.alumno.representante_id)
+
+
+@receiver(post_save, sender=Alumno)
+def invalidar_perfil_por_alumno(sender, instance, **kwargs):
+    perfil_pagador.invalidar_cache(instance.representante_id)
