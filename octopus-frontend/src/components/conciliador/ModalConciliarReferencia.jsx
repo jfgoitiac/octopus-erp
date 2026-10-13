@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Link2, CheckCircle, AlertCircle, Lock, RotateCcw, Loader2 } from 'lucide-react';
+import { Link2, CheckCircle, AlertCircle, Lock, RotateCcw, Loader2, Users, Info } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Modal } from '../ui/Modal';
@@ -159,12 +159,12 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
               <tr key={k} style={{ opacity: c.conciliado ? 0.55 : 1 }}>
                 <td className="px-3 py-2.5 sm:px-4">
                   <input
-                    type="radio"
-                    name="conciliar-cand"
+                    type="checkbox"
                     aria-label={`Seleccionar referencia ${c.referencia}`}
                     disabled={c.conciliado}
-                    checked={candSel === k}
+                    checked={candSel.includes(k)}
                     onChange={() => onSelect(k)}
+                    className="w-4 h-4"
                   />
                 </td>
                 <td className="px-3 py-2.5 sm:px-4 font-mono text-xs" style={{ color: 'var(--jet)' }}>{c.referencia}</td>
@@ -185,7 +185,7 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
       <div className="sm:hidden space-y-2">
         {candidatos.map(c => {
           const k = claveCandidato(c);
-          const activo = candSel === k;
+          const activo = candSel.includes(k);
           return (
             <label
               key={k}
@@ -198,12 +198,11 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
               }}
             >
               <input
-                type="radio"
-                name="conciliar-cand-movil"
+                type="checkbox"
                 disabled={c.conciliado}
                 checked={activo}
                 onChange={() => onSelect(k)}
-                className="mt-1"
+                className="mt-1 w-4 h-4"
               />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex items-center justify-between gap-2">
@@ -223,8 +222,35 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
   );
 }
 
+function AvisoMovimientoPrevio({ movimiento, montoDistinto }) {
+  const alumnos = (movimiento.alumnos || []).join(', ');
+  return (
+    <div
+      className="rounded-xl p-3 flex items-start gap-2"
+      style={{
+        background: montoDistinto ? 'var(--red-light)' : 'var(--pb-light)',
+        border: `1.5px solid ${montoDistinto ? 'var(--red)' : 'var(--pb)'}`,
+      }}
+    >
+      <Info size={16} className="shrink-0 mt-0.5" style={{ color: montoDistinto ? 'var(--red)' : 'var(--pb)' }} />
+      <p className="text-xs sm:text-sm" style={{ color: montoDistinto ? 'var(--red)' : 'var(--jet)' }}>
+        {montoDistinto ? (
+          <>Esta transacción ya fue conciliada con otro monto (Bs. {fmt(movimiento.monto_banco_ves)}). Revisa la línea del estado de cuenta.</>
+        ) : (
+          <>
+            Esta transacción ya fue conciliada con {movimiento.total_operaciones}{' '}
+            {movimiento.total_operaciones === 1 ? 'operación' : 'operaciones'}
+            {alumnos ? ` (${alumnos})` : ''} por Bs. {fmt(movimiento.monto_sistema_ves)}.
+            Lo que elijas se sumará a ese pago conjunto.
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
 function Comparacion({ comparacion, c }) {
-  const { montoBanco, montoSistema, diferencia, fuera } = comparacion;
+  const { montoBanco, montoSistema, montoPrevio, diferencia, fuera, operaciones } = comparacion;
   const colorDif = fuera ? 'var(--red)' : 'var(--green, #16a34a)';
   const signo = diferencia > 0 ? '+' : '';
   return (
@@ -236,7 +262,15 @@ function Comparacion({ comparacion, c }) {
       <div className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
         <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--ash)' }}>Monto en el sistema</p>
         <p className="text-base sm:text-lg font-bold tabular-nums" style={{ color: 'var(--jet)' }}>Bs. {fmt(montoSistema)}</p>
-        <p className="text-[11px]" style={{ color: 'var(--ash)' }}>{fechaLarga(c.fecha)}</p>
+        {operaciones > 1 || montoPrevio > 0 ? (
+          <p className="text-[11px] flex items-center gap-1" style={{ color: 'var(--ash)' }}>
+            <Users size={11} />
+            Pago conjunto · {operaciones} {operaciones === 1 ? 'operación' : 'operaciones'}
+            {montoPrevio > 0 ? ` + Bs. ${fmt(montoPrevio)} ya conciliados` : ''}
+          </p>
+        ) : (
+          <p className="text-[11px]" style={{ color: 'var(--ash)' }}>{fechaLarga(c.fecha)}</p>
+        )}
       </div>
       <div
         className="rounded-xl p-3"
@@ -258,7 +292,8 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
     open, cerrar, bancoActivo, cambiarBanco, ref, cambiarRef, buscar, buscado,
     desde, hasta, cambiarDesde, cambiarHasta, rangoInvalido, puedeBuscar,
     matches, txSel, setTxSel,
-    candidatos, loadingCand, candSel, setCandSel, candidatoSel,
+    candidatos, loadingCand, candSel, alternarCandidato, candidatoSel,
+    movimientoPrevio, montoPrevioDistinto,
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal, toleranciaValida,
     observacion, setObservacion, observacionRequerida,
     comparacion, puedeConfirmar, enviando, confirmar,
@@ -396,11 +431,21 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
             </div>
             <div>
               <PasoTitulo n={2}>Base de datos</PasoTitulo>
+              {candidatos.length > 1 && !loadingCand && (
+                <p className="text-[11px] mb-2" style={{ color: 'var(--ash)' }}>
+                  Si una sola transferencia pagó varias operaciones (ej. las mensualidades de varios hijos), márcalas todas.
+                </p>
+              )}
+              {movimientoPrevio && (
+                <div className="mb-2">
+                  <AvisoMovimientoPrevio movimiento={movimientoPrevio} montoDistinto={montoPrevioDistinto} />
+                </div>
+              )}
               <PasoCandidatos
                 candidatos={candidatos}
                 loading={loadingCand}
                 candSel={candSel}
-                onSelect={setCandSel}
+                onSelect={alternarCandidato}
               />
             </div>
           </>
@@ -444,7 +489,11 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
 
             <div>
               <label htmlFor="conciliar-obs" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ash)' }}>
-                Observación{observacionRequerida ? ' (obligatoria: la diferencia supera la tolerancia)' : ' (opcional)'}
+                Observación{observacionRequerida
+                  ? (comparacion.fuera
+                    ? ' (obligatoria: la diferencia supera la tolerancia)'
+                    : ' (obligatoria: los pagos son de representantes distintos)')
+                  : ' (opcional)'}
               </label>
               <textarea
                 id="conciliar-obs"

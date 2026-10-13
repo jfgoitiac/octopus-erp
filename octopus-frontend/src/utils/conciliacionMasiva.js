@@ -91,6 +91,47 @@ export const propuestaEfectiva = (p, elecciones = {}, tolerancia = 0) => {
   return { ...p, transaccionEfectiva: tx, difEfectiva: dif, fueraEfectiva: Math.abs(dif) > tolerancia };
 };
 
+/**
+ * Clave del pago conjunto de una fila efectiva (null si va sola):
+ *  - 'g:' grupo propuesto por el servidor (varias operaciones del mismo
+ *    representante cubiertas por una sola transferencia); su diferencia ya
+ *    viene calculada sobre el conjunto.
+ *  - 'a:' ambiguas a las que el operador les eligió la MISMA línea del banco.
+ */
+export const claveConjunto = (e) => {
+  if (e.grupo?.clave) return `g:${e.grupo.clave}`;
+  if (e.estado === 'ambigua' && e.transaccionEfectiva) return `a:${claveTransaccion(e.transaccionEfectiva)}`;
+  return null;
+};
+
+/**
+ * Anota los miembros de cada pago conjunto (`conjuntoIds`, `montoConjunto`) y,
+ * para los armados por el operador, recalcula la diferencia sobre la suma:
+ * el servidor también la evalúa así al confirmar.
+ */
+export const aplicarConjuntos = (efectivas, tolerancia = 0) => {
+  const miembros = {};
+  efectivas.forEach((e) => {
+    const k = claveConjunto(e);
+    if (k) (miembros[k] ||= []).push(e);
+  });
+  return efectivas.map((e) => {
+    const k = claveConjunto(e);
+    if (!k) return e;
+    const filas = miembros[k];
+    const conjuntoIds = filas.map((m) => m.id);
+    if (e.grupo) return { ...e, conjuntoIds, montoConjunto: Number(e.grupo.monto_sistema_ves) };
+    if (filas.length < 2) return e;
+    const suma = redondear(filas.reduce((acc, m) => acc + Number(m.monto_sistema_ves), 0));
+    const dif = calcularDiferencia(e.transaccionEfectiva.monto, suma);
+    return { ...e, conjuntoIds, montoConjunto: suma, difEfectiva: dif, fueraEfectiva: Math.abs(dif) > tolerancia };
+  });
+};
+
+/** Ids que se marcan/desmarcan juntos con la fila (los del grupo del servidor). */
+export const idsAlternables = (efectiva) =>
+  efectiva?.grupo && efectiva.conjuntoIds ? efectiva.conjuntoIds : [efectiva?.id];
+
 /** Una propuesta es seleccionable si tiene una transacción de banco asignada. */
 export const esSeleccionable = (efectiva) =>
   efectiva.estado !== 'sin_banco' && Boolean(efectiva.transaccionEfectiva);
@@ -99,15 +140,36 @@ export const esSeleccionable = (efectiva) =>
 export const seleccionInicial = (propuestas) =>
   Object.fromEntries(propuestas.filter((p) => p.seleccionada_por_defecto && p.estado !== 'ambigua').map((p) => [p.id, true]));
 
-/** Una fila fuera de tolerancia sin observación no puede incluirse. */
+/** Una fila fuera de tolerancia sin observación no puede incluirse. En un pago
+ * conjunto basta con la observación de cualquiera de sus filas. */
 export const faltaObservacion = (efectiva, observaciones = {}) =>
-  efectiva.fueraEfectiva && !String(observaciones[efectiva.id] || '').trim();
+  efectiva.fueraEfectiva
+  && !(efectiva.conjuntoIds || [efectiva.id]).some((id) => String(observaciones[id] || '').trim());
 
-/** Propuestas marcadas y válidas para enviar (seleccionables y con observación si la exigen). */
-export const propuestasAEnviar = (propuestas, { seleccion, elecciones, observaciones, tolerancia }) =>
-  propuestas
-    .map((p) => propuestaEfectiva(p, elecciones, tolerancia))
+/** Vista efectiva de todas las propuestas, con los pagos conjuntos resueltos. */
+export const efectivasDe = (propuestas, elecciones = {}, tolerancia = 0) =>
+  aplicarConjuntos(propuestas.map((p) => propuestaEfectiva(p, elecciones, tolerancia)), tolerancia);
+
+/**
+ * Propuestas marcadas y válidas para enviar (seleccionables y con observación
+ * si la exigen). Los miembros de un pago conjunto quedan contiguos para que
+ * `dividirEnLotes` no los separe.
+ */
+export const propuestasAEnviar = (propuestas, { seleccion, elecciones, observaciones, tolerancia }) => {
+  const validas = efectivasDe(propuestas, elecciones, tolerancia)
     .filter((e) => seleccion[e.id] && esSeleccionable(e) && !faltaObservacion(e, observaciones));
+  const orden = [];
+  const posicion = {};
+  validas.forEach((e) => {
+    const k = claveConjunto(e) || `id:${e.id}`;
+    if (!(k in posicion)) {
+      posicion[k] = orden.length;
+      orden.push([]);
+    }
+    orden[posicion[k]].push(e);
+  });
+  return orden.flat();
+};
 
 export const construirItems = (efectivas, observaciones = {}) =>
   efectivas.map((e) => {
@@ -127,19 +189,44 @@ export const resumenConfirmacion = (efectivas) => ({
   fueraTolerancia: efectivas.filter((e) => e.fueraEfectiva).length,
 });
 
+const claveLineaItem = (item) =>
+  item?.transaccion ? `${item.transaccion.referencia}|${item.transaccion.fecha}` : null;
+
+/**
+ * Divide en lotes de hasta `tamano` ítems sin separar los ítems contiguos que
+ * comparten la misma línea del banco (un pago conjunto se concilia junto).
+ */
 export const dividirEnLotes = (items, tamano = TAMANO_LOTE) => {
   const lotes = [];
-  for (let i = 0; i < items.length; i += tamano) lotes.push(items.slice(i, i + tamano));
+  let actual = [];
+  let i = 0;
+  while (i < items.length) {
+    const k = claveLineaItem(items[i]);
+    let fin = i + 1;
+    while (k && fin < items.length && claveLineaItem(items[fin]) === k) fin += 1;
+    const tramo = items.slice(i, fin);
+    if (actual.length > 0 && actual.length + tramo.length > tamano) {
+      lotes.push(actual);
+      actual = [];
+    }
+    actual.push(...tramo);
+    i = fin;
+  }
+  if (actual.length > 0) lotes.push(actual);
   return lotes;
 };
 
-/** Une las respuestas de cada lote re-indexando al arreglo completo de ítems. */
-export const agregarResultados = (respuestas, tamano = TAMANO_LOTE) => {
+/**
+ * Une las respuestas de cada lote re-indexando al arreglo completo de ítems.
+ * `tamanos`: tamaño de cada lote enviado (o un tamaño fijo, por compatibilidad).
+ */
+export const agregarResultados = (respuestas, tamanos = TAMANO_LOTE) => {
   const conciliadas = [];
   const errores = [];
   let lote = null;
+  let base = 0;
   respuestas.forEach((r, n) => {
-    const base = n * tamano;
+    if (n > 0) base += Array.isArray(tamanos) ? tamanos[n - 1] : tamanos;
     (r?.conciliadas || []).forEach((c) => conciliadas.push({ ...c, indice: base + c.indice }));
     (r?.errores || []).forEach((e) => errores.push({ ...e, indice: base + e.indice }));
     if (r?.lote) lote = r.lote;

@@ -6,7 +6,7 @@ import {
 } from './useConciliacionSemiauto';
 import {
   rangoFechas, filtrarPorFechas, fechaBancoAISO, ordenarPropuestas, filtrarPorEstado,
-  contarPorEstado, propuestaEfectiva, esSeleccionable, faltaObservacion, seleccionInicial,
+  contarPorEstado, efectivasDe, idsAlternables, esSeleccionable, faltaObservacion, seleccionInicial,
   propuestasAEnviar, construirItems, resumenConfirmacion, dividirEnLotes, agregarResultados,
   DIGITOS_MIN, DIGITOS_MAX,
 } from '../utils/conciliacionMasiva';
@@ -173,9 +173,10 @@ export function useConciliacionMasiva({ banco, transactions, fileName, onConcili
     }
   }, [puedeBuscar, bancoActivo, desde, hasta, tolerancia, digitos, transaccionesEnviar]);
 
-  // Propuestas con la candidata elegida resuelta (ambiguas) y la diferencia efectiva.
+  // Propuestas con la candidata elegida resuelta (ambiguas), la diferencia
+  // efectiva y los pagos conjuntos (una transferencia → varias operaciones).
   const efectivas = useMemo(
-    () => propuestas.map(p => propuestaEfectiva(p, elecciones, tolerancia)),
+    () => efectivasDe(propuestas, elecciones, tolerancia),
     [propuestas, elecciones, tolerancia]
   );
 
@@ -191,9 +192,18 @@ export function useConciliacionMasiva({ banco, transactions, fileName, onConcili
     [observaciones]
   );
 
+  // Un pago conjunto propuesto por el servidor se marca o desmarca entero:
+  // conciliar solo una parte dejaría la transferencia fuera de tolerancia.
   const alternarSeleccion = useCallback((idProp) => {
-    setSeleccion(prev => ({ ...prev, [idProp]: !prev[idProp] }));
-  }, []);
+    const fila = efectivas.find(e => e.id === idProp);
+    const ids = idsAlternables(fila || { id: idProp });
+    setSeleccion(prev => {
+      const marcar = !prev[idProp];
+      const next = { ...prev };
+      ids.forEach(id => { next[id] = marcar; });
+      return next;
+    });
+  }, [efectivas]);
 
   const seleccionables = useMemo(() => visibles.filter(puedeMarcar), [visibles, puedeMarcar]);
   const todasMarcadas = seleccionables.length > 0 && seleccionables.every(e => seleccion[e.id]);
@@ -232,6 +242,7 @@ export function useConciliacionMasiva({ banco, transactions, fileName, onConcili
     if (enviables.length === 0 || enviando) return;
     const items = construirItems(enviables, observaciones);
     const lotes = dividirEnLotes(items);
+    const tamanos = lotes.map(l => l.length);
     setEnviando(true);
     const respuestas = [];
     const fallosDeLote = [];
@@ -251,7 +262,7 @@ export function useConciliacionMasiva({ banco, transactions, fileName, onConcili
         fallosDeLote.push(mensaje);
       }
     }
-    const { conciliadas, errores, lote } = agregarResultados(respuestas);
+    const { conciliadas, errores, lote } = agregarResultados(respuestas, tamanos);
     const idsConciliados = new Set(conciliadas.map(c => enviables[c.indice]?.id));
     const nuevosErrores = {};
     errores.forEach(e => {
@@ -288,7 +299,7 @@ export function useConciliacionMasiva({ banco, transactions, fileName, onConcili
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal, toleranciaValida,
     transaccionesEnviar,
     puedeBuscar, buscar, buscando, buscado,
-    propuestas, visibles, resumen, sinOperacion,
+    propuestas, efectivas, visibles, resumen, sinOperacion,
     filtroEstado, setFiltroEstado,
     seleccion, alternarSeleccion, alternarTodas, todasMarcadas, puedeMarcar,
     elecciones, elegirCandidata,

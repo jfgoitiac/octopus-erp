@@ -49,7 +49,11 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   const [txSel, setTxSel] = useState(null);
   const [candidatos, setCandidatos] = useState([]);
   const [loadingCand, setLoadingCand] = useState(false);
-  const [candSel, setCandSel] = useState(null);
+  // Claves de los candidatos elegidos: varios = una transferencia que cubre
+  // varias operaciones (pago conjunto de hermanos).
+  const [candSel, setCandSel] = useState([]);
+  // Líneas del banco ya conciliadas que coinciden con la búsqueda.
+  const [movimientosPrevios, setMovimientosPrevios] = useState([]);
   const [toleranciaGlobal, setToleranciaGlobal] = useState(TOLERANCIA_DEFECTO);
   const [toleranciaInput, setToleranciaInput] = useState(
     () => leerToleranciaSesion() ?? String(TOLERANCIA_DEFECTO)
@@ -92,7 +96,8 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     setMatches([]);
     setTxSel(null);
     setCandidatos([]);
-    setCandSel(null);
+    setCandSel([]);
+    setMovimientosPrevios([]);
     setLoadingCand(false);
     setObservacion('');
   }, []);
@@ -134,8 +139,9 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
 
   const consultarCandidatos = useCallback(async (bancoId, refBuscada, d, h) => {
     const id = ++reqId.current;
-    setCandSel(null);
+    setCandSel([]);
     setCandidatos([]);
+    setMovimientosPrevios([]);
     setLoadingCand(true);
     try {
       const params = { banco: bancoId };
@@ -146,8 +152,9 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
       if (id !== reqId.current) return;
       const lista = data?.resultados || [];
       setCandidatos(lista);
+      setMovimientosPrevios(data?.movimientos_previos || []);
       const libres = lista.filter(c => !c.conciliado);
-      if (libres.length === 1) setCandSel(claveCandidato(libres[0]));
+      if (libres.length === 1) setCandSel([claveCandidato(libres[0])]);
     } catch (err) {
       if (id !== reqId.current) return;
       toast.error(msgError(err, 'No se pudieron consultar los candidatos del sistema.'));
@@ -188,26 +195,51 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     setToleranciaInput(String(toleranciaGlobal));
   }, [toleranciaGlobal]);
 
-  const candidatoSel = useMemo(
-    () => candidatos.find(c => claveCandidato(c) === candSel) || null,
+  const alternarCandidato = useCallback((clave) => {
+    setCandSel(prev => (prev.includes(clave) ? prev.filter(k => k !== clave) : [...prev, clave]));
+  }, []);
+
+  const candidatosSel = useMemo(
+    () => candidatos.filter(c => candSel.includes(claveCandidato(c))),
     [candidatos, candSel]
   );
+  const candidatoSel = candidatosSel[0] || null;
+
+  // Si la transacción elegida ya fue conciliada (pago conjunto a medias), las
+  // operaciones nuevas se suman a ese movimiento en el servidor.
+  const movimientoPrevio = useMemo(() => {
+    if (!txSel) return null;
+    const ref = String(txSel.referencia).trim();
+    const fecha = fechaBancoAISO(txSel.fecha);
+    return movimientosPrevios.find(m => m.referencia === ref && m.fecha === fecha) || null;
+  }, [txSel, movimientosPrevios]);
 
   const tolerancia = Math.abs(Number(toleranciaInput));
   const toleranciaValida = toleranciaInput !== '' && !Number.isNaN(tolerancia);
 
   const comparacion = useMemo(() => {
-    if (!txSel || !candidatoSel) return null;
+    if (!txSel || candidatosSel.length === 0) return null;
     const montoBanco = Number(txSel.monto);
-    const montoSistema = Number(candidatoSel.monto_ves);
+    const montoPrevio = movimientoPrevio ? Number(movimientoPrevio.monto_sistema_ves) : 0;
+    const montoSistema = Math.round(
+      (candidatosSel.reduce((s, c) => s + Number(c.monto_ves), 0) + montoPrevio) * 100
+    ) / 100;
     const diferencia = Math.round((montoBanco - montoSistema) * 100) / 100;
     const fuera = toleranciaValida ? Math.abs(diferencia) > tolerancia : false;
-    return { montoBanco, montoSistema, diferencia, fuera };
-  }, [txSel, candidatoSel, tolerancia, toleranciaValida]);
+    const representantes = new Set(candidatosSel.map(c => c.representante_id ?? c.representante));
+    return {
+      montoBanco, montoSistema, montoPrevio, diferencia, fuera,
+      operaciones: candidatosSel.length,
+      representantesDistintos: representantes.size > 1,
+    };
+  }, [txSel, candidatosSel, movimientoPrevio, tolerancia, toleranciaValida]);
 
-  const observacionRequerida = Boolean(comparacion?.fuera);
+  const montoPrevioDistinto = Boolean(
+    movimientoPrevio && txSel && Number(movimientoPrevio.monto_banco_ves) !== Number(txSel.monto)
+  );
+  const observacionRequerida = Boolean(comparacion?.fuera || comparacion?.representantesDistintos);
   const puedeConfirmar = Boolean(
-    comparacion && toleranciaValida && !enviando
+    comparacion && toleranciaValida && !enviando && !montoPrevioDistinto
     && (!observacionRequerida || observacion.trim().length > 0)
   );
 
@@ -225,18 +257,21 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
         tolerancia,
         observacion: observacion.trim(),
         archivo: fileName || '',
+        operaciones: candidatosSel.map(c => (
+          c.operacion_uuid ? { operacion_uuid: c.operacion_uuid } : { comprobante_id: c.comprobante_id }
+        )),
       };
-      if (candidatoSel.operacion_uuid) body.operacion_uuid = candidatoSel.operacion_uuid;
-      else body.comprobante_id = candidatoSel.comprobante_id;
 
       const { data } = await apiClient.post('cobranza/conciliacion/conciliar/', body);
       if (data?.lote) setLote(prev => ({ ...(prev || {}), ...data.lote }));
       else fetchLoteAbierto();
-      toast.success(
-        candidatoSel.se_aprobara
-          ? 'Conciliado. El comprobante del portal fue aprobado.'
-          : 'Operación conciliada y agregada al lote abierto.'
-      );
+      const aprobados = candidatosSel.filter(c => c.se_aprobara).length;
+      let mensaje = candidatosSel.length > 1
+        ? `${candidatosSel.length} operaciones conciliadas como pago conjunto.`
+        : 'Operación conciliada y agregada al lote abierto.';
+      if (movimientoPrevio) mensaje = 'Operación agregada al pago conjunto ya conciliado.';
+      if (aprobados > 0) mensaje += aprobados > 1 ? ` Se aprobaron ${aprobados} comprobantes del portal.` : ' El comprobante del portal fue aprobado.';
+      toast.success(mensaje);
       setOpen(false);
     } catch (err) {
       toast.error(msgError(err, 'No se pudo conciliar la operación.'));
@@ -245,7 +280,7 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     }
   }, [
     puedeConfirmar, bancoActivo, txSel, tolerancia, observacion, fileName,
-    candidatoSel, fetchLoteAbierto,
+    candidatosSel, movimientoPrevio, fetchLoteAbierto,
   ]);
 
   return {
@@ -254,7 +289,8 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     ref, cambiarRef, refValida, buscar, buscado,
     desde, hasta, cambiarDesde, cambiarHasta, hayFechas, rangoInvalido, puedeBuscar,
     matches, txSel, setTxSel,
-    candidatos, loadingCand, candSel, setCandSel, candidatoSel,
+    candidatos, loadingCand, candSel, alternarCandidato, candidatosSel, candidatoSel,
+    movimientoPrevio, montoPrevioDistinto,
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal,
     toleranciaValida, tolerancia,
     observacion, setObservacion, observacionRequerida,

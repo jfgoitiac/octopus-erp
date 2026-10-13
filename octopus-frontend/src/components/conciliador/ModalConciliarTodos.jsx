@@ -2,7 +2,7 @@ import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ListChecks, CheckCircle, AlertCircle, Loader2, RotateCcw, ChevronDown, ChevronRight,
-  ArrowRight, Search,
+  ArrowRight, Search, Users,
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -74,6 +74,15 @@ function EstadoBadge({ e }) {
       >
         {info.label}
       </span>
+      {e.conjuntoIds && (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+          style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}
+        >
+          <Users size={10} />
+          Pago conjunto
+        </span>
+      )}
       {e.tipo === 'comprobante_pendiente' && (
         <span
           className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium"
@@ -99,6 +108,13 @@ function TextoSistema({ e }) {
       <p className="font-mono break-all" style={{ color: 'var(--jet)' }}>{e.referencia_sistema || '—'}</p>
       <p style={{ color: 'var(--ash)' }}>{fechaCorta(e.fecha)}</p>
       <p className="font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>Bs. {fmt(e.monto_sistema_ves)}</p>
+      {e.conjuntoIds && (
+        <p className="text-[11px]" style={{ color: 'var(--pb)' }}>
+          Una transferencia cubre {e.grupo?.operaciones ?? e.conjuntoIds.length} operaciones
+          {e.grupo?.monto_previo_ves ? ` + Bs. ${fmt(e.grupo.monto_previo_ves)} ya conciliados` : ''}
+          {' '}· total Bs. {fmt(e.montoConjunto)}
+        </p>
+      )}
     </div>
   );
 }
@@ -165,7 +181,10 @@ function Extras({ c, e }) {
   return (
     <div className="space-y-2">
       {ambigua && <SelectorCandidata e={e} valor={c.elecciones[e.id]} onElegir={c.elegirCandidata} />}
-      {e.fueraEfectiva && <CampoObservacion e={e} valor={c.observaciones[e.id]} onCambiar={c.cambiarObservacion} />}
+      {/* En un pago conjunto basta una observación: se pide en su primera fila. */}
+      {e.fueraEfectiva && (!e.conjuntoIds || e.conjuntoIds[0] === e.id) && (
+        <CampoObservacion e={e} valor={c.observaciones[e.id]} onCambiar={c.cambiarObservacion} />
+      )}
       {error && (
         <p className="flex items-start gap-1 text-[11px] font-medium" style={{ color: 'var(--red)' }}>
           <AlertCircle size={12} className="mt-0.5 shrink-0" />

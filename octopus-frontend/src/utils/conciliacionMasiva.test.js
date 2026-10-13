@@ -3,7 +3,7 @@ import {
   fechaBancoAISO, filtrarPorFechas, rangoFechas, ordenarPropuestas, filtrarPorEstado,
   contarPorEstado, calcularDiferencia, propuestaEfectiva, esSeleccionable, seleccionInicial,
   propuestasAEnviar, construirItems, resumenConfirmacion, dividirEnLotes, agregarResultados,
-  claveTransaccion,
+  claveTransaccion, efectivasDe, faltaObservacion, idsAlternables,
 } from './conciliacionMasiva';
 
 const tx = (referencia, fecha, monto) => ({ referencia, fecha, monto });
@@ -119,5 +119,64 @@ describe('lotes', () => {
     expect(r.conciliadas.map((c) => c.indice)).toEqual([0, 200]);
     expect(r.errores.map((e) => e.indice)).toEqual([1, 203]);
     expect(r.lote.total_operaciones).toBe(2);
+  });
+});
+
+describe('pago conjunto', () => {
+  const linea = tx('123456', '02/10/2026', '800.00');
+  const grupo = { clave: '123456|2026-10-02', operaciones: 2, monto_sistema_ves: '800.00', monto_previo_ves: null };
+
+  it('las filas de un grupo del servidor se alternan juntas y comparten la observación', () => {
+    const ps = [
+      prop({ id: 'a', transaccion: linea, monto_sistema_ves: '400.00', grupo, estado: 'fuera_tolerancia', diferencia_ves: '-300.00' }),
+      prop({ id: 'b', transaccion: linea, monto_sistema_ves: '400.00', grupo, estado: 'fuera_tolerancia', diferencia_ves: '-300.00' }),
+      prop({ id: 'c' }),
+    ];
+    const [a, b, c] = efectivasDe(ps, {}, 200);
+    expect(a.conjuntoIds).toEqual(['a', 'b']);
+    expect(a.montoConjunto).toBe(800);
+    expect(idsAlternables(b)).toEqual(['a', 'b']);
+    expect(idsAlternables(c)).toEqual(['c']);
+    expect(faltaObservacion(b, {})).toBe(true);
+    expect(faltaObservacion(b, { a: 'pagó de más' })).toBe(false);
+  });
+
+  it('ambiguas con la misma línea elegida se evalúan sobre la suma', () => {
+    const otra = tx('123456', '03/10/2026', '400.00');
+    const amb = (id) => prop({
+      id, estado: 'ambigua', transaccion: null, diferencia_ves: null, monto_sistema_ves: '400.00',
+      candidatas: [linea, otra],
+    });
+    const elecciones = { a: claveTransaccion(linea), b: claveTransaccion(linea) };
+    const [a, b] = efectivasDe([amb('a'), amb('b')], elecciones, 200);
+    expect(a.difEfectiva).toBe(0);
+    expect(b.fueraEfectiva).toBe(false);
+    expect(a.conjuntoIds).toEqual(['a', 'b']);
+    // Sola, la misma ambigua quedaría 400 por encima: fuera de tolerancia.
+    const [sola] = efectivasDe([amb('a')], { a: claveTransaccion(linea) }, 200);
+    expect(sola.fueraEfectiva).toBe(true);
+  });
+
+  it('propuestasAEnviar deja contiguos a los miembros del grupo', () => {
+    const ps = [
+      prop({ id: 'a', transaccion: linea, grupo }),
+      prop({ id: 'x', transaccion: tx('9', '01/10/2026', '100.00') }),
+      prop({ id: 'b', transaccion: linea, grupo }),
+    ];
+    const sel = { seleccion: { a: true, b: true, x: true }, elecciones: {}, observaciones: {}, tolerancia: 200 };
+    expect(propuestasAEnviar(ps, sel).map((e) => e.id)).toEqual(['a', 'b', 'x']);
+  });
+
+  it('dividirEnLotes no separa ítems de la misma línea del banco', () => {
+    const item = (ref) => ({ transaccion: { referencia: ref, fecha: '2026-10-02', monto: '1' } });
+    const items = [item('1'), item('2'), item('2'), item('3')];
+    expect(dividirEnLotes(items, 2).map((l) => l.length)).toEqual([1, 2, 1]);
+    const r = agregarResultados([
+      { conciliadas: [{ indice: 0 }] },
+      { conciliadas: [{ indice: 0 }, { indice: 1 }] },
+      { errores: [{ indice: 0, error: 'x' }] },
+    ], [1, 2, 1]);
+    expect(r.conciliadas.map((c) => c.indice)).toEqual([0, 1, 2]);
+    expect(r.errores.map((e) => e.indice)).toEqual([3]);
   });
 });
