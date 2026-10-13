@@ -11,6 +11,54 @@ import uuid
 
 from simple_history.models import HistoricalRecords
 
+CLAVES_COLUMNAS_ESTADO_CUENTA = ('referencia', 'fecha', 'descripcion', 'debito', 'credito', 'monto')
+FORMATOS_FECHA_ESTADO_CUENTA = ('auto', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd')
+SEPARADORES_DECIMAL_ESTADO_CUENTA = ('auto', ',', '.')
+CLAVES_CONFIG_ESTADO_CUENTA = ('columnas', 'formato_fecha', 'separador_decimal', 'filas_encabezado_max')
+
+
+def validar_config_estado_cuenta(valor):
+    """Valida ``BancoInstitucional.config_estado_cuenta`` (todas las claves son
+    opcionales). Lanza ValidationError con mensajes en español."""
+    if not isinstance(valor, dict):
+        raise ValidationError('La configuración del estado de cuenta debe ser un objeto.')
+    desconocidas = sorted(set(valor) - set(CLAVES_CONFIG_ESTADO_CUENTA))
+    if desconocidas:
+        raise ValidationError(
+            f"Claves no permitidas en la configuración: {', '.join(map(str, desconocidas))}."
+        )
+
+    columnas = valor.get('columnas')
+    if 'columnas' in valor:
+        if not isinstance(columnas, dict):
+            raise ValidationError('"columnas" debe ser un objeto.')
+        desconocidas = sorted(set(columnas) - set(CLAVES_COLUMNAS_ESTADO_CUENTA))
+        if desconocidas:
+            raise ValidationError(
+                f"Columnas no permitidas: {', '.join(map(str, desconocidas))}. "
+                f"Permitidas: {', '.join(CLAVES_COLUMNAS_ESTADO_CUENTA)}."
+            )
+        for clave, alias in columnas.items():
+            if not isinstance(alias, list) or not alias:
+                raise ValidationError(f'"columnas.{clave}" debe ser una lista no vacía de textos.')
+            for item in alias:
+                if not isinstance(item, str) or not item.strip():
+                    raise ValidationError(f'"columnas.{clave}" solo admite textos no vacíos.')
+                if len(item) > 80:
+                    raise ValidationError(f'Cada alias de "columnas.{clave}" admite máximo 80 caracteres.')
+
+    if 'formato_fecha' in valor and valor['formato_fecha'] not in FORMATOS_FECHA_ESTADO_CUENTA:
+        raise ValidationError(
+            f"formato_fecha inválido. Opciones: {', '.join(FORMATOS_FECHA_ESTADO_CUENTA)}."
+        )
+    if 'separador_decimal' in valor and valor['separador_decimal'] not in SEPARADORES_DECIMAL_ESTADO_CUENTA:
+        raise ValidationError('separador_decimal inválido. Opciones: auto, "," o ".".')
+    if 'filas_encabezado_max' in valor:
+        n = valor['filas_encabezado_max']
+        if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= 50:
+            raise ValidationError('filas_encabezado_max debe ser un entero entre 1 y 50.')
+
+
 class ParametroGlobal(models.Model):
     """Almacena configuraciones globales como el monto base de mensualidad"""
     clave = models.CharField(max_length=50, unique=True)
@@ -62,6 +110,41 @@ class BancoInstitucional(models.Model):
     # No se reutiliza ``activo``: un banco puede seguir disponible para caja
     # interna sin exponerse a los representantes.
     portal_metodos = models.JSONField(default=dict, blank=True)
+    # Formato del estado de cuenta que exporta este banco; el conciliador del
+    # frontend elige su parser según este valor (ver bankParsers.js).
+    FORMATOS_ESTADO_CUENTA = (
+        ('generico', 'Genérico'),
+        ('bancaribe', 'Bancaribe'),
+        ('banesco', 'Banesco'),
+        ('tesoro', 'Banco del Tesoro'),
+        ('bdt', 'Banco Digital de los Trabajadores'),
+    )
+    formato_estado_cuenta = models.CharField(
+        max_length=20, choices=FORMATOS_ESTADO_CUENTA, default='generico',
+    )
+    # Color hex opcional para la UI del conciliador (#RRGGBB).
+    color = models.CharField(max_length=7, blank=True, default='')
+    # Disponibilidad en el conciliador, independiente de ``activo`` (que
+    # gobierna caja y portal). Permite tener un banco solo para conciliar
+    # (p. ej. Banco Digital de los Trabajadores) hasta que el admin lo active
+    # para recibir pagos.
+    activo_conciliador = models.BooleanField(default=True)
+    # Ajustes del parser del estado de cuenta, configurables por banco sin
+    # tocar código. Contrato (todas las claves opcionales):
+    # {"columnas": {"referencia": [str], "fecha": [str], "descripcion": [str],
+    #   "debito": [str], "credito": [str], "monto": [str]},
+    #  "formato_fecha": "auto"|"dd/MM/yyyy"|"MM/dd/yyyy"|"yyyy-MM-dd",
+    #  "separador_decimal": "auto"|","|".", "filas_encabezado_max": 1..50}
+    config_estado_cuenta = models.JSONField(
+        default=dict, blank=True, validators=[validar_config_estado_cuenta],
+    )
+
+    def clean(self):
+        super().clean()
+        try:
+            validar_config_estado_cuenta(self.config_estado_cuenta)
+        except ValidationError as exc:
+            raise ValidationError({'config_estado_cuenta': exc.messages})
 
     def __str__(self):
         return self.nombre
@@ -779,6 +862,11 @@ class LoteRevisionCaja(models.Model):
     nivel de operación (operacion_uuid), pero se guarda la relación con cada
     Pago individual para poder auditar/consultar el detalle después.
     """
+    ESTADOS = (
+        ('abierto', 'Abierto'),
+        ('finalizado', 'Finalizado'),
+    )
+
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     usuario = models.ForeignKey(
@@ -788,12 +876,73 @@ class LoteRevisionCaja(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     observaciones = models.TextField(blank=True, default='')
     pagos = models.ManyToManyField(Pago, related_name='lotes_revision')
+    # 'finalizado' por defecto: los lotes existentes y el flujo manual del
+    # checklist no cambian. Un lote 'abierto' acumula conciliaciones bancarias
+    # hasta que el usuario lo finaliza (fecha_inicio/fin se recalculan).
+    estado = models.CharField(max_length=12, choices=ESTADOS, default='finalizado', db_index=True)
 
     class Meta:
         ordering = ['-fecha_creacion']
+        constraints = [
+            # Un solo lote abierto por usuario.
+            models.UniqueConstraint(
+                fields=['usuario'],
+                condition=models.Q(estado='abierto'),
+                name='unico_lote_abierto_por_usuario',
+            ),
+        ]
 
     def __str__(self):
         return f"Lote #{self.pk} ({self.fecha_inicio} — {self.fecha_fin}) por {self.usuario}"
+
+
+class ConciliacionBancaria(models.Model):
+    """
+    Resultado de conciliar UNA operación (operacion_uuid) contra una línea del
+    estado de cuenta bancario. Pertenece a un lote de revisión (abierto hasta
+    que el operador lo finaliza). Solo registra la diferencia: no modifica
+    saldos (el saldo a favor por excedente es deuda técnica).
+    """
+    lote = models.ForeignKey(
+        LoteRevisionCaja, on_delete=models.CASCADE, related_name='conciliaciones',
+    )
+    operacion_uuid = models.UUIDField(db_index=True)
+    banco = models.ForeignKey(
+        BancoInstitucional, on_delete=models.PROTECT, related_name='conciliaciones',
+    )
+    referencia_banco = models.CharField(max_length=100)
+    fecha_banco = models.DateField()
+    monto_banco_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    monto_sistema_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    diferencia_ves = models.DecimalField(max_digits=20, decimal_places=2)
+    tolerancia_aplicada_ves = models.DecimalField(max_digits=12, decimal_places=2)
+    fuera_tolerancia = models.BooleanField(default=False, db_index=True)
+    observacion = models.TextField(blank=True, default='')
+    archivo_estado_cuenta = models.CharField(max_length=255, blank=True, default='')
+    comprobante_aprobado = models.ForeignKey(
+        'portal.ComprobantePago', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='conciliaciones',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='conciliaciones_bancarias',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        constraints = [
+            # Una operación no se concilia dos veces.
+            models.UniqueConstraint(fields=['operacion_uuid'], name='unica_conciliacion_por_operacion'),
+            # Una línea del estado de cuenta no se usa dos veces.
+            models.UniqueConstraint(
+                fields=['banco', 'referencia_banco', 'fecha_banco'],
+                name='unica_linea_banco_conciliada',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Conciliación {self.referencia_banco} ({self.banco}) op {self.operacion_uuid}"
 
 
 class ClasificacionPagoManual(models.Model):

@@ -11,8 +11,8 @@ import logging
 import uuid
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
-from django.db.models import Min, Q, Sum
-from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
+from django.db.models import Max, Min, Q, Sum
+from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, ConciliacionBancaria, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
 from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, ReglaRecargoPagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
 from .services import propagar_monto_global, reporte_costo_becas
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
@@ -431,6 +431,12 @@ class BancosListView(APIView):
     def get(self, request):
         from django.core.cache import cache
         from .signals import CACHE_KEY_BANCOS_ACTIVOS
+
+        # ?para=conciliador: bancos disponibles en el conciliador
+        # (activo_conciliador), que pueden incluir bancos inactivos para caja.
+        if request.query_params.get('para') == 'conciliador':
+            bancos = BancoInstitucional.objects.filter(activo_conciliador=True).order_by('nombre')
+            return Response(BancoInstitucionalSerializer(bancos, many=True).data)
 
         data = cache.get(CACHE_KEY_BANCOS_ACTIVOS)
         if data is None:
@@ -2913,7 +2919,12 @@ class ResumenConciliacionView(APIView):
       metodo_pago, estatus: filtros exactos, aplican a los pagos mostrados.
       banco: id de BancoInstitucional, o 'sin_banco' para Efectivo USD/Bs.
              (no tienen banco_receptor) — aplica a los pagos mostrados.
+      fuera_tolerancia: 'true' para mostrar solo operaciones conciliadas con el
+             banco cuya diferencia superó la tolerancia.
       page (default 1), page_size (default 15, máx 50 representantes por página)
+
+    Cada pago incluye `conciliacion_bancaria` (o null) cuando su operación fue
+    conciliada contra un estado de cuenta (ver cobranza/conciliacion_semiauto.py).
     """
     permission_classes = [permissions.IsAuthenticated]
     ROLES_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
@@ -2958,6 +2969,13 @@ class ResumenConciliacionView(APIView):
                     return Response({'error': 'Banco no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
                 base_qs = base_qs.filter(banco_receptor_id=banco_id)
 
+        if str(request.query_params.get('fuera_tolerancia', '')).lower() in ('true', '1', 'si'):
+            base_qs = base_qs.filter(
+                operacion_uuid__in=ConciliacionBancaria.objects.filter(
+                    fuera_tolerancia=True,
+                ).values('operacion_uuid')
+            )
+
         qs_busqueda = base_qs
         if buscar:
             qs_busqueda = filtrar_busqueda(qs_busqueda, buscar, [
@@ -2997,9 +3015,28 @@ class ResumenConciliacionView(APIView):
             context={'revisado_pago_ids': revisado_pago_ids},
         ).data
 
+        conciliaciones_por_op = {
+            c.operacion_uuid: c
+            for c in ConciliacionBancaria.objects.filter(
+                operacion_uuid__in={p.operacion_uuid for p in pagos_pagina}
+            )
+        }
+
         por_representante = {}
         representante_info = {}
         for pago_obj, p in zip(pagos_pagina, serializados):
+            conc = conciliaciones_por_op.get(pago_obj.operacion_uuid)
+            p['conciliacion_bancaria'] = {
+                'id': conc.id,
+                'lote_id': conc.lote_id,
+                'referencia_banco': conc.referencia_banco,
+                'fecha_banco': conc.fecha_banco.isoformat(),
+                'monto_banco_ves': str(conc.monto_banco_ves),
+                'monto_sistema_ves': str(conc.monto_sistema_ves),
+                'diferencia_ves': str(conc.diferencia_ves),
+                'fuera_tolerancia': conc.fuera_tolerancia,
+                'observacion': conc.observacion,
+            } if conc else None
             rid = p['representante_id']
             por_representante.setdefault(rid, []).append(p)
 
@@ -3067,7 +3104,7 @@ class LoteRevisionCajaListCreateView(APIView):
         if not self._check_permiso(request):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
-        lotes = LoteRevisionCaja.objects.select_related('usuario').all()[:100]
+        lotes = LoteRevisionCaja.objects.select_related('usuario').filter(estado='finalizado')[:100]
         return Response(LoteRevisionCajaSerializer(lotes, many=True).data)
 
     @transaction.atomic
@@ -3094,13 +3131,41 @@ class LoteRevisionCajaListCreateView(APIView):
         if not pagos.exists():
             return Response({'error': 'Las transacciones indicadas no existen.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        lote = LoteRevisionCaja.objects.create(
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            usuario=request.user,
-            observaciones=(request.data.get('observaciones') or ''),
-        )
-        lote.pagos.set(pagos)
+        observaciones = request.data.get('observaciones') or ''
+
+        # Si el usuario tiene un lote abierto (conciliación semiautomática),
+        # el checklist manual suma sus pagos a ESE lote y lo finaliza: no se
+        # crea un lote paralelo.
+        lote = LoteRevisionCaja.objects.select_for_update().filter(
+            usuario=request.user, estado='abierto',
+        ).first()
+        if lote:
+            from datetime import date
+            lote.pagos.add(*pagos)
+            if observaciones:
+                lote.observaciones = (
+                    f'{lote.observaciones}\n{observaciones}'.strip()
+                    if lote.observaciones else observaciones
+                )
+            agg = lote.pagos.aggregate(mn=Min('fecha_pago'), mx=Max('fecha_pago'))
+            lote.fecha_inicio = min(
+                date.fromisoformat(str(fecha_inicio)[:10]),
+                timezone.localtime(agg['mn']).date(),
+            )
+            lote.fecha_fin = max(
+                date.fromisoformat(str(fecha_fin)[:10]),
+                timezone.localtime(agg['mx']).date(),
+            )
+            lote.estado = 'finalizado'
+            lote.save()
+        else:
+            lote = LoteRevisionCaja.objects.create(
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                usuario=request.user,
+                observaciones=observaciones,
+            )
+            lote.pagos.set(pagos)
 
         return Response(LoteRevisionCajaSerializer(lote).data, status=status.HTTP_201_CREATED)
 
@@ -3129,6 +3194,11 @@ class LoteRevisionCajaDetailView(APIView):
             pagos, many=True,
             context={'revisado_pago_ids': set(p.id for p in pagos)},
         ).data
+        from .conciliacion_semiauto import serializar_conciliacion
+        data['conciliaciones'] = [
+            serializar_conciliacion(c)
+            for c in lote.conciliaciones.select_related('banco').order_by('creado_en')
+        ]
         return Response(data)
 
 

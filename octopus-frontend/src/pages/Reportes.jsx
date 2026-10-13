@@ -33,7 +33,9 @@ const TAB_GROUPS = [
 ];
 
 const Reportes = () => {
-    const [activeTab, setActiveTab] = useState('caja');
+    const [activeTab, setActiveTab] = useState(() => (
+        new URLSearchParams(window.location.search).get('tab') === 'conciliacion' ? 'conciliacion' : 'caja'
+    ));
 
     /* ── Deep-link desde la tarjeta de "Solvencia por grado" del dashboard:
        ?tab=concepto&concepto=…&mes=…&anio=…&grado=… — activa la pestaña y

@@ -265,9 +265,9 @@ class LoteRevisionCajaSerializer(serializers.ModelSerializer):
         model = LoteRevisionCaja
         fields = [
             'id', 'fecha_inicio', 'fecha_fin', 'usuario', 'usuario_nombre',
-            'fecha_creacion', 'observaciones', 'total_transacciones', 'total_usd',
+            'fecha_creacion', 'observaciones', 'estado', 'total_transacciones', 'total_usd',
         ]
-        read_only_fields = ['usuario', 'fecha_creacion']
+        read_only_fields = ['usuario', 'fecha_creacion', 'estado']
 
     def get_total_transacciones(self, obj):
         return obj.pagos.count()

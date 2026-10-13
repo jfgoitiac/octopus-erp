@@ -19,6 +19,7 @@ import { useBancosCobranza } from '../hooks/useBancosCobranza';
 import { useBancosNomina } from '../hooks/useBancosNomina';
 import { useTiposCargo } from '../hooks/useTiposCargo';
 import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecialTab';
+import ConciliadorBancoCampos from '../components/configuracion/ConciliadorBancoCampos';
 import BecasTab from '../components/configuracion/BecasTab';
 import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
@@ -521,6 +522,13 @@ const Configuracion = () => {
                                 <input type="number" name="dia_limite_pago" value={config?.dia_limite_pago || 5} onChange={handleConfigChange}
                                     className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Tolerancia de conciliación (Bs.)</label>
+                                <input type="number" min="0" step="0.01" name="tolerancia_conciliacion_ves" value={config?.tolerancia_conciliacion_ves ?? 200} onChange={handleConfigChange}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none font-bold"
+                                    style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }} />
+                                <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>Diferencia máxima entre el monto del banco y el del sistema sin exigir observación.</p>
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Notificaciones</span>
@@ -1549,7 +1557,7 @@ const Configuracion = () => {
                             </button>
                         </>
                     )}
-                    size="sm"
+                    size="lg"
                 >
                     <div className="space-y-4">
                         <div>
@@ -1613,6 +1621,7 @@ const Configuracion = () => {
                                 })}
                             </div>
                         )}
+                        <ConciliadorBancoCampos form={bancoForm} setForm={setBancoForm} />
                         {bancoEditando && (
                             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
                                 <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Activo</span>

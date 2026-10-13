@@ -1,8 +1,24 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { BANKS, parseStatement } from '../utils/bankParsers';
+import { parseStatement, PRESETS, FORMATO_DEFECTO } from '../utils/bankParsers';
 import apiClient from '../api/apiClient';
+
+const COLOR_NEUTRO = '#64748b';
+
+// Adapta un BancoInstitucional de la API al modelo del selector. El formato
+// viene solo del banco (formato_estado_cuenta); si falta o es desconocido se
+// usa el genérico. config_estado_cuenta se conserva para el parser.
+function mapBanco(b) {
+  const declarado = b.formato_estado_cuenta;
+  return {
+    id:      String(b.id),
+    label:   b.nombre,
+    color:   b.color || COLOR_NEUTRO,
+    formato: declarado && PRESETS[declarado] ? declarado : FORMATO_DEFECTO,
+    config:  b.config_estado_cuenta && typeof b.config_estado_cuenta === 'object' ? b.config_estado_cuenta : null,
+  };
+}
 
 const MAX_STATEMENT_FILE_SIZE = 10 * 1024 * 1024;
 const STATEMENT_FILE_PATTERN = /\.(pdf|xls|xlsx|csv)$/i;
@@ -31,7 +47,31 @@ export function useConciliador() {
   const [page, setPage]                       = useState(1);
   const fileRef                               = useRef();
 
-  const bankInfo = useMemo(() => BANKS.find(b => b.id === bank), [bank]);
+  const [banks, setBanks]                 = useState([]);
+  const [banksLoading, setBanksLoading]   = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const { data } = await apiClient.get('cobranza/bancos/', {
+          params: { para: 'conciliador' },
+          signal: controller.signal,
+        });
+        const lista = Array.isArray(data) ? data : (data?.results ?? []);
+        // activo_conciliador (si el backend lo expone) habilita el banco en el conciliador.
+        setBanks(lista.filter(b => b.activo_conciliador !== false).map(mapBanco));
+      } catch (err) {
+        if (controller.signal.aborted || err?.code === 'ERR_CANCELED') return;
+        toast.error('No se pudieron cargar los bancos del conciliador.');
+      } finally {
+        if (!controller.signal.aborted) setBanksLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  const bankInfo = useMemo(() => banks.find(b => b.id === bank), [banks, bank]);
 
   // Devuelve rows: string[][], mismo formato que produce
   // XLSX.utils.sheet_to_json(ws, { header: 1 }) para el flujo Excel/CSV,
@@ -89,7 +129,7 @@ export function useConciliador() {
     try {
       const isPdf = file.name.toLowerCase().endsWith('.pdf');
       const rows  = isPdf ? await extractRowsFromPdf(file) : await extractRowsFromExcel(file);
-      const txs   = parseStatement(rows, bank);
+      const txs   = parseStatement(rows, bankInfo?.formato, bankInfo?.config);
       if (txs.length === 0) {
         toast.warning('No se detectaron transacciones. Verifica que el banco seleccionado coincida con el archivo.');
       } else {
@@ -110,7 +150,7 @@ export function useConciliador() {
     } finally {
       setLoading(false);
     }
-  }, [bank, extractRowsFromExcel, extractRowsFromPdf]);
+  }, [bank, bankInfo, extractRowsFromExcel, extractRowsFromPdf]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -178,6 +218,8 @@ export function useConciliador() {
     setShowClearConfirm,
     page,
     setPage,
+    banks,
+    banksLoading,
     bankInfo,
     fileRef,
     processFile,

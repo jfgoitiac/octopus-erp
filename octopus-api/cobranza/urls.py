@@ -4,6 +4,14 @@ from .views_gestion import (
     DashboardInteligenteView, LineaBaseView, PagosRevisionView,
 )
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
+from .conciliacion_semiauto import (
+    CandidatosConciliacionView,
+    ConfirmarMasivaView,
+    ConciliarOperacionView,
+    FinalizarLoteAbiertoView,
+    LoteAbiertoView,
+    PropuestasConciliacionView,
+)
 from .views import (
     ActualizarCuotaInscripcionView,
     ActualizarMensualidadesView,
@@ -113,6 +121,12 @@ urlpatterns = [
     path('conciliacion/resumen/',           ResumenConciliacionView.as_view(),       name='conciliacion-resumen'),
     path('conciliacion/lotes/',             LoteRevisionCajaListCreateView.as_view(), name='conciliacion-lotes'),
     path('conciliacion/lotes/<int:pk>/',    LoteRevisionCajaDetailView.as_view(),     name='conciliacion-lote-detalle'),
+    path('conciliacion/candidatos/',        CandidatosConciliacionView.as_view(),     name='conciliacion-candidatos'),
+    path('conciliacion/conciliar/',         ConciliarOperacionView.as_view(),         name='conciliacion-conciliar'),
+    path('conciliacion/auto/propuestas/',   PropuestasConciliacionView.as_view(),     name='conciliacion-auto-propuestas'),
+    path('conciliacion/auto/confirmar/',    ConfirmarMasivaView.as_view(),            name='conciliacion-auto-confirmar'),
+    path('conciliacion/lotes/abierto/',     LoteAbiertoView.as_view(),                name='conciliacion-lote-abierto'),
+    path('conciliacion/lotes/abierto/finalizar/', FinalizarLoteAbiertoView.as_view(), name='conciliacion-lote-abierto-finalizar'),
     path('conciliacion/extraer-pdf/',       ExtraerPdfConciliacionView.as_view(),     name='conciliacion-extraer-pdf'),
     path('representantes/resumen-financiero/', RepresentantesResumenFinancieroView.as_view(), name='representantes-resumen-financiero'),
     path('pagos/estado-clasificacion/',    EstadoClasificacionPagosView.as_view(), name='estado-clasificacion-pagos'),
