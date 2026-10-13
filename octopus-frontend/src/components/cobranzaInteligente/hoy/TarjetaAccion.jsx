@@ -17,7 +17,7 @@ const ENLACES = {
     editar_representante: '/representantes',
 };
 // Acciones que se resuelven con ModalAccion (registrar llamada, pausar...).
-const ACCIONES_MODAL = ['llamada', 'pausar', 'nota', 'reanudar', 'reclamo', 'cerrar'];
+const ACCIONES_MODAL = ['llamada', 'pausar', 'nota', 'reanudar', 'reclamo', 'cerrar', 'convertir_comprobante', 'descartar_comprobante'];
 
 const RUTA_CHAT = '/cobranza/inteligente/conversaciones';
 
@@ -64,6 +64,15 @@ export function TarjetaAccion({ tarjeta, onAbrirModal, onHecha, marcando }) {
                 </div>
                 {ago && <p className="text-xs shrink-0" style={{ color: 'var(--ash)' }}>{ago}</p>}
             </div>
+
+            {tarjeta.tipo === 'comprobante_whatsapp' && (
+                <p className="text-xs" style={{ color: 'var(--jet-mid)' }}>
+                    {tarjeta.detalle?.vinculado === false
+                        ? 'El número no está vinculado a un representante: ábrelo en el chat para vincularlo.'
+                        : 'Asígnalo a la mensualidad que cubre para que pase a revisión.'}
+                    {Number(tarjeta.detalle?.horas_sin_asignar) > 0 ? ` Lleva ${Math.floor(Number(tarjeta.detalle.horas_sin_asignar))} h sin asignar.` : ''}
+                </p>
+            )}
 
             {tarjeta.por_que?.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5" aria-label="Por qué aparece">

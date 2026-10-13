@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { ModalAccion } from '../shared/ModalAccionCiclo';
 import { ModalConvenio } from '../shared/ModalConvenio';
+import { ModalConvertirComprobante } from '../conversaciones/ModalConvertirComprobante';
+import { ModalDescartarComprobante } from '../conversaciones/ModalDescartarComprobante';
 import { mensajeErrorInteligente } from '../../../hooks/useCargaInteligente';
 import { marcarTarjetaHecha } from '../../../api/cobranza.service';
 import { TarjetaAccion } from './TarjetaAccion';
@@ -18,11 +20,21 @@ export function ListaTarjetas({ tarjetas = [], onCambio }) {
     const [modal, setModal] = useState(null); // { tipo: 'accion' | 'convenio', fila, accionInicial }
     const [marcando, setMarcando] = useState(null);
 
-    const abrirModal = (tarjeta, accion) => setModal({
-        tipo: accion.accion === 'convenio' ? 'convenio' : 'accion',
-        fila: filaDe(tarjeta, accion),
-        accionInicial: accion.accion,
-    });
+    const abrirModal = (tarjeta, accion) => {
+        if (accion.accion === 'convertir_comprobante' || accion.accion === 'descartar_comprobante') {
+            setModal({
+                tipo: accion.accion === 'convertir_comprobante' ? 'convertir' : 'descartar',
+                mensajeId: accion.mensaje ?? tarjeta.detalle?.mensaje,
+                conversacionId: accion.conversacion ?? tarjeta.detalle?.conversacion,
+            });
+            return;
+        }
+        setModal({
+            tipo: accion.accion === 'convenio' ? 'convenio' : 'accion',
+            fila: filaDe(tarjeta, accion),
+            accionInicial: accion.accion,
+        });
+    };
 
     const marcarHecha = async (tarjeta) => {
         setMarcando(tarjeta.clave);
@@ -60,6 +72,10 @@ export function ListaTarjetas({ tarjetas = [], onCambio }) {
                 <ModalAccion fila={modal.fila} accionInicial={modal.accionInicial}
                     onClose={() => setModal(null)} onHecho={hecho} />
             )}
+            <ModalConvertirComprobante open={modal?.tipo === 'convertir'} onClose={() => setModal(null)}
+                mensajeId={modal?.mensajeId} conversacionId={modal?.conversacionId} onHecho={hecho} />
+            <ModalDescartarComprobante open={modal?.tipo === 'descartar'} onClose={() => setModal(null)}
+                mensajeId={modal?.mensajeId} onHecho={hecho} />
             {modal?.tipo === 'convenio' && <ModalConvenio fila={modal.fila} onClose={() => setModal(null)} onHecho={hecho} />}
         </>
     );

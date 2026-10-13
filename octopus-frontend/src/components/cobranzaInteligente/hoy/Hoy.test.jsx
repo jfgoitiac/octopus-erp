@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Hoy from './Hoy';
 
-const m = vi.hoisted(() => ({ hoy: vi.fn(), accion: vi.fn(), hecha: vi.fn(), iniciar: vi.fn(), toastError: vi.fn(), toastOk: vi.fn() }));
+const m = vi.hoisted(() => ({ mens: vi.fn(), convertir: vi.fn(), descartar: vi.fn(), hoy: vi.fn(), accion: vi.fn(), hecha: vi.fn(), iniciar: vi.fn(), toastError: vi.fn(), toastOk: vi.fn() }));
 
 vi.mock('../../../api/cobranza.service', () => ({
     getHoyInteligente: (...a) => m.hoy(...a),
@@ -12,6 +12,10 @@ vi.mock('../../../api/cobranza.service', () => ({
     iniciarConversacionInteligente: (...a) => m.iniciar(...a),
     accionCicloInteligente: (...a) => m.accion(...a),
     crearConvenioInteligente: vi.fn(),
+    getMensualidadesPendientes: (...a) => m.mens(...a),
+    convertirAdjuntoComprobante: (...a) => m.convertir(...a),
+    descartarAdjunto: (...a) => m.descartar(...a),
+    getBancos: () => Promise.resolve({ data: [] }),
 }));
 vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('../../../hooks/usePolling', () => ({ usePolling: vi.fn() }));
@@ -38,6 +42,25 @@ const pago = {
     acciones: [{ accion: 'conciliar', etiqueta: 'Ir a conciliar', disponible: true, tipo: 'pago', id: 4 }],
     desde: '2026-07-18T00:00:00-04:00', sede: 1, detalle: {},
 };
+const comprobante = {
+    clave: 'comprobante_whatsapp:88', tipo: 'comprobante_whatsapp', prioridad: 60, urgente: true,
+    titulo: 'Comprobante de Maria Perez por asignar', por_que: [],
+    representante: { id: 7, nombre: 'Maria Perez', cedula: 'V1', telefono: '0412' }, ciclos: [],
+    acciones: [
+        { accion: 'convertir_comprobante', etiqueta: 'Asignar a mensualidad', disponible: true, mensaje: 88, conversacion: 4 },
+        { accion: 'abrir_chat', etiqueta: 'Abrir chat', disponible: true, conversacion: 4 },
+        { accion: 'descartar_comprobante', etiqueta: 'Descartar', disponible: true, mensaje: 88, conversacion: 4 },
+    ],
+    desde: '2026-07-19T00:00:00-04:00', sede: 1,
+    detalle: { conversacion: 4, mensaje: 88, telefono: '0412', vinculado: true, horas_sin_asignar: 30 },
+};
+const mensualidades = { data: {
+    representante: { id: 7, nombre: 'Maria Perez' }, count: 2,
+    results: [
+        { id: 123, alumno: 'Ana Perez', periodo: 'Julio 2026', saldo_usd: '50.00', tiene_comprobante_pendiente: false },
+        { id: 124, alumno: 'Luis Perez', periodo: 'Julio 2026', saldo_usd: '50.00', tiene_comprobante_pendiente: true },
+    ],
+} };
 const datos = {
     fecha: '2026-07-20',
     resumen: { frase: 'Hoy: 2 casos requieren acción. El sistema enviará 41 recordatorios a las 8:00.' },
@@ -152,5 +175,49 @@ describe('Hoy', () => {
         m.hoy.mockResolvedValue({ data: datos });
         montar();
         expect(await screen.findByRole('link', { name: 'Ir a conciliar' })).toHaveAttribute('href', '/conciliador');
+    });
+    it('la tarjeta de comprobante por WhatsApp convierte el adjunto en comprobante de la mensualidad elegida', async () => {
+        m.hoy.mockResolvedValue({ data: { ...datos, tarjetas: [comprobante] } });
+        m.mens.mockResolvedValue(mensualidades);
+        m.convertir.mockResolvedValue({ data: { comprobantes: [{ id: 9 }] } });
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Asignar a mensualidad' }));
+        expect(m.mens).toHaveBeenCalledWith(4, expect.anything());
+        const bloqueada = await screen.findByRole('checkbox', { name: /Luis Perez/ });
+        expect(bloqueada).toBeDisabled();
+        const convertir = screen.getByRole('button', { name: 'Convertir en comprobante' });
+        expect(convertir).toBeDisabled();
+        await userEvent.click(screen.getByRole('checkbox', { name: /Ana Perez/ }));
+        await userEvent.type(screen.getByLabelText(/Referencia bancaria/), 'ab 123');
+        await userEvent.click(convertir);
+        await waitFor(() => expect(m.convertir).toHaveBeenCalledWith(88, {
+            mensualidades: [123], metodo_pago: 'transferencia', referencia_bancaria: 'ab 123',
+        }));
+        expect(m.toastOk).toHaveBeenCalled();
+        await waitFor(() => expect(m.hoy).toHaveBeenCalledTimes(2));
+    });
+
+    it('descartar exige un motivo y llama a la API', async () => {
+        m.hoy.mockResolvedValue({ data: { ...datos, tarjetas: [comprobante] } });
+        m.descartar.mockResolvedValue({ data: { mensaje: { id: 88 } } });
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Descartar' }));
+        const confirmar = within(screen.getByRole('dialog')).getByRole('button', { name: 'Descartar' });
+        expect(confirmar).toBeDisabled();
+        await userEvent.type(screen.getByLabelText('Motivo'), 'Foto borrosa');
+        await userEvent.click(confirmar);
+        await waitFor(() => expect(m.descartar).toHaveBeenCalledWith(88, { motivo: 'Foto borrosa' }));
+    });
+
+    it('muestra el error del backend al convertir y deja el modal abierto', async () => {
+        m.hoy.mockResolvedValue({ data: { ...datos, tarjetas: [comprobante] } });
+        m.mens.mockResolvedValue(mensualidades);
+        m.convertir.mockRejectedValue({ response: { status: 400, data: { detail: 'Ese archivo ya fue presentado.' } } });
+        montar();
+        await userEvent.click(await screen.findByRole('button', { name: 'Asignar a mensualidad' }));
+        await userEvent.click(await screen.findByRole('checkbox', { name: /Ana Perez/ }));
+        await userEvent.click(screen.getByRole('button', { name: 'Convertir en comprobante' }));
+        await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Ese archivo ya fue presentado.'));
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 });

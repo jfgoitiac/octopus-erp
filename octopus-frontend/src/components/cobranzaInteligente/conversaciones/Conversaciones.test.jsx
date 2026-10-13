@@ -27,6 +27,10 @@ vi.mock('../../../api/cobranza.service', () => ({
     vincularConversacion: vi.fn(),
     buscarRepresentantesVincular: vi.fn(),
     descargarArchivoMensaje: vi.fn(),
+    getMensualidadesPendientes: vi.fn(() => Promise.resolve({ data: { representante: { id: 7, nombre: 'Maria Perez' }, results: [] } })),
+    getBancos: vi.fn(() => Promise.resolve({ data: [] })),
+    convertirAdjuntoComprobante: vi.fn(),
+    descartarAdjunto: vi.fn(),
 }));
 vi.mock('../../../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('../../../hooks/usePolling', () => ({ usePolling: vi.fn() }));
@@ -257,5 +261,53 @@ describe('ventana de 24 h', () => {
         expect(formatoRestante(30)).toBe('menos de 1 min');
         expect(segundosRestantes({ ventana: { abierta: false } }, ahora)).toBe(0);
         expect(segundosRestantes({ ventana: { abierta: true, expira_en: '2026-07-20T09:00:00Z' } }, ahora)).toBe(0);
+    });
+});
+
+describe('BurbujaMensaje: comprobantes, listas y botones', () => {
+    const adjunto = { url: '/x', nombre: 'pago.pdf', tipo: 'application/pdf' };
+    const entrante = (extra) => ({
+        id: 50, direccion: 'entrante', tipo: 'documento', cuerpo: '', payload: {}, adjunto,
+        creado_en: '2026-07-20T09:00:00-04:00', ...extra,
+    });
+
+    it('pendiente: muestra el estado y las acciones asignar y descartar', async () => {
+        const convertir = vi.fn();
+        const descartar = vi.fn();
+        const msg = entrante({ estado_adjunto: 'pendiente' });
+        render(<BurbujaMensaje mensaje={msg} onConvertir={convertir} onDescartar={descartar} />);
+        expect(screen.getByText('Comprobante por asignar')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Asignar a mensualidad' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+        expect(convertir).toHaveBeenCalledWith(msg);
+        expect(descartar).toHaveBeenCalledWith(msg);
+    });
+
+    it('convertido y descartado: muestran el resultado sin acciones', () => {
+        const { rerender } = render(<BurbujaMensaje mensaje={entrante({ estado_adjunto: 'convertido', payload: { comprobantes: [1, 2], resuelto_en: '2026-07-20T11:05:00-04:00' } })}
+            onConvertir={vi.fn()} onDescartar={vi.fn()} />);
+        expect(screen.getByText('Convertido en comprobante de pago')).toBeInTheDocument();
+        expect(screen.getByText('2 comprobantes en revisión')).toBeInTheDocument();
+        expect(screen.getByText(/Resuelto el 20 de julio/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Asignar a mensualidad' })).not.toBeInTheDocument();
+        rerender(<BurbujaMensaje mensaje={entrante({ estado_adjunto: 'descartado', payload: { motivo_descarte: 'Foto borrosa' } })} />);
+        expect(screen.getByText('Comprobante descartado')).toBeInTheDocument();
+        expect(screen.getByText('Motivo: Foto borrosa')).toBeInTheDocument();
+    });
+
+    it('lista saliente muestra las fechas ofrecidas; plantilla muestra sus botones', () => {
+        const { rerender } = render(<BurbujaMensaje mensaje={{
+            id: 51, direccion: 'saliente', tipo: 'lista', cuerpo: '¿Cuándo podrás pagar?',
+            payload: { origen: 'bot', filas: [{ id: 'FECHA_ACUERDO:2026-07-23', title: 'jueves 23 de julio', description: 'En 3 días' }] },
+            creado_en: '2026-07-20T09:00:00-04:00',
+        }} />);
+        expect(screen.getByText('jueves 23 de julio')).toBeInTheDocument();
+        expect(screen.queryByText('Respondió con una opción')).not.toBeInTheDocument();
+        rerender(<BurbujaMensaje mensaje={{
+            id: 52, direccion: 'saliente', tipo: 'plantilla', cuerpo: 'Hola', payload: { origen: 'motor', plantilla: 'cobro_seguimiento', botones: ['YA_PAGUE', 'HABLAR'] },
+            creado_en: '2026-07-20T09:00:00-04:00',
+        }} />);
+        expect(screen.getByText('Ya pagué')).toBeInTheDocument();
+        expect(screen.getByText('Hablar con alguien')).toBeInTheDocument();
     });
 });
