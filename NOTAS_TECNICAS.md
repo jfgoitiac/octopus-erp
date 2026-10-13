@@ -4048,12 +4048,13 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 6. **Búsqueda de representantes en Conversaciones** usa
    `secretaria/representantes/?buscar=`; debería tener endpoint propio.
 7. **`src/modules/notifications`**: módulo legado sin migrar.
-8. **Portal**: no abre el modal de pago con `?pagar=1` (pendiente del contrato C).
-9. **Hoy**: la tarjeta de comprobante no incluye `adjunto`; el modal de convertir
-   no muestra vista previa desde Hoy.
+8. **Portal**: ~~no abre el modal de pago con `?pagar=1`~~ RESUELTO (13/10/2026): `PortalDashboard` lo abre y limpia el parámetro. Pendiente menor: si el representante no está autenticado, el login no conserva `?pagar=1` tras iniciar sesión.
+9. **Hoy**: ~~la tarjeta de comprobante no incluye `adjunto`~~ RESUELTO (13/10/2026):
+   el modal de convertir usa `adjunto` de la tarjeta (`tarjeta.adjunto` o `detalle.adjunto`) y tolera que falte.
 10. **`getBancos`** devuelve lista simple o paginada según el caso; unificar.
-11. **PATCH de regla heredada**: un usuario de sede recibe 404; hay que hacer
-    POST antes (copia de reglas globales).
+11. **PATCH de regla heredada**: un usuario de sede recibe 404; hay que copiar
+    antes las globales. RESUELTO (13/10/2026): el editor llama a
+    `POST reglas/copiar-globales/` (idempotente) y luego hace PATCH a la copia.
 12. **Reporte A/B**: sin prueba estadística; parciales cuentan al cerrar el
     ciclo; cambiar plantillas con comparación en curso mezcla resultados.
 13. **Perfil de pagador y proyección**: se calculan al vuelo sin caché; la
@@ -4062,3 +4063,14 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
     mock); revisar `tests_conversaciones.py` por contradicciones Fase B/C.
 15. **Sin validación en navegador**: nada de este módulo se probó en 360/768/
     1366/1920; pendiente de verificación visual.
+16. **`REGLAS_DEFECTO` e `INTROS` duplican al backend**: el frontend mantiene
+    copias de las reglas por defecto y de los textos introductorios de las
+    plantillas que ya existen en el backend; pueden desincronizarse. Deberían
+    venir de la API (o de un único contrato compartido).
+17. **`useCartera` / `useCobranzaHoy` repiten el patrón** de carga, polling,
+    estado 409 "apagada" y cancelación con `AbortController`; extraer un hook
+    base. Además la cartera baja hasta 20 páginas en cada refresco; conviene
+    paginar en el servidor o refrescar de forma incremental (`?desde=`).
+18. **Rango de día −30..90 hardcodeado en el cliente** (validación y etiqueta
+    del editor de reglas); debería leerse del contrato/API para que el límite
+    no diverja del backend.
