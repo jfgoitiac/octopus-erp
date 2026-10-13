@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axiosInstance from '../api/apiClient';
 
-const GradoSelect = ({ value, onChange, className, style, incluirVacio = false, ...rest }) => {
+const GradoSelect = ({ value, onChange, className, style, incluirVacio = false, etiquetaVacio = 'Seleccionar grado...', ...rest }) => {
   const [grados, setGrados] = useState([]);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ const GradoSelect = ({ value, onChange, className, style, incluirVacio = false, 
 
   return (
     <select value={value || ''} onChange={onChange} className={className} style={style} {...rest}>
-      {incluirVacio && <option value="">Seleccionar grado...</option>}
+      {incluirVacio && <option value="">{etiquetaVacio}</option>}
       {grados.map(g => (
         <option key={g.id} value={g.grado_seccion}>{g.grado_seccion}</option>
       ))}

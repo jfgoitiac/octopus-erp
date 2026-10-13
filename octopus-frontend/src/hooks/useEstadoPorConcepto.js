@@ -15,7 +15,7 @@ const PAGE_SIZE = 20;
  */
 export function useEstadoPorConcepto({
     concepto, estado = 'todos', mes, anio, numeroCuota,
-    periodoEscolar, gradoSeccion, buscar, enabled = true,
+    periodoEscolar, gradoSeccion, buscar, sede, enabled = true,
 } = {}) {
     const [filas, setFilas] = useState([]);
     const [resumen, setResumen] = useState(null);
@@ -31,9 +31,10 @@ export function useEstadoPorConcepto({
         if (numeroCuota != null) params.numero_cuota = numeroCuota;
         if (periodoEscolar) params.periodo_escolar = periodoEscolar;
         if (gradoSeccion) params.grado_seccion = gradoSeccion;
+        if (sede) params.sede = sede;
         if (buscar?.trim()) params.buscar = buscar.trim();
         return params;
-    }, [concepto, estado, page, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar]);
+    }, [concepto, estado, page, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar, sede]);
 
     const fetchEstado = useCallback(async (signal) => {
         if (!enabled || !concepto) return;
@@ -54,7 +55,7 @@ export function useEstadoPorConcepto({
     }, [enabled, concepto, page, buildParams]);
 
     // Cambiar cualquier filtro reinicia siempre a la página 1
-    useEffect(() => { setPage(1); }, [concepto, estado, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar]);
+    useEffect(() => { setPage(1); }, [concepto, estado, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar, sede]);
 
     useEffect(() => {
         const controller = new AbortController();
