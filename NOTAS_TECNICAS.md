@@ -4107,13 +4107,17 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 
 ## Conversación de cobranza, takeover y acción sugerida (13/10/2026)
 
-1. **Falta WhatsApp entrante (lo principal para un CRM real)**: la conversación
-   solo muestra lo que el colegio envía (bot, personal) y lo que pasó con las
-   deudas. Para ver las respuestas del representante hace falta un webhook de
-   Meta/Twilio (`POST` público con verificación de firma), un modelo de mensaje
-   entrante asociado al `Representante` por teléfono y la ventana de 24 h de
-   Meta para responder con texto libre. La UI ya contempla `autor='representante'`
-   (burbuja blanca a la izquierda). Requiere aprobación antes de implementarse.
+1. **WhatsApp entrante reutiliza `NotificacionLog`** (`tipo='respuesta_whatsapp'`,
+   `estado='recibido'`), sin modelo nuevo ni migraciones: `destinatario` guarda el
+   número de ORIGEN y `asunto` el id del proveedor (para descartar reintentos del
+   webhook). Si el volumen crece conviene un modelo `MensajeWhatsApp` propio con
+   índice por id externo. Los adjuntos (imagen, audio, documento) solo quedan como
+   "[tipo recibido]": no se descargan. Twilio se valida con la URL absoluta: detrás
+   de un proxy hace falta `SECURE_PROXY_SSL_HEADER`/`USE_X_FORWARDED_HOST` para que
+   la firma coincida. Meta exige configurar en el panel la URL
+   `/api/notificaciones/whatsapp/webhook/meta/` y las variables
+   `META_WEBHOOK_VERIFY_TOKEN` y `META_APP_SECRET`. No se avisa por push al
+   responsable cuando llega una respuesta (solo aparece en bandeja y conversación).
 2. **Takeover = pausa con motivo `gestion_humana`**: reutiliza `pausar_ciclo`, así
    que el motor ya no le escribe (no hubo migraciones). Si un ciclo ya estaba en
    pausa por otro motivo (convenio, reclamo), al tomarlo solo se asigna el
@@ -4124,9 +4128,10 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    (no se construye el mensaje): la conversación los muestra como aviso.
 4. **`proxima_accion`** se recalcula una vez al día (tarea de las 7:30, tras
    evaluar ciclos). En pantalla la acción sugerida se calcula en vivo.
-5. **Tests de backend sin ejecutar en este entorno** (no hay Django instalado):
-   `cobranza/test_gestion_cobranza.py` (clases `AccionSugeridaYTakeoverTest` y
-   `ConversacionApiTest`). Correr `python manage.py test cobranza.test_gestion_cobranza`.
+5. **El bot sigue escribiendo aunque el representante responda** hasta que alguien
+   toma la conversación: la bandeja lo marca ("Respondió por WhatsApp y nadie le ha
+   contestado", +25) y sugiere "Responder". Evaluar si una respuesta debe pausar
+   al bot automáticamente.
 6. **Título del encabezado** para `/cobranza/inteligente/representantes/:id`:
    `MainLayout` solo resuelve rutas exactas y muestra "Octopus ERP" (igual que
    las demás páginas de detalle).
