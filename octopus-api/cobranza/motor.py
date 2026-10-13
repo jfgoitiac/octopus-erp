@@ -271,6 +271,10 @@ _INTROS = {
 }
 
 
+# Plantillas de texto válidas para una regla (las usa el CRUD de reglas).
+PLANTILLAS_TEXTO = tuple(_INTROS)
+
+
 def construir_mensaje(rep, ciclos, regla):
     """Asunto y texto plano. El monto en Bs se calcula AHORA con la tasa vigente."""
     from notificaciones.services import _config_colegio, _monto_whatsapp, montos_ref
