@@ -239,7 +239,8 @@ class ConversacionApiTest(GestionBase):
         self.assertEqual([(m['autor'], m['texto']) for m in mensajes], [('personal', 'Hola Maria')])
         self.assertTrue(any(i.get('tipo') == 'llamada_registrada' for i in linea))
         self.assertFalse(any(i.get('tipo') == 'whatsapp_manual' for i in linea))
-        self.assertEqual(r.data['accion_sugerida']['codigo'], 'enviar_recordatorio')
+        # La vista usa la fecha real: la deuda de julio ya pasa de 30 días de mora.
+        self.assertEqual(r.data['accion_sugerida']['codigo'], 'ofrecer_convenio')
         # El cobro sí cuenta como gestión de la deuda (atribución).
         self.assertTrue(EventoCiclo.objects.filter(ciclo=c, tipo='whatsapp_manual').exists())
 
