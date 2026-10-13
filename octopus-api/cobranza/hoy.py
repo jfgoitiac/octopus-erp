@@ -27,6 +27,7 @@ from .ciclos import dias_de_mora
 from .dashboard import cartera_mes, distribucion_por_etapa, q_sedes
 from .gestion import DIAS_PAGO_REVISION_VIEJO, calcular_bandeja, pagos_en_revision
 from .models import CicloCobranza, ConvenioPago, EnvioCobranza, EventoCiclo
+from .proyeccion import resumen_proyeccion
 
 EVENTO_TARJETA_HECHA = 'tarjeta_hecha'
 UMBRAL_PUNTAJE_PRIORITARIO = 30
@@ -411,5 +412,6 @@ def calcular_hoy(sedes, hoy=None, ahora=None):
             'pagos_por_conciliar': len(pagos),
             'envios_7_dias': envios_7,
         },
+        'proyeccion_caja': resumen_proyeccion(sedes, hoy),
         'actividad': _actividad(ctx),
     }

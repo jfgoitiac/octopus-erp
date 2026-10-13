@@ -5,7 +5,7 @@ from .views_gestion import (
 )
 from .views_reglas import ReglaDetalleView, ReglasView
 from .views_hoy import (
-    ContadoresView, HistorialCobrosView, HoyView, PerfilPagadorView, PromesasView, SimulacionMotorView, TarjetaHechaView,
+    ContadoresView, HistorialCobrosView, HoyView, PerfilPagadorView, PromesasView, ProyeccionCajaView, SimulacionMotorView, TarjetaHechaView,
 )
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
 from .views import (
@@ -103,6 +103,7 @@ urlpatterns = [
     path('inteligente/hoy/tarjetas/<str:clave>/hecha/', TarjetaHechaView.as_view(), name='cobranza-inteligente-tarjeta-hecha'),
     path('inteligente/contadores/',        ContadoresView.as_view(),               name='cobranza-inteligente-contadores'),
     path('inteligente/motor/simulacion/',  SimulacionMotorView.as_view(),          name='cobranza-inteligente-simulacion'),
+    path('inteligente/proyeccion-caja/',   ProyeccionCajaView.as_view(),           name='cobranza-inteligente-proyeccion-caja'),
     path('inteligente/promesas/',          PromesasView.as_view(),                 name='cobranza-inteligente-promesas'),
     path('inteligente/representantes/<int:representante_id>/historial-cobros/', HistorialCobrosView.as_view(), name='cobranza-inteligente-historial-cobros'),
     path('inteligente/representantes/<int:representante_id>/perfil-pagador/', PerfilPagadorView.as_view(), name='cobranza-inteligente-perfil-pagador'),

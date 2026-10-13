@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 from authentication.views import EsPersonalCobranza
 from secretaria.models import Representante
 
-from . import control_envios, gestion, hoy as servicio_hoy, perfil_pagador
+from . import control_envios, gestion, hoy as servicio_hoy, perfil_pagador, proyeccion
 from .views_gestion import _apagada, _ciclos, _error, _serializar_convenio, sedes_activas_accesibles
 
 
@@ -155,3 +155,23 @@ class PerfilPagadorView(APIView):
         if rep is None or not rep.alumnos.filter(filtro).exists():
             return _error('No encontrado.', status.HTTP_404_NOT_FOUND)
         return Response({'representante': rep.id, **perfil_pagador.detalle_de(rep.id, _hoy())})
+
+
+class ProyeccionCajaView(APIView):
+    """
+    GET /inteligente/proyeccion-caja/?fecha=AAAA-MM-DD&sede=
+    Proyección de la semana (lunes a domingo) de `fecha` (por defecto, hoy): promesas y
+    cuotas de convenios vigentes ponderadas por el perfil de pagador. Ver cobranza/proyeccion.py.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request):
+        sedes = sedes_activas_accesibles(request.user, request.query_params.get('sede'))
+        if not sedes:
+            return _apagada()
+        try:
+            fecha = (date.fromisoformat(request.query_params['fecha'])
+                     if request.query_params.get('fecha') else None)
+        except ValueError:
+            return _error('Fecha inválida (use AAAA-MM-DD).')
+        return Response(proyeccion.calcular_proyeccion(sedes, _hoy(), fecha))
