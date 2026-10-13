@@ -8,6 +8,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { DonutEstadoPagos, BarrasPendientes } from '../components/cobranzaInteligente/Graficos';
 import TablaEstudiantes from '../components/cobranzaInteligente/TablaEstudiantes';
+import CasosCriticos from '../components/cobranzaInteligente/CasosCriticos';
 import { AuthContext } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
 import { useCargaInteligente, mensajeErrorInteligente } from '../hooks/useCargaInteligente';
@@ -313,6 +314,8 @@ const CobranzaInteligenteDashboard = () => {
                     </Panel>
                 )}
             </div>
+
+            <CasosCriticos />
 
             {veResultados && inteligente.loading && <Bloque className="h-56 !rounded-[var(--radius-card)]" />}
             {d && <GestionInteligente d={d} />}

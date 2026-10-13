@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import CobranzaInteligenteDashboard from './CobranzaInteligenteDashboard';
 
-const m = vi.hoisted(() => ({ resumen: vi.fn(), estado: vi.fn(), dashboard: vi.fn() }));
+const m = vi.hoisted(() => ({ resumen: vi.fn(), estado: vi.fn(), dashboard: vi.fn(), bandeja: vi.fn() }));
 
 vi.mock('../api/cobranza.service', () => ({
     getResumenPorConcepto: (...a) => m.resumen(...a),
     getEstadoPorConcepto: (...a) => m.estado(...a),
     exportarEstadoPorConceptoExcel: vi.fn(),
     getDashboardInteligente: (...a) => m.dashboard(...a),
+    getBandejaInteligente: (...a) => m.bandeja(...a),
+    accionCicloInteligente: vi.fn(),
+    crearConvenioInteligente: vi.fn(),
     guardarLineaBaseInteligente: vi.fn(),
 }));
 vi.mock('../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: null, sedes: [] }) }));
@@ -38,6 +42,13 @@ const dashboard = {
     recuperado: { total_recuperado_usd: '300.00', atribuido_usd: '120.00', casos_atribuidos: 2, casos_totales: 5 },
 };
 
+const caso = {
+    representante: { id: 9, nombre: 'Luis Rojas', cedula: 'V9', telefono: '0414' },
+    puntaje: 64, razones: [{ texto: 'Mora de 40 días', puntos: 30 }], saldo_total_usd: '150.00', dias_mora_max: 40,
+    ciclos: [1, 2], estados: ['critica'], responsable: null, gestion_humana: false,
+    accion_sugerida: { codigo: 'ofrecer_convenio', texto: 'Ofrecer un convenio de pago' },
+};
+
 const montar = (rol) => render(
     <MemoryRouter>
         <AuthContext.Provider value={{ user: { rol } }}>
@@ -52,6 +63,7 @@ describe('CobranzaInteligenteDashboard', () => {
         m.resumen.mockResolvedValue({ data: { lineas: [linea(9, 2025, 'Septiembre 2025'), linea(10, 2025, 'Octubre 2025')], totales: {} } });
         m.estado.mockResolvedValue({ data: { count: 1, results: [fila], resumen } });
         m.dashboard.mockResolvedValue({ data: dashboard });
+        m.bandeja.mockResolvedValue({ data: { count: 1, results: [caso] } });
     });
 
     it('muestra KPIs del mes, la tabla y los indicadores de gestión', async () => {
@@ -63,7 +75,15 @@ describe('CobranzaInteligenteDashboard', () => {
         expect(screen.getAllByText('Con deuda · 12 d').length).toBeGreaterThan(0);
         expect(await screen.findByText('Casos por atender')).toBeInTheDocument();
         expect(screen.getByText('11')).toBeInTheDocument();
+        expect(await screen.findByText('Casos críticos')).toBeInTheDocument();
+        expect(screen.getByText('64 pts')).toBeInTheDocument();
         expect(m.estado).toHaveBeenCalledWith(expect.objectContaining({ concepto: 'mensualidad', mes: 10, anio: 2025 }), expect.anything());
+    });
+
+    it('la acción sugerida de un caso crítico abre su modal', async () => {
+        montar('cobranza');
+        await userEvent.click(await screen.findByRole('button', { name: 'Ofrecer un convenio de pago' }));
+        expect(await screen.findByText('Convenio · Luis Rojas')).toBeInTheDocument();
     });
 
     it('para cajero no pide los resultados de gestión (solo dirección)', async () => {
