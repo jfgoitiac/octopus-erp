@@ -4074,3 +4074,32 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 18. **Rango de día −30..90 hardcodeado en el cliente** (validación y etiqueta
     del editor de reglas); debería leerse del contrato/API para que el límite
     no diverja del backend.
+
+## Deuda de ESLint (octopus-frontend) — RESUELTA
+
+`npm run lint` queda con 0 errores (quedan las 10 advertencias `exhaustive-deps`
+preexistentes, no bloqueantes). Se cerraron 185 errores, no solo los de
+`react-hooks/set-state-in-effect`:
+
+- `set-state-in-effect` (134): los efectos que arrancan cargas de datos (o
+  sincronizan formularios/paginación) ahora se envuelven en
+  `diferir(() => { ... })` de `src/utils/diferir.js`. Ejecuta el cuerpo en una
+  microtarea (el `setState` queda dentro de un callback, no síncrono en el
+  efecto), respeta la limpieza (`controller.abort()`) y no ejecuta nada si el
+  efecto se limpia antes. Comportamiento equivalente al anterior.
+- `no-unused-vars` / `no-empty`: imports `React` sin uso, variables muertas y
+  `catch (_) {}` en `nominaPDF.js` (ahora `catch { /* comentario */ }`).
+- `react-refresh/only-export-components`: se separaron `useSede`, `useBranding`,
+  `useAlumnoActivo` y `usePortalAuth` (contexto + hook) de sus providers,
+  `iniciales` de `widgets/shared.jsx` y `ComprobanteCard` de
+  `printComprobanteCompacto.jsx`; se actualizaron imports y `vi.mock`.
+- `preserve-manual-memoization` / `immutability`: dependencias de `useCallback`
+  simplificadas (`PasoAlumno`, `ConstructorPaginas`) y `fetchStats` declarado
+  antes de usarse (`CobranzaDashboard`).
+
+`eslint-disable` añadidos: ninguno (el `eslint-disable-next-line
+react-hooks/exhaustive-deps` de `Comprobantes.jsx` ya existía).
+
+Deuda residual (solo anotada): `diferir` es un parche uniforme; lo idóneo es
+migrar estas cargas a una capa de datos con caché (p. ej. TanStack Query, hoy
+fuera del stack) o derivar el estado `loading` durante el render.
