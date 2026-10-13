@@ -24,6 +24,17 @@ TIPOS_GESTION = {
 }
 DIAS_PAGO_REVISION_VIEJO = 3
 DIAS_SIN_RESPUESTA = 7
+# Pausa de un "takeover": una persona tomó la conversación y el bot deja de escribir.
+MOTIVO_GESTION_HUMANA = 'gestion_humana'
+ACCIONES_SUGERIDAS = {
+    'revisar_pago': 'Revisar el pago en revisión',
+    'renegociar': 'Llamar y renegociar el convenio',
+    'verificar_contacto': 'Verificar el teléfono y llamar',
+    'recordar_cuota': 'Recordar la cuota del convenio',
+    'ofrecer_convenio': 'Ofrecer un convenio de pago',
+    'llamar': 'Llamar al representante',
+    'enviar_recordatorio': 'Enviar recordatorio por WhatsApp',
+}
 
 
 class AccionInvalida(Exception):
@@ -114,6 +125,41 @@ def cerrar_ciclo(ciclo, motivo, usuario, detalle=''):
     ciclo.save(update_fields=['estado', 'motivo_cierre', 'cerrado_en', 'proxima_accion',
                               'proxima_accion_fecha'])
     _evento(ciclo, 'ciclo_cerrado', usuario, motivo=motivo, detalle=(detalle or '')[:500])
+
+
+# ── Takeover: una persona toma la conversación ─────────────────────────────────
+
+def tomar_conversacion(ciclos, usuario):
+    """Pausa los ciclos abiertos (el motor no escribe a ciclos pausados) y los asigna al usuario."""
+    tomados = 0
+    for ciclo in ciclos:
+        if not ciclo.abierto or ciclo.motivo_pausa == MOTIVO_GESTION_HUMANA:
+            continue
+        if ciclo.estado != CicloCobranza.PAUSADA:
+            pausar_ciclo(ciclo, MOTIVO_GESTION_HUMANA, usuario)
+        if ciclo.responsable_id != usuario.id:
+            asignar_responsable(ciclo, usuario, usuario)
+        tomados += 1
+    if not tomados:
+        raise AccionInvalida('No hay deudas abiertas que tomar.')
+
+
+def devolver_al_bot(ciclos, usuario):
+    """Reanuda solo los ciclos pausados por un takeover; el resto de pausas se respeta."""
+    devueltos = [c for c in ciclos if c.estado == CicloCobranza.PAUSADA
+                 and c.motivo_pausa == MOTIVO_GESTION_HUMANA]
+    if not devueltos:
+        raise AccionInvalida('La conversación no está en manos de una persona.')
+    for ciclo in devueltos:
+        reanudar_ciclo(ciclo, usuario)
+
+
+def registrar_cobro_whatsapp(representante_id, usuario, mensaje, log_id):
+    """Un cobro por WhatsApp enviado desde la UI cuenta como gestión en cada deuda abierta."""
+    for ciclo in CicloCobranza.objects.filter(
+            mensualidad__alumno__representante_id=representante_id,
+            estado__in=CicloCobranza.ESTADOS_ABIERTOS):
+        _evento(ciclo, 'whatsapp_manual', usuario, texto=mensaje[:1000], origen='cobro_whatsapp', log=log_id)
 
 
 # ── Convenio de pago mínimo ────────────────────────────────────────────────────
@@ -218,6 +264,29 @@ def _razon(razones, texto, puntos):
         razones.append({'texto': texto, 'puntos': puntos})
 
 
+def _accion_sugerida(f):
+    """Primera regla que aplica, de la más urgente a la más general."""
+    if f['pago_viejo']:
+        codigo = 'revisar_pago'
+    elif f['incumplido']:
+        codigo = 'renegociar'
+    elif f['fallido']:
+        codigo = 'verificar_contacto'
+    elif f['cuota_proxima']:
+        codigo = 'recordar_cuota'
+    elif f['dias_max'] >= 30 or f['deudas'] >= 3:
+        codigo = 'ofrecer_convenio'
+    elif f['sin_respuesta']:
+        codigo = 'llamar'
+    else:
+        codigo = 'enviar_recordatorio'
+    return {'codigo': codigo, 'texto': ACCIONES_SUGERIDAS[codigo]}
+
+
+def _etapa(ciclo):
+    return ciclo.estado_previo_pausa if ciclo.estado == CicloCobranza.PAUSADA else ciclo.estado
+
+
 def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     """
     Una fila por representante con su puntuación y las razones que la forman
@@ -263,8 +332,10 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
 
     filas = []
     for rep_id, ciclos in por_rep.items():
-        activos = [c for c in ciclos if c.estado != CicloCobranza.PAUSADA]
-        morosos = [c for c in activos if c.estado != CicloCobranza.PREVENTIVA]
+        # Lo tomado por una persona sigue en la bandeja: la pausa solo calla al bot.
+        tomados = [c for c in ciclos if c.motivo_pausa == MOTIVO_GESTION_HUMANA]
+        activos = [c for c in ciclos if c.estado != CicloCobranza.PAUSADA] + tomados
+        morosos = [c for c in activos if _etapa(c) != CicloCobranza.PREVENTIVA]
         razones = []
         dias_max = max((dias_de_mora(c.fecha_vencimiento, hoy) for c in morosos), default=0)
         _razon(razones, f'Mora de {dias_max} días', min(dias_max, 30))
@@ -303,8 +374,32 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
             'ciclos': [c.id for c in ciclos],
             'estados': sorted({c.estado for c in ciclos}),
             'responsable': responsable.get_username() if responsable else None,
+            'gestion_humana': bool(tomados),
+            'accion_sugerida': _accion_sugerida({
+                'pago_viejo': rep_id in pagos_viejos, 'incumplido': rep_id in incumplidos,
+                'fallido': rep_id in fallidos, 'cuota_proxima': rep_id in proximos,
+                'dias_max': dias_max, 'deudas': len(ciclos),
+                'sin_respuesta': rep_id in avisos_viejos and bool(morosos),
+            }),
         })
     return sorted(filas, key=lambda f: (-f['puntaje'], f['representante']['nombre']))
+
+
+def actualizar_proximas_acciones(ciclos_qs, hoy=None):
+    """
+    Tarea diaria: guarda en cada ciclo abierto la acción sugerida de su
+    representante (o la limpia si ya no requiere atención). Devuelve cuántos quedaron con acción.
+    """
+    hoy = hoy or date.today()
+    por_texto = {}
+    for fila in calcular_bandeja(ciclos_qs, hoy):
+        por_texto.setdefault(fila['accion_sugerida']['texto'], []).extend(fila['ciclos'])
+    abiertos = ciclos_qs.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS)
+    con_accion = [i for ids in por_texto.values() for i in ids]
+    abiertos.exclude(id__in=con_accion).update(proxima_accion='', proxima_accion_fecha=None)
+    for texto, ids in por_texto.items():
+        abiertos.filter(id__in=ids).update(proxima_accion=texto, proxima_accion_fecha=hoy)
+    return len(con_accion)
 
 
 # ── Cola de pagos en revisión ──────────────────────────────────────────────────

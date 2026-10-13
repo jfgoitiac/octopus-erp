@@ -273,7 +273,13 @@ def verificar_solvencia_estudiantil_automatica():
 def evaluar_ciclos_cobranza_inteligente():
     """Evaluación diaria de ciclos de Cobranza Inteligente (solo sedes encendidas)."""
     from .ciclos import evaluar_ciclos
+    from .dashboard import q_sedes
+    from .gestion import actualizar_proximas_acciones
+    from .models import CicloCobranza
     resultado = evaluar_ciclos()
+    if resultado:
+        actualizar_proximas_acciones(
+            CicloCobranza.objects.filter(q_sedes(set(resultado), 'mensualidad__alumno__')))
     logger.info(f'[Beat] evaluar_ciclos_cobranza_inteligente: {resultado}')
     return {str(k): v for k, v in resultado.items()}
 
