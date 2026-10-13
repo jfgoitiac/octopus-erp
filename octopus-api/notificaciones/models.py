@@ -33,6 +33,11 @@ class ConfiguracionNotificaciones(models.Model):
                                              help_text='Ej: +14155238886')
     meta_whatsapp_token    = EncryptedTextField(blank=True, default='')
     meta_whatsapp_phone_id = models.CharField(max_length=50, blank=True, default='')
+    # Webhook de mensajes ENTRANTES (Meta): se configuran desde la app, no en el .env.
+    meta_webhook_verify_token = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='Token que se pega en Meta al registrar el webhook (se genera solo).')
+    meta_app_secret = EncryptedTextField(blank=True, default='')
     director_whatsapp = models.CharField(max_length=30, blank=True, default='',
                                           help_text='Número del director para alertas de mora día 15')
 
@@ -168,6 +173,10 @@ class NotificacionLog(models.Model):
     # manualmente por la secretaria (Modo A) o una llamada de API con
     # plantilla aprobada (Modo B). Vacío para el resto de canales/tipos.
     modo                 = models.CharField(max_length=10, choices=MODOS, blank=True, default='')
+    # Solo mensajes ENTRANTES de WhatsApp: foto, audio o documento que mandó el
+    # representante. Se sirve por una vista autenticada, nunca por URL pública.
+    adjunto              = models.FileField(upload_to='whatsapp_entrante/%Y/%m/', blank=True)
+    adjunto_tipo         = models.CharField(max_length=100, blank=True, default='')
 
     class Meta:
         ordering = ['-fecha_envio']

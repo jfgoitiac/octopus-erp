@@ -18,11 +18,12 @@ CAMPOS_WA = [
     'whatsapp_activo', 'whatsapp_proveedor', 'director_whatsapp',
     'twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from',
     'meta_whatsapp_token', 'meta_whatsapp_phone_id',
+    'meta_webhook_verify_token', 'meta_app_secret',
 ]
 CAMPOS_MORA = [
     'dias_recordatorio_1', 'dias_recordatorio_2', 'dias_alerta_director',
 ]
-CAMPOS_SECRETOS = {'email_host_password', 'twilio_auth_token', 'meta_whatsapp_token'}
+CAMPOS_SECRETOS = {'email_host_password', 'twilio_auth_token', 'meta_whatsapp_token', 'meta_app_secret'}
 CAMPOS_PERFIL_EMAIL = [
     'email_activo', 'email_host', 'email_port', 'email_use_tls',
     'email_host_user', 'email_host_password', 'email_from',
@@ -87,14 +88,27 @@ class ConfiguracionNotificacionesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_cfg(self):
+        import secrets
         from .models import ConfiguracionNotificaciones
         cfg, _ = ConfiguracionNotificaciones.objects.get_or_create(pk=1)
+        if not cfg.meta_webhook_verify_token:
+            # Se genera solo: el colegio únicamente lo copia en el panel de Meta.
+            cfg.meta_webhook_verify_token = secrets.token_urlsafe(24)
+            cfg.save(update_fields=['meta_webhook_verify_token'])
         return cfg
+
+    def _respuesta(self, request, cfg):
+        data = _cfg_to_dict(cfg)
+        data['webhooks_whatsapp'] = {
+            'meta': request.build_absolute_uri('/api/notificaciones/whatsapp/webhook/meta/'),
+            'twilio': request.build_absolute_uri('/api/notificaciones/whatsapp/webhook/twilio/'),
+        }
+        return Response(data)
 
     def get(self, request):
         if not _check_rol(request):
             return Response({'error': 'Sin permiso.'}, status=403)
-        return Response(_cfg_to_dict(self._get_cfg()))
+        return self._respuesta(request, self._get_cfg())
 
     def patch(self, request):
         if not _check_rol(request):
@@ -122,7 +136,7 @@ class ConfiguracionNotificacionesView(APIView):
                 continue
             setattr(cfg, campo, valor)
         cfg.save()
-        return Response(_cfg_to_dict(cfg))
+        return self._respuesta(request, cfg)
 
 
 class PerfilEmailRemitenteView(APIView):
@@ -632,17 +646,17 @@ class SuscripcionPushUsuarioView(APIView):
 class WebhookMetaWhatsAppView(APIView):
     """
     Webhook de Meta Cloud API para mensajes ENTRANTES.
-    GET: verificación de la suscripción (hub.verify_token == META_WEBHOOK_VERIFY_TOKEN).
-    POST: exige X-Hub-Signature-256 firmada con META_APP_SECRET. Siempre 200 si la
+    GET: verificación de la suscripción (hub.verify_token == el token de Configuración).
+    POST: exige X-Hub-Signature-256 firmada con el App Secret de Configuración. Siempre 200 si la
     firma es válida, para que Meta no reintente por un mensaje que no se pudo asociar.
     """
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from django.conf import settings
         from django.http import HttpResponse
-        token = getattr(settings, 'META_WEBHOOK_VERIFY_TOKEN', '')
+        from .whatsapp_entrante import token_verificacion_meta
+        token = token_verificacion_meta()
         p = request.query_params
         if p.get('hub.mode') == 'subscribe' and token and p.get('hub.verify_token') == token:
             return HttpResponse(p.get('hub.challenge', ''), content_type='text/plain')
@@ -676,3 +690,27 @@ class WebhookTwilioWhatsAppView(APIView):
         procesar_twilio(parametros)
         # TwiML vacío: no se responde automáticamente al representante.
         return HttpResponse('<Response></Response>', content_type='text/xml')
+
+
+def _representante_accesible(user, cedula):
+    """El representante tiene algún alumno en una sede que el usuario puede ver."""
+    from cobranza.permissions import sedes_permitidas_ids
+    from secretaria.models import Alumno
+    permitidas = sedes_permitidas_ids(user)
+    if permitidas is None:
+        return True
+    return Alumno.objects.filter(representante__cedula=cedula, sede_id__in=permitidas).exists()
+
+
+class AdjuntoWhatsAppView(APIView):
+    """GET /api/notificaciones/whatsapp/adjuntos/<id>/ — archivo que mandó un representante (solo personal de cobranza)."""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request, pk):
+        from django.http import FileResponse
+        from .models import NotificacionLog
+        from .whatsapp_entrante import TIPO_ENTRANTE
+        log = NotificacionLog.objects.filter(pk=pk, tipo=TIPO_ENTRANTE).exclude(adjunto='').first()
+        if log is None or not _representante_accesible(request.user, log.representante_cedula):
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return FileResponse(log.adjunto.open('rb'), content_type=log.adjunto_tipo or 'application/octet-stream')
