@@ -1,7 +1,8 @@
 import { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { PortalAuthContext } from '../context/usePortalAuth';
+import { loginPortalConDestino } from '../utils/redirectPortal';
 
 // Skeleton fullscreen mientras carga
 const FullscreenSkeleton = () => (
@@ -30,6 +31,7 @@ const isTokenValid = (token) => {
 
 const PortalProtectedRoute = ({ children }) => {
   const { loading } = useContext(PortalAuthContext);
+  const location = useLocation();
 
   if (loading) {
     return <FullscreenSkeleton />;
@@ -37,7 +39,7 @@ const PortalProtectedRoute = ({ children }) => {
 
   const token = localStorage.getItem('portal_token');
   if (!isTokenValid(token)) {
-    return <Navigate to="/portal/login" replace />;
+    return <Navigate to={loginPortalConDestino(location)} replace />;
   }
 
   return children;
