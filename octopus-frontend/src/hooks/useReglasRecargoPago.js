@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 const normalizeList = (data) =>
     Array.isArray(data) ? data : (data?.results ?? []);
@@ -60,9 +61,9 @@ export function useReglasRecargoPago() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchReglasRecargoPago();
-    }, [fetchReglasRecargoPago]);
+    }), [fetchReglasRecargoPago]);
 
     const openCreateReglaRecargoPago = () => {
         setReglaRecargoPagoEditando(null);

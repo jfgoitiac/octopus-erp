@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getIncidentes, createIncidente } from '../api/academico.service';
+import { diferir } from '../utils/diferir';
 
 export function useIncidentes() {
   const [incidentes, setIncidentes] = useState([]);
@@ -29,7 +30,7 @@ export function useIncidentes() {
     }
   }, [severidad]);
 
-  useEffect(() => { fetchIncidentes(); }, [fetchIncidentes]);
+  useEffect(() => diferir(() => { fetchIncidentes(); }), [fetchIncidentes]);
 
   const registrarIncidente = useCallback(async (datos) => {
     try {

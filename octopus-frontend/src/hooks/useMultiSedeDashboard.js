@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getDashboardConsolidado } from '../api/multisede.service';
 import { useSede } from '../context/useSede';
+import { diferir } from '../utils/diferir';
 
 export const useMultiSedeDashboard = () => {
   const { setSedes } = useSede();
@@ -30,10 +31,10 @@ export const useMultiSedeDashboard = () => {
     }
   }, [setSedes]);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     cargar();
     return () => ctrlRef.current?.abort();
-  }, [cargar]);
+  }), [cargar]);
 
   return {
     loading,

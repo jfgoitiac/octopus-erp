@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export const AREAS_EMAIL = [
     { value: 'cobranza', label: 'Cobranza' },
@@ -87,7 +88,7 @@ export function useConfiguracionNotificaciones() {
         }
     }, []);
 
-    useEffect(() => { fetchConfig(); }, [fetchConfig]);
+    useEffect(() => diferir(() => { fetchConfig(); }), [fetchConfig]);
 
     const saveEmailArea = useCallback(async (area) => {
         setSavingEmailArea(prev => ({ ...prev, [area]: true }));

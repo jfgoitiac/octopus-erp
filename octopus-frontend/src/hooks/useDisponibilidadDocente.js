@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import {
   getDisponibilidadDocente, addDisponibilidadDocente, deleteDisponibilidadDocente,
 } from '../api/academico.service';
+import { diferir } from '../utils/diferir';
 
 // Franjas de disponibilidad semanal de un docente — usadas por el generador
 // automático para no asignarle clases fuera de esas franjas.
@@ -25,7 +26,7 @@ export function useDisponibilidadDocente(docenteId) {
     return () => controller.abort();
   }, [docenteId]);
 
-  useEffect(() => recargar(), [recargar]);
+  useEffect(() => diferir(() => recargar()), [recargar]);
 
   const agregar = useCallback(async (data) => {
     setSaving(true);

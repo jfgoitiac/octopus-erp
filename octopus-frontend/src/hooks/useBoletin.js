@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { getLapsos, getBoletin } from '../api/academico.service';
 import { buscarAlumnos } from '../api/secretaria.service';
+import { diferir } from '../utils/diferir';
 
 export function useBoletin() {
   const [busqueda, setBusqueda] = useState('');
@@ -25,7 +26,7 @@ export function useBoletin() {
   }, []);
 
   // Búsqueda de alumnos con debounce y cancelación
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (busqueda.length < 2) {
       setAlumnos([]);
       setShowDropdown(false);
@@ -51,7 +52,7 @@ export function useBoletin() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [busqueda]);
+  }), [busqueda]);
 
   const handleChangeBusqueda = useCallback((valor) => {
     setBusqueda(valor);

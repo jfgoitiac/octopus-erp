@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getSolvenciaMensual } from '../api/cobranza.service';
 import { useAutoRefresh } from './useAutoRefresh';
+import { diferir } from '../utils/diferir';
 
 /**
  * Solvencia mensual del período escolar activo, para el bloque "Solvencia
@@ -31,11 +32,11 @@ export function useSolvenciaMensual({ anioEscolar, sede } = {}) {
         }
     }, [anioEscolar, sede]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         fetchSolvencia(controller.signal);
         return () => controller.abort();
-    }, [fetchSolvencia]);
+    }), [fetchSolvencia]);
 
     const retry = useCallback(() => {
         const controller = new AbortController();

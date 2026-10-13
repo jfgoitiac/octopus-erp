@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getConceptosCobrables } from '../api/cobranza.service';
+import { diferir } from '../utils/diferir';
 
 /**
  * Lista de conceptos cobrables (mensualidad, inscripción, solvencia, cargos
@@ -23,11 +24,11 @@ export function useConceptosCobrables() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         fetchConceptos(controller.signal);
         return () => controller.abort();
-    }, [fetchConceptos]);
+    }), [fetchConceptos]);
 
     return { conceptos, loading };
 }

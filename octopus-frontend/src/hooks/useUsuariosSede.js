@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import {
   getUsuariosSede, asignarUsuarioSede, revocarUsuarioSede,
 } from '../api/multisede.service';
+import { diferir } from '../utils/diferir';
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : (data?.results ?? []);
@@ -35,7 +36,7 @@ export const useUsuariosSede = (sedeId) => {
     }
   }, [sedeId]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => diferir(() => { cargar(); }), [cargar]);
 
   const cerrarModal = () => {
     setShowModal(false);

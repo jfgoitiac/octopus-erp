@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import {
   getSedes, createSede, updateSede, deleteSede,
 } from '../api/multisede.service';
+import { diferir } from '../utils/diferir';
 
 function parseApiError(err) {
   const data = err?.response?.data;
@@ -49,7 +50,7 @@ export const useSedes = () => {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => diferir(() => { cargar(); }), [cargar]);
 
   const abrirNueva = () => {
     setEditingSede(null);

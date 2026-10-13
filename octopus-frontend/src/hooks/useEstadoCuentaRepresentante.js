@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getEstadoCuentaRepresentante } from '../api/cobranza.service';
+import { diferir } from '../utils/diferir';
 
 const PAGE_SIZE = 10;
 
@@ -35,13 +36,13 @@ export function useEstadoCuentaRepresentante(representanteId, { enabled = true }
         }
     }, [representanteId, enabled, page]);
 
-    useEffect(() => { setPage(1); }, [representanteId]);
+    useEffect(() => diferir(() => { setPage(1); }), [representanteId]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         fetchEstadoCuenta(controller.signal);
         return () => controller.abort();
-    }, [fetchEstadoCuenta]);
+    }), [fetchEstadoCuenta]);
 
     const retry = useCallback(() => {
         const controller = new AbortController();

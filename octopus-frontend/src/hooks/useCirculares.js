@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getCirculares, createCircular } from '../api/comunicacion.service';
+import { diferir } from '../utils/diferir';
 
 export function useCirculares() {
   const [circulares, setCirculares] = useState([]);
@@ -27,7 +28,7 @@ export function useCirculares() {
     }
   }, []);
 
-  useEffect(() => { fetchCirculares(); }, [fetchCirculares]);
+  useEffect(() => diferir(() => { fetchCirculares(); }), [fetchCirculares]);
 
   const publicarCircular = useCallback(async (datos) => {
     try {

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getResumenPorConcepto } from '../api/cobranza.service';
+import { diferir } from '../utils/diferir';
 
 /**
  * Resumen de líneas de un concepto cobrable (una por mes si es periódico,
@@ -30,11 +31,11 @@ export function useResumenPorConcepto({ concepto, vista = 'global', periodoEscol
         }
     }, [concepto, vista, periodoEscolar, sede]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         fetchResumen(controller.signal);
         return () => controller.abort();
-    }, [fetchResumen]);
+    }), [fetchResumen]);
 
     const retry = useCallback(() => {
         const controller = new AbortController();

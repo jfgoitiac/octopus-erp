@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import { exportarMorososExcel } from '../api/cobranza.service';
+import { diferir } from '../utils/diferir';
 
 const PAGE_SIZE = 20;
 
@@ -39,7 +40,7 @@ export function useMorosos(busqueda) {
     }, [busqueda, page]);
 
     // Cambiar la búsqueda reinicia siempre a la página 1
-    useEffect(() => { setPage(1); }, [busqueda]);
+    useEffect(() => diferir(() => { setPage(1); }), [busqueda]);
 
     useEffect(() => {
         const controller = new AbortController();

@@ -4,6 +4,7 @@ import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 import { EMPTY_EMP, validarCedula } from '../constants/avec';
 import { coincideBusqueda } from '../utils/busqueda';
+import { diferir } from '../utils/diferir';
 
 function parseApiError(err) {
     if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return null;
@@ -92,11 +93,11 @@ export function useNomina() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         fetchData(controller.signal);
         return () => controller.abort();
-    }, [fetchData]);
+    }), [fetchData]);
 
     // ── Filtro client-side ────────────────────────────────────────────────────
     const empleadosPorTab = useMemo(() => {

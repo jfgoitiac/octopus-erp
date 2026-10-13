@@ -5,6 +5,7 @@ import {
     getEstadoPorConcepto,
     exportarEstadoPorConceptoExcel,
 } from '../api/cobranza.service';
+import { diferir } from '../utils/diferir';
 
 const PAGE_SIZE = 20;
 
@@ -54,7 +55,7 @@ export function useEstadoPorConcepto({
     }, [enabled, concepto, page, buildParams]);
 
     // Cambiar cualquier filtro reinicia siempre a la página 1
-    useEffect(() => { setPage(1); }, [concepto, estado, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar]);
+    useEffect(() => diferir(() => { setPage(1); }), [concepto, estado, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar]);
 
     useEffect(() => {
         const controller = new AbortController();

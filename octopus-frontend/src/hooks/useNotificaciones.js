@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export const PAGE_SIZE_LOGS = 20;
 
@@ -37,12 +38,12 @@ export function useNotificaciones(habilitado = true) {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (!habilitado) return;
         const controller = new AbortController();
         cargarConfigNotificaciones(undefined, undefined, undefined, controller.signal);
         return () => controller.abort();
-    }, [habilitado, cargarConfigNotificaciones]);
+    }), [habilitado, cargarConfigNotificaciones]);
 
     // Cancela la petición anterior antes de lanzar una nueva desde filtros o paginación
     const dispatchCarga = useCallback((canal, estado, page) => {

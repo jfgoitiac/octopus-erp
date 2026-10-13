@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
+import { diferir } from '../utils/diferir';
 
 /**
  * Consulta `cobranza/tasa/por-fecha/?fecha=YYYY-MM-DD` para obtener la tasa
@@ -26,7 +27,7 @@ export const useTasaPorFecha = (fecha) => {
     const [error, setError] = useState(null);
     const abortRef = useRef(null);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         abortRef.current?.abort();
 
         if (!fecha) {
@@ -66,7 +67,7 @@ export const useTasaPorFecha = (fecha) => {
             .finally(() => setLoading(false));
 
         return () => abortRef.current?.abort();
-    }, [fecha]);
+    }), [fecha]);
 
     return { valor, exacta, fechaReal, loading, error };
 };

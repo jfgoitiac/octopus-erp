@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import apiClient from '../api/apiClient';
 import { toast } from 'react-toastify';
 import { coincideBusqueda } from '../utils/busqueda';
+import { diferir } from '../utils/diferir';
 
 const ORDEN_GRADO = [
   '1er Grado', '2do Grado', '3er Grado', '4to Grado', '5to Grado', '6to Grado',
@@ -66,7 +67,7 @@ export function useMatriculaGrado() {
     }
   }, []);
 
-  useEffect(() => { cargarGrados(); }, [cargarGrados]);
+  useEffect(() => diferir(() => { cargarGrados(); }), [cargarGrados]);
 
   const cargarAlumnos = useCallback(async (grado, ord) => {
     // Cancela la petición anterior antes de iniciar una nueva

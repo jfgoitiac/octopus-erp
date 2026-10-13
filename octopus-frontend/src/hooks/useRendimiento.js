@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getLapsos, getRendimientoSeccion, getAlertasRendimiento } from '../api/academico.service';
+import { diferir } from '../utils/diferir';
 
 export function useRendimiento() {
   const [grado, setGrado] = useState('');
@@ -21,7 +22,7 @@ export function useRendimiento() {
       .catch(() => toast.error('No se pudieron cargar los lapsos.'));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     if (!grado) { setSeccion(null); return; }
 
     abortRef.current?.abort();
@@ -36,7 +37,7 @@ export function useRendimiento() {
         toast.error('No se pudo cargar el rendimiento de la sección.');
       })
       .finally(() => { if (!controller.signal.aborted) setLoadingSeccion(false); });
-  }, [grado, lapsoId]);
+  }), [grado, lapsoId]);
 
   const cargarAlertas = useCallback((signal) => {
     setLoadingAlertas(true);
@@ -49,11 +50,11 @@ export function useRendimiento() {
       .finally(() => setLoadingAlertas(false));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
     cargarAlertas(controller.signal);
     return () => controller.abort();
-  }, [cargarAlertas]);
+  }), [cargarAlertas]);
 
   return {
     grado, setGrado,

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export function useTiposCargo() {
     const [tiposCargo, setTiposCargo] = useState([]);
@@ -24,7 +25,7 @@ export function useTiposCargo() {
         }
     }, []);
 
-    useEffect(() => { fetchTiposCargo(); }, [fetchTiposCargo]);
+    useEffect(() => diferir(() => { fetchTiposCargo(); }), [fetchTiposCargo]);
 
     const openCreateTipoCargo = () => {
         setTipoCargoEditando(null);

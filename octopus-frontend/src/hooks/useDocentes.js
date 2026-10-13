@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { listarDocentes } from '../api/academico.service';
+import { diferir } from '../utils/diferir';
 
 // Catálogo de docentes activos — usado por selects que asignan un docente
 // a una materia (ver ModalMateria). Cada item trae user_id (el id que se
@@ -9,7 +10,7 @@ export function useDocentes() {
   const [docentes, setDocentes]         = useState([]);
   const [loadingDocentes, setLoadingDocentes] = useState(true);
 
-  useEffect(() => {
+  useEffect(() => diferir(() => {
     const controller = new AbortController();
 
     setLoadingDocentes(true);
@@ -26,7 +27,7 @@ export function useDocentes() {
       });
 
     return () => controller.abort();
-  }, []);
+  }), []);
 
   return { docentes, loadingDocentes };
 }

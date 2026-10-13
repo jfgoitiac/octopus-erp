@@ -8,6 +8,7 @@ import {
   createMateria, updateMateria, deleteMateria,
   getBloquesPaquete,
 } from '../api/academico.service';
+import { diferir } from '../utils/diferir';
 
 // Opera sobre un paquete de horario (jornada) + un grado dentro de ese
 // paquete. La grilla ya no usa horas fijas de 1h (buildHoraBlocks) — las
@@ -53,7 +54,7 @@ export function useHorarios(paqueteId, grado) {
       .finally(() => { if (!signal.aborted) setLoading(false); });
   }, [paqueteId, grado]);
 
-  useEffect(() => { recargar(); }, [recargar]);
+  useEffect(() => diferir(() => { recargar(); }), [recargar]);
 
   // Índice rápido: bloque_id -> clase asignada en ese bloque
   const claseEnBloque = useMemo(() => {

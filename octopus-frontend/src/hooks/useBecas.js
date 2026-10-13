@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 const normalizeList = (data) =>
     Array.isArray(data) ? data : (data?.results ?? []);
@@ -48,9 +49,9 @@ export function useBecas() {
         }
     }, [filtroEstado, filtroBuscar]);
 
-    useEffect(() => { fetchBecas(); }, [fetchBecas]);
+    useEffect(() => diferir(() => { fetchBecas(); }), [fetchBecas]);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         if (!busquedaAlumno.trim()) {
             setResultadosAlumnos([]);
@@ -70,7 +71,7 @@ export function useBecas() {
             }
         }, 350);
         return () => clearTimeout(debounceRef.current);
-    }, [busquedaAlumno]);
+    }), [busquedaAlumno]);
 
     const openCreateBeca = () => {
         setBecaEditando(null);

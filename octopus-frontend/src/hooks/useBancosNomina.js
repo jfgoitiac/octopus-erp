@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export function useBancosNomina() {
     const [bancosNomina, setBancosNomina] = useState([]);
@@ -24,7 +25,7 @@ export function useBancosNomina() {
         }
     }, []);
 
-    useEffect(() => { fetchBancosNomina(); }, [fetchBancosNomina]);
+    useEffect(() => diferir(() => { fetchBancosNomina(); }), [fetchBancosNomina]);
 
     const openCreateBancoNomina = () => {
         setBancoNominaEditando(null);

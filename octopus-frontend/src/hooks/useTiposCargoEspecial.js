@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
 import { getSedes } from '../api/multisede.service';
+import { diferir } from '../utils/diferir';
 
 const normalizeList = (data) =>
     Array.isArray(data) ? data : (data?.results ?? []);
@@ -58,10 +59,10 @@ export function useTiposCargoEspecial() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         fetchTiposCargoEspecial();
         fetchOpcionesAlcance();
-    }, [fetchTiposCargoEspecial, fetchOpcionesAlcance]);
+    }), [fetchTiposCargoEspecial, fetchOpcionesAlcance]);
 
     const openCreateTipoCargoEspecial = () => {
         setTipoCargoEspecialEditando(null);

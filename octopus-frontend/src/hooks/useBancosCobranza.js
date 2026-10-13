@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export function useBancosCobranza() {
     const [bancos, setBancos] = useState([]);
@@ -24,7 +25,7 @@ export function useBancosCobranza() {
         }
     }, []);
 
-    useEffect(() => { fetchBancos(); }, [fetchBancos]);
+    useEffect(() => diferir(() => { fetchBancos(); }), [fetchBancos]);
 
     const openCreateModal = () => {
         setBancoEditando(null);

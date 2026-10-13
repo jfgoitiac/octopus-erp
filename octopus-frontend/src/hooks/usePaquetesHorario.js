@@ -6,6 +6,7 @@ import {
   getGradosPaquete, addGradoPaquete, removeGradoPaquete,
   getBloquesPaquete, addBloquePaquete, updateBloquePaquete, deleteBloquePaquete,
 } from '../api/academico.service';
+import { diferir } from '../utils/diferir';
 
 // CRUD de paquetes de horario (jornadas por sede/periodo) + sus grados y bloques.
 // Mismo patrón de loading/saving/error-via-toast que useHorarios.js.
@@ -35,7 +36,7 @@ export function usePaquetesHorario(sedeId) {
       .finally(() => { if (!signal.aborted) setLoading(false); });
   }, [sedeId]);
 
-  useEffect(() => { recargar(); }, [recargar]);
+  useEffect(() => diferir(() => { recargar(); }), [recargar]);
 
   const crear = useCallback(async (data) => {
     setSaving(true);
@@ -158,7 +159,7 @@ export function useGradosPaquete(paqueteId) {
     return () => controller.abort();
   }, [paqueteId]);
 
-  useEffect(() => recargar(), [recargar]);
+  useEffect(() => diferir(() => recargar()), [recargar]);
 
   return { grados, loading, recargar };
 }
@@ -183,7 +184,7 @@ export function useBloquesPaquete(paqueteId) {
     return () => controller.abort();
   }, [paqueteId]);
 
-  useEffect(() => recargar(), [recargar]);
+  useEffect(() => diferir(() => recargar()), [recargar]);
 
   const crear = useCallback(async (data) => {
     setSaving(true);

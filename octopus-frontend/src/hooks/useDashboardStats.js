@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { getDashboardStats } from '../api/dashboardService';
 import { fmt } from '../utils/format';
 import { useAutoRefresh } from './useAutoRefresh';
+import { diferir } from '../utils/diferir';
 
 export function useDashboardStats() {
     const [stats, setStats] = useState(null);
@@ -26,12 +27,12 @@ export function useDashboardStats() {
         }
     }, []);
 
-    useEffect(() => {
+    useEffect(() => diferir(() => {
         const controller = new AbortController();
         abortRef.current = controller;
         fetchStats(controller.signal);
         return () => controller.abort();
-    }, [fetchStats]);
+    }), [fetchStats]);
 
     // Cancel any inflight request before firing a new one
     const retry = useCallback(() => {

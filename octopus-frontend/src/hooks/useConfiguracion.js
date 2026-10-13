@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export function useConfiguracion() {
     const [config, setConfig] = useState({
@@ -43,7 +44,7 @@ export function useConfiguracion() {
         }
     }, []);
 
-    useEffect(() => { fetchConfig(); }, [fetchConfig]);
+    useEffect(() => diferir(() => { fetchConfig(); }), [fetchConfig]);
 
     const handleConfigChange = (e) => {
         const { name, value, type, checked } = e.target;

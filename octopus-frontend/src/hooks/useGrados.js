@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { diferir } from '../utils/diferir';
 
 export function useGrados() {
     const [grados, setGrados] = useState([]);
@@ -25,7 +26,7 @@ export function useGrados() {
         }
     }, []);
 
-    useEffect(() => { fetchGrados(); }, [fetchGrados]);
+    useEffect(() => diferir(() => { fetchGrados(); }), [fetchGrados]);
 
     const handleUpdateCupos = async (id, cupos_maximos) => {
         const val = parseInt(cupos_maximos);
