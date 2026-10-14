@@ -69,7 +69,6 @@ const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
 const CobranzaInteligenteGestion = lazy(() => import('./pages/CobranzaInteligenteGestion'));
 const CobranzaInteligenteDashboard = lazy(() => import('./pages/CobranzaInteligenteDashboard'));
-const ConfiguracionCobranzaInteligente = lazy(() => import('./pages/ConfiguracionCobranzaInteligente'));
 const CobranzaInteligenteConversacion = lazy(() => import('./pages/CobranzaInteligenteConversacion'));
 const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
 const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/PlantillaEditorConstancia'));
@@ -433,10 +432,9 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="cobranza/inteligente/resultados" element={<Navigate to="/cobranza/inteligente" replace />} />
+              {/* El toggle vive ahora dentro de Configuración */}
               <Route path="configuracion/cobranza-inteligente" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
-                  <ConfiguracionCobranzaInteligente />
-                </ProtectedRoute>
+                <Navigate to={{ pathname: '/configuracion', hash: '#cobranza-inteligente' }} replace />
               } />
 
               {/* Módulo Académico */}

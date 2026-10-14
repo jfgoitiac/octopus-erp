@@ -3689,9 +3689,11 @@ class ConfiguracionCobranzaInteligenteView(APIView):
     GET   ?sede=<id> -> estado (cualquier usuario autenticado; el frontend lo
                         usa para mostrar u ocultar las pantallas del módulo).
     PATCH ?sede=<id> -> cambia activo / modo_sombra / etapas_envio_activas.
-                        Solo director o administrador de sistema; cada cambio
-                        queda en LogAuditoria.
+                        Solo director o sistemas (igual que el módulo de
+                        Configuración donde vive el toggle); cada cambio queda
+                        en LogAuditoria.
     """
+    ROLES_EDICION = ('director', 'sistemas')
     permission_classes = [permissions.IsAuthenticated]
 
     def _config(self, request):
@@ -3726,7 +3728,8 @@ class ConfiguracionCobranzaInteligenteView(APIView):
         return error or Response(self._serializar(cfg))
 
     def patch(self, request):
-        if not IsSystemAdminOrDirector().has_permission(request, self):
+        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+        if not (request.user.is_superuser or rol in self.ROLES_EDICION):
             return Response({'detail': 'No tienes permiso para cambiar Cobranza Inteligente.'},
                             status=status.HTTP_403_FORBIDDEN)
         cfg, error = self._config(request)
