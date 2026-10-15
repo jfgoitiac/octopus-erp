@@ -9,6 +9,8 @@ import { getCierre } from '../api/auditoriaApi';
 import CierreCabecera from '../components/CierreCabecera';
 import CierreResumenVentas from '../components/CierreResumenVentas';
 import EstadoRevisionPanel from '../components/EstadoRevisionPanel';
+import AdjuntoPanel from '../components/AdjuntoPanel';
+import LineaTiempoHistorial from '../components/LineaTiempoHistorial';
 import { ESTILO_TARJETA, esCancelacion, fmtFecha } from '../components/CierreFormato';
 
 // TotalesPorMetodo (cierre del cajero) recibe { metodo: valor }; el contrato
@@ -47,7 +49,8 @@ const VolverALista = () => (
 // Carril Fase 1 · F2 — detalle de un cierre (CONTRATO_AUDITORIA_CANTINA.md §3).
 const AuditoriaCierreDetalle = () => {
   const { id } = useParams();
-  // `clave` = id del cierre cargado; `version` fuerza la recarga tras revisar.
+  // `clave` = id del cierre cargado; `version` fuerza la recarga (detalle e
+  // historial) tras revisar o subir un adjunto.
   const [estado, setEstado] = useState({ clave: null, cierre: null, error: null });
   const [version, setVersion] = useState(0);
 
@@ -112,8 +115,10 @@ const AuditoriaCierreDetalle = () => {
             </div>
             <div className="flex flex-col gap-4 min-w-0">
               <EstadoRevisionPanel cierreId={cierre.id ?? id} revision={cierre.revision} onRevisado={refrescar} />
+              <AdjuntoPanel cierreId={cierre.id ?? id} adjuntos={cierre.adjuntos} onCambio={refrescar} />
             </div>
           </div>
+          <LineaTiempoHistorial cierreId={cierre.id ?? id} version={version} />
         </>
       )}
     </div>
