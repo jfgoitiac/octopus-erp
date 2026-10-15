@@ -11,6 +11,7 @@ import CierreResumenVentas from '../components/CierreResumenVentas';
 import EstadoRevisionPanel from '../components/EstadoRevisionPanel';
 import AdjuntoPanel from '../components/AdjuntoPanel';
 import LineaTiempoHistorial from '../components/LineaTiempoHistorial';
+import { ReabrirCajaBoton } from '../components/ReabrirCajaModal';
 import { ESTILO_TARJETA, esCancelacion, fmtFecha } from '../components/CierreFormato';
 
 // TotalesPorMetodo (cierre del cajero) recibe { metodo: valor }; el contrato
@@ -77,7 +78,15 @@ const AuditoriaCierreDetalle = () => {
       <PageHeader
         titulo={`Cierre #${id}`}
         descripcion={cierre ? `${cierre.cajero?.nombre ?? 'Cajero'} · ${fmtFecha(cierre.fecha)}` : 'Detalle del cierre de caja'}
-        acciones={<VolverALista />}
+        acciones={
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <VolverALista />
+            {/* F5: solo si el cierre no fue reabierto ya (§3 reabrir/). */}
+            {!cargando && cierre && (cierre.reaperturas ?? []).length === 0 && (
+              <ReabrirCajaBoton cierre={{ ...cierre, id: cierre.id ?? id }} onReabierta={refrescar} />
+            )}
+          </div>
+        }
       />
 
       {cargando && <DetalleSkeleton />}
