@@ -4165,3 +4165,19 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 2. **Etapas duplicadas**: `prioridad.js` define los estados del ciclo
    (`ETAPAS_CICLO`); `Chat.jsx`, `morosos/EtapaCobranza.jsx` y el dashboard
    mantienen sus propias copias de etiquetas/colores. No se unificaron.
+
+## Auditoría de Cantina (Fase 0)
+
+1. **Superusuario sin rol director en el frontend**: el backend deja pasar al
+   superusuario (D5), pero `ProtectedRoute` solo mira `user.rol`. Un superusuario
+   con otro rol no ve la sección Auditoría en la interfaz. No se tocó
+   `ProtectedRoute` porque afecta a todo el panel.
+2. **No hay flujo de devolución**: la anulación de venta revierte el cobro y es lo
+   único auditable como "devolución" (contrato §4).
+3. **Costo histórico**: `ProductoCantina.costo` nace vacío. La rentabilidad solo es
+   fiable para ventas registradas después de cargar costos.
+4. **Trigger de inmutabilidad**: la migración 0007 solo actúa en PostgreSQL. En
+   SQLite (desarrollo) la protección es del modelo y la cadena de hash lo detecta.
+5. **IP del evento**: se toma de `X-Forwarded-For` (primer valor) o `REMOTE_ADDR`,
+   igual que `portal/views.py`. Es informativa: el cliente puede falsear XFF si el
+   proxy no la sobrescribe.
