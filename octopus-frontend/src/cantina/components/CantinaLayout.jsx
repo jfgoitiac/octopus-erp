@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX, HandCoins } from 'lucide-react';
+import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX, HandCoins, ShieldCheck } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 import { getAperturaCajaActual } from '../../api/cantina.service';
@@ -22,6 +22,8 @@ const NAV_ITEMS = [
   { name: 'Reportes',   path: '/cantina/reportes',    icon: BarChart3, disabled: false, roles: ROLES_CANTINA },
   { name: 'Cuentas por cobrar', path: '/cantina/cuentas', icon: HandCoins, disabled: false, roles: ROLES_CANTINA },
   { name: 'Morosos',    path: '/cantina/morosos',     icon: UserX, disabled: false, roles: ROLES_CANTINA },
+  // Auditoría: exclusiva del Director (PLAN_AUDITORIA_CANTINA.md).
+  { name: 'Auditoría',  path: '/cantina/auditoria',   icon: ShieldCheck, disabled: false, roles: ['director'] },
 ];
 
 const ROL_LABELS = {
