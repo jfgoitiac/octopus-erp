@@ -1672,10 +1672,11 @@ class CierreCajaCantinaView(APIView):
                 apertura.estado = 'cerrada'
                 apertura.cerrada_en = timezone.now()
                 apertura.save(update_fields=['estado', 'cerrada_en'])
-                cierre.refresh_from_db(fields=['conteo_fisico'])  # normaliza a 2 decimales
+                campos_cierre = ['total_ventas', 'total_efectivo', 'conteo_fisico', 'diferencia']
+                cierre.refresh_from_db(fields=campos_cierre)  # normaliza a 2 decimales
                 registrar_evento(
                     'cierre_caja', objeto=cierre, request=request, area=cierre.area,
-                    despues=snapshot(cierre, ['total_ventas', 'total_efectivo', 'conteo_fisico', 'diferencia']),
+                    despues=snapshot(cierre, campos_cierre),
                     motivo=_texto_seguro(observaciones),
                 )
         except IntegrityError:
