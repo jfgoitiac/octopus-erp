@@ -4181,3 +4181,16 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 5. **IP del evento**: se toma de `X-Forwarded-For` (primer valor) o `REMOTE_ADDR`,
    igual que `portal/views.py`. Es informativa: el cliente puede falsear XFF si el
    proxy no la sobrescribe.
+6. **Lint preexistente en cantina** (`react-hooks/set-state-in-effect`):
+   `CantinaReportes.jsx:102`, `EstadoCuentaCxc.jsx:83`,
+   `RecargasPendientesList.jsx:64`. Detectado por el carril F3; no se tocó.
+7. **`TotalesPorMetodo.jsx` solo muestra el total por método**: en el detalle de
+   auditoría no se ve el desglose ventas / recargas / abonos que trae el API.
+   Habría que darle una prop opcional a ese componente compartido.
+8. **Validación de adjuntos por extensión y tamaño**: no se inspecciona el
+   contenido real del archivo (firma mágica). Queda para la revisión de
+   seguridad de la Fase 3.
+9. **Filtro de cajero en cierres**: no hay endpoint de cajeros; el selector se
+   llena con los cajeros que aparecen en los resultados (igual que Reportes).
+10. **Origen del alumno en "Cargar a cuenta"**: se envía `no_aplica`; si se
+    quiere contar como venta manual es un cambio de una línea en el POS.

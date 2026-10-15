@@ -31,7 +31,16 @@ export const getCierre = (id, signal) =>
 // payload: { estado: 'revisado'|'aprobado'|'observado', comentario }
 export const revisarCierre = (id, payload) =>
   USAR_MOCKS
-    ? mock({ ...mocks.cierreDetalle, estado_revision: payload.estado })
+    ? mock({
+        ...mocks.cierreDetalle,
+        estado_revision: payload.estado,
+        revision: {
+          ...mocks.cierreDetalle.revision,
+          estado: payload.estado,
+          comentario_director: payload.comentario ?? '',
+          transiciones_permitidas: payload.estado === 'aprobado' ? [] : ['aprobado'],
+        },
+      })
     : cantinaApiClient.post(`${BASE}cierres/${id}/revision/`, payload);
 
 // archivo: File (imagen o PDF ≤ 5 MB); extra: { descripcion, reemplaza_a }

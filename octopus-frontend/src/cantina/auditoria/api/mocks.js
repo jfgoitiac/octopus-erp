@@ -118,7 +118,7 @@ export const cierreDetalle = {
   ...cierreFila,
   monto_inicial_usd: '20.00',
   totales_por_metodo: [
-    { metodo: 'efectivo_usd', etiqueta: 'Efectivo USD', ventas_usd: '40.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '40.00' },
+    { metodo: 'efectivo', etiqueta: 'Efectivo divisas', ventas_usd: '40.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '40.00' },
     { metodo: 'pago_movil', etiqueta: 'Pago móvil', ventas_usd: '62.50', recargas_usd: '15.00', abonos_usd: '5.00', total_usd: '82.50' },
     { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta Prepago', ventas_usd: '70.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '70.00' },
     { metodo: 'credito_representante', etiqueta: 'Cargo a cuenta', ventas_usd: '10.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '10.00' },
@@ -173,7 +173,7 @@ export const reporteExcepciones = {
       fecha_hora: '2026-10-14T10:15:00-04:00',
       cajero: ana,
       turno: { apertura_id: 41, etiqueta: turno41.etiqueta },
-      metodo_pago: 'efectivo_usd',
+      metodo_pago: 'efectivo',
       total_usd: '3.00',
       descuento_usd: '0.00',
       motivo: 'Cliente desistió de la compra',
@@ -234,7 +234,7 @@ export const bitacora = {
     {
       id: 502, tipo: 'anulacion_venta', tipo_etiqueta: 'Anulación de venta', creado_en: '2026-10-14T10:15:00-04:00',
       usuario: ana, usuario_rol: 'cajero', area: 'cantina', objeto_tipo: 'ventacantina', objeto_id: '1201',
-      objeto_etiqueta: 'Venta #1201', antes: { estado: 'completada', total_usd: '3.00', metodo_pago: 'efectivo_usd' },
+      objeto_etiqueta: 'Venta #1201', antes: { estado: 'completada', total_usd: '3.00', metodo_pago: 'efectivo' },
       despues: { estado: 'anulada' }, motivo: 'Cliente desistió de la compra', ip: '10.0.0.5',
     },
     {

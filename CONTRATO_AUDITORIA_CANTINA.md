@@ -4,7 +4,7 @@
 > `PLAN_AUDITORIA_CANTINA.md`. Si un carril necesita cambiar algo de este
 > contrato, **no lo cambia**: lo reporta y se resuelve en la integración.
 
-Estado: **Fase 0 completa.** Modelos, migraciones (0005–0007), bitácora,
+Estado: **Fase 0 completa; Fase 1 en integración.** Modelos, migraciones (0005–0007), bitácora,
 permiso, rutas stub (responden `501`) y mocks del frontend están en la rama
 `feature/auditoria-cantina`.
 
@@ -175,7 +175,7 @@ Todo lo anterior más:
 {
   "monto_inicial_usd": "20.00",
   "totales_por_metodo": [
-    {"metodo": "efectivo_usd", "etiqueta": "Efectivo USD", "ventas_usd": "40.00",
+    {"metodo": "efectivo", "etiqueta": "Efectivo Divisas", "ventas_usd": "40.00",
      "recargas_usd": "0.00", "abonos_usd": "0.00", "total_usd": "40.00"}
   ],
   "observaciones_cajero": "Faltó sencillo",
@@ -199,6 +199,11 @@ Todo lo anterior más:
 ```
 `totales_por_metodo` se arma desde `CierreCajaCantina.totales_por_metodo`
 (JSON existente) normalizado a lista.
+`metodo` usa las claves reales de `VentaCantina.METODOS_PAGO` (`efectivo`,
+`efectivo_ves`, `pago_movil`, `tarjeta_prepago`, …) y `etiqueta` su texto.
+`esperado_efectivo_usd` = `conteo_fisico − diferencia` (exacto, incluye
+abonos); si el cierre no tiene conteo, se aproxima con monto inicial +
+efectivo de ventas + recargas. *(Ajustado en la integración de la Fase 1.)*
 
 ### `POST cierres/<id>/revision/`
 Body: `{"estado": "aprobado", "comentario": "OK"}`.
@@ -243,7 +248,7 @@ Filtros comunes: `fecha_inicio`, `fecha_fin`, `area`, `cajero`.
  "por_responsable": [{"usuario": {"id": 7, "nombre": "Ana Pérez"}, "cantidad": 5, "monto_usd": "10.00"}],
  "results": [{
    "venta_id": 1201, "fecha_hora": "...", "cajero": {"id": 7, "nombre": "Ana Pérez"},
-   "turno": {"apertura_id": 41, "etiqueta": "..."}, "metodo_pago": "efectivo_usd",
+   "turno": {"apertura_id": 41, "etiqueta": "..."}, "metodo_pago": "efectivo",
    "total_usd": "3.00", "descuento_usd": "0.00", "motivo": "Cliente desistió",
    "anulada_por": {"id": 7, "nombre": "Ana Pérez"}, "origen_producto": "manual", "origen_alumno": "no_aplica"
  }]}
