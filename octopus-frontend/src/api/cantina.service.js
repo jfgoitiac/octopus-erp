@@ -33,6 +33,9 @@ export const crearCategoria = (payload, signal) =>
 
 /* ── Inventario / Movimientos ── */
 
+// Body: { producto, tipo: 'entrada' | 'salida' | 'ajuste' | 'merma', cantidad, motivo }
+// `merma` lleva cantidad positiva (descuenta stock); `motivo` es obligatorio
+// para `ajuste` y `merma` (CONTRATO_AUDITORIA_CANTINA.md §8).
 export const registrarMovimientoInventario = (payload, signal) =>
   cantinaApiClient.post('inventario/movimiento/', payload, { signal });
 
@@ -133,6 +136,11 @@ export const rechazarRecarga = (id, signal) =>
  *     banco_receptor, banco_procedencia, referencia, numero_lote (solo punto_de_venta),
  *     // Cargo a cuenta (CxC, §3.3 PROMPT_CANTINA_CXC.md):
  *     representante_id, alumno_id?,
+ *     // Auditoría (CONTRATO_AUDITORIA_CANTINA.md §8):
+ *     descuento_usd: '0.00',             // ≥ 0 y ≤ subtotal
+ *     motivo_descuento,                  // obligatorio si descuento_usd > 0
+ *     origen_producto: 'escaner' | 'manual' | 'mixto',
+ *     origen_alumno: 'escaner' | 'manual' | 'no_aplica',
  *   }
  *   El área de la venta la hereda el backend de la apertura del cajero (el
  *   frontend NO la envía); productos de otra área → 400.
@@ -140,6 +148,8 @@ export const rechazarRecarga = (id, signal) =>
  *     id, area, alumno, alumno_nombre, tarjeta, tarjeta_serial, cajero,
  *     cajero_username, metodo_pago, total_usd, tasa_aplicada, total_ves,
  *     estado, saldo_tarjeta_despues,
+ *     descuento_usd, motivo_descuento, motivo_anulacion, es_manual,
+ *     origen_producto, origen_alumno,      // total_usd ya es el NETO
  *     detalles: [{ id, producto: { id, nombre }, cantidad, precio_unitario, subtotal }],
  *     creado_en, anulada_en, anulada_por, anulada_por_username,
  *   }
@@ -149,6 +159,12 @@ export const rechazarRecarga = (id, signal) =>
  */
 export const registrarVenta = (payload, signal) =>
   cantinaApiClient.post('ventas/registrar/', payload, { signal });
+
+// POST ventas/<id>/anular/ — `motivo` obligatorio (no vacío) → motivo_anulacion
+// (CONTRATO_AUDITORIA_CANTINA.md §8). 400 si ya estaba anulada; 403 si es
+// una venta a cuenta y el usuario no es administrador/director.
+export const anularVenta = (ventaId, motivo, signal) =>
+  cantinaApiClient.post(`ventas/${ventaId}/anular/`, { motivo }, { signal });
 
 // GET ventas/<id>/recibo/ → FileResponse (PDF), regenerado siempre desde
 // VentaCantina/DetalleVentaCantina (nunca se guarda un PDF estático) — mismo

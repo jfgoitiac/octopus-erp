@@ -24,6 +24,16 @@ import BuscadorAlumnoManual from '../../components/cantina/pos/BuscadorAlumnoMan
 import ResumenCobro from '../../components/cantina/pos/ResumenCobro';
 import TicketVenta from '../../components/cantina/pos/TicketVenta';
 import AperturaCajaModal from '../../components/cantina/pos/AperturaCajaModal';
+import DescuentoVenta from '../../components/cantina/pos/DescuentoVenta';
+
+// Origen de la venta (D2, CONTRATO_AUDITORIA_CANTINA.md §8): cada línea del
+// carrito recuerda por dónde entró ('escaner' = ScannerProducto; 'manual' =
+// buscador o grilla de productos). El backend marca `es_manual` con esto.
+function origenProductos(carrito) {
+  const origenes = new Set(carrito.flatMap(l => l.origenes));
+  if (origenes.size > 1) return 'mixto';
+  return origenes.has('escaner') ? 'escaner' : 'manual';
+}
 
 function SkeletonGrid() {
   return (
@@ -50,8 +60,12 @@ export default function CantinaPOS() {
   const [apertura, setApertura] = useState(null);
   const [cargandoApertura, setCargandoApertura] = useState(true);
 
-  const [carrito, setCarrito] = useState([]); // [{ producto, cantidad }]
+  const [carrito, setCarrito] = useState([]); // [{ producto, cantidad, origenes: ['escaner'|'manual'] }]
   const [metodoPago, setMetodoPago] = useState('efectivo');
+
+  // Descuento por venta (D1): monto USD como string decimal ('' = sin descuento).
+  const [descuento, setDescuento] = useState('');
+  const [motivoDescuento, setMotivoDescuento] = useState('');
 
   // Datos del método bancario (banco, referencia, lote) — solo aplican si
   // `esMetodoBancario(metodoPago)`; el método en sí vive en `metodoPago`.
@@ -63,6 +77,8 @@ export default function CantinaPOS() {
   const [alumnoId, setAlumnoId] = useState('');
 
   const [tarjeta, setTarjeta] = useState(null);
+  // Cómo se identificó al alumno de la tarjeta: 'escaner' | 'manual'.
+  const [origenTarjeta, setOrigenTarjeta] = useState(null);
   const [identidadConfirmada, setIdentidadConfirmada] = useState(false);
   const [confirmarSaldoNegativo, setConfirmarSaldoNegativo] = useState(false);
 
@@ -130,7 +146,7 @@ export default function CantinaPOS() {
 
   /* ── Carrito ── */
 
-  const agregarProducto = useCallback((producto) => {
+  const agregarProducto = useCallback((producto, origen = 'manual') => {
     // Un producto escaneado de la otra caja se rechaza acá (el backend
     // también responde 400, pero mejor avisar antes de armar el carrito).
     if (producto.area && areaCaja && producto.area !== areaCaja) {
@@ -145,9 +161,11 @@ export default function CantinaPOS() {
         return prev;
       }
       if (existente) {
-        return prev.map(l => l.producto.id === producto.id ? { ...l, cantidad: cantidadDeseada } : l);
+        return prev.map(l => (l.producto.id === producto.id
+          ? { ...l, cantidad: cantidadDeseada, origenes: l.origenes.includes(origen) ? l.origenes : [...l.origenes, origen] }
+          : l));
       }
-      return [...prev, { producto, cantidad: 1 }];
+      return [...prev, { producto, cantidad: 1, origenes: [origen] }];
     });
   }, [areaCaja]);
 
@@ -174,9 +192,12 @@ export default function CantinaPOS() {
     setCarrito([]);
     setMetodoPago('efectivo');
     setDatosPago(valorInicialMetodo('efectivo'));
+    setDescuento('');
+    setMotivoDescuento('');
     setRepresentante(null);
     setAlumnoId('');
     setTarjeta(null);
+    setOrigenTarjeta(null);
     setIdentidadConfirmada(false);
     setConfirmarSaldoNegativo(false);
   }, []);
@@ -192,6 +213,7 @@ export default function CantinaPOS() {
     }
     if (m !== 'tarjeta_prepago') {
       setTarjeta(null);
+      setOrigenTarjeta(null);
       setIdentidadConfirmada(false);
       setConfirmarSaldoNegativo(false);
     }
@@ -208,21 +230,27 @@ export default function CantinaPOS() {
     setAlumnoId('');
   };
 
-  const resolverTarjeta = (data) => {
+  const resolverTarjeta = (data, origen) => {
     setTarjeta(data);
+    setOrigenTarjeta(origen);
     setIdentidadConfirmada(false);
     setConfirmarSaldoNegativo(false);
   };
 
   const cambiarTarjeta = () => {
     setTarjeta(null);
+    setOrigenTarjeta(null);
     setIdentidadConfirmada(false);
     setConfirmarSaldoNegativo(false);
   };
 
   /* ── Totales (estimado en pantalla — la tasa que cuenta es la que
      congela el backend en la respuesta de la venta, ver §7.2 cantina.md) ── */
-  const totalUsd = carrito.reduce((acc, l) => acc + Number(l.producto.precio) * l.cantidad, 0);
+  const subtotalUsd = carrito.reduce((acc, l) => acc + Number(l.producto.precio) * l.cantidad, 0);
+  const descuentoUsd = Number(descuento) || 0;
+  const descuentoExcede = descuentoUsd > subtotalUsd + 0.005;
+  // Total neto (lo que se cobra y lo que se valida contra tarjeta / crédito).
+  const totalUsd = Math.max(subtotalUsd - descuentoUsd, 0);
   const totalVes = totalUsd * tasaVigente;
   const resaltarMoneda = esMetodoVes(metodoPago) ? 'ves' : 'usd';
   const valorPago = { ...datosPago, metodo_pago: metodoPago };
@@ -233,6 +261,12 @@ export default function CantinaPOS() {
   if (carrito.length === 0) {
     cobrarDisabled = true;
     cobrarDisabledMotivo = 'Agrega al menos un producto al carrito.';
+  } else if (descuentoExcede) {
+    cobrarDisabled = true;
+    cobrarDisabledMotivo = 'El descuento no puede superar el subtotal.';
+  } else if (descuentoUsd > 0 && !motivoDescuento.trim()) {
+    cobrarDisabled = true;
+    cobrarDisabledMotivo = 'Indica el motivo del descuento.';
   } else if (metodoPago === 'tarjeta_prepago') {
     if (!tarjeta) {
       cobrarDisabled = true;
@@ -278,7 +312,13 @@ export default function CantinaPOS() {
     const payload = {
       items: carrito.map(l => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
       metodo_pago: metodoPago,
+      descuento_usd: descuentoUsd.toFixed(2),
+      origen_producto: origenProductos(carrito),
+      // Solo la tarjeta prepago identifica alumno por escáner o búsqueda; en
+      // "Cargar a cuenta" el alumno sale del representante elegido (no aplica).
+      origen_alumno: metodoPago === 'tarjeta_prepago' ? (origenTarjeta ?? 'manual') : 'no_aplica',
     };
+    if (descuentoUsd > 0) payload.motivo_descuento = motivoDescuento.trim();
     if (metodoPago === 'tarjeta_prepago') payload.tarjeta_codigo = tarjeta.codigo;
     if (esMetodoBancario(metodoPago)) Object.assign(payload, camposMetodoVenta(valorPago));
     if (metodoPago === 'credito_representante') {
@@ -344,8 +384,8 @@ export default function CantinaPOS() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
         {/* Columna izquierda: escaneo + grid de productos */}
         <div className="lg:col-span-2 flex flex-col gap-3 lg:min-h-0">
-          <ScannerProducto onProductoEncontrado={agregarProducto} disabled={Boolean(ventaActual)} />
-          <BuscadorProductoManual productos={productos} onSeleccionar={agregarProducto} />
+          <ScannerProducto onProductoEncontrado={p => agregarProducto(p, 'escaner')} disabled={Boolean(ventaActual)} />
+          <BuscadorProductoManual productos={productos} onSeleccionar={p => agregarProducto(p, 'manual')} />
 
           <div className="max-h-[45dvh] lg:max-h-none lg:flex-1 overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
             <p className="text-xs uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
@@ -361,7 +401,7 @@ export default function CantinaPOS() {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => agregarProducto(p)}
+                    onClick={() => agregarProducto(p, 'manual')}
                     disabled={p.stock_actual <= 0}
                     className="flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left disabled:opacity-60 disabled:cursor-not-allowed min-h-[64px]"
                     style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
@@ -384,6 +424,18 @@ export default function CantinaPOS() {
             items={carrito}
             onCambiarCantidad={cambiarCantidad}
             onQuitar={quitarProducto}
+            subtotalUsd={subtotalUsd}
+            descuentoUsd={descuentoUsd}
+            descuento={(
+              <DescuentoVenta
+                subtotalUsd={subtotalUsd}
+                descuento={descuento}
+                onCambiarDescuento={setDescuento}
+                motivo={motivoDescuento}
+                onCambiarMotivo={setMotivoDescuento}
+                disabled={cobrando}
+              />
+            )}
             totalUsd={totalUsd}
             totalVes={totalVes}
             resaltarMoneda={resaltarMoneda}
@@ -398,8 +450,8 @@ export default function CantinaPOS() {
               <div className="space-y-3">
                 {!tarjeta ? (
                   <>
-                    <ScannerTarjeta onTarjetaResuelta={resolverTarjeta} />
-                    <BuscadorAlumnoManual onTarjetaResuelta={resolverTarjeta} />
+                    <ScannerTarjeta onTarjetaResuelta={t => resolverTarjeta(t, 'escaner')} />
+                    <BuscadorAlumnoManual onTarjetaResuelta={t => resolverTarjeta(t, 'manual')} />
                   </>
                 ) : (
                   <ResumenCobro
