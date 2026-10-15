@@ -4194,3 +4194,14 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    llena con los cajeros que aparecen en los resultados (igual que Reportes).
 10. **Origen del alumno en "Cargar a cuenta"**: se envía `no_aplica`; si se
     quiere contar como venta manual es un cambio de una línea en el POS.
+11. **Ticket PDF sin descuento** (`cantina/utils.py::generar_pdf_ticket`): el
+    ticket impreso muestra solo el total neto, no el subtotal ni el descuento.
+12. **Anulación concurrente** (`AnularVentaView`, preexistente): la venta no se
+    bloquea con `select_for_update`; dos anulaciones simultáneas podrían
+    revertir dos veces el saldo de la tarjeta. Prioridad alta para la Fase 3
+    (revisión de seguridad).
+13. **Descuento del 100 % en cargo a cuenta**: devuelve 400 porque `CargoCantina`
+    exige monto > 0. En efectivo o tarjeta, un neto de 0 sí se permite.
+14. **Eventos de inventario sobre el producto**: `objeto` es el producto y
+    `despues` incluye `movimiento_id`; las salidas por venta no generan evento
+    propio (ya quedan en la venta).
