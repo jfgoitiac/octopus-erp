@@ -79,7 +79,7 @@ export default function DescuentoVenta({
             value={motivo}
             onChange={e => onCambiarMotivo(e.target.value)}
             disabled={disabled}
-            maxLength={255}
+            maxLength={200}
             placeholder="Ej. Producto con empaque dañado"
             className="w-full px-3 py-2 rounded-lg outline-none min-h-[40px]"
             style={{ ...FIELD_STYLE, borderColor: faltaMotivo ? 'var(--red)' : 'var(--border-md)' }}

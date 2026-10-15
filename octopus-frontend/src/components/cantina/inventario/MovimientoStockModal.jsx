@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Loader2, SlidersHorizontal, ArrowDownCircle, ArrowUpCircle, Wrench } from 'lucide-react';
+import { Loader2, SlidersHorizontal, ArrowDownCircle, ArrowUpCircle, Wrench, PackageX } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
@@ -11,7 +11,17 @@ const TIPOS = [
   { value: 'entrada', label: 'Entrada', icon: ArrowDownCircle, activeStyle: { background: 'var(--pb-light)', color: 'var(--pb-mid)', border: '1.5px solid var(--pb)' } },
   { value: 'salida',  label: 'Salida',  icon: ArrowUpCircle,   activeStyle: { background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid var(--red)' } },
   { value: 'ajuste',  label: 'Ajuste',  icon: Wrench,          activeStyle: { background: 'var(--yellow-light)', color: 'var(--amber-ink)', border: '1.5px solid var(--yellow)' } },
+  // D3: la merma (vencido, dañado, consumo interno) va separada del ajuste.
+  { value: 'merma',   label: 'Merma',   icon: PackageX,        activeStyle: { background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid var(--red)' } },
 ];
+
+// El backend exige motivo para estos tipos (CONTRATO_AUDITORIA_CANTINA.md §8).
+const TIPOS_CON_MOTIVO = ['ajuste', 'merma'];
+
+const AYUDA_MOTIVO = {
+  ajuste: 'Ej. Diferencia en conteo físico...',
+  merma: 'Ej. Producto vencido, empaque dañado, consumo interno...',
+};
 
 export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
   const [tipo, setTipo]           = useState('entrada');
@@ -19,10 +29,16 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
   const [motivo, setMotivo]       = useState('');
   const [guardando, setGuardando] = useState(false);
 
+  const motivoObligatorio = TIPOS_CON_MOTIVO.includes(tipo);
+
   const validar = () => {
     const cantidadNum = Number(cantidad);
     if (cantidad === '' || Number.isNaN(cantidadNum) || cantidadNum <= 0 || !Number.isInteger(cantidadNum)) {
       toast.warning('La cantidad debe ser un entero mayor a 0.');
+      return false;
+    }
+    if (motivoObligatorio && !motivo.trim()) {
+      toast.warning(`El motivo es obligatorio para registrar ${tipo === 'merma' ? 'una merma' : 'un ajuste'}.`);
       return false;
     }
     return true;
@@ -82,7 +98,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
       <div className="space-y-4">
         <div>
           <span id="movimiento-tipo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Tipo de movimiento</span>
-          <div role="group" aria-labelledby="movimiento-tipo" className="flex gap-2">
+          <div role="group" aria-labelledby="movimiento-tipo" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {TIPOS.map(t => {
               const Icon = t.icon;
               return (
@@ -91,7 +107,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
                   type="button"
                   aria-pressed={tipo === t.value}
                   onClick={() => setTipo(t.value)}
-                  className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
+                  className="flex flex-col items-center gap-1 py-2.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
                   style={tipo === t.value ? t.activeStyle : IDLE_STYLE}
                 >
                   <Icon size={16} />
@@ -114,7 +130,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
             onChange={e => setCantidad(e.target.value)}
             placeholder="0"
           />
-          {tipo === 'salida' && (
+          {(tipo === 'salida' || tipo === 'merma') && (
             <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
               Se descontará del stock actual. Si dejaría el stock en negativo, el servidor rechazará el movimiento.
             </p>
@@ -122,14 +138,18 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
         </div>
 
         <div>
-          <label htmlFor="movimientostockmodal-motivo-opcional" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Motivo (opcional)</label>
-          <textarea id="movimientostockmodal-motivo-opcional"
+          <label htmlFor="movimientostockmodal-motivo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+            {motivoObligatorio ? <>Motivo <span style={{ color: 'var(--red)' }}>*</span></> : 'Motivo (opcional)'}
+          </label>
+          <textarea id="movimientostockmodal-motivo"
             rows={2}
+            maxLength={200}
+            aria-required={motivoObligatorio}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
             style={FIELD_STYLE}
             value={motivo}
             onChange={e => setMotivo(e.target.value)}
-            placeholder="Ej. Compra a proveedor, merma, conteo físico..."
+            placeholder={AYUDA_MOTIVO[tipo] ?? 'Ej. Compra a proveedor, devolución...'}
           />
         </div>
       </div>

@@ -14,6 +14,9 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
   const [categoriaId, setCategoriaId]   = useState(producto?.categoria ?? producto?.categoria_id ?? '');
   const [codigoBarras, setCodigoBarras] = useState(producto?.codigo_barras ?? '');
   const [precio, setPrecio]             = useState(producto?.precio ?? '');
+  // Costo unitario (opcional): alimenta la rentabilidad de la Auditoría;
+  // vacío = costo desconocido (el backend guarda null).
+  const [costo, setCosto]               = useState(producto?.costo ?? '');
   const [stockActual, setStockActual]   = useState(producto?.stock_actual ?? 0);
   const [stockMinimo, setStockMinimo]   = useState(producto?.stock_minimo ?? 5);
   const [activo, setActivo]             = useState(producto?.activo ?? true);
@@ -89,6 +92,11 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
       toast.warning('El precio debe ser un número mayor o igual a 0.');
       return false;
     }
+    const costoNum = Number(costo);
+    if (costo !== '' && (Number.isNaN(costoNum) || costoNum < 0)) {
+      toast.warning('El costo debe ser un número mayor o igual a 0, o quedar vacío.');
+      return false;
+    }
     const stockActualNum = Number(stockActual);
     if (Number.isNaN(stockActualNum) || stockActualNum < 0 || !Number.isInteger(stockActualNum)) {
       toast.warning('El stock inicial debe ser un entero mayor o igual a 0.');
@@ -102,6 +110,11 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
     return true;
   };
 
+  const precioNum = Number(precio);
+  const margen = costo !== '' && precio !== '' && precioNum > 0 && !Number.isNaN(Number(costo))
+    ? ((precioNum - Number(costo)) / precioNum) * 100
+    : null;
+
   const handleGuardar = async () => {
     if (!validar()) return;
 
@@ -110,6 +123,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
       categoria: categoriaId,
       codigo_barras: codigoBarras.trim() || null,
       precio: Number(precio),
+      costo: costo === '' ? null : Number(costo),
       stock_actual: Number(stockActual),
       stock_minimo: Number(stockMinimo),
       activo,
@@ -238,7 +252,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor="productoformmodal-precio-usd" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Precio (USD)</label>
             <input id="productoformmodal-precio-usd"
@@ -250,6 +264,24 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               value={precio}
               onChange={e => setPrecio(e.target.value)}
             />
+          </div>
+          <div>
+            <label htmlFor="productoformmodal-costo-usd" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Costo (USD, opcional)</label>
+            <input id="productoformmodal-costo-usd"
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              style={FIELD_STYLE}
+              value={costo}
+              onChange={e => setCosto(e.target.value)}
+              placeholder="Sin costo"
+            />
+            {margen != null && (
+              <p className="text-xs mt-1" style={{ color: margen < 0 ? 'var(--red)' : 'var(--ash)' }}>
+                Margen: {margen.toFixed(1)} %{margen < 0 ? ' (el costo supera el precio)' : ''}
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="productoformmodal-campo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
