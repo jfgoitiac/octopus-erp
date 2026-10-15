@@ -39,13 +39,18 @@ class ProductoCantinaSerializer(serializers.ModelSerializer):
         model = ProductoCantina
         fields = (
             'id', 'nombre', 'categoria', 'categoria_nombre', 'codigo_barras',
-            'precio', 'stock_actual', 'stock_minimo', 'imagen', 'activo',
+            'precio', 'costo', 'stock_actual', 'stock_minimo', 'imagen', 'activo',
             'creado_en', 'stock_bajo', 'area',
         )
 
     def validate_precio(self, value):
         if value < 0:
             raise serializers.ValidationError('El precio no puede ser negativo.')
+        return value
+
+    def validate_costo(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError('El costo no puede ser negativo.')
         return value
 
     def validate_stock_minimo(self, value):
@@ -265,6 +270,7 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
     anulada_por_nombre = serializers.CharField(source='anulada_por.nombre_completo', read_only=True, default=None)
     representante_nombre = serializers.SerializerMethodField()
     detalles = DetalleVentaCantinaSerializer(many=True, read_only=True)
+    subtotal_usd = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = VentaCantina
@@ -274,6 +280,8 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
             'tasa_aplicada', 'total_ves', 'estado', 'saldo_tarjeta_despues',
             'area', 'banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote',
             'representante', 'representante_nombre', 'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
+            'subtotal_usd', 'descuento_usd', 'motivo_descuento', 'motivo_anulacion',
+            'es_manual', 'origen_producto', 'origen_alumno',
         )
         read_only_fields = fields
 
