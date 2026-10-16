@@ -23,7 +23,7 @@ const BotonSeleccionarTodas = ({ ids, selected, onClick, color }) => {
         <button
             type="button"
             onClick={onClick}
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+            className="text-xs font-semibold px-1.5 py-0.5 rounded"
             style={{ color }}
         >
             {todosSeleccionados ? 'Deseleccionar todas' : 'Seleccionar todas'}
@@ -63,7 +63,7 @@ const BloqueDeudaAlumno = ({
             {cuotasInscripcion.length > 0 && (
                 <div className="rounded-xl p-3" style={{ border: '1.5px solid #f59e0b44', background: '#fffbeb' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-[11px] uppercase tracking-widest font-bold" style={{ color: '#b45309' }}>
+                        <p className="text-xs uppercase tracking-widest font-bold" style={{ color: 'var(--amber-ink)' }}>
                             Cuota de Inscripción pendiente
                         </p>
                         <BotonSeleccionarTodas
@@ -84,10 +84,10 @@ const BloqueDeudaAlumno = ({
                             return (
                                 <div key={c.id}>
                                     <label
-                                        className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                        className="flex items-center justify-between p-3 cursor-pointer transition-colors motion-reduce:transition-none"
                                         style={{
                                             border: isSel ? '1.5px solid #f59e0b' : '0.5px solid #fde68a',
-                                            background: isSel ? '#fef3c7' : '#fff',
+                                            background: isSel ? 'var(--yellow-light)' : '#fff',
                                             borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
                                         }}
                                     >
@@ -96,28 +96,28 @@ const BloqueDeudaAlumno = ({
                                                 type="checkbox"
                                                 checked={isSel}
                                                 onChange={() => toggleCuota(alu.id, c.id)}
-                                                style={{ accentColor: '#f59e0b', width: 15, height: 15 }}
+                                                style={{ accentColor: 'var(--yellow)', width: 15, height: 15 }}
                                                 aria-label={`Cuota de inscripción ${c.periodo_escolar}`}
                                             />
                                             <div>
                                                 <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                                                     Inscripción {c.periodo_escolar}
                                                 </span>
-                                                {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                {parcial && <span className="text-xs font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span>}
                                             </div>
                                         </div>
                                         <div className="text-right">
                                             <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
-                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                            <p className="text-xs" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
                                             {abonada && (
-                                                <p className="text-[10px] font-semibold" style={{ color: '#b45309' }}>Saldo: ${saldo}</p>
+                                                <p className="text-xs font-semibold" style={{ color: 'var(--amber-ink)' }}>Saldo: ${saldo}</p>
                                             )}
                                         </div>
                                     </label>
                                     {isSel && (
                                         <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
-                                            style={{ background: '#fef3c7', borderLeft: '1.5px solid #f59e0b', borderRight: '1.5px solid #f59e0b', borderBottom: '1.5px solid #f59e0b' }}>
-                                            <span className="text-[10px] font-medium flex-1" style={{ color: '#b45309' }}>Monto a abonar (USD):</span>
+                                            style={{ background: 'var(--yellow-light)', borderLeft: '1.5px solid #f59e0b', borderRight: '1.5px solid #f59e0b', borderBottom: '1.5px solid #f59e0b' }}>
+                                            <span className="text-xs font-medium flex-1" style={{ color: 'var(--amber-ink)' }}>Monto a abonar (USD):</span>
                                             <div className="relative">
                                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
                                                 <DecimalInput
@@ -132,8 +132,8 @@ const BloqueDeudaAlumno = ({
                                             {parcial && (
                                                 <button type="button"
                                                     onClick={() => setMontoParcial(alu.id, 'cuota', c.id, saldo)}
-                                                    className="text-[10px] px-2 py-1 rounded-md"
-                                                    style={{ background: '#f59e0b', color: '#fff' }}>
+                                                    className="text-xs px-2 py-1 rounded-md"
+                                                    style={{ background: 'var(--yellow)', color: '#fff' }}>
                                                     Completo
                                                 </button>
                                             )}
@@ -148,9 +148,9 @@ const BloqueDeudaAlumno = ({
 
             {/* Solvencia pendiente */}
             {cuotasSolvencia.length > 0 && (
-                <div className="rounded-xl p-3" style={{ border: '1.5px solid #dc262644', background: '#fef2f2' }}>
+                <div className="rounded-xl p-3" style={{ border: '1.5px solid #dc262644', background: 'var(--red-light)' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-[11px] uppercase tracking-widest font-bold" style={{ color: '#b91c1c' }}>
+                        <p className="text-xs uppercase tracking-widest font-bold" style={{ color: 'var(--red)' }}>
                             Solvencia pendiente
                         </p>
                         <BotonSeleccionarTodas
@@ -174,10 +174,10 @@ const BloqueDeudaAlumno = ({
                             return (
                                 <div key={c.id}>
                                     <label
-                                        className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                        className="flex items-center justify-between p-3 cursor-pointer transition-colors motion-reduce:transition-none"
                                         style={{
                                             border: isSel ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
-                                            background: isSel ? '#fee2e2' : '#fff',
+                                            background: isSel ? 'var(--red-light)' : '#fff',
                                             borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
                                         }}
                                     >
@@ -186,16 +186,16 @@ const BloqueDeudaAlumno = ({
                                                 type="checkbox"
                                                 checked={isSel}
                                                 onChange={() => toggleSolvencia(alu.id, c.id)}
-                                                style={{ accentColor: '#dc2626', width: 15, height: 15 }}
+                                                style={{ accentColor: 'var(--red)', width: 15, height: 15 }}
                                                 aria-label={`Solvencia ${c.concepto || c.periodo_escolar}`}
                                             />
                                             <div>
                                                 <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                                                     {c.concepto || `Solvencia ${c.periodo_escolar}`}
                                                 </span>
-                                                {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                {parcial && <span className="text-xs font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span>}
                                                 {c.concepto && (
-                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                                                    <p className="text-xs" style={{ color: 'var(--ash)' }}>
                                                         Solvencia {c.periodo_escolar}
                                                     </p>
                                                 )}
@@ -203,16 +203,16 @@ const BloqueDeudaAlumno = ({
                                         </div>
                                         <div className="text-right">
                                             <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${c.monto_usd}</span>
-                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
+                                            <p className="text-xs" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(c.monto_usd) * tasa)}</p>
                                             {abonada && (
-                                                <p className="text-[10px] font-semibold" style={{ color: '#b45309' }}>Saldo: ${saldo}</p>
+                                                <p className="text-xs font-semibold" style={{ color: 'var(--amber-ink)' }}>Saldo: ${saldo}</p>
                                             )}
                                         </div>
                                     </label>
                                     {isSel && (
                                         <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
-                                            style={{ background: '#fee2e2', borderLeft: '1.5px solid #dc2626', borderRight: '1.5px solid #dc2626', borderBottom: '1.5px solid #dc2626' }}>
-                                            <span className="text-[10px] font-medium flex-1" style={{ color: '#b91c1c' }}>Monto a abonar (USD):</span>
+                                            style={{ background: 'var(--red-light)', borderLeft: '1.5px solid #dc2626', borderRight: '1.5px solid #dc2626', borderBottom: '1.5px solid #dc2626' }}>
+                                            <span className="text-xs font-medium flex-1" style={{ color: 'var(--red)' }}>Monto a abonar (USD):</span>
                                             <div className="relative">
                                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
                                                 <DecimalInput
@@ -227,8 +227,8 @@ const BloqueDeudaAlumno = ({
                                             {parcial && (
                                                 <button type="button"
                                                     onClick={() => setMontoParcial(alu.id, 'solv', c.id, saldo)}
-                                                    className="text-[10px] px-2 py-1 rounded-md"
-                                                    style={{ background: '#dc2626', color: '#fff' }}>
+                                                    className="text-xs px-2 py-1 rounded-md"
+                                                    style={{ background: 'var(--red)', color: '#fff' }}>
                                                     Completo
                                                 </button>
                                             )}
@@ -244,7 +244,7 @@ const BloqueDeudaAlumno = ({
             {/* Mensualidades */}
             <div className="rounded-xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
                 <div className="flex items-center justify-between mb-2">
-                    <p className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+                    <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
                         Mensualidades pendientes
                     </p>
                     <BotonSeleccionarTodas
@@ -256,7 +256,7 @@ const BloqueDeudaAlumno = ({
                 </div>
                 {mensualidades.length === 0 ? (
                     <div className="flex items-center gap-2 text-sm py-2" style={{ color: 'var(--ash)' }}>
-                        <CheckCircle2 size={15} style={{ color: '#16a34a' }} />
+                        <CheckCircle2 size={15} style={{ color: 'var(--green)' }} />
                         Sin mensualidades en mora
                     </div>
                 ) : (
@@ -277,7 +277,7 @@ const BloqueDeudaAlumno = ({
                             return (
                                 <div key={m.id}>
                                     <label
-                                        className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                        className="flex items-center justify-between p-3 cursor-pointer transition-colors motion-reduce:transition-none"
                                         style={{
                                             border: isSel ? '1.5px solid var(--pb)' : '0.5px solid var(--border)',
                                             background: isSel ? 'var(--pb-light)' : 'var(--bg)',
@@ -294,35 +294,35 @@ const BloqueDeudaAlumno = ({
                                             />
                                             <div>
                                                 <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{m.mes} {m.anio}</span>
-                                                {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                {parcial && <span className="text-xs font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span>}
                                             </div>
                                         </div>
                                         <div className="text-right">
                                             {tieneRecargo ? (
                                                 <>
-                                                    <span className="text-[10px] line-through" style={{ color: 'var(--ash)' }}>${m.monto_usd}</span>{' '}
+                                                    <span className="text-xs line-through" style={{ color: 'var(--ash)' }}>${m.monto_usd}</span>{' '}
                                                     <span className="text-sm font-semibold" style={{ color: 'var(--red)' }}>${saldoHoy}</span>
-                                                    <p className="text-[10px] font-semibold" style={{ color: 'var(--red)' }}>+ ${m.monto_recargo} {m.nombre_recargo}</p>
+                                                    <p className="text-xs font-semibold" style={{ color: 'var(--red)' }}>+ ${m.monto_recargo} {m.nombre_recargo}</p>
                                                 </>
                                             ) : tieneDescuento ? (
                                                 <>
-                                                    <span className="text-[10px] line-through" style={{ color: 'var(--ash)' }}>${m.monto_usd}</span>{' '}
-                                                    <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>${saldoHoy}</span>
-                                                    <p className="text-[10px] font-semibold" style={{ color: '#16a34a' }}>-${m.monto_descuento} {m.nombre_descuento}</p>
+                                                    <span className="text-xs line-through" style={{ color: 'var(--ash)' }}>${m.monto_usd}</span>{' '}
+                                                    <span className="text-sm font-semibold" style={{ color: 'var(--green)' }}>${saldoHoy}</span>
+                                                    <p className="text-xs font-semibold" style={{ color: 'var(--green)' }}>-${m.monto_descuento} {m.nombre_descuento}</p>
                                                 </>
                                             ) : (
                                                 <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
                                             )}
-                                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(saldoHoy) * tasa)}</p>
+                                            <p className="text-xs" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(saldoHoy) * tasa)}</p>
                                             {abonada && (
-                                                <p className="text-[10px] font-semibold" style={{ color: '#b45309' }}>Saldo: ${saldo}</p>
+                                                <p className="text-xs font-semibold" style={{ color: 'var(--amber-ink)' }}>Saldo: ${saldo}</p>
                                             )}
                                         </div>
                                     </label>
                                     {isSel && (
                                         <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
                                             style={{ background: 'var(--pb-light)', borderLeft: '1.5px solid var(--pb)', borderRight: '1.5px solid var(--pb)', borderBottom: '1.5px solid var(--pb)' }}>
-                                            <span className="text-[10px] font-medium flex-1" style={{ color: 'var(--pb)' }}>Monto a abonar (USD):</span>
+                                            <span className="text-xs font-medium flex-1" style={{ color: 'var(--pb)' }}>Monto a abonar (USD):</span>
                                             <div className="relative">
                                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
                                                 <DecimalInput
@@ -337,7 +337,7 @@ const BloqueDeudaAlumno = ({
                                             {parcial && (
                                                 <button type="button"
                                                     onClick={() => setMontoParcial(alu.id, 'mens', m.id, saldoHoy)}
-                                                    className="text-[10px] px-2 py-1 rounded-md"
+                                                    className="text-xs px-2 py-1 rounded-md"
                                                     style={{ background: 'var(--pb)', color: '#fff' }}>
                                                     Completo
                                                 </button>
@@ -354,11 +354,11 @@ const BloqueDeudaAlumno = ({
                 {mensualidadesFuturas.length > 0 && (
                     <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--border)' }}>
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)', color: '#fff' }}>ADELANTO</span>
-                            <p className="text-[11px] uppercase tracking-widest" style={{ color: adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)' }}>Mensualidades futuras</p>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: adelantosRequierenUSD ? 'var(--violet)' : 'var(--pb)', color: '#fff' }}>ADELANTO</span>
+                            <p className="text-xs uppercase tracking-widest" style={{ color: adelantosRequierenUSD ? 'var(--violet)' : 'var(--pb)' }}>Mensualidades futuras</p>
                         </div>
                         {adelantosRequierenUSD && (
-                            <p className="text-[10px] mb-2 px-2 py-1.5 rounded-md flex items-center gap-1" style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                            <p className="text-xs mb-2 px-2 py-1.5 rounded-md flex items-center gap-1" style={{ background: 'var(--violet-light)', color: 'var(--violet)' }}>
                                 <DollarSign size={10} /> Solo disponible pagando con Efectivo USD o Zelle
                             </p>
                         )}
@@ -369,14 +369,14 @@ const BloqueDeudaAlumno = ({
                                 const saldo   = m.saldo !== undefined ? m.saldo : m.monto_usd;
                                 const abonada = parseFloat(saldo) < parseFloat(m.monto_usd) - 0.01;
                                 const parcial = isSel && ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
-                                const acento    = adelantosRequierenUSD ? '#7c3aed' : 'var(--pb)';
-                                const acentoBg  = adelantosRequierenUSD ? '#ede9fe' : 'var(--pb-light)';
+                                const acento    = adelantosRequierenUSD ? 'var(--violet)' : 'var(--pb)';
+                                const acentoBg  = adelantosRequierenUSD ? 'var(--violet-light)' : 'var(--pb-light)';
                                 const borderSuave = adelantosRequierenUSD ? '#d8b4fe' : 'var(--border)';
                                 const bgSuave      = adelantosRequierenUSD ? '#faf5ff' : 'var(--bg)';
                                 return (
                                     <div key={m.id}>
                                         <label
-                                            className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                            className="flex items-center justify-between p-3 cursor-pointer transition-colors motion-reduce:transition-none"
                                             style={{
                                                 border: isSel ? `1.5px solid ${acento}` : `0.5px solid ${borderSuave}`,
                                                 background: isSel ? acentoBg : bgSuave,
@@ -393,21 +393,21 @@ const BloqueDeudaAlumno = ({
                                                 />
                                                 <div>
                                                     <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{m.mes} {m.anio}</span>
-                                                    {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                                    {parcial && <span className="text-xs font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span>}
                                                 </div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${m.monto_usd}</span>
-                                                <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
+                                                <p className="text-xs" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(m.monto_usd) * tasa)}</p>
                                                 {abonada && (
-                                                    <p className="text-[10px] font-semibold" style={{ color: acento }}>Saldo: ${saldo}</p>
+                                                    <p className="text-xs font-semibold" style={{ color: acento }}>Saldo: ${saldo}</p>
                                                 )}
                                             </div>
                                         </label>
                                         {isSel && (
                                             <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
                                                 style={{ background: acentoBg, borderLeft: `1.5px solid ${acento}`, borderRight: `1.5px solid ${acento}`, borderBottom: `1.5px solid ${acento}` }}>
-                                                <span className="text-[10px] font-medium flex-1" style={{ color: acento }}>Monto a abonar (USD):</span>
+                                                <span className="text-xs font-medium flex-1" style={{ color: acento }}>Monto a abonar (USD):</span>
                                                 <div className="relative">
                                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
                                                     <DecimalInput
@@ -422,7 +422,7 @@ const BloqueDeudaAlumno = ({
                                                 {parcial && (
                                                     <button type="button"
                                                         onClick={() => setMontoParcial(alu.id, 'futura', m.id, saldo)}
-                                                        className="text-[10px] px-2 py-1 rounded-md"
+                                                        className="text-xs px-2 py-1 rounded-md"
                                                         style={{ background: acento, color: '#fff' }}>
                                                         Completo
                                                     </button>
@@ -477,7 +477,7 @@ const CobranzaStep1 = ({
         <Card className="max-w-2xl mx-auto anim-fade-up">
             {/* Search box */}
             <div className="mb-5">
-                <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
+                <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
                     Cédula del representante
                 </label>
                 <div className="relative">
@@ -516,13 +516,13 @@ const CobranzaStep1 = ({
                 <div className="space-y-4 anim-fade-up">
                     {/* Representante */}
                     <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                        <p className="text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Representante</p>
+                        <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Representante</p>
                         <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>{representanteNombre}</p>
                     </div>
 
                     {/* Alumnos: selección múltiple — se puede pagar la deuda de varios hijos a la vez */}
                     <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                        <p className="text-[11px] uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
+                        <p className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--ash)' }}>
                             Seleccionar alumno{alumnosRep.length > 1 ? '(es)' : ''}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -531,7 +531,7 @@ const CobranzaStep1 = ({
                                 return (
                                     <label
                                         key={alu.id}
-                                        className="text-left p-3 rounded-lg transition-all cursor-pointer flex items-center gap-3"
+                                        className="text-left p-3 rounded-lg transition-colors motion-reduce:transition-none cursor-pointer flex items-center gap-3"
                                         style={{
                                             border: isSel ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
                                             background: isSel ? 'var(--pb-light)' : '#fff',
@@ -546,14 +546,14 @@ const CobranzaStep1 = ({
                                         />
                                         <div>
                                             <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>{alu.nombre}</p>
-                                            <p className="text-[11px] mt-0.5" style={{ color: 'var(--ash)' }}>{alu.grado} · {alu.estatus}</p>
+                                            <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>{alu.grado} · {alu.estatus}</p>
                                         </div>
                                     </label>
                                 );
                             })}
                         </div>
                         {alumnosRep.length > 1 && (
-                            <p className="text-[10px] mt-3" style={{ color: 'var(--ash)' }}>
+                            <p className="text-xs mt-3" style={{ color: 'var(--ash)' }}>
                                 Marca a todos los hijos cuya deuda se pagará en esta misma operación.
                             </p>
                         )}
@@ -561,8 +561,8 @@ const CobranzaStep1 = ({
 
                     {/* Proyecto de Inversión pendiente (del representante, compartido entre hermanos) */}
                     {alumnosSeleccionados.length > 0 && cuotasProyectoInversion.length > 0 && (
-                        <div className="rounded-xl p-4" style={{ border: '1.5px solid #dc262644', background: '#fef2f2' }}>
-                            <p className="text-[11px] uppercase tracking-widest mb-3 font-bold" style={{ color: '#b91c1c' }}>
+                        <div className="rounded-xl p-4" style={{ border: '1.5px solid #dc262644', background: 'var(--red-light)' }}>
+                            <p className="text-xs uppercase tracking-widest mb-3 font-bold" style={{ color: 'var(--red)' }}>
                                 Proyecto de Inversión pendiente (representante)
                             </p>
                             <div className="space-y-2">
@@ -575,10 +575,10 @@ const CobranzaStep1 = ({
                                     return (
                                         <div key={c.id}>
                                             <label
-                                                className="flex items-center justify-between p-3 cursor-pointer transition-all"
+                                                className="flex items-center justify-between p-3 cursor-pointer transition-colors motion-reduce:transition-none"
                                                 style={{
                                                     border: isSel ? '1.5px solid #dc2626' : '0.5px solid #fecaca',
-                                                    background: isSel ? '#fee2e2' : '#fff',
+                                                    background: isSel ? 'var(--red-light)' : '#fff',
                                                     borderRadius: isSel ? '0.5rem 0.5rem 0 0' : '0.5rem',
                                                 }}
                                             >
@@ -587,22 +587,22 @@ const CobranzaStep1 = ({
                                                         type="checkbox"
                                                         checked={isSel}
                                                         onChange={() => toggleProyecto(c.id)}
-                                                        style={{ accentColor: '#dc2626', width: 15, height: 15 }}
+                                                        style={{ accentColor: 'var(--red)', width: 15, height: 15 }}
                                                         aria-label={`Proyecto de Inversión ${c.periodo_escolar}`}
                                                     />
                                                     <div>
                                                         <span className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
                                                             Proyecto de Inversión {c.periodo_escolar}
                                                         </span>
-                                                        {parcial && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
-                                                        {!isSel && abonado && <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: '#f97316', color: '#fff' }}>ABONADO</span>}
+                                                        {parcial && <span className="text-xs font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span>}
+                                                        {!isSel && abonado && <span className="text-xs font-bold ml-1.5 px-1.5 py-0.5 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>ABONADO</span>}
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>${saldo}</span>
-                                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(saldo) * tasa)}</p>
+                                                    <p className="text-xs" style={{ color: 'var(--ash)' }}>Bs. {fmt(parseFloat(saldo) * tasa)}</p>
                                                     {abonado && (
-                                                        <p className="text-[10px]" style={{ color: '#b91c1c' }}>
+                                                        <p className="text-xs" style={{ color: 'var(--red)' }}>
                                                             Ya abonado ${c.monto_pagado} de ${c.monto_usd}
                                                         </p>
                                                     )}
@@ -610,8 +610,8 @@ const CobranzaStep1 = ({
                                             </label>
                                             {isSel && (
                                                 <div className="flex items-center gap-2 px-3 py-2 rounded-b-lg"
-                                                    style={{ background: '#fee2e2', borderLeft: '1.5px solid #dc2626', borderRight: '1.5px solid #dc2626', borderBottom: '1.5px solid #dc2626' }}>
-                                                    <span className="text-[10px] font-medium flex-1" style={{ color: '#b91c1c' }}>Monto a abonar (USD):</span>
+                                                    style={{ background: 'var(--red-light)', borderLeft: '1.5px solid #dc2626', borderRight: '1.5px solid #dc2626', borderBottom: '1.5px solid #dc2626' }}>
+                                                    <span className="text-xs font-medium flex-1" style={{ color: 'var(--red)' }}>Monto a abonar (USD):</span>
                                                     <div className="relative">
                                                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: 'var(--ash)' }}>$</span>
                                                         <DecimalInput
@@ -626,8 +626,8 @@ const CobranzaStep1 = ({
                                                     {parcial && (
                                                         <button type="button"
                                                             onClick={() => setMontoParcialProyecto(c.id, saldo)}
-                                                            className="text-[10px] px-2 py-1 rounded-md"
-                                                            style={{ background: '#dc2626', color: '#fff' }}>
+                                                            className="text-xs px-2 py-1 rounded-md"
+                                                            style={{ background: 'var(--red)', color: '#fff' }}>
                                                             Completo
                                                         </button>
                                                     )}
@@ -660,7 +660,7 @@ const CobranzaStep1 = ({
                     {alumnosSeleccionados.length > 0 && (
                         <div className="rounded-xl p-4 flex items-center justify-between" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                             <div>
-                                <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total seleccionado</p>
+                                <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total seleccionado</p>
                                 <p className="text-lg font-bold" style={{ color: 'var(--jet)' }}>Bs. {fmt(totalGenVES)}</p>
                                 <p className="text-xs" style={{ color: 'var(--ash)' }}>${fmt(totalGenUSD)}</p>
                             </div>

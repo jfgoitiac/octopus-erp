@@ -120,7 +120,7 @@ const CobranzaStep2 = ({
                 </div>
                 {!loadingConfig && configColegio?.periodo_escolar_activo && (
                     <span
-                        className="text-[10px] font-medium px-2 py-1 rounded-md whitespace-nowrap"
+                        className="text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap"
                         style={{ background: 'var(--porcelain)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}
                     >
                         Período {configColegio.periodo_escolar_activo}
@@ -129,7 +129,7 @@ const CobranzaStep2 = ({
                 {retroActivo ? (
                     <span
                         className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                        style={{ background: '#f59e0b', color: '#fff' }}
+                        style={{ background: 'var(--yellow)', color: '#fff' }}
                         title="Modo retroactivo: se usa la tasa manual, no el BCV de hoy"
                     >
                         <History size={12} />
@@ -153,14 +153,14 @@ const CobranzaStep2 = ({
             {/* Banner divisas requeridas */}
             {requiereDivisas && (
                 <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
-                    style={{ background: todosDivisas ? '#ede9fe' : '#fef2f2', border: `1px solid ${todosDivisas ? '#7c3aed' : '#ef4444'}` }}>
-                    <DollarSign size={16} style={{ color: todosDivisas ? '#7c3aed' : '#ef4444' }} />
+                    style={{ background: todosDivisas ? 'var(--violet-light)' : 'var(--red-light)', border: `1px solid ${todosDivisas ? 'var(--violet)' : 'var(--red)'}` }}>
+                    <DollarSign size={16} style={{ color: todosDivisas ? 'var(--violet)' : 'var(--red)' }} />
                     <div className="flex-1">
-                        <p className="text-xs font-bold" style={{ color: todosDivisas ? '#7c3aed' : '#ef4444' }}>
+                        <p className="text-xs font-bold" style={{ color: todosDivisas ? 'var(--violet)' : 'var(--red)' }}>
                             {hayAdelantos ? 'Adelanto de mensualidades' : 'Pago parcial'}
                             {' — solo se acepta pago en divisas'}
                         </p>
-                        <p className="text-[10px]" style={{ color: todosDivisas ? '#7c3aed' : '#ef4444' }}>
+                        <p className="text-xs" style={{ color: todosDivisas ? 'var(--violet)' : 'var(--red)' }}>
                             {todosDivisas ? 'Método válido: Efectivo USD o Zelle ✓' : 'Cambia el método de pago a Efectivo USD o Zelle'}
                         </p>
                     </div>
@@ -172,7 +172,7 @@ const CobranzaStep2 = ({
                 <div className="lg:col-span-3 space-y-4">
                     {/* Concepto */}
                     <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                        <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
+                        <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
                             Concepto de pago
                         </label>
                         {haySeleccion ? (
@@ -184,7 +184,7 @@ const CobranzaStep2 = ({
                                     </span>
                                 ))}
                                 {conceptosDetectados.length > 1 && (
-                                    <p className="w-full text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                    <p className="w-full text-xs mt-1" style={{ color: 'var(--ash)' }}>
                                         Pago mixto — se registrará con el detalle de cada deuda saldada.
                                     </p>
                                 )}
@@ -196,7 +196,7 @@ const CobranzaStep2 = ({
                                         key={c.value}
                                         type="button"
                                         onClick={() => setConcepto(c.value)}
-                                        className="py-2 px-3 rounded-lg text-xs font-medium transition-all text-center"
+                                        className="py-2 px-3 min-h-[44px] rounded-lg text-xs font-medium transition-colors motion-reduce:transition-none text-center"
                                         style={{
                                             border: concepto === c.value ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
                                             background: concepto === c.value ? 'var(--pb-light)' : '#fff',
@@ -217,7 +217,7 @@ const CobranzaStep2 = ({
                         return (
                             <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'var(--pb-light)', border: '0.5px solid var(--pb)' }}>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[11px]" style={{ color: 'var(--pb)' }}>✓</span>
+                                    <span className="text-xs" style={{ color: 'var(--pb)' }}>✓</span>
                                     <span className="text-xs font-semibold" style={{ color: 'var(--pb)' }}>
                                         {totalMens} mensualidad{totalMens > 1 ? 'es' : ''} seleccionada{totalMens > 1 ? 's' : ''}
                                     </span>
@@ -229,7 +229,7 @@ const CobranzaStep2 = ({
                                     return (
                                         <div key={id} className="pl-5">
                                             {alumnosSeleccionados.length > 1 && (
-                                                <p className="text-[10px] font-semibold mb-0.5" style={{ color: 'var(--pb)' }}>
+                                                <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--pb)' }}>
                                                     {datos?.nombre_completo || datos?.nombre}
                                                 </p>
                                             )}
@@ -237,7 +237,7 @@ const CobranzaStep2 = ({
                                                 {mens.map(mid => {
                                                     const m = (datos?.mensualidades_pendientes || []).find(x => x.id === mid);
                                                     return m ? (
-                                                        <span key={mid} className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                                                        <span key={mid} className="text-xs font-medium px-2 py-0.5 rounded-full"
                                                             style={{ background: 'var(--pb)', color: '#fff' }}>
                                                             {m.mes} {m.anio}
                                                         </span>
@@ -253,15 +253,15 @@ const CobranzaStep2 = ({
 
                     {/* Modo retroactivo — el dinero ya se recibió en el pasado */}
                     <div className="rounded-xl p-4 space-y-3"
-                        style={{ border: `0.5px solid ${retroActivo ? '#f59e0b' : 'var(--border-md)'}`, background: retroActivo ? '#fffbeb' : 'var(--porcelain)' }}>
+                        style={{ border: `0.5px solid ${retroActivo ? 'var(--yellow)' : 'var(--border-md)'}`, background: retroActivo ? '#fffbeb' : 'var(--porcelain)' }}>
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
-                                <History size={15} style={{ color: retroActivo ? '#b45309' : 'var(--ash)' }} />
+                                <History size={15} style={{ color: retroActivo ? 'var(--amber-ink)' : 'var(--ash)' }} />
                                 <div>
-                                    <p className="text-xs font-semibold" style={{ color: retroActivo ? '#b45309' : 'var(--jet)' }}>
+                                    <p className="text-xs font-semibold" style={{ color: retroActivo ? 'var(--amber-ink)' : 'var(--jet)' }}>
                                         Pago retroactivo
                                     </p>
-                                    <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                                    <p className="text-xs" style={{ color: 'var(--ash)' }}>
                                         El dinero ya se recibió en una fecha pasada
                                     </p>
                                 </div>
@@ -273,7 +273,7 @@ const CobranzaStep2 = ({
                                 aria-label="Activar pago retroactivo"
                                 onClick={() => setRetroActivo(v => !v)}
                                 className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
-                                style={{ background: retroActivo ? '#f59e0b' : 'var(--border-md)' }}
+                                style={{ background: retroActivo ? 'var(--yellow)' : 'var(--border-md)' }}
                             >
                                 <span
                                     className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
@@ -284,9 +284,9 @@ const CobranzaStep2 = ({
 
                         {retroActivo && (
                             <div className="space-y-3 pt-3" style={{ borderTop: '0.5px solid #fcd34d' }}>
-                                <div className="flex items-start gap-2 p-2.5 rounded-lg" style={{ background: '#fef3c7' }}>
-                                    <AlertTriangle size={14} style={{ color: '#b45309', flexShrink: 0, marginTop: '1px' }} />
-                                    <p className="text-[10px]" style={{ color: '#92400e' }}>
+                                <div className="flex items-start gap-2 p-2.5 rounded-lg" style={{ background: 'var(--yellow-light)' }}>
+                                    <AlertTriangle size={14} style={{ color: 'var(--amber-ink)', flexShrink: 0, marginTop: '1px' }} />
+                                    <p className="text-xs" style={{ color: '#92400e' }}>
                                         Esta operación se registrará con fecha pasada. La tasa que definas aquí
                                         reemplaza al badge BCV en todos los cálculos de esta pantalla.
                                     </p>
@@ -294,7 +294,7 @@ const CobranzaStep2 = ({
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                        <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                             Fecha real del pago
                                         </label>
                                         <DatePickerES
@@ -306,13 +306,13 @@ const CobranzaStep2 = ({
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                        <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                             Tasa aplicada (Bs./$)
                                         </label>
                                         <div className="relative">
                                             <DecimalInput
                                                 className="w-full px-3 py-2 rounded-lg text-sm font-semibold outline-none"
-                                                style={{ border: `1px solid ${tasaInvalida ? '#ef4444' : 'var(--border-md)'}`, background: '#fff', color: 'var(--jet)' }}
+                                                style={{ border: `1px solid ${tasaInvalida ? 'var(--red)' : 'var(--border-md)'}`, background: '#fff', color: 'var(--jet)' }}
                                                 value={tasaManual}
                                                 onChange={setTasaManual}
                                                 aria-label="Tasa aplicada al pago retroactivo"
@@ -322,20 +322,20 @@ const CobranzaStep2 = ({
                                             )}
                                         </div>
                                         {tasaInvalida && (
-                                            <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>La tasa debe ser mayor a 0.</p>
+                                            <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>La tasa debe ser mayor a 0.</p>
                                         )}
                                         {!tasaInvalida && !tasaSugerenciaExacta && tasaSugerenciaFechaReal && (
-                                            <p className="text-[10px] mt-1" style={{ color: '#b45309' }}>
+                                            <p className="text-xs mt-1" style={{ color: 'var(--amber-ink)' }}>
                                                 No hay tasa registrada para esa fecha; se cargó la del {tasaSugerenciaFechaReal}. Verifíquela.
                                             </p>
                                         )}
                                         {!tasaSugerenciaLoading && !tasaSugerida && (
-                                            <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>
+                                            <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
                                                 No se encontró tasa histórica para esa fecha. Ingresa la tasa manualmente.
                                             </p>
                                         )}
                                         {desviacionAlta && (
-                                            <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: '#ef4444' }}>
+                                            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--red)' }}>
                                                 <AlertTriangle size={11} /> Se desvía más de 20% de la tasa sugerida (Bs. {fmt(tasaSugerida)}). Verifica que sea correcta.
                                             </p>
                                         )}
@@ -343,7 +343,7 @@ const CobranzaStep2 = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                                    <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
                                         Motivo <span style={{ color: 'var(--red)' }}>*</span>
                                     </label>
                                     <textarea
@@ -353,12 +353,12 @@ const CobranzaStep2 = ({
                                         placeholder="Explica por qué se registra este pago con fecha pasada (mínimo 10 caracteres)…"
                                         className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
                                         style={{
-                                            border: `0.5px solid ${motivoRetro && motivoRetro.trim().length < MOTIVO_MIN_LEN ? '#ef4444' : 'var(--border-md)'}`,
+                                            border: `0.5px solid ${motivoRetro && motivoRetro.trim().length < MOTIVO_MIN_LEN ? 'var(--red)' : 'var(--border-md)'}`,
                                             background: '#fff', color: 'var(--jet)',
                                         }}
                                     />
                                     {motivoRetro && motivoRetro.trim().length < MOTIVO_MIN_LEN && (
-                                        <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>
+                                        <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
                                             Escribe al menos {MOTIVO_MIN_LEN} caracteres.
                                         </p>
                                     )}
@@ -370,7 +370,7 @@ const CobranzaStep2 = ({
                     {/* Líneas de pago */}
                     <div className="rounded-xl p-4 space-y-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                         <div className="flex items-center justify-between">
-                            <p className="text-[11px] uppercase tracking-widest font-semibold" style={{ color: 'var(--ash)' }}>
+                            <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: 'var(--ash)' }}>
                                 Forma{lineas.length > 1 ? 's' : ''} de pago
                             </p>
                             <button
@@ -387,14 +387,14 @@ const CobranzaStep2 = ({
                             <div key={l.id} className="rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
                                 {lineas.length > 1 && (
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md"
+                                        <span className="text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-md"
                                             style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
                                             Pago {i + 1}
                                         </span>
                                         <button
                                             type="button"
                                             onClick={() => setLineas(p => p.filter((_, j) => j !== i))}
-                                            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md"
+                                            className="flex items-center gap-1 text-xs px-3 min-h-[44px] rounded-md"
                                             style={{ color: 'var(--red)', background: 'var(--red-light)' }}
                                         >
                                             <Trash2 size={10} /> Quitar
@@ -404,7 +404,7 @@ const CobranzaStep2 = ({
 
                                 {/* Método de pago */}
                                 <div className="mb-3">
-                                    <label className="block text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Método de pago</label>
+                                    <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>Método de pago</label>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                                         {METODOS_PAGO.map(m => {
                                             const bloqueado = requiereDivisas && !esDivisa(m.value);
@@ -419,7 +419,7 @@ const CobranzaStep2 = ({
                                                         banco_receptor_id: requiereBanco(m.value) ? l.banco_receptor_id : '',
                                                     }))}
                                                     title={bloqueado ? 'Los adelantos solo se pagan en USD' : undefined}
-                                                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-[10px] font-medium transition-all"
+                                                    className="flex flex-col items-center justify-center gap-1 py-2 px-1 min-h-[44px] rounded-lg text-xs font-medium transition-colors motion-reduce:transition-none"
                                                     style={{
                                                         border: l.metodo_pago === m.value ? '1.5px solid var(--pb)' : '0.5px solid var(--border-md)',
                                                         background: bloqueado ? 'var(--border)' : l.metodo_pago === m.value ? 'var(--pb-light)' : 'var(--porcelain)',
@@ -439,7 +439,7 @@ const CobranzaStep2 = ({
                                 {/* Monto */}
                                 <div className="flex gap-3 mb-3">
                                     <div className="flex-1">
-                                        <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                        <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                             Monto en {esDivisa(l.metodo_pago) ? 'USD ($)' : 'Bolívares (Bs.)'}
                                         </label>
                                         <div className="relative">
@@ -458,19 +458,19 @@ const CobranzaStep2 = ({
                                             />
                                         </div>
                                         {esDivisa(l.metodo_pago) && l.monto_usd > 0 && tasa > 0 && (
-                                            <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                            <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
                                                 ≈ Bs. {fmt(parseFloat(l.monto_usd) * tasa)}
                                             </p>
                                         )}
                                         {esBolivares(l.metodo_pago) && l.monto_ves > 0 && tasa > 0 && (
-                                            <p className="text-[10px] mt-1" style={{ color: 'var(--ash)' }}>
+                                            <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>
                                                 ≈ $ {fmt(parseFloat(l.monto_ves) / tasa)}
                                             </p>
                                         )}
                                         {!esCash(l.metodo_pago) && deudaVES > 0 && (() => {
                                             const mx = maxForLine(i);
                                             return mx !== undefined && mx > 0 ? (
-                                                <p className="text-[10px] mt-1 font-medium" style={{ color: 'var(--ash)' }}>
+                                                <p className="text-xs mt-1 font-medium" style={{ color: 'var(--ash)' }}>
                                                     Máx: {esDivisa(l.metodo_pago) ? `$${fmt(mx)}` : `Bs. ${fmt(mx)}`}
                                                 </p>
                                             ) : null;
@@ -482,11 +482,11 @@ const CobranzaStep2 = ({
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {requiereBanco(l.metodo_pago) && (
                                         <div>
-                                            <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                            <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                                 Banco receptor
                                             </label>
                                             <select
-                                                className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                                                className="w-full px-3 py-2 min-h-[44px] rounded-lg text-base sm:text-xs outline-none"
                                                 style={{
                                                     border: esTocado(i, 'banco') && !l.banco_receptor_id ? '1px solid #ef4444' : '1px solid var(--border-md)',
                                                     background: '#fff', color: 'var(--jet)',
@@ -500,17 +500,17 @@ const CobranzaStep2 = ({
                                                 {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
                                             </select>
                                             {esTocado(i, 'banco') && !l.banco_receptor_id && (
-                                                <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
+                                                <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Selecciona un banco</p>
                                             )}
                                         </div>
                                     )}
                                     <div className={requiereBanco(l.metodo_pago) && l.metodo_pago !== 'punto_de_venta' ? '' : 'col-span-2'}>
-                                        <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                        <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                             Nº de referencia{l.metodo_pago === 'punto_de_venta' ? ' (4 dígitos)' : ''}
                                         </label>
                                         <input
                                             type="text"
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                                            className="w-full px-3 py-2 min-h-[44px] rounded-lg text-base sm:text-xs outline-none"
                                             style={{
                                                 border: esTocado(i, 'referencia') && l.metodo_pago === 'punto_de_venta' && (l.referencia || '').length !== 4
                                                     ? '1px solid #ef4444' : '1px solid var(--border-md)',
@@ -524,17 +524,17 @@ const CobranzaStep2 = ({
                                             aria-label="Número de referencia"
                                         />
                                         {esTocado(i, 'referencia') && l.metodo_pago === 'punto_de_venta' && (l.referencia || '').length !== 4 && (
-                                            <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>Ingresa los 4 dígitos de referencia</p>
+                                            <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Ingresa los 4 dígitos de referencia</p>
                                         )}
                                     </div>
                                     {l.metodo_pago === 'punto_de_venta' && (
                                         <div>
-                                            <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                                            <label className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                                 Nº de lote (4 dígitos)
                                             </label>
                                             <input
                                                 type="text"
-                                                className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                                                className="w-full px-3 py-2 min-h-[44px] rounded-lg text-base sm:text-xs outline-none"
                                                 style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                                 placeholder="Ej: 0042"
                                                 value={l.numero_lote}

@@ -24,11 +24,10 @@ const ResumenPago = ({
 }) => {
     return (
         <div
-            className="lg:col-span-2 space-y-4 self-start sticky"
-            style={{ top: '66px', maxHeight: 'calc(100vh - 82px)', overflowY: 'auto' }}
+            className="lg:col-span-2 space-y-4 self-start w-full lg:sticky lg:top-[66px] lg:max-h-[calc(100dvh-82px)] lg:overflow-y-auto"
         >
             <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
-                <p className="text-[11px] uppercase tracking-widest font-semibold mb-4 pb-2"
+                <p className="text-xs uppercase tracking-widest font-semibold mb-4 pb-2"
                     style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border)' }}>
                     Resumen del pago
                 </p>
@@ -41,7 +40,7 @@ const ResumenPago = ({
                     </div>
                     <div>
                         <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--jet)' }}>{nombreAlumno}</p>
-                        <p className="text-[10px] font-mono" style={{ color: 'var(--ash)' }}>{cedula}</p>
+                        <p className="text-xs font-mono" style={{ color: 'var(--ash)' }}>{cedula}</p>
                     </div>
                 </div>
 
@@ -53,7 +52,7 @@ const ResumenPago = ({
                     if (mens.length === 0) return null;
                     return (
                         <div key={`mens-${id}`} className="mb-3 space-y-1">
-                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+                            <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
                                 Períodos{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
                             </p>
                             {mens.map(mid => {
@@ -70,9 +69,9 @@ const ResumenPago = ({
                                         style={{ background: 'var(--pb-light)', color: 'var(--pb)' }}>
                                         <span>
                                             {m.mes} {m.anio}
-                                            {parcial && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span>}
+                                            {parcial && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span>}
                                             {tieneRecargo && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--red)', color: '#fff' }}>+RECARGO</span>}
-                                            {tieneDescuento && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#16a34a', color: '#fff' }}>DESCUENTO</span>}
+                                            {tieneDescuento && <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--green)', color: '#fff' }}>DESCUENTO</span>}
                                         </span>
                                         <span className="font-semibold">${fmt(monto)}</span>
                                     </div>
@@ -90,7 +89,7 @@ const ResumenPago = ({
                     if (futuras.length === 0) return null;
                     return (
                         <div key={`fut-${id}`} className="mb-3 space-y-1">
-                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#7c3aed' }}>
+                            <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--violet)' }}>
                                 Adelantos{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
                             </p>
                             {futuras.map(mid => {
@@ -101,8 +100,8 @@ const ResumenPago = ({
                                 const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(m.monto_usd) - 0.01;
                                 return (
                                     <div key={mid} className="flex justify-between text-xs px-2 py-1 rounded-md"
-                                        style={{ background: '#ede9fe', color: '#7c3aed' }}>
-                                        <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        style={{ background: 'var(--violet-light)', color: 'var(--violet)' }}>
+                                        <span>{m.mes} {m.anio}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span> : ''}</span>
                                         <span className="font-semibold">${fmt(monto)}</span>
                                     </div>
                                 );
@@ -119,7 +118,7 @@ const ResumenPago = ({
                     if (cuotas.length === 0) return null;
                     return (
                         <div key={`cuota-${id}`} className="mb-3 space-y-1">
-                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#b45309' }}>
+                            <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--amber-ink)' }}>
                                 Inscripción{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
                             </p>
                             {cuotas.map(cid => {
@@ -131,8 +130,8 @@ const ResumenPago = ({
                                 const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                                 return (
                                     <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
-                                        style={{ background: '#fef3c7', color: '#b45309' }}>
-                                        <span>Período {c.periodo_escolar}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        style={{ background: 'var(--yellow-light)', color: 'var(--amber-ink)' }}>
+                                        <span>Período {c.periodo_escolar}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span> : ''}</span>
                                         <span className="font-semibold">${fmt(monto)}</span>
                                     </div>
                                 );
@@ -149,7 +148,7 @@ const ResumenPago = ({
                     if (solvs.length === 0) return null;
                     return (
                         <div key={`solv-${id}`} className="mb-3 space-y-1">
-                            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#b91c1c' }}>
+                            <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--red)' }}>
                                 Solvencia{alumnosSeleccionados.length > 1 ? ` — ${datos?.nombre_completo || datos?.nombre}` : ''}
                             </p>
                             {solvs.map(cid => {
@@ -161,8 +160,8 @@ const ResumenPago = ({
                                 const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(saldo) - 0.01;
                                 return (
                                     <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
-                                        style={{ background: '#fee2e2', color: '#b91c1c' }}>
-                                        <span>{c.concepto || `Período ${c.periodo_escolar}`}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                        style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                                        <span>{c.concepto || `Período ${c.periodo_escolar}`}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span> : ''}</span>
                                         <span className="font-semibold">${fmt(monto)}</span>
                                     </div>
                                 );
@@ -174,7 +173,7 @@ const ResumenPago = ({
                 {/* Proyecto de Inversión (representante) */}
                 {(selectedProyectos || []).length > 0 && (
                     <div className="mb-3 space-y-1">
-                        <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: '#b91c1c' }}>
+                        <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--red)' }}>
                             Proyecto de Inversión
                         </p>
                         {selectedProyectos.map(cid => {
@@ -185,8 +184,8 @@ const ResumenPago = ({
                             const parcial = ov !== undefined && ov !== '' && parseFloat(ov) < parseFloat(c.monto_usd) - 0.01;
                             return (
                                 <div key={cid} className="flex justify-between text-xs px-2 py-1 rounded-md"
-                                    style={{ background: '#fee2e2', color: '#b91c1c' }}>
-                                    <span>Período {c.periodo_escolar}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: '#f97316', color: '#fff' }}>PARCIAL</span> : ''}</span>
+                                    style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                                    <span>Período {c.periodo_escolar}{parcial ? <span className="ml-1 text-[9px] font-bold px-1 rounded" style={{ background: 'var(--orange)', color: '#fff' }}>PARCIAL</span> : ''}</span>
                                     <span className="font-semibold">${fmt(monto)}</span>
                                 </div>
                             );
@@ -234,12 +233,12 @@ const ResumenPago = ({
                     <div className="mb-4 p-3 rounded-lg" style={{ background: '#fefce8', border: '1px solid #fbbf24' }}>
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: '#92400e' }}>
+                                <p className="text-xs uppercase tracking-widest font-bold" style={{ color: '#92400e' }}>
                                     Vuelto a entregar
                                 </p>
-                                <p className="text-[10px] mt-0.5" style={{ color: '#b45309' }}>≈ ${fmt(vueltoUSD)}</p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--amber-ink)' }}>≈ ${fmt(vueltoUSD)}</p>
                             </div>
-                            <span className="text-lg font-bold" style={{ color: '#b45309' }}>Bs. {fmt(vueltoVES)}</span>
+                            <span className="text-lg font-bold" style={{ color: 'var(--amber-ink)' }}>Bs. {fmt(vueltoVES)}</span>
                         </div>
                     </div>
                 )}
@@ -248,16 +247,16 @@ const ResumenPago = ({
                 {confirming ? (
                     <div className="space-y-2">
                         <div className="text-center py-2 px-3 rounded-lg space-y-0.5"
-                            style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                            style={{ background: 'var(--yellow-light)', color: '#92400e', border: '1px solid #fbbf24' }}>
                             <p className="text-xs font-medium">¿Confirmar el registro de este pago?</p>
-                            <p className="text-[10px]">Se generará e imprimirá el recibo automáticamente. Esta acción no se puede deshacer desde esta pantalla.</p>
+                            <p className="text-xs">Se generará e imprimirá el recibo automáticamente. Esta acción no se puede deshacer desde esta pantalla.</p>
                         </div>
                         <div className="flex gap-2">
                             <button
                                 type="button"
                                 onClick={() => setConfirming(false)}
                                 disabled={loading}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-all"
+                                className="flex-1 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 min-h-[44px] motion-safe:transition-opacity"
                                 style={{ border: '1px solid var(--border-md)', color: 'var(--ash)' }}
                             >
                                 Cancelar
@@ -266,7 +265,7 @@ const ResumenPago = ({
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={loading}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 min-h-[44px] motion-safe:transition-opacity"
                                 style={{ background: 'var(--pb)' }}
                             >
                                 {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
@@ -279,7 +278,7 @@ const ResumenPago = ({
                         type="button"
                         onClick={() => setConfirming(true)}
                         disabled={alumnosSeleccionados.length === 0}
-                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 min-h-[44px] motion-safe:transition-opacity"
                         style={{ background: 'var(--pb)' }}
                     >
                         <Save size={16} />
@@ -287,7 +286,7 @@ const ResumenPago = ({
                     </button>
                 )}
 
-                <p className="text-[10px] text-center mt-2" style={{ color: 'var(--ash)' }}>
+                <p className="text-xs text-center mt-2" style={{ color: 'var(--ash)' }}>
                     Se generará comprobante PDF automáticamente
                 </p>
             </div>
