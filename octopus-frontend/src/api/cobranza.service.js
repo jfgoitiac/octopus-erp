@@ -142,6 +142,17 @@ export const accionConversacionInteligente = (representanteId, accion, datos = {
 export const getDashboardInteligente = (sedeId, signal) =>
     apiClient.get(`${BASE_INT}/dashboard/`, { params: parametrosSede(sedeId), signal });
 
+export const getMensualidadesPorMonto = (params, signal) =>
+    apiClient.get(`${BASE_INT}/mensualidades-por-monto/`, { params, signal });
+
+export const getDetalleMensualidadesPorMonto = (params, signal) =>
+    apiClient.get(`${BASE_INT}/mensualidades-por-monto/detalle/`, { params, signal });
+
+export const exportarMensualidadesPorMontoExcel = (params, signal) =>
+    apiClient.get(`${BASE_INT}/mensualidades-por-monto/exportar-excel/`, {
+        params, responseType: 'blob', signal,
+    });
+
 export const getLineaBaseInteligente = (sedeId, signal) =>
     apiClient.get(`${BASE_INT}/linea-base/`, { params: parametrosSede(sedeId), signal });
 
