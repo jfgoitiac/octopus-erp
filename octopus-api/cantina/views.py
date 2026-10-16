@@ -8,6 +8,7 @@ import qrcode
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Sum
+from django.core.paginator import Paginator
 from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -17,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cobranza.exports import ExcelExporter
-from cobranza.models import BancoInstitucional, Pago, TasaCambio
+from cobranza.models import BancoInstitucional, Pago
 from secretaria.models import Alumno, Representante
 from .mora_cantina import dias_en_negativo
 from . import services_cxc
@@ -34,10 +35,13 @@ from .models import (
     ProductoCantina,
     RecargaTarjeta,
     TarjetaPrepago,
+    TasaCantina,
     VentaCantina,
 )
-from .permissions import EsAdminCantina, EsCajeroOAdmin
+from .permissions import EsAdminCantina, EsCajeroOAdmin, puede_gestionar_tasa
 from .serializers import (
+    CambiarTasaCantinaSerializer,
+    TasaCantinaSerializer,
     AjustarCreditoSerializer,
     AperturaCajaCantinaSerializer,
     CategoriaProductoSerializer,
@@ -53,7 +57,7 @@ from .serializers import (
 from .services_inventario import aplicar_movimiento_inventario
 from .services_tarjeta import aplicar_movimiento_tarjeta, generar_codigo_tarjeta
 from pagos_comunes.referencias import buscar_referencia_duplicada
-from .utils import generar_pdf_ticket, validar_datos_bancarios
+from .utils import generar_pdf_ticket, tasa_cantina_activa, validar_datos_bancarios
 
 logger = logging.getLogger(__name__)
 
@@ -618,25 +622,74 @@ class BuscarTarjetaView(APIView):
         return Response(TarjetaPrepagoSerializer(tarjeta, context={'request': request}).data)
 
 
+def _serializar_tasa_activa(tasa, user):
+    return {
+        'valor_bs': str(tasa.valor_bs),
+        'fecha': tasa.vigente_desde,  # compatibilidad con el cliente anterior
+        'vigente_desde': tasa.vigente_desde,
+        'fuente': tasa.fuente,
+        'bcv_referencia': str(tasa.bcv_referencia) if tasa.bcv_referencia is not None else None,
+        'puede_editar': puede_gestionar_tasa(user),
+    }
+
+
 class TasaVigenteCantinaView(APIView):
     """
-    GET: última `cobranza.TasaCambio` registrada — el cajero de cantina no
-    tiene el JWT del panel admin (hook `useTasaBCV` no es reutilizable acá,
-    ver §2 de cantina.md: JWT separado), así que se expone un endpoint
-    propio y mínimo para que `RecargaCajeroModal.jsx` pueda convertir un
-    monto ingresado en VES a USD antes de enviarlo (el backend solo acepta
-    `monto_usd` en `RecargaTarjetaSerializer`, `monto_ves` es derivado).
+    GET: tasa que Cantina aplica hoy (propia, o la BCV si nunca se configuró
+    una). El cajero de cantina no tiene el JWT del panel admin, así que se
+    expone un endpoint propio para que el POS y las recargas conviertan
+    montos. Incluye la BCV como referencia y `puede_editar` para el usuario.
     """
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        tasa = TasaCambio.objects.order_by('-fecha').first()
+        tasa = tasa_cantina_activa()
         if not tasa:
             return Response(
-                {'detail': 'No se ha registrado ninguna tasa de cambio.'},
+                {'detail': 'No se ha registrado ninguna tasa de cambio.', 'puede_editar': puede_gestionar_tasa(request.user)},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response({'valor_bs': str(tasa.valor_bs), 'fecha': tasa.fecha})
+        return Response(_serializar_tasa_activa(tasa, request.user))
+
+
+class CambiarTasaCantinaView(APIView):
+    """POST: fija una nueva tasa de Cantina (agrega una fila al historial)."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def post(self, request):
+        if not puede_gestionar_tasa(request.user):
+            return Response(
+                {'detail': 'No tiene permiso para cambiar la tasa de Cantina.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = CambiarTasaCantinaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        TasaCantina.objects.create(
+            valor_bs=serializer.validated_data['valor_bs'],
+            motivo=serializer.validated_data['motivo'],
+            modificado_por=request.user,
+            fuente='manual',
+        )
+        return Response(_serializar_tasa_activa(tasa_cantina_activa(), request.user), status=status.HTTP_201_CREATED)
+
+
+class HistorialTasaCantinaView(APIView):
+    """GET: historial paginado de cambios de tasa (?page=, ?page_size= máx. 100)."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request):
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 20)), 1), 100)
+        except ValueError:
+            page_size = 20
+        paginator = Paginator(TasaCantina.objects.select_related('modificado_por'), page_size)
+        pagina = paginator.get_page(request.query_params.get('page', 1))
+        return Response({
+            'count': paginator.count,
+            'page': pagina.number,
+            'num_pages': paginator.num_pages,
+            'results': TasaCantinaSerializer(pagina.object_list, many=True).data,
+        })
 
 
 class TarjetasListView(APIView):
@@ -674,9 +727,8 @@ class RecargarTarjetaCajeroView(APIView):
             if error_comprobante:
                 return Response({'detail': error_comprobante}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            tasa = TasaCambio.objects.latest('fecha')
-        except TasaCambio.DoesNotExist:
+        tasa = tasa_cantina_activa()
+        if tasa is None:
             return Response(
                 {'detail': 'No se ha registrado ninguna tasa de cambio.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -1102,9 +1154,8 @@ class RegistrarVentaView(APIView):
         if total_usd > Decimal('99999999.99'):
             return Response({'error': 'El total de la venta es demasiado grande.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            tasa = TasaCambio.objects.latest('fecha')
-        except TasaCambio.DoesNotExist:
+        tasa = tasa_cantina_activa()
+        if tasa is None:
             return Response(
                 {'error': 'No se ha registrado ninguna tasa de cambio.'},
                 status=status.HTTP_400_BAD_REQUEST,

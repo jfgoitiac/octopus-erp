@@ -11,10 +11,10 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import serializers
 
-from cobranza.models import TasaCambio
 from secretaria.models import Alumno
 
 from .models import AREAS, CargoCantina, ParametroCantina
+from .utils import tasa_cantina_activa
 
 CERO = Decimal('0.00')
 _MONEDA = DecimalField(max_digits=12, decimal_places=2)
@@ -86,7 +86,7 @@ def limite_default():
 
 
 def tasa_vigente_valor():
-    tasa = TasaCambio.objects.order_by('-fecha').first()
+    tasa = tasa_cantina_activa()
     return tasa.valor_bs if tasa else None
 
 

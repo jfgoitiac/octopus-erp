@@ -19,7 +19,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from cobranza.correcciones import fecha_dentro_periodo_activo
-from cobranza.models import BancoInstitucional, Pago, TasaCambio
+from cobranza.models import BancoInstitucional, Pago
 from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_referencia
 
 from .models import (
@@ -29,7 +29,7 @@ from .models import (
     CreditoRepresentanteCantina,
     ParametroCantina,
 )
-from .utils import validar_datos_bancarios
+from .utils import tasa_cantina_activa, validar_datos_bancarios
 
 CERO = Decimal('0.00')
 CENTAVO = Decimal('0.01')
@@ -344,7 +344,7 @@ def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None,
             raise ValidationError({'detail': 'La apertura de caja no está abierta.'})
         fecha_pago = timezone.now()
 
-    tasa_obj = TasaCambio.objects.order_by('-fecha').first()
+    tasa_obj = tasa_cantina_activa()
     tasa_vigente = tasa_obj.valor_bs if tasa_obj else None
     if tasa_vigente is None and not retroactivo:
         raise ValidationError({'tasa': 'No se ha registrado ninguna tasa de cambio.'})

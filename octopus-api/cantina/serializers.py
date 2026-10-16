@@ -15,9 +15,33 @@ from .models import (
     ProductoCantina,
     RecargaTarjeta,
     TarjetaPrepago,
+    TasaCantina,
     VentaCantina,
 )
 from .utils import validar_datos_bancarios
+
+
+class CambiarTasaCantinaSerializer(serializers.Serializer):
+    """Entrada de POST /tasa/: valor > 0 que quepa en DecimalField(12, 4)."""
+    valor_bs = serializers.DecimalField(max_digits=12, decimal_places=4, min_value=Decimal('0.0001'))
+    motivo = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
+
+    def validate_motivo(self, value):
+        return value.strip()
+
+
+class TasaCantinaSerializer(serializers.ModelSerializer):
+    usuario = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TasaCantina
+        fields = ['id', 'valor_bs', 'valor_anterior', 'tasa_bcv_referencia', 'vigente_desde', 'usuario', 'motivo', 'fuente']
+
+    def get_usuario(self, obj):
+        u = obj.modificado_por
+        if u is None:
+            return ''
+        return getattr(u, 'nombre_completo', None) or u.get_full_name() or u.username
 
 # Mismos métodos que cobranza.Pago.METODOS, MENOS 'stripe' (§5.2/§5.9 de
 # cantina.md) — no se define una lista propia a mano para no tener que

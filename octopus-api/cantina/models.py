@@ -32,6 +32,59 @@ class ParametroCantina(models.Model):
         return 'Parámetros de Cantina'
 
 
+class TasaCantina(models.Model):
+    """Tasa de cambio propia de Cantina (Bs. por USD). Historial inmutable.
+
+    Solo se agregan filas — nunca se editan ni se borran. La tasa activa es
+    la fila más reciente (`vigente_desde`). Si no hay ninguna, Cantina cae
+    en la última `cobranza.TasaCambio` (ver `utils.tasa_cantina_activa`).
+    """
+    FUENTES = (('manual', 'Manual'), ('bcv', 'BCV'))
+
+    valor_bs = models.DecimalField(max_digits=12, decimal_places=4)
+    valor_anterior = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text='Tasa activa justo antes de este cambio (vacío en la primera).',
+    )
+    tasa_bcv_referencia = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text='Copia de la última cobranza.TasaCambio al momento del cambio, solo como referencia.',
+    )
+    vigente_desde = models.DateTimeField(default=timezone.now, db_index=True)
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name='+',
+    )
+    motivo = models.CharField(max_length=255, blank=True, default='')
+    fuente = models.CharField(max_length=10, choices=FUENTES, default='manual')
+
+    class Meta:
+        ordering = ['-vigente_desde', '-id']
+        verbose_name = 'Tasa de Cantina'
+        verbose_name_plural = 'Tasas de Cantina'
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError('El historial de tasas de Cantina es inmutable: solo se agregan filas.')
+        from django.db import transaction
+        from cobranza.models import TasaCambio
+        with transaction.atomic():
+            # Bloquea la fila activa para que dos cambios simultáneos no
+            # calculen el mismo valor_anterior.
+            ultima = (
+                TasaCantina.objects.select_for_update().order_by('-vigente_desde', '-id').first()
+            )
+            self.valor_anterior = ultima.valor_bs if ultima else None
+            bcv = TasaCambio.objects.order_by('-fecha').first()
+            self.tasa_bcv_referencia = bcv.valor_bs if bcv else None
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError('El historial de tasas de Cantina es inmutable: no se puede borrar.')
+
+    def __str__(self):
+        return f'Bs. {self.valor_bs} desde {self.vigente_desde:%d/%m/%Y %H:%M}'
+
+
 class LoteTarjetas(models.Model):
     """Agrupa un lote de tarjetas QR generadas de una sola vez.
 
@@ -133,7 +186,7 @@ class RecargaTarjeta(models.Model):
     metodo_pago = models.CharField(max_length=20)  # choices = METODOS (importado de cobranza, ver arriba)
     # --- Moneda dual, mismo criterio que cobranza.Pago ---
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Monto captado en divisas (canónico)')
-    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa BCV vigente al momento de la recarga (snapshot de cobranza.TasaCambio)')
+    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa de Cantina vigente al momento de la recarga (snapshot de la tasa aplicada)')
     monto_ves = models.DecimalField(max_digits=20, decimal_places=2, editable=False, help_text='Equivalente contable en Bolívares')
     # --- Datos bancarios de la transacción (solo aplica según metodo_pago) ---
     banco_receptor = models.ForeignKey('cobranza.BancoInstitucional', on_delete=models.PROTECT, null=True, blank=True,
@@ -285,7 +338,7 @@ class VentaCantina(models.Model):
     # Solo para metodo_pago='credito_representante'.
     representante = models.ForeignKey('secretaria.Representante', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas_cantina_credito')
     total_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Total canónico en USD (el precio de cada producto vive en USD)')
-    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa BCV vigente al momento de la venta (snapshot de cobranza.TasaCambio) — se usa para imprimir el ticket en VES si se cobró en efectivo_ves')
+    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa de Cantina vigente al momento de la venta (snapshot de la tasa aplicada) — se usa para imprimir el ticket en VES si se cobró en efectivo_ves')
     total_ves = models.DecimalField(max_digits=20, decimal_places=2, editable=False)
     estado = models.CharField(max_length=15, choices=ESTADOS, default='completada')
     saldo_tarjeta_despues = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

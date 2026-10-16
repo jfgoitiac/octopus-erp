@@ -30,6 +30,10 @@ class PerfilUsuario(models.Model):
     rol = models.CharField(max_length=20, choices=ROLES, default='cajero')
     esta_activo = models.BooleanField(default=True)
     foto = models.ImageField(upload_to='perfiles/', null=True, blank=True, validators=[validar_tamano_adjunto])
+    puede_gestionar_tasa_cantina = models.BooleanField(
+        default=False,
+        help_text='Permite cambiar la tasa de cambio de Cantina sin ser director.',
+    )
 
     def __str__(self):
         return f"{self.user.username} ({self.rol})"
