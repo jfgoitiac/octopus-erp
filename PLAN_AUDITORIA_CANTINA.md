@@ -2,7 +2,7 @@
 
 > Objetivo: que Dirección supervise la cantina sin intervenir en las ventas,
 > con trazabilidad completa de dinero, inventario y cierres.
-> Estado: **borrador para aprobación** — no se ha escrito código.
+> Estado: **implementado** — Fases 0 a 3 integradas en `feature/auditoria-cantina`.
 
 ---
 

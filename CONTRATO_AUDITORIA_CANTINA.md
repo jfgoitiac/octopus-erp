@@ -4,7 +4,7 @@
 > `PLAN_AUDITORIA_CANTINA.md`. Si un carril necesita cambiar algo de este
 > contrato, **no lo cambia**: lo reporta y se resuelve en la integración.
 
-Estado: **Fase 0 completa; Fase 1 en integración.** Modelos, migraciones (0005–0007), bitácora,
+Estado: **Fases 0–3 completas e integradas en `feature/auditoria-cantina`.** Modelos, migraciones (0005–0007), bitácora,
 permiso, rutas stub (responden `501`) y mocks del frontend están en la rama
 `feature/auditoria-cantina`.
 
