@@ -209,23 +209,9 @@ function App() {
               <Route path="reportes" element={<CantinaReportes />} />
               <Route path="morosos" element={<CantinaMorosos />} />
               <Route path="cuentas" element={<CantinaCuentasPorCobrar />} />
-              {/* Auditoría: supervisión del Director, sin operar la caja.
-                  El backend exige el mismo rol (EsDirector). */}
-              <Route
-                path="auditoria"
-                element={
-                  <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
-                    <Outlet />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Navigate to="panel" replace />} />
-                <Route path="panel" element={<AuditoriaPanel />} />
-                <Route path="cierres" element={<AuditoriaCierres />} />
-                <Route path="cierres/:id" element={<AuditoriaCierreDetalle />} />
-                <Route path="reportes" element={<AuditoriaReportes />} />
-                <Route path="bitacora" element={<AuditoriaBitacora />} />
-              </Route>
+              {/* La Auditoría de Cantina vive en el panel administrativo
+                  (/auditoria-cantina); la ruta vieja redirige allí. */}
+              <Route path="auditoria/*" element={<Navigate to="/auditoria-cantina" replace />} />
             </Route>
 
             {/* ── Autenticación admin ── */}
@@ -429,6 +415,25 @@ function App() {
                   <Auditoria />
                 </ProtectedRoute>
               } />
+              {/* Auditoría de Cantina: módulo del panel, exclusivo del
+                  Director (supervisa sin operar la caja). Cajero,
+                  administrador y demás roles quedan fuera; el backend exige
+                  lo mismo (EsDirector). */}
+              <Route
+                path="auditoria-cantina"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                    <Outlet />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="panel" replace />} />
+                <Route path="panel" element={<AuditoriaPanel />} />
+                <Route path="cierres" element={<AuditoriaCierres />} />
+                <Route path="cierres/:id" element={<AuditoriaCierreDetalle />} />
+                <Route path="reportes" element={<AuditoriaReportes />} />
+                <Route path="bitacora" element={<AuditoriaBitacora />} />
+              </Route>
               <Route path="configuracion" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Configuracion />

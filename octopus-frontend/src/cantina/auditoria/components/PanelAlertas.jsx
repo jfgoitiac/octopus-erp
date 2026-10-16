@@ -1,6 +1,7 @@
 import { AlertOctagon, AlertTriangle, BellOff, BellRing, Info } from 'lucide-react';
 import PanelTarjeta, { PanelVacio } from './PanelTarjeta';
 import { fmtFecha } from './PanelFormato';
+import { RUTAS_AUDITORIA } from '../rutas';
 
 const SEVERIDADES = {
   critica: { Icono: AlertOctagon, color: 'var(--red)', fondo: 'var(--red-light)', texto: 'Crítica' },
@@ -18,7 +19,7 @@ const PanelAlertas = ({ alertas }) => {
       icono={BellRing}
       titulo="Alertas"
       contador={`${abiertas} abierta${abiertas === 1 ? '' : 's'}`}
-      enlace={{ to: '/cantina/auditoria/bitacora?tab=alertas', texto: 'Ver alertas' }}
+      enlace={{ to: RUTAS_AUDITORIA.alertas, texto: 'Ver alertas' }}
     >
       {recientes.length === 0 ? (
         <PanelVacio icono={BellOff} texto="Sin alertas recientes." />

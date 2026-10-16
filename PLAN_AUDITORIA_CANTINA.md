@@ -121,7 +121,9 @@ octopus-frontend/src/cantina/auditoria/
 └── components/ (KpiCard, EstadoRevisionBadge, LineaTiempoEventos, FiltrosPeriodo, Skeletons…)
 ```
 
-- Rutas lazy bajo `/cantina/auditoria/*` dentro de `CantinaLayout`, con
+- *(Ajustado tras la entrega: el módulo vive en el panel administrativo,
+  `/auditoria-cantina/*` dentro de `MainLayout`, grupo propio en el menú.)*
+  Rutas lazy bajo `/cantina/auditoria/*` dentro de `CantinaLayout`, con
   `ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}`; ítem de menú con
   `roles: [ROLES.DIRECTOR]`.
 - Reutiliza `Modal.jsx`, `TablaScroll.jsx`, `TotalesPorMetodo.jsx`,

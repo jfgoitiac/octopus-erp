@@ -382,8 +382,12 @@ atendida. Registra `alerta_atendida`.
 - `src/cantina/auditoria/api/auditoriaApi.js` — una función por endpoint de
   este contrato. Con `VITE_AUDITORIA_MOCK=true` responde con
   `src/cantina/auditoria/api/mocks.js` (mismas formas de este documento).
-- Rutas lazy (solo `ROLES.DIRECTOR`) bajo `/cantina/auditoria`:
-  `panel` · `cierres` · `cierres/:id` · `reportes` · `bitacora`.
-- Ítem "Auditoría" en el menú de `CantinaLayout`, visible solo al Director.
+- Rutas lazy (solo `ROLES.DIRECTOR`) dentro del panel administrativo
+  (`MainLayout`) bajo `/auditoria-cantina`: `panel` · `cierres` · `cierres/:id`
+  · `reportes` · `bitacora`. Constantes en `src/cantina/auditoria/rutas.js`.
+  `/cantina/auditoria/*` redirige allí.
+- Grupo "Auditoría Cantina" en el menú lateral del panel (`Sidebar.jsx`) y
+  acceso directo "Auditoría" en `CantinaLayout`, ambos solo para el Director,
+  con el contador de alertas (`useResumenAlertas` + `ContadorAlertas`).
 - Páginas vacías en `src/cantina/auditoria/pages/` para que cada carril F
   las reemplace.

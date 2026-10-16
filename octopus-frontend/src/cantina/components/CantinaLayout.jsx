@@ -5,8 +5,9 @@ import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 import { getAperturaCajaActual } from '../../api/cantina.service';
 import { EVENTO_APERTURA_CAMBIADA, ETIQUETA_AREA } from '../aperturaEvento';
-import { getResumenAlertas } from '../auditoria/api/auditoriaApi';
-import { EVENTO_ALERTAS_CAMBIADAS } from '../auditoria/components/AlertaEventos';
+import useResumenAlertas from '../auditoria/useResumenAlertas';
+import ContadorAlertas from '../auditoria/components/ContadorAlertas';
+import { RUTA_AUDITORIA } from '../auditoria/rutas';
 
 // Nav de cantina.md — todas las fases (0-7) ya están implementadas:
 // Inventario (Fase 1), Tarjetas (Fase 2), POS (Fase 4), Cierre de caja
@@ -24,8 +25,9 @@ const NAV_ITEMS = [
   { name: 'Reportes',   path: '/cantina/reportes',    icon: BarChart3, disabled: false, roles: ROLES_CANTINA },
   { name: 'Cuentas por cobrar', path: '/cantina/cuentas', icon: HandCoins, disabled: false, roles: ROLES_CANTINA },
   { name: 'Morosos',    path: '/cantina/morosos',     icon: UserX, disabled: false, roles: ROLES_CANTINA },
-  // Auditoría: exclusiva del Director (PLAN_AUDITORIA_CANTINA.md).
-  { name: 'Auditoría',  path: '/cantina/auditoria',   icon: ShieldCheck, disabled: false, roles: ['director'] },
+  // Auditoría: exclusiva del Director. Vive en el panel administrativo
+  // (/auditoria-cantina); este acceso directo lleva allá.
+  { name: 'Auditoría',  path: RUTA_AUDITORIA,   icon: ShieldCheck, disabled: false, roles: ['director'] },
 ];
 
 const ROL_LABELS = {
@@ -64,31 +66,8 @@ const CantinaLayout = () => {
     };
   }, [pathname]);
 
-  // Contador de alertas abiertas junto a "Auditoría" (solo Director, §6
-  // GET alertas/resumen/). No bloquea el layout: se pide en segundo plano al
-  // navegar y cuando la bandeja avisa que se atendió una alerta. Si falla, el
-  // contador simplemente no se muestra (sin toast en cada cambio de ruta).
-  const esDirector = rol === 'director';
-  const [resumenAlertas, setResumenAlertas] = useState(null);
-  useEffect(() => {
-    if (!esDirector) return undefined;
-    let controller = new AbortController();
-    const cargar = () => {
-      controller.abort();
-      controller = new AbortController();
-      getResumenAlertas(controller.signal)
-        .then(res => setResumenAlertas(res.data ?? null))
-        .catch(() => { /* informativo: sin toast si falla */ });
-    };
-    cargar();
-    window.addEventListener(EVENTO_ALERTAS_CAMBIADAS, cargar);
-    return () => {
-      controller.abort();
-      window.removeEventListener(EVENTO_ALERTAS_CAMBIADAS, cargar);
-    };
-  }, [esDirector, pathname]);
-  const alertasAbiertas = esDirector ? Number(resumenAlertas?.abiertas ?? 0) : 0;
-  const hayCriticas = Number(resumenAlertas?.por_severidad?.critica ?? 0) > 0;
+  // Contador de alertas abiertas junto a "Auditoría" (solo Director).
+  const { abiertas: alertasAbiertas, hayCriticas } = useResumenAlertas(rol === 'director');
 
   const handleLogout = () => {
     logout();
@@ -141,17 +120,8 @@ const CantinaLayout = () => {
               >
                 <Icon size={18} />
                 {name}
-                {path === '/cantina/auditoria' && alertasAbiertas > 0 && (
-                  <span
-                    className="ml-auto min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full text-[11px] font-semibold"
-                    style={hayCriticas
-                      ? { background: 'var(--red)', color: '#fff' }
-                      : { background: 'var(--yellow-light)', color: 'var(--amber-ink)' }}
-                    aria-label={`${alertasAbiertas} alerta${alertasAbiertas === 1 ? '' : 's'} abierta${alertasAbiertas === 1 ? '' : 's'}${hayCriticas ? ', con críticas' : ''}`}
-                    title={hayCriticas ? 'Hay alertas críticas abiertas' : 'Alertas abiertas'}
-                  >
-                    {alertasAbiertas > 99 ? '99+' : alertasAbiertas}
-                  </span>
+                {path === RUTA_AUDITORIA && (
+                  <ContadorAlertas abiertas={alertasAbiertas} hayCriticas={hayCriticas} className="ml-auto" />
                 )}
               </NavLink>
             )

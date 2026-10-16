@@ -456,10 +456,14 @@ usuario, la fecha y la hora.
 
 ## 20. Auditoría de Cantina (solo Director)
 
-La sección **Auditoría** del menú de la cantina es exclusiva del **Director**.
-Sirve para supervisar la operación **sin intervenir en las ventas**: el Director
-consulta, observa y aprueba, pero no vende ni borra nada. Junto al nombre del
-menú aparece el número de alertas abiertas (en rojo si hay alguna crítica).
+La **Auditoría de Cantina** es un módulo del **panel administrativo**, en el grupo
+**"Auditoría Cantina"** del menú lateral, igual que Finanzas o Académico. Es
+exclusiva del **Director**: ni cajeros ni administradores la ven. También se
+llega desde el ítem **"Auditoría"** del menú de la cantina, que lleva al mismo
+módulo. Sirve para supervisar la operación **sin intervenir en las ventas**: el
+Director consulta, observa y aprueba, pero no vende ni borra nada. Junto a
+**"Bitácora y alertas"** aparece el número de alertas abiertas (en rojo si hay
+alguna crítica).
 
 Tiene cuatro pantallas: **Panel**, **Cierres**, **Reportes** y **Bitácora**.
 

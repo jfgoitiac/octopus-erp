@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, ClipboardCheck, Scale } from 'lucide-react';
 import PanelTarjeta, { PanelVacio } from './PanelTarjeta';
 import { fmtFecha, fmtUsdConSigno, tonoDiferencia } from './PanelFormato';
+import { RUTAS_AUDITORIA, rutaCierre } from '../rutas';
 
 const ESTADOS = {
   pendiente: { texto: 'Pendiente', color: 'var(--jet-mid)', fondo: 'var(--jet-light)' },
@@ -25,7 +26,7 @@ const PanelDiferencias = ({ diferencias }) => {
           {fmtUsdConSigno(diferencias?.monto_total_usd)}
         </span></>
       ) : null}
-      enlace={{ to: '/cantina/auditoria/cierres', texto: 'Ver cierres' }}
+      enlace={{ to: RUTAS_AUDITORIA.cierres, texto: 'Ver cierres' }}
     >
       {cierres.length === 0 ? (
         <PanelVacio icono={ClipboardCheck} texto="No hay cierres con diferencias por revisar." />
@@ -37,7 +38,7 @@ const PanelDiferencias = ({ diferencias }) => {
             return (
               <li key={c.id}>
                 <Link
-                  to={`/cantina/auditoria/cierres/${c.id}`}
+                  to={rutaCierre(c.id)}
                   className="group flex min-h-[44px] items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-[var(--surface-sunken)]"
                   style={{ border: '1px solid var(--border)' }}
                 >

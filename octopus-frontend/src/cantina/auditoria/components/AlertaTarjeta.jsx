@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { AlertOctagon, AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, Info, MapPin } from 'lucide-react';
 import { ETIQUETA_AREA, ESTILO_TARJETA, fmtFechaCorta, fmtFechaHora } from './CierreFormato';
 import { ESTILO_BOTON_PRIMARIO, REFERENCIA_A_OBJETO, SEVERIDADES_ALERTA } from './BitacoraFormato';
+import { rutaCierre } from '../rutas';
 
 const ICONO_SEVERIDAD = { critica: AlertOctagon, advertencia: AlertTriangle, info: Info };
 
@@ -10,7 +11,7 @@ const ICONO_SEVERIDAD = { critica: AlertOctagon, advertencia: AlertTriangle, inf
 const destinoReferencia = (alerta) => {
   const { referencia_tipo: tipo, referencia_id: id } = alerta;
   if (!tipo || id == null || id === '') return null;
-  if (tipo === 'cierre') return { to: `/cantina/auditoria/cierres/${id}`, texto: `Ver cierre #${id}` };
+  if (tipo === 'cierre') return { to: rutaCierre(id), texto: `Ver cierre #${id}` };
   if (tipo === 'usuario') return { to: `?tab=bitacora&usuario=${encodeURIComponent(id)}`, texto: 'Ver acciones del usuario' };
   const objeto = REFERENCIA_A_OBJETO[tipo];
   if (!objeto) return null;
