@@ -376,6 +376,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'cantina.tasks.verificar_saldos_negativos_cantina',
         'schedule': crontab(hour=7, minute=0),
     },
+    # Auditoría de Cantina: motor de alertas cada hora en horario escolar, para
+    # que `cierre_faltante` dispare apenas pase ParametroAuditoriaCantina.hora_tope_cierre
+    'evaluar-alertas-auditoria-cantina': {
+        'task': 'cantina.auditoria.tasks.evaluar_alertas_auditoria_cantina',
+        'schedule': crontab(minute=0, hour='7-19'),
+    },
     # Respaldo diario PostgreSQL + media a Google Drive, conservando copia local
     # con rotación. Requiere variables GOOGLE_DRIVE_* y BACKUP_ALERT_EMAILS;
     # ver RESTAURACION_EMERGENCIA.md.
