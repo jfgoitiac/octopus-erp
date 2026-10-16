@@ -239,7 +239,7 @@ class AnularVentaViewTests(VentaCantinaTestsBase):
         saldo_post_venta = self.tarjeta.saldo
 
         self.client.force_authenticate(user=self.admin_user)
-        resp = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de cobro'})
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
         self.assertEqual(resp.data['estado'], 'anulada')
 
@@ -258,13 +258,13 @@ class AnularVentaViewTests(VentaCantinaTestsBase):
         venta_id = self._crear_venta_tarjeta()
         self.client.force_authenticate(user=self.admin_user)
 
-        resp1 = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp1 = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de cobro'})
         self.assertEqual(resp1.status_code, status.HTTP_200_OK)
 
         self.tarjeta.refresh_from_db()
         saldo_tras_primera_anulacion = self.tarjeta.saldo
 
-        resp2 = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp2 = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de cobro'})
         self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', resp2.data)
 
@@ -279,7 +279,7 @@ class AnularVentaViewTests(VentaCantinaTestsBase):
         # de EsAdminCantina) — ver AnularVentaView.
         venta_id = self._crear_venta_tarjeta()
         self.client.force_authenticate(user=self.cajero_user)
-        resp = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp = self.client.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de cobro'})
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
 
 

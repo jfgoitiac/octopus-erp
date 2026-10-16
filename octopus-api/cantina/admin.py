@@ -2,6 +2,12 @@ from django.contrib import admin
 
 from .models import (
     AbonoCantina,
+    AdjuntoRevision,
+    AlertaCantina,
+    EventoAuditoriaCantina,
+    ParametroAuditoriaCantina,
+    ReaperturaCajaCantina,
+    RevisionCierre,
     AperturaCajaCantina,
     AplicacionAbonoCantina,
     CargoCantina,
@@ -146,3 +152,40 @@ class AbonoCantinaAdmin(SoloLecturaAdmin):
 class AplicacionAbonoCantinaAdmin(SoloLecturaAdmin):
     list_display = ('abono', 'cargo', 'monto_usd')
     raw_id_fields = ('abono', 'cargo')
+
+
+# ─────────────────────────────────────────────
+# Auditoría de Cantina — todo de solo lectura en el admin
+# ─────────────────────────────────────────────
+@admin.register(EventoAuditoriaCantina)
+class EventoAuditoriaCantinaAdmin(SoloLecturaAdmin):
+    list_display = ('creado_en', 'tipo', 'usuario_nombre', 'objeto_tipo', 'objeto_id', 'area')
+    list_filter = ('tipo', 'area')
+    search_fields = ('usuario_nombre', 'objeto_id', 'motivo')
+
+
+@admin.register(RevisionCierre)
+class RevisionCierreAdmin(SoloLecturaAdmin):
+    list_display = ('cierre', 'estado', 'revisado_por', 'revisado_en')
+    list_filter = ('estado',)
+
+
+@admin.register(AdjuntoRevision)
+class AdjuntoRevisionAdmin(SoloLecturaAdmin):
+    list_display = ('nombre_original', 'revision', 'subido_por', 'subido_en')
+
+
+@admin.register(ReaperturaCajaCantina)
+class ReaperturaCajaCantinaAdmin(SoloLecturaAdmin):
+    list_display = ('cierre_original', 'apertura_nueva', 'autorizado_por', 'creado_en')
+
+
+@admin.register(AlertaCantina)
+class AlertaCantinaAdmin(SoloLecturaAdmin):
+    list_display = ('fecha', 'tipo', 'severidad', 'titulo', 'estado')
+    list_filter = ('tipo', 'severidad', 'estado')
+
+
+@admin.register(ParametroAuditoriaCantina)
+class ParametroAuditoriaCantinaAdmin(SoloLecturaAdmin):
+    list_display = ('tolerancia_diferencia_caja', 'limite_anulaciones_dia_cajero', 'hora_tope_cierre')

@@ -27,7 +27,10 @@ export default function CarritoVenta({
   items,
   onCambiarCantidad,
   onQuitar,
-  totalUsd,
+  subtotalUsd = 0,
+  descuentoUsd = 0,
+  descuento, // bloque <DescuentoVenta> (lo arma CantinaPOS)
+  totalUsd, // neto: subtotal − descuento
   totalVes,
   resaltarMoneda, // 'usd' | 'ves'
   metodoPago,
@@ -102,8 +105,23 @@ export default function CarritoVenta({
       </div>
 
       <div className="px-4 pt-3 space-y-3" style={{ borderTop: '0.5px solid var(--border-md)' }}>
+        {descuento}
+
+        {descuentoUsd > 0 && (
+          <div className="space-y-0.5 text-sm">
+            <div className="flex justify-between" style={{ color: 'var(--ash)' }}>
+              <span>Subtotal</span>
+              <span>${subtotalUsd.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between" style={{ color: 'var(--red)' }}>
+              <span>Descuento</span>
+              <span>−${descuentoUsd.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-baseline justify-between">
-          <span className="text-sm font-medium" style={{ color: 'var(--ash)' }}>Total</span>
+          <span className="text-sm font-medium" style={{ color: 'var(--ash)' }}>{descuentoUsd > 0 ? 'Total neto' : 'Total'}</span>
           <div className="text-right">
             <p
               className="font-bold"

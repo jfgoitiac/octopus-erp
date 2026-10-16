@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
 import { ROLE_GROUPS, ROLES } from './constants/roles';
@@ -111,6 +111,12 @@ const CantinaCierreCaja        = lazy(() => import('./cantina/pages/CantinaCierr
 const CantinaReportes          = lazy(() => import('./cantina/pages/CantinaReportes'));
 const CantinaMorosos           = lazy(() => import('./cantina/pages/CantinaMorosos'));
 const CantinaCuentasPorCobrar  = lazy(() => import('./cantina/pages/CantinaCuentasPorCobrar'));
+// Auditoría de Cantina — exclusiva del Director (PLAN_AUDITORIA_CANTINA.md)
+const AuditoriaPanel           = lazy(() => import('./cantina/auditoria/pages/AuditoriaPanel'));
+const AuditoriaCierres         = lazy(() => import('./cantina/auditoria/pages/AuditoriaCierres'));
+const AuditoriaCierreDetalle   = lazy(() => import('./cantina/auditoria/pages/AuditoriaCierreDetalle'));
+const AuditoriaReportes        = lazy(() => import('./cantina/auditoria/pages/AuditoriaReportes'));
+const AuditoriaBitacora        = lazy(() => import('./cantina/auditoria/pages/AuditoriaBitacora'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -203,6 +209,23 @@ function App() {
               <Route path="reportes" element={<CantinaReportes />} />
               <Route path="morosos" element={<CantinaMorosos />} />
               <Route path="cuentas" element={<CantinaCuentasPorCobrar />} />
+              {/* Auditoría: supervisión del Director, sin operar la caja.
+                  El backend exige el mismo rol (EsDirector). */}
+              <Route
+                path="auditoria"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                    <Outlet />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="panel" replace />} />
+                <Route path="panel" element={<AuditoriaPanel />} />
+                <Route path="cierres" element={<AuditoriaCierres />} />
+                <Route path="cierres/:id" element={<AuditoriaCierreDetalle />} />
+                <Route path="reportes" element={<AuditoriaReportes />} />
+                <Route path="bitacora" element={<AuditoriaBitacora />} />
+              </Route>
             </Route>
 
             {/* ── Autenticación admin ── */}
