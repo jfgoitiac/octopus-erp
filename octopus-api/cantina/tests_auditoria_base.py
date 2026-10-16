@@ -143,6 +143,19 @@ class RevisionYMermaTests(TestCase):
         with self.assertRaises(ValidationError):
             validar_adjunto_revision(grande)
 
+    def test_validador_revisa_el_contenido_real(self):
+        validar_adjunto_revision(SimpleUploadedFile('foto.jpg', b'\xff\xd8\xff\xe0' + b'0' * 20))
+        validar_adjunto_revision(SimpleUploadedFile('foto.png', b'\x89PNG\r\n\x1a\n' + b'0' * 20))
+        validar_adjunto_revision(SimpleUploadedFile('foto.webp', b'RIFF\x00\x00\x00\x00WEBPVP8 '))
+        for nombre, contenido in (
+            ('virus.pdf', b'MZ\x90\x00 ejecutable renombrado'),
+            ('foto.jpg', b'%PDF-1.4 un pdf con extension de imagen'),
+            ('foto.png', b'GIF89a no es png'),
+            ('foto.webp', b'RIFF\x00\x00\x00\x00WAVEfmt '),
+        ):
+            with self.assertRaises(ValidationError, msg=nombre):
+                validar_adjunto_revision(SimpleUploadedFile(nombre, contenido))
+
 
 class PermisoDirectorTests(TestCase):
     """Todas las rutas del módulo son exclusivas del Director (D5: + superusuario)."""

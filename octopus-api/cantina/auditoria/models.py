@@ -172,13 +172,34 @@ ADJUNTO_EXTENSIONES = {'.jpg', '.jpeg', '.png', '.webp', '.pdf'}
 ADJUNTO_MAX_BYTES = 5 * 1024 * 1024  # D6: imagen o PDF hasta 5 MB
 
 
+def _firma_coincide(ext, cabecera):
+    """Firma mágica real del archivo según su extensión declarada."""
+    if ext in ('.jpg', '.jpeg'):
+        return cabecera.startswith(b'\xff\xd8\xff')
+    if ext == '.png':
+        return cabecera.startswith(b'\x89PNG\r\n\x1a\n')
+    if ext == '.webp':
+        return cabecera[:4] == b'RIFF' and cabecera[8:12] == b'WEBP'
+    if ext == '.pdf':
+        return cabecera.startswith(b'%PDF')
+    return False
+
+
 def validar_adjunto_revision(archivo):
-    """Valida extensión (imagen/PDF) y tamaño máximo (5 MB)."""
+    """Valida extensión (imagen/PDF), tamaño máximo (5 MB) y que el
+    contenido real coincida con la extensión (firma mágica): un ejecutable
+    renombrado a .pdf se rechaza."""
     ext = os.path.splitext(archivo.name)[1].lower()
     if ext not in ADJUNTO_EXTENSIONES:
         raise ValidationError('Solo se admiten imágenes (JPG, PNG, WEBP) o PDF.')
     if archivo.size > ADJUNTO_MAX_BYTES:
         raise ValidationError('El archivo supera el máximo de 5 MB.')
+    posicion = archivo.tell() if hasattr(archivo, 'tell') else 0
+    archivo.seek(0)
+    cabecera = archivo.read(12)
+    archivo.seek(posicion)
+    if not _firma_coincide(ext, cabecera):
+        raise ValidationError('El contenido del archivo no corresponde a su extensión.')
 
 
 class AdjuntoRevision(models.Model):

@@ -4187,16 +4187,16 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 7. **`TotalesPorMetodo.jsx` solo muestra el total por método**: en el detalle de
    auditoría no se ve el desglose ventas / recargas / abonos que trae el API.
    Habría que darle una prop opcional a ese componente compartido.
-8. **Validación de adjuntos por extensión y tamaño**: no se inspecciona el
+8. ~~**Validación de adjuntos por extensión y tamaño**~~ *(Resuelto en Fase 3: ahora se verifica la firma mágica.)*: no se inspecciona el
    contenido real del archivo (firma mágica). Queda para la revisión de
    seguridad de la Fase 3.
 9. **Filtro de cajero en cierres**: no hay endpoint de cajeros; el selector se
    llena con los cajeros que aparecen en los resultados (igual que Reportes).
 10. **Origen del alumno en "Cargar a cuenta"**: se envía `no_aplica`; si se
     quiere contar como venta manual es un cambio de una línea en el POS.
-11. **Ticket PDF sin descuento** (`cantina/utils.py::generar_pdf_ticket`): el
+11. ~~**Ticket PDF sin descuento**~~ *(Resuelto en Fase 3: muestra subtotal, descuento y motivo.)* (`cantina/utils.py::generar_pdf_ticket`): el
     ticket impreso muestra solo el total neto, no el subtotal ni el descuento.
-12. **Anulación concurrente** (`AnularVentaView`, preexistente): la venta no se
+12. ~~**Anulación concurrente**~~ *(Resuelto en Fase 3: la venta se bloquea con `select_for_update` y se re-verifica su estado.)* (`AnularVentaView`, preexistente): la venta no se
     bloquea con `select_for_update`; dos anulaciones simultáneas podrían
     revertir dos veces el saldo de la tarjeta. Prioridad alta para la Fase 3
     (revisión de seguridad).
