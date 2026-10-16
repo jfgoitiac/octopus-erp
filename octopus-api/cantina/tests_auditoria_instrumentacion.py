@@ -511,6 +511,26 @@ class AnulacionAuditoriaTests(InstrumentacionTestsBase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(_eventos('anulacion_venta').count(), 1)
 
+    def test_ticket_pdf_muestra_subtotal_y_descuento(self):
+        resp = self.vender(
+            metodo_pago='tarjeta_prepago', tarjeta_codigo=self.tarjeta.codigo,
+            descuento_usd='1.00', motivo_descuento='Promo docente',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        pdf = self.client.get(f'/api/cantina/ventas/{resp.data["id"]}/recibo/')
+        self.assertEqual(pdf.status_code, status.HTTP_200_OK)
+        crudo = b''.join(pdf.streaming_content) if pdf.streaming else pdf.content
+        # ReportLab comprime el contenido de la página (ASCII85 + Flate).
+        import base64
+        import re
+        import zlib
+        texto = b''.join(
+            zlib.decompress(base64.a85decode(m.strip().removesuffix(b'~>')))
+            for m in re.findall(rb'stream\r?\n(.*?)endstream', crudo, re.S)
+        )
+        self.assertIn(b'Subtotal', texto)
+        self.assertIn(b'Promo docente', texto)
+
     def test_anulacion_concurrente_no_reversa_dos_veces(self):
         # Simula la carrera: la segunda petición leyó la venta ANTES de que
         # la primera la anulara (copia vieja en 'completada'). El chequeo
