@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, UserCog, Key, Trash2, Settings, ShieldAlert,
+import { UserPlus, UserCog, Key, Coins, Trash2, Settings, ShieldAlert,
          RefreshCcw, Loader2, Database, RefreshCw, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,7 +16,7 @@ const UsuariosTab = () => {
     const {
         usuarios, loadingUsers, backingUp, syncingBCV,
         importingPreview, importingConfirm,
-        fetchUsers, createUser, deleteUser, editRol, resetPassword,
+        fetchUsers, createUser, deleteUser, editRol, setPermisoTasaCantina, resetPassword,
         downloadBackup, syncBCV, previewImportEstudiantes, confirmarImportEstudiantes,
     } = useUsuariosSistemas();
 
@@ -106,6 +106,14 @@ const UsuariosTab = () => {
                                                 onMouseEnter={e => e.currentTarget.style.color = 'var(--pb)'}
                                                 onMouseLeave={e => e.currentTarget.style.color = 'var(--ash)'}>
                                                 <UserCog size={16} />
+                                            </button>
+                                            <button onClick={() => setPermisoTasaCantina(u.id, !u.perfil?.puede_gestionar_tasa_cantina)}
+                                                aria-label={`${u.perfil?.puede_gestionar_tasa_cantina ? 'Retirar' : 'Otorgar'} permiso de tasa de Cantina a ${u.username}`}
+                                                aria-pressed={!!u.perfil?.puede_gestionar_tasa_cantina}
+                                                title={u.perfil?.puede_gestionar_tasa_cantina ? 'Puede cambiar la tasa de Cantina (clic para retirar)' : 'Permitir cambiar la tasa de Cantina'}
+                                                className="transition-colors"
+                                                style={{ color: u.perfil?.puede_gestionar_tasa_cantina ? 'var(--pb)' : 'var(--ash)' }}>
+                                                <Coins size={16} />
                                             </button>
                                             <button onClick={() => openReset(u)}
                                                 aria-label={`Resetear clave de ${u.username}`}

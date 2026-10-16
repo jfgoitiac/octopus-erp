@@ -91,13 +91,22 @@ export const getTarjetas = (params, signal) =>
 export const getBancosCantina = (signal) =>
   cantinaApiClient.get('bancos/', { signal });
 
-// Última tasa BCV registrada (TasaVigenteCantinaView) — el cajero no tiene
+// Tasa que Cantina aplica hoy (TasaVigenteCantinaView; si nunca se configuró una propia, la BCV) — el cajero no tiene
 // el JWT del panel admin, así que no puede usar el hook useTasaBCV
 // existente (apunta a /api/cobranza/stats/ con el token admin); este
 // endpoint propio permite convertir un monto ingresado en VES a USD antes
 // de enviarlo, porque el backend solo acepta `monto_usd`.
 export const getTasaVigenteCantina = (signal) =>
   cantinaApiClient.get('tasa-vigente/', { signal });
+
+// Tasa propia de Cantina (TasaCantina): `tasa-vigente/` devuelve valor_bs,
+// vigente_desde, fuente, bcv_referencia y puede_editar. Cambiarla exige el
+// permiso puede_gestionar_tasa_cantina (o ser director); cualquier cajero lee.
+export const cambiarTasaCantina = (payload, signal) =>
+  cantinaApiClient.post('tasa/', payload, { signal });
+
+export const getHistorialTasaCantina = (params, signal) =>
+  cantinaApiClient.get('tasa/historial/', { params, signal });
 
 // Recarga en caja (efectivo o transferencia/pago móvil/zelle presencial),
 // aprobada al instante — NO pasa por el estado 'pendiente' (RecargarTarjetaCajeroView).

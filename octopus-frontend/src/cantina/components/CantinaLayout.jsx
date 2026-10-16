@@ -5,6 +5,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 import { getAperturaCajaActual } from '../../api/cantina.service';
 import { EVENTO_APERTURA_CAMBIADA, ETIQUETA_AREA } from '../aperturaEvento';
+import TasaCantinaBadge from './TasaCantinaBadge';
 
 // Nav de cantina.md — todas las fases (0-7) ya están implementadas:
 // Inventario (Fase 1), Tarjetas (Fase 2), POS (Fase 4), Cierre de caja
@@ -85,6 +86,8 @@ const CantinaLayout = () => {
             </span>
           </div>
         )}
+
+        <TasaCantinaBadge />
 
         <nav className="flex flex-row gap-1 px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
