@@ -209,14 +209,22 @@ const ResumenPago = ({
                 {/* Barra de progreso (si hay deuda) */}
                 {deudaVES > 0 && (
                     <div className="mb-4">
-                        <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--ash)' }}>
-                            <span>{pct}% cubierto</span>
-                            {saldoVES > 0 && <span className="font-medium" style={{ color: 'var(--red)' }}>Falta: Bs. {fmt(saldoVES)}</span>}
-                            {saldoVES === 0 && vueltoVES === 0 && <span className="font-medium" style={{ color: '#16a34a' }}>✓ Completo</span>}
+                        <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-xs mb-1.5" style={{ color: 'var(--ash)' }} aria-live="polite">
+                            <span className="font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>{pct}% cubierto</span>
+                            {saldoVES > 0 && <span className="font-semibold tabular-nums" style={{ color: 'var(--red)' }}>Falta: Bs. {fmt(saldoVES)}</span>}
+                            {saldoVES === 0 && vueltoVES === 0 && <span className="font-semibold" style={{ color: 'var(--green)' }}>✓ Completo</span>}
                         </div>
-                        <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: 'var(--border)' }}>
-                            <div className="h-full transition-all duration-500 rounded-full"
-                                style={{ width: `${pct}%`, background: pct >= 100 ? '#16a34a' : 'var(--pb)' }} />
+                        <div
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={pct}
+                            aria-label="Porcentaje de la deuda cubierto con los pagos ingresados"
+                            className="w-full rounded-full h-2.5 overflow-hidden"
+                            style={{ background: 'var(--border)' }}
+                        >
+                            <div className="h-full motion-safe:transition-[width] motion-safe:duration-500 rounded-full"
+                                style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--green)' : 'var(--pb)' }} />
                         </div>
                     </div>
                 )}
