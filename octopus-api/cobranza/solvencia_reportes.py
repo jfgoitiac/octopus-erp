@@ -21,6 +21,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
+from django.http import HttpResponse
 from common.busqueda import filtrar_busqueda
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -544,6 +545,194 @@ class ResumenPorConceptoView(APIView):
                 'porcentaje': round(pagados_acc / total_acc * 100, 1) if total_acc else 0.0,
             },
         })
+
+
+def _mensualidades_por_monto_qs(request):
+    """Base única para el reporte de montos cobrados por mensualidad.
+
+    El reporte representa el cargo registrado (``monto_usd``), no el importe
+    de un pago. Así, un alumno con descuento conserva el monto que realmente
+    se le cobra y puede clasificarse de forma independiente.
+    """
+    mes = request.query_params.get('mes')
+    anio = request.query_params.get('anio')
+    if not mes or not anio:
+        return None, Response(
+            {'error': 'Los parámetros mes y anio son obligatorios.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        mes_num, anio_num = int(mes), int(anio)
+    except (TypeError, ValueError):
+        return None, Response({'error': 'mes y anio deben ser números válidos.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not 1 <= mes_num <= 12:
+        return None, Response({'error': 'mes debe estar entre 1 y 12.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    qs = Mensualidad.objects.filter(mes=mes_num, anio=anio_num, monto_usd__gt=0).select_related(
+        'alumno', 'alumno__representante'
+    )
+    qs = filtrar_por_sede(request.user, qs, campo='alumno__sede')
+    if sede := request.query_params.get('sede'):
+        qs = qs.filter(alumno__sede_id=sede)
+
+    grado = request.query_params.get('grado_seccion')
+    if grado:
+        qs = qs.filter(alumno__grado_seccion=grado)
+    buscar = (request.query_params.get('buscar') or '').strip()
+    if buscar:
+        qs = filtrar_busqueda(qs, buscar, [
+            'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
+            'alumno__representante__nombre', 'alumno__representante__apellido',
+            'alumno__representante__cedula',
+        ]).distinct()
+    estado = request.query_params.get('estado', 'todos')
+    if estado not in ('todos', 'pagado', 'pendiente'):
+        return None, Response({'error': 'estado debe ser todos, pagado o pendiente.'}, status=status.HTTP_400_BAD_REQUEST)
+    if estado != 'todos':
+        qs = qs.filter(pagado=(estado == 'pagado'))
+    return qs, None
+
+
+def _serializar_mensualidad_por_monto(mensualidad):
+    alumno = mensualidad.alumno
+    representante = alumno.representante
+    pagado = mensualidad.monto_usd if mensualidad.pagado else Decimal('0.00')
+    return {
+        'alumno_id': alumno.id,
+        'nombre': f'{alumno.nombre} {alumno.apellido}',
+        'cedula_escolar': alumno.cedula_escolar,
+        'grado_seccion': alumno.grado_seccion,
+        'representante': {
+            'id': representante.id,
+            'nombre': f'{representante.nombre} {representante.apellido}',
+            'cedula': representante.cedula,
+            'telefono': representante.telefono,
+        } if representante else None,
+        'monto_usd': str(mensualidad.monto_usd),
+        'monto_pagado_usd': str(pagado),
+        'saldo_usd': str(mensualidad.monto_usd - pagado),
+        'estado': 'pagado' if mensualidad.pagado else 'pendiente',
+        'fecha_pago': mensualidad.fecha_pago,
+    }
+
+
+class MensualidadesPorMontoView(APIView):
+    """Resumen por monto de mensualidad de un período, sin datos personales."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if _sin_permiso(request):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        qs, error = _mensualidades_por_monto_qs(request)
+        if error:
+            return error
+        grupos = qs.values('monto_usd').annotate(
+            estudiantes=Count('alumno_id', distinct=True), total_facturado_usd=Sum('monto_usd'),
+        ).order_by('monto_usd')
+        return Response({
+            'mes': int(request.query_params['mes']), 'anio': int(request.query_params['anio']),
+            'grupos': [{
+                'monto_usd': str(g['monto_usd']), 'estudiantes': g['estudiantes'],
+                'total_facturado_usd': str(g['total_facturado_usd']),
+            } for g in grupos],
+        })
+
+
+class DetalleMensualidadesPorMontoView(APIView):
+    """Alumnos de un importe seleccionado, con filtros y paginación."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if _sin_permiso(request):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        qs, error = _mensualidades_por_monto_qs(request)
+        if error:
+            return error
+        try:
+            monto = Decimal(request.query_params.get('monto', ''))
+        except Exception:
+            return Response({'error': 'monto es obligatorio y debe ser válido.'}, status=status.HTTP_400_BAD_REQUEST)
+        qs = qs.filter(monto_usd=monto).order_by('alumno__apellido', 'alumno__nombre', 'id')
+        resumen = qs.aggregate(
+            estudiantes=Count('alumno_id', distinct=True), total_facturado_usd=Sum('monto_usd'),
+            pagados=Count('id', filter=Q(pagado=True)), pendientes=Count('id', filter=Q(pagado=False)),
+        )
+        paginator = StandardResultsPagination()
+        pagina = paginator.paginate_queryset(qs, request, view=self)
+        response = paginator.get_paginated_response([_serializar_mensualidad_por_monto(item) for item in pagina])
+        response.data['resumen'] = {
+            'monto_usd': str(monto), 'estudiantes': resumen['estudiantes'],
+            'total_facturado_usd': str(resumen['total_facturado_usd'] or Decimal('0.00')),
+            'pagados': resumen['pagados'], 'pendientes': resumen['pendientes'],
+        }
+        return response
+
+
+class ExportarMensualidadesPorMontoExcelView(APIView):
+    """Excel legible: resumen y detalle con anchos, filtros y panel congelado."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if _sin_permiso(request):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        qs, error = _mensualidades_por_monto_qs(request)
+        if error:
+            return error
+        monto_param = request.query_params.get('monto')
+        if monto_param:
+            try:
+                qs = qs.filter(monto_usd=Decimal(monto_param))
+            except Exception:
+                return Response({'error': 'monto debe ser válido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.utils import get_column_letter
+
+        libro = Workbook()
+        resumen_ws = libro.active
+        resumen_ws.title = 'Resumen por monto'
+        detalle_ws = libro.create_sheet('Detalle de alumnos')
+        encabezado = PatternFill('solid', fgColor='1F4E79')
+        fuente_encabezado = Font(color='FFFFFF', bold=True)
+
+        grupos = list(qs.values('monto_usd').annotate(
+            estudiantes=Count('alumno_id', distinct=True), total_facturado_usd=Sum('monto_usd'),
+        ).order_by('monto_usd'))
+        resumen_ws.append(['Mensualidad (USD)', 'Estudiantes', 'Total facturado (USD)'])
+        for grupo in grupos:
+            resumen_ws.append([float(grupo['monto_usd']), grupo['estudiantes'], float(grupo['total_facturado_usd'])])
+        detalle_ws.append(['Nombre', 'Apellido', 'Cédula escolar', 'Grado / Sección', 'Representante', 'Teléfono', 'Mensualidad (USD)', 'Pagado (USD)', 'Saldo (USD)', 'Estado', 'Fecha de pago'])
+        for item in qs.order_by('monto_usd', 'alumno__apellido', 'alumno__nombre'):
+            alumno, representante = item.alumno, item.alumno.representante
+            pagado = item.monto_usd if item.pagado else Decimal('0.00')
+            detalle_ws.append([
+                alumno.nombre, alumno.apellido, alumno.cedula_escolar, alumno.grado_seccion,
+                f'{representante.nombre} {representante.apellido}' if representante else '',
+                representante.telefono if representante else '', float(item.monto_usd), float(pagado),
+                float(item.monto_usd - pagado), 'Pagado' if item.pagado else 'Pendiente', item.fecha_pago or '',
+            ])
+        for hoja in (resumen_ws, detalle_ws):
+            hoja.freeze_panes = 'A2'
+            hoja.auto_filter.ref = hoja.dimensions
+            for celda in hoja[1]:
+                celda.fill = encabezado
+                celda.font = fuente_encabezado
+                celda.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            for columna in range(1, hoja.max_column + 1):
+                largo = max((len(str(hoja.cell(fila, columna).value or '')) for fila in range(1, hoja.max_row + 1)), default=10)
+                hoja.column_dimensions[get_column_letter(columna)].width = min(max(largo + 2, 12), 32)
+            for fila in hoja.iter_rows(min_row=2):
+                for celda in fila:
+                    celda.alignment = Alignment(vertical='top', wrap_text=True)
+            for columna in (1, 3) if hoja is resumen_ws else (7, 8, 9):
+                for celda in hoja.iter_cols(min_col=columna, max_col=columna, min_row=2):
+                    for valor in celda:
+                        valor.number_format = '$#,##0.00'
+        respuesta = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        respuesta['Content-Disposition'] = f'attachment; filename="mensualidades_por_monto_{request.query_params["anio"]}_{request.query_params["mes"]}.xlsx"'
+        libro.save(respuesta)
+        return respuesta
 
 
 class EstadoPorConceptoView(APIView):

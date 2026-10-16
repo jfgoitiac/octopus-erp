@@ -65,9 +65,12 @@ from .views import (
 )
 from .solvencia_reportes import (
     ConceptosCobrablesView,
+    DetalleMensualidadesPorMontoView,
     EstadoCuentaRepresentanteView,
     EstadoPorConceptoView,
+    ExportarMensualidadesPorMontoExcelView,
     ExportarEstadoPorConceptoExcelView,
+    MensualidadesPorMontoView,
     ResumenPorConceptoView,
     SolvenciaMensualView,
 )
@@ -96,6 +99,9 @@ urlpatterns = [
     path('inteligente/convenios/cuotas/<int:cuota_id>/pagar/', CuotaConvenioPagadaView.as_view(), name='cobranza-inteligente-cuota-pagar'),
     path('inteligente/convenios/<int:convenio_id>/cancelar/', CancelarConvenioView.as_view(), name='cobranza-inteligente-convenio-cancelar'),
     path('inteligente/dashboard/',         DashboardInteligenteView.as_view(),     name='cobranza-inteligente-dashboard'),
+    path('inteligente/mensualidades-por-monto/detalle/', DetalleMensualidadesPorMontoView.as_view(), name='mensualidades-por-monto-detalle'),
+    path('inteligente/mensualidades-por-monto/exportar-excel/', ExportarMensualidadesPorMontoExcelView.as_view(), name='mensualidades-por-monto-exportar-excel'),
+    path('inteligente/mensualidades-por-monto/', MensualidadesPorMontoView.as_view(), name='mensualidades-por-monto'),
     path('inteligente/linea-base/',        LineaBaseView.as_view(),                name='cobranza-inteligente-linea-base'),
     path('inteligente/envios/',            EnviosCobranzaView.as_view(),           name='cobranza-inteligente-envios'),
     path('inteligente/sombra/resumen/',    ResumenSombraView.as_view(),            name='cobranza-inteligente-sombra-resumen'),
