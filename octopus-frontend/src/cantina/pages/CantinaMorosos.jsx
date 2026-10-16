@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { UserX } from 'lucide-react';
 import { getReporteMorosos } from '../../api/cantina.service';
 import MorosidadTable from '../../components/cantina/reportes/MorosidadTable';
+import MorososCxcTable from '../../components/cantina/reportes/MorososCxcTable';
 import AjustarCreditoModal from '../../components/cantina/tarjetas/AjustarCreditoModal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '15px' };
@@ -17,6 +18,7 @@ export default function CantinaMorosos() {
   const [diasMinAplicado, setDiasMinAplicado] = useState('');
   const [count, setCount] = useState(0);
   const [resultados, setResultados] = useState([]);
+  const [cuentasCxc, setCuentasCxc] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [tarjetaAAjustar, setTarjetaAAjustar] = useState(null);
   const abortRef = useRef(null);
@@ -30,6 +32,7 @@ export default function CantinaMorosos() {
       .then(res => {
         setCount(res.data?.count ?? 0);
         setResultados(Array.isArray(res.data?.resultados) ? res.data.resultados : []);
+        setCuentasCxc(Array.isArray(res.data?.cuentas_cxc) ? res.data.cuentas_cxc : []);
       })
       .catch(err => {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -121,6 +124,8 @@ export default function CantinaMorosos() {
         cargando={cargando}
         onAjustarCredito={abrirAjustarCredito}
       />
+
+      <MorososCxcTable filas={cuentasCxc} />
 
       {tarjetaAAjustar && (
         <AjustarCreditoModal

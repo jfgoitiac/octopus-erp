@@ -14,7 +14,7 @@ from rest_framework import serializers
 from cobranza.models import TasaCambio
 from secretaria.models import Alumno
 
-from .models import AREAS, CargoCantina, ParametroCantina
+from .models import AREAS, CargoCantina, ClienteCantina, ParametroCantina
 
 CERO = Decimal('0.00')
 _MONEDA = DecimalField(max_digits=12, decimal_places=2)
@@ -25,11 +25,48 @@ AREAS_VALIDAS = {a[0] for a in AREAS}
 # Entrada
 # ─────────────────────────────────────────────
 class AbonoInputSerializer(serializers.Serializer):
-    representante_id = serializers.IntegerField()
+    # Exactamente uno de representante_id / cliente_id.
+    representante_id = serializers.IntegerField(required=False, allow_null=True)
+    cliente_id = serializers.IntegerField(required=False, allow_null=True)
     fecha_pago = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     motivo = serializers.CharField(required=False, allow_blank=True, default='')
     area = serializers.ChoiceField(choices=AREAS, required=False, allow_null=True)
     lineas = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+
+
+    def validate(self, attrs):
+        if bool(attrs.get('representante_id')) == bool(attrs.get('cliente_id')):
+            raise serializers.ValidationError('Indique exactamente uno de representante_id o cliente_id.')
+        return attrs
+
+
+class ClienteInputSerializer(serializers.ModelSerializer):
+    """Alta/edición de un cliente general (el límite y el bloqueo van por otro endpoint)."""
+    apellido = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    documento = serializers.CharField(max_length=30, required=False, allow_blank=True, allow_null=True)
+    telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+
+    class Meta:
+        model = ClienteCantina
+        fields = ('nombre', 'apellido', 'documento', 'telefono', 'email', 'tipo', 'activo')
+
+    def validate_nombre(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError('El nombre es obligatorio.')
+        return valor
+
+    def validate_documento(self, valor):
+        valor = (valor or '').strip().upper()
+        if not valor:
+            return None  # varios clientes sin documento: se guarda NULL, no ''
+        existe = ClienteCantina.objects.filter(documento__iexact=valor)
+        if self.instance is not None:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise serializers.ValidationError('Ya existe un cliente con ese documento.')
+        return valor
 
 
 class AnularAbonoInputSerializer(serializers.Serializer):
@@ -44,13 +81,13 @@ class CreditoInputSerializer(serializers.Serializer):
 # ─────────────────────────────────────────────
 # Anotaciones de saldo (una sola consulta)
 # ─────────────────────────────────────────────
-def _subquery_saldo(area=None):
-    qs = CargoCantina.objects.filter(representante=OuterRef('pk')).exclude(estado='anulado')
+def _subquery_saldo(area=None, campo='representante'):
+    qs = CargoCantina.objects.filter(**{campo: OuterRef('pk')}).exclude(estado='anulado')
     if area:
         qs = qs.filter(area=area)
     return Coalesce(
         Subquery(
-            qs.order_by().values('representante').annotate(
+            qs.order_by().values(campo).annotate(
                 s=Sum(ExpressionWrapper(F('monto_usd') - F('monto_pagado'), output_field=_MONEDA))
             ).values('s')[:1],
             output_field=_MONEDA,
@@ -75,6 +112,23 @@ def anotar_saldos(qs, area=None):
         ),
         limite_override=F('credito_cantina__limite_usd'),
         esta_bloqueado=F('credito_cantina__bloqueado'),
+    )
+
+
+def anotar_saldos_clientes(qs, area=None):
+    """Igual que `anotar_saldos` pero para `ClienteCantina` (límite/bloqueo viven en el cliente)."""
+    pendientes = CargoCantina.objects.filter(cliente=OuterRef('pk'), estado='pendiente')
+    if area:
+        pendientes = pendientes.filter(area=area)
+    return qs.annotate(
+        saldo_total=_subquery_saldo(area, 'cliente'),
+        saldo_cantina=_subquery_saldo('cantina', 'cliente'),
+        saldo_libreria=_subquery_saldo('libreria', 'cliente'),
+        deuda_mas_antigua=Subquery(
+            pendientes.order_by().values('cliente').annotate(m=Min('creado_en')).values('m')[:1]
+        ),
+        limite_override=F('limite_usd'),
+        esta_bloqueado=F('bloqueado'),
     )
 
 
@@ -118,6 +172,7 @@ def serializar_representante_resumen(rep, default_limite, tasa=None, con_totales
     """`rep` debe venir de `anotar_saldos` con `alumnos_activos` prefetcheado."""
     limite = rep.limite_override if rep.limite_override is not None else default_limite
     data = {
+        'tipo': 'representante',
         'id': rep.id,
         'cedula': rep.cedula,
         'nombre': rep.nombre,
@@ -129,15 +184,43 @@ def serializar_representante_resumen(rep, default_limite, tasa=None, con_totales
         'alumnos': [serializar_alumno(a) for a in getattr(rep, 'alumnos_activos', [])],
     }
     if con_totales:
-        dias = None
-        if rep.deuda_mas_antigua:
-            dias = max((timezone.now() - rep.deuda_mas_antigua).days, 0)
-        data.update({
-            'saldo_ves_tasa_vigente': a_ves(rep.saldo_total, tasa),
-            'saldo_cantina_usd': str(rep.saldo_cantina),
-            'saldo_libreria_usd': str(rep.saldo_libreria),
-            'dias_deuda_mas_antigua': dias,
-        })
+        data.update(_totales(rep, tasa))
+    return data
+
+
+def _totales(titular, tasa):
+    dias = None
+    if titular.deuda_mas_antigua:
+        dias = max((timezone.now() - titular.deuda_mas_antigua).days, 0)
+    return {
+        'saldo_ves_tasa_vigente': a_ves(titular.saldo_total, tasa),
+        'saldo_cantina_usd': str(titular.saldo_cantina),
+        'saldo_libreria_usd': str(titular.saldo_libreria),
+        'dias_deuda_mas_antigua': dias,
+    }
+
+
+def serializar_cliente_resumen(cli, default_limite, tasa=None, con_totales=False):
+    """`cli` debe venir de `anotar_saldos_clientes`. Misma forma que el resumen de
+    representante (`cedula` = documento) más tipo/activo/email."""
+    limite = cli.limite_override if cli.limite_override is not None else default_limite
+    data = {
+        'tipo': cli.tipo,
+        'id': cli.id,
+        'cedula': cli.documento or '',
+        'nombre': cli.nombre,
+        'apellido': cli.apellido,
+        'telefono': cli.telefono,
+        'email': cli.email,
+        'activo': cli.activo,
+        'saldo_usd': str(cli.saldo_total),
+        'limite_usd': str(limite),
+        'limite_personalizado': cli.limite_override is not None,
+        'bloqueado': bool(cli.esta_bloqueado),
+        'alumnos': [],
+    }
+    if con_totales:
+        data.update(_totales(cli, tasa))
     return data
 
 

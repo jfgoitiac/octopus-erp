@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 from cobranza.exports import ExcelExporter
 from cobranza.models import BancoInstitucional, Pago, TasaCambio
 from secretaria.models import Alumno, Representante
-from .mora_cantina import dias_en_negativo
+from .mora_cantina import cuentas_cxc_morosas, dias_en_negativo
 from . import services_cxc
 from .models import (
     AREAS,
@@ -30,6 +30,7 @@ from .models import (
     DetalleVentaCantina,
     HistorialCodigoTarjeta,
     LoteTarjetas,
+    ClienteCantina,
     ParametroCantina,
     ProductoCantina,
     RecargaTarjeta,
@@ -991,6 +992,7 @@ class RegistrarVentaView(APIView):
         tarjeta = None
         alumno = None
         representante = None
+        cliente = None
         if metodo_pago == 'tarjeta_prepago':
             tarjeta_codigo = request.data.get('tarjeta_codigo')
             tarjeta_id = request.data.get('tarjeta_id')
@@ -1016,23 +1018,41 @@ class RegistrarVentaView(APIView):
         # ── Cargo a cuenta del representante (CxC) ──────────────────────────
         if metodo_pago == 'credito_representante':
             representante_id = request.data.get('representante_id')
-            if not representante_id:
+            cliente_id = request.data.get('cliente_id')
+            if bool(representante_id) == bool(cliente_id):
                 return Response(
-                    {'error': "El cargo a cuenta requiere 'representante_id'."},
+                    {'error': "El cargo a cuenta requiere exactamente uno de 'representante_id' o 'cliente_id'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            representante_pk = _entero_o_none(representante_id)
-            representante = (
-                Representante.objects.filter(pk=representante_pk, activo=True).first()
-                if representante_pk is not None else None
-            )
-            if not representante:
-                return Response(
-                    {'error': f"No se encontró ningún representante activo con id '{_texto_seguro(representante_id)}'."},
-                    status=status.HTTP_400_BAD_REQUEST,
+            if cliente_id:
+                cliente_pk = _entero_o_none(cliente_id)
+                cliente = (
+                    ClienteCantina.objects.filter(pk=cliente_pk, activo=True).first()
+                    if cliente_pk is not None else None
                 )
+                if not cliente:
+                    return Response(
+                        {'error': f"No se encontró ningún cliente activo con id '{_texto_seguro(cliente_id)}'."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if request.data.get('alumno_id'):
+                    return Response(
+                        {'error': "Un cargo a un cliente no admite 'alumno_id'."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                representante_pk = _entero_o_none(representante_id)
+                representante = (
+                    Representante.objects.filter(pk=representante_pk, activo=True).first()
+                    if representante_pk is not None else None
+                )
+                if not representante:
+                    return Response(
+                        {'error': f"No se encontró ningún representante activo con id '{_texto_seguro(representante_id)}'."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
             alumno_id = request.data.get('alumno_id')
-            if alumno_id:
+            if alumno_id and representante is not None:
                 alumno_pk = _entero_o_none(alumno_id)
                 alumno = (
                     Alumno.objects.filter(pk=alumno_pk, representante=representante).first()
@@ -1132,6 +1152,8 @@ class RegistrarVentaView(APIView):
                 # Orden global de locks: representante → cargos → productos.
                 if representante is not None:
                     services_cxc.lock_representante(representante)
+                if cliente is not None:
+                    services_cxc.lock_cliente(cliente)
                 if referencia:
                     # Repite el chequeo de duplicados dentro de la transacción (carrera entre cajas).
                     dup = buscar_referencia_duplicada(
@@ -1156,6 +1178,7 @@ class RegistrarVentaView(APIView):
                     referencia=referencia,
                     numero_lote=numero_lote,
                     representante=representante,
+                    cliente=cliente,
                     total_usd=total_usd,
                     tasa_aplicada=tasa.valor_bs,
                     total_ves=total_ves,
@@ -1193,7 +1216,7 @@ class RegistrarVentaView(APIView):
             mensaje = exc.messages[0] if hasattr(exc, 'messages') and exc.messages else str(exc)
             return Response({'error': mensaje}, status=status.HTTP_400_BAD_REQUEST)
 
-        venta = VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero', 'representante').prefetch_related(
+        venta = VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero', 'representante', 'cliente').prefetch_related(
             'detalles__producto',
         ).get(pk=venta.pk)
         return Response(VentaCantinaSerializer(venta).data, status=status.HTTP_201_CREATED)
@@ -1239,6 +1262,8 @@ class AnularVentaView(APIView):
                     # Orden global: representante → cargos → productos.
                     if venta.representante_id:
                         services_cxc.lock_representante(venta.representante_id)
+                    elif venta.cliente_id:
+                        services_cxc.lock_cliente(venta.cliente_id)
                     # Falla (400) si el cargo ya tiene abonos aplicados.
                     services_cxc.anular_cargo_por_venta(venta, request.user)
 
@@ -1261,7 +1286,7 @@ class AnularVentaView(APIView):
             return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         venta = VentaCantina.objects.select_related(
-            'alumno', 'tarjeta', 'cajero', 'anulada_por', 'representante',
+            'alumno', 'tarjeta', 'cajero', 'anulada_por', 'representante', 'cliente',
         ).prefetch_related('detalles__producto').get(pk=venta.pk)
         return Response(VentaCantinaSerializer(venta).data, status=status.HTTP_200_OK)
 
@@ -1788,10 +1813,14 @@ class ReporteMorosidadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             filas = [fila for fila in filas if fila['dias_en_negativo'] >= dias_min]
+        else:
+            dias_min = None
 
         filas.sort(key=lambda fila: fila['dias_en_negativo'], reverse=True)
 
         return Response({
             'count': len(filas),
             'resultados': TarjetaMorosaSerializer(filas, many=True).data,
+            # Cuentas por cobrar vencidas (representantes y clientes generales).
+            'cuentas_cxc': cuentas_cxc_morosas(dias_min),
         })

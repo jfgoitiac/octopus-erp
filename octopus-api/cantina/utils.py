@@ -156,6 +156,9 @@ def generar_pdf_ticket(venta):
     if venta.representante_id:
         c.drawString(margin, y, f'Cargado a la cuenta de: {venta.representante.nombre} {venta.representante.apellido}')
         y -= 0.22 * inch
+    if venta.cliente_id:
+        c.drawString(margin, y, f'Cargado a la cuenta de: {venta.cliente.nombre_completo}')
+        y -= 0.22 * inch
 
     metodo_labels = dict(type(venta).METODOS_PAGO)
     c.drawString(margin, y, f'Método de pago: {metodo_labels.get(venta.metodo_pago, venta.metodo_pago)}')

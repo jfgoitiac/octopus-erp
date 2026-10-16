@@ -106,7 +106,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
   };
 
   const validar = () => {
-    if (saldo <= 0) return 'El representante no tiene deuda pendiente.';
+    if (saldo <= 0) return 'La cuenta no tiene deuda pendiente.';
     for (const [i, l] of lineas.entries()) {
       if (!l.metodo_pago) return `Elige el método de pago de la línea ${i + 1}.`;
       if (usdDeLinea(l, tasaUsada) <= 0) return `Indica un monto válido en la línea ${i + 1}.`;
@@ -127,7 +127,9 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
 
   const construirPayload = () => {
     const payload = {
-      representante_id: representante.id,
+      ...(representante.tipo && representante.tipo !== 'representante'
+        ? { cliente_id: representante.id }
+        : { representante_id: representante.id }),
       lineas: lineas.map(l => {
         const bs = esBolivares(l.metodo_pago);
         const linea = { metodo_pago: l.metodo_pago };

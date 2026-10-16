@@ -1,20 +1,29 @@
 import { useState, useEffect, useRef, useId } from 'react';
-import { Search, Users } from 'lucide-react';
+import { Search, Users, UserPlus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { buscarRepresentantesCxc } from '../../../api/cantina.service';
-import { fmtUsd, nombreCompleto, num, listaDe, esCancelacion, mensajeError } from './utilsCxc';
+import {
+  fmtUsd, nombreCompleto, num, listaDe, esCancelacion, mensajeError, TIPO_LABELS, claveCuenta,
+} from './utilsCxc';
+import ClienteFormModal from './ClienteFormModal';
 
 const MIN_CHARS = 2;
 const DEBOUNCE_MS = 300;
 
 // Buscador de representante por nombre, apellido, cédula o datos de su alumno
-// (GET cxc/buscar/). Props fijas del contrato: { onSelect, autoFocus, placeholder }.
+// (GET cxc/buscar/). También devuelve clientes generales (personal/otro): cada
+// resultado trae `tipo`. Props: { onSelect, autoFocus, placeholder, paraVenta,
+// permitirAgregarCliente }. `paraVenta` oculta clientes inactivos; con
+// `permitirAgregarCliente` se muestra "Agregar cliente" y el nuevo se selecciona solo.
 const BuscadorRepresentanteCxc = ({
   onSelect,
   autoFocus = false,
-  placeholder = 'Buscar representante o alumno…',
+  placeholder = 'Buscar representante, cliente o alumno…',
+  paraVenta = false,
+  permitirAgregarCliente = false,
 }) => {
   const [texto, setTexto] = useState('');
+  const [agregando, setAgregando] = useState(false);
   const [encontrados, setEncontrados] = useState({ para: '', lista: [] });
   const [cargando, setCargando] = useState(false);
   const [abierto, setAbierto] = useState(false);
@@ -33,7 +42,7 @@ const BuscadorRepresentanteCxc = ({
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setCargando(true);
-      buscarRepresentantesCxc(consulta, controller.signal)
+      buscarRepresentantesCxc(consulta, controller.signal, { paraVenta })
         .then(res => {
           setEncontrados({ para: consulta, lista: listaDe(res.data) });
           setActivo(-1);
@@ -52,7 +61,7 @@ const BuscadorRepresentanteCxc = ({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [consulta, buscable]);
+  }, [consulta, buscable, paraVenta]);
 
   // Cierra la lista al hacer click fuera del buscador.
   useEffect(() => {
@@ -90,7 +99,8 @@ const BuscadorRepresentanteCxc = ({
 
   return (
     <div ref={contenedorRef} className="relative w-full">
-      <div className="relative">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className="relative flex-1 min-w-0">
         <Search
           size={16}
           className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -114,6 +124,25 @@ const BuscadorRepresentanteCxc = ({
           style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
         />
       </div>
+      {permitirAgregarCliente && (
+        <button
+          type="button"
+          onClick={() => setAgregando(true)}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium min-h-[40px] w-full sm:w-auto shrink-0"
+          style={{ border: '0.5px solid var(--pb)', color: 'var(--pb)' }}
+        >
+          <UserPlus size={15} /> Agregar cliente
+        </button>
+      )}
+      </div>
+
+      {agregando && (
+        <ClienteFormModal
+          open
+          onClose={() => setAgregando(false)}
+          onGuardado={nuevo => elegir(nuevo)}
+        />
+      )}
 
       {mostrarLista && (
         <div
@@ -136,7 +165,7 @@ const BuscadorRepresentanteCxc = ({
           )}
           {!buscando && resultados.map((rep, idx) => (
             <button
-              key={rep.id}
+              key={claveCuenta(rep)}
               id={`${listaId}-${idx}`}
               role="option"
               aria-selected={idx === activo}
@@ -151,8 +180,19 @@ const BuscadorRepresentanteCxc = ({
                   <span className="block text-sm font-medium truncate" style={{ color: 'var(--jet)' }}>
                     {nombreCompleto(rep)}
                   </span>
-                  <span className="block text-xs" style={{ color: 'var(--ash)' }}>
-                    C.I. {rep.cedula || '—'}
+                  <span className="flex flex-wrap items-center gap-1.5 text-xs" style={{ color: 'var(--ash)' }}>
+                    <span
+                      className="px-1.5 py-0.5 rounded-full font-medium"
+                      style={{ color: 'var(--pb)', background: 'var(--pb-light)' }}
+                    >
+                      {TIPO_LABELS[rep.tipo] || TIPO_LABELS.representante}
+                    </span>
+                    {rep.activo === false && (
+                      <span className="px-1.5 py-0.5 rounded-full font-medium" style={{ color: 'var(--ash)', background: 'var(--surface-sunken)' }}>
+                        Inactivo
+                      </span>
+                    )}
+                    <span>C.I. {rep.cedula || '—'}</span>
                   </span>
                 </span>
                 <span

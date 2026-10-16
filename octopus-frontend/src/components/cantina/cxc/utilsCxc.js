@@ -6,6 +6,13 @@ export const ROLES_ADMIN_CANTINA = ['administrador', 'director'];
 
 export const AREA_LABELS = { cantina: 'Cantina', libreria: 'Librería' };
 
+// Tipos de titular de una cuenta por cobrar. Los representantes viven en su
+// propia tabla; 'personal' y 'otro' son clientes generales (ClienteCantina).
+export const TIPO_LABELS = { representante: 'Representante', personal: 'Personal', otro: 'Otro' };
+export const esCliente = (t) => Boolean(t?.tipo) && t.tipo !== 'representante';
+// Clave estable de una cuenta (los ids de representante y cliente pueden coincidir).
+export const claveCuenta = (t) => `${t?.tipo || 'representante'}-${t?.id}`;
+
 export const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;

@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Modal } from '../../ui/Modal';
-import { actualizarCreditoCxc } from '../../../api/cantina.service';
+import { actualizarCreditoCxc, actualizarCreditoClienteCxc } from '../../../api/cantina.service';
 import { mensajeError, fmtUsd } from './utilsCxc';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '15px' };
 
 // Edita el límite de crédito (vacío = usa el default del colegio) y el bloqueo.
 // Solo se monta para administrador/director.
-const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, limitePersonalizado, bloqueado, onGuardado }) => {
+const CreditoRepresentanteModal = ({ open, onClose, representanteId, tipo = 'representante', limiteUsd, limitePersonalizado, bloqueado, onGuardado }) => {
   const inicial = limitePersonalizado && limiteUsd != null ? String(limiteUsd) : '';
   const [limite, setLimite] = useState(inicial);
   const [bloq, setBloq] = useState(Boolean(bloqueado));
@@ -27,8 +27,8 @@ const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, 
       if (limite.trim().replace(',', '.') !== inicial) {
         payload.limite_usd = texto === '' ? null : Number(texto).toFixed(2);
       }
-      await actualizarCreditoCxc(representanteId, payload);
-      toast.success('Crédito del representante actualizado.');
+      await (tipo === 'representante' ? actualizarCreditoCxc : actualizarCreditoClienteCxc)(representanteId, payload);
+      toast.success('Crédito actualizado.');
       onGuardado?.();
       onClose();
     } catch (err) {
@@ -73,7 +73,7 @@ const CreditoRepresentanteModal = ({ open, onClose, representanteId, limiteUsd, 
         </div>
         <label className="flex items-start gap-2 text-sm cursor-pointer" style={{ color: 'var(--jet)' }}>
           <input type="checkbox" checked={bloq} onChange={e => setBloq(e.target.checked)} className="mt-0.5 h-4 w-4" />
-          <span>Bloquear ventas a crédito a este representante</span>
+          <span>Bloquear ventas a crédito a esta cuenta</span>
         </label>
       </div>
     </Modal>

@@ -180,7 +180,8 @@ class BuscadorTests(CxcBase):
                 telefono='1', correo='z@example.com', direccion='Z',
             )
             Alumno.objects.create(nombre='Hijo', apellido=f'A{i}', representante=r)
-        with self.assertNumQueries(4):
+        # 4 de representantes + 1 de clientes generales (búsqueda unificada).
+        with self.assertNumQueries(5):
             self.buscar('zeta')
 
 

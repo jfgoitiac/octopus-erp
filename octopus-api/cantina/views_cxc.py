@@ -4,7 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from types import SimpleNamespace
+
 from django.db.models import Exists, OuterRef, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -30,6 +32,7 @@ from .models import (
     AbonoCantina,
     AperturaCajaCantina,
     CargoCantina,
+    ClienteCantina,
     CreditoRepresentanteCantina,
 )
 from .permissions import EsAdminCantina, EsCajeroOAdmin
@@ -37,14 +40,17 @@ from .serializers_cxc import (
     AREAS_VALIDAS,
     AbonoInputSerializer,
     AnularAbonoInputSerializer,
+    ClienteInputSerializer,
     CreditoInputSerializer,
     a_ves,
     agrupar_abonos,
     anotar_saldos,
+    anotar_saldos_clientes,
     limite_default,
     nombre_usuario,
     prefetch_alumnos,
     serializar_cargo,
+    serializar_cliente_resumen,
     serializar_linea_abono,
     serializar_representante_resumen,
     tasa_vigente_valor,
@@ -63,6 +69,27 @@ def _area_param(request):
     if area not in AREAS_VALIDAS:
         raise ValidationError({'area': "Área inválida; use 'cantina' o 'libreria'."})
     return area
+
+
+TIPOS_CLIENTE = {t[0] for t in ClienteCantina.TIPOS}
+TIPOS_FILTRO = {'representante'} | TIPOS_CLIENTE
+
+
+def _tipo_param(request):
+    tipo = (request.query_params.get('tipo') or '').strip()
+    if not tipo:
+        return None
+    if tipo not in TIPOS_FILTRO:
+        raise ValidationError({'tipo': "Tipo inválido; use 'representante', 'personal' u 'otro'."})
+    return tipo
+
+
+def _cliente_anotado(pk, area=None):
+    cli = anotar_saldos_clientes(ClienteCantina.objects.filter(pk=pk), area).first()
+    if cli is None:
+        from django.http import Http404
+        raise Http404('Cliente no encontrado.')
+    return cli
 
 
 def _representante_anotado(pk, area=None):
@@ -105,7 +132,23 @@ class BuscarRepresentanteCxcView(APIView):
         ids = list(dict.fromkeys(ids))[:MAX_RESULTADOS_BUSCADOR]
         reps = anotar_saldos(Representante.objects.filter(pk__in=ids)).prefetch_related(prefetch_alumnos()).order_by('apellido', 'nombre')
         default = limite_default()
-        return Response([serializar_representante_resumen(r, default) for r in reps])
+        resultados = [serializar_representante_resumen(r, default) for r in reps]
+
+        # Clientes generales. `para_venta=1` excluye inactivos (no admiten ventas nuevas);
+        # sin él, un inactivo con saldo pendiente sigue apareciendo para poder cobrarle.
+        clientes = ClienteCantina.objects.all()
+        if request.query_params.get('para_venta') in ('1', 'true', 'True'):
+            clientes = clientes.filter(activo=True)
+        else:
+            con_saldo_cli = Exists(CargoCantina.objects.filter(cliente=OuterRef('pk'), estado='pendiente'))
+            clientes = clientes.filter(Q(activo=True) | con_saldo_cli)
+        for palabra in q.split():
+            clientes = clientes.filter(
+                pk__in=filtrar_busqueda(ClienteCantina.objects.all(), palabra, ['documento', 'nombre', 'apellido']).values('pk')
+            )
+        clis = anotar_saldos_clientes(clientes).order_by('apellido', 'nombre')[:MAX_RESULTADOS_BUSCADOR]
+        resultados.extend(serializar_cliente_resumen(c, default) for c in clis)
+        return Response(resultados)
 
 
 # ─────────────────────────────────────────────
@@ -117,28 +160,68 @@ class _PaginacionCuentas(PageNumberPagination):
     max_page_size = 100
 
 
-def _cuentas_queryset(request):
+def _filas_cuentas(request):
+    """Cuentas con cargos (representantes y/o clientes según `tipo`), ordenadas por
+    deuda descendente. Devuelve tuplas ligeras (tipo, pk, saldo, apellido, nombre);
+    la hidratación completa se hace solo para la página pedida."""
     area = _area_param(request)
-    cargos_rep = CargoCantina.objects.filter(representante=OuterRef('pk')).exclude(estado='anulado')
-    if area:
-        cargos_rep = cargos_rep.filter(area=area)
-    qs = Representante.objects.annotate(tiene_cargos=Exists(cargos_rep)).filter(tiene_cargos=True)
-    qs = anotar_saldos(qs, area)
-    if request.query_params.get('con_deuda') in ('1', 'true', 'True'):
-        qs = qs.filter(saldo_total__gt=0)
-    return qs.order_by('-saldo_total', 'apellido', 'nombre')
+    tipo = _tipo_param(request)
+    solo_deuda = request.query_params.get('con_deuda') in ('1', 'true', 'True')
+    filas = []
+
+    if tipo in (None, 'representante'):
+        cargos_rep = CargoCantina.objects.filter(representante=OuterRef('pk')).exclude(estado='anulado')
+        if area:
+            cargos_rep = cargos_rep.filter(area=area)
+        qs = Representante.objects.annotate(tiene_cargos=Exists(cargos_rep)).filter(tiene_cargos=True)
+        qs = anotar_saldos(qs, area)
+        if solo_deuda:
+            qs = qs.filter(saldo_total__gt=0)
+        filas += [('representante', r.pk, r.saldo_total, r.apellido, r.nombre) for r in qs]
+
+    if tipo in (None, 'personal', 'otro'):
+        cargos_cli = CargoCantina.objects.filter(cliente=OuterRef('pk')).exclude(estado='anulado')
+        if area:
+            cargos_cli = cargos_cli.filter(area=area)
+        qs = ClienteCantina.objects.annotate(tiene_cargos=Exists(cargos_cli)).filter(tiene_cargos=True)
+        if tipo:
+            qs = qs.filter(tipo=tipo)
+        qs = anotar_saldos_clientes(qs, area)
+        if solo_deuda:
+            qs = qs.filter(saldo_total__gt=0)
+        filas += [(c.tipo, c.pk, c.saldo_total, c.apellido, c.nombre) for c in qs]
+
+    filas.sort(key=lambda f: (-f[2], f[3], f[4]))
+    return filas, area
+
+
+def _hidratar_cuentas(filas, area):
+    """Carga representantes/clientes de las filas y conserva el orden recibido."""
+    ids_rep = [f[1] for f in filas if f[0] == 'representante']
+    ids_cli = [f[1] for f in filas if f[0] != 'representante']
+    reps = {
+        r.pk: r for r in anotar_saldos(Representante.objects.filter(pk__in=ids_rep), area)
+        .prefetch_related(prefetch_alumnos())
+    }
+    clis = {c.pk: c for c in anotar_saldos_clientes(ClienteCantina.objects.filter(pk__in=ids_cli), area)}
+    return [reps[f[1]] if f[0] == 'representante' else clis[f[1]] for f in filas]
 
 
 class CuentasCxcView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        qs = _cuentas_queryset(request).prefetch_related(prefetch_alumnos())
+        filas, area = _filas_cuentas(request)
         paginador = _PaginacionCuentas()
-        pagina = paginador.paginate_queryset(qs, request, view=self)
+        pagina = paginador.paginate_queryset(filas, request, view=self)
         default = limite_default()
         tasa = tasa_vigente_valor()
-        data = [serializar_representante_resumen(r, default, tasa, con_totales=True) for r in pagina]
+        data = [
+            serializar_representante_resumen(t, default, tasa, con_totales=True)
+            if isinstance(t, Representante)
+            else serializar_cliente_resumen(t, default, tasa, con_totales=True)
+            for t in _hidratar_cuentas(pagina, area)
+        ]
         return paginador.get_paginated_response(data)
 
 
@@ -146,18 +229,27 @@ class CuentasCxcExcelView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsAdminCantina]
 
     def get(self, request):
-        qs = _cuentas_queryset(request)
+        filas, area = _filas_cuentas(request)
         ahora = timezone.now()
-        columns = [
-            ('Cédula', 'cedula'),
-            ('Representante', lambda r: f'{r.nombre} {r.apellido}'),
-            ('Teléfono', 'telefono'),
-            ('Deuda USD', 'saldo_total'),
-            ('Deuda Cantina USD', 'saldo_cantina'),
-            ('Deuda Librería USD', 'saldo_libreria'),
-            ('Días de la deuda más antigua', lambda r: max((ahora - r.deuda_mas_antigua).days, 0) if r.deuda_mas_antigua else ''),
+        etiquetas = {'representante': 'Representante', 'personal': 'Personal', 'otro': 'Otro'}
+        titulares = [
+            SimpleNamespace(
+                tipo=etiquetas[f[0]], t=t,
+                documento=t.cedula if f[0] == 'representante' else (t.documento or ''),
+            )
+            for f, t in zip(filas, _hidratar_cuentas(filas, area))
         ]
-        return ExcelExporter.export(qs, columns, 'cuentas_por_cobrar_cantina')
+        columns = [
+            ('Tipo', 'tipo'),
+            ('Cédula / Documento', 'documento'),
+            ('Titular', lambda r: f'{r.t.nombre} {r.t.apellido}'.strip()),
+            ('Teléfono', lambda r: r.t.telefono),
+            ('Deuda USD', lambda r: r.t.saldo_total),
+            ('Deuda Cantina USD', lambda r: r.t.saldo_cantina),
+            ('Deuda Librería USD', lambda r: r.t.saldo_libreria),
+            ('Días de la deuda más antigua', lambda r: max((ahora - r.t.deuda_mas_antigua).days, 0) if r.t.deuda_mas_antigua else ''),
+        ]
+        return ExcelExporter.export(titulares, columns, 'cuentas_por_cobrar_cantina')
 
 
 # ─────────────────────────────────────────────
@@ -192,6 +284,125 @@ class EstadoCuentaCxcView(APIView):
             'bloqueado': resumen['bloqueado'],
             'cargos': [serializar_cargo(c) for c in cargos],
             'abonos': agrupar_abonos(abonos),
+        })
+
+
+class EstadoCuentaClienteView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request, cliente_id):
+        area = _area_param(request)
+        cli = _cliente_anotado(cliente_id, area)
+        tasa = tasa_vigente_valor()
+
+        cargos = CargoCantina.objects.filter(cliente=cli).select_related('alumno', 'venta').prefetch_related(
+            'venta__detalles__producto',
+        ).order_by('creado_en', 'id')
+        abonos = AbonoCantina.objects.filter(cliente=cli).select_related('cajero', 'banco_receptor')
+        if area:
+            cargos = cargos.filter(area=area)
+            abonos = abonos.filter(area=area)
+
+        resumen = serializar_cliente_resumen(cli, limite_default())
+        return Response({
+            'tipo': cli.tipo,
+            'cliente': {
+                'id': cli.id, 'tipo': cli.tipo, 'cedula': cli.documento or '', 'nombre': cli.nombre,
+                'apellido': cli.apellido, 'telefono': cli.telefono, 'email': cli.email,
+                'activo': cli.activo, 'alumnos': [],
+            },
+            'saldo_usd': str(cli.saldo_total),
+            'saldo_ves_tasa_vigente': a_ves(cli.saldo_total, tasa),
+            'limite_usd': resumen['limite_usd'],
+            'limite_personalizado': cli.limite_override is not None,
+            'bloqueado': resumen['bloqueado'],
+            'cargos': [serializar_cargo(c) for c in cargos],
+            'abonos': agrupar_abonos(abonos),
+        })
+
+
+# ─────────────────────────────────────────────
+# Clientes generales (alta, edición, listado y crédito)
+# ─────────────────────────────────────────────
+class ClientesCxcView(APIView):
+    """GET ?q=&tipo=&activo=: listado paginado. POST: alta (cajero o admin)."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request):
+        qs = ClienteCantina.objects.all()
+        tipo = _tipo_param(request)
+        if tipo == 'representante':
+            qs = qs.none()
+        elif tipo:
+            qs = qs.filter(tipo=tipo)
+        activo = request.query_params.get('activo')
+        if activo in ('1', 'true', 'True'):
+            qs = qs.filter(activo=True)
+        elif activo in ('0', 'false', 'False'):
+            qs = qs.filter(activo=False)
+        q = (request.query_params.get('q') or '').strip()
+        for palabra in q.split():
+            qs = qs.filter(
+                pk__in=filtrar_busqueda(ClienteCantina.objects.all(), palabra, ['documento', 'nombre', 'apellido']).values('pk')
+            )
+        qs = anotar_saldos_clientes(qs).order_by('apellido', 'nombre')
+        paginador = _PaginacionCuentas()
+        pagina = paginador.paginate_queryset(qs, request, view=self)
+        default = limite_default()
+        return paginador.get_paginated_response([serializar_cliente_resumen(c, default) for c in pagina])
+
+    def post(self, request):
+        ser = ClienteInputSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        try:
+            cli = ser.save()
+        except IntegrityError:
+            # Carrera entre dos altas con el mismo documento.
+            raise ValidationError({'documento': 'Ya existe un cliente con ese documento.'})
+        return Response(serializar_cliente_resumen(_cliente_anotado(cli.pk), limite_default()), status=status.HTTP_201_CREATED)
+
+
+class ClienteCxcDetalleView(APIView):
+    """PATCH: edita datos y activa/desactiva (cajero o admin). El límite y el bloqueo
+    se cambian por `credito/` (solo admin), igual que en representantes."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request, cliente_id):
+        return Response(serializar_cliente_resumen(_cliente_anotado(cliente_id), limite_default()))
+
+    def patch(self, request, cliente_id):
+        cli = get_object_or_404(ClienteCantina, pk=cliente_id)
+        ser = ClienteInputSerializer(cli, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        try:
+            ser.save()
+        except IntegrityError:
+            raise ValidationError({'documento': 'Ya existe un cliente con ese documento.'})
+        return Response(serializar_cliente_resumen(_cliente_anotado(cli.pk), limite_default()))
+
+
+class CreditoClienteView(APIView):
+    """PATCH {limite_usd, bloqueado}: override del límite del cliente (null → usa el default)."""
+    permission_classes = [permissions.IsAuthenticated, EsAdminCantina]
+
+    def patch(self, request, cliente_id):
+        ser = CreditoInputSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        datos = ser.validated_data
+        if not datos:
+            raise ValidationError({'detail': "Indique 'limite_usd' y/o 'bloqueado'."})
+        with transaction.atomic():
+            cli = services_cxc.lock_cliente(get_object_or_404(ClienteCantina, pk=cliente_id))
+            if 'limite_usd' in datos:
+                cli.limite_usd = datos['limite_usd']
+            if 'bloqueado' in datos:
+                cli.bloqueado = datos['bloqueado']
+            cli.save(update_fields=['limite_usd', 'bloqueado'])
+        return Response({
+            'cliente_id': cli.id,
+            'limite_usd': str(services_cxc.limite_credito(cli)),
+            'limite_personalizado': cli.limite_usd is not None,
+            'bloqueado': cli.bloqueado,
         })
 
 
@@ -250,12 +461,13 @@ def _es_fecha_pasada(fecha):
     return fecha < timezone.localdate()
 
 
-def _respuesta_operacion(abonos, representante):
+def _respuesta_operacion(abonos, titular):
     primero = abonos[0]
-    saldo = services_cxc.saldo_representante(representante)
+    saldo = services_cxc.saldo_titular(titular)
     return {
         'operacion_uuid': str(primero.operacion_uuid),
-        'representante_id': representante.id,
+        'representante_id': None if services_cxc.es_cliente(titular) else titular.id,
+        'cliente_id': titular.id if services_cxc.es_cliente(titular) else None,
         'area': primero.area,
         'fecha_pago': primero.fecha_pago,
         'es_retroactivo': primero.es_retroactivo,
@@ -276,7 +488,12 @@ class RegistrarAbonoView(APIView):
         ser = AbonoInputSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         datos = ser.validated_data
-        representante = get_object_or_404(Representante, pk=datos['representante_id'])
+        if datos.get('cliente_id'):
+            titular = get_object_or_404(ClienteCantina, pk=datos['cliente_id'])
+            titular_kw = {'cliente': titular}
+        else:
+            titular = get_object_or_404(Representante, pk=datos['representante_id'])
+            titular_kw = {'representante': titular}
 
         fecha_pago = _parsear_fecha_pago(datos.get('fecha_pago'))
         retroactivo = _es_fecha_pasada(fecha_pago)
@@ -294,7 +511,7 @@ class RegistrarAbonoView(APIView):
                 raise ValidationError({'detail': 'Debe tener una caja abierta para registrar abonos.'})
 
         abonos = services_cxc.registrar_abono(
-            representante=representante,
+            **titular_kw,
             lineas=datos['lineas'],
             cajero=request.user,
             apertura=apertura,
@@ -302,7 +519,7 @@ class RegistrarAbonoView(APIView):
             motivo=datos.get('motivo') or '',
             area=datos.get('area'),
         )
-        return Response(_respuesta_operacion(abonos, representante), status=status.HTTP_201_CREATED)
+        return Response(_respuesta_operacion(abonos, titular), status=status.HTTP_201_CREATED)
 
 
 class AnularAbonoView(APIView):
@@ -313,7 +530,7 @@ class AnularAbonoView(APIView):
         ser.is_valid(raise_exception=True)
         services_cxc.anular_abono(operacion_uuid, request.user, motivo=ser.validated_data['motivo'])
         abono = AbonoCantina.objects.filter(operacion_uuid=operacion_uuid).first()
-        saldo = services_cxc.saldo_representante(abono.representante)
+        saldo = services_cxc.saldo_titular(abono.cliente or abono.representante)
         return Response({
             'operacion_uuid': str(operacion_uuid),
             'estatus': 'anulado',
@@ -330,7 +547,8 @@ def generar_pdf_recibo_abono(abonos):
     from .utils import _get_config_colegio
 
     primero = abonos[0]
-    rep = primero.representante
+    es_cli = primero.cliente_id is not None
+    rep = primero.cliente if es_cli else primero.representante
     nombre_colegio, rif_colegio = _get_config_colegio()
     metodo_labels = dict(AbonoCantina._meta.get_field('metodo_pago').choices)
     area_label = dict(AREAS).get(primero.area, primero.area)
@@ -361,7 +579,11 @@ def generar_pdf_recibo_abono(abonos):
     c.setFillColor(azul)
     c.setFont('Helvetica', 10)
     y = height - 2.0 * inch
-    c.drawString(margin, y, f'Representante: {rep.nombre} {rep.apellido}  ({rep.cedula})')
+    if es_cli:
+        doc = f'  ({rep.documento})' if rep.documento else ''
+        c.drawString(margin, y, f'Cliente: {rep.nombre_completo}{doc}')
+    else:
+        c.drawString(margin, y, f'Representante: {rep.nombre} {rep.apellido}  ({rep.cedula})')
     y -= 0.22 * inch
     c.drawString(margin, y, f'Cajero: {nombre_usuario(primero.cajero)}')
     c.setFont('Helvetica', 9)
@@ -403,7 +625,7 @@ def generar_pdf_recibo_abono(abonos):
     c.drawString(margin + 0.1 * inch, y + 0.08 * inch, 'TOTAL ABONADO (USD):')
     c.drawRightString(width - margin, y + 0.08 * inch, f'$ {total:,.2f}')
 
-    saldo = services_cxc.saldo_representante(rep)
+    saldo = services_cxc.saldo_titular(rep)
     y -= 0.35 * inch
     c.setFont('Helvetica', 9)
     c.setFillColor(gris)
@@ -437,7 +659,7 @@ class ReciboAbonoPDFView(APIView):
     def get(self, request, operacion_uuid):
         abonos = list(
             AbonoCantina.objects.filter(operacion_uuid=operacion_uuid)
-            .select_related('representante', 'cajero', 'banco_receptor').order_by('id')
+            .select_related('representante', 'cliente', 'cajero', 'banco_receptor').order_by('id')
         )
         if not abonos:
             return Response({'detail': 'No existe un abono con ese identificador.'}, status=status.HTTP_404_NOT_FOUND)

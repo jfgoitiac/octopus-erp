@@ -265,8 +265,26 @@ export const getReporteMorosos = ({ diasMin } = {}, signal) =>
  *   metodo_pago, monto_usd?, monto_ves?, tasa_aplicada?, banco_receptor?,
  *   banco_procedencia?, referencia?, numero_lote? }] }
  */
-export const buscarRepresentantesCxc = (q, signal) =>
-  cantinaApiClient.get('cxc/buscar/', { params: { q }, signal });
+// Búsqueda unificada: devuelve representantes y clientes generales (campo `tipo`).
+// `paraVenta` excluye clientes inactivos (no admiten ventas nuevas).
+export const buscarRepresentantesCxc = (q, signal, { paraVenta = false } = {}) =>
+  cantinaApiClient.get('cxc/buscar/', { params: { q, para_venta: paraVenta ? 1 : undefined }, signal });
+
+/* Clientes generales (personal / otros) de CxC. */
+export const listarClientesCxc = (params, signal) =>
+  cantinaApiClient.get('cxc/clientes/', { params, signal });
+
+export const crearClienteCxc = (payload, signal) =>
+  cantinaApiClient.post('cxc/clientes/', payload, { signal });
+
+export const actualizarClienteCxc = (clienteId, payload, signal) =>
+  cantinaApiClient.patch(`cxc/clientes/${clienteId}/`, payload, { signal });
+
+export const estadoCuentaClienteCxc = (clienteId, params, signal) =>
+  cantinaApiClient.get(`cxc/clientes/${clienteId}/estado-cuenta/`, { params, signal });
+
+export const actualizarCreditoClienteCxc = (clienteId, payload, signal) =>
+  cantinaApiClient.patch(`cxc/clientes/${clienteId}/credito/`, payload, { signal });
 
 export const listarCuentasCxc = (params, signal) =>
   cantinaApiClient.get('cxc/cuentas/', { params, signal });

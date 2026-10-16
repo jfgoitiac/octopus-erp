@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw } from 'lucide-react';
+import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw, Pencil } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { estadoCuentaCxc } from '../../../api/cantina.service';
+import { estadoCuentaCxc, estadoCuentaClienteCxc } from '../../../api/cantina.service';
 import { TablaScroll } from '../../ui/TablaScroll';
 import { METODO_LABELS } from '../../../constants/reportes';
 import RegistrarAbonoModal from './RegistrarAbonoModal';
 import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
+import ClienteFormModal from './ClienteFormModal';
 import {
   AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
-  esCancelacion, mensajeError, abrirReciboAbono, abrirReciboVenta,
+  esCancelacion, mensajeError, abrirReciboAbono, abrirReciboVenta, TIPO_LABELS, esCliente,
 } from './utilsCxc';
 
 const ESTADO_STYLE = {
@@ -48,7 +49,11 @@ const alumnoDe = (c) => {
 const metodosDe = (abono) =>
   (abono.lineas || []).map(l => METODO_LABELS[l.metodo_pago] || l.metodo_pago).join(' + ') || '—';
 
-const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCambio }) => {
+// `titular` = { tipo, id }: 'representante' o cliente general ('personal' | 'otro').
+const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) => {
+  const representanteId = titular.id;
+  const cliente = esCliente(titular);
+  const consultar = cliente ? estadoCuentaClienteCxc : estadoCuentaCxc;
   const [data, setData] = useState(null);
   const [saldoTotal, setSaldoTotal] = useState(null);
   const [errorCarga, setErrorCarga] = useState(false);
@@ -57,15 +62,16 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
   const [abonoAbierto, setAbonoAbierto] = useState(false);
   const [creditoAbierto, setCreditoAbierto] = useState(false);
   const [abonoAAnular, setAbonoAAnular] = useState(null);
+  const [editandoCliente, setEditandoCliente] = useState(false);
 
   const cargar = useCallback((signal) => {
     setErrorCarga(false);
     // El abono se aplica FIFO a toda la deuda: con filtro de área se pide también
     // el saldo total (sin área) para el modal de abono.
     const total = area
-      ? estadoCuentaCxc(representanteId, {}, signal).then(res => num(res.data?.saldo_usd))
+      ? consultar(representanteId, {}, signal).then(res => num(res.data?.saldo_usd))
       : Promise.resolve(null);
-    return Promise.all([estadoCuentaCxc(representanteId, { area: area || undefined }, signal), total])
+    return Promise.all([consultar(representanteId, { area: area || undefined }, signal), total])
       .then(([res, saldoGlobal]) => {
         setData(res.data);
         setSaldoTotal(saldoGlobal ?? num(res.data?.saldo_usd));
@@ -75,8 +81,8 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
         setErrorCarga(true);
         toast.error(await mensajeError(err, 'No se pudo cargar el estado de cuenta.'));
       })
-      .finally(() => { if (!signal?.aborted) setCargadoPara(`${representanteId}|${area}`); });
-  }, [representanteId, area]);
+      .finally(() => { if (!signal?.aborted) setCargadoPara(`${titular.tipo}|${representanteId}|${area}`); });
+  }, [consultar, titular.tipo, representanteId, area]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,8 +111,8 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
     }
   };
 
-  const cargando = cargadoPara !== `${representanteId}|${area}`;
-  const rep = data?.representante || {};
+  const cargando = cargadoPara !== `${titular.tipo}|${representanteId}|${area}`;
+  const rep = { ...(data?.representante || data?.cliente || {}), tipo: titular.tipo };
   const saldo = num(data?.saldo_usd);
   const bloqueado = Boolean(data?.bloqueado ?? rep.bloqueado);
   const cargos = data?.cargos || [];
@@ -142,12 +148,15 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
         </div>
       )}
 
-      {errorCarga ? null : cargando && data?.representante?.id !== representanteId ? <Skeleton /> : data && (
+      {errorCarga ? null : cargando && (data?.representante?.id ?? data?.cliente?.id) !== representanteId ? <Skeleton /> : data && (
         <>
           <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold break-words" style={{ color: 'var(--jet)' }}>{nombreCompleto(rep)}</h2>
+                <p className="text-xs font-medium" style={{ color: 'var(--pb)' }}>
+                  {TIPO_LABELS[titular.tipo] || TIPO_LABELS.representante}{cliente && rep.activo === false ? ' · Inactivo' : ''}
+                </p>
                 <p className="text-xs" style={{ color: 'var(--ash)' }}>
                   C.I. {rep.cedula || '—'}{rep.telefono ? ` · ${rep.telefono}` : ''}
                 </p>
@@ -169,6 +178,11 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
                 )}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:ml-auto sm:gap-3">
+                {cliente && (
+                  <button type="button" onClick={() => setEditandoCliente(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+                    <Pencil size={15} /> Editar cliente
+                  </button>
+                )}
                 {esAdmin && (
                   <button type="button" onClick={() => setCreditoAbierto(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
                     <Settings2 size={15} /> Límite y bloqueo
@@ -320,9 +334,18 @@ const EstadoCuentaCxc = ({ representanteId, area, tasa, esAdmin, onVolver, onCam
               open
               onClose={() => setCreditoAbierto(false)}
               representanteId={representanteId}
+              tipo={titular.tipo}
               limiteUsd={data.limite_usd}
               limitePersonalizado={Boolean(data.limite_personalizado)}
               bloqueado={bloqueado}
+              onGuardado={refrescar}
+            />
+          )}
+          {editandoCliente && (
+            <ClienteFormModal
+              open
+              cliente={{ ...rep, id: representanteId }}
+              onClose={() => setEditandoCliente(false)}
               onGuardado={refrescar}
             />
           )}

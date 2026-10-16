@@ -282,8 +282,13 @@ export default function CantinaPOS() {
     if (metodoPago === 'tarjeta_prepago') payload.tarjeta_codigo = tarjeta.codigo;
     if (esMetodoBancario(metodoPago)) Object.assign(payload, camposMetodoVenta(valorPago));
     if (metodoPago === 'credito_representante') {
-      payload.representante_id = representante.id;
-      if (alumnoId) payload.alumno_id = Number(alumnoId);
+      // Un cliente general (personal/otro) va por cliente_id; sin alumno.
+      if (representante.tipo && representante.tipo !== 'representante') {
+        payload.cliente_id = representante.id;
+      } else {
+        payload.representante_id = representante.id;
+        if (alumnoId) payload.alumno_id = Number(alumnoId);
+      }
     }
     const repVenta = representante;
     const alumnoVenta = repVenta?.alumnos?.find(a => String(a.id) === alumnoId);
@@ -298,6 +303,7 @@ export default function CantinaPOS() {
         ? {
           ...res.data,
           representante_nombre: res.data.representante_nombre
+            ?? res.data.cliente_nombre
             ?? `${repVenta.nombre ?? ''} ${repVenta.apellido ?? ''}`.trim(),
           alumno_nombre: res.data.alumno_nombre
             ?? (alumnoVenta ? `${alumnoVenta.nombre} ${alumnoVenta.apellido}`.trim() : undefined),

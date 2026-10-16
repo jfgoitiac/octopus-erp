@@ -264,6 +264,7 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
     anulada_por_username = serializers.CharField(source='anulada_por.username', read_only=True, default=None)
     anulada_por_nombre = serializers.CharField(source='anulada_por.nombre_completo', read_only=True, default=None)
     representante_nombre = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
     detalles = DetalleVentaCantinaSerializer(many=True, read_only=True)
 
     class Meta:
@@ -273,7 +274,7 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
             'cajero', 'cajero_username', 'cajero_nombre', 'metodo_pago', 'total_usd',
             'tasa_aplicada', 'total_ves', 'estado', 'saldo_tarjeta_despues',
             'area', 'banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote',
-            'representante', 'representante_nombre', 'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
+            'representante', 'representante_nombre', 'cliente', 'cliente_nombre', 'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
         )
         read_only_fields = fields
 
@@ -286,6 +287,11 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
         if not obj.representante_id:
             return None
         return f'{obj.representante.nombre} {obj.representante.apellido}'
+
+    def get_cliente_nombre(self, obj):
+        if not obj.cliente_id:
+            return None
+        return obj.cliente.nombre_completo
 
 
 # ─────────────────────────────────────────────

@@ -16,6 +16,50 @@ def dias_en_negativo(tarjeta):
     return (date.today() - tarjeta.saldo_negativo_desde).days
 
 
+def cuentas_cxc_morosas(dias_min=None):
+    """Titulares de CxC (representantes y clientes generales) con deuda pendiente.
+
+    Los clientes generales (personal/otros) entran al listado pero NO reciben
+    avisos automáticos: `recibe_avisos` es False para ellos. Cualquier tarea de
+    notificación futura debe filtrar por ese campo (ver NOTAS_TECNICAS.md)."""
+    from django.utils import timezone
+
+    from .models import CargoCantina
+
+    pendientes = (
+        CargoCantina.objects.filter(estado='pendiente')
+        .select_related('representante', 'cliente')
+    )
+    por_titular = {}
+    ahora = timezone.now()
+    for cargo in pendientes:
+        if cargo.cliente_id:
+            titular = cargo.cliente
+            tipo = titular.tipo
+            nombre, doc, tel = titular.nombre_completo, titular.documento or '', titular.telefono
+            clave = (tipo, cargo.cliente_id)
+        else:
+            titular = cargo.representante
+            tipo = 'representante'
+            nombre, doc, tel = f'{titular.nombre} {titular.apellido}'.strip(), titular.cedula, titular.telefono
+            clave = (tipo, cargo.representante_id)
+        fila = por_titular.setdefault(clave, {
+            'tipo': tipo, 'id': clave[1], 'nombre': nombre, 'documento': doc, 'telefono': tel,
+            'saldo_usd': 0, 'desde': cargo.creado_en, 'recibe_avisos': tipo == 'representante',
+        })
+        fila['saldo_usd'] += cargo.saldo_usd
+        fila['desde'] = min(fila['desde'], cargo.creado_en)
+
+    filas = []
+    for fila in por_titular.values():
+        fila['dias_deuda_mas_antigua'] = max((ahora - fila.pop('desde')).days, 0)
+        fila['saldo_usd'] = str(fila['saldo_usd'])
+        if dias_min is None or fila['dias_deuda_mas_antigua'] >= dias_min:
+            filas.append(fila)
+    filas.sort(key=lambda f: f['dias_deuda_mas_antigua'], reverse=True)
+    return filas
+
+
 def debe_notificarse_hoy(tarjeta, dias_configurados):
     return dias_en_negativo(tarjeta) in dias_configurados
 

@@ -1,6 +1,6 @@
 import { Eye } from 'lucide-react';
 import { TablaScroll } from '../../ui/TablaScroll';
-import { fmtUsd, fmtVes, nombreCompleto, num } from './utilsCxc';
+import { fmtUsd, fmtVes, nombreCompleto, num, TIPO_LABELS, claveCuenta } from './utilsCxc';
 
 const DIAS_ALERTA = 7;
 
@@ -58,7 +58,7 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
       <ul className="flex flex-col gap-3 md:hidden">
         {cuentas.map(c => (
           <li
-            key={c.id}
+            key={claveCuenta(c)}
             className="rounded-xl p-3 flex flex-col gap-2"
             style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
           >
@@ -67,7 +67,9 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
                 <p className="text-sm font-semibold break-words" style={{ color: 'var(--jet)' }}>
                   {nombreCompleto(c)}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--ash)' }}>C.I. {c.cedula || '—'}</p>
+                <p className="text-xs" style={{ color: 'var(--ash)' }}>
+                  {TIPO_LABELS[c.tipo] || TIPO_LABELS.representante} · C.I. {c.cedula || '—'}
+                </p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-base font-bold" style={{ color: num(c.saldo_usd) > 0 ? 'var(--red)' : 'var(--jet)' }}>
@@ -94,7 +96,8 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-widest" style={{ color: 'var(--ash)', borderBottom: '0.5px solid var(--border-md)' }}>
-                <th className="px-4 py-3 font-medium">Representante</th>
+                <th className="px-4 py-3 font-medium">Titular</th>
+                <th className="px-4 py-3 font-medium">Tipo</th>
                 <th className="px-4 py-3 font-medium">Cédula</th>
                 <th className="px-4 py-3 font-medium">Alumnos</th>
                 <th className="px-4 py-3 font-medium text-right">Deuda USD</th>
@@ -105,8 +108,9 @@ const ListaCuentasCxc = ({ cuentas, cargando, tasa, onVer }) => {
             </thead>
             <tbody>
               {cuentas.map(c => (
-                <tr key={c.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                <tr key={claveCuenta(c)} style={{ borderBottom: '0.5px solid var(--border)' }}>
                   <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>{nombreCompleto(c)}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{TIPO_LABELS[c.tipo] || TIPO_LABELS.representante}</td>
                   <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{c.cedula || '—'}</td>
                   <td className="px-4 py-3 max-w-[16rem]" style={{ color: 'var(--ash)' }}>{alumnosTexto(c)}</td>
                   <td className="px-4 py-3 text-right font-semibold" style={{ color: num(c.saldo_usd) > 0 ? 'var(--red)' : 'var(--jet)' }}>

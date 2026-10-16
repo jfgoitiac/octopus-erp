@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { UserRound, AlertTriangle, RotateCcw } from 'lucide-react';
 import BuscadorRepresentanteCxc from '../cxc/BuscadorRepresentanteCxc';
+import { TIPO_LABELS, esCliente } from '../cxc/utilsCxc';
 import { evaluarCredito } from './evaluarCredito';
 
 /**
@@ -18,9 +19,14 @@ export default function CargoCuentaPanel({
     return (
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
-          Representante responsable del cargo
+          Representante o cliente responsable del cargo
         </p>
-        <BuscadorRepresentanteCxc onSelect={onSeleccionar} placeholder="Nombre, cédula o alumno…" />
+        <BuscadorRepresentanteCxc
+          onSelect={onSeleccionar}
+          placeholder="Nombre, cédula o alumno…"
+          paraVenta
+          permitirAgregarCliente
+        />
       </div>
     );
   }
@@ -41,7 +47,10 @@ export default function CargoCuentaPanel({
           <p className="font-semibold truncate" style={{ color: 'var(--jet)' }}>
             {`${representante.nombre ?? ''} ${representante.apellido ?? ''}`.trim()}
           </p>
-          <p className="text-xs" style={{ color: 'var(--ash)' }}>C.I. {representante.cedula}</p>
+          <p className="text-xs" style={{ color: 'var(--ash)' }}>
+            {TIPO_LABELS[representante.tipo] || TIPO_LABELS.representante}
+            {representante.cedula ? ` · C.I. ${representante.cedula}` : ''}
+          </p>
         </div>
         <button
           type="button"
@@ -77,6 +86,7 @@ export default function CargoCuentaPanel({
         </p>
       )}
 
+      {!esCliente(representante) && (
       <div>
         <label htmlFor={selectId} className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
           Alumno que consumió
@@ -97,6 +107,7 @@ export default function CargoCuentaPanel({
           ))}
         </select>
       </div>
+      )}
     </div>
   );
 }

@@ -2,11 +2,11 @@
 // si la cuenta del representante está bloqueada o si deuda + venta supera el
 // límite. Es una guarda de UX — el backend vuelve a validar al registrar.
 export function evaluarCredito(representante, totalUsd) {
-  if (!representante) return { ok: false, motivo: 'Busca al representante que asumirá el cargo.' };
+  if (!representante) return { ok: false, motivo: 'Busca al representante o cliente que asumirá el cargo.' };
   const saldo = Number(representante.saldo_usd ?? 0);
   const limite = Number(representante.limite_usd ?? 0);
   if (representante.bloqueado) {
-    return { ok: false, motivo: 'La cuenta de este representante está bloqueada para crédito.', saldo, limite };
+    return { ok: false, motivo: 'La cuenta está bloqueada para crédito.', saldo, limite };
   }
   const saldoDespues = saldo + Number(totalUsd || 0);
   if (saldoDespues > limite) {

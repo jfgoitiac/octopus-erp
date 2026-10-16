@@ -5,6 +5,7 @@ from .models import (
     AperturaCajaCantina,
     AplicacionAbonoCantina,
     CargoCantina,
+    ClienteCantina,
     CategoriaProducto,
     CierreCajaCantina,
     CreditoRepresentanteCantina,
@@ -111,6 +112,13 @@ class CreditoRepresentanteCantinaAdmin(admin.ModelAdmin):
     list_filter = ('bloqueado',)
     search_fields = ('representante__cedula', 'representante__nombre', 'representante__apellido')
     raw_id_fields = ('representante',)
+
+
+@admin.register(ClienteCantina)
+class ClienteCantinaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'apellido', 'documento', 'tipo', 'activo', 'limite_usd', 'bloqueado', 'creado_en')
+    list_filter = ('tipo', 'activo', 'bloqueado')
+    search_fields = ('nombre', 'apellido', 'documento')
 
 
 class SoloLecturaAdmin(admin.ModelAdmin):
