@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { BellOff } from 'lucide-react';
 import { parseApiError } from '../../../utils/apiError';
 import { getAlertas } from '../api/auditoriaApi';
-import { ESTILO_TARJETA, aFechaISO, esCancelacion, haceNDias } from './CierreFormato';
+import { ESTILO_TARJETA, esCancelacion } from './CierreFormato';
 import AlertaFiltros from './AlertaFiltros';
 import AlertaTarjeta, { AlertaTarjetaSkeleton } from './AlertaTarjeta';
 import AlertaAtenderModal from './AlertaAtenderModal';
@@ -12,11 +12,14 @@ import BitacoraPaginacion from './BitacoraPaginacion';
 
 const TAMANO_PAGINA = 20;
 
+// Sin rango de fechas por defecto: el backend no filtra por fecha si no se
+// envían, así la bandeja muestra TODAS las alertas abiertas, también las de
+// días anteriores (contrato §6, ajuste de la integración de la Fase 2).
 const filtrosIniciales = () => ({
   estado: 'abierta',
   tipo: '',
-  fecha_inicio: haceNDias(30),
-  fecha_fin: aFechaISO(new Date()),
+  fecha_inicio: '',
+  fecha_fin: '',
 });
 
 // Pestaña Alertas (§6): bandeja con filtros y acción "Atender".
