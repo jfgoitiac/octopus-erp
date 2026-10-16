@@ -1,4 +1,7 @@
-"""Servicio de cuentas por cobrar a representantes (cantina/librería).
+"""Servicio de cuentas por cobrar (cantina/librería) a representantes y clientes generales.
+
+El "titular" de una cuenta es un `Representante` o un `ClienteCantina`; todas las
+operaciones de deuda reciben cualquiera de los dos.
 
 Contrato fijado en la Fase 0 (PROMPT_CANTINA_CXC.md §3.2). Todas las
 operaciones que mutan deuda corren en `transaction.atomic()` con
@@ -26,6 +29,7 @@ from .models import (
     AbonoCantina,
     AplicacionAbonoCantina,
     CargoCantina,
+    ClienteCantina,
     CreditoRepresentanteCantina,
     ParametroCantina,
 )
@@ -90,9 +94,23 @@ def _texto(valor, campo):
 # ─────────────────────────────────────────────
 # Consultas
 # ─────────────────────────────────────────────
-def saldo_representante(representante, area=None):
+def es_cliente(titular):
+    return isinstance(titular, ClienteCantina)
+
+
+def filtro_titular(titular):
+    """kwargs para filtrar cargos/abonos de un titular (representante o cliente)."""
+    return {'cliente': titular} if es_cliente(titular) else {'representante': titular}
+
+
+def clave_titular(titular):
+    """Nombre del campo de error asociado al titular."""
+    return 'cliente_id' if es_cliente(titular) else 'representante_id'
+
+
+def saldo_titular(titular, area=None):
     """Σ(monto_usd − monto_pagado) de los cargos no anulados (opcionalmente de un área)."""
-    qs = CargoCantina.objects.filter(representante=representante).exclude(estado='anulado')
+    qs = CargoCantina.objects.filter(**filtro_titular(titular)).exclude(estado='anulado')
     if area:
         qs = qs.filter(area=area)
     total = qs.aggregate(
@@ -101,11 +119,25 @@ def saldo_representante(representante, area=None):
     return total or CERO
 
 
-def limite_credito(representante):
-    """Límite USD: override en CreditoRepresentanteCantina o el default de ParametroCantina."""
-    credito = CreditoRepresentanteCantina.objects.filter(representante=representante).first()
-    if credito is not None and credito.limite_usd is not None:
-        return credito.limite_usd
+saldo_representante = saldo_titular
+
+
+def esta_bloqueado(titular):
+    if es_cliente(titular):
+        return titular.bloqueado
+    credito = CreditoRepresentanteCantina.objects.filter(representante=titular).first()
+    return credito is not None and credito.bloqueado
+
+
+def limite_credito(titular):
+    """Límite USD: override del titular o el default de ParametroCantina."""
+    if es_cliente(titular):
+        if titular.limite_usd is not None:
+            return titular.limite_usd
+    else:
+        credito = CreditoRepresentanteCantina.objects.filter(representante=titular).first()
+        if credito is not None and credito.limite_usd is not None:
+            return credito.limite_usd
     parametro = ParametroCantina.objects.first()
     if parametro is not None:
         return parametro.limite_credito_representante_default
@@ -115,13 +147,24 @@ def limite_credito(representante):
 def _lock_representante(representante):
     """Serializa las operaciones de deuda de un representante (acepta instancia o pk).
 
-    Orden global de locks: representante → cargos → productos/tarjeta."""
+    Orden global de locks: titular → cargos → productos/tarjeta."""
     from secretaria.models import Representante
     pk = getattr(representante, 'pk', representante)
     return Representante.objects.select_for_update().get(pk=pk)
 
 
+def _lock_cliente(cliente):
+    pk = getattr(cliente, 'pk', cliente)
+    return ClienteCantina.objects.select_for_update().get(pk=pk)
+
+
+def lock_titular(titular):
+    """Bloquea la fila del titular (instancia de Representante o ClienteCantina)."""
+    return _lock_cliente(titular) if es_cliente(titular) else _lock_representante(titular)
+
+
 lock_representante = _lock_representante
+lock_cliente = _lock_cliente
 
 
 # ─────────────────────────────────────────────
@@ -129,32 +172,34 @@ lock_representante = _lock_representante
 # ─────────────────────────────────────────────
 def crear_cargo_por_venta(venta):
     """Crea el CargoCantina de una venta 'credito_representante' (valida bloqueo y límite).
+    El titular es el representante o el cliente de la venta.
     Se llama dentro de la transacción de RegistrarVentaView."""
-    if venta.metodo_pago != 'credito_representante' or not venta.representante_id:
-        raise ValidationError({'detail': 'La venta no es un cargo a cuenta de un representante.'})
+    if venta.metodo_pago != 'credito_representante' or not (venta.representante_id or venta.cliente_id):
+        raise ValidationError({'detail': 'La venta no es un cargo a cuenta de un representante o cliente.'})
 
     with transaction.atomic():
-        representante = _lock_representante(venta.representante)
+        titular = lock_titular(venta.cliente if venta.cliente_id else venta.representante)
+        campo = clave_titular(titular)
+        etiqueta = 'cliente' if es_cliente(titular) else 'representante'
 
-        credito = CreditoRepresentanteCantina.objects.filter(representante=representante).first()
-        if credito is not None and credito.bloqueado:
+        if esta_bloqueado(titular):
             raise ValidationError({
-                'representante_id': 'La cuenta de este representante está bloqueada para ventas a crédito.',
+                campo: f'La cuenta de este {etiqueta} está bloqueada para ventas a crédito.',
             })
 
-        limite = limite_credito(representante)
-        saldo = saldo_representante(representante)
+        limite = limite_credito(titular)
+        saldo = saldo_titular(titular)
         if saldo + venta.total_usd > limite:
             disponible = max(limite - saldo, CERO)
             raise ValidationError({
-                'representante_id': (
-                    f'El cargo excede el límite de crédito del representante '
+                campo: (
+                    f'El cargo excede el límite de crédito del {etiqueta} '
                     f'(límite ${limite:.2f}, deuda actual ${saldo:.2f}, disponible ${disponible:.2f}).'
                 ),
             })
 
         return CargoCantina.objects.create(
-            representante=representante,
+            **filtro_titular(titular),
             alumno=venta.alumno,
             venta=venta,
             area=venta.area,
@@ -165,8 +210,10 @@ def crear_cargo_por_venta(venta):
 def anular_cargo_por_venta(venta, usuario):
     """Anula el cargo de una venta a crédito; falla si ya tiene aplicaciones."""
     with transaction.atomic():
-        if venta.representante_id:
-            _lock_representante(venta.representante_id)  # representante antes que el cargo
+        if venta.cliente_id:
+            _lock_cliente(venta.cliente_id)  # titular antes que el cargo
+        elif venta.representante_id:
+            _lock_representante(venta.representante_id)  # titular antes que el cargo
         cargo = CargoCantina.objects.select_for_update().filter(venta=venta).first()
         if cargo is None or cargo.estado == 'anulado':
             return
@@ -320,7 +367,7 @@ def _ajustar_redondeo_bs(normalizadas, saldo):
             return
 
 
-def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None, motivo='', area=None):
+def registrar_abono(*, representante=None, cliente=None, lineas, cajero, apertura, fecha_pago=None, motivo='', area=None):
     """Registra un abono (posiblemente mixto) y lo aplica FIFO. Devuelve las líneas creadas.
 
     `apertura=None` significa pago retroactivo (D8): exige `fecha_pago` pasada
@@ -329,7 +376,12 @@ def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None,
     saldan cargos con `creado_en <= fecha_pago`. `area` solo se usa en
     retroactivo (en caja el área es la de la apertura, D9); si no se indica,
     se toma el área del cargo pendiente más antiguo.
+
+    Se indica exactamente uno de `representante` o `cliente`; el abono (parcial
+    o total) se aplica a los cargos más antiguos del titular.
     """
+    if (representante is None) == (cliente is None):
+        raise ValidationError({'detail': 'Indique exactamente un titular: representante o cliente.'})
     if not lineas or not isinstance(lineas, (list, tuple)):
         raise ValidationError({'lineas': 'Debe indicar al menos una línea de pago.'})
 
@@ -355,14 +407,14 @@ def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None,
     ]
 
     with transaction.atomic():
-        representante = _lock_representante(representante)
+        titular = lock_titular(cliente if cliente is not None else representante)
 
-        # Comprobación de duplicados ya con el representante bloqueado (carreras entre cajas).
+        # Comprobación de duplicados ya con el titular bloqueado (carreras entre cajas).
         _chequear_duplicados(normalizadas)
 
         cargos_qs = (
             CargoCantina.objects.select_for_update()
-            .filter(representante=representante, estado='pendiente')
+            .filter(**filtro_titular(titular), estado='pendiente')
         )
         if retroactivo:
             cargos_qs = cargos_qs.filter(creado_en__lte=fecha_pago)
@@ -371,7 +423,8 @@ def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None,
         if saldo <= 0:
             raise ValidationError({
                 'detail': (
-                    'El representante no tiene deuda pendiente en cantina/librería'
+                    ('El cliente' if es_cliente(titular) else 'El representante')
+                    + ' no tiene deuda pendiente en cantina/librería'
                     + (' a la fecha del pago indicada.' if retroactivo else '.')
                 ),
             })
@@ -394,7 +447,7 @@ def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None,
         for ln in normalizadas:
             abono = AbonoCantina.objects.create(
                 operacion_uuid=operacion,
-                representante=representante,
+                **filtro_titular(titular),
                 area=area_abono,
                 apertura=apertura,
                 fecha_pago=fecha_pago,
@@ -423,17 +476,21 @@ def registrar_abono(*, representante, lineas, cajero, apertura, fecha_pago=None,
 def anular_abono(operacion_uuid, usuario, motivo=''):
     """Anula todas las líneas de la operación y revierte sus aplicaciones.
 
-    Orden de locks: representante → cargos afectados (una sola consulta,
+    Orden de locks: titular → cargos afectados (una sola consulta,
     ordenados por (creado_en, id), igual que registrar_abono) → abonos."""
-    representante_id = (
+    ids = (
         AbonoCantina.objects.filter(operacion_uuid=operacion_uuid)
-        .values_list('representante_id', flat=True).first()
+        .values_list('representante_id', 'cliente_id').first()
     )
-    if representante_id is None:
+    if ids is None:
         raise ValidationError({'detail': 'No existe un abono con ese identificador.'})
+    representante_id, cliente_id = ids
 
     with transaction.atomic():
-        _lock_representante(representante_id)
+        if cliente_id is not None:
+            _lock_cliente(cliente_id)
+        else:
+            _lock_representante(representante_id)
         abonos = list(
             AbonoCantina.objects.select_for_update().filter(operacion_uuid=operacion_uuid)
         )

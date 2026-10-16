@@ -284,6 +284,8 @@ class VentaCantina(models.Model):
     numero_lote = models.CharField(max_length=10, blank=True, null=True)
     # Solo para metodo_pago='credito_representante'.
     representante = models.ForeignKey('secretaria.Representante', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas_cantina_credito')
+    # Alternativa a `representante` para clientes generales (personal u otros).
+    cliente = models.ForeignKey('cantina.ClienteCantina', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas_credito')
     total_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Total canónico en USD (el precio de cada producto vive en USD)')
     tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa BCV vigente al momento de la venta (snapshot de cobranza.TasaCambio) — se usa para imprimir el ticket en VES si se cobró en efectivo_ves')
     total_ves = models.DecimalField(max_digits=20, decimal_places=2, editable=False)
@@ -296,6 +298,13 @@ class VentaCantina(models.Model):
     class Meta:
         ordering = ['-creado_en']
         indexes = [models.Index(fields=['referencia', 'metodo_pago'])]
+        constraints = [
+            # Una venta a crédito va a un representante O a un cliente, nunca a ambos.
+            models.CheckConstraint(
+                condition=~models.Q(representante__isnull=False, cliente__isnull=False),
+                name='venta_cantina_titular_unico',
+            ),
+        ]
 
 
 class DetalleVentaCantina(models.Model):
@@ -345,12 +354,43 @@ class CreditoRepresentanteCantina(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
 
+class ClienteCantina(models.Model):
+    """Cliente general de cuentas por cobrar (personal del colegio u otros).
+    Los representantes NO se duplican aquí: se siguen usando como `Representante`."""
+    TIPOS = (('personal', 'Personal'), ('otro', 'Otro'))
+
+    nombre = models.CharField(max_length=100)
+    apellido = models.CharField(max_length=100, blank=True, default='')
+    # Opcional; único cuando viene (se guarda None si queda vacío).
+    documento = models.CharField(max_length=30, null=True, blank=True, unique=True)
+    telefono = models.CharField(max_length=30, blank=True, default='')
+    email = models.EmailField(blank=True, default='')
+    tipo = models.CharField(max_length=10, choices=TIPOS, default='otro')
+    activo = models.BooleanField(default=True)
+    limite_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text='null = usa ParametroCantina.limite_credito_representante_default')
+    bloqueado = models.BooleanField(default=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['apellido', 'nombre']
+
+    @property
+    def nombre_completo(self):
+        return f'{self.nombre} {self.apellido}'.strip()
+
+    def __str__(self):
+        return self.nombre_completo
+
+
 class CargoCantina(models.Model):
     """Deuda generada por una venta cargada a la cuenta del representante (D4).
     monto_pagado/estado se derivan en save() (patrón de cobranza.Mensualidad)."""
     ESTADOS = (('pendiente', 'Pendiente'), ('pagado', 'Pagado'), ('anulado', 'Anulado'))
 
-    representante = models.ForeignKey('secretaria.Representante', on_delete=models.PROTECT, related_name='cargos_cantina')
+    # Titular de la deuda: exactamente uno de representante/cliente (CheckConstraint).
+    representante = models.ForeignKey('secretaria.Representante', null=True, blank=True, on_delete=models.PROTECT, related_name='cargos_cantina')
+    cliente = models.ForeignKey(ClienteCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='cargos')
     alumno = models.ForeignKey(Alumno, null=True, blank=True, on_delete=models.SET_NULL, related_name='cargos_cantina')
     venta = models.OneToOneField(VentaCantina, on_delete=models.PROTECT, related_name='cargo')
     area = models.CharField(max_length=10, choices=AREAS)
@@ -364,8 +404,16 @@ class CargoCantina(models.Model):
         indexes = [
             models.Index(fields=['representante', 'estado']),
             models.Index(fields=['representante', 'area', 'estado']),
+            models.Index(fields=['cliente', 'estado']),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(representante__isnull=False, cliente__isnull=True)
+                    | models.Q(representante__isnull=True, cliente__isnull=False)
+                ),
+                name='cargo_cantina_un_titular',
+            ),
             models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='cargo_cantina_monto_positivo'),
             models.CheckConstraint(
                 condition=models.Q(monto_pagado__gte=0, monto_pagado__lte=models.F('monto_usd')),
@@ -391,7 +439,8 @@ class AbonoCantina(models.Model):
     ESTATUS = (('completado', 'Completado'), ('anulado', 'Anulado'))
 
     operacion_uuid = models.UUIDField(db_index=True)
-    representante = models.ForeignKey('secretaria.Representante', on_delete=models.PROTECT, related_name='abonos_cantina')
+    representante = models.ForeignKey('secretaria.Representante', null=True, blank=True, on_delete=models.PROTECT, related_name='abonos_cantina')
+    cliente = models.ForeignKey(ClienteCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='abonos')
     area = models.CharField(max_length=10, choices=AREAS)
     apertura = models.ForeignKey(AperturaCajaCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='abonos')  # None = retroactivo
     metodo_pago = models.CharField(max_length=20, choices=Pago.METODOS)
@@ -415,9 +464,17 @@ class AbonoCantina(models.Model):
         ordering = ['-fecha_pago', '-id']
         indexes = [
             models.Index(fields=['representante', 'estatus']),
+            models.Index(fields=['cliente', 'estatus']),
             models.Index(fields=['referencia', 'metodo_pago']),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(representante__isnull=False, cliente__isnull=True)
+                    | models.Q(representante__isnull=True, cliente__isnull=False)
+                ),
+                name='abono_cantina_un_titular',
+            ),
             models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='abono_cantina_monto_positivo'),
         ]
 
