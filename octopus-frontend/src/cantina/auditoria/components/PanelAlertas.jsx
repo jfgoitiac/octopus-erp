@@ -18,7 +18,7 @@ const PanelAlertas = ({ alertas }) => {
       icono={BellRing}
       titulo="Alertas"
       contador={`${abiertas} abierta${abiertas === 1 ? '' : 's'}`}
-      enlace={{ to: '/cantina/auditoria/bitacora', texto: 'Ver bitácora' }}
+      enlace={{ to: '/cantina/auditoria/bitacora?tab=alertas', texto: 'Ver alertas' }}
     >
       {recientes.length === 0 ? (
         <PanelVacio icono={BellOff} texto="Sin alertas recientes." />
