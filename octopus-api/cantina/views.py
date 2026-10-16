@@ -1391,6 +1391,18 @@ class AnularVentaView(APIView):
 
         try:
             with transaction.atomic():
+                # Bloquea la venta y re-verifica su estado DENTRO de la
+                # transacción: dos anulaciones simultáneas pasaban ambas el
+                # chequeo de arriba y revertían dos veces stock y saldo de la
+                # tarjeta. Ninguna otra ruta bloquea filas de VentaCantina, así
+                # que tomar este lock primero no crea ciclos con el orden
+                # global representante → cargos → productos/tarjeta.
+                venta = VentaCantina.objects.select_for_update().select_related('tarjeta').get(pk=venta.pk)
+                if venta.estado == 'anulada':
+                    return Response(
+                        {'error': f'La venta #{venta.id} ya fue anulada anteriormente (no se puede anular dos veces).'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 antes = snapshot(venta, ['estado', 'total_usd', 'metodo_pago'])
                 if es_credito:
                     # Orden global: representante → cargos → productos.

@@ -511,6 +511,27 @@ class AnulacionAuditoriaTests(InstrumentacionTestsBase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(_eventos('anulacion_venta').count(), 1)
 
+    def test_anulacion_concurrente_no_reversa_dos_veces(self):
+        # Simula la carrera: la segunda petición leyó la venta ANTES de que
+        # la primera la anulara (copia vieja en 'completada'). El chequeo
+        # bajo select_for_update dentro de la transacción debe frenarla.
+        from .models import MovimientoTarjeta
+        copia_vieja = VentaCantina.objects.select_related('tarjeta').get(pk=self.venta_id)
+        resp = self.client.post(self.url, {'motivo': 'Primera'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.tarjeta.refresh_from_db()
+        saldo_tras_primera = self.tarjeta.saldo
+
+        with mock.patch('cantina.views.get_object_or_404', return_value=copia_vieja):
+            resp = self.client.post(self.url, {'motivo': 'Segunda simultánea'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.tarjeta.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, saldo_tras_primera)
+        self.assertEqual(_eventos('anulacion_venta').count(), 1)
+        self.assertEqual(
+            MovimientoTarjeta.objects.filter(venta_id=self.venta_id, tipo='reverso').count(), 1,
+        )
+
 
 class CadenaBitacoraTests(InstrumentacionTestsBase):
     def test_flujo_completo_deja_cadena_valida(self):
