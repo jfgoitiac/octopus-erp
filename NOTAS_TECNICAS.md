@@ -4158,11 +4158,10 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 
 ## Tasa de cambio propia de Cantina (deuda técnica detectada)
 
-1. **Gestión de usuarios**: `useUsuariosSistemas.editRol` envía `{ rol }` sin `accion`, pero
-   `UserViewSet.partial_update` exige `accion: 'cambiar_rol'`; revisar si el cambio de rol
-   desde Sistemas está fallando. No se tocó.
-2. **Tasa BCV en otros textos**: `docs/manual/33-cantina.md` (abono retroactivo) y los
-   recibos/portal aún hablan de "tasa BCV"; ahora la tasa aplicada es la de Cantina.
+1. ~~Cambio de rol sin `accion`~~ y ~~textos "tasa BCV" en Cantina~~: corregidos
+   (`editRol` ahora envía `accion: 'cambiar_rol'`). El portal general de representantes
+   (`portal/views.py`) sigue mostrando la BCV a propósito.
+2. Pendiente: `docs/manual` de otros módulos aún menciona la BCV donde corresponde.
 3. **Sincronización**: `tasa_bcv_referencia` se copia al cambiar la tasa; si la BCV cambia
    después, la insignia muestra la BCV actual, no la copia del historial. La fuente `bcv`
    existe en el modelo pero no hay botón para "adoptar la BCV"; solo se guarda `manual`.

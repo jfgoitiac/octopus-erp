@@ -397,7 +397,7 @@ mano.
    - **Transferencia, pago móvil, Zelle y punto de venta:** banco receptor y
      referencia. El punto de venta además pide el lote de 4 dígitos.
    - **Métodos en bolívares:** escribe el monto en bolívares; el sistema calcula
-     los dólares con la tasa BCV vigente.
+     los dólares con la tasa vigente de la cantina.
    - **Métodos en divisas:** escribe el monto en dólares; el sistema calcula los
      bolívares.
 4. Revisa el total contra la deuda. **"Pagar todo"** completa el saldo.
@@ -419,7 +419,7 @@ el director y el administrador.**
 
 1. En el abono, activa **"Pago retroactivo"**.
 2. Elige la fecha del pago (no puede ser futura ni de un período ya cerrado).
-3. Revisa la tasa: el sistema sugiere la tasa BCV de esa fecha y puedes
+3. Revisa la tasa: el sistema sugiere la tasa vigente y puedes
    corregirla. Si se aleja mucho de la sugerida, avisa.
 4. Escribe el **motivo** (obligatorio, mínimo 10 caracteres).
 

@@ -120,7 +120,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
       if (hayBolivares && !(tasaUsada > 0)) return 'Indica la tasa aplicada para los pagos en bolívares.';
       if (motivo.trim().length < MOTIVO_MIN) return `Explica el motivo (mínimo ${MOTIVO_MIN} caracteres).`;
     } else if (hayBolivares && !(tasaUsada > 0)) {
-      return 'No hay tasa BCV vigente para convertir bolívares.';
+      return 'No hay tasa de cambio vigente para convertir bolívares.';
     }
     return null;
   };

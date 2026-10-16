@@ -73,7 +73,7 @@ export function useUsuariosSistemas() {
 
     const editRol = useCallback(async (userId, newRol) => {
         try {
-            await axiosInstance.patch(`authentication/users/${userId}/`, { rol: newRol });
+            await axiosInstance.patch(`authentication/users/${userId}/`, { accion: 'cambiar_rol', rol: newRol });
             toast.success('Rol actualizado correctamente');
             await fetchUsers();
             return true;
