@@ -11,6 +11,7 @@ Estilo y fixtures siguiendo cobranza/test_recargo_pago_tardio.py.
 """
 from datetime import date
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -20,6 +21,7 @@ from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
 from secretaria.models import Alumno, ConfiguracionSistema, Representante
+from openpyxl import load_workbook
 
 from .models import (
     CuotaProyectoInversion,
@@ -333,6 +335,47 @@ class EstadoPorConceptoDetalleTest(SolvenciaReportesBase):
         self.assertEqual(filas[0]['estado'], 'parcial')
         self.assertIn(f"{self.alumno.nombre} {self.alumno.apellido}", filas[0]['alumnos'])
         self.assertIn(f"{hijo2.nombre} {hijo2.apellido}", filas[0]['alumnos'])
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Reporte de mensualidades clasificadas por monto
+# ──────────────────────────────────────────────────────────────────────────────
+
+class MensualidadesPorMontoTest(SolvenciaReportesBase):
+
+    def setUp(self):
+        super().setUp()
+        self.representante = _crear_representante('V36000001')
+        self.a1 = _crear_alumno('E3600001', self.representante, nombre='Alba', apellido='Uno')
+        self.a2 = _crear_alumno('E3600002', self.representante, nombre='Bruno', apellido='Dos')
+        self.a3 = _crear_alumno('E3600003', self.representante, nombre='Carla', apellido='Tres')
+        Mensualidad.objects.create(alumno=self.a1, mes=9, anio=2026, monto_usd=Decimal('30.00'), pagado=True)
+        Mensualidad.objects.create(alumno=self.a2, mes=9, anio=2026, monto_usd=Decimal('30.00'), pagado=False)
+        Mensualidad.objects.create(alumno=self.a3, mes=9, anio=2026, monto_usd=Decimal('50.00'), pagado=False)
+
+    def test_agrupa_por_monto_y_entrega_detalle_de_alumnos(self):
+        resumen = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/?mes=9&anio=2026')
+        self.assertEqual(resumen.status_code, 200)
+        self.assertEqual(resumen.data['grupos'], [
+            {'monto_usd': '30.00', 'estudiantes': 2, 'total_facturado_usd': '60'},
+            {'monto_usd': '50.00', 'estudiantes': 1, 'total_facturado_usd': '50'},
+        ])
+
+        detalle = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/detalle/?mes=9&anio=2026&monto=30')
+        self.assertEqual(detalle.status_code, 200)
+        self.assertEqual(detalle.data['count'], 2)
+        self.assertEqual(detalle.data['resumen']['pagados'], 1)
+        self.assertEqual(detalle.data['resumen']['pendientes'], 1)
+        self.assertEqual({fila['nombre'] for fila in detalle.data['results']}, {'Alba Uno', 'Bruno Dos'})
+
+    def test_excel_contiene_hojas_legibles_de_resumen_y_detalle(self):
+        respuesta = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/exportar-excel/?mes=9&anio=2026&monto=30')
+        self.assertEqual(respuesta.status_code, 200)
+        libro = load_workbook(BytesIO(respuesta.content))
+        self.assertEqual(libro.sheetnames, ['Resumen por monto', 'Detalle de alumnos'])
+        self.assertEqual(libro['Resumen por monto']['A2'].value, 30)
+        self.assertEqual(libro['Detalle de alumnos'].freeze_panes, 'A2')
+        self.assertEqual(libro['Detalle de alumnos'].auto_filter.ref, 'A1:K3')
 
 
 # ──────────────────────────────────────────────────────────────────────────────
