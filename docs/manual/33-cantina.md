@@ -429,3 +429,31 @@ lectura su **cuenta de cantina y librería**: la deuda total y por caja, los
 consumos pendientes (con fecha y alumno) y sus últimos abonos. No puede pagar
 desde el portal; la deuda se cancela en la cantina o la librería. No se muestran
 los cargos ni los abonos anulados.
+
+---
+
+## 19. Clientes generales (personal y otros)
+
+Además de los representantes, se puede cargar a cuenta a **clientes generales**:
+personal del colegio (**Personal**) u otras personas (**Otro**). Los
+representantes no se duplican como clientes: se siguen buscando como
+representantes.
+
+- **Agregar cliente**: en el cobro "Cargar a cuenta" del POS y en *Cuentas por
+  cobrar* hay un botón **Agregar cliente**. Pide nombre (obligatorio), apellido,
+  documento (opcional, no puede repetirse), teléfono, correo, tipo y si está
+  activo. El cajero puede crearlos y editarlos.
+- **Buscar**: la búsqueda del crédito muestra representantes y clientes juntos,
+  cada uno con su etiqueta de tipo. Un cliente **inactivo** no aparece para
+  ventas nuevas, pero sí en *Cuentas por cobrar* mientras tenga deuda, para
+  poder cobrarle.
+- **Vender a crédito**: igual que con un representante, con el límite de crédito
+  general (o uno propio del cliente) y con bloqueo. Un cliente no tiene alumno.
+- **Cuentas por cobrar**: la lista admite filtrar por **tipo** (representante,
+  personal, otro). El estado de cuenta, los abonos (parciales o totales, que se
+  aplican a los consumos más antiguos), la anulación de abonos y el recibo PDF
+  funcionan igual para ambos tipos. **Editar cliente** permite cambiar sus datos
+  o desactivarlo; el límite y el bloqueo los cambia solo el administrador o
+  director.
+- **Morosos**: los clientes con deuda aparecen en la sección "Cuentas por cobrar
+  vencidas" del reporte de morosos. **No reciben avisos automáticos**.

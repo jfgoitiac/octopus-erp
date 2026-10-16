@@ -4155,3 +4155,26 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    escribirlo desde la web abriría la puerta a tomar el servidor.
 6. **Lint preexistente**: `src/hooks/useConfiguracionNotificaciones.js`
    (`set-state-in-effect`, línea del `useEffect` de carga). No se tocó.
+
+## Clientes generales en CxC de Cantina (16/10/2026)
+
+Se agregó `ClienteCantina` (personal/otro) como titular alternativo de cargos y
+abonos de CxC (migración `cantina/0005_clientes_cxc`). Deuda técnica detectada:
+
+1. **Titular con dos FK nulables** (`representante` / `cliente`) en `CargoCantina`,
+   `AbonoCantina` y `VentaCantina`, con CheckConstraint. Cualquier código nuevo que
+   lea `cargo.representante` debe contemplar `None` (el portal y los avisos solo
+   consultan por representante, por lo que no ven cargos de clientes).
+2. **Avisos automáticos**: hoy no existe aviso automático de CxC; si se crea,
+   debe filtrar `recibe_avisos` (`mora_cantina.cuentas_cxc_morosas`) para excluir
+   clientes generales.
+3. **Búsqueda unificada** (`cxc/buscar/`): hace una consulta extra de clientes
+   (el test `test_sin_n_mas_uno` pasó de 4 a 5 consultas). Los ids de representante
+   y cliente pueden coincidir: el frontend identifica cuentas por `tipo` + `id`.
+4. **Listado de cuentas** (`cxc/cuentas/`): mezcla representantes y clientes en
+   memoria (tuplas ligeras) para ordenar por deuda y paginar. Suficiente a escala
+   de un colegio; si crece, pasar a una vista SQL o `UNION`.
+5. **Saldos en SQLite** salen como `'5'` en vez de `'5.00'` (comportamiento ya
+   existente en representantes); en PostgreSQL salen con dos decimales.
+6. **Lint preexistente** `react-hooks/set-state-in-effect` en las páginas de
+   cantina (patrón de carga con `useEffect`); no se tocó.
