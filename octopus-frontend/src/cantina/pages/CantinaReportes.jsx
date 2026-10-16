@@ -103,6 +103,14 @@ export default function CantinaReportes() {
     return () => controller.abort();
   }, [cargarReporte, fechaInicio, fechaFin]);
 
+  // Tras anular una venta desde el historial se vuelve a pedir el rango.
+  const recargarReporte = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    cargarReporte(controller.signal);
+  }, [cargarReporte]);
+
   const handleExportar = async () => {
     if (exportando) return;
     setExportando(true);
@@ -298,7 +306,7 @@ export default function CantinaReportes() {
       {/* Historial de ventas + reimpresión */}
       <div>
         <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--jet)' }}>Historial de ventas</h2>
-        {loading ? <SkeletonBloque altura={240} /> : <HistorialVentasTable ventas={ventas} />}
+        {loading ? <SkeletonBloque altura={240} /> : <HistorialVentasTable ventas={ventas} onVentaAnulada={recargarReporte} />}
       </div>
     </div>
   );

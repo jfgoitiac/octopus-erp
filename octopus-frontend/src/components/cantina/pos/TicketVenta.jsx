@@ -15,6 +15,10 @@ import { etiquetaMetodo } from '../metodoPagoUtils';
 export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando }) {
   if (!venta) return null;
 
+  // `total_usd` ya es el neto (CONTRATO_AUDITORIA_CANTINA.md §1); el subtotal
+  // es la suma de las líneas.
+  const descuentoUsd = Number(venta.descuento_usd) || 0;
+  const subtotalUsd = (venta.detalles || []).reduce((acc, d) => acc + Number(d.subtotal || 0), 0);
   const fecha = venta.creado_en ? format(parseISO(venta.creado_en), "d 'de' MMMM yyyy, HH:mm", { locale: es }) : '';
 
   const footer = (
@@ -66,8 +70,25 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
       </div>
 
       <div className="rounded-xl px-3 py-3 mb-4 space-y-1" style={{ background: 'var(--pb-light)' }}>
+        {descuentoUsd > 0 && (
+          <>
+            <div className="flex justify-between text-sm" style={{ color: 'var(--ash)' }}>
+              <span>Subtotal</span>
+              <span>${subtotalUsd.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm" style={{ color: 'var(--red)' }}>
+              <span className="min-w-0">
+                Descuento
+                {venta.motivo_descuento && (
+                  <span className="block text-xs break-words" style={{ color: 'var(--ash)' }}>{venta.motivo_descuento}</span>
+                )}
+              </span>
+              <span className="shrink-0">−${descuentoUsd.toFixed(2)}</span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between font-semibold" style={{ color: 'var(--jet)' }}>
-          <span>Total</span>
+          <span>{descuentoUsd > 0 ? 'Total neto' : 'Total'}</span>
           <span>${Number(venta.total_usd).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm" style={{ color: 'var(--ash)' }}>

@@ -449,3 +449,135 @@ lectura su **cuenta de cantina y librería**: la deuda total y por caja, los
 consumos pendientes (con fecha y alumno) y sus últimos abonos. No puede pagar
 desde el portal; la deuda se cancela en la cantina o la librería. No se muestran
 los cargos ni los abonos anulados.
+
+---
+
+## 19. Cambios en la caja por la Auditoría
+
+Para que Dirección pueda supervisar, la caja ahora registra más información:
+
+- **Descuento por venta:** en el carrito, abre "Descuento", escribe el monto en
+  dólares y el **motivo** (obligatorio). No puede superar el subtotal. El ticket
+  muestra subtotal, descuento con su motivo y total.
+- **Venta manual:** si eliges un producto o un alumno buscándolo en vez de
+  escanearlo, la venta queda marcada como manual. No tienes que hacer nada extra.
+- **Anular una venta:** en **Reportes**, botón **"Anular"** de la venta. Debes
+  escribir el motivo. Una venta anulada no se puede volver a anular.
+- **Merma:** en **Inventario**, el movimiento "Merma" descuenta productos vencidos,
+  dañados o de consumo interno. El motivo es obligatorio, igual que en el ajuste.
+- **Costo:** en el formulario del producto puedes indicar el costo en dólares. Se
+  usa para calcular la rentabilidad; si lo dejas vacío, ese producto no entra en
+  el margen.
+
+Todas estas acciones quedan registradas en la bitácora de auditoría con tu
+usuario, la fecha y la hora.
+
+---
+
+## 20. Auditoría de Cantina (solo Director)
+
+La **Auditoría de Cantina** es un módulo del **panel administrativo**, en el grupo
+**"Auditoría Cantina"** del menú lateral, igual que Finanzas o Académico. Es
+exclusiva del **Director**: ni cajeros ni administradores la ven. También se
+llega desde el ítem **"Auditoría"** del menú de la cantina, que lleva al mismo
+módulo. Sirve para supervisar la operación **sin intervenir en las ventas**: el
+Director consulta, observa y aprueba, pero no vende ni borra nada. Junto a
+**"Bitácora y alertas"** aparece el número de alertas abiertas (en rojo si hay
+alguna crítica).
+
+Tiene cuatro pantallas: **Panel**, **Cierres**, **Reportes** y **Bitácora**.
+
+---
+
+## 21. Panel ejecutivo
+
+Muestra, de un vistazo:
+
+- **Ventas** de hoy, la semana y el mes, con la variación frente al período
+  anterior.
+- **Caja de hoy:** efectivo esperado contra efectivo reportado y la diferencia
+  (rojo si falta dinero, ámbar si sobra), cajas abiertas y cierres hechos.
+- **Diferencias pendientes:** cierres con diferencia que aún no se aprueban.
+  Cada uno abre su detalle.
+- **Productos más vendidos** del mes y **productos bajo el mínimo**.
+- **Alertas** abiertas y recientes.
+
+Puedes filtrar por Cantina, Librería o ambas.
+
+---
+
+## 22. Revisar un cierre
+
+En **Cierres** filtra por fecha, cajero, caja, estado o "solo con diferencia" y
+abre el cierre. Verás el turno, el desglose por método de pago, el efectivo
+esperado frente al conteo físico, las ventas anuladas, con descuento y manuales,
+y las observaciones del cajero.
+
+Cada cierre tiene un **estado de revisión**:
+
+| Estado | Significa |
+|---|---|
+| Pendiente | Nadie lo ha revisado todavía. |
+| Revisado | El Director lo vio, sin decisión final. |
+| Observado | Hay algo que aclarar. El comentario es obligatorio. |
+| Aprobado | Cierre conforme. Es definitivo. |
+
+- **Adjuntos:** puedes subir respaldos (imagen JPG, PNG o WEBP, o PDF, hasta
+  5 MB). No se borran: si te equivocas, súbelo de nuevo con "Reemplazar" y el
+  anterior queda marcado como reemplazado.
+- **Historial:** abajo verás quién hizo qué sobre ese cierre y cuándo.
+- **Reabrir caja:** si un cierre se hizo por error, "Reabrir caja" (con motivo
+  obligatorio) abre una caja **nueva** para el mismo cajero. El cierre original no
+  se modifica: queda como evidencia y la reapertura se registra en la bitácora.
+
+---
+
+## 23. Reportes de auditoría
+
+Cuatro pestañas, con filtro de fechas, caja y cajero:
+
+- **Ventas:** por producto, categoría, turno, responsable o día.
+- **Excepciones:** anulaciones (incluyen las devoluciones), descuentos y ventas
+  manuales, con un resumen por responsable.
+- **Inventario:** entradas, salidas, ajustes y mermas.
+- **Rentabilidad:** ventas, costo y margen por producto o categoría. Si hay ventas
+  de productos sin costo cargado, verás un aviso: esas unidades no entran en el
+  margen.
+
+Cada pestaña se exporta a **PDF** o **Excel** con todo el período, no solo la
+página que estás viendo.
+
+---
+
+## 24. Bitácora, alertas y parámetros
+
+- **Bitácora:** registro de las acciones críticas (cambios de precio o costo,
+  anulaciones, descuentos, ventas manuales, ajustes y mermas, aperturas, cierres,
+  reaperturas, revisiones y cambios de parámetros), con quién, cuándo, el valor
+  anterior y el nuevo. **No se puede editar ni borrar.** El botón **"Verificar
+  integridad"** comprueba que nadie la haya alterado por fuera del sistema.
+- **Alertas:** el sistema las genera solo, cada hora de 7:00 a 19:00 y al cerrar
+  cada caja, cuando:
+  - hay diferencia de caja mayor a la tolerancia;
+  - un cajero (o el total del día) supera el límite de anulaciones o descuentos,
+    o una venta tiene un descuento mayor al porcentaje permitido;
+  - el inventario no coincide con las ventas;
+  - pasada la hora tope, sigue habiendo cajas sin cerrar;
+  - hay productos bajo el mínimo.
+
+  Para cerrar una alerta, usa **"Atender"** y escribe una nota. Las alertas no se
+  borran.
+- **Parámetros:** tolerancia de diferencia de caja, límites de anulaciones y
+  descuentos, porcentaje máximo de descuento y hora tope de cierre. Solo el
+  Director los cambia, y cada cambio queda en la bitácora.
+
+---
+
+## 25. Advertencias de la Auditoría
+
+- La **rentabilidad** solo es confiable para ventas hechas **después** de cargar
+  el costo de los productos.
+- No existe un flujo de **devolución** aparte: anular la venta es la forma de
+  devolver el dinero y queda registrado como anulación.
+- La **reapertura** también la puede autorizar un administrador desde el sistema,
+  pero el botón está por ahora solo en la pantalla de Auditoría del Director.

@@ -84,7 +84,8 @@ const Historial = () => {
     );
 };
 
-const ConfiguracionCobranzaInteligente = () => {
+/** `embebido`: se muestra como sección dentro de Configuración (sin encabezado de página). */
+const ConfiguracionCobranzaInteligente = ({ embebido = false }) => {
     const { estado, loading, guardando, guardar, requiereSede, sedeActiva } = useCobranzaInteligente();
     const [confirmando, setConfirmando] = useState(null); // 'encender' | 'apagar'
     const [motivo, setMotivo] = useState('');
@@ -119,13 +120,15 @@ const ConfiguracionCobranzaInteligente = () => {
     };
 
     return (
-        <div className="w-full max-w-3xl mx-auto space-y-4 sm:space-y-6 pb-20">
-            <PageHeader
-                titulo="Cobranza Inteligente"
-                descripcion={nombreSede
-                    ? `Seguimiento automático de cobranza · ${nombreSede}`
-                    : 'Seguimiento automático de cobranza'}
-            />
+        <div className={embebido ? 'space-y-4' : 'w-full max-w-3xl mx-auto space-y-4 sm:space-y-6 pb-20'}>
+            {!embebido && (
+                <PageHeader
+                    titulo="Cobranza Inteligente"
+                    descripcion={nombreSede
+                        ? `Seguimiento automático de cobranza · ${nombreSede}`
+                        : 'Seguimiento automático de cobranza'}
+                />
+            )}
 
             {loading && <Skeleton />}
 

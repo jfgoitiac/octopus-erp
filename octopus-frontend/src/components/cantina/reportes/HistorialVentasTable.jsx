@@ -4,6 +4,7 @@ import { Printer, Loader2, Search, Ban } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 import { descargarReciboVenta } from '../../../api/cantina.service';
+import AnularVentaModal from './AnularVentaModal';
 
 import { TablaScroll } from '../../ui/TablaScroll';
 import { coincideBusqueda } from '../../../utils/busqueda';
@@ -23,8 +24,11 @@ function formatFechaHora(iso) {
 // especial acá). Espera `ventas`: [{ id, alumno_nombre, tarjeta_serial,
 // cajero_username, metodo_pago, total_usd, total_ves, estado, creado_en,
 // anulada_en }, ...] — ver el contrato en api/cantina.service.js.
-export default function HistorialVentasTable({ ventas = [] }) {
+// "Anular" pide el motivo en AnularVentaModal y luego `onVentaAnulada`
+// recarga el reporte.
+export default function HistorialVentasTable({ ventas = [], onVentaAnulada }) {
   const [filtro, setFiltro] = useState('');
+  const [ventaAnular, setVentaAnular] = useState(null);
   const [imprimiendoId, setImprimiendoId] = useState(null);
 
   const ventasFiltradas = useMemo(() => {
@@ -115,7 +119,11 @@ export default function HistorialVentasTable({ ventas = [] }) {
                   </td>
                   <td className="px-4 py-2.5">
                     {anulada ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'var(--red-light)', color: 'var(--red)' }}>
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                        style={{ background: 'var(--red-light)', color: 'var(--red)' }}
+                        title={v.motivo_anulacion ? `Motivo: ${v.motivo_anulacion}` : undefined}
+                      >
                         <Ban size={11} /> Anulada
                       </span>
                     ) : (
@@ -125,17 +133,30 @@ export default function HistorialVentasTable({ ventas = [] }) {
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <button
-                      onClick={() => reimprimir(v)}
-                      disabled={imprimiendoId === v.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
-                      style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
-                    >
-                      {imprimiendoId === v.id
-                        ? <Loader2 size={13} className="animate-spin" />
-                        : <Printer size={13} />}
-                      Reimprimir
-                    </button>
+                    <div className="inline-flex items-center gap-1.5">
+                      <button
+                        onClick={() => reimprimir(v)}
+                        disabled={imprimiendoId === v.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                        style={{ border: '0.5px solid var(--border-md)', color: 'var(--pb)' }}
+                      >
+                        {imprimiendoId === v.id
+                          ? <Loader2 size={13} className="animate-spin" />
+                          : <Printer size={13} />}
+                        Reimprimir
+                      </button>
+                      {!anulada && (
+                        <button
+                          type="button"
+                          onClick={() => setVentaAnular(v)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                          style={{ border: '0.5px solid var(--border-md)', color: 'var(--red)' }}
+                          aria-label={`Anular venta #${v.id}`}
+                        >
+                          <Ban size={13} /> Anular
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -143,6 +164,14 @@ export default function HistorialVentasTable({ ventas = [] }) {
           </tbody>
         </table>
       </TablaScroll>
+
+      {ventaAnular && (
+        <AnularVentaModal
+          venta={ventaAnular}
+          onClose={() => setVentaAnular(null)}
+          onAnulada={onVentaAnulada}
+        />
+      )}
     </div>
   );
 }

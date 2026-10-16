@@ -22,6 +22,7 @@ from cobranza.models import BancoInstitucional, Pago
 from secretaria.models import Alumno, Representante
 from .mora_cantina import dias_en_negativo
 from . import services_cxc
+from .auditoria.bitacora import registrar_evento, snapshot
 from .models import (
     AREAS,
     AbonoCantina,
@@ -67,6 +68,18 @@ AREAS_VALIDAS = dict(AREAS)
 # Métodos de cobranza en los que se guardan los datos bancarios de la venta.
 METODOS_VENTA_BANCARIOS = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')
 METODOS_EFECTIVO = ('efectivo', 'efectivo_ves')
+# Auditoría: campos que se fotografían en la bitácora.
+CAMPOS_PRECIO = ['precio', 'costo']
+CAMPOS_PRODUCTO_CREADO = ['precio', 'costo', 'stock_actual']
+# Tipo de evento de bitácora según el tipo de movimiento manual de
+# inventario (las salidas por venta las registra la venta, no este mapa).
+EVENTO_POR_MOVIMIENTO = {
+    'entrada': 'movimiento_inventario',
+    'salida': 'movimiento_inventario',
+    'ajuste': 'ajuste_inventario',
+    'merma': 'merma',
+}
+MOVIMIENTOS_CON_MOTIVO = ('ajuste', 'merma')
 
 
 def _entero_o_none(valor):
@@ -161,7 +174,12 @@ class ProductosListCreateView(APIView):
     def post(self, request):
         serializer = ProductoCantinaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            producto = serializer.save()
+            registrar_evento(
+                'producto_creado', objeto=producto, request=request, area=producto.area,
+                despues=snapshot(producto, CAMPOS_PRODUCTO_CREADO),
+            )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -176,19 +194,28 @@ class ProductoDetailView(APIView):
         producto = self.get_object(pk)
         return Response(ProductoCantinaSerializer(producto).data)
 
-    def put(self, request, pk):
-        producto = self.get_object(pk)
-        serializer = ProductoCantinaSerializer(producto, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+    def _actualizar(self, request, pk, partial):
+        """Guarda el producto y, si cambió precio o costo, registra
+        `cambio_precio` en la bitácora dentro de la misma transacción."""
+        with transaction.atomic():
+            producto = get_object_or_404(ProductoCantina.objects.select_for_update(), pk=pk)
+            serializer = ProductoCantinaSerializer(producto, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            antes = snapshot(producto, CAMPOS_PRECIO)
+            producto = serializer.save()
+            despues = snapshot(producto, CAMPOS_PRECIO)
+            if antes != despues:
+                registrar_evento(
+                    'cambio_precio', objeto=producto, request=request, area=producto.area,
+                    antes=antes, despues=despues, motivo=_texto_seguro(request.data.get('motivo'))[:500],
+                )
         return Response(serializer.data)
 
+    def put(self, request, pk):
+        return self._actualizar(request, pk, partial=False)
+
     def patch(self, request, pk):
-        producto = self.get_object(pk)
-        serializer = ProductoCantinaSerializer(producto, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        return self._actualizar(request, pk, partial=True)
 
     def delete(self, request, pk):
         producto = self.get_object(pk)
@@ -234,11 +261,21 @@ class MovimientoInventarioCreateView(APIView):
         producto_id = request.data.get('producto')
         tipo = request.data.get('tipo')
         cantidad = request.data.get('cantidad')
-        motivo = request.data.get('motivo', '') or ''
+        motivo = _texto_seguro(request.data.get('motivo'))
 
         if not producto_id or not tipo or cantidad in (None, ''):
             return Response(
                 {'detail': "Los campos 'producto', 'tipo' y 'cantidad' son obligatorios."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(tipo, str) or tipo not in EVENTO_POR_MOVIMIENTO:
+            return Response(
+                {'detail': f"El campo 'tipo' debe ser uno de: {', '.join(EVENTO_POR_MOVIMIENTO)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if tipo in MOVIMIENTOS_CON_MOTIVO and not motivo:
+            return Response(
+                {'detail': f"El campo 'motivo' es obligatorio para un movimiento de tipo '{tipo}'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -253,9 +290,19 @@ class MovimientoInventarioCreateView(APIView):
             )
 
         try:
-            movimiento = aplicar_movimiento_inventario(
-                producto, tipo, cantidad, motivo=motivo, usuario=request.user,
-            )
+            with transaction.atomic():
+                movimiento = aplicar_movimiento_inventario(
+                    producto, tipo, cantidad, motivo=motivo, usuario=request.user,
+                )
+                registrar_evento(
+                    EVENTO_POR_MOVIMIENTO[tipo], objeto=producto, request=request, area=producto.area,
+                    antes={'stock': movimiento.stock_antes},
+                    despues={
+                        'stock': movimiento.stock_despues, 'tipo': tipo,
+                        'cantidad': movimiento.cantidad, 'movimiento_id': movimiento.id,
+                    },
+                    motivo=motivo,
+                )
         except DjangoValidationError as exc:
             mensaje = exc.messages[0] if hasattr(exc, 'messages') and exc.messages else str(exc)
             return Response({'detail': mensaje}, status=status.HTTP_400_BAD_REQUEST)
@@ -927,6 +974,11 @@ class AperturaCajaCantinaView(APIView):
             apertura = AperturaCajaCantina.objects.create(
                 cajero=request.user, monto_inicial=monto_inicial, area=area,
             )
+            apertura.refresh_from_db(fields=['monto_inicial'])  # normaliza a 2 decimales
+            registrar_evento(
+                'apertura_caja', objeto=apertura, request=request, area=area,
+                despues=snapshot(apertura, ['monto_inicial', 'area']),
+            )
 
         return Response(AperturaCajaCantinaSerializer(apertura).data, status=status.HTTP_201_CREATED)
 
@@ -949,8 +1001,16 @@ class RegistrarVentaView(APIView):
           "metodo_pago": "tarjeta_prepago" | <método de cobranza> | "credito_representante",
           "tarjeta_codigo": "CANT-XXXXXXXXXX",   # solo si metodo_pago == "tarjeta_prepago"
           "banco_receptor": id, "banco_procedencia", "referencia", "numero_lote",  # métodos bancarios
-          "representante_id": id, "alumno_id": id  # solo si metodo_pago == "credito_representante"
+          "representante_id": id, "alumno_id": id,  # solo si metodo_pago == "credito_representante"
+          "descuento_usd": "0.50", "motivo_descuento": "...",  # opcional (D1); motivo obligatorio si > 0
+          "origen_producto": "escaner" | "manual" | "mixto",    # opcional (D2), default 'escaner'
+          "origen_alumno": "escaner" | "manual" | "no_aplica"   # opcional (D2), default 'no_aplica'
         }
+
+    El descuento es por venta: `total_usd` se guarda NETO (subtotal −
+    descuento) y es lo que se cobra en todos los métodos (saldo de la
+    tarjeta, cargo de CxC, totales del cierre). Descuento y venta manual
+    quedan en la bitácora de Auditoría dentro de la misma transacción.
 
     El ÁREA de la venta sale SIEMPRE de la apertura del cajero (D2), nunca
     del request; solo se pueden vender productos de esa área.
@@ -993,6 +1053,56 @@ class RegistrarVentaView(APIView):
                 {'error': f"'metodo_pago' debe ser uno de: {', '.join(dict(VentaCantina.METODOS_PAGO))}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # ── Origen de producto/alumno (D2: venta manual) ────────────────────
+        origen_producto = request.data.get('origen_producto') or 'escaner'
+        if not isinstance(origen_producto, str) or origen_producto not in dict(VentaCantina.ORIGENES_PRODUCTO):
+            return Response(
+                {'error': f"'origen_producto' debe ser uno de: {', '.join(dict(VentaCantina.ORIGENES_PRODUCTO))}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        origen_alumno = request.data.get('origen_alumno') or 'no_aplica'
+        if not isinstance(origen_alumno, str) or origen_alumno not in dict(VentaCantina.ORIGENES_ALUMNO):
+            return Response(
+                {'error': f"'origen_alumno' debe ser uno de: {', '.join(dict(VentaCantina.ORIGENES_ALUMNO))}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        es_manual = origen_producto != 'escaner' or origen_alumno == 'manual'
+
+        # ── Descuento por venta (D1) — el tope contra el subtotal va más abajo ─
+        descuento_raw = request.data.get('descuento_usd')
+        descuento_usd = Decimal('0.00')
+        if descuento_raw not in (None, ''):
+            try:
+                if isinstance(descuento_raw, (bool, dict, list)):
+                    raise TypeError
+                descuento_usd = Decimal(str(descuento_raw).strip())
+                if not descuento_usd.is_finite():
+                    raise ValueError
+                descuento_usd = descuento_usd.quantize(Decimal('0.01'))
+            except Exception:
+                return Response(
+                    {'error': "'descuento_usd' debe ser un monto numérico."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if descuento_usd < 0:
+                return Response(
+                    {'error': 'El descuento no puede ser negativo.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        motivo_descuento = _texto_seguro(request.data.get('motivo_descuento'))
+        if descuento_usd > 0 and not motivo_descuento:
+            return Response(
+                {'error': "Debe indicar 'motivo_descuento' al aplicar un descuento."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(motivo_descuento) > 200:
+            return Response(
+                {'error': "'motivo_descuento' no puede superar 200 caracteres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if descuento_usd == 0:
+            motivo_descuento = ''
 
         # ── Datos bancarios (métodos de cobranza) ───────────────────────────
         banco_receptor = None
@@ -1098,7 +1208,7 @@ class RegistrarVentaView(APIView):
 
         # ── Resolver productos y calcular total (solo lectura) ──────────────
         lineas = []
-        total_usd = Decimal('0.00')
+        subtotal_usd = Decimal('0.00')
         for item in items:
             if not isinstance(item, dict):
                 return Response(
@@ -1146,13 +1256,26 @@ class RegistrarVentaView(APIView):
                 )
 
             subtotal = (producto.precio * cantidad).quantize(Decimal('0.01'))
-            total_usd += subtotal
+            subtotal_usd += subtotal
             lineas.append((producto, cantidad, producto.precio, subtotal))
 
         if not lineas:
             return Response({'error': "El carrito no puede estar vacío."}, status=status.HTTP_400_BAD_REQUEST)
-        if total_usd > Decimal('99999999.99'):
+        if subtotal_usd > Decimal('99999999.99'):
             return Response({'error': 'El total de la venta es demasiado grande.'}, status=status.HTTP_400_BAD_REQUEST)
+        if descuento_usd > subtotal_usd:
+            return Response(
+                {'error': f'El descuento (${descuento_usd}) no puede superar el subtotal de la venta (${subtotal_usd}).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Monto NETO: es lo que se cobra (tarjeta, CxC, caja) y lo que se guarda en total_usd.
+        total_usd = subtotal_usd - descuento_usd
+        if total_usd == 0 and metodo_pago == 'credito_representante':
+            # CargoCantina exige monto > 0: no hay nada que cargar a la cuenta.
+            return Response(
+                {'error': 'Una venta con descuento total no puede cargarse a la cuenta del representante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         tasa = tasa_cantina_activa()
         if tasa is None:
@@ -1210,6 +1333,11 @@ class RegistrarVentaView(APIView):
                     total_usd=total_usd,
                     tasa_aplicada=tasa.valor_bs,
                     total_ves=total_ves,
+                    descuento_usd=descuento_usd,
+                    motivo_descuento=motivo_descuento,
+                    origen_producto=origen_producto,
+                    origen_alumno=origen_alumno,
+                    es_manual=es_manual,
                 )
 
                 for producto, cantidad, precio_unitario, subtotal in lineas:
@@ -1220,6 +1348,25 @@ class RegistrarVentaView(APIView):
                     DetalleVentaCantina.objects.create(
                         venta=venta, producto=producto, cantidad=cantidad,
                         precio_unitario=precio_unitario, subtotal=subtotal,
+                        costo_unitario=producto.costo,
+                    )
+
+                if descuento_usd > 0:
+                    registrar_evento(
+                        'descuento_venta', objeto=venta, request=request, area=venta.area,
+                        despues={
+                            'subtotal_usd': subtotal_usd, 'descuento_usd': descuento_usd,
+                            'total_usd': total_usd,
+                        },
+                        motivo=motivo_descuento,
+                    )
+                if es_manual:
+                    registrar_evento(
+                        'venta_manual', objeto=venta, request=request, area=venta.area,
+                        despues={
+                            'origen_producto': origen_producto, 'origen_alumno': origen_alumno,
+                            'total_usd': total_usd,
+                        },
                     )
 
                 if tarjeta is not None:
@@ -1256,6 +1403,8 @@ class AnularVentaView(APIView):
     (entrada por cada línea) y, si fue con tarjeta, reversa el saldo
     (movimiento 'reverso') — todo dentro de `transaction.atomic()`. No
     permite anular una venta ya anulada (idempotencia — §10 checklist).
+    Body: {motivo} obligatorio (Auditoría) → `motivo_anulacion` + evento
+    `anulacion_venta` en la bitácora, dentro de la misma transacción.
 
     DECISIÓN DE PERMISO: el cliente confirmó explícitamente que el cajero
     debe tener el mismo nivel de acceso que administrador/director en todo
@@ -1284,8 +1433,28 @@ class AnularVentaView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        motivo = _texto_seguro(request.data.get('motivo'))
+        if not motivo:
+            return Response(
+                {'error': "Debe indicar el 'motivo' de la anulación."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             with transaction.atomic():
+                # Bloquea la venta y re-verifica su estado DENTRO de la
+                # transacción: dos anulaciones simultáneas pasaban ambas el
+                # chequeo de arriba y revertían dos veces stock y saldo de la
+                # tarjeta. Ninguna otra ruta bloquea filas de VentaCantina, así
+                # que tomar este lock primero no crea ciclos con el orden
+                # global representante → cargos → productos/tarjeta.
+                venta = VentaCantina.objects.select_for_update().select_related('tarjeta').get(pk=venta.pk)
+                if venta.estado == 'anulada':
+                    return Response(
+                        {'error': f'La venta #{venta.id} ya fue anulada anteriormente (no se puede anular dos veces).'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                antes = snapshot(venta, ['estado', 'total_usd', 'metodo_pago'])
                 if es_credito:
                     # Orden global: representante → cargos → productos.
                     if venta.representante_id:
@@ -1307,7 +1476,13 @@ class AnularVentaView(APIView):
                 venta.estado = 'anulada'
                 venta.anulada_en = timezone.now()
                 venta.anulada_por = request.user
-                venta.save(update_fields=['estado', 'anulada_en', 'anulada_por'])
+                venta.motivo_anulacion = motivo
+                venta.save(update_fields=['estado', 'anulada_en', 'anulada_por', 'motivo_anulacion'])
+                registrar_evento(
+                    'anulacion_venta', objeto=venta, request=request, area=venta.area,
+                    antes=antes, despues=snapshot(venta, ['estado', 'total_usd', 'metodo_pago']),
+                    motivo=motivo,
+                )
         except (drf_serializers.ValidationError, DjangoValidationError) as exc:
             return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1560,6 +1735,13 @@ class CierreCajaCantinaView(APIView):
                 apertura.estado = 'cerrada'
                 apertura.cerrada_en = timezone.now()
                 apertura.save(update_fields=['estado', 'cerrada_en'])
+                campos_cierre = ['total_ventas', 'total_efectivo', 'conteo_fisico', 'diferencia']
+                cierre.refresh_from_db(fields=campos_cierre)  # normaliza a 2 decimales
+                registrar_evento(
+                    'cierre_caja', objeto=cierre, request=request, area=cierre.area,
+                    despues=snapshot(cierre, campos_cierre),
+                    motivo=_texto_seguro(observaciones),
+                )
         except IntegrityError:
             # Red de seguridad ante una carrera de dos POST simultáneos
             # sobre la misma apertura (el chequeo de arriba no es atómico

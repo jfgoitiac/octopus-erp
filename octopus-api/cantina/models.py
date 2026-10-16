@@ -223,6 +223,9 @@ class ProductoCantina(models.Model):
     categoria = models.ForeignKey(CategoriaProducto, on_delete=models.PROTECT, related_name='productos')
     codigo_barras = models.CharField(max_length=50, unique=True, null=True, blank=True, db_index=True)
     precio = models.DecimalField(max_digits=8, decimal_places=2)
+    # Costo unitario en USD para la rentabilidad estimada (Auditoría). null =
+    # costo desconocido: los reportes lo excluyen del margen y lo advierten.
+    costo = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     stock_actual = models.IntegerField(default=0)
     stock_minimo = models.IntegerField(default=5)
     imagen = models.ImageField(upload_to='cantina/productos/', null=True, blank=True)
@@ -246,7 +249,10 @@ class MovimientoInventario(models.Model):
     TIPOS = (
         ('entrada', 'Entrada (compra a proveedor)'),
         ('salida', 'Salida (venta)'),
-        ('ajuste', 'Ajuste (merma / conteo)'),
+        ('ajuste', 'Ajuste (conteo)'),
+        # D3: la merma (vencido, dañado, consumo interno) se separa del ajuste
+        # por conteo. `cantidad` es positiva y resta del stock.
+        ('merma', 'Merma'),
     )
     producto = models.ForeignKey(ProductoCantina, on_delete=models.CASCADE, related_name='movimientos')
     tipo = models.CharField(max_length=10, choices=TIPOS)
@@ -345,10 +351,29 @@ class VentaCantina(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     anulada_en = models.DateTimeField(null=True, blank=True)
     anulada_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='ventas_anuladas')
+    motivo_anulacion = models.TextField(blank=True)
+    # D1: descuento por venta con motivo obligatorio. total_usd ya es el neto
+    # (subtotal − descuento); el subtotal bruto es total_usd + descuento_usd.
+    descuento_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    motivo_descuento = models.CharField(max_length=200, blank=True)
+    # D2: venta manual = producto o alumno elegido por búsqueda, no por escáner.
+    ORIGENES_PRODUCTO = (('escaner', 'Escáner'), ('manual', 'Búsqueda manual'), ('mixto', 'Mixto'))
+    ORIGENES_ALUMNO = (('escaner', 'Escáner de tarjeta'), ('manual', 'Búsqueda manual'), ('no_aplica', 'No aplica'))
+    origen_producto = models.CharField(max_length=10, choices=ORIGENES_PRODUCTO, default='escaner')
+    origen_alumno = models.CharField(max_length=10, choices=ORIGENES_ALUMNO, default='no_aplica')
+    es_manual = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         ordering = ['-creado_en']
-        indexes = [models.Index(fields=['referencia', 'metodo_pago'])]
+        indexes = [
+            models.Index(fields=['referencia', 'metodo_pago']),
+            models.Index(fields=['cajero', 'creado_en']),
+            models.Index(fields=['estado', 'creado_en']),
+        ]
+
+    @property
+    def subtotal_usd(self):
+        return self.total_usd + self.descuento_usd
 
 
 class DetalleVentaCantina(models.Model):
@@ -357,6 +382,8 @@ class DetalleVentaCantina(models.Model):
     cantidad = models.PositiveIntegerField()
     precio_unitario = models.DecimalField(max_digits=8, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    # Snapshot de ProductoCantina.costo al vender (null = costo desconocido).
+    costo_unitario = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
 
 class CierreCajaCantina(models.Model):
@@ -484,3 +511,18 @@ class AplicacionAbonoCantina(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='aplicacion_abono_monto_positivo'),
         ]
+
+
+# ─────────────────────────────────────────────
+# Auditoría de Cantina (exclusiva del Director)
+# ─────────────────────────────────────────────
+# Los modelos viven en su propio subpaquete pero pertenecen a esta app; se
+# importan aquí para que Django los registre. Ver cantina/auditoria/models.py.
+from .auditoria.models import (  # noqa: E402,F401
+    AdjuntoRevision,
+    AlertaCantina,
+    EventoAuditoriaCantina,
+    ParametroAuditoriaCantina,
+    ReaperturaCajaCantina,
+    RevisionCierre,
+)

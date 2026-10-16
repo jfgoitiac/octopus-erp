@@ -2,6 +2,14 @@ import { Package, Pencil, SlidersHorizontal, Trash2, AlertTriangle } from 'lucid
 import { TablaScroll } from '../../ui/TablaScroll';
 import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 
+// Margen bruto sobre el precio de venta; null si falta el costo (productos
+// anteriores a la Auditoría) o el precio es 0.
+function margenPct(p) {
+  const precio = Number(p.precio);
+  if (p.costo == null || p.costo === '' || !(precio > 0)) return null;
+  return ((precio - Number(p.costo)) / precio) * 100;
+}
+
 export default function ProductosTable({ productos, onEditar, onAjustar, onEliminar }) {
   if (productos.length === 0) {
     return (
@@ -17,10 +25,10 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
 
   return (
     <TablaScroll className="rounded-xl" >
-      <table className="w-full text-sm border-collapse min-w-[840px]" style={{ border: '0.5px solid var(--border-md)' }}>
+      <table className="w-full text-sm border-collapse min-w-[940px]" style={{ border: '0.5px solid var(--border-md)' }}>
         <thead>
           <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
-            {['Nombre', 'Caja', 'Categoría', 'Código de barras', 'Precio', 'Stock', 'Estado', 'Acciones'].map(h => (
+            {['Nombre', 'Caja', 'Categoría', 'Código de barras', 'Precio', 'Costo / margen', 'Stock', 'Estado', 'Acciones'].map(h => (
               <th
                 key={h}
                 scope="col"
@@ -47,6 +55,18 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
               <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{p.categoria_nombre ?? p.categoria?.nombre ?? '—'}</td>
               <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{p.codigo_barras || '—'}</td>
               <td className="px-4 py-3" style={{ color: 'var(--jet)' }}>${Number(p.precio ?? 0).toFixed(2)}</td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                {margenPct(p) == null ? (
+                  <span style={{ color: 'var(--ash)' }}>—</span>
+                ) : (
+                  <>
+                    <span style={{ color: 'var(--jet)' }}>${Number(p.costo).toFixed(2)}</span>
+                    <span className="ml-1.5 text-xs" style={{ color: margenPct(p) < 0 ? 'var(--red)' : 'var(--ash)' }}>
+                      {margenPct(p).toFixed(1)} %
+                    </span>
+                  </>
+                )}
+              </td>
               <td className="px-4 py-3">
                 {p.stock_bajo ? (
                   <span

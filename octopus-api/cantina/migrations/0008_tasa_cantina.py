@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cantina', '0004_cxc_constraints_indices'),
+        ('cantina', '0007_auditoria_trigger_bitacora'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

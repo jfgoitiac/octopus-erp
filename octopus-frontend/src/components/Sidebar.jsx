@@ -7,12 +7,16 @@ import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
 import SedeSwitcher from './SedeSwitcher';
 import logoColegioFallback from '../assets/logo-colegio.png';
+import useResumenAlertas from '../cantina/auditoria/useResumenAlertas';
+import ContadorAlertas from '../cantina/auditoria/components/ContadorAlertas';
+import { RUTA_AUDITORIA, RUTAS_AUDITORIA } from '../cantina/auditoria/rutas';
 import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
-  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, Sparkles
+  Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, Sparkles,
+  Gauge, ClipboardCheck, ScrollText
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente', 'coordinador'];
@@ -61,6 +65,17 @@ const navSections = [
     ],
   },
   {
+    // Supervisión de la cantina: exclusivo del Director (ni cajero ni
+    // administrador). El backend exige lo mismo (EsDirector).
+    label: 'Auditoría Cantina',
+    items: [
+      { name: 'Panel ejecutivo', path: RUTAS_AUDITORIA.panel, match: [`${RUTA_AUDITORIA}/panel`], icon: Gauge, roles: ['director'] },
+      { name: 'Cierres de caja', path: RUTAS_AUDITORIA.cierres, match: [`${RUTA_AUDITORIA}/cierres`], icon: ClipboardCheck, roles: ['director'] },
+      { name: 'Reportes de cantina', path: RUTAS_AUDITORIA.reportes, match: [`${RUTA_AUDITORIA}/reportes`], icon: BarChart3, roles: ['director'] },
+      { name: 'Bitácora y alertas', path: RUTAS_AUDITORIA.bitacora, match: [`${RUTA_AUDITORIA}/bitacora`], icon: ScrollText, roles: ['director'], contadorAlertas: true },
+    ],
+  },
+  {
     label: 'Académico',
     items: [
       { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'secretaria', 'coordinador'] },
@@ -92,7 +107,6 @@ const navSections = [
       { name: 'Sitio Institucional', path: '/gestion-sitio', icon: Globe, roles: ['director','sistemas'] },
       { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas'] },
       { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas'] },
-      { name: 'Cobranza Inteligente', path: '/configuracion/cobranza-inteligente', icon: Sparkles, roles: ['director','sistemas','administrador'] },
       { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas'] },
       { name: 'Auditoría', path: '/auditoria', icon: ShieldCheck, roles: ['director'] },
     ],
@@ -111,7 +125,7 @@ const slugify = (label) =>
 // Ítem de navegación único — usado tanto en los grupos como en la sección de Favoritos.
 // El botón de fijar es hermano del Link (no anidado) para no meter un <button>
 // interactivo dentro de un <a> interactivo.
-const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFavorito }) => {
+const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFavorito, alertas }) => {
   const Icon = item.icon;
 
   const handlePinClick = (e) => {
@@ -139,6 +153,9 @@ const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFa
       >
         <Icon size={15} style={{ color: isActive ? 'var(--pb)' : 'var(--ash)', flexShrink: 0 }} />
         <span className="truncate">{item.name}</span>
+        {item.contadorAlertas && alertas && (
+          <ContadorAlertas abiertas={alertas.abiertas} hayCriticas={alertas.hayCriticas} className="ml-auto" />
+        )}
       </Link>
       <button
         type="button"
@@ -163,6 +180,8 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
   const { favoritos, gruposColapsados, toggleFavorito, toggleGrupo, esFavorito } = useSidebarPrefs(user?.username);
 
   const userRole = (user?.rol || '').toLowerCase().trim();
+  // Contador de alertas de la Auditoría de Cantina: solo se pide para el Director.
+  const alertasCantina = useResumenAlertas(userRole === 'director');
 
   const handleToggleFavorito = (item) => {
     const yaEraFavorito = esFavorito(item.path);
@@ -324,6 +343,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
                             animationDelay={`${sIdx * 60 + iIdx * 35}ms`}
                             isFavorito={esFavorito(item.path)}
                             onToggleFavorito={handleToggleFavorito}
+                            alertas={alertasCantina}
                           />
                         );
                       })}

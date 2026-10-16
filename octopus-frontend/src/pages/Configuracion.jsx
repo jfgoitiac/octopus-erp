@@ -4,7 +4,7 @@ import {
     RefreshCcw, CheckCircle, X, Loader2, BarChart3, Clock,
     Building, Plus, Pencil, Trash2, Briefcase, School, Phone, Mail, MapPin, Landmark,
     Image, Upload, Trash, MessageCircle, Bell, CheckCircle2, XCircle, ExternalLink, Check,
-    GraduationCap,
+    GraduationCap, Sparkles,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -22,6 +22,7 @@ import TiposCargoEspecialTab from '../components/configuracion/TiposCargoEspecia
 import ConciliadorBancoCampos from '../components/configuracion/ConciliadorBancoCampos';
 import BecasTab from '../components/configuracion/BecasTab';
 import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
+import ConfiguracionCobranzaInteligente from './ConfiguracionCobranzaInteligente';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
 import { useBranding } from '../context/BrandingContext';
@@ -37,6 +38,8 @@ const Configuracion = () => {
     const { user } = useContext(AuthContext);
     const [showQuitarGradosModal, setShowQuitarGradosModal] = useState(false);
     const [notifAbierto, setNotifAbierto] = useState(false);
+    // Se abre solo al llegar con #cobranza-inteligente (enlaces y la ruta vieja redirigen aquí).
+    const [inteligenteAbierto, setInteligenteAbierto] = useState(() => window.location.hash === '#cobranza-inteligente');
 
     const {
         config, loading, saving, cargandoCuotas, quitandoGrados,
@@ -137,6 +140,13 @@ const Configuracion = () => {
         return () => document.removeEventListener('keydown', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Con #cobranza-inteligente, llevar la vista a esa sección cuando la página termina de cargar.
+    useEffect(() => {
+        if (!loading && window.location.hash === '#cobranza-inteligente') {
+            document.getElementById('cobranza-inteligente')?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [loading]);
 
     const isAuthorized = user && ['director', 'sistemas', 'administrador'].includes(user.rol);
 
@@ -979,6 +989,30 @@ const Configuracion = () => {
 
             {/* Recargos por Pago Tardío — sección propia, mismo motivo que Cargos Especiales */}
             <ReglasRecargoPagoTab />
+
+            {/* Cobranza Inteligente — toggle y ajustes; carga diferida igual que Notificaciones */}
+            <div id="cobranza-inteligente" className="rounded-xl overflow-hidden scroll-mt-24"
+                style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+                <button type="button" onClick={() => setInteligenteAbierto(v => !v)} aria-expanded={inteligenteAbierto}
+                    className="w-full px-5 py-3.5 flex items-center gap-3 text-left"
+                    style={{ borderBottom: inteligenteAbierto ? '0.5px solid var(--border-md)' : 'none', background: 'var(--bg)' }}>
+                    <div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}>
+                        <Sparkles size={15} style={{ color: 'var(--pb)' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Cobranza Inteligente</h3>
+                        <p className="text-[11px]" style={{ color: 'var(--ash)' }}>Encender o apagar el seguimiento automático, modo sombra y etapas de envío</p>
+                    </div>
+                    <span className="text-xs font-medium shrink-0" style={{ color: 'var(--pb)' }}>
+                        {inteligenteAbierto ? 'Ocultar' : 'Configurar'}
+                    </span>
+                </button>
+                {inteligenteAbierto && (
+                    <div className="p-4 sm:p-5">
+                        <ConfiguracionCobranzaInteligente embebido />
+                    </div>
+                )}
+            </div>
 
             {/* Panel de Notificaciones — carga diferida: no pide datos hasta abrirse, para no sobrecargar esta página */}
             <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>

@@ -233,6 +233,20 @@ def generar_pdf_ticket(venta):
         c.line(col_prod, fila_y, col_subtotal, fila_y)
         fila_y -= fila_h
 
+    # ── Descuento (Auditoría D1) ──────────────────────────────────────
+    # total_usd ya es neto: si hubo descuento se muestran subtotal bruto y
+    # descuento con su motivo antes del total.
+    if venta.descuento_usd and venta.descuento_usd > 0:
+        c.setFillColor(octopus_blue)
+        c.setFont('Helvetica', 9)
+        c.drawString(col_prod + 0.1 * inch, fila_y + 0.1 * inch, 'Subtotal:')
+        c.drawRightString(col_subtotal, fila_y + 0.1 * inch, f'$ {venta.subtotal_usd:,.2f}')
+        fila_y -= fila_h
+        motivo = f' ({venta.motivo_descuento[:40]})' if venta.motivo_descuento else ''
+        c.drawString(col_prod + 0.1 * inch, fila_y + 0.1 * inch, f'Descuento{motivo}:')
+        c.drawRightString(col_subtotal, fila_y + 0.1 * inch, f'- $ {venta.descuento_usd:,.2f}')
+        fila_y -= fila_h
+
     # ── Totales ───────────────────────────────────────────────────────
     c.setStrokeColor(octopus_gold)
     c.setLineWidth(1.5)

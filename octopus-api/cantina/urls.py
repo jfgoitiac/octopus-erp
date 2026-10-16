@@ -92,4 +92,7 @@ urlpatterns = [
 
     # Cuentas por cobrar a representantes (CxC)
     path('cxc/', include('cantina.urls_cxc')),
+
+    # Auditoría de Cantina — exclusiva del Director (CONTRATO_AUDITORIA_CANTINA.md)
+    path('auditoria/', include('cantina.auditoria.urls')),
 ]

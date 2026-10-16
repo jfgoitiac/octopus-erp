@@ -81,6 +81,16 @@ class ToggleApiTest(ToggleBase):
         self.assertEqual(r.status_code, 403)
         self.assertFalse(inteligente_activa_para_sede(self.sede.id))
 
+    def test_solo_director_y_sistemas_cambian_el_modulo(self):
+        from authentication.models import PerfilUsuario
+        for rol, esperado in (('administrador', 403), ('sistemas', 200), ('director', 200)):
+            u = User.objects.create_user(f'u_{rol}', f'{rol}@t.com', 'x')
+            PerfilUsuario.objects.update_or_create(user=u, defaults={'rol': rol})
+            c = APIClient()
+            c.force_authenticate(User.objects.get(pk=u.pk))
+            r = c.patch(URL + f'?sede={self.sede.id}', {'modo_sombra': True}, format='json')
+            self.assertEqual(r.status_code, esperado, rol)
+
     def test_etapas_invalidas_se_rechazan(self):
         r = self.client.patch(URL + f'?sede={self.sede.id}', {'etapas_envio_activas': ['otra']}, format='json')
         self.assertEqual(r.status_code, 400)

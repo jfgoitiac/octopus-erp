@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
 import { ROLE_GROUPS, ROLES } from './constants/roles';
@@ -69,7 +69,6 @@ const Configuracion            = lazy(() => import('./pages/Configuracion'));
 const ConfiguracionNotificaciones = lazy(() => import('./pages/ConfiguracionNotificaciones'));
 const CobranzaInteligenteGestion = lazy(() => import('./pages/CobranzaInteligenteGestion'));
 const CobranzaInteligenteDashboard = lazy(() => import('./pages/CobranzaInteligenteDashboard'));
-const ConfiguracionCobranzaInteligente = lazy(() => import('./pages/ConfiguracionCobranzaInteligente'));
 const CobranzaInteligenteConversacion = lazy(() => import('./pages/CobranzaInteligenteConversacion'));
 const PlantillasConstancias    = lazy(() => import('./pages/constancias/PlantillasConstancias'));
 const PlantillaEditorConstancia = lazy(() => import('./pages/constancias/PlantillaEditorConstancia'));
@@ -112,6 +111,12 @@ const CantinaCierreCaja        = lazy(() => import('./cantina/pages/CantinaCierr
 const CantinaReportes          = lazy(() => import('./cantina/pages/CantinaReportes'));
 const CantinaMorosos           = lazy(() => import('./cantina/pages/CantinaMorosos'));
 const CantinaCuentasPorCobrar  = lazy(() => import('./cantina/pages/CantinaCuentasPorCobrar'));
+// Auditoría de Cantina — exclusiva del Director (PLAN_AUDITORIA_CANTINA.md)
+const AuditoriaPanel           = lazy(() => import('./cantina/auditoria/pages/AuditoriaPanel'));
+const AuditoriaCierres         = lazy(() => import('./cantina/auditoria/pages/AuditoriaCierres'));
+const AuditoriaCierreDetalle   = lazy(() => import('./cantina/auditoria/pages/AuditoriaCierreDetalle'));
+const AuditoriaReportes        = lazy(() => import('./cantina/auditoria/pages/AuditoriaReportes'));
+const AuditoriaBitacora        = lazy(() => import('./cantina/auditoria/pages/AuditoriaBitacora'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -204,6 +209,9 @@ function App() {
               <Route path="reportes" element={<CantinaReportes />} />
               <Route path="morosos" element={<CantinaMorosos />} />
               <Route path="cuentas" element={<CantinaCuentasPorCobrar />} />
+              {/* La Auditoría de Cantina vive en el panel administrativo
+                  (/auditoria-cantina); la ruta vieja redirige allí. */}
+              <Route path="auditoria/*" element={<Navigate to="/auditoria-cantina" replace />} />
             </Route>
 
             {/* ── Autenticación admin ── */}
@@ -407,6 +415,25 @@ function App() {
                   <Auditoria />
                 </ProtectedRoute>
               } />
+              {/* Auditoría de Cantina: módulo del panel, exclusivo del
+                  Director (supervisa sin operar la caja). Cajero,
+                  administrador y demás roles quedan fuera; el backend exige
+                  lo mismo (EsDirector). */}
+              <Route
+                path="auditoria-cantina"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.DIRECTOR]}>
+                    <Outlet />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="panel" replace />} />
+                <Route path="panel" element={<AuditoriaPanel />} />
+                <Route path="cierres" element={<AuditoriaCierres />} />
+                <Route path="cierres/:id" element={<AuditoriaCierreDetalle />} />
+                <Route path="reportes" element={<AuditoriaReportes />} />
+                <Route path="bitacora" element={<AuditoriaBitacora />} />
+              </Route>
               <Route path="configuracion" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
                   <Configuracion />
@@ -433,10 +460,9 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="cobranza/inteligente/resultados" element={<Navigate to="/cobranza/inteligente" replace />} />
+              {/* El toggle vive ahora dentro de Configuración */}
               <Route path="configuracion/cobranza-inteligente" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR]}>
-                  <ConfiguracionCobranzaInteligente />
-                </ProtectedRoute>
+                <Navigate to={{ pathname: '/configuracion', hash: '#cobranza-inteligente' }} replace />
               } />
 
               {/* Módulo Académico */}
