@@ -4155,3 +4155,13 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    escribirlo desde la web abriría la puerta a tomar el servidor.
 6. **Lint preexistente**: `src/hooks/useConfiguracionNotificaciones.js`
    (`set-state-in-effect`, línea del `useEffect` de carga). No se tocó.
+
+## Bandeja de gestión de Cobranza Inteligente (rediseño visual)
+
+1. **Convenios sin nombre del representante**: `GET /api/cobranza/inteligente/convenios/`
+   (`_serializar_convenio` en `cobranza/views_gestion.py`) devuelve solo el id del
+   representante. La tarjeta muestra "Convenio #id" y un enlace a la conversación;
+   para mostrar el nombre habría que añadir `representante_nombre` en el backend.
+2. **Etapas duplicadas**: `prioridad.js` define los estados del ciclo
+   (`ETAPAS_CICLO`); `Chat.jsx`, `morosos/EtapaCobranza.jsx` y el dashboard
+   mantienen sus propias copias de etiquetas/colores. No se unificaron.
