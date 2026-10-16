@@ -67,8 +67,8 @@ function HistorialSkeleton() {
     <div className="flex flex-col gap-4" aria-busy="true" aria-label="Cargando historial">
       {[0, 1, 2].map((i) => (
         <div key={i} className="flex gap-3">
-          <div className="w-3 h-3 mt-1 rounded-full animate-pulse shrink-0" style={{ background: 'var(--border-md)' }} />
-          <div className="flex-1 h-16 rounded-xl animate-pulse" style={{ background: 'var(--border)' }} />
+          <div className="w-3 h-3 mt-1 rounded-full motion-safe:animate-pulse shrink-0" style={{ background: 'var(--border-md)' }} />
+          <div className="flex-1 h-16 rounded-xl motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
         </div>
       ))}
     </div>

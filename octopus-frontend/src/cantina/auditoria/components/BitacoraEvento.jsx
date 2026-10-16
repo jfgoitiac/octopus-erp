@@ -59,7 +59,7 @@ export default function BitacoraEvento({ evento }) {
               <User size={12} aria-hidden="true" style={{ color: 'var(--ash)' }} />
               {evento.usuario?.nombre ?? 'Sistema'}
               {evento.usuario_rol && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-md text-[11px]" style={{ background: 'var(--surface-sunken)', color: 'var(--jet-mid)' }}>
+                <span className="ml-1 px-1.5 py-0.5 rounded-md text-xs" style={{ background: 'var(--surface-sunken)', color: 'var(--jet-mid)' }}>
                   {ROL_ETIQUETA[evento.usuario_rol] ?? evento.usuario_rol}
                 </span>
               )}
@@ -98,7 +98,7 @@ export default function BitacoraEvento({ evento }) {
             <ChevronDown size={14} aria-hidden="true" className={`transition-transform ${abierto ? 'rotate-180' : ''}`} />
             {abierto ? 'Ocultar detalle' : 'Ver detalle'}
             {cambiados > 0 && (
-              <span className="px-1.5 py-0.5 rounded-md text-[11px]" style={{ background: 'var(--yellow-light)', color: 'var(--amber-ink)' }}>
+              <span className="px-1.5 py-0.5 rounded-md text-xs" style={{ background: 'var(--yellow-light)', color: 'var(--amber-ink)' }}>
                 {cambiados} cambio{cambiados === 1 ? '' : 's'}
               </span>
             )}
@@ -120,11 +120,11 @@ export function BitacoraEventoSkeleton() {
       {[0, 1, 2, 3].map((i) => (
         <li key={i} className="rounded-2xl p-4 flex flex-col gap-2.5" style={ESTILO_TARJETA}>
           <div className="flex items-start justify-between gap-3">
-            <div className="h-4 w-2/3 sm:w-1/3 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
-            <div className="hidden sm:block h-3 w-28 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="h-4 w-2/3 sm:w-1/3 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="hidden sm:block h-3 w-28 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
           </div>
-          <div className="h-3 w-1/2 sm:w-1/4 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
-          <div className="h-8 w-full rounded-xl animate-pulse" style={{ background: 'var(--border)' }} />
+          <div className="h-3 w-1/2 sm:w-1/4 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
+          <div className="h-8 w-full rounded-xl motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
         </li>
       ))}
     </ul>

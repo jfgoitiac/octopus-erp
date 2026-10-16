@@ -22,7 +22,7 @@ export default function CierreResumenVentas({ resumen, observaciones, reapertura
   return (
     <section className="rounded-2xl p-4 sm:p-5 flex flex-col gap-4" style={ESTILO_TARJETA} aria-labelledby="cierre-resumen-ventas">
       <h2 id="cierre-resumen-ventas" className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Ventas del turno</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         <Contador icono={ShoppingBag} etiqueta="Ventas" valor={resumen?.cantidad} />
         <Contador icono={Ban} etiqueta="Anuladas" valor={resumen?.anuladas} alerta />
         <Contador icono={Percent} etiqueta="Con descuento" valor={resumen?.con_descuento} alerta />

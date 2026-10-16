@@ -79,12 +79,12 @@ const aPayload = (form) =>
 function ParametrosSkeleton() {
   return (
     <div className="rounded-2xl p-4 sm:p-5 flex flex-col gap-4" style={ESTILO_TARJETA} aria-busy="true" aria-label="Cargando parámetros">
-      <div className="h-4 w-1/2 sm:w-1/4 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
+      <div className="h-4 w-1/2 sm:w-1/4 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {CAMPOS.map((c) => (
           <div key={c.clave} className="flex flex-col gap-2">
-            <div className="h-3 w-2/3 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
-            <div className="h-11 w-full rounded-xl animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="h-3 w-2/3 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="h-11 w-full rounded-xl motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
           </div>
         ))}
       </div>

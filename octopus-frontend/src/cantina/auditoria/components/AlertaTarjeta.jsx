@@ -38,12 +38,12 @@ export default function AlertaTarjeta({ alerta, onAtender }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider" style={{ background: sev.fondo, color: sev.color }}>
+            <span className="px-2 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wider" style={{ background: sev.fondo, color: sev.color }}>
               {sev.texto}
             </span>
             <span className="text-xs" style={{ color: 'var(--jet-mid)' }}>{alerta.tipo_etiqueta ?? alerta.tipo}</span>
             {!abierta && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: 'var(--green-light)', color: 'var(--green)' }}>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium" style={{ background: 'var(--green-light)', color: 'var(--green)' }}>
                 <CheckCircle2 size={12} aria-hidden="true" />
                 Atendida
               </span>
@@ -109,12 +109,12 @@ export function AlertaTarjetaSkeleton() {
     <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3" aria-busy="true" aria-label="Cargando alertas">
       {[0, 1, 2, 3].map((i) => (
         <li key={i} className="rounded-2xl p-4 flex gap-3" style={ESTILO_TARJETA}>
-          <div className="size-10 rounded-xl animate-pulse shrink-0" style={{ background: 'var(--border)' }} />
+          <div className="size-10 rounded-xl motion-safe:animate-pulse shrink-0" style={{ background: 'var(--border)' }} />
           <div className="flex-1 flex flex-col gap-2">
-            <div className="h-3 w-1/3 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
-            <div className="h-4 w-4/5 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
-            <div className="h-3 w-1/4 rounded-md animate-pulse" style={{ background: 'var(--border)' }} />
-            <div className="h-11 w-full sm:w-28 sm:self-end rounded-xl animate-pulse mt-1" style={{ background: 'var(--border)' }} />
+            <div className="h-3 w-1/3 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="h-4 w-4/5 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="h-3 w-1/4 rounded-md motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
+            <div className="h-11 w-full sm:w-28 sm:self-end rounded-xl motion-safe:animate-pulse mt-1" style={{ background: 'var(--border)' }} />
           </div>
         </li>
       ))}

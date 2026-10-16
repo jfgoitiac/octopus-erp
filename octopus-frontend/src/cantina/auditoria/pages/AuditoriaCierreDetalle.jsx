@@ -20,7 +20,7 @@ const totalesComoObjeto = (lista = []) =>
   Object.fromEntries(lista.map((m) => [m.metodo, { total_usd: m.total_usd }]));
 
 function DetalleSkeleton() {
-  const bloque = (clase) => <div className={`rounded-2xl animate-pulse ${clase}`} style={{ background: 'var(--border)' }} />;
+  const bloque = (clase) => <div className={`rounded-2xl motion-safe:animate-pulse ${clase}`} style={{ background: 'var(--border)' }} />;
   return (
     <div className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando cierre">
       {bloque('h-32 sm:h-28')}

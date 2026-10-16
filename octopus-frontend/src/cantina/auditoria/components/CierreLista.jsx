@@ -34,7 +34,7 @@ export function CierreListaSkeleton({ filas = 5 }) {
   return (
     <div className="flex flex-col gap-2" aria-busy="true" aria-label="Cargando cierres">
       {Array.from({ length: filas }).map((_, i) => (
-        <div key={i} className="h-24 sm:h-12 rounded-2xl animate-pulse" style={{ background: 'var(--border)' }} />
+        <div key={i} className="h-24 sm:h-12 rounded-2xl motion-safe:animate-pulse" style={{ background: 'var(--border)' }} />
       ))}
     </div>
   );
