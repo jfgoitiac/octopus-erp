@@ -315,8 +315,8 @@
     "semantic_hash": "a27e1ececd1ed435b2706fc2fc5c0720"
   },
   "octopus-api/config/settings.py": {
-    "mtime": 1792063363.6436849,
-    "ast_hash": "ea188bc4d9cc25d79259b20125db2889",
+    "mtime": 1792118501.399004,
+    "ast_hash": "87a85e595a7224dc66b5ad9244373ecf",
     "semantic_hash": ""
   },
   "octopus-api/config/urls.py": {
@@ -2545,8 +2545,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1792067841.8863854,
-    "ast_hash": "40722864ff5fca198ac601f9f66e3007",
+    "mtime": 1792119690.2024107,
+    "ast_hash": "7e8d050eae60ba1a3e63afbc0a9d9cb1",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -3630,13 +3630,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/utils.py": {
-    "mtime": 1792063363.5767975,
-    "ast_hash": "924f0dc5b6f37e76f87f5853ce8f7cab",
+    "mtime": 1792119358.732728,
+    "ast_hash": "52b1167fbd0de5cb053f23a79d5c5367",
     "semantic_hash": ""
   },
   "octopus-api/cantina/views.py": {
-    "mtime": 1792067828.3412166,
-    "ast_hash": "d06bd56a1e9c0d075baa0b746828aed6",
+    "mtime": 1792118706.5936558,
+    "ast_hash": "723f7a901e2d2b4f2f7e5f1bba299180",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/correcciones.py": {
@@ -3865,8 +3865,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/components/CantinaLayout.jsx": {
-    "mtime": 1792064744.5629363,
-    "ast_hash": "a87850892ddf255684c8001cae449d02",
+    "mtime": 1792117808.3193586,
+    "ast_hash": "dcdae5cd3260166cfab9cc5f71d811c2",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaCierreCaja.jsx": {
@@ -5715,8 +5715,8 @@
     "semantic_hash": ""
   },
   "docs/manual/33-cantina.md": {
-    "mtime": 1792063360.6993754,
-    "ast_hash": "6a7e28e77b01fec0dd04754913575c63",
+    "mtime": 1792119727.7524335,
+    "ast_hash": "19b490dd8e897ed07666248ad72fe0fb",
     "semantic_hash": ""
   },
   "docs/manual/34-sitio-institucional.md": {
@@ -7425,8 +7425,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/models.py": {
-    "mtime": 1792064016.862723,
-    "ast_hash": "5f796b932f4c6ee1f3d7a0556c8342fb",
+    "mtime": 1792118967.368608,
+    "ast_hash": "328110b73405117f8c585eb234ab7bfb",
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/permissions.py": {
@@ -7435,8 +7435,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/signals.py": {
-    "mtime": 1792064057.005361,
-    "ast_hash": "87af68a1bd92994bf053085cecb57e90",
+    "mtime": 1792118501.3898087,
+    "ast_hash": "76462bc9c06accc7a2c47b756c37c901",
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/urls.py": {
@@ -7450,8 +7450,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/views_bitacora.py": {
-    "mtime": 1792064162.8818977,
-    "ast_hash": "f026a44bd6fa202aa3538f6f07fdd012",
+    "mtime": 1792118501.3938425,
+    "ast_hash": "6aa5a7c7cbfc0aee11b7d414848b69ae",
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/views_cierres.py": {
@@ -7465,8 +7465,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/views_reportes.py": {
-    "mtime": 1792064162.8542037,
-    "ast_hash": "cc543c1266541daeea8818f5038f4b8d",
+    "mtime": 1792118500.3522704,
+    "ast_hash": "a180568d5ab6ffc4f67735712775619c",
     "semantic_hash": ""
   },
   "octopus-api/cantina/migrations/0005_auditoria_cantina.py": {
@@ -7485,8 +7485,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_base.py": {
-    "mtime": 1792064288.9557548,
-    "ast_hash": "9b6b11cf273608e5f25d31b36dd157fe",
+    "mtime": 1792118982.0749793,
+    "ast_hash": "3b0f0c7f3a6111631624bb67f586b48d",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/api/auditoriaApi.js": {
@@ -7505,13 +7505,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/pages/AuditoriaBitacora.jsx": {
-    "mtime": 1792064732.1776278,
-    "ast_hash": "bbfde88a6bf6174da3cf97354866416e",
+    "mtime": 1792117808.316611,
+    "ast_hash": "b395474946a186ee34e70022ac991996",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/pages/AuditoriaCierreDetalle.jsx": {
-    "mtime": 1792067015.3107998,
-    "ast_hash": "fc6c443cda6380bfd29af5d78c51cd60",
+    "mtime": 1792117808.3186188,
+    "ast_hash": "b5ff4e7f24a737f0994e88a5ef42cffc",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/pages/AuditoriaCierres.jsx": {
@@ -7525,18 +7525,18 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/pages/AuditoriaReportes.jsx": {
-    "mtime": 1792064732.1490283,
-    "ast_hash": "4753a5ffc5be92e3b8628dfc16f16d9f",
+    "mtime": 1792117806.494521,
+    "ast_hash": "3960a575ff3e70ca492e01f2e9f3e9c7",
     "semantic_hash": ""
   },
   "CONTRATO_AUDITORIA_CANTINA.md": {
-    "mtime": 1792067058.5757284,
-    "ast_hash": "51a76c6e196e460198ca79b5f0ad4330",
+    "mtime": 1792119776.190198,
+    "ast_hash": "50ae8750862be7f59dd6aedff78f367b",
     "semantic_hash": ""
   },
   "PLAN_AUDITORIA_CANTINA.md": {
-    "mtime": 1792063538.8128185,
-    "ast_hash": "5fe2d5f6ed6d0ef861856c4f373c5018",
+    "mtime": 1792119776.2762265,
+    "ast_hash": "f7f6bbf30c0db410eb46be738431d692",
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/serializers_cierres.py": {
@@ -7545,8 +7545,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_instrumentacion.py": {
-    "mtime": 1792067828.3360956,
-    "ast_hash": "614ccf7e2ee3a3d8d1f68e0ee644fdfa",
+    "mtime": 1792119601.0590816,
+    "ast_hash": "8bf6295d1fcfc30c7262cd1c63010b20",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_panel_cierres.py": {
@@ -7610,8 +7610,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/components/PanelAlertas.jsx": {
-    "mtime": 1792067014.5651436,
-    "ast_hash": "4e553d12c785e02c198e6420e15de286",
+    "mtime": 1792117838.7308974,
+    "ast_hash": "e91316de7afa17b2d040a2a24a578d8c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/components/PanelBajoInventario.jsx": {
@@ -7662,6 +7662,156 @@
   "octopus-frontend/src/components/cantina/reportes/AnularVentaModal.jsx": {
     "mtime": 1792067016.5862012,
     "ast_hash": "9f126cb20fd8e0ab906bfc215a460c90",
+    "semantic_hash": ""
+  },
+  ".impeccable/hook.cache.json": {
+    "mtime": 1792118531.151897,
+    "ast_hash": "2af6d57e09bbe40a55db4ee014566a9c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/auditoria/serializers_bitacora.py": {
+    "mtime": 1792118501.3874724,
+    "ast_hash": "ac50a2cca587b5459f925b95c011ff7a",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/auditoria/serializers_reportes.py": {
+    "mtime": 1792118500.3522704,
+    "ast_hash": "f345bbdb45ab279597c26f874aacfa40",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/auditoria/services_alertas.py": {
+    "mtime": 1792118501.3898087,
+    "ast_hash": "5a7431ef07c64230ab83c080a431b5d5",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/auditoria/tasks.py": {
+    "mtime": 1792118501.3918147,
+    "ast_hash": "0e89359c8d1bdf1720bca2a5fa04d319",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_auditoria_alertas_bitacora.py": {
+    "mtime": 1792118501.3953912,
+    "ast_hash": "cb46d24975ee84baf9ea389615777cb1",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/tests_auditoria_reportes.py": {
+    "mtime": 1792118500.353778,
+    "ast_hash": "e3c5303a38e2bba1a4b8f1df928062f5",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/AlertaAtenderModal.jsx": {
+    "mtime": 1792117808.307825,
+    "ast_hash": "9f5faf370ceb31a9e065b24d79da9d1a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/AlertaEventos.js": {
+    "mtime": 1792117808.307825,
+    "ast_hash": "3cd2f31b7e595a1a0c3e82eedc44ff29",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/AlertaFiltros.jsx": {
+    "mtime": 1792117808.307825,
+    "ast_hash": "c23a1c5f1f4433d788f40a42361f4803",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/AlertaTab.jsx": {
+    "mtime": 1792118543.773611,
+    "ast_hash": "d887a77f04dd636a52269ebd1e9c634e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/AlertaTarjeta.jsx": {
+    "mtime": 1792117808.3098314,
+    "ast_hash": "1ccf9b27974932b03ee950be34f89683",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraEvento.jsx": {
+    "mtime": 1792117808.3115835,
+    "ast_hash": "10bb689b8838a6e9a660efe91ab1ac71",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraFiltros.jsx": {
+    "mtime": 1792117808.3115835,
+    "ast_hash": "3d31e8db4edd8d5a9e7014ca3d093284",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraFormato.js": {
+    "mtime": 1792117808.3125944,
+    "ast_hash": "839bb0f9195ce82d16abf8ee826a5f58",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraPaginacion.jsx": {
+    "mtime": 1792117808.3125944,
+    "ast_hash": "3e346103552451c994fe4a77afa7ed62",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraRangoFechas.jsx": {
+    "mtime": 1792117808.3125944,
+    "ast_hash": "1a6cecad4ab8644492cb9ddfd47da19d",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraTab.jsx": {
+    "mtime": 1792117808.3125944,
+    "ast_hash": "e5cbc7d3c2ea8cba4b1d66a49a8549f1",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/BitacoraVerificar.jsx": {
+    "mtime": 1792117808.314602,
+    "ast_hash": "3e60cbc4e0357344f464bcb2c0dde26a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ParametrosFormulario.jsx": {
+    "mtime": 1792117808.314602,
+    "ast_hash": "b5388b4b1dc3bb46698055fc6f281926",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReabrirCajaModal.jsx": {
+    "mtime": 1792117808.316611,
+    "ast_hash": "a4090f07dfafb884b947161e1360d505",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteControles.jsx": {
+    "mtime": 1792117806.4859774,
+    "ast_hash": "bb60c0548d705ea42b981d548f136b84",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteDatos.js": {
+    "mtime": 1792117806.48649,
+    "ast_hash": "00ae64ec18e901c8d54c088a0cefc67a",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteExcepciones.jsx": {
+    "mtime": 1792117806.4884975,
+    "ast_hash": "c1c1e3d9d56c174568c6c3ac099590ad",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteFiltros.jsx": {
+    "mtime": 1792117806.490506,
+    "ast_hash": "95c7937ed9f09daa8fbc6cffb5752d6e",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteInventario.jsx": {
+    "mtime": 1792117806.490506,
+    "ast_hash": "03039654465857e76a868b6e2edbec83",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteRentabilidad.jsx": {
+    "mtime": 1792117806.4925132,
+    "ast_hash": "2136cd5d1f555caad4e2833a18b44464",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteTabla.jsx": {
+    "mtime": 1792117806.4925132,
+    "ast_hash": "b1cc429d243acc32e2bbac0392462322",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/components/ReporteVentas.jsx": {
+    "mtime": 1792117806.4925132,
+    "ast_hash": "10d302379022cad62dbeaf9922064749",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/auditoria/utils/exportarAuditoria.js": {
+    "mtime": 1792117806.494521,
+    "ast_hash": "ff5cd6d5bc0a20d25bf80c1bd2bd1c3c",
     "semantic_hash": ""
   }
 }
