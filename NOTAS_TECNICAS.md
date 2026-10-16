@@ -4155,3 +4155,18 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
    escribirlo desde la web abriría la puerta a tomar el servidor.
 6. **Lint preexistente**: `src/hooks/useConfiguracionNotificaciones.js`
    (`set-state-in-effect`, línea del `useEffect` de carga). No se tocó.
+
+## Tasa de cambio propia de Cantina (deuda técnica detectada)
+
+1. **Gestión de usuarios**: `useUsuariosSistemas.editRol` envía `{ rol }` sin `accion`, pero
+   `UserViewSet.partial_update` exige `accion: 'cambiar_rol'`; revisar si el cambio de rol
+   desde Sistemas está fallando. No se tocó.
+2. **Tasa BCV en otros textos**: `docs/manual/33-cantina.md` (abono retroactivo) y los
+   recibos/portal aún hablan de "tasa BCV"; ahora la tasa aplicada es la de Cantina.
+3. **Sincronización**: `tasa_bcv_referencia` se copia al cambiar la tasa; si la BCV cambia
+   después, la insignia muestra la BCV actual, no la copia del historial. La fuente `bcv`
+   existe en el modelo pero no hay botón para "adoptar la BCV"; solo se guarda `manual`.
+4. **Lint preexistente** en `CantinaTarjetas.jsx` y otras páginas de cantina
+   (`set-state-in-effect`); no se tocó.
+5. **Concurrencia en SQLite**: `select_for_update` no tiene efecto en SQLite (solo PostgreSQL).
+

@@ -46,6 +46,26 @@ Verás **"Caja abierta correctamente."**.
 
 La apertura es **por cajero**: cada persona abre la suya.
 
+### Tasa de cambio de la cantina
+
+En la barra lateral verás **"Tasa Cantina: Bs. X · desde dd/MM HH:mm"**. Es la tasa
+que la cantina usa para convertir dólares a bolívares en ventas, recargas y
+abonos. Debajo, en gris, aparece la **tasa BCV de referencia**. Si nunca se ha
+configurado una tasa propia, la cantina usa la BCV.
+
+- **Cualquier cajero** puede ver la tasa y su **historial** (botón del reloj):
+  fecha, tasa anterior, tasa nueva, quién la cambió y el motivo.
+- **Solo quien tenga permiso** ve el lápiz para cambiarla: el director, el
+  superusuario y los usuarios a quienes Sistemas les otorgó el permiso
+  (**Sistemas > Usuarios**, botón de monedas).
+
+Para cambiarla: toca el lápiz, escribe la nueva tasa, un motivo (opcional) y
+**"Guardar tasa"**. Verás **"Tasa de Cantina actualizada."**.
+
+> **El cambio aplica solo a ventas desde ahora.** Las ventas, recargas y abonos
+> ya registrados conservan la tasa con la que se hicieron. El historial no se
+> puede editar ni borrar.
+
 ---
 
 ## 3. Cobrar una venta (POS)
