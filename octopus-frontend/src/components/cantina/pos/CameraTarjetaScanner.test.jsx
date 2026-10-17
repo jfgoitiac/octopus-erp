@@ -25,6 +25,7 @@ describe('separación de formatos en la cámara', () => {
   });
 });
 
+
 describe('normalizarCodigoProductoLeido', () => {
   it('acepta códigos de barras de productos', () => {
     expect(normalizarCodigoProductoLeido(' 7501031311309 ')).toBe('7501031311309');
