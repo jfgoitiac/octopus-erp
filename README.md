@@ -127,3 +127,18 @@ Ver `.env.example` para la lista completa documentada.
 - Configurar SMTP real para emails
 - Usar Redis externo (Redis Cloud, ElastiCache)
 - Configurar nginx para servir archivos `media/`
+
+### Cantina: lector móvil con cámara
+
+El lector móvil del POS usa las APIs nativas del navegador (`getUserMedia` y
+`BarcodeDetector`); no requiere dependencias nuevas de Python ni npm. Para que
+pueda solicitar la cámara en producción:
+
+- Servir el frontend por **HTTPS** con un certificado válido (no por HTTP ni
+  certificados no confiables). La configuración versionada de nginx ya redirige
+  HTTP a HTTPS; verificar el certificado del dominio antes de habilitar Cantina.
+- Probar en un navegador móvil que soporte detección de códigos. El POS pide la
+  cámara trasera cuando está disponible, lee QR solo para tarjetas prepago y
+  códigos de barras solo para productos.
+- Si el navegador no dispone de detector de códigos o se deniega el permiso,
+  el cajero conserva el lector físico y la entrada manual como alternativas.
