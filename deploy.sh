@@ -13,7 +13,6 @@ SERVICE="${SERVICE:-$PROD_SERVICE_DEFAULT}"
 BRANCH="${BRANCH:-main}"
 BACKEND="$REPO/octopus-api"
 FRONTEND="$REPO/octopus-frontend"
-SITIO="$REPO/octopus-sitio"
 VENV="$BACKEND/venv/bin"
 
 # ── Guardas de aislamiento staging/producción ─────────────────────

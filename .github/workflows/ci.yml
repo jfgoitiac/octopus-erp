@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [octopus-frontend, octopus-sitio]
+        app: [octopus-frontend]
     defaults:
       run:
         working-directory: ${{ matrix.app }}
@@ -61,16 +61,15 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # No bloqueante: hay deuda de lint preexistente (144 errores en
-      # octopus-frontend, 2 en octopus-sitio) sin relación a cambios nuevos.
+      # No bloqueante: hay deuda de lint preexistente en octopus-frontend sin
+      # relación a cambios nuevos.
       # Se deja visible en el log pero no rompe el pipeline hasta que se
       # limpie esa deuda aparte — ver plan de remediación, ítem pendiente.
       - name: Lint (no bloqueante — ver nota de deuda técnica)
         run: npm run lint
         continue-on-error: true
 
-      # Bloqueante: octopus-frontend tiene suite de Vitest (39 tests).
-      # octopus-sitio no define script "test" — --if-present lo omite sin fallar.
+      # Bloqueante: octopus-frontend tiene suite de Vitest.
       - name: Tests
         run: npm test --if-present
 
