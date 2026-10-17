@@ -102,7 +102,10 @@ const CantinaLayout = () => {
 
         <TasaCantinaBadge />
 
-        <nav aria-label="Navegación de Cantina" className="order-5 basis-full flex flex-row gap-1 px-2 pb-2 overflow-x-auto lg:order-none lg:basis-auto lg:overflow-visible lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
+        {/* El degradado de la derecha avisa que el menú sigue con scroll
+            horizontal; solo existe debajo de `lg` (arriba el menú es vertical). */}
+        <div className="order-5 basis-full relative min-w-0 lg:order-none lg:contents">
+        <nav aria-label="Navegación de Cantina" className="flex flex-row gap-1 px-2 pb-2 pr-10 overflow-x-auto lg:order-none lg:basis-auto lg:overflow-visible lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
             disabled ? (
               <div
@@ -134,6 +137,8 @@ const CantinaLayout = () => {
             )
           ))}
         </nav>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[var(--surface)] to-transparent lg:hidden" />
+        </div>
 
         <div className="order-3 ml-auto shrink-0 pr-2 lg:order-none lg:ml-0 lg:px-3 lg:py-4 lg:border-t border-[var(--border)] lg:w-full">
           <div className="hidden lg:block px-3 py-2 mb-1">
