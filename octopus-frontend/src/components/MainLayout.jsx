@@ -122,7 +122,7 @@ const MainLayout = () => {
       <div className="md:ml-[var(--sidebar-w)] print:ml-0 relative" style={{ height: '100dvh', overflow: 'hidden' }}>
         {/* Topbar — ancho completo, por encima del sidebar (opción (a): sin left-*, el sidebar arranca debajo de ella) */}
         <header
-          className="topbar-surface fixed inset-x-0 top-0 z-50 h-[var(--topbar-h)] md:h-[var(--topbar-h-lg)] flex items-center gap-2 sm:gap-3 justify-between px-4 md:px-5 print:hidden"
+          className="topbar-surface fixed inset-x-0 top-0 z-50 h-[var(--topbar-h)] md:h-[var(--topbar-h-lg)] flex items-center gap-2 sm:gap-3 justify-between px-3 sm:px-4 md:px-5 print:hidden"
           style={{
             boxShadow: 'inset 0 1px 0 var(--topbar-hairline), var(--topbar-shadow)',
           }}
@@ -155,7 +155,7 @@ const MainLayout = () => {
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-base md:text-lg font-medium truncate" style={{ color: 'var(--topbar-fg)' }}>{title}</h1>
+            <h1 className="min-w-0 text-sm leading-tight line-clamp-2 sm:text-base sm:leading-normal sm:truncate md:text-lg font-medium" style={{ color: 'var(--topbar-fg)' }}>{title}</h1>
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-2.5 flex-shrink-0">
@@ -171,7 +171,7 @@ const MainLayout = () => {
               title={ultimaActualizacion
                 ? `Actualizado: ${ultimaActualizacion.toLocaleTimeString('es-VE')} · Clic para sincronizar`
                 : 'Sincronizar tasa BCV'}
-              className="flex items-center gap-1.5 px-2.5 md:px-3 h-7 rounded-full text-xs font-medium transition-all disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 h-7 rounded-full text-xs font-medium transition-all disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 background: tasaError ? '#fef2f2' : 'rgba(0,0,0,0.18)',
                 color: tasaError ? '#991b1b' : 'var(--topbar-fg)',
@@ -182,12 +182,12 @@ const MainLayout = () => {
               <span className="hidden sm:inline" style={{ color: tasaError ? '#991b1b' : 'var(--topbar-fg-dim)' }}>BCV</span>
               <span className="font-mono font-semibold tracking-tight">
                 {loadingTasa ? '···' : tasa > 0
-                  ? `Bs. ${tasa.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  ? <><span className="hidden sm:inline">Bs. </span>{tasa.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
                   : '—'}
               </span>
               <RefreshCw
                 size={11}
-                className={syncing ? 'animate-spin' : ''}
+                className={`${syncing ? 'animate-spin' : ''} hidden sm:block`}
                 style={{ color: tasaError ? '#991b1b' : 'var(--topbar-fg-dim)', flexShrink: 0 }}
               />
             </button>
