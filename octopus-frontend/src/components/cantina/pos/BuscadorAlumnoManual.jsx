@@ -58,16 +58,16 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
           value={valor}
           onChange={e => setValor(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Código o serial de la tarjeta"
+          placeholder="Código o serial"
           aria-label="Búsqueda manual de tarjeta por código o serial"
-          className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px] font-mono"
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px] font-mono placeholder:font-sans"
           style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
         />
         <button
           type="button"
           onClick={buscar}
           disabled={disabled || buscando}
-          className="px-4 rounded-xl text-sm font-medium text-white flex items-center gap-1.5 disabled:opacity-50 min-h-[44px]"
+          className="shrink-0 px-4 rounded-xl text-sm font-medium text-white flex items-center gap-1.5 disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--pb)' }}
         >
           {buscando ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}

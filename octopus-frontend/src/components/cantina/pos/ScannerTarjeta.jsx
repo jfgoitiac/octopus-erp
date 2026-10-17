@@ -74,9 +74,9 @@ export default function ScannerTarjeta({ onTarjetaResuelta, disabled = false }) 
         value={valor}
         onChange={e => { setValor(e.target.value); if (aviso) setAviso(""); }}
         onKeyDown={handleKeyDown}
-        placeholder="Escanea el QR de la tarjeta o escribe el código/serial y presiona Enter"
+        placeholder="Escanea el QR de la tarjeta"
         aria-label="Escaneo de tarjeta prepago"
-        className="w-full pl-10 pr-10 py-3 rounded-xl text-sm outline-none min-h-[48px] font-mono"
+        className="w-full pl-10 pr-10 py-3 rounded-xl text-sm outline-none min-h-[48px] font-mono placeholder:font-sans"
         style={{ border: '1.5px solid var(--pb)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
       />
       {buscando && (
