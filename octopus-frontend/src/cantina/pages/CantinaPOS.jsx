@@ -362,7 +362,7 @@ export default function CantinaPOS() {
     // Desde `lg` el POS ocupa la altura de la ventana (dvh) con dos columnas;
     // debajo de `lg` (tablet 768×1024, celular) la página scrollea y el botón
     // COBRAR queda fijo al pie del carrito (ver CarritoVenta).
-    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-64px-4rem)]">
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-4rem)]">
       {!cargandoApertura && apertura === false && (
         <AperturaCajaModal
           onAbierta={data => { setApertura(data); notificarAperturaCambiada(); }}
@@ -370,7 +370,7 @@ export default function CantinaPOS() {
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+          <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
             <ShoppingCart size={20} style={{ color: 'var(--pb)' }} />
             Punto de venta
           </h1>
@@ -403,10 +403,10 @@ export default function CantinaPOS() {
                     type="button"
                     onClick={() => agregarProducto(p, 'manual')}
                     disabled={p.stock_actual <= 0}
-                    className="flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left disabled:opacity-60 disabled:cursor-not-allowed min-h-[64px]"
+                    className="flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left disabled:opacity-60 disabled:cursor-not-allowed min-h-[64px] transition-colors hover:border-[var(--pb)] focus-visible:outline-2 focus-visible:outline-[var(--pb)]"
                     style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
                   >
-                    <span className="text-sm font-medium truncate w-full" style={{ color: 'var(--jet)' }}>{p.nombre}</span>
+                    <span className="text-sm font-medium line-clamp-2 break-words w-full" style={{ color: 'var(--jet)' }}>{p.nombre}</span>
                     <span className="text-sm font-semibold" style={{ color: 'var(--pb-mid)' }}>${Number(p.precio).toFixed(2)}</span>
                     {p.stock_actual <= 0 && (
                       <span className="text-xs font-semibold" style={{ color: 'var(--red)' }}>Sin stock</span>

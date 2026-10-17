@@ -152,7 +152,7 @@ const SidebarNavItem = ({ item, isActive, animationDelay, isFavorito, onToggleFa
         }}
       >
         <Icon size={15} style={{ color: isActive ? 'var(--pb)' : 'var(--ash)', flexShrink: 0 }} />
-        <span className="truncate">{item.name}</span>
+        <span className="min-w-0 leading-snug break-words">{item.name}</span>
         {item.contadorAlertas && alertas && (
           <ContadorAlertas abiertas={alertas.abiertas} hayCriticas={alertas.hayCriticas} className="ml-auto" />
         )}
@@ -327,7 +327,7 @@ const Sidebar = ({ open = false, onClose = () => {} }) => {
                       className="w-full flex items-center justify-between gap-2 text-xs uppercase tracking-widest px-3 py-2 font-medium rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                       style={{ color: 'var(--ash)', outlineColor: 'var(--pb)' }}
                     >
-                      <span>{section.label}</span>
+                      <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left tracking-wider" title={section.label}>{section.label}</span>
                       <ChevronDown size={14} className={`transition-transform flex-shrink-0 ${colapsado ? '-rotate-90' : ''}`} />
                     </button>
                     <div id={groupId} className="space-y-0.5">

@@ -108,7 +108,7 @@ export default function CantinaTarjetas() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+        <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
           <CreditCard size={20} style={{ color: 'var(--pb)' }} />
           Tarjetas de Cantina
         </h1>
@@ -117,16 +117,16 @@ export default function CantinaTarjetas() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {ACCIONES.map(({ key, icon: Icon, titulo, descripcion, color, bg }) => (
           <button
             key={key}
             onClick={() => (key === 'reponer' ? abrirReponer(null) : setModalActivo(key))}
-            className="text-left rounded-2xl p-5 flex flex-col gap-3 transition-transform hover:-translate-y-0.5"
+            className="text-left rounded-2xl p-3 sm:p-5 flex flex-row items-start gap-3 sm:flex-col transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-[var(--pb)]"
             style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
           >
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl flex items-center justify-center"
               style={{ background: bg, color }}
             >
               <Icon size={20} />

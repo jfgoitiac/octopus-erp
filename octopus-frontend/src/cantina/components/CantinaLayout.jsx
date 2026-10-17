@@ -78,14 +78,18 @@ const CantinaLayout = () => {
   return (
     <div className="min-h-dvh flex flex-col lg:flex-row" style={{ background: 'var(--porcelain)' }}>
       {/* Sidebar */}
-      <aside className="w-full lg:w-60 lg:shrink-0 bg-[var(--surface)] border-b lg:border-b-0 lg:border-r border-[var(--border)] flex flex-row items-center overflow-x-auto lg:overflow-visible lg:flex-col lg:items-stretch">
-        <div className="h-14 lg:h-16 shrink-0 flex items-center gap-2 px-3 lg:px-5 lg:border-b border-[var(--border)] lg:w-full">
+      {/* Debajo de `lg` el aside es una barra superior de dos filas (marca +
+          caja + tasa + salir, y el menú con scroll horizontal propio); desde
+          `lg` es la columna lateral. `order-*` reubica "Cerrar sesión" arriba
+          en móvil sin duplicar el botón. */}
+      <aside className="w-full lg:w-60 lg:shrink-0 bg-[var(--surface)] border-b lg:border-b-0 lg:border-r border-[var(--border)] flex flex-wrap items-center gap-y-1 lg:flex-nowrap lg:flex-col lg:items-stretch lg:gap-y-0">
+        <div className="h-12 lg:h-16 shrink-0 flex items-center gap-2 px-3 lg:px-5 lg:border-b border-[var(--border)] lg:w-full">
           <ShoppingCart size={22} style={{ color: 'var(--pb)' }} />
           <span className="font-semibold text-[var(--jet)]">Cantina</span>
         </div>
 
         {areaCaja && (
-          <div className="shrink-0 px-1 lg:px-5 lg:pt-3 lg:w-full">
+          <div className="shrink-0 min-w-0 lg:px-5 lg:pt-3 lg:w-full">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
               style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
@@ -98,12 +102,12 @@ const CantinaLayout = () => {
 
         <TasaCantinaBadge />
 
-        <nav className="flex flex-row gap-1 px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
+        <nav aria-label="Navegación de Cantina" className="order-5 basis-full flex flex-row gap-1 px-2 pb-2 overflow-x-auto lg:order-none lg:basis-auto lg:overflow-visible lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
             disabled ? (
               <div
                 key={name}
-                className="shrink-0 whitespace-nowrap flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--ash)] opacity-60 cursor-not-allowed select-none"
+                className="shrink-0 whitespace-nowrap flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--ash)] opacity-60 cursor-not-allowed select-none"
                 title="Próximamente" aria-disabled="true"
               >
                 <Icon size={18} />
@@ -114,9 +118,9 @@ const CantinaLayout = () => {
                 key={name}
                 to={path}
                 className={({ isActive }) =>
-                  `shrink-0 whitespace-nowrap flex items-center gap-2 lg:gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors ${
+                  `shrink-0 whitespace-nowrap flex items-center gap-2 lg:gap-3 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-[var(--pb)]/10 text-[var(--pb)]'
+                      ? 'bg-[var(--pb)]/10 text-[var(--pb)] font-semibold'
                       : 'text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)]'
                   }`
                 }
@@ -131,7 +135,7 @@ const CantinaLayout = () => {
           ))}
         </nav>
 
-        <div className="shrink-0 px-2 py-2 lg:px-3 lg:py-4 lg:border-t border-[var(--border)] lg:w-full">
+        <div className="order-3 ml-auto shrink-0 pr-2 lg:order-none lg:ml-0 lg:px-3 lg:py-4 lg:border-t border-[var(--border)] lg:w-full">
           <div className="hidden lg:block px-3 py-2 mb-1">
             <p className="text-sm font-medium text-[var(--jet)] truncate">
               {nombreUsuario(user)}
@@ -142,10 +146,11 @@ const CantinaLayout = () => {
           </div>
           <button
             onClick={handleLogout}
-            className="whitespace-nowrap lg:w-full flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-lg text-sm text-[var(--ash)] hover:bg-[var(--red-light)] hover:text-[var(--red)] transition-colors"
+            aria-label="Cerrar sesión"
+            className="whitespace-nowrap lg:w-full flex items-center justify-center lg:justify-start gap-2 px-3 py-2 min-h-[44px] min-w-[44px] rounded-lg text-sm text-[var(--ash)] hover:bg-[var(--red-light)] hover:text-[var(--red)] transition-colors"
           >
             <LogOut size={16} />
-            Cerrar sesión
+            <span className="hidden sm:inline">Cerrar sesión</span>
           </button>
         </div>
       </aside>

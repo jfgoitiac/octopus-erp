@@ -46,20 +46,19 @@ const TasaCantinaBadge = () => {
 
   return (
     <>
-      <div className="shrink-0 px-1 lg:px-5 lg:pt-3 lg:w-full">
+      <div className="order-4 basis-full px-2 pb-1 md:basis-0 md:flex-1 md:min-w-0 md:pb-0 lg:order-none lg:basis-auto lg:flex-none lg:px-5 lg:pt-3 lg:pb-0 lg:w-full">
         <div className="flex items-center gap-1 rounded-xl px-2.5 py-1.5" style={{ background: 'var(--surface-sunken)' }}>
-          <div className="min-w-0 flex-1 whitespace-nowrap lg:whitespace-normal">
+          <div className="min-w-0 flex-1">
             {tasa.sinTasa ? (
               <p className="text-xs font-semibold text-[var(--ash)]">Sin tasa registrada</p>
             ) : (
               <>
-                <p className="text-xs font-semibold text-[var(--jet)]">
-                  Tasa Cantina: Bs. {formatBs(tasa.valor_bs)}
-                  <span className="font-normal text-[var(--ash)]"> · desde {formatFecha(tasa.vigente_desde)}</span>
+                <p className="text-[11px] uppercase tracking-wider text-[var(--ash)]">Tasa Cantina</p>
+                <p className="text-sm font-semibold tabular-nums text-[var(--jet)]">Bs. {formatBs(tasa.valor_bs)}</p>
+                <p className="text-[11px] text-[var(--ash)] truncate lg:whitespace-normal">
+                  Desde {formatFecha(tasa.vigente_desde)}
+                  {tasa.bcv_referencia != null && <> · BCV Bs. {formatBs(tasa.bcv_referencia)}</>}
                 </p>
-                {tasa.bcv_referencia != null && (
-                  <p className="text-[11px] text-[var(--ash)]">BCV ref.: Bs. {formatBs(tasa.bcv_referencia)}</p>
-                )}
               </>
             )}
           </div>
