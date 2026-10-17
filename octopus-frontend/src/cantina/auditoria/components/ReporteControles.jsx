@@ -87,14 +87,14 @@ export function ReporteResumen({ items }) {
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
       {items.map((it) => (
         <div key={it.etiqueta} className="flex min-w-0 flex-col gap-1 rounded-2xl p-3 sm:p-4" style={{ ...ESTILO_TARJETA, ...(it.fondo ? { background: it.fondo } : {}) }}>
-          <span className="flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-wider truncate" style={{ color: 'var(--ash)' }}>
+          <span className="flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-wider leading-tight [overflow-wrap:anywhere]" style={{ color: 'var(--ash)' }}>
             {it.icono && <it.icono size={14} aria-hidden="true" className="shrink-0" />}
             {it.etiqueta}
           </span>
-          <span className="text-lg sm:text-xl font-semibold font-mono tabular-nums truncate" style={{ color: it.color ?? 'var(--jet)' }}>
+          <span className="text-base sm:text-xl font-semibold font-mono tabular-nums leading-tight [overflow-wrap:anywhere]" style={{ color: it.color ?? 'var(--jet)' }}>
             {it.valor}
           </span>
-          {it.nota && <span className="text-xs truncate" style={{ color: 'var(--ash)' }}>{it.nota}</span>}
+          {it.nota && <span className="text-xs [overflow-wrap:anywhere]" style={{ color: 'var(--ash)' }}>{it.nota}</span>}
         </div>
       ))}
     </div>
@@ -117,7 +117,7 @@ export function ReportePaginacion({ pagina, total, tamano, onCambio, etiqueta })
         <ChevronLeft size={16} aria-hidden="true" />
         Anterior
       </button>
-      <span className="text-sm text-center" style={{ color: 'var(--jet-mid)' }}>
+      <span className="text-xs sm:text-sm text-center" style={{ color: 'var(--jet-mid)' }}>
         Página {pagina} de {totalPaginas}
       </span>
       <button

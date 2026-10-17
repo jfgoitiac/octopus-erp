@@ -17,7 +17,7 @@ export default function CierreFiltros({ filtros, cajeros, onCambio, onLimpiar })
   const cambiar = (campo) => (valor) => onCambio({ ...filtros, [campo]: valor });
 
   return (
-    <div className="rounded-2xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-end" style={ESTILO_TARJETA}>
+    <div className="rounded-2xl p-3 sm:p-4 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-x-3 gap-y-3 items-end" style={ESTILO_TARJETA}>
       <div>
         <label htmlFor="cierres-desde" className={CLASE_ETIQUETA} style={{ color: 'var(--ash)' }}>Desde</label>
         <DatePicker
@@ -60,7 +60,7 @@ export default function CierreFiltros({ filtros, cajeros, onCambio, onLimpiar })
           <option value="libreria">Librería</option>
         </select>
       </div>
-      <div>
+      <div className="col-span-2 lg:col-span-1">
         <label htmlFor="cierres-estado" className={CLASE_ETIQUETA} style={{ color: 'var(--ash)' }}>Revisión</label>
         <select id="cierres-estado" value={filtros.estado} onChange={(e) => cambiar('estado')(e.target.value)} className={CLASE_CAMPO} style={ESTILO_CAMPO}>
           <option value="">Todos los estados</option>
@@ -69,8 +69,8 @@ export default function CierreFiltros({ filtros, cajeros, onCambio, onLimpiar })
           ))}
         </select>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:flex-col xl:items-stretch">
-        <label className="flex flex-1 items-center gap-2 min-h-[44px] px-3 rounded-xl text-sm cursor-pointer select-none" style={ESTILO_CAMPO}>
+      <div className="col-span-full flex flex-col gap-2 border-t border-[var(--border)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex w-full items-center gap-2 min-h-[44px] px-3 rounded-xl text-sm whitespace-nowrap cursor-pointer select-none sm:w-auto" style={ESTILO_CAMPO}>
           <input
             type="checkbox"
             checked={filtros.con_diferencia}
@@ -82,7 +82,7 @@ export default function CierreFiltros({ filtros, cajeros, onCambio, onLimpiar })
         <button
           type="button"
           onClick={onLimpiar}
-          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl text-xs font-medium hover:bg-[var(--jet-light)] w-full sm:w-auto xl:w-full"
+          className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl text-xs font-medium hover:bg-[var(--jet-light)] w-full sm:w-auto"
           style={{ color: 'var(--jet-mid)' }}
         >
           <RotateCcw size={14} aria-hidden="true" />

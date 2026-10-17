@@ -39,7 +39,7 @@ const VolverALista = () => (
   <Link
     to=".."
     relative="path"
-    className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-xl text-sm font-medium hover:bg-[var(--jet-light)] w-full sm:w-auto justify-center sm:justify-start"
+    className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-xl text-sm font-medium whitespace-nowrap hover:bg-[var(--jet-light)] w-full sm:w-auto justify-center"
     style={{ color: 'var(--jet-mid)' }}
   >
     <ArrowLeft size={16} aria-hidden="true" />
@@ -74,7 +74,7 @@ const AuditoriaCierreDetalle = () => {
   const { cierre } = estado;
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-4">
       <PageHeader
         titulo={`Cierre #${id}`}
         descripcion={cierre ? `${cierre.cajero?.nombre ?? 'Cajero'} · ${fmtFecha(cierre.fecha)}` : 'Detalle del cierre de caja'}

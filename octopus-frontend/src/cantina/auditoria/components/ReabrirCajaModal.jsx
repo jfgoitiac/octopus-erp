@@ -119,7 +119,7 @@ export function ReabrirCajaBoton({ cierre, onReabierta }) {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl text-sm font-semibold w-full sm:w-auto"
+        className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl text-sm font-semibold whitespace-nowrap w-full sm:w-auto"
         style={ESTILO_BOTON_SECUNDARIO}
       >
         <LockOpen size={16} aria-hidden="true" style={{ color: 'var(--pb-mid)' }} />

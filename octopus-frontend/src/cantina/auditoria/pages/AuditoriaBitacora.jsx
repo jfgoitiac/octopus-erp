@@ -77,7 +77,7 @@ const AuditoriaBitacora = () => {
                 ? { background: '#fff', color: 'var(--pb-mid)', boxShadow: '0 1px 3px rgba(43,48,58,0.10)' }
                 : { color: 'var(--jet-mid)' }}
             >
-              <Icono size={16} aria-hidden="true" className="shrink-0" />
+              <Icono size={16} aria-hidden="true" className="hidden sm:block shrink-0" />
               <span className="truncate">{p.texto}</span>
             </button>
           );

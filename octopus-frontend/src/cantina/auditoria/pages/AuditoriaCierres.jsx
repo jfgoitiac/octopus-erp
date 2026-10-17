@@ -74,7 +74,7 @@ const AuditoriaCierres = () => {
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-4">
       <PageHeader
         titulo="Cierres diarios"
         descripcion="Consulta los cierres de caja, sus diferencias y su estado de revisión."
