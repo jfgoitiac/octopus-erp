@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { CreditCard, Loader2 } from 'lucide-react';
 import { buscarTarjetaActiva } from '../../../api/cantina.service';
+import CameraTarjetaScanner from './CameraTarjetaScanner';
 
 /**
  * Input de escaneo de tarjeta prepago — SOLO se monta en el DOM cuando el
@@ -10,8 +11,9 @@ import { buscarTarjetaActiva } from '../../../api/cantina.service';
  * no decide eso, solo se autoenfoca al montar para que el cajero pueda
  * escanear de inmediato.
  *
- * Acepta tanto el código QR (prefijo 'CANT-') como el serial impreso —
- * mismo criterio de doble búsqueda que ya usa RecargaCajeroModal.
+ * Acepta tanto el código QR (prefijo 'CANT-') como el serial impreso desde
+ * el lector físico. En móvil, el lector de cámara se limita al QR: los
+ * códigos de barras se destinan exclusivamente a productos.
  */
 export default function ScannerTarjeta({ onTarjetaResuelta, disabled = false }) {
   const [valor, setValor] = useState('');
@@ -30,9 +32,8 @@ export default function ScannerTarjeta({ onTarjetaResuelta, disabled = false }) 
     toast.error(mensaje);
   };
 
-  const handleKeyDown = async (e) => {
-    if (e.key !== 'Enter') return;
-    const entrada = valor.trim();
+  const buscarEntrada = async (valorLeido) => {
+    const entrada = valorLeido.trim();
     if (!entrada) return;
 
     abortRef.current?.abort();
@@ -57,6 +58,10 @@ export default function ScannerTarjeta({ onTarjetaResuelta, disabled = false }) 
       setBuscando(false);
       if (!disabled) inputRef.current?.focus();
     }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') buscarEntrada(valor);
   };
 
   return (
@@ -84,6 +89,9 @@ export default function ScannerTarjeta({ onTarjetaResuelta, disabled = false }) 
       )}
     </div>
     {aviso && <p role="alert" className="mt-1.5 text-xs font-medium text-[var(--red)]">{aviso}</p>}
+    <div className="mt-3">
+      <CameraTarjetaScanner onCodigoLeido={buscarEntrada} disabled={disabled || buscando} />
+    </div>
     </div>
   );
 }

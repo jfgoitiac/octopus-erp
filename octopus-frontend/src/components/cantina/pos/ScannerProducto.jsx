@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { ScanLine, Loader2 } from 'lucide-react';
 import { buscarProductoPorCodigo } from '../../../api/cantina.service';
+import CameraProductoScanner from './CameraProductoScanner';
 
 /**
  * Input de escaneo de producto por código de barras (§7.2 cantina.md,
@@ -48,9 +49,8 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
     toast.error(mensaje);
   };
 
-  const handleKeyDown = async (e) => {
-    if (e.key !== 'Enter') return;
-    const codigo = valor.trim();
+  const buscarCodigo = async (valorLeido) => {
+    const codigo = valorLeido.trim();
     if (!codigo) return;
 
     abortRef.current?.abort();
@@ -74,6 +74,10 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
       setBuscando(false);
       enfocar();
     }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') buscarCodigo(valor);
   };
 
   return (
@@ -102,6 +106,9 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
       )}
     </div>
     {aviso && <p role="alert" className="mt-1.5 text-xs font-medium text-[var(--red)]">{aviso}</p>}
+    <div className="mt-3">
+      <CameraProductoScanner onCodigoLeido={buscarCodigo} disabled={disabled || buscando} />
+    </div>
     </div>
   );
 }
