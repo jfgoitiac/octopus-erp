@@ -55,10 +55,15 @@ const TasaCantinaBadge = () => {
               <>
                 <p className="text-[11px] uppercase tracking-wider text-[var(--ash)]">Tasa Cantina</p>
                 <p className="text-sm font-semibold tabular-nums text-[var(--jet)]">Bs. {formatBs(tasa.valor_bs)}</p>
-                <p className="text-[11px] text-[var(--ash)] truncate lg:whitespace-normal">
+                <p className="text-[11px] text-[var(--ash)] truncate lg:hidden">
                   Desde {formatFecha(tasa.vigente_desde)}
                   {tasa.bcv_referencia != null && <> · BCV Bs. {formatBs(tasa.bcv_referencia)}</>}
                 </p>
+                {/* En la columna lateral (lg) cada dato va en su línea: así no se parte a mitad de frase. */}
+                <p className="hidden lg:block text-[11px] text-[var(--ash)] truncate">Desde {formatFecha(tasa.vigente_desde)}</p>
+                {tasa.bcv_referencia != null && (
+                  <p className="hidden lg:block text-[11px] text-[var(--ash)] truncate">BCV Bs. {formatBs(tasa.bcv_referencia)}</p>
+                )}
               </>
             )}
           </div>
