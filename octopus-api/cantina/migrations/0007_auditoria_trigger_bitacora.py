@@ -7,10 +7,11 @@ from django.db import migrations
 
 TABLA = 'cantina_eventoauditoriacantina'
 
+# El % se escribe %% porque schema_editor.execute interpreta % como parámetro.
 CREAR = f"""
 CREATE OR REPLACE FUNCTION cantina_bitacora_inalterable() RETURNS trigger AS $$
 BEGIN
-    RAISE EXCEPTION 'La bitacora de auditoria de cantina es inalterable (% bloqueado)', TG_OP;
+    RAISE EXCEPTION 'La bitacora de auditoria de cantina es inalterable (%% bloqueado)', TG_OP;
 END;
 $$ LANGUAGE plpgsql;
 
