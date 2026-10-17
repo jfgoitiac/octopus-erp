@@ -4242,3 +4242,9 @@ abonos de CxC (migración `cantina/0009_clientes_cxc`). Deuda técnica detectada
    existente en representantes); en PostgreSQL salen con dos decimales.
 6. **Lint preexistente** `react-hooks/set-state-in-effect` en las páginas de
    cantina (patrón de carga con `useEffect`); no se tocó.
+
+## Meta de banco (2026-10-17)
+
+- El seguimiento se calcula desde `cobranza.Pago.monto_usd`, que ya es el snapshot
+  contable. No debe reconstruirse aplicando una tasa BCV posterior ni recorrer
+  cuotas/distribuciones, porque una operación puede tener varios conceptos.

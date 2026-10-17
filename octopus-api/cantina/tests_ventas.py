@@ -4,17 +4,19 @@ AnularVentaView, ReciboVentaPDFView (§5.6/§5.9/§8 FASE 4/§10 checklist de
 cantina.md). Sigue el mismo estilo que tests.py/tests_tarjetas.py/
 tests_recargas.py (APIClient + perfil.rol/perfil.esta_activo).
 """
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from cobranza.models import TasaCambio
+from cobranza.models import BancoInstitucional, TasaCambio
 from secretaria.models import Alumno, Representante
 
-from .models import AperturaCajaCantina, CategoriaProducto, MovimientoInventario, MovimientoTarjeta, ProductoCantina, TarjetaPrepago, VentaCantina
+from .models import AperturaCajaCantina, CategoriaProducto, MovimientoInventario, MovimientoTarjeta, ParametroCantina, ProductoCantina, TarjetaPrepago, VentaCantina
 
 User = get_user_model()
 

@@ -5,7 +5,7 @@ from rest_framework import serializers
 from .models import (
     BancoInstitucional, CierreCaja, ClasificacionPagoManual, CuotaInscripcion,
     CuotaProyectoInversion, CuotaSolvencia, LineaDescuentoPago, LineaRecargoPago,
-    LoteRevisionCaja, Mensualidad, Pago, ReglaRecargoPago, SolvenciaRepresentante,
+    LoteRevisionCaja, Mensualidad, MetaBanco, Pago, ReglaRecargoPago, SolvenciaRepresentante,
     TasaCambio, TipoCargoEspecial,
 )
 from secretaria.models import Alumno, ConfiguracionSistema
@@ -204,6 +204,41 @@ class CierreCajaSerializer(serializers.ModelSerializer):
             'observaciones', 
             'validado_por_director'
         ]
+
+
+class MetaBancoSerializer(serializers.ModelSerializer):
+    banco_nombre = serializers.CharField(source='banco.nombre', read_only=True)
+
+    class Meta:
+        model = MetaBanco
+        fields = ('id', 'banco', 'banco_nombre', 'metodo_pago', 'objetivo_usd', 'fecha_inicio', 'fecha_fin', 'activa', 'creado_en')
+        read_only_fields = ('id', 'creado_en')
+
+    def validate(self, attrs):
+        inicio = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
+        fin = attrs.get('fecha_fin', getattr(self.instance, 'fecha_fin', None))
+        objetivo = attrs.get('objetivo_usd', getattr(self.instance, 'objetivo_usd', None))
+        banco = attrs.get('banco', getattr(self.instance, 'banco', None))
+        metodo = attrs.get('metodo_pago', getattr(self.instance, 'metodo_pago', None))
+        activa = attrs.get('activa', getattr(self.instance, 'activa', True))
+        if objetivo is not None and objetivo <= 0:
+            raise serializers.ValidationError({'objetivo_usd': 'La meta debe ser mayor que cero.'})
+        if inicio and fin and fin < inicio:
+            raise serializers.ValidationError({'fecha_fin': 'La fecha de fin debe ser igual o posterior a la fecha de inicio.'})
+        if banco and not banco.activo:
+            raise serializers.ValidationError({'banco': 'El banco seleccionado no está activo.'})
+        if banco and metodo and metodo not in (banco.tipos or []):
+            raise serializers.ValidationError({'metodo_pago': 'El banco no admite ese método de pago.'})
+        if banco and metodo and inicio and fin and activa:
+            qs = MetaBanco.objects.filter(
+                banco=banco, metodo_pago=metodo, activa=True,
+                fecha_inicio__lte=fin, fecha_fin__gte=inicio,
+            )
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({'fecha_inicio': 'Ya existe una meta activa para este banco y método en un período que se solapa.'})
+        return attrs
         read_only_fields = ['monto_sistema_ves', 'diferencia', 'fecha_cierre']
 class DashboardStatsSerializer(serializers.Serializer):
     solventes = serializers.IntegerField()
@@ -1056,4 +1091,4 @@ class PagoRetroactivoSerializer(serializers.Serializer):
         return data
 
 
-        
+

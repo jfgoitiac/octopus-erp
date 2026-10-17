@@ -9,11 +9,12 @@ from django.http import FileResponse
 from django.utils import timezone
 import logging
 import uuid
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from .tasks import sincronizar_tasa_con_blindaje
 from django.db.models import Max, Min, Q, Sum
-from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, ConciliacionBancaria, LoteRevisionCaja, Mensualidad, ParametroGlobal, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
-from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, ReglaRecargoPagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
+from .models import BancoInstitucional, ClasificacionPagoManual, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, ConciliacionBancaria, LoteRevisionCaja, Mensualidad, MetaBanco, ParametroGlobal, Pago, ReglaRecargoPago, SolvenciaRepresentante, TasaCambio, TipoCargoEspecial, TransferenciaInterna
+from .serializers import AnularPagoSerializer, BancoInstitucionalSerializer, ClasificacionPagoManualSerializer, ComprobanteSerializer, CorreccionPagoSerializer, DashboardStatsSerializer, LoteRevisionCajaSerializer, MESES_ES, MetaBancoSerializer, PagoCreateSerializer, PagoRetroactivoSerializer, PagoSerializer, ReglaRecargoPagoSerializer, SolvenciaRepresentanteSerializer, TipoCargoEspecialSerializer, calcular_desglose_automatico
 from .services import propagar_monto_global, reporte_costo_becas
 from .solvencia import emitir_solvencia_manual, generar_o_verificar_solvencia
 from . import correcciones
@@ -30,6 +31,52 @@ from .permissions import filtrar_por_sede, sedes_permitidas_ids
 from common.busqueda import filtrar_busqueda
 
 logger = logging.getLogger(__name__)
+
+META_BANCO_HABILITADA = 'META_BANCO_HABILITADA'
+
+
+def _meta_banco_habilitada():
+    parametro = ParametroGlobal.objects.filter(clave=META_BANCO_HABILITADA).first()
+    return bool(parametro and parametro.valor.strip().lower() in ('1', 'true', 'si', 'sí'))
+
+
+def _progreso_meta_banco(banco_id, metodo_pago, fecha=None, conceptos=None):
+    """Calcula una meta desde ``Pago.monto_usd``: un snapshot por pago.
+
+    Se consulta ``Pago`` directamente, nunca cuotas ni relaciones de
+    distribución, para que un pago con varios conceptos o mensualidades aporte
+    exactamente una vez.
+    """
+    if not _meta_banco_habilitada():
+        return {'habilitada': False}
+    fecha = fecha or timezone.localdate()
+    meta = MetaBanco.objects.filter(
+        banco_id=banco_id, metodo_pago=metodo_pago, activa=True,
+        fecha_inicio__lte=fecha, fecha_fin__gte=fecha,
+    ).select_related('banco').first()
+    if not meta:
+        return {'habilitada': True, 'meta': None}
+
+    pagos = Pago.objects.filter(
+        banco_receptor_id=banco_id,
+        metodo_pago=metodo_pago,
+        fecha_pago__date__gte=meta.fecha_inicio,
+        fecha_pago__date__lte=meta.fecha_fin,
+    ).exclude(Q(estatus='anulado') | Q(anulado_en__isnull=False))
+    if conceptos:
+        pagos = pagos.filter(concepto__in=conceptos)
+    acumulado = pagos.aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
+    acumulado = acumulado.quantize(Decimal('0.01'))
+    restante = max(meta.objetivo_usd - acumulado, Decimal('0.00')).quantize(Decimal('0.01'))
+    porcentaje = ((acumulado / meta.objetivo_usd) * Decimal('100')).quantize(Decimal('0.01'))
+    return {
+        'habilitada': True,
+        'meta': MetaBancoSerializer(meta).data,
+        'acumulado_usd': str(acumulado),
+        'objetivo_usd': str(meta.objetivo_usd),
+        'porcentaje': str(porcentaje),
+        'restante_usd': str(restante),
+    }
 
 
 class SincronizarTasaView(APIView):
@@ -1143,6 +1190,85 @@ class ExportarAuditoriaExcelView(APIView):
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURACIÓN DE COBRANZA (monto por defecto de mensualidades)
 # ──────────────────────────────────────────────────────────────────────────────
+
+class MetasBancoView(APIView):
+    """Configuración de metas: reservada a dirección, sistemas y administración."""
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def get(self, request):
+        metas = MetaBanco.objects.select_related('banco').all()
+        return Response(MetaBancoSerializer(metas, many=True).data)
+
+    def post(self, request):
+        serializer = MetaBancoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(MetaBancoSerializer(serializer.save()).data, status=status.HTTP_201_CREATED)
+
+
+class MetaBancoDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsSystemAdminOrDirector]
+
+    def patch(self, request, meta_id):
+        meta = get_object_or_404(MetaBanco, pk=meta_id)
+        serializer = MetaBancoSerializer(meta, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        return Response(MetaBancoSerializer(serializer.save()).data)
+
+    def delete(self, request, meta_id):
+        get_object_or_404(MetaBanco, pk=meta_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MetaBancoConfiguracionView(APIView):
+    """Interruptor global persistido en ParametroGlobal de Cobranza."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == 'PATCH':
+            return [permissions.IsAuthenticated(), IsSystemAdminOrDirector()]
+        return [permissions.IsAuthenticated(), EsPersonalCobranza()]
+
+    def get(self, request):
+        return Response({'habilitada': _meta_banco_habilitada()})
+
+    def patch(self, request):
+        habilitada = request.data.get('habilitada')
+        if not isinstance(habilitada, bool):
+            return Response({'habilitada': 'Debe ser un valor booleano.'}, status=status.HTTP_400_BAD_REQUEST)
+        ParametroGlobal.objects.update_or_create(
+            clave=META_BANCO_HABILITADA,
+            defaults={
+                'valor': str(habilitada).lower(),
+                'descripcion': 'Activa el seguimiento de metas de banco para Cobranza.',
+            },
+        )
+        return Response({'habilitada': habilitada})
+
+
+class ProgresoMetaBancoView(APIView):
+    """Avance de la combinación elegida durante el registro de pagos."""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def get(self, request):
+        try:
+            banco_id = int(request.query_params.get('banco', ''))
+        except (TypeError, ValueError):
+            return Response({'detail': 'Indique un banco válido.'}, status=status.HTTP_400_BAD_REQUEST)
+        metodo = request.query_params.get('metodo', '')
+        if metodo not in dict(Pago.METODOS):
+            return Response({'detail': 'Indique un método de pago válido.'}, status=status.HTTP_400_BAD_REQUEST)
+        fecha = timezone.localdate()
+        fecha_raw = request.query_params.get('fecha')
+        if fecha_raw:
+            try:
+                fecha = date.fromisoformat(fecha_raw)
+            except ValueError:
+                return Response({'detail': 'La fecha debe usar el formato AAAA-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        conceptos = [c.strip() for c in request.query_params.get('conceptos', '').split(',') if c.strip()]
+        invalidos = set(conceptos) - set(dict(Pago.CONCEPTOS))
+        if invalidos:
+            return Response({'detail': 'Conceptos inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_progreso_meta_banco(banco_id, metodo, fecha, conceptos or None))
 
 class ConfiguracionCobranzaView(APIView):
     permission_classes = [permissions.IsAuthenticated]

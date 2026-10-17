@@ -70,6 +70,7 @@ class ParametroGlobal(models.Model):
     def __str__(self):
         return f"{self.clave}: {self.valor}"
 
+
 class TransferenciaInterna(models.Model):
     """Modelo para registrar movimientos entre cuentas propias de la institución"""
     banco_origen = models.ForeignKey(
@@ -414,6 +415,30 @@ class Pago(models.Model):
                 )
                 self.factura_id = f"{date_prefix}{count + 1:04d}"
                 Pago.objects.filter(pk=self.pk).update(factura_id=self.factura_id)
+
+
+class MetaBanco(models.Model):
+    """Objetivo de captación de pagos de Cobranza por banco y método."""
+    banco = models.ForeignKey(
+        'BancoInstitucional', on_delete=models.PROTECT, related_name='metas_banco'
+    )
+    metodo_pago = models.CharField(max_length=25, choices=Pago.METODOS)
+    objetivo_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    activa = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_inicio', 'banco__nombre', 'metodo_pago']
+
+    def clean(self):
+        if self.objetivo_usd <= 0:
+            raise ValidationError({'objetivo_usd': 'La meta debe ser mayor que cero.'})
+        if self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({'fecha_fin': 'La fecha de fin debe ser igual o posterior a la fecha de inicio.'})
+
+
 class Mensualidad(models.Model):
     MESES = [
         (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
