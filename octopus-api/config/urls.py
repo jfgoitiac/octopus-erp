@@ -31,10 +31,6 @@ urlpatterns = [
     path('api/notificaciones/', include('notificaciones.urls')),
     path('api/portal/notificaciones/', include('notificaciones.urls_portal')),
     path('api/cantina/', include('cantina.urls')),
-    # Sitio institucional (CMS) — admin (protegido, IsDirectorOrSistemas) y
-    # público (AllowAny, solo contenido publicado). Ver SITIO_CONTRATO_API.md.
-    path('api/sitio/admin/', include('sitio.urls_admin')),
-    path('api/sitio/', include('sitio.urls_public')),
     path('media-protegido/comprobantes/<str:filename>/', ComprobanteProtegidoView.as_view()),
 ]
 

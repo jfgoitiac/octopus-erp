@@ -4,8 +4,8 @@ acceso real.
 
 Contexto (ver comentario en config/settings.py junto a MEDIA_URL/MEDIA_ROOT):
 en producción se espera que nginx sirva /media/ directamente o vía
-X-Accel-Redirect, pero el repo no incluye el nginx conf real de app.clhma.com
-(solo el del sitio institucional, que es otro dominio). Los comprobantes
+X-Accel-Redirect, pero el repo no incluye el nginx conf real de app.clhma.com.
+Los comprobantes
 contienen datos bancarios y nombres de representantes — si nginx los sirve
 directo desde /media/comprobantes/ sin autenticación, cualquiera que conozca
 o adivine el nombre de archivo puede descargarlos.

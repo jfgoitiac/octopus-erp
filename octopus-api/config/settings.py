@@ -90,7 +90,6 @@ INSTALLED_APPS = [
     'multisede.apps.MultisedeConfig',
     'notificaciones.apps.NotificacionesConfig',
     'cantina.apps.CantinaConfig',
-    'sitio.apps.SitioConfig',
     'constancias.apps.ConstanciasConfig',
     'finanzas.apps.FinanzasConfig',
     'egresos.apps.EgresosConfig',
