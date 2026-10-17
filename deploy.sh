@@ -59,7 +59,16 @@ echo "════════════════════════�
 echo ""
 echo "▶ Actualizando código (rama $BRANCH)..."
 cd "$REPO"
-git pull origin "$BRANCH"
+# Un servidor puede quedar en HEAD detached o en una rama anterior después de
+# una intervención manual. Seleccionar la rama solicitada evita que `pull`
+# actualice un checkout distinto de main sin que el deploy lo advierta.
+git fetch origin "$BRANCH"
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+    git switch "$BRANCH"
+else
+    git switch --track -c "$BRANCH" "origin/$BRANCH"
+fi
+git pull --ff-only origin "$BRANCH"
 
 # ── 1b. Frontend y sitio — build ANTES de tocar la base de datos ──
 # Si el build falla, el deploy se detiene sin migraciones a medias. Y si una
@@ -82,6 +91,18 @@ if ! grep -rqs "Auditoría Cantina" "$FRONTEND/dist/assets"; then
     exit 1
 fi
 echo "   ✓ Build verificado"
+
+# El POS debe conservar dos destinos de cámara separados: códigos de barras
+# para productos y QR para tarjetas prepago. Esta comprobación evita publicar
+# un dist viejo aunque el `git pull` o la instalación se hayan completado.
+echo "▶ Verificando lector móvil de Cantina..."
+for texto in "Escanear producto con cámara" "Escanear tarjeta con cámara"; do
+    if ! grep -rqs "$texto" "$FRONTEND/dist/assets"; then
+        echo "✗ ERROR: el build no contiene '$texto'. Revisa la rama ($BRANCH) y el build." >&2
+        exit 1
+    fi
+done
+echo "   ✓ Lector móvil verificado"
 
 echo ""
 echo "▶ Instalando dependencias Node (sitio institucional)..."

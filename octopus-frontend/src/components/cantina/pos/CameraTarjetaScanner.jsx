@@ -61,6 +61,27 @@ export default function CameraCodeScanner({
   const streamRef = useRef(null);
   const frameRef = useRef(null);
   const activoRef = useRef(false);
+  const formatosDisponiblesRef = useRef(null);
+
+  // La lista de formatos no requiere abrir la cámara. Prepararla al montar
+  // evita una espera adicional después de que el cajero aprueba el permiso.
+  useEffect(() => {
+    let montado = true;
+    const Detector = window.BarcodeDetector;
+    if (!Detector?.getSupportedFormats) return undefined;
+
+    Detector.getSupportedFormats()
+      .then(soportados => {
+        if (montado) {
+          formatosDisponiblesRef.current = formatos.filter(formato => soportados.includes(formato));
+        }
+      })
+      // Si el navegador no expone esta lista, se usa la lista solicitada al
+      // construir el detector, que es el comportamiento estándar previo.
+      .catch(() => {});
+
+    return () => { montado = false; };
+  }, [formatos]);
 
   const liberarCamara = useCallback(() => {
     activoRef.current = false;
@@ -97,23 +118,10 @@ export default function CameraCodeScanner({
     setEstado('starting');
     setMensaje('Solicitando acceso a la cámara…');
     try {
-      // Espera el siguiente cuadro para que el <video> condicional esté
-      // montado antes de asignarle el stream, incluso en móviles rápidos.
-      await new Promise(resolve => window.requestAnimationFrame(resolve));
-      if (!videoRef.current) return;
-
-      const soportados = await Detector.getSupportedFormats?.();
-      const formatosDisponibles = Array.isArray(soportados)
-        ? formatos.filter(formato => soportados.includes(formato))
-        : formatos;
-      if (formatosDisponibles.length === 0) {
-        setEstado('unavailable');
-        setMensaje('La cámara está disponible, pero este navegador no puede leer este tipo de código.');
-        return;
-      }
-
       // `ideal` favorece la trasera sin impedir que un teléfono con una sola
-      // cámara o una tablet use su cámara disponible.
+      // cámara o una tablet use su cámara disponible. Esta llamada debe ser
+      // la primera operación asíncrona del click: Android/Chrome puede
+      // rechazar el prompt si se difiere y se pierde la activación del botón.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
@@ -121,6 +129,14 @@ export default function CameraCodeScanner({
       streamRef.current = stream;
       if (!videoRef.current) {
         liberarCamara();
+        return;
+      }
+
+      const formatosDisponibles = formatosDisponiblesRef.current ?? formatos;
+      if (formatosDisponibles.length === 0) {
+        liberarCamara();
+        setEstado('unavailable');
+        setMensaje('La cámara está disponible, pero este navegador no puede leer este tipo de código.');
         return;
       }
 
@@ -189,9 +205,13 @@ export default function CameraCodeScanner({
         )}
       </div>
 
-      {(estado === 'active' || estado === 'starting') && (
-        <video ref={videoRef} className="mt-3 w-full max-h-[40dvh] rounded-lg bg-black object-cover" playsInline muted aria-label={etiquetaCamara} />
-      )}
+      <video
+        ref={videoRef}
+        className={`mt-3 w-full max-h-[40dvh] rounded-lg bg-black object-cover ${estado === 'active' || estado === 'starting' ? '' : 'hidden'}`}
+        playsInline
+        muted
+        aria-label={etiquetaCamara}
+      />
       {mensaje && (
         <p role="status" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-xs" style={{ color: estado === 'denied' || estado === 'unavailable' || estado === 'error' ? 'var(--red)' : 'var(--ash)' }}>
           {(estado === 'denied' || estado === 'unavailable' || estado === 'error') && <TriangleAlert size={14} className="shrink-0 mt-0.5" aria-hidden="true" />}
