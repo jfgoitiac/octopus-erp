@@ -37,7 +37,7 @@ export const FIRST_ACCESSIBLE_ROUTE = {
   'cobranza': '/dashboard',
   'administrador': '/dashboard',
   // 'sistemas' quedó restringido a los módulos de administración del
-  // sistema (Sistemas, Configuración, Sitio Institucional, Notificaciones)
+  // sistema (Sistemas, Configuración, Notificaciones)
   // — ya no tiene acceso a /cobranza/dashboard.
   'sistemas': '/sistemas',
   'secretaria': '/inscripciones',

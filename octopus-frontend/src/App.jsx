@@ -91,9 +91,6 @@ const Rendimiento              = lazy(() => import('./pages/Rendimiento'));
 // ── Módulo Comunicación ────────────────────────────────────────────────────────
 const Comunicacion             = lazy(() => import('./pages/Comunicacion'));
 
-// ── Módulo Sitio Institucional (CMS) ───────────────────────────────────────────
-const GestionSitio             = lazy(() => import('./pages/GestionSitio'));
-
 // ── Portal Docente (login unificado con el resto del staff — ver /login) ──────
 const DocenteDashboard         = lazy(() => import('./portal-docente/pages/DocenteDashboard'));
 const DocenteMaterias          = lazy(() => import('./portal-docente/pages/DocenteMaterias'));
@@ -518,13 +515,6 @@ function App() {
                   <Comunicacion />
                 </ProtectedRoute>
               } />
-              {/* Módulo Sitio Institucional (CMS) */}
-              <Route path="gestion-sitio" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>
-                  <GestionSitio />
-                </ProtectedRoute>
-              } />
-
               {/* Módulo Multi-Sede */}
               <Route path="multisede" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTIVO_RED, ROLES.DIRECTOR]}>

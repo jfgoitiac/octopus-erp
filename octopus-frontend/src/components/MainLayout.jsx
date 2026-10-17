@@ -39,7 +39,6 @@ const PAGE_TITLES = {
   '/morosos':            'Alumnos en mora',
   '/cobranza/plantillas-whatsapp': 'Cobros por WhatsApp',
   '/cobranza/historial-whatsapp':  'Historial de mensajes WhatsApp',
-  '/gestion-sitio':      'Sitio Institucional',
   '/notas':              'Registro de Notas',
   '/boletin':            'Boletines',
   '/asistencia':         'Asistencia',

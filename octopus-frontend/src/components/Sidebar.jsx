@@ -14,7 +14,7 @@ import {
   LayoutDashboard, UserPlus, Users, Calculator,
   BarChart3, Wrench, ShieldCheck,
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
-  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone, Globe,
+  BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone,
   Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, Sparkles,
   Gauge, ClipboardCheck, ScrollText
 } from 'lucide-react';
@@ -104,7 +104,6 @@ const navSections = [
   {
     label: 'Sistema',
     items: [
-      { name: 'Sitio Institucional', path: '/gestion-sitio', icon: Globe, roles: ['director','sistemas'] },
       { name: 'Configuración', path: '/configuracion', icon: Wrench,    roles: ['director','sistemas'] },
       { name: 'Notificaciones', path: '/configuracion/notificaciones', icon: Bell, roles: ['director','sistemas'] },
       { name: 'Sistemas',  path: '/sistemas',  icon: Monitor,   roles: ['director','sistemas'] },
