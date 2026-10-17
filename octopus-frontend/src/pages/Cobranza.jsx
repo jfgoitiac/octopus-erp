@@ -61,6 +61,7 @@ const Cobranza = () => {
     const [fechaPagoRetro, setFechaPagoRetro] = useState(() => today());
     const [tasaManual, setTasaManual]         = useState('');
     const [motivoRetro, setMotivoRetro]       = useState('');
+    const [metaBancoRevision, setMetaBancoRevision] = useState(0);
 
     const {
         valor: tasaSugerida,
@@ -567,6 +568,7 @@ const Cobranza = () => {
 
             if (res.status === 201) {
                 toast.success('¡Pago registrado correctamente!');
+                setMetaBancoRevision(revision => revision + 1);
                 // Recibo: el mismo PDF que descarga el portal y llega por correo,
                 // generado en el backend con el N° del primer pago de la operación.
                 const pagoPrincipalId = res.data.pagos?.[0]?.id;
@@ -702,6 +704,7 @@ const Cobranza = () => {
             tasaSugerenciaExacta={tasaSugerenciaExacta}
             tasaSugerenciaFechaReal={tasaSugerenciaFechaReal}
             tasaSugerenciaLoading={tasaSugerenciaLoading}
+            metaBancoRevision={metaBancoRevision}
         >
             <ResumenPago
                 nombreAlumno={nombresSeleccionados}

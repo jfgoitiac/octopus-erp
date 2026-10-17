@@ -22,6 +22,25 @@ export const exportarMorososExcel = (busqueda, signal) => {
 export const getBancos = (signal) =>
     apiClient.get('cobranza/bancos/', signal ? { signal } : undefined);
 
+/* ── Metas de banco (Cobranza) ── */
+export const getMetasBanco = (signal) =>
+    apiClient.get('cobranza/metas-banco/', { signal });
+
+export const crearMetaBanco = (data, signal) =>
+    apiClient.post('cobranza/metas-banco/', data, { signal });
+
+export const eliminarMetaBanco = (id, signal) =>
+    apiClient.delete(`cobranza/metas-banco/${id}/`, { signal });
+
+export const getConfiguracionMetaBanco = (signal) =>
+    apiClient.get('cobranza/metas-banco/configuracion/', { signal });
+
+export const actualizarConfiguracionMetaBanco = (habilitada, signal) =>
+    apiClient.patch('cobranza/metas-banco/configuracion/', { habilitada }, { signal });
+
+export const getProgresoMetaBanco = (banco, metodo, signal) =>
+    apiClient.get('cobranza/metas-banco/progreso/', { params: { banco, metodo }, signal });
+
 /* ── Recibo de cobranza (motor único en el backend) ── */
 
 export const getReciboPdf = (pagoId, signal) =>

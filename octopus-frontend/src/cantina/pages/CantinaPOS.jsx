@@ -474,16 +474,18 @@ export default function CantinaPOS() {
             )}
 
             {esMetodoBancario(metodoPago) && (
-              <MetodoPagoFields
-                value={valorPago}
-                onChange={setDatosPago}
-                bancos={bancos}
-                tasa={tasaVigente}
-                metodosPermitidos={[metodoPago]}
-                ocultarMonto
-                ocultarSelector
-                disabled={cobrando}
-              />
+              <div className="space-y-3">
+                <MetodoPagoFields
+                  value={valorPago}
+                  onChange={setDatosPago}
+                  bancos={bancos}
+                  tasa={tasaVigente}
+                  metodosPermitidos={[metodoPago]}
+                  ocultarMonto
+                  ocultarSelector
+                  disabled={cobrando}
+                />
+              </div>
             )}
 
             {metodoPago === 'credito_representante' && (

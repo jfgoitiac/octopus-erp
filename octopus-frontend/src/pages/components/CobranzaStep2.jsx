@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash2, ArrowLeft, DollarSign, RefreshCw, History, AlertTriangle, Loader2 } from 'lucide-react';
 import DecimalInput from '../../components/DecimalInput';
 import DatePickerES from '../../components/DatePickerES';
@@ -7,6 +7,8 @@ import { useConfiguracion } from '../../hooks/useConfiguracion';
 import { Card } from '../../components/ui/Card';
 import { esDivisa, esBolivares, esCash, requiereBanco } from '../../utils/metodosPago';
 import { today } from '../../constants/reportes';
+import { getProgresoMetaBanco } from '../../api/cobranza.service';
+import MetaBancoProgreso from '../../components/cobranza/MetaBancoProgreso';
 
 const MOTIVO_MIN_LEN = 10;
 
@@ -72,10 +74,28 @@ const CobranzaStep2 = ({
     tasaSugerenciaExacta,
     tasaSugerenciaFechaReal,
     tasaSugerenciaLoading,
+    metaBancoRevision,
     children,
 }) => {
     const { config: configColegio, loading: loadingConfig } = useConfiguracion();
     const [touched, setTouched] = useState({});
+    const [metasBanco, setMetasBanco] = useState({});
+
+    useEffect(() => {
+        const combinaciones = lineas.filter(l => requiereBanco(l.metodo_pago) && l.banco_receptor_id)
+            .map(l => ({ clave: `${l.metodo_pago}:${l.banco_receptor_id}`, banco: l.banco_receptor_id, metodo: l.metodo_pago }));
+        if (!combinaciones.length) return undefined;
+        const controller = new AbortController();
+        Promise.all(combinaciones.map(async ({ clave, banco, metodo }) => {
+            const respuesta = await getProgresoMetaBanco(banco, metodo, controller.signal);
+            return [clave, respuesta.data];
+        })).then(resultados => {
+            setMetasBanco(prev => ({ ...prev, ...Object.fromEntries(resultados) }));
+        }).catch(error => {
+            if (error.name !== 'CanceledError' && error.code !== 'ERR_CANCELED') setMetasBanco({});
+        });
+        return () => controller.abort();
+    }, [lineas, metaBancoRevision]);
 
     const tasaManualNum = parseFloat(tasaManual);
     const tasaInvalida  = retroActivo && (isNaN(tasaManualNum) || tasaManualNum <= 0);
@@ -502,6 +522,7 @@ const CobranzaStep2 = ({
                                             {esTocado(i, 'banco') && !l.banco_receptor_id && (
                                                 <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>Selecciona un banco</p>
                                             )}
+                                            <MetaBancoProgreso progreso={metasBanco[`${l.metodo_pago}:${l.banco_receptor_id}`]} />
                                         </div>
                                     )}
                                     <div className={requiereBanco(l.metodo_pago) && l.metodo_pago !== 'punto_de_venta' ? '' : 'col-span-2'}>

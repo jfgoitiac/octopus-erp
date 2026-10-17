@@ -23,6 +23,7 @@ import ConciliadorBancoCampos from '../components/configuracion/ConciliadorBanco
 import BecasTab from '../components/configuracion/BecasTab';
 import ReglasRecargoPagoTab from '../components/configuracion/ReglasRecargoPagoTab';
 import ConfiguracionCobranzaInteligente from './ConfiguracionCobranzaInteligente';
+import MetasBancoTab from '../components/configuracion/MetasBancoTab';
 import { useNotificaciones, PAGE_SIZE_LOGS } from '../hooks/useNotificaciones';
 import { useLogosRecibo } from '../hooks/useLogosRecibo';
 import { useBranding } from '../context/BrandingContext';
@@ -830,6 +831,8 @@ const Configuracion = () => {
                         </div>
                     )}
                 </div>
+
+                <MetasBancoTab bancos={bancos} />
 
                 {/* Bancos de Nómina */}
                 <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
