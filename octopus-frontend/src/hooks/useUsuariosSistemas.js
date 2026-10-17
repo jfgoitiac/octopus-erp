@@ -73,12 +73,27 @@ export function useUsuariosSistemas() {
 
     const editRol = useCallback(async (userId, newRol) => {
         try {
-            await axiosInstance.patch(`authentication/users/${userId}/`, { rol: newRol });
+            await axiosInstance.patch(`authentication/users/${userId}/`, { accion: 'cambiar_rol', rol: newRol });
             toast.success('Rol actualizado correctamente');
             await fetchUsers();
             return true;
         } catch (err) {
             toast.error(extractErrorMessage(err, 'Error al actualizar el rol'));
+            return false;
+        }
+    }, [fetchUsers]);
+
+    // Otorga/retira el permiso de cambiar la tasa de Cantina (flag del perfil).
+    const setPermisoTasaCantina = useCallback(async (userId, valor) => {
+        try {
+            await axiosInstance.patch(`authentication/users/${userId}/`, {
+                accion: 'permiso_tasa_cantina', valor,
+            });
+            toast.success(valor ? 'Permiso de tasa de Cantina otorgado' : 'Permiso de tasa de Cantina retirado');
+            await fetchUsers();
+            return true;
+        } catch (err) {
+            toast.error(extractErrorMessage(err, 'Error al actualizar el permiso de tasa'));
             return false;
         }
     }, [fetchUsers]);
@@ -182,6 +197,7 @@ export function useUsuariosSistemas() {
         createUser,
         deleteUser,
         editRol,
+        setPermisoTasaCantina,
         resetPassword,
         downloadBackup,
         syncBCV,

@@ -12,7 +12,7 @@ import {
 // Props fijas del contrato: { value, onChange, bancos, tasa, metodosPermitidos }
 //  - bancos: catálogo de GET cantina/bancos/ ([{ id, nombre, tipos }]); se
 //    filtra por los que aceptan el método elegido.
-//  - tasa: tasa BCV (número) para el equivalente USD⇄VES.
+//  - tasa: tasa de Cantina (número) para el equivalente USD⇄VES.
 //  - metodosPermitidos: lista de values; por defecto los 6 de cobranza.
 // Props opcionales (no cambian el contrato): `ocultarMonto` (POS: el monto es
 // el total del carrito), `ocultarSelector` (POS: el método ya se eligió en el

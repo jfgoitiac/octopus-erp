@@ -39,3 +39,16 @@ class EsAdminCantina(permissions.BasePermission):
             return request.user.perfil.esta_activo and request.user.perfil.rol in self.ROLES
         except Exception:
             return False
+
+
+def puede_gestionar_tasa(user):
+    """Director, superusuario o usuario con el flag `puede_gestionar_tasa_cantina`."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        perfil = user.perfil
+        return perfil.esta_activo and (perfil.rol == 'director' or perfil.puede_gestionar_tasa_cantina)
+    except Exception:
+        return False

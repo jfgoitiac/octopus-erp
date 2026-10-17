@@ -32,6 +32,59 @@ class ParametroCantina(models.Model):
         return 'Parámetros de Cantina'
 
 
+class TasaCantina(models.Model):
+    """Tasa de cambio propia de Cantina (Bs. por USD). Historial inmutable.
+
+    Solo se agregan filas — nunca se editan ni se borran. La tasa activa es
+    la fila más reciente (`vigente_desde`). Si no hay ninguna, Cantina cae
+    en la última `cobranza.TasaCambio` (ver `utils.tasa_cantina_activa`).
+    """
+    FUENTES = (('manual', 'Manual'), ('bcv', 'BCV'))
+
+    valor_bs = models.DecimalField(max_digits=12, decimal_places=4)
+    valor_anterior = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text='Tasa activa justo antes de este cambio (vacío en la primera).',
+    )
+    tasa_bcv_referencia = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text='Copia de la última cobranza.TasaCambio al momento del cambio, solo como referencia.',
+    )
+    vigente_desde = models.DateTimeField(default=timezone.now, db_index=True)
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name='+',
+    )
+    motivo = models.CharField(max_length=255, blank=True, default='')
+    fuente = models.CharField(max_length=10, choices=FUENTES, default='manual')
+
+    class Meta:
+        ordering = ['-vigente_desde', '-id']
+        verbose_name = 'Tasa de Cantina'
+        verbose_name_plural = 'Tasas de Cantina'
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError('El historial de tasas de Cantina es inmutable: solo se agregan filas.')
+        from django.db import transaction
+        from cobranza.models import TasaCambio
+        with transaction.atomic():
+            # Bloquea la fila activa para que dos cambios simultáneos no
+            # calculen el mismo valor_anterior.
+            ultima = (
+                TasaCantina.objects.select_for_update().order_by('-vigente_desde', '-id').first()
+            )
+            self.valor_anterior = ultima.valor_bs if ultima else None
+            bcv = TasaCambio.objects.order_by('-fecha').first()
+            self.tasa_bcv_referencia = bcv.valor_bs if bcv else None
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError('El historial de tasas de Cantina es inmutable: no se puede borrar.')
+
+    def __str__(self):
+        return f'Bs. {self.valor_bs} desde {self.vigente_desde:%d/%m/%Y %H:%M}'
+
+
 class LoteTarjetas(models.Model):
     """Agrupa un lote de tarjetas QR generadas de una sola vez.
 
@@ -133,7 +186,7 @@ class RecargaTarjeta(models.Model):
     metodo_pago = models.CharField(max_length=20)  # choices = METODOS (importado de cobranza, ver arriba)
     # --- Moneda dual, mismo criterio que cobranza.Pago ---
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Monto captado en divisas (canónico)')
-    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa BCV vigente al momento de la recarga (snapshot de cobranza.TasaCambio)')
+    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa de Cantina vigente al momento de la recarga (snapshot de la tasa aplicada)')
     monto_ves = models.DecimalField(max_digits=20, decimal_places=2, editable=False, help_text='Equivalente contable en Bolívares')
     # --- Datos bancarios de la transacción (solo aplica según metodo_pago) ---
     banco_receptor = models.ForeignKey('cobranza.BancoInstitucional', on_delete=models.PROTECT, null=True, blank=True,
@@ -170,6 +223,9 @@ class ProductoCantina(models.Model):
     categoria = models.ForeignKey(CategoriaProducto, on_delete=models.PROTECT, related_name='productos')
     codigo_barras = models.CharField(max_length=50, unique=True, null=True, blank=True, db_index=True)
     precio = models.DecimalField(max_digits=8, decimal_places=2)
+    # Costo unitario en USD para la rentabilidad estimada (Auditoría). null =
+    # costo desconocido: los reportes lo excluyen del margen y lo advierten.
+    costo = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     stock_actual = models.IntegerField(default=0)
     stock_minimo = models.IntegerField(default=5)
     imagen = models.ImageField(upload_to='cantina/productos/', null=True, blank=True)
@@ -193,7 +249,10 @@ class MovimientoInventario(models.Model):
     TIPOS = (
         ('entrada', 'Entrada (compra a proveedor)'),
         ('salida', 'Salida (venta)'),
-        ('ajuste', 'Ajuste (merma / conteo)'),
+        ('ajuste', 'Ajuste (conteo)'),
+        # D3: la merma (vencido, dañado, consumo interno) se separa del ajuste
+        # por conteo. `cantidad` es positiva y resta del stock.
+        ('merma', 'Merma'),
     )
     producto = models.ForeignKey(ProductoCantina, on_delete=models.CASCADE, related_name='movimientos')
     tipo = models.CharField(max_length=10, choices=TIPOS)
@@ -287,17 +346,32 @@ class VentaCantina(models.Model):
     # Alternativa a `representante` para clientes generales (personal u otros).
     cliente = models.ForeignKey('cantina.ClienteCantina', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas_credito')
     total_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Total canónico en USD (el precio de cada producto vive en USD)')
-    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa BCV vigente al momento de la venta (snapshot de cobranza.TasaCambio) — se usa para imprimir el ticket en VES si se cobró en efectivo_ves')
+    tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4, help_text='Tasa de Cantina vigente al momento de la venta (snapshot de la tasa aplicada) — se usa para imprimir el ticket en VES si se cobró en efectivo_ves')
     total_ves = models.DecimalField(max_digits=20, decimal_places=2, editable=False)
     estado = models.CharField(max_length=15, choices=ESTADOS, default='completada')
     saldo_tarjeta_despues = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     anulada_en = models.DateTimeField(null=True, blank=True)
     anulada_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='ventas_anuladas')
+    motivo_anulacion = models.TextField(blank=True)
+    # D1: descuento por venta con motivo obligatorio. total_usd ya es el neto
+    # (subtotal − descuento); el subtotal bruto es total_usd + descuento_usd.
+    descuento_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    motivo_descuento = models.CharField(max_length=200, blank=True)
+    # D2: venta manual = producto o alumno elegido por búsqueda, no por escáner.
+    ORIGENES_PRODUCTO = (('escaner', 'Escáner'), ('manual', 'Búsqueda manual'), ('mixto', 'Mixto'))
+    ORIGENES_ALUMNO = (('escaner', 'Escáner de tarjeta'), ('manual', 'Búsqueda manual'), ('no_aplica', 'No aplica'))
+    origen_producto = models.CharField(max_length=10, choices=ORIGENES_PRODUCTO, default='escaner')
+    origen_alumno = models.CharField(max_length=10, choices=ORIGENES_ALUMNO, default='no_aplica')
+    es_manual = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         ordering = ['-creado_en']
-        indexes = [models.Index(fields=['referencia', 'metodo_pago'])]
+        indexes = [
+            models.Index(fields=['referencia', 'metodo_pago']),
+            models.Index(fields=['cajero', 'creado_en']),
+            models.Index(fields=['estado', 'creado_en']),
+        ]
         constraints = [
             # Una venta a crédito va a un representante O a un cliente, nunca a ambos.
             models.CheckConstraint(
@@ -306,6 +380,10 @@ class VentaCantina(models.Model):
             ),
         ]
 
+    @property
+    def subtotal_usd(self):
+        return self.total_usd + self.descuento_usd
+
 
 class DetalleVentaCantina(models.Model):
     venta = models.ForeignKey(VentaCantina, on_delete=models.CASCADE, related_name='detalles')
@@ -313,6 +391,8 @@ class DetalleVentaCantina(models.Model):
     cantidad = models.PositiveIntegerField()
     precio_unitario = models.DecimalField(max_digits=8, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    # Snapshot de ProductoCantina.costo al vender (null = costo desconocido).
+    costo_unitario = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
 
 class CierreCajaCantina(models.Model):
@@ -488,3 +568,18 @@ class AplicacionAbonoCantina(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(monto_usd__gt=0), name='aplicacion_abono_monto_positivo'),
         ]
+
+
+# ─────────────────────────────────────────────
+# Auditoría de Cantina (exclusiva del Director)
+# ─────────────────────────────────────────────
+# Los modelos viven en su propio subpaquete pero pertenecen a esta app; se
+# importan aquí para que Django los registre. Ver cantina/auditoria/models.py.
+from .auditoria.models import (  # noqa: E402,F401
+    AdjuntoRevision,
+    AlertaCantina,
+    EventoAuditoriaCantina,
+    ParametroAuditoriaCantina,
+    ReaperturaCajaCantina,
+    RevisionCierre,
+)

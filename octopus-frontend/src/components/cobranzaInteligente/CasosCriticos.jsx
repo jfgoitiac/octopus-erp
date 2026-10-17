@@ -2,18 +2,13 @@ import { Link } from 'react-router-dom';
 import { Flame, MessagesSquare, ArrowRight, UserCheck, PartyPopper } from 'lucide-react';
 import InitialsAvatar from '../shared/InitialsAvatar';
 import AccionSugerida from './AccionSugerida';
+import { nivel } from './prioridad';
 import { useCargaInteligente } from '../../hooks/useCargaInteligente';
 import { useAccionesCaso } from '../../hooks/useAccionesCaso';
 import { getBandejaInteligente } from '../../api/cobranza.service';
 import { fmt } from '../../utils/format';
 
 const MAXIMO = 5;
-
-const nivel = (puntaje) => {
-    if (puntaje >= 60) return { color: 'var(--red)', fondo: 'var(--red-light)', avatar: '#9e2b25' };
-    if (puntaje >= 35) return { color: 'var(--orange)', fondo: 'var(--orange-light)', avatar: '#c2410c' };
-    return { color: 'var(--amber-ink)', fondo: 'var(--yellow-light)', avatar: '#d97706' };
-};
 
 /** Los casos de mayor prioridad de la bandeja, con su acción sugerida a un clic. */
 export default function CasosCriticos() {

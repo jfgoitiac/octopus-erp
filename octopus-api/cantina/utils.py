@@ -18,6 +18,33 @@ from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_re
 logger = logging.getLogger(__name__)
 
 
+class TasaActiva:
+    """Tasa vigente de Cantina: valor, desde cuándo, de dónde viene y la BCV de referencia."""
+    def __init__(self, valor_bs, vigente_desde, fuente, bcv_referencia):
+        self.valor_bs = valor_bs
+        self.vigente_desde = vigente_desde
+        self.fuente = fuente
+        self.bcv_referencia = bcv_referencia
+
+
+def tasa_cantina_activa():
+    """
+    Tasa que Cantina aplica a ventas, recargas y abonos. Devuelve la fila más
+    reciente de `TasaCantina`; si Cantina nunca configuró una, cae en la
+    última `cobranza.TasaCambio` (BCV). `None` si no existe ninguna.
+    """
+    from cobranza.models import TasaCambio
+    from .models import TasaCantina
+
+    bcv = TasaCambio.objects.order_by('-fecha').first()
+    propia = TasaCantina.objects.order_by('-vigente_desde', '-id').first()
+    if propia is not None:
+        return TasaActiva(propia.valor_bs, propia.vigente_desde, propia.fuente, bcv.valor_bs if bcv else None)
+    if bcv is not None:
+        return TasaActiva(bcv.valor_bs, bcv.fecha, 'bcv', bcv.valor_bs)
+    return None
+
+
 # Métodos que requieren número de referencia obligatorio (mismo criterio
 # que portal._METODOS_CON_REFERENCIA_OBLIGATORIA).
 METODOS_CON_REFERENCIA_OBLIGATORIA = {'transferencia', 'pago_movil', 'punto_de_venta', 'zelle'}
@@ -209,6 +236,20 @@ def generar_pdf_ticket(venta):
         c.line(col_prod, fila_y, col_subtotal, fila_y)
         fila_y -= fila_h
 
+    # ── Descuento (Auditoría D1) ──────────────────────────────────────
+    # total_usd ya es neto: si hubo descuento se muestran subtotal bruto y
+    # descuento con su motivo antes del total.
+    if venta.descuento_usd and venta.descuento_usd > 0:
+        c.setFillColor(octopus_blue)
+        c.setFont('Helvetica', 9)
+        c.drawString(col_prod + 0.1 * inch, fila_y + 0.1 * inch, 'Subtotal:')
+        c.drawRightString(col_subtotal, fila_y + 0.1 * inch, f'$ {venta.subtotal_usd:,.2f}')
+        fila_y -= fila_h
+        motivo = f' ({venta.motivo_descuento[:40]})' if venta.motivo_descuento else ''
+        c.drawString(col_prod + 0.1 * inch, fila_y + 0.1 * inch, f'Descuento{motivo}:')
+        c.drawRightString(col_subtotal, fila_y + 0.1 * inch, f'- $ {venta.descuento_usd:,.2f}')
+        fila_y -= fila_h
+
     # ── Totales ───────────────────────────────────────────────────────
     c.setStrokeColor(octopus_gold)
     c.setLineWidth(1.5)
@@ -237,7 +278,7 @@ def generar_pdf_ticket(venta):
     # ── Nota de tasa ──────────────────────────────────────────────────
     c.setFont('Helvetica-Oblique', 8)
     c.setFillColor(ash)
-    c.drawString(margin, y_saldo, f'* Tasa BCV aplicada: Bs. {venta.tasa_aplicada} — El monto en Bs. es referencial.')
+    c.drawString(margin, y_saldo, f'* Tasa aplicada: Bs. {venta.tasa_aplicada} — El monto en Bs. es referencial.')
 
     # ── Marca de "ANULADA" (§5.6 de cantina.md) ──────────────────────
     if venta.estado == 'anulada':

@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cantina', '0004_cxc_constraints_indices'),
+        ('cantina', '0008_tasa_cantina'),
         ('cobranza', '0053_movimiento_bancario_conciliado'),
         ('secretaria', '0032_merge_20261013_0832'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

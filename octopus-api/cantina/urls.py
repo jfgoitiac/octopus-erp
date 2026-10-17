@@ -12,9 +12,11 @@ from .views import (
     BuscarTarjetaSinAsignarView,
     BuscarTarjetaView,
     CategoriasListCreateView,
+    CambiarTasaCantinaView,
     CierreCajaCantinaView,
     ExportarVentasExcelView,
     GenerarLoteTarjetasView,
+    HistorialTasaCantinaView,
     MovimientoInventarioCreateView,
     ParametroCantinaView,
     ProductoBuscarPorCodigoView,
@@ -59,6 +61,8 @@ urlpatterns = [
     # Fase 3 — Recargas, moneda dual y validación de referencias cruzada (§8 FASE 3 de cantina.md)
     path('bancos/', BancosCantinaView.as_view(), name='cantina-bancos'),
     path('tasa-vigente/', TasaVigenteCantinaView.as_view(), name='cantina-tasa-vigente'),
+    path('tasa/', CambiarTasaCantinaView.as_view(), name='cantina-tasa-cambiar'),
+    path('tasa/historial/', HistorialTasaCantinaView.as_view(), name='cantina-tasa-historial'),
     path('tarjetas/buscar/', BuscarTarjetaView.as_view(), name='cantina-buscar-tarjeta'),
     path('tarjetas/', TarjetasListView.as_view(), name='cantina-tarjetas-lista'),
     path('tarjetas/recargar/', RecargarTarjetaCajeroView.as_view(), name='cantina-recargar-cajero'),
@@ -88,4 +92,7 @@ urlpatterns = [
 
     # Cuentas por cobrar a representantes (CxC)
     path('cxc/', include('cantina.urls_cxc')),
+
+    # Auditoría de Cantina — exclusiva del Director (CONTRATO_AUDITORIA_CANTINA.md)
+    path('auditoria/', include('cantina.auditoria.urls')),
 ]

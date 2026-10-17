@@ -19,9 +19,10 @@ def aplicar_movimiento_inventario(producto, tipo, cantidad, *, motivo='', venta=
 
     - 'entrada': cantidad (positiva) suma al stock.
     - 'salida': cantidad (positiva) resta del stock.
-    - 'ajuste': cantidad con signo (merma/conteo manual) se suma directo al
-      stock — un ajuste negativo es una merma, uno positivo una corrección
-      hacia arriba.
+    - 'ajuste': cantidad con signo (corrección por conteo) se suma directo
+      al stock.
+    - 'merma': cantidad (positiva) resta del stock — vencido, dañado,
+      consumo interno. Separada del ajuste para la Auditoría (D3).
 
     Nunca permite que stock_actual quede negativo: si el movimiento lo
     dejaría por debajo de 0, lanza ValidationError sin escribir nada.
@@ -32,6 +33,10 @@ def aplicar_movimiento_inventario(producto, tipo, cantidad, *, motivo='', venta=
         delta = -cantidad
     elif tipo == 'ajuste':
         delta = cantidad
+    elif tipo == 'merma':
+        if cantidad <= 0:
+            raise ValidationError('La merma debe ser una cantidad positiva.')
+        delta = -cantidad
     else:
         raise ValidationError(f"Tipo de movimiento inválido: {tipo!r}")
 

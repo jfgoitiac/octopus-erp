@@ -323,14 +323,14 @@ class AnularVentaCreditoTests(AreasTestsBase):
     def test_cajero_no_puede_anular_venta_a_credito(self):
         self.client.force_authenticate(user=self.cajero)
         with mock.patch('cantina.services_cxc.anular_cargo_por_venta') as anular:
-            resp = self.client.post(self.url)
+            resp = self.client.post(self.url, {'motivo': 'Error de cobro'})
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         anular.assert_not_called()
 
     def test_admin_anula_la_venta_y_su_cargo(self):
         self.client.force_authenticate(user=self.admin)
         with mock.patch('cantina.services_cxc.anular_cargo_por_venta') as anular:
-            resp = self.client.post(self.url)
+            resp = self.client.post(self.url, {'motivo': 'Error de cobro'})
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
         anular.assert_called_once()
         self.assertEqual(anular.call_args.args[0].pk, self.venta_id)
@@ -343,7 +343,7 @@ class AnularVentaCreditoTests(AreasTestsBase):
         self.client.force_authenticate(user=self.admin)
         error = drf_serializers.ValidationError('El cargo tiene abonos: anule primero el abono.')
         with mock.patch('cantina.services_cxc.anular_cargo_por_venta', side_effect=error):
-            resp = self.client.post(self.url)
+            resp = self.client.post(self.url, {'motivo': 'Error de cobro'})
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('anule primero el abono', resp.data['error'])
         self.assertEqual(VentaCantina.objects.get(pk=self.venta_id).estado, 'completada')

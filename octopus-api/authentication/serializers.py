@@ -10,7 +10,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 class PerfilSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilUsuario
-        fields = ['rol', 'esta_activo']
+        fields = ['rol', 'esta_activo', 'puede_gestionar_tasa_cantina']
 
 
 class UserSerializer(serializers.ModelSerializer):

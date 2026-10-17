@@ -632,7 +632,7 @@ def generar_pdf_recibo_abono(abonos):
     c.drawString(margin, y, f'Saldo pendiente actual de la cuenta: $ {saldo:,.2f}')
     y -= 0.2 * inch
     c.setFont('Helvetica-Oblique', 8)
-    c.drawString(margin, y, f'* Tasa BCV aplicada: Bs. {primero.tasa_aplicada} — El monto en Bs. es referencial.')
+    c.drawString(margin, y, f'* Tasa aplicada: Bs. {primero.tasa_aplicada} — El monto en Bs. es referencial.')
 
     if anulado:
         c.saveState()

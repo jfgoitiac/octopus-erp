@@ -15,9 +15,33 @@ from .models import (
     ProductoCantina,
     RecargaTarjeta,
     TarjetaPrepago,
+    TasaCantina,
     VentaCantina,
 )
 from .utils import validar_datos_bancarios
+
+
+class CambiarTasaCantinaSerializer(serializers.Serializer):
+    """Entrada de POST /tasa/: valor > 0 que quepa en DecimalField(12, 4)."""
+    valor_bs = serializers.DecimalField(max_digits=12, decimal_places=4, min_value=Decimal('0.0001'))
+    motivo = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
+
+    def validate_motivo(self, value):
+        return value.strip()
+
+
+class TasaCantinaSerializer(serializers.ModelSerializer):
+    usuario = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TasaCantina
+        fields = ['id', 'valor_bs', 'valor_anterior', 'tasa_bcv_referencia', 'vigente_desde', 'usuario', 'motivo', 'fuente']
+
+    def get_usuario(self, obj):
+        u = obj.modificado_por
+        if u is None:
+            return ''
+        return getattr(u, 'nombre_completo', None) or u.get_full_name() or u.username
 
 # Mismos métodos que cobranza.Pago.METODOS, MENOS 'stripe' (§5.2/§5.9 de
 # cantina.md) — no se define una lista propia a mano para no tener que
@@ -39,13 +63,18 @@ class ProductoCantinaSerializer(serializers.ModelSerializer):
         model = ProductoCantina
         fields = (
             'id', 'nombre', 'categoria', 'categoria_nombre', 'codigo_barras',
-            'precio', 'stock_actual', 'stock_minimo', 'imagen', 'activo',
+            'precio', 'costo', 'stock_actual', 'stock_minimo', 'imagen', 'activo',
             'creado_en', 'stock_bajo', 'area',
         )
 
     def validate_precio(self, value):
         if value < 0:
             raise serializers.ValidationError('El precio no puede ser negativo.')
+        return value
+
+    def validate_costo(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError('El costo no puede ser negativo.')
         return value
 
     def validate_stock_minimo(self, value):
@@ -266,6 +295,7 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
     representante_nombre = serializers.SerializerMethodField()
     cliente_nombre = serializers.SerializerMethodField()
     detalles = DetalleVentaCantinaSerializer(many=True, read_only=True)
+    subtotal_usd = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = VentaCantina
@@ -275,6 +305,8 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
             'tasa_aplicada', 'total_ves', 'estado', 'saldo_tarjeta_despues',
             'area', 'banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote',
             'representante', 'representante_nombre', 'cliente', 'cliente_nombre', 'detalles', 'creado_en', 'anulada_en', 'anulada_por', 'anulada_por_username', 'anulada_por_nombre',
+            'subtotal_usd', 'descuento_usd', 'motivo_descuento', 'motivo_anulacion',
+            'es_manual', 'origen_producto', 'origen_alumno',
         )
         read_only_fields = fields
 

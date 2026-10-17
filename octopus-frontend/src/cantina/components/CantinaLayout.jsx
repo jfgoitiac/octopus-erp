@@ -1,10 +1,14 @@
 import { useContext, useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX, HandCoins } from 'lucide-react';
+import { LogOut, ShoppingCart, Package, CreditCard, Wallet, BarChart3, UserX, HandCoins, ShieldCheck } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 import { getAperturaCajaActual } from '../../api/cantina.service';
 import { EVENTO_APERTURA_CAMBIADA, ETIQUETA_AREA } from '../aperturaEvento';
+import TasaCantinaBadge from './TasaCantinaBadge';
+import useResumenAlertas from '../auditoria/useResumenAlertas';
+import ContadorAlertas from '../auditoria/components/ContadorAlertas';
+import { RUTA_AUDITORIA } from '../auditoria/rutas';
 
 // Nav de cantina.md — todas las fases (0-7) ya están implementadas:
 // Inventario (Fase 1), Tarjetas (Fase 2), POS (Fase 4), Cierre de caja
@@ -22,6 +26,9 @@ const NAV_ITEMS = [
   { name: 'Reportes',   path: '/cantina/reportes',    icon: BarChart3, disabled: false, roles: ROLES_CANTINA },
   { name: 'Cuentas por cobrar', path: '/cantina/cuentas', icon: HandCoins, disabled: false, roles: ROLES_CANTINA },
   { name: 'Morosos',    path: '/cantina/morosos',     icon: UserX, disabled: false, roles: ROLES_CANTINA },
+  // Auditoría: exclusiva del Director. Vive en el panel administrativo
+  // (/auditoria-cantina); este acceso directo lleva allá.
+  { name: 'Auditoría',  path: RUTA_AUDITORIA,   icon: ShieldCheck, disabled: false, roles: ['director'] },
 ];
 
 const ROL_LABELS = {
@@ -60,6 +67,9 @@ const CantinaLayout = () => {
     };
   }, [pathname]);
 
+  // Contador de alertas abiertas junto a "Auditoría" (solo Director).
+  const { abiertas: alertasAbiertas, hayCriticas } = useResumenAlertas(rol === 'director');
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -86,6 +96,8 @@ const CantinaLayout = () => {
           </div>
         )}
 
+        <TasaCantinaBadge />
+
         <nav className="flex flex-row gap-1 px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
             disabled ? (
@@ -111,6 +123,9 @@ const CantinaLayout = () => {
               >
                 <Icon size={18} />
                 {name}
+                {path === RUTA_AUDITORIA && (
+                  <ContadorAlertas abiertas={alertasAbiertas} hayCriticas={hayCriticas} className="ml-auto" />
+                )}
               </NavLink>
             )
           ))}

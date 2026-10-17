@@ -4156,10 +4156,74 @@ viejo de `cobranza/utils.py`. Deuda detectada, sin implementar:
 6. **Lint preexistente**: `src/hooks/useConfiguracionNotificaciones.js`
    (`set-state-in-effect`, línea del `useEffect` de carga). No se tocó.
 
+## Tasa de cambio propia de Cantina (deuda técnica detectada)
+
+1. ~~Cambio de rol sin `accion`~~ y ~~textos "tasa BCV" en Cantina~~: corregidos
+   (`editRol` ahora envía `accion: 'cambiar_rol'`). El portal general de representantes
+   (`portal/views.py`) sigue mostrando la BCV a propósito.
+2. Pendiente: `docs/manual` de otros módulos aún menciona la BCV donde corresponde.
+3. **Sincronización**: `tasa_bcv_referencia` se copia al cambiar la tasa; si la BCV cambia
+   después, la insignia muestra la BCV actual, no la copia del historial. La fuente `bcv`
+   existe en el modelo pero no hay botón para "adoptar la BCV"; solo se guarda `manual`.
+4. **Lint preexistente** en `CantinaTarjetas.jsx` y otras páginas de cantina
+   (`set-state-in-effect`); no se tocó.
+5. **Concurrencia en SQLite**: `select_for_update` no tiene efecto en SQLite (solo PostgreSQL).
+
+
+## Bandeja de gestión de Cobranza Inteligente (rediseño visual)
+
+1. **Convenios sin nombre del representante**: `GET /api/cobranza/inteligente/convenios/`
+   (`_serializar_convenio` en `cobranza/views_gestion.py`) devuelve solo el id del
+   representante. La tarjeta muestra "Convenio #id" y un enlace a la conversación;
+   para mostrar el nombre habría que añadir `representante_nombre` en el backend.
+2. **Etapas duplicadas**: `prioridad.js` define los estados del ciclo
+   (`ETAPAS_CICLO`); `Chat.jsx`, `morosos/EtapaCobranza.jsx` y el dashboard
+   mantienen sus propias copias de etiquetas/colores. No se unificaron.
+
+## Auditoría de Cantina (Fase 0)
+
+1. **Superusuario sin rol director en el frontend**: el backend deja pasar al
+   superusuario (D5), pero `ProtectedRoute` solo mira `user.rol`. Un superusuario
+   con otro rol no ve la sección Auditoría en la interfaz. No se tocó
+   `ProtectedRoute` porque afecta a todo el panel.
+2. **No hay flujo de devolución**: la anulación de venta revierte el cobro y es lo
+   único auditable como "devolución" (contrato §4).
+3. **Costo histórico**: `ProductoCantina.costo` nace vacío. La rentabilidad solo es
+   fiable para ventas registradas después de cargar costos.
+4. **Trigger de inmutabilidad**: la migración 0007 solo actúa en PostgreSQL. En
+   SQLite (desarrollo) la protección es del modelo y la cadena de hash lo detecta.
+5. **IP del evento**: se toma de `X-Forwarded-For` (primer valor) o `REMOTE_ADDR`,
+   igual que `portal/views.py`. Es informativa: el cliente puede falsear XFF si el
+   proxy no la sobrescribe.
+6. **Lint preexistente en cantina** (`react-hooks/set-state-in-effect`):
+   `CantinaReportes.jsx:102`, `EstadoCuentaCxc.jsx:83`,
+   `RecargasPendientesList.jsx:64`. Detectado por el carril F3; no se tocó.
+7. **`TotalesPorMetodo.jsx` solo muestra el total por método**: en el detalle de
+   auditoría no se ve el desglose ventas / recargas / abonos que trae el API.
+   Habría que darle una prop opcional a ese componente compartido.
+8. ~~**Validación de adjuntos por extensión y tamaño**~~ *(Resuelto en Fase 3: ahora se verifica la firma mágica.)*: no se inspecciona el
+   contenido real del archivo (firma mágica). Queda para la revisión de
+   seguridad de la Fase 3.
+9. **Filtro de cajero en cierres**: no hay endpoint de cajeros; el selector se
+   llena con los cajeros que aparecen en los resultados (igual que Reportes).
+10. **Origen del alumno en "Cargar a cuenta"**: se envía `no_aplica`; si se
+    quiere contar como venta manual es un cambio de una línea en el POS.
+11. ~~**Ticket PDF sin descuento**~~ *(Resuelto en Fase 3: muestra subtotal, descuento y motivo.)* (`cantina/utils.py::generar_pdf_ticket`): el
+    ticket impreso muestra solo el total neto, no el subtotal ni el descuento.
+12. ~~**Anulación concurrente**~~ *(Resuelto en Fase 3: la venta se bloquea con `select_for_update` y se re-verifica su estado.)* (`AnularVentaView`, preexistente): la venta no se
+    bloquea con `select_for_update`; dos anulaciones simultáneas podrían
+    revertir dos veces el saldo de la tarjeta. Prioridad alta para la Fase 3
+    (revisión de seguridad).
+13. **Descuento del 100 % en cargo a cuenta**: devuelve 400 porque `CargoCantina`
+    exige monto > 0. En efectivo o tarjeta, un neto de 0 sí se permite.
+14. **Eventos de inventario sobre el producto**: `objeto` es el producto y
+    `despues` incluye `movimiento_id`; las salidas por venta no generan evento
+    propio (ya quedan en la venta).
+
 ## Clientes generales en CxC de Cantina (16/10/2026)
 
 Se agregó `ClienteCantina` (personal/otro) como titular alternativo de cargos y
-abonos de CxC (migración `cantina/0005_clientes_cxc`). Deuda técnica detectada:
+abonos de CxC (migración `cantina/0009_clientes_cxc`). Deuda técnica detectada:
 
 1. **Titular con dos FK nulables** (`representante` / `cliente`) en `CargoCantina`,
    `AbonoCantina` y `VentaCantina`, con CheckConstraint. Cualquier código nuevo que
