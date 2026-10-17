@@ -14,18 +14,20 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
   if (productos.length === 0) {
     return (
       <div
-        className="flex flex-col items-center justify-center rounded-xl py-16"
+        className="flex flex-col items-center justify-center rounded-2xl py-16 px-4 text-center"
         style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
       >
         <Package size={32} className="mb-2 opacity-30" />
-        <p className="text-sm">Sin productos registrados</p>
+        <p className="text-sm font-medium">Sin productos registrados</p>
+        <p className="text-xs mt-0.5">Crea el primero con "Nuevo producto" o cambia los filtros.</p>
       </div>
     );
   }
 
   return (
-    <TablaScroll className="rounded-xl" >
-      <table className="w-full text-sm border-collapse min-w-[940px]" style={{ border: '0.5px solid var(--border-md)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)' }}>
+    <TablaScroll className="mx-0! px-0!">
+      <table className="w-full text-sm border-collapse min-w-[940px]">
         <thead>
           <tr style={{ background: 'var(--porcelain)', borderBottom: '0.5px solid var(--border-md)' }}>
             {['Nombre', 'Caja', 'Categoría', 'Código de barras', 'Precio', 'Costo / margen', 'Stock', 'Estado', 'Acciones'].map(h => (
@@ -67,7 +69,7 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                   </>
                 )}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 whitespace-nowrap">
                 {p.stock_bajo ? (
                   <span
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -92,10 +94,10 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                 </span>
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
                   <button
                     onClick={() => onEditar(p)}
-                    className="p-1.5 rounded-lg transition-colors"
+                    className="p-2.5 rounded-xl transition-colors hover:bg-[var(--porcelain)] focus-visible:outline-2"
                     style={{ color: 'var(--ash)' }}
                     title="Editar producto"
                     aria-label={`Editar ${p.nombre}`}
@@ -104,7 +106,7 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                   </button>
                   <button
                     onClick={() => onAjustar(p)}
-                    className="p-1.5 rounded-lg transition-colors"
+                    className="p-2.5 rounded-xl transition-colors hover:bg-[var(--porcelain)] focus-visible:outline-2"
                     style={{ color: 'var(--pb)' }}
                     title="Ajustar stock"
                     aria-label={`Ajustar stock de ${p.nombre}`}
@@ -113,7 +115,7 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                   </button>
                   <button
                     onClick={() => onEliminar(p)}
-                    className="p-1.5 rounded-lg transition-colors"
+                    className="p-2.5 rounded-xl transition-colors hover:bg-[var(--porcelain)] focus-visible:outline-2"
                     style={{ color: 'var(--red)' }}
                     title="Eliminar producto"
                     aria-label={`Eliminar ${p.nombre}`}
@@ -127,5 +129,6 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
         </tbody>
       </table>
     </TablaScroll>
+    </div>
   );
 }

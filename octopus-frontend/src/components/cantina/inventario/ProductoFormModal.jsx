@@ -174,7 +174,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
           <label htmlFor="productoformmodal-nombre" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Nombre</label>
           <input id="productoformmodal-nombre"
             type="text"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
             style={FIELD_STYLE}
             value={nombre}
             onChange={e => setNombre(e.target.value)}
@@ -191,7 +191,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
                 type="button"
                 onClick={() => cambiarArea(valor)}
                 aria-pressed={area === valor}
-                className="py-2 rounded-lg text-sm font-medium min-h-[44px]"
+                className="py-2 rounded-xl text-sm font-medium min-h-[44px]"
                 style={area === valor
                   ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' }
                   : { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
@@ -205,10 +205,10 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
         <div>
           <label htmlFor="productoformmodal-categoria" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Categoría</label>
           {loadingCategorias ? (
-            <div className="h-11 rounded-lg animate-pulse" style={{ background: 'var(--border-md)' }} />
+            <div className="h-11 rounded-xl animate-pulse" style={{ background: 'var(--border-md)' }} />
           ) : (
             <select id="productoformmodal-categoria"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
               style={FIELD_STYLE}
               value={categoriaId}
               onChange={e => setCategoriaId(e.target.value)}
@@ -222,7 +222,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
           <div className="flex gap-2 mt-2">
             <input
               type="text"
-              className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none"
+              className="min-w-0 flex-1 px-3 py-1.5 rounded-xl text-sm outline-none min-h-[44px] focus-visible:outline-2 focus-visible:outline-offset-1"
               style={FIELD_STYLE}
               placeholder="Nueva categoría..."
               value={nuevaCategoria}
@@ -232,7 +232,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               type="button"
               onClick={handleCrearCategoria}
               disabled={creandoCategoria || !nuevaCategoria.trim()}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+              className="px-4 py-1.5 rounded-xl text-sm font-medium min-h-[44px] disabled:opacity-50"
               style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}
             >
               {creandoCategoria ? <Loader2 size={12} className="animate-spin" /> : 'Agregar'}
@@ -244,7 +244,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
           <label htmlFor="productoformmodal-codigo-de-barras-opcional" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Código de barras (opcional)</label>
           <input id="productoformmodal-codigo-de-barras-opcional"
             type="text"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px] font-mono"
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px] font-mono"
             style={FIELD_STYLE}
             value={codigoBarras}
             onChange={e => setCodigoBarras(e.target.value)}
@@ -259,7 +259,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               type="number"
               min="0"
               step="0.01"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
               style={FIELD_STYLE}
               value={precio}
               onChange={e => setPrecio(e.target.value)}
@@ -271,7 +271,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               type="number"
               min="0"
               step="0.01"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
               style={FIELD_STYLE}
               value={costo}
               onChange={e => setCosto(e.target.value)}
@@ -291,7 +291,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               type="number"
               min="0"
               step="1"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
               style={FIELD_STYLE}
               value={stockActual}
               onChange={e => setStockActual(e.target.value)}
@@ -305,7 +305,7 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
               type="number"
               min="0"
               step="1"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
               style={FIELD_STYLE}
               value={stockMinimo}
               onChange={e => setStockMinimo(e.target.value)}
@@ -313,8 +313,8 @@ export default function ProductoFormModal({ producto, onClose, onSubmit }) {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--jet)' }}>
-          <input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} />
+        <label className="flex items-center gap-3 text-sm min-h-[44px]" style={{ color: 'var(--jet)' }}>
+          <input type="checkbox" className="size-5 shrink-0 accent-[var(--pb)]" checked={activo} onChange={e => setActivo(e.target.checked)} />
           Producto activo (visible en el POS)
         </label>
       </div>

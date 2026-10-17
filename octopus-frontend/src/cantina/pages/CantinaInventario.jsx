@@ -14,7 +14,7 @@ import AlertaStockBajo from '../../components/cantina/inventario/AlertaStockBajo
 function SkeletonTabla() {
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="rounded-2xl overflow-hidden"
       style={{ border: '0.5px solid var(--border-md)' }}
       aria-busy="true"
       aria-label="Cargando productos"
@@ -23,14 +23,13 @@ function SkeletonTabla() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="flex gap-4 px-4 py-3 animate-pulse"
+          className="flex gap-3 sm:gap-4 px-3 sm:px-4 py-3 animate-pulse"
           style={{ borderTop: '0.5px solid var(--border-md)' }}
         >
-          <div className="h-4 w-40 rounded" style={{ background: 'var(--border-md)' }} />
-          <div className="h-4 w-24 rounded" style={{ background: 'var(--border-md)' }} />
-          <div className="h-4 w-28 rounded" style={{ background: 'var(--border-md)' }} />
-          <div className="h-4 w-16 rounded" style={{ background: 'var(--border-md)' }} />
-          <div className="h-4 w-20 rounded" style={{ background: 'var(--border-md)' }} />
+          <div className="h-4 flex-[3] rounded" style={{ background: 'var(--border-md)' }} />
+          <div className="h-4 flex-[2] rounded" style={{ background: 'var(--border-md)' }} />
+          <div className="hidden sm:block h-4 flex-[2] rounded" style={{ background: 'var(--border-md)' }} />
+          <div className="h-4 flex-1 rounded" style={{ background: 'var(--border-md)' }} />
         </div>
       ))}
     </div>
@@ -161,12 +160,12 @@ export default function CantinaInventario() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <Package size={20} style={{ color: 'var(--pb)' }} />
-            Inventario de Cantina y Librería
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+            <Package size={20} className="shrink-0" style={{ color: 'var(--pb)' }} />
+            <span className="min-w-0">Inventario de Cantina y Librería</span>
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
             {loading ? 'Cargando productos...' : `${productos.length} producto${productos.length !== 1 ? 's' : ''}`}
@@ -175,7 +174,7 @@ export default function CantinaInventario() {
 
         <button
           onClick={() => setModalProducto({ modo: 'crear', producto: null })}
-          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px]"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] shadow-sm hover:brightness-110 active:brightness-95 transition focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{ background: 'var(--pb)' }}
         >
           <Plus size={16} />
@@ -186,15 +185,15 @@ export default function CantinaInventario() {
       <AlertaStockBajo refreshKey={refreshKey} />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex items-center gap-2">
-          <label htmlFor="inv-area" className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+        <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-3">
+          <label htmlFor="inv-area" className="text-xs font-medium uppercase tracking-widest shrink-0 w-[4.5rem] sm:w-auto" style={{ color: 'var(--ash)' }}>
             Caja
           </label>
           <select
             id="inv-area"
             value={areaFiltro}
             onChange={e => cambiarArea(e.target.value)}
-            className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-sm outline-none min-h-[40px]"
+            className="min-w-0 flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-sm min-h-[44px] sm:min-h-[40px] focus-visible:outline-2 focus-visible:outline-offset-1"
             style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
           >
             <option value="">Todas</option>
@@ -202,15 +201,15 @@ export default function CantinaInventario() {
             <option value="libreria">Librería</option>
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor="inv-categoria" className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
+        <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-3">
+          <label htmlFor="inv-categoria" className="text-xs font-medium uppercase tracking-widest shrink-0 w-[4.5rem] sm:w-auto" style={{ color: 'var(--ash)' }}>
             Categoría
           </label>
           <select
             id="inv-categoria"
             value={categoriaFiltro}
             onChange={e => setCategoriaFiltro(e.target.value)}
-            className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-sm outline-none min-h-[40px]"
+            className="min-w-0 flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-sm min-h-[44px] sm:min-h-[40px] focus-visible:outline-2 focus-visible:outline-offset-1"
             style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
           >
             <option value="">Todas</option>

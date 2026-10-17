@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Wallet, CheckCircle2, Loader2 } from 'lucide-react';
+import { Wallet, CheckCircle2, Loader2, LockKeyhole } from 'lucide-react';
 import { getCierreCajaHoy, cerrarCajaCantina } from '../../api/cantina.service';
 import ResumenCierreCaja from '../../components/cantina/cierre/ResumenCierreCaja';
 import TotalesPorMetodo from '../../components/cantina/cierre/TotalesPorMetodo';
@@ -10,8 +10,8 @@ import { notificarAperturaCambiada, ETIQUETA_AREA } from '../aperturaEvento';
 
 function SkeletonCierre() {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando cierre de caja">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="flex flex-col gap-4 sm:gap-6" aria-busy="true" aria-label="Cargando cierre de caja">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
@@ -100,10 +100,10 @@ export default function CantinaCierreCaja() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:gap-6">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <Wallet size={20} style={{ color: 'var(--pb)' }} />
+          <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+            <Wallet size={20} className="shrink-0" style={{ color: 'var(--pb)' }} />
             Cierre de Caja
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>Cargando resumen del día...</p>
@@ -115,18 +115,24 @@ export default function CantinaCierreCaja() {
 
   if (sinApertura) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:gap-6">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-            <Wallet size={20} style={{ color: 'var(--pb)' }} />
+          <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+            <Wallet size={20} className="shrink-0" style={{ color: 'var(--pb)' }} />
             Cierre de Caja
           </h1>
         </div>
         <div
-          className="rounded-2xl p-6 text-sm max-w-lg"
+          className="rounded-2xl p-4 sm:p-6 text-sm max-w-lg flex items-start gap-3"
           style={{ background: '#fff', border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
         >
-          No tienes ninguna apertura de caja abierta — abre tu caja en el punto de venta antes de poder cerrarla.
+          <span className="shrink-0 rounded-xl p-2" style={{ background: 'var(--porcelain)' }}>
+            <LockKeyhole size={20} style={{ color: 'var(--pb)' }} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold" style={{ color: 'var(--jet)' }}>Sin apertura de caja</p>
+            <p className="mt-0.5">Abre tu caja en el punto de venta antes de poder cerrarla.</p>
+          </div>
         </div>
       </div>
     );
@@ -137,10 +143,10 @@ export default function CantinaCierreCaja() {
   const diferenciaColor = diferencia < 0 ? 'var(--red)' : 'var(--green)';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
-          <Wallet size={20} style={{ color: 'var(--pb)' }} />
+        <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+          <Wallet size={20} className="shrink-0" style={{ color: 'var(--pb)' }} />
           Cierre de Caja{cierre?.area ? ` — ${ETIQUETA_AREA[cierre.area] ?? cierre.area}` : ''}
         </h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
@@ -156,7 +162,7 @@ export default function CantinaCierreCaja() {
 
       {yaCerrado ? (
         <div
-          className="rounded-2xl p-6 flex flex-col gap-4"
+          className="rounded-2xl p-4 sm:p-6 flex flex-col gap-4"
           style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
         >
           <div className="flex items-center gap-2">
@@ -164,20 +170,20 @@ export default function CantinaCierreCaja() {
             <h2 className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Caja cerrada</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="rounded-xl px-3 sm:px-4 py-3" style={{ background: 'var(--porcelain)' }}>
               <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Conteo físico</p>
-              <p className="text-xl font-bold font-mono mt-1" style={{ color: 'var(--jet)' }}>
+              <p className="text-lg sm:text-xl font-bold font-mono mt-1 break-all" style={{ color: 'var(--jet)' }}>
                 ${parseFloat(cierre.conteo_fisico || 0).toFixed(2)}
               </p>
             </div>
-            <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
+            <div className="rounded-xl px-3 sm:px-4 py-3" style={{ background: 'var(--porcelain)' }}>
               <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Diferencia</p>
-              <p className="text-xl font-bold font-mono mt-1" style={{ color: diferenciaColor }}>
+              <p className="text-lg sm:text-xl font-bold font-mono mt-1 break-all" style={{ color: diferenciaColor }}>
                 {diferencia > 0 ? '+' : ''}${diferencia.toFixed(2)}
               </p>
             </div>
-            <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
+            <div className="rounded-xl px-3 sm:px-4 py-3" style={{ background: 'var(--porcelain)' }}>
               <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Fecha de cierre</p>
               <p className="text-sm font-semibold mt-1.5" style={{ color: 'var(--jet)' }}>
                 {formatearFecha(cierre.cerrado_en)}
@@ -186,16 +192,16 @@ export default function CantinaCierreCaja() {
           </div>
 
           {cierre.observaciones && (
-            <div className="rounded-lg px-4 py-3" style={{ background: 'var(--porcelain)' }}>
+            <div className="rounded-xl px-3 sm:px-4 py-3" style={{ background: 'var(--porcelain)' }}>
               <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>Observaciones</p>
-              <p className="text-sm" style={{ color: 'var(--jet)' }}>{cierre.observaciones}</p>
+              <p className="text-sm break-words" style={{ color: 'var(--jet)' }}>{cierre.observaciones}</p>
             </div>
           )}
         </div>
       ) : (
         <form
           onSubmit={handleCerrarCaja}
-          className="rounded-2xl p-6 flex flex-col gap-4 max-w-lg"
+          className="rounded-2xl p-4 sm:p-6 flex flex-col gap-4 max-w-lg"
           style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
         >
           <h2 className="font-semibold text-sm" style={{ color: 'var(--jet)' }}>Registrar cierre</h2>
@@ -212,7 +218,7 @@ export default function CantinaCierreCaja() {
               onChange={e => setConteoFisico(e.target.value)}
               placeholder="0.00"
               required
-              className="px-3 py-2.5 rounded-lg text-sm outline-none font-mono"
+              className="w-full px-3 py-2.5 rounded-xl text-base sm:text-sm min-h-[44px] font-mono focus-visible:outline-2 focus-visible:outline-offset-1"
               style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
             />
           </div>
@@ -226,7 +232,7 @@ export default function CantinaCierreCaja() {
               onChange={e => setObservaciones(e.target.value)}
               rows={3}
               placeholder="Notas sobre el cierre, faltantes, sobrantes, etc."
-              className="px-3 py-2.5 rounded-lg text-sm outline-none resize-none"
+              className="w-full px-3 py-2.5 rounded-xl text-base sm:text-sm resize-none focus-visible:outline-2 focus-visible:outline-offset-1"
               style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}
             />
           </div>
@@ -234,7 +240,7 @@ export default function CantinaCierreCaja() {
           <button
             type="submit"
             disabled={enviando}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] shadow-sm hover:brightness-110 transition disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2"
             style={{ background: 'var(--pb)' }}
           >
             {enviando ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />}

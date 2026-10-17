@@ -76,9 +76,9 @@ export default function CantinaMorosos() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full sm:w-auto">
+          <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
             <UserX size={20} style={{ color: 'var(--pb)' }} />
             Morosos
           </h1>
@@ -88,8 +88,8 @@ export default function CantinaMorosos() {
         </div>
       </div>
 
-      <form onSubmit={handleFiltrar} className="flex flex-wrap items-end gap-4 rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
-        <div>
+      <form onSubmit={handleFiltrar} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+        <div className="w-full sm:w-auto">
           <label htmlFor="cantinamorosos-dias-minimos-en-negativo" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Días mínimos en negativo
           </label>
@@ -100,18 +100,18 @@ export default function CantinaMorosos() {
             value={diasMinInput}
             onChange={e => setDiasMinInput(e.target.value)}
             placeholder="Ej. 3"
-            className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
+            className="w-full sm:w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
             style={FIELD_STYLE}
           />
         </div>
         <button
           type="submit"
-          className="px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[40px]"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] sm:min-h-[40px]"
           style={{ background: 'var(--pb)' }}
         >
           Filtrar
         </button>
-        <p className="text-xs ml-auto" style={{ color: 'var(--ash)' }}>
+        <p className="text-xs sm:ml-auto" style={{ color: 'var(--ash)' }}>
           {cargando ? 'Cargando…' : `${count} tarjeta${count !== 1 ? 's' : ''} en negativo`}
         </p>
       </form>

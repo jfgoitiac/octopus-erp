@@ -161,8 +161,8 @@ export default function CantinaReportes() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+        <div className="w-full sm:w-auto">
+          <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
             <BarChart3 size={20} style={{ color: 'var(--pb)' }} />
             Reportes de Cantina
           </h1>
@@ -183,7 +183,7 @@ export default function CantinaReportes() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
-        <div>
+        <div className="w-full sm:w-auto">
           <label htmlFor="cantinareportes-desde" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Desde
           </label>
@@ -193,12 +193,12 @@ export default function CantinaReportes() {
             onChange={(date) => setFechaInicio(toISODate(date))}
             dateFormat="dd/MM/yyyy"
             maxDate={parseLocalDate(fechaFin) || new Date()}
-            wrapperClassName="w-36"
+            wrapperClassName="w-full sm:w-36"
             popperContainer={datepickerPopperContainer}
-            customInput={<input id="cantinareportes-desde" className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
+            customInput={<input id="cantinareportes-desde" className="w-full sm:w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label htmlFor="cantinareportes-hasta" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Hasta
           </label>
@@ -209,12 +209,12 @@ export default function CantinaReportes() {
             dateFormat="dd/MM/yyyy"
             minDate={parseLocalDate(fechaInicio)}
             maxDate={new Date()}
-            wrapperClassName="w-36"
+            wrapperClassName="w-full sm:w-36"
             popperContainer={datepickerPopperContainer}
-            customInput={<input id="cantinareportes-hasta" className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
+            customInput={<input id="cantinareportes-hasta" className="w-full sm:w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]" style={FIELD_STYLE} autoComplete="off" />}
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label htmlFor="cantinareportes-alumno-opcional" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Alumno (opcional)
           </label>
@@ -223,11 +223,11 @@ export default function CantinaReportes() {
             value={alumnoId}
             onChange={e => setAlumnoId(e.target.value)}
             placeholder="ID de alumno"
-            className="w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
+            className="w-full sm:w-36 px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]"
             style={FIELD_STYLE}
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label htmlFor="cantinareportes-caja" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Caja
           </label>
@@ -242,7 +242,7 @@ export default function CantinaReportes() {
             <option value="libreria">Librería</option>
           </select>
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label htmlFor="cantinareportes-cajero" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Cajero
           </label>
@@ -272,19 +272,19 @@ export default function CantinaReportes() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+          <div className="rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
             <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Ventas</p>
-            <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>{totales.cantidad_ventas ?? ventas.length}</p>
+            <p className="text-xl sm:text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>{totales.cantidad_ventas ?? ventas.length}</p>
           </div>
-          <div className="rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+          <div className="rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
             <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total USD</p>
-            <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>
+            <p className="text-xl sm:text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>
               ${Number(totales.total_vendido_usd ?? 0).toFixed(2)}
             </p>
           </div>
-          <div className="rounded-xl p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+          <div className="rounded-xl p-3 sm:p-4" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
             <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total VES</p>
-            <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>
+            <p className="text-xl sm:text-2xl font-semibold mt-1" style={{ color: 'var(--jet)' }}>
               {totalVes.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>

@@ -6,7 +6,7 @@ import { getStockCritico } from '../../../api/cantina.service';
 function SkeletonAlerta() {
   return (
     <div
-      className="rounded-xl px-4 py-3 animate-pulse"
+      className="rounded-2xl px-4 py-3 animate-pulse"
       style={{ background: 'var(--porcelain)', border: '0.5px solid var(--border-md)' }}
       aria-busy="true"
       aria-label="Cargando stock crítico"
@@ -48,7 +48,7 @@ export default function AlertaStockBajo({ refreshKey }) {
   return (
     <div
       role="status"
-      className="rounded-xl px-4 py-3 flex items-start gap-3"
+      className="rounded-2xl px-4 py-3 flex items-start gap-3"
       style={{ background: 'var(--red-light)', border: '0.5px solid var(--red)' }}
     >
       <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--red)' }} />
@@ -56,7 +56,7 @@ export default function AlertaStockBajo({ refreshKey }) {
         <p className="text-sm font-semibold" style={{ color: 'var(--red)' }}>
           {productos.length} producto{productos.length !== 1 ? 's' : ''} con stock bajo
         </p>
-        <p className="text-xs" style={{ color: 'var(--red)' }}>
+        <p className="text-xs break-words" style={{ color: 'var(--red)' }}>
           {productos.slice(0, 6).map(p => p.nombre).join(', ')}
           {productos.length > 6 ? ` y ${productos.length - 6} más...` : ''}
         </p>

@@ -91,7 +91,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
       footer={footer}
       size="sm"
     >
-      <p className="text-sm mb-4" style={{ color: 'var(--ash)' }}>
+      <p className="text-sm mb-4 break-words" style={{ color: 'var(--ash)' }}>
         {producto.nombre} — stock actual: <strong style={{ color: 'var(--jet)' }}>{producto.stock_actual}</strong>
       </p>
 
@@ -107,7 +107,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
                   type="button"
                   aria-pressed={tipo === t.value}
                   onClick={() => setTipo(t.value)}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-lg text-xs font-medium transition-all min-h-[44px]"
+                  className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-medium transition-all min-h-[44px]"
                   style={tipo === t.value ? t.activeStyle : IDLE_STYLE}
                 >
                   <Icon size={16} />
@@ -124,7 +124,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
             type="number"
             min="1"
             step="1"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 min-h-[44px]"
             style={FIELD_STYLE}
             value={cantidad}
             onChange={e => setCantidad(e.target.value)}
@@ -145,7 +145,7 @@ export default function MovimientoStockModal({ producto, onClose, onSubmit }) {
             rows={2}
             maxLength={200}
             aria-required={motivoObligatorio}
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 resize-none"
             style={FIELD_STYLE}
             value={motivo}
             onChange={e => setMotivo(e.target.value)}

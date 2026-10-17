@@ -111,7 +111,7 @@ export default function CantinaCuentasPorCobrar() {
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
       <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
+        <h1 className="text-lg sm:text-xl font-semibold flex items-center gap-2" style={{ color: 'var(--jet)' }}>
           <HandCoins size={20} style={{ color: 'var(--pb)' }} />
           Cuentas por cobrar
         </h1>
@@ -177,7 +177,7 @@ export default function CantinaCuentasPorCobrar() {
       )}
 
       {!cargando && !errorCarga && (pagina > 1 || hayMas) && (
-        <div className="flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--ash)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm" style={{ color: 'var(--ash)' }}>
           <button
             type="button"
             onClick={() => setPagina(p => Math.max(p - 1, 1))}

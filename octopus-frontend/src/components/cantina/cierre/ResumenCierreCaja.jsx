@@ -38,11 +38,11 @@ const TARJETAS = [
 
 export default function ResumenCierreCaja({ resumen }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {TARJETAS.map(({ key, label, icon: Icon, color, bg }) => (
         <div
           key={key}
-          className="rounded-2xl p-4 sm:p-5 flex flex-col gap-3"
+          className="rounded-2xl p-3 sm:p-5 flex flex-col gap-3"
           style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
         >
           <div
@@ -51,11 +51,11 @@ export default function ResumenCierreCaja({ resumen }) {
           >
             <Icon size={20} />
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
+          <div className="min-w-0 flex flex-1 flex-col gap-1">
+            <p className="text-[11px] sm:text-xs uppercase tracking-wider sm:tracking-widest font-medium" style={{ color: 'var(--ash)' }}>
               {label}
             </p>
-            <p className="text-2xl font-bold font-mono mt-1" style={{ color: 'var(--jet)' }}>
+            <p className="text-lg sm:text-2xl font-bold font-mono mt-auto break-all" style={{ color: 'var(--jet)' }}>
               ${parseFloat(resumen?.[key] || 0).toFixed(2)}
             </p>
           </div>

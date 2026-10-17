@@ -23,16 +23,16 @@ const EliminarProductoModal = ({ producto, onClose, onConfirmar }) => {
       size="sm"
       footer={(
         <>
-          <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl text-sm min-h-[44px]" style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+          <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm min-h-[44px]" style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
             Cancelar
           </button>
-          <button type="button" onClick={confirmar} disabled={eliminando} className="px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] disabled:opacity-60" style={{ background: 'var(--red)' }}>
+          <button type="button" onClick={confirmar} disabled={eliminando} className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px] disabled:opacity-60" style={{ background: 'var(--red)' }}>
             {eliminando ? 'Eliminando…' : 'Eliminar producto'}
           </button>
         </>
       )}
     >
-      <p className="text-sm" style={{ color: 'var(--jet)' }}>
+      <p className="text-sm break-words" style={{ color: 'var(--jet)' }}>
         ¿Eliminar el producto <strong>{producto?.nombre}</strong>? Esta acción no se puede deshacer.
       </p>
     </Modal>
