@@ -16,6 +16,28 @@ const METODOS = [
   { value: 'credito_representante', label: 'Cargar a cuenta', icon: HandCoins },
 ];
 
+const METODOS_PRINCIPALES = ['efectivo', 'efectivo_ves', 'tarjeta_prepago'];
+
+function BotonMetodo({ metodo, activo, compacto = false, onClick }) {
+  const Icon = metodo.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      className={compacto
+        ? 'flex items-center gap-1.5 px-3 rounded-xl text-xs font-medium min-h-[44px]'
+        : 'flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-xs font-medium min-h-[52px]'}
+      style={activo
+        ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' }
+        : { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
+    >
+      <Icon size={16} />
+      {metodo.label}
+    </button>
+  );
+}
+
 /**
  * Carrito de venta del POS (§7.2 cantina.md): líneas editables, total en
  * USD + equivalente en VES (siempre visible), selector de método de pago y
@@ -54,19 +76,19 @@ export default function CarritoVenta({
         </span>
       </div>
 
-      <div className="flex-1 px-4 py-3 space-y-2 min-h-[120px]">
+      <div className="flex-1 shrink-0 px-4 py-3 space-y-2 min-h-[120px]">
         {items.length === 0 ? (
           <p className="text-sm text-center py-8" style={{ color: 'var(--ash)' }}>
             Escanea o busca un producto para empezar la venta.
           </p>
         ) : (
           items.map(({ producto, cantidad }) => (
-            <div key={producto.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-2" style={{ border: '0.5px solid var(--border-md)' }}>
-              <div className="basis-full sm:basis-0 flex-1 min-w-0">
+            <div key={producto.id} className="flex flex-wrap sm:flex-nowrap lg:flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-2" style={{ border: '0.5px solid var(--border-md)' }}>
+              <div className="basis-full sm:basis-0 lg:basis-full sm:min-w-[4.5rem] flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--jet)' }}>{producto.nombre}</p>
-                <p className="text-xs" style={{ color: 'var(--ash)' }}>${Number(producto.precio).toFixed(2)} c/u</p>
+                <p className="text-xs whitespace-nowrap" style={{ color: 'var(--ash)' }}>${Number(producto.precio).toFixed(2)} c/u</p>
               </div>
-              <div className="flex items-center gap-1 shrink-0 mr-auto sm:mr-0">
+              <div className="flex items-center gap-1 shrink-0 mr-auto sm:mr-0 lg:mr-auto">
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad - 1)}
@@ -76,7 +98,7 @@ export default function CarritoVenta({
                 >
                   <Minus size={15} />
                 </button>
-                <span className="w-6 text-center text-sm font-medium" style={{ color: 'var(--jet)' }}>{cantidad}</span>
+                <span className="w-5 text-center text-sm font-medium" style={{ color: 'var(--jet)' }}>{cantidad}</span>
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad + 1)}
@@ -87,7 +109,7 @@ export default function CarritoVenta({
                   <Plus size={15} />
                 </button>
               </div>
-              <p className="w-16 text-right text-sm font-semibold shrink-0" style={{ color: 'var(--jet)' }}>
+              <p className="w-14 text-right text-sm font-semibold shrink-0" style={{ color: 'var(--jet)' }}>
                 ${(Number(producto.precio) * cantidad).toFixed(2)}
               </p>
               <button
@@ -140,25 +162,18 @@ export default function CarritoVenta({
 
         <div>
           <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Método de pago</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {METODOS.map(m => {
-              const Icon = m.icon;
-              const activo = metodoPago === m.value;
-              return (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => onCambiarMetodo(m.value)}
-                  className="flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-medium min-h-[52px]"
-                  style={activo
-                    ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' }
-                    : { border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
-                >
-                  <Icon size={16} />
-                  {m.label}
-                </button>
-              );
-            })}
+          {/* Los 3 métodos del día a día van grandes; el resto, como chips
+              compactos debajo (ahorra alto en la columna del carrito). */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {METODOS.filter(m => METODOS_PRINCIPALES.includes(m.value)).map(m => (
+              <BotonMetodo key={m.value} metodo={m} activo={metodoPago === m.value} onClick={() => onCambiarMetodo(m.value)} />
+            ))}
+          </div>
+          <p className="text-xs uppercase tracking-widest mt-2 mb-1.5" style={{ color: 'var(--ash)' }}>Otros métodos</p>
+          <div className="flex flex-wrap gap-1.5">
+            {METODOS.filter(m => !METODOS_PRINCIPALES.includes(m.value)).map(m => (
+              <BotonMetodo key={m.value} metodo={m} activo={metodoPago === m.value} compacto onClick={() => onCambiarMetodo(m.value)} />
+            ))}
           </div>
         </div>
 
