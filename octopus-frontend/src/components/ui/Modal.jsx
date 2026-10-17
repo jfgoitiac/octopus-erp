@@ -70,9 +70,9 @@ export const Modal = forwardRef(function Modal(
         {titulo && (
           <div
             className="p-5 flex justify-between items-center shrink-0"
-            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--pb)', color: '#fff' }}
+            style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--topbar-grad-to)', color: '#fff' }}
           >
-            <h3 id={tituloId} className="font-bold text-base flex items-center gap-2">
+            <h3 id={tituloId} className="font-bold text-base flex items-center gap-2" style={{ color: '#fff' }}>
               {titulo}
             </h3>
             <button type="button" onClick={onClose} aria-label="Cerrar" className="w-11 h-11 -mr-2 flex items-center justify-center rounded-full hover:bg-white/10" style={{ color: '#fff' }}>
