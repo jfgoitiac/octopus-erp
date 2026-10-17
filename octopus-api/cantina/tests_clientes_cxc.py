@@ -172,7 +172,7 @@ class VentaCreditoClienteTests(ClientesBase):
 
     def test_anular_venta_anula_cargo_y_devuelve_stock(self):
         venta_id = self.vender(cliente_id=self.cliente.id).data['id']
-        resp = self.client_admin.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp = self.client_admin.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de captura en la venta'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
         self.assertEqual(CargoCantina.objects.get(venta_id=venta_id).estado, 'anulado')
         self.assertEqual(services_cxc.saldo_titular(self.cliente), Decimal('0.00'))
@@ -181,13 +181,13 @@ class VentaCreditoClienteTests(ClientesBase):
 
     def test_anular_venta_a_cliente_es_solo_admin(self):
         venta_id = self.vender(cliente_id=self.cliente.id).data['id']
-        resp = self.client_cajero.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp = self.client_cajero.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de captura en la venta'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_anular_venta_con_abono_aplicado_falla(self):
         venta_id = self.vender(cliente_id=self.cliente.id).data['id']
         self.assertEqual(self.abonar('2.00').status_code, status.HTTP_201_CREATED)
-        resp = self.client_admin.post(f'/api/cantina/ventas/{venta_id}/anular/')
+        resp = self.client_admin.post(f'/api/cantina/ventas/{venta_id}/anular/', {'motivo': 'Error de captura en la venta'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_no_regresion_venta_a_representante(self):
