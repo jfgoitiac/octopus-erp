@@ -51,18 +51,7 @@ al iniciar sesión con ese rol.
 
 ---
 
-## 4. Métricas del sitio: pantalla suelta
-
-**Qué se encontró.** Existe una pantalla de métricas del sitio institucional, pero
-no tiene ruta propia en el sistema de navegación: las métricas se ven dentro de la
-pestaña **"Métricas"** del módulo "Sitio Institucional".
-
-**Pregunta concreta.** ¿La pantalla independiente quedó sin usar, o se accede de
-alguna forma que no se localizó?
-
----
-
-## 5. Anulación de pagos con Proyecto de Inversión
+## 4. Anulación de pagos con Proyecto de Inversión
 
 **Qué se encontró.** El sistema no puede anular automáticamente un pago vinculado
 a una cuota de Proyecto de Inversión, porque los abonos son parciales y no queda

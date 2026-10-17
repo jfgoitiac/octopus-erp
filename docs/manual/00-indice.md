@@ -93,11 +93,10 @@ necesitas resolver una tarea puntual.
 | 32 | [Portal Docente](32-portal-docente.md) | Lo que ve y hace el docente |
 | 33 | [Cantina](33-cantina.md) | Punto de venta, tarjetas prepago e inventario |
 
-### Sitio institucional y red de sedes
+### Red de sedes
 
 | # | Documento | De qué trata |
 |---|-----------|--------------|
-| 34 | [Sitio Institucional](34-sitio-institucional.md) | Páginas, artículos y diseño del sitio público |
 | 35 | [Multi-Sede](35-multisede.md) | Gestión de varios planteles |
 
 ### Administración

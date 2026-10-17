@@ -51,8 +51,8 @@ necesidad de repetir el paso.
    sudo chown "$USER":"$USER" /var/www/octopus-staging
    git clone <repo> /var/www/octopus-staging
    ```
-   Resultado esperado: `/var/www/octopus-staging/octopus-api`,
-   `octopus-frontend` y `octopus-sitio` existen como checkout independiente
+   Resultado esperado: `/var/www/octopus-staging/octopus-api` y
+   `octopus-frontend` existen como checkout independiente
    de `/var/www/octopus`.
 
 3. **`.env` propio** en `/var/www/octopus-staging/octopus-api/.env` — copiar

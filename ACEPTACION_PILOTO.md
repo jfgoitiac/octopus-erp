@@ -22,7 +22,7 @@ staging después de que la evidencia sea aprobada.
 
 ## Sistemas
 
-- [ ] Gestiona usuarios, configuración, notificaciones y sitio institucional.
+- [ ] Gestiona usuarios, configuración y notificaciones.
 - [ ] Abre Representantes y crea o edita un registro; no ve acciones de
   eliminación financiera.
 - [ ] Revisa pagos enviados desde el portal y abre el archivo protegido.

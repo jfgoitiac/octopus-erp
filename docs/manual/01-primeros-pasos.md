@@ -64,7 +64,7 @@ permitido:
 | **Académico** | Notas · Boletines · Asistencia · Incidentes · Horarios · Materias · Docentes · Rendimiento |
 | **Comunicación** | Circulares |
 | **Multi-Sede** | Dashboard Sedes · Gestión de Sedes |
-| **Sistema** | Sitio Institucional · Configuración · Notificaciones · Sistemas · Auditoría |
+| **Sistema** | Configuración · Notificaciones · Sistemas · Auditoría |
 
 ### Contraer un grupo
 
@@ -142,7 +142,6 @@ Una marca ✓ significa que ese rol puede abrir ese módulo.
 | Docentes | ✓ | ✓ | | | | | |
 | Rendimiento | ✓ | ✓ | ✓ | | | | |
 | Circulares | ✓ | ✓ | ✓ | | | | |
-| Sitio Institucional | ✓ | ✓ | | | | | |
 | Configuración | ✓ | ✓ | | | | | |
 | Notificaciones | ✓ | ✓ | | | | | |
 | Sistemas | ✓ | ✓ | | | | | |

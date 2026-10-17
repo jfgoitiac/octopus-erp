@@ -171,6 +171,3 @@ estás viendo.
 **Portal de Representantes.** La aplicación para representantes.
 
 **Portal Docente.** La aplicación para maestros.
-
-**Sitio Institucional.** La página web pública del colegio, administrada desde
-Octopus.

@@ -4248,3 +4248,7 @@ abonos de CxC (migración `cantina/0009_clientes_cxc`). Deuda técnica detectada
 - El seguimiento se calcula desde `cobranza.Pago.monto_usd`, que ya es el snapshot
   contable. No debe reconstruirse aplicando una tasa BCV posterior ni recorrer
   cuotas/distribuciones, porque una operación puede tener varios conceptos.
+
+## Módulo sitio institucional eliminado (2026-10-17)
+
+Módulo sitio institucional eliminado, incluidas sus tablas `sitio_*` (migración de limpieza en secretaria).
