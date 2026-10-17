@@ -61,6 +61,36 @@ echo "▶ Actualizando código (rama $BRANCH)..."
 cd "$REPO"
 git pull origin "$BRANCH"
 
+# ── 1b. Frontend y sitio — build ANTES de tocar la base de datos ──
+# Si el build falla, el deploy se detiene sin migraciones a medias. Y si una
+# migración falla después, el frontend nuevo ya está compilado (antes un fallo
+# de migración dejaba servido el dist/ viejo, sin los módulos nuevos).
+echo ""
+echo "▶ Instalando dependencias Node..."
+cd "$FRONTEND"
+npm ci --silent
+
+echo "▶ Compilando frontend..."
+npm run build
+
+# Comprobación de humo: el build debe incluir los módulos recientes. Se busca
+# el texto de la sección del menú en los bundles; si falta, el dist/ no es el
+# del código recién descargado (build viejo, caché o rama equivocada).
+echo "▶ Verificando que el build incluya el módulo Auditoría Cantina..."
+if ! grep -rqs "Auditoría Cantina" "$FRONTEND/dist/assets"; then
+    echo "✗ ERROR: el build no contiene 'Auditoría Cantina'. Revisa la rama ($BRANCH) y el build." >&2
+    exit 1
+fi
+echo "   ✓ Build verificado"
+
+echo ""
+echo "▶ Instalando dependencias Node (sitio institucional)..."
+cd "$SITIO"
+npm ci --silent
+
+echo "▶ Compilando sitio institucional..."
+npm run build
+
 # ── 2. Backend — dependencias y migraciones ──────────────────────
 echo ""
 echo "▶ Instalando dependencias Python..."
@@ -114,27 +144,11 @@ verificar_servicio_activo "$SERVICE-celery-beat" "Celery Beat"
 echo "▶ Verificando Redis, Worker y Beat (solo lectura, no reinicia nada)..."
 "$VENV/python" "$BACKEND/manage.py" verificar_celery
 
-# ── 4. Frontend — build ──────────────────────────────────────────
+# ── 4. Recargar Nginx (el frontend ya está compilado) ─────────────
 echo ""
-echo "▶ Instalando dependencias Node..."
-cd "$FRONTEND"
-npm ci --silent
-
-echo "▶ Compilando frontend..."
-npm run build
-
 echo "▶ Recargando Nginx..."
 sudo systemctl reload nginx
 verificar_servicio_activo nginx "Nginx"
-
-# ── 5. Sitio institucional (octopus-sitio) — build estático ─────
-echo ""
-echo "▶ Instalando dependencias Node (sitio institucional)..."
-cd "$SITIO"
-npm ci --silent
-
-echo "▶ Compilando sitio institucional..."
-npm run build
 
 echo ""
 echo "═══════════════════════════════════════"
