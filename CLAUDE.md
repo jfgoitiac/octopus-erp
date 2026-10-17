@@ -119,7 +119,7 @@ Rules:
 # ESTÁNDAR DE DISEÑO RESPONSIVE (obligatorio en todo el proyecto)
 
 Toda interfaz nueva o modificada — panel administrativo, portal de
-representantes, cantina y sitio institucional — debe ser responsive dinámica:
+representantes y cantina — debe ser responsive dinámica:
 se adapta al dispositivo real, no a medidas fijas elegidas a mano.
 Esto no es una preferencia estética: una pantalla con contenido inalcanzable
 es un defecto funcional y bloquea la entrega.
@@ -173,9 +173,6 @@ No se reimplementan estos patrones a mano. Todo lo nuevo los reutiliza:
 
 ## Excepciones declaradas
 
-- **`sitio/EditorVisual/`**: editor drag & drop, no adaptable a celular. Por
-  debajo de `lg` muestra el aviso "Editor disponible solo en pantallas de
-  escritorio" en lugar del editor.
 - **`cantina/` (POS)**: su uso real es pantalla de caja o tablet. Objetivo
   mínimo 768×1024 sin cortes; en 360px basta con que nada quede inalcanzable.
 - **`portal/` (representantes)**: mobile-first estricto, es la zona de mayor
