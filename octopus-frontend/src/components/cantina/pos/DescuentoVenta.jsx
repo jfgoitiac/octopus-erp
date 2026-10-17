@@ -29,7 +29,7 @@ export default function DescuentoVenta({
         type="button"
         onClick={() => setAbierto(true)}
         disabled={disabled || subtotalUsd <= 0}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40 min-h-[36px]"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40 min-h-[44px]"
         style={{ border: '0.5px dashed var(--border-md)', color: 'var(--pb)' }}
       >
         <Tag size={13} /> Aplicar descuento

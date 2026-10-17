@@ -61,30 +61,30 @@ export default function CarritoVenta({
           </p>
         ) : (
           items.map(({ producto, cantidad }) => (
-            <div key={producto.id} className="flex items-center gap-2 rounded-lg px-2 py-2" style={{ border: '0.5px solid var(--border-md)' }}>
-              <div className="flex-1 min-w-0">
+            <div key={producto.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-2" style={{ border: '0.5px solid var(--border-md)' }}>
+              <div className="basis-full sm:basis-0 flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--jet)' }}>{producto.nombre}</p>
                 <p className="text-xs" style={{ color: 'var(--ash)' }}>${Number(producto.precio).toFixed(2)} c/u</p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 mr-auto sm:mr-0">
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad - 1)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center"
                   style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                   aria-label={`Quitar una unidad de ${producto.nombre}`}
                 >
-                  <Minus size={13} />
+                  <Minus size={15} />
                 </button>
                 <span className="w-6 text-center text-sm font-medium" style={{ color: 'var(--jet)' }}>{cantidad}</span>
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad + 1)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center"
                   style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                   aria-label={`Agregar una unidad de ${producto.nombre}`}
                 >
-                  <Plus size={13} />
+                  <Plus size={15} />
                 </button>
               </div>
               <p className="w-16 text-right text-sm font-semibold shrink-0" style={{ color: 'var(--jet)' }}>
@@ -93,11 +93,11 @@ export default function CarritoVenta({
               <button
                 type="button"
                 onClick={() => onQuitar(producto.id)}
-                className="shrink-0 p-1.5 rounded-lg"
+                className="shrink-0 w-11 h-11 flex items-center justify-center rounded-lg"
                 style={{ color: 'var(--red)' }}
                 aria-label={`Quitar ${producto.nombre} del carrito`}
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </div>
           ))
@@ -169,6 +169,16 @@ export default function CarritoVenta({
         className="sticky bottom-0 z-10 bg-[var(--surface)] rounded-b-2xl px-4 py-3 space-y-2"
         style={{ borderTop: '0.5px solid var(--border-md)' }}
       >
+        {/* Debajo de `lg` la página scrollea y esta barra tapa el total del
+            carrito: se repite aquí para ver cuánto se cobra sin scrollear. */}
+        <div className="flex items-baseline justify-between gap-2 lg:hidden">
+          <span className="text-sm font-medium" style={{ color: 'var(--ash)' }}>{descuentoUsd > 0 ? 'Total neto' : 'Total'}</span>
+          <span className="text-right">
+            <span className="font-bold text-lg" style={{ color: 'var(--pb)' }}>${totalUsd.toFixed(2)}</span>
+            <span className="ml-2 text-xs font-medium" style={{ color: 'var(--ash)' }}>Bs. {totalVes.toFixed(2)}</span>
+          </span>
+        </div>
+
         {cobrarDisabled && cobrarDisabledMotivo && (
           <p className="text-xs text-center" style={{ color: 'var(--ash)' }}>{cobrarDisabledMotivo}</p>
         )}
