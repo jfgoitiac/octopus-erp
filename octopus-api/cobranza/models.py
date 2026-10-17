@@ -424,6 +424,10 @@ class MetaBanco(models.Model):
     )
     metodo_pago = models.CharField(max_length=25, choices=Pago.METODOS)
     objetivo_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    PERIODICIDADES = [
+        ('mensual', 'Mensual'), ('trimestral', 'Trimestral'), ('personalizado', 'Personalizado'),
+    ]
+    periodicidad = models.CharField(max_length=15, choices=PERIODICIDADES, default='personalizado')
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     activa = models.BooleanField(default=True)

@@ -98,3 +98,14 @@ class MetaBancoProgresoTests(APITestCase):
         }, format='json')
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('fecha_inicio', respuesta.data)
+
+    def test_periodicidad_mensual_y_trimestral_calculan_fin(self):
+        self.client.force_authenticate(self.admin)
+        base = {'banco': self.banco.id, 'metodo_pago': 'pago_movil', 'objetivo_usd': '10.00', 'fecha_inicio': '2027-01-31'}
+        mensual = self.client.post('/api/cobranza/metas-banco/', {**base, 'periodicidad': 'mensual'}, format='json')
+        self.assertEqual(mensual.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(mensual.data['fecha_fin'], '2027-02-27')
+        trimestral = self.client.post(
+            '/api/cobranza/metas-banco/', {**base, 'fecha_inicio': '2027-06-01', 'periodicidad': 'trimestral'}, format='json')
+        self.assertEqual(trimestral.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(trimestral.data['fecha_fin'], '2027-08-31')

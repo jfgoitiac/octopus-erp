@@ -1,3 +1,5 @@
+import calendar
+from datetime import timedelta
 from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import F, Sum
@@ -206,15 +208,35 @@ class CierreCajaSerializer(serializers.ModelSerializer):
         ]
 
 
+MESES_POR_PERIODICIDAD = {'mensual': 1, 'trimestral': 3}
+
+
+def _fin_de_periodo(inicio, meses):
+    """Último día del período que arranca en ``inicio`` y dura ``meses`` meses."""
+    total = inicio.year * 12 + (inicio.month - 1) + meses
+    anio, mes = divmod(total, 12)
+    dia = min(inicio.day, calendar.monthrange(anio, mes + 1)[1])
+    return inicio.replace(year=anio, month=mes + 1, day=dia) - timedelta(days=1)
+
+
 class MetaBancoSerializer(serializers.ModelSerializer):
     banco_nombre = serializers.CharField(source='banco.nombre', read_only=True)
 
     class Meta:
         model = MetaBanco
-        fields = ('id', 'banco', 'banco_nombre', 'metodo_pago', 'objetivo_usd', 'fecha_inicio', 'fecha_fin', 'activa', 'creado_en')
+        fields = ('id', 'banco', 'banco_nombre', 'metodo_pago', 'objetivo_usd', 'periodicidad', 'fecha_inicio', 'fecha_fin', 'activa', 'creado_en')
         read_only_fields = ('id', 'creado_en')
+        extra_kwargs = {'fecha_fin': {'required': False}}
 
     def validate(self, attrs):
+        periodicidad = attrs.get('periodicidad', getattr(self.instance, 'periodicidad', 'personalizado'))
+        meses = MESES_POR_PERIODICIDAD.get(periodicidad)
+        inicio_nuevo = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
+        if meses and inicio_nuevo and ('periodicidad' in attrs or 'fecha_inicio' in attrs):
+            # Mensual/trimestral: el fin siempre se deriva del inicio.
+            attrs['fecha_fin'] = _fin_de_periodo(inicio_nuevo, meses)
+        elif 'fecha_fin' not in attrs and not self.instance:
+            raise serializers.ValidationError({'fecha_fin': 'Este campo es requerido.'})
         inicio = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
         fin = attrs.get('fecha_fin', getattr(self.instance, 'fecha_fin', None))
         objetivo = attrs.get('objetivo_usd', getattr(self.instance, 'objetivo_usd', None))
