@@ -1747,7 +1747,7 @@ class PagosListView(APIView):
             request.query_params,
             queryset=filtrar_por_sede(request.user, Pago.objects.select_related(
                 'alumno', 'banco_receptor', 'usuario_receptor',
-            ).order_by('-fecha_pago'), campo='sede'),
+            ).order_by('-fecha_pago', '-id'), campo='sede'),
         )
         if not filterset.is_valid():
             return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)

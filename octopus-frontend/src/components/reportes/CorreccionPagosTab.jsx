@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileEdit, Search, X, PlusCircle, Pencil, Ban } from 'lucide-react';
 import { toast } from 'react-toastify';
 import DatePickerES from '../DatePickerES';
@@ -63,7 +63,14 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
         setPage(1);
     }, [fechaInicio, fechaFin, metodoPago, estatus]);
 
+    // Solo la última consulta puede pintar resultados: cada cambio de filtro
+    // cancela la anterior para que una respuesta lenta no pise a la nueva.
+    const abortRef = useRef(null);
+
     const fetchPagos = useCallback(async (fi, ff, buscar, metodo, est, pageNum) => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         setLoading(true);
         try {
             const res = await listarPagos({
@@ -74,7 +81,8 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                 estatus: est !== 'todos' ? est : undefined,
                 page: pageNum,
                 page_size: PAGE_SIZE,
-            });
+            }, controller.signal);
+            if (controller.signal.aborted) return;
             // Mismo shape de paginación que estado-clasificacion:
             // {total, page, page_size, total_pages, results} (no el {count, next,
             // previous} genérico de DRF).
@@ -82,11 +90,14 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
             setTotal(res.data?.total || 0);
             setTotalPages(res.data?.total_pages || 1);
         } catch (err) {
+            if (controller.signal.aborted || err?.code === 'ERR_CANCELED') return;
             toast.error(getErrorMessage(err, 'No se pudo cargar la lista de pagos.'));
         } finally {
-            setLoading(false);
+            if (!controller.signal.aborted) setLoading(false);
         }
     }, []);
+
+    useEffect(() => () => abortRef.current?.abort(), []);
 
     useEffect(() => {
         fetchPagos(fechaInicio, fechaFin, busquedaDebounced, metodoPago, estatus, page);

@@ -36,7 +36,7 @@ class PagoFilter(django_filters.FilterSet):
         field_name='fecha_pago', lookup_expr='gte'
     )
     fecha_hasta             = django_filters.DateTimeFilter(
-        field_name='fecha_pago', lookup_expr='lte'
+        field_name='fecha_pago', lookup_expr='lte', method='filter_fecha_hasta'
     )
     metodo_pago             = django_filters.ChoiceFilter(choices=Pago.METODOS)
     estatus                 = django_filters.ChoiceFilter(choices=Pago.ESTATUS_PAGO)
@@ -49,6 +49,17 @@ class PagoFilter(django_filters.FilterSet):
     )
     representante_documento = django_filters.CharFilter(lookup_expr='icontains')
     buscar                  = django_filters.CharFilter(method='filter_buscar')
+
+    def filter_fecha_hasta(self, queryset, name, value):
+        # Con "YYYY-MM-DD" el parseo da las 00:00 de ese día y se perdían todos
+        # los pagos del último día (p. ej. los de hoy). Si llegó solo la fecha,
+        # el límite es el fin de ese día.
+        if value is None:
+            return queryset
+        raw = (self.data.get('fecha_hasta') or '').strip()
+        if len(raw) <= 10:
+            value = value.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return queryset.filter(fecha_pago__lte=value)
 
     def filter_buscar(self, queryset, name, value):
         value = (value or '').strip()
