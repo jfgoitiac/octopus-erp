@@ -433,9 +433,16 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         # cualquiera de esos pagos resetea monto_pagado a 0 sin poder
         # distinguir cuánto correspondía a cada pago — no hay snapshot por
         # pago como sí existe para LineaRecargoPago. Ver NOTAS_TECNICAS.md.
+        mensualidades_anuladas = list(pago.mensualidades_pagadas.select_related('alumno'))
         pago.mensualidades_pagadas.all().update(
             pagado=False, fecha_pago=None, monto_pagado=Decimal('0.00')
         )
+        # El update masivo no dispara la señal de Cobranza Inteligente: se
+        # reabre a mano el ciclo que el pago había cerrado.
+        from .ciclos import reabrir_ciclo_si_impago
+        for m in mensualidades_anuladas:
+            m.pagado = False
+            reabrir_ciclo_si_impago(m)
         # Misma limitación que mensualidades: si la cuota recibió abonos de
         # varios pagos, anular uno la deja en 0. `pagado=False` explícito
         # porque CuotaInscripcion.save() interpreta pagado=True con

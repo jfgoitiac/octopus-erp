@@ -322,7 +322,9 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     hoy = hoy or date.today()
     ahora = ahora or timezone.now()
     abiertos = list(
-        ciclos_qs.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS)
+        # `mensualidad__pagado=False`: defensa en la lectura. Un pago que no pasó
+        # por save() (update masivo) no dispara el cierre del ciclo.
+        ciclos_qs.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS, mensualidad__pagado=False)
         .select_related('mensualidad__alumno__representante', 'responsable'))
     por_rep = {}
     for c in abiertos:

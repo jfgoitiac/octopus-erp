@@ -83,7 +83,7 @@ class EvaluarCiclosTest(CicloBase):
         evaluar_ciclos_sede(self.sede.id, HOY)
         eventos = EventoCiclo.objects.count()
         r = evaluar_ciclos_sede(self.sede.id, HOY)
-        self.assertEqual(r, {'creados': 0, 'cerrados': 0, 'cambios_etapa': 0})
+        self.assertEqual(r, {'creados': 0, 'cerrados': 0, 'cambios_etapa': 0, 'reabiertos': 0})
         self.assertEqual(EventoCiclo.objects.count(), eventos)
         self.assertEqual(CicloCobranza.objects.count(), 1)
 
@@ -111,6 +111,46 @@ class EvaluarCiclosTest(CicloBase):
         m.ciclo.refresh_from_db()
         self.assertEqual(m.ciclo.estado, 'cerrada')
         self.assertEqual(m.ciclo.motivo_cierre, 'pagada')
+
+    def test_pago_anulado_por_update_masivo_reabre_el_ciclo(self):
+        """Pagar, anular (update que no dispara la señal) y volver a deber."""
+        m = self.mens(self.alumno(), 7)
+        self.encender()
+        evaluar_ciclos_sede(self.sede.id, HOY)
+        m.monto_pagado = 50
+        m.save()
+        m.ciclo.refresh_from_db()
+        self.assertEqual(m.ciclo.estado, 'cerrada')
+
+        Mensualidad.objects.filter(pk=m.pk).update(pagado=False, fecha_pago=None, monto_pagado=0)
+        # La tarea diaria reabre el ciclo en la etapa que le toca hoy.
+        r = evaluar_ciclos_sede(self.sede.id, HOY)
+        self.assertEqual(r['reabiertos'], 1)
+        m.ciclo.refresh_from_db()
+        self.assertEqual(m.ciclo.estado, 'prioritaria')
+        self.assertEqual(m.ciclo.motivo_cierre, '')
+        self.assertIsNone(m.ciclo.cerrado_en)
+        self.assertTrue(EventoCiclo.objects.filter(ciclo=m.ciclo, tipo='ciclo_reabierto').exists())
+        # Es idempotente.
+        self.assertEqual(evaluar_ciclos_sede(self.sede.id, HOY)['reabiertos'], 0)
+
+    def test_reabrir_ciclo_si_impago_es_inmediato_y_respeta_modulo_apagado(self):
+        from .ciclos import reabrir_ciclo_si_impago
+        m = self.mens(self.alumno(), 7)
+        self.encender()
+        evaluar_ciclos_sede(self.sede.id, HOY)
+        m.monto_pagado = 50
+        m.save()
+        Mensualidad.objects.filter(pk=m.pk).update(pagado=False, monto_pagado=0)
+        m.refresh_from_db()
+        self.assertTrue(reabrir_ciclo_si_impago(m, HOY))
+        m.ciclo.refresh_from_db()
+        self.assertTrue(m.ciclo.abierto)
+        # Una mensualidad realmente pagada nunca reabre.
+        Mensualidad.objects.filter(pk=m.pk).update(pagado=True, monto_pagado=50)
+        CicloCobranza.objects.filter(pk=m.ciclo.pk).update(estado='cerrada', motivo_cierre='pagada')
+        m.refresh_from_db()
+        self.assertFalse(reabrir_ciclo_si_impago(m, HOY))
 
     def test_pago_parcial_mantiene_el_ciclo_abierto_con_saldo_correcto(self):
         m = self.mens(self.alumno(), 7)

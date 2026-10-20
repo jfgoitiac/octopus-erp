@@ -109,6 +109,16 @@ class BandejaTest(GestionBase):
         self.assertEqual(f['dias_mora_max'], 19)
         self.assertEqual(set(f['ciclos']), {grave.id, leve.id})
 
+    def test_pago_sin_save_no_aparece_en_la_bandeja(self):
+        """Un update masivo no cierra el ciclo, pero la bandeja no debe mostrarlo."""
+        c = self.ciclo(dia_limite=1)
+        self.assertEqual(len(gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA)), 1)
+        type(c.mensualidad).objects.filter(pk=c.mensualidad_id).update(
+            pagado=True, monto_pagado=c.mensualidad.monto_usd)
+        c.refresh_from_db()
+        self.assertTrue(c.abierto)  # el ciclo sigue abierto: solo la lectura lo filtra
+        self.assertEqual(gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA), [])
+
     def test_pausado_no_cuenta_mora(self):
         c = self.ciclo(dia_limite=1)
         gestion.pausar_ciclo(c, 'reclamo', self.admin)

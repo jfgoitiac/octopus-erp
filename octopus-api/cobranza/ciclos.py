@@ -78,6 +78,31 @@ def _cerrar(ciclo, motivo, ahora):
 CAMPOS_CIERRE = ['estado', 'motivo_cierre', 'cerrado_en', 'proxima_accion', 'proxima_accion_fecha']
 
 
+def _reabrir(ciclo, hoy=None):
+    """Reabre un ciclo cerrado por pago, en la etapa que le toca hoy. Deja evento."""
+    m = ciclo.mensualidad
+    if (ciclo.estado != CicloCobranza.CERRADA or ciclo.motivo_cierre != 'pagada'
+            or m.pagado or not m.alumno.activo or m.alumno.estatus_financiero == 'becado'):
+        return False
+    ciclo.estado = etapa_por_dias(dias_de_mora(ciclo.fecha_vencimiento, hoy))
+    ciclo.motivo_cierre = ''
+    ciclo.cerrado_en = None
+    ciclo.save(update_fields=['estado', 'motivo_cierre', 'cerrado_en'])
+    EventoCiclo.objects.create(ciclo=ciclo, tipo='ciclo_reabierto', detalle={'motivo': 'pago_anulado'})
+    return True
+
+
+def reabrir_ciclo_si_impago(mensualidad, hoy=None):
+    """Reapertura inmediata cuando se anula un pago y la mensualidad vuelve a deber."""
+    from .inteligente import inteligente_activa_para_sede
+    if mensualidad.pagado or not inteligente_activa_para_sede(mensualidad.alumno.sede_id):
+        return False
+    ciclo = CicloCobranza.objects.filter(
+        mensualidad=mensualidad, estado=CicloCobranza.CERRADA, motivo_cierre='pagada'
+    ).select_related('mensualidad__alumno').first()
+    return bool(ciclo and _reabrir(ciclo, hoy))
+
+
 @transaction.atomic
 def evaluar_ciclos_sede(sede_id, hoy=None):
     """
@@ -93,7 +118,7 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
     """
     hoy = hoy or date.today()
     ahora = timezone.now()
-    resumen = {'creados': 0, 'cerrados': 0, 'cambios_etapa': 0}
+    resumen = {'creados': 0, 'cerrados': 0, 'cambios_etapa': 0, 'reabiertos': 0}
     eventos = []
 
     # 1. Ciclos faltantes
@@ -116,6 +141,15 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
             _evento(c, 'ciclo_creado', {'estado': c.estado, 'vencimiento': c.fecha_vencimiento.isoformat()})
             for c in nuevos
         )
+
+    # 1b. Ciclos cerrados por pago cuya mensualidad volvió a quedar impaga
+    # (pago anulado por un update masivo que no dispara la señal).
+    for ciclo in CicloCobranza.objects.filter(
+            mensualidad__alumno__sede_id=sede_id, estado=CicloCobranza.CERRADA,
+            motivo_cierre='pagada', mensualidad__pagado=False,
+            mensualidad__alumno__activo=True).select_related('mensualidad__alumno'):
+        if _reabrir(ciclo, hoy):
+            resumen['reabiertos'] += 1
 
     # 2 y 3. Ciclos abiertos de la sede
     abiertos = (
