@@ -1,4 +1,3 @@
-import { CalendarDays } from 'lucide-react';
 import SkeletonCard from '../SkeletonCard';
 import MontoRef from '../MontoRef';
 import { fmtFecha } from '../../utils/fechas';
@@ -16,23 +15,26 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, c
   if (!vencimientos.length) return null;
 
   return (
-    <section className="portal-card portal-card--soft p-4 sm:p-5" aria-labelledby="proximos-vencimientos">
-      <div className="flex items-center gap-2 mb-2">
-        <CalendarDays size={16} className="text-[var(--portal-primary)]" aria-hidden="true" />
-        <h3 id="proximos-vencimientos" className="text-sm font-semibold text-[var(--jet)]">Próximos vencimientos</h3>
-      </div>
-      <ul className="divide-y divide-[var(--border)]">
+    <section className="portal-card p-5 sm:p-6" aria-labelledby="proximos-vencimientos">
+      <h3 id="proximos-vencimientos" className="portal-section-title text-lg sm:text-xl mb-3">Próximos vencimientos</h3>
+      <ul className="divide-y divide-[var(--portal-line)]">
         {vencimientos.map((m) => {
           const enRevision = comprobantePorMensualidad[m.id]?.estatus === 'pendiente';
           return (
-            <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[var(--jet)]">{m.mes_nombre} {m.anio}</p>
+            <li key={m.id} className="flex items-center gap-3 py-3.5 first:pt-0 last:pb-0 sm:gap-4">
+              {m.fecha_vencimiento && (
+                <div className="portal-date" aria-hidden="true">
+                  <strong>{fmtFecha(m.fecha_vencimiento, 'd')}</strong>
+                  <span>{fmtFecha(m.fecha_vencimiento, 'MMM')}</span>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{m.mes_nombre} {m.anio}</p>
                 {variosAlumnos && m.alumno_nombre && (
-                  <p className="text-xs text-[var(--jet-mid)] truncate">{m.alumno_nombre}</p>
+                  <p className="text-xs text-[var(--portal-ink)] truncate">{m.alumno_nombre}</p>
                 )}
                 {m.fecha_vencimiento && (
-                  <p className="text-xs text-[var(--ash)]">Vence el {fmtFecha(m.fecha_vencimiento, "d 'de' MMMM")}</p>
+                  <p className="text-xs text-[var(--portal-muted)]">Vence el {fmtFecha(m.fecha_vencimiento, "d 'de' MMMM")}</p>
                 )}
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -40,7 +42,7 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, c
                 {enRevision ? (
                   <EstadoBadge estado={ESTATUS_COMPROBANTE.pendiente} />
                 ) : onPagar && (
-                  <button type="button" onClick={() => onPagar(m)} className="text-xs font-semibold text-[var(--portal-primary)] hover:underline min-h-[44px] sm:min-h-[32px] px-1">
+                  <button type="button" onClick={() => onPagar(m)} className="text-xs font-semibold text-[var(--portal-tint-ink)] hover:underline underline-offset-4 min-h-[44px] sm:min-h-[32px] px-1">
                     Pagar por adelantado
                   </button>
                 )}

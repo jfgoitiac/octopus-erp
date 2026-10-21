@@ -19,40 +19,40 @@ const WidgetFamiliaHoy = ({ hayPorReportar = false, rechazados = [], avisos = 0,
   if (hayPorReportar && rechazados.length === 0) {
     items.push({ id: 'pago', Icon: CircleDollarSign, tone: 'bg-[var(--yellow-light)] text-[var(--yellow)]', title: 'Tienes mensualidades por pagar', detail: 'Si ya pagaste, envía el comprobante desde aquí.', action: 'Reportar pago', onClick: () => onPagar() });
   }
-  if (avisos > 0) items.push({ id: 'avisos', Icon: Bell, tone: 'bg-[var(--portal-primary)]/10 text-[var(--portal-primary)]', title: `${avisos} aviso${avisos === 1 ? '' : 's'} sin leer`, detail: 'Comunicados y circulares del colegio.', action: 'Leer avisos', to: '/portal/comunicaciones' });
+  if (avisos > 0) items.push({ id: 'avisos', Icon: Bell, tone: 'bg-[var(--portal-tint)] text-[var(--portal-tint-ink)]', title: `${avisos} aviso${avisos === 1 ? '' : 's'} sin leer`, detail: 'Comunicados y circulares del colegio.', action: 'Leer avisos', to: '/portal/comunicaciones' });
   if (alertas.length > 0) {
     const a = alertas[0];
     items.push({ id: 'rendimiento', Icon: TrendingDown, tone: 'bg-[var(--yellow-light)] text-[var(--yellow)]', title: `${a.alumno_nombre || alumnoActivo?.nombre || 'Tu hijo'} necesita apoyo en ${a.materia_nombre || 'una materia'}`, detail: `Promedio ${a.promedio ?? 'por revisar'} en el último lapso.`, action: 'Ver rendimiento', to: '/portal/rendimiento' });
   }
 
   return (
-    <section className={`portal-card overflow-hidden ${className}`} aria-labelledby="familia-hoy">
-      <div className="px-4 pt-4 pb-3">
-        <h2 id="familia-hoy" className="text-base font-semibold text-[var(--jet)]">Para hoy</h2>
+    <section className={`portal-card overflow-hidden h-full ${className}`} aria-labelledby="familia-hoy">
+      <div className="px-5 pt-5 pb-2 sm:px-6 sm:pt-6">
+        <h2 id="familia-hoy" className="portal-section-title text-lg sm:text-xl">Para hoy</h2>
       </div>
       {items.length === 0 ? (
-        <div className="px-4 pb-6 pt-2 text-center">
-          <CheckCircle2 size={25} className="mx-auto text-[var(--green)]" aria-hidden="true" />
-          <p className="mt-2 text-sm font-medium text-[var(--jet-mid)]">Todo está en orden</p>
-          <p className="mt-1 text-xs text-[var(--ash)]">No tienes nada pendiente por ahora.</p>
+        <div className="px-5 pb-8 pt-4 text-center sm:px-6">
+          <CheckCircle2 size={28} strokeWidth={1.75} className="mx-auto text-[var(--green)]" aria-hidden="true" />
+          <p className="mt-2 text-base font-medium text-[var(--portal-ink)]">Todo está en orden</p>
+          <p className="mt-1 text-sm text-[var(--portal-muted)]">No tienes nada pendiente por ahora.</p>
         </div>
       ) : (
-        <div className="divide-y divide-[var(--border)]">
+        <div className="divide-y divide-[var(--portal-line)] pb-2">
           {items.map(({ id, Icon, tone, title, detail, action, to, onClick }) => {
             const inner = (
               <>
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon size={16} aria-hidden="true" /></div>
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tone}`}><Icon size={19} strokeWidth={1.75} aria-hidden="true" /></div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[var(--jet)]">{title}</p>
-                  <p className="line-clamp-2 text-xs text-[var(--ash)]">{detail}</p>
+                  <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{title}</p>
+                  <p className="line-clamp-2 text-xs text-[var(--portal-muted)] sm:text-sm">{detail}</p>
                 </div>
-                <span className="hidden sm:block shrink-0 text-xs font-semibold text-[var(--portal-primary)]">{action}</span>
-                <ChevronRight size={16} className="shrink-0 text-[var(--ash)]" aria-hidden="true" />
+                <span className="hidden sm:block shrink-0 text-sm font-semibold text-[var(--portal-tint-ink)]">{action}</span>
+                <ChevronRight size={16} className="shrink-0 text-[var(--portal-muted)]" aria-hidden="true" />
               </>
             );
             return to
-              ? <Link key={id} to={to} className="flex items-center gap-3 px-4 py-3 min-h-[56px] hover:bg-[var(--surface-sunken)]">{inner}</Link>
-              : <button key={id} type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 min-h-[56px] text-left hover:bg-[var(--surface-sunken)]">{inner}</button>;
+              ? <Link key={id} to={to} className="flex items-center gap-4 px-5 py-4 min-h-[64px] transition-colors hover:bg-[var(--portal-canvas)] sm:px-6">{inner}</Link>
+              : <button key={id} type="button" onClick={onClick} className="flex w-full items-center gap-4 px-5 py-4 min-h-[64px] text-left transition-colors hover:bg-[var(--portal-canvas)] sm:px-6">{inner}</button>;
           })}
         </div>
       )}

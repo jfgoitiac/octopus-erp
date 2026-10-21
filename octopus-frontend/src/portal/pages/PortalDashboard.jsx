@@ -78,22 +78,20 @@ const PortalDashboard = () => {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-5 md:items-start">
-        <div className="md:col-span-12">
-          <WidgetHeroPortal
-            nombre={user?.nombre}
-            resumen={resumen}
-            logoColegio={logoColegio}
-            variosAlumnos={variosAlumnos}
-            loadingResumen={loading}
-            onPagar={hayPorReportar ? () => abrirPago() : null}
-          />
-        </div>
+    <div className="space-y-8 sm:space-y-10">
+      <WidgetHeroPortal
+        nombre={user?.nombre}
+        resumen={resumen}
+        logoColegio={logoColegio}
+        variosAlumnos={variosAlumnos}
+        loadingResumen={loading}
+        onPagar={hayPorReportar ? () => abrirPago() : null}
+      />
 
-        <div className="md:col-span-12">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6 lg:items-start">
+        <div className="lg:col-span-7">
           {loading || loadingAvisos || loadingRendimiento ? (
-            <div className="h-28 rounded-2xl bg-[var(--surface-sunken)] animate-pulse" aria-hidden="true" />
+            <div className="portal-skeleton h-40 rounded-[var(--portal-radius)] animate-pulse" aria-hidden="true" />
           ) : (
             <WidgetFamiliaHoy
               hayPorReportar={hayPorReportar}
@@ -106,18 +104,20 @@ const PortalDashboard = () => {
           )}
         </div>
 
-        <div className="md:col-span-12">
+        <div className="lg:col-span-5">
           <WidgetAccionesRapidas onPagar={hayPorReportar ? () => abrirPago() : null} />
         </div>
+      </div>
 
-        <div className="md:col-span-12 pt-2">
-          <h2 className="text-base font-semibold text-[var(--jet)]">Pagos y vencimientos</h2>
+      <section className="space-y-5" aria-labelledby="pagos-vencimientos">
+        <div>
+          <h2 id="pagos-vencimientos" className="portal-section-title text-xl sm:text-2xl">Pagos y vencimientos</h2>
           {variosAlumnos && (
-            <p className="mt-0.5 text-xs text-[var(--ash)]">Reúne a todos tus hijos. El detalle de cada uno está en Historial.</p>
+            <p className="mt-1 text-sm text-[var(--portal-muted)]">Reúne a todos tus hijos. El detalle de cada uno está en Historial.</p>
           )}
         </div>
 
-        <div className="md:col-span-6">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6 lg:items-start">
           <WidgetResumenFinanciero
             resumen={resumen}
             tieneDeuda={tieneDeuda}
@@ -126,29 +126,29 @@ const PortalDashboard = () => {
             variosAlumnos={variosAlumnos}
             comprobantePorMensualidad={ultimoPorMensualidad}
           />
-        </div>
 
-        <div className="md:col-span-6 space-y-4 md:space-y-5">
-          <WidgetMisComprobantes comprobantes={comprobantes} variosAlumnos={variosAlumnos} />
-          <WidgetProximosVencimientos
-            resumen={resumen}
-            loading={loading}
-            variosAlumnos={variosAlumnos}
-            comprobantePorMensualidad={ultimoPorMensualidad}
-            onPagar={abrirPago}
-          />
-          <WidgetUltimosPagos ultimosPagos={ultimosPagos} loading={loading} />
+          <div className="space-y-5 lg:space-y-6">
+            <WidgetMisComprobantes comprobantes={comprobantes} variosAlumnos={variosAlumnos} />
+            <WidgetProximosVencimientos
+              resumen={resumen}
+              loading={loading}
+              variosAlumnos={variosAlumnos}
+              comprobantePorMensualidad={ultimoPorMensualidad}
+              onPagar={abrirPago}
+            />
+            <WidgetUltimosPagos ultimosPagos={ultimosPagos} loading={loading} />
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Acceso de pago fijo en móvil, solo si hay algo que reportar. Va sobre
-          la barra inferior (60px + zona segura del iPhone) sin taparla. */}
+          la barra inferior (64px + zona segura del iPhone) sin taparla. */}
       {!loading && hayPorReportar && (
-        <div className="fixed left-0 right-0 bottom-[calc(68px+env(safe-area-inset-bottom))] px-4 z-20 sm:hidden">
+        <div className="fixed left-0 right-0 bottom-[calc(76px+env(safe-area-inset-bottom))] px-4 z-20 sm:hidden">
           <button
             type="button"
             onClick={() => abrirPago()}
-            className="w-full max-w-[480px] mx-auto flex items-center justify-center gap-2 bg-[var(--portal-primary)] text-white font-semibold py-3.5 rounded-xl text-base hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] transition-colors shadow-lg shadow-[var(--portal-primary)]/30"
+            className="w-full max-w-[480px] mx-auto flex items-center justify-center gap-2 bg-[var(--portal-hero)] text-white font-semibold py-3.5 rounded-2xl text-base hover:bg-[color-mix(in_srgb,var(--portal-hero)_85%,black)] transition-colors shadow-[0_10px_24px_color-mix(in_srgb,var(--portal-hero)_35%,transparent)]"
           >
             <Upload size={18} aria-hidden="true" />
             Reportar un pago

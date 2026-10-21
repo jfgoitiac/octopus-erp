@@ -16,7 +16,7 @@ const AccionMensualidad = ({ mensualidad, comprobante, onPagar }) => {
     <button
       type="button"
       onClick={() => onPagar(mensualidad)}
-      className="px-3 rounded-lg bg-[var(--portal-primary)]/10 text-[var(--portal-primary)] text-sm font-semibold min-h-[44px] flex items-center hover:bg-[var(--portal-primary)]/20 transition-colors whitespace-nowrap"
+      className="px-4 rounded-full bg-[var(--portal-hero)] text-white text-sm font-semibold min-h-[44px] flex items-center hover:bg-[color-mix(in_srgb,var(--portal-hero)_85%,black)] transition-colors whitespace-nowrap"
     >
       {rechazado ? 'Enviar de nuevo' : 'Pagar'}
     </button>
@@ -38,14 +38,14 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
   const cantidadPendientes = mensualidades.length + otrosConceptos.length;
 
   return (
-    <section className={`portal-card p-4 sm:p-5 h-full ${tieneDeuda ? 'bg-[var(--red-light)]/60' : 'bg-[var(--green-light)]/60'}`} aria-labelledby="resumen-financiero">
-      <div className="flex items-center gap-2 mb-2">
+    <section className="portal-card p-5 sm:p-6 h-full" aria-labelledby="resumen-financiero">
+      <div className="flex items-center gap-2 mb-3">
         {tieneDeuda ? (
           <AlertTriangle size={18} className="text-[var(--red)] flex-shrink-0" aria-hidden="true" />
         ) : (
           <CheckCircle size={18} className="text-[var(--green)] flex-shrink-0" aria-hidden="true" />
         )}
-        <h3 id="resumen-financiero" className={`font-semibold text-sm ${tieneDeuda ? 'text-[var(--red)]' : 'text-[var(--green)]'}`}>
+        <h3 id="resumen-financiero" className={`portal-section-title text-lg sm:text-xl ${tieneDeuda ? '!text-[var(--red)]' : '!text-[var(--green)]'}`}>
           {tieneDeuda
             ? (variosAlumnos ? 'Deuda de la familia' : 'Deuda pendiente')
             : 'Solvente: al día con los pagos'}
@@ -53,26 +53,26 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       </div>
 
       {tieneDeuda && (
-        <div className="mb-3">
+        <div className="mb-5">
           <MontoRef usd={resumen.total_deuda_usd} tasaBcv={tasaBcv} size="lg" align="left" colorRef="text-[var(--red)]" colorBs="text-[var(--red)]" />
-          <p className="mt-1 text-xs text-[var(--jet-mid)]">
+          <p className="mt-1 text-sm text-[var(--portal-muted)]">
             {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'} pendiente{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos ? ' entre todos tus hijos' : ''}.
           </p>
         </div>
       )}
 
       {mensualidades.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {mensualidades.map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-3 bg-[var(--surface)]/80 rounded-xl px-3 py-2.5">
+            <li key={m.id} className="flex items-center justify-between gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--jet)]">{m.mes_nombre} {m.anio}</p>
+                <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{m.mes_nombre} {m.anio}</p>
                 {variosAlumnos && m.alumno_nombre && (
                   <p className="text-xs text-[var(--jet-mid)] truncate">{m.alumno_nombre}</p>
                 )}
-                <p className={`text-xs ${Number(m.dias_mora) > 0 ? 'text-[var(--red)]' : 'text-[var(--ash)]'}`}>{textoVencimiento(m)}</p>
+                <p className={`text-xs ${Number(m.dias_mora) > 0 ? 'text-[var(--red)] font-medium' : 'text-[var(--portal-muted)]'}`}>{textoVencimiento(m)}</p>
                 {m.porcentaje_beca_aplicado > 0 && (
-                  <span className="inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-primary)]/10 text-[var(--portal-primary)]">
+                  <span className="inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-tint)] text-[var(--portal-tint-ink)]">
                     Beca -{m.porcentaje_beca_aplicado}%
                   </span>
                 )}
@@ -96,11 +96,11 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
           No tienen botón "Pagar": el comprobante del portal solo aplica
           a mensualidades, este pago se coordina con administración. */}
       {otrosConceptos.length > 0 && (
-        <div className="space-y-2 mt-2">
+        <div className="space-y-2.5 mt-2.5">
           {otrosConceptos.map((c) => (
-            <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between gap-3 bg-[var(--surface)]/80 rounded-xl px-3 py-2.5">
+            <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--jet)]">{c.concepto}</p>
+                <p className="text-sm font-semibold text-[var(--portal-ink)]">{c.concepto}</p>
                 <p className="text-xs text-[var(--ash)]">
                   {c.alumno_nombre || 'Aplica a toda la familia'}
                 </p>
