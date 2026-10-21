@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom';
-import { LogOut, GraduationCap, Lock, Home, Receipt, Megaphone, MessageCircle, TrendingUp, UserCircle, CreditCard, ClipboardList, Menu, X, Download } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { LogOut, GraduationCap, Menu, X, Download } from 'lucide-react';
 import { usePortalAuth } from '../context/PortalAuthContext';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
 import { useBranding } from '../../context/BrandingContext';
@@ -8,144 +10,149 @@ import NotificacionesModal from './NotificacionesModal';
 import RepresentanteRail from './RepresentanteRail';
 import BannerInstalarApp from './BannerInstalarApp';
 import useAccionInstalar from '../hooks/useAccionInstalar';
+import { NAV_PORTAL, iniciales } from './navPortal';
+
+const NAV_PRINCIPAL = NAV_PORTAL.filter(item => item.principal);
+const NAV_SECUNDARIA = NAV_PORTAL.filter(item => !item.principal);
 
 const PortalLayout = () => {
-  const { logout } = usePortalAuth();
+  const { user, logout } = usePortalAuth();
   const { puedeInstalar, accionar: instalarApp, modal: modalInstalar } = useAccionInstalar();
-  const navigate = useNavigate();
   const location = useLocation();
   const { nombreColegio, logoUrl } = useBranding();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const rutasSecundarias = ['/portal/mensajes', '/portal/rendimiento', '/portal/plan-evaluacion', '/portal/cantina', '/portal/perfil', '/portal/cambiar-contrasena'];
-  const masActivo = rutasSecundarias.includes(location.pathname);
+  const menuRef = useRef(null);
+  const botonMasRef = useRef(null);
+  const masActivo = NAV_SECUNDARIA.some(item => item.to === location.pathname);
+  const nombre = [user?.nombre, user?.apellido].filter(Boolean).join(' ') || 'Representante';
+  const hoy = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
 
+  // El menú "Más" se cierra con Escape o tocando fuera de él (sin overlay).
   useEffect(() => {
     if (!menuAbierto) return;
     const alTeclear = (e) => { if (e.key === 'Escape') setMenuAbierto(false); };
+    const alTocarFuera = (e) => {
+      if (menuRef.current?.contains(e.target) || botonMasRef.current?.contains(e.target)) return;
+      setMenuAbierto(false);
+    };
     document.addEventListener('keydown', alTeclear);
-    return () => document.removeEventListener('keydown', alTeclear);
+    document.addEventListener('pointerdown', alTocarFuera);
+    return () => {
+      document.removeEventListener('keydown', alTeclear);
+      document.removeEventListener('pointerdown', alTocarFuera);
+    };
   }, [menuAbierto]);
 
   return (
     <div className="portal-shell min-h-dvh">
-      <RepresentanteRail />
+      <RepresentanteRail puedeInstalar={puedeInstalar} onInstalar={instalarApp} />
 
-      {/* Header */}
-      <header className="portal-topbar border-b sticky top-0 z-10">
-        <div className="max-w-[480px] sm:max-w-2xl md:max-w-7xl mx-auto px-4 h-14 flex items-center justify-between md:pl-20">
-          <div className="flex items-center gap-2">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt={nombreColegio || 'Logo del colegio'}
-                className="h-8 w-auto object-contain"
-                onError={e => { e.target.style.display = 'none'; }}
-              />
-            ) : (
-              <GraduationCap size={22} style={{ color: 'var(--portal-primary)' }} />
-            )}
-            <span className="font-semibold text-[var(--jet)] text-sm">
-              {nombreColegio || 'Portal Escolar'}
-            </span>
+      <div className="md:pl-20 lg:pl-64">
+        <header className="portal-topbar sticky top-0 z-10">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:h-20 lg:px-8">
+            {/* Celular y tablet: el colegio. Desde lg el riel ya lo muestra. */}
+            <div className="flex min-w-0 items-center gap-2.5 lg:hidden">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--portal-surface)] shadow-sm">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="" className="h-6 w-6 object-contain" onError={e => { e.target.style.display = 'none'; }} />
+                ) : (
+                  <GraduationCap size={18} style={{ color: 'var(--portal-primary)' }} />
+                )}
+              </span>
+              <span className="truncate text-sm font-semibold text-[var(--portal-ink)]">{nombreColegio || 'Portal escolar'}</span>
+            </div>
+            <p className="hidden text-sm capitalize text-[var(--portal-muted)] lg:block">{hoy}</p>
+
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <Link
+                to="/portal/perfil"
+                className="flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1 pr-1 sm:bg-[var(--portal-surface)] sm:pr-4 sm:shadow-sm"
+                aria-label={`Mi perfil — ${nombre}`}
+              >
+                <span className="portal-avatar h-9 w-9 text-xs">{iniciales(nombre)}</span>
+                <span className="hidden max-w-[12rem] truncate text-sm font-medium text-[var(--portal-ink)] sm:inline">{nombre}</span>
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full px-2 text-sm text-[var(--portal-muted)] transition-colors hover:text-[var(--red)] sm:px-3"
+                aria-label="Cerrar sesión"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/portal/cambiar-contrasena')}
-              className="hidden sm:flex items-center justify-center min-w-[44px] min-h-[44px] text-[var(--ash)] hover:text-[var(--portal-primary)] transition-colors text-sm"
-              aria-label="Cambiar contraseña"
-              title="Cambiar contraseña"
-            >
-              <Lock size={15} />
-            </button>
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 min-h-[44px] px-2 text-[var(--ash)] hover:text-[var(--red)] transition-colors text-sm"
-              aria-label="Cerrar sesión"
-            >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">Salir</span>
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Contenido principal — pb-32 para que el botón flotante y la bottom nav no tapen contenido */}
-      <main className="max-w-[480px] sm:max-w-2xl md:max-w-7xl mx-auto px-4 py-5 pb-32 md:pb-10 md:pl-20">
-        <BannerInstalarApp className="mb-4" />
-        <AlumnoActivoProvider>
-          <Outlet context={{ logoColegio: logoUrl }} />
-        </AlumnoActivoProvider>
-      </main>
+        {/* pb-36 en móvil: deja libre el botón flotante de pago y la barra inferior */}
+        <main className="mx-auto max-w-6xl px-4 pb-36 pt-2 sm:px-6 md:pb-12 lg:px-8 lg:pt-4">
+          <BannerInstalarApp className="mb-5" />
+          <AlumnoActivoProvider>
+            <Outlet context={{ logoColegio: logoUrl }} />
+          </AlumnoActivoProvider>
+        </main>
+      </div>
 
-      {/* Bottom navigation — solo móvil */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--surface)]/95 border-t border-[var(--border)]/80 backdrop-blur-xl z-30 md:hidden pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-[480px] sm:max-w-2xl mx-auto grid grid-cols-4">
-          <NavLink
-            to="/portal"
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <Home size={22} />
-            <span className="text-xs font-medium">Inicio</span>
-          </NavLink>
-          <NavLink
-            to="/portal/historial"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <Receipt size={22} />
-            <span className="text-xs font-medium">Historial</span>
-          </NavLink>
-          <NavLink
-            to="/portal/comunicaciones"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${isActive ? 'text-[var(--portal-primary)]' : 'text-[var(--ash)]'}`
-            }
-          >
-            <Megaphone size={22} />
-            <span className="text-xs font-medium">Avisos</span>
-          </NavLink>
+      {/* Barra inferior — solo celular. Cuatro accesos cortos: caben en 360px. */}
+      <nav aria-label="Navegación principal" className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--portal-line)] bg-[var(--portal-surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+        <div className="mx-auto grid max-w-xl grid-cols-4 px-1">
+          {NAV_PRINCIPAL.map(({ to, end, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) => `portal-tab flex min-h-16 flex-col items-center justify-center gap-0.5 ${isActive ? 'is-active' : ''}`}
+            >
+              <span className="portal-tab__icon flex h-8 w-14 items-center justify-center rounded-full"><Icon size={20} /></span>
+              <span className="text-[0.6875rem] font-semibold">{label}</span>
+            </NavLink>
+          ))}
           <button
+            ref={botonMasRef}
             type="button"
-            onClick={() => setMenuAbierto((abierto) => !abierto)}
-            className={`flex flex-col items-center gap-0.5 py-2 px-2 min-h-[60px] justify-center transition-colors ${masActivo || menuAbierto ? 'text-[var(--portal-primary)]' : 'text-[var(--ash)]'}`}
+            onClick={() => setMenuAbierto(abierto => !abierto)}
+            className={`portal-tab flex min-h-16 flex-col items-center justify-center gap-0.5 ${masActivo || menuAbierto ? 'is-active' : ''}`}
             aria-label="Más opciones"
             aria-expanded={menuAbierto}
+            aria-controls="portal-menu-mas"
           >
-            {menuAbierto ? <X size={22} /> : <Menu size={22} />}
-            <span className="text-xs font-medium">Más</span>
+            <span className="portal-tab__icon flex h-8 w-14 items-center justify-center rounded-full">{menuAbierto ? <X size={20} /> : <Menu size={20} />}</span>
+            <span className="text-[0.6875rem] font-semibold">Más</span>
           </button>
         </div>
       </nav>
 
       {menuAbierto && (
-        <div className="fixed inset-0 z-20 md:hidden" role="presentation" onClick={() => setMenuAbierto(false)}>
-          <div className="absolute bottom-[calc(61px+env(safe-area-inset-bottom))] left-3 right-3 max-w-[456px] sm:max-w-xl mx-auto portal-card p-2 grid grid-cols-2 gap-1" onClick={(event) => event.stopPropagation()}>
-            {[
-              { to: '/portal/mensajes', icon: MessageCircle, label: 'Mensajes' },
-              { to: '/portal/rendimiento', icon: TrendingUp, label: 'Rendimiento' },
-              { to: '/portal/plan-evaluacion', icon: ClipboardList, label: 'Plan de evaluación' },
-              { to: '/portal/cantina', icon: CreditCard, label: 'Cantina' },
-              { to: '/portal/perfil', icon: UserCircle, label: 'Mi perfil' },
-              { to: '/portal/cambiar-contrasena', icon: Lock, label: 'Seguridad' },
-            ].map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} onClick={() => setMenuAbierto(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)] hover:text-[var(--portal-primary)]">
-                <Icon size={18} /> {label}
-              </NavLink>
+        <div
+          id="portal-menu-mas"
+          ref={menuRef}
+          className="portal-card fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-xl p-2 md:hidden"
+        >
+          <ul className="grid grid-cols-2 gap-1">
+            {NAV_SECUNDARIA.map(({ to, icon: Icon, label }) => (
+              <li key={to}>
+                <NavLink
+                  to={to}
+                  onClick={() => setMenuAbierto(false)}
+                  className={({ isActive }) => `flex min-h-[48px] items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-colors ${isActive ? 'bg-[var(--portal-tint)] text-[var(--portal-tint-ink)]' : 'text-[var(--portal-ink)] hover:bg-[var(--portal-canvas)]'}`}
+                >
+                  <Icon size={18} className="shrink-0" /> <span className="min-w-0">{label}</span>
+                </NavLink>
+              </li>
             ))}
             {puedeInstalar && (
-              <button
-                type="button"
-                onClick={() => { setMenuAbierto(false); instalarApp(); }}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-[var(--jet-mid)] hover:bg-[var(--surface-sunken)] hover:text-[var(--portal-primary)] text-left"
-              >
-                <Download size={18} /> Instalar app
-              </button>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => { setMenuAbierto(false); instalarApp(); }}
+                  className="flex min-h-[48px] w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-medium text-[var(--portal-ink)] transition-colors hover:bg-[var(--portal-canvas)]"
+                >
+                  <Download size={18} className="shrink-0" /> Instalar app
+                </button>
+              </li>
             )}
-          </div>
+          </ul>
         </div>
       )}
 
