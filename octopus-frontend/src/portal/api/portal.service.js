@@ -46,6 +46,15 @@ export const subirComprobante = (mensualidadId, archivo, referenciaBancaria = ''
 };
 
 /**
+ * Comprobantes enviados por el representante autenticado, del más reciente
+ * al más antiguo, con su estado (pendiente | aprobado | rechazado), el
+ * motivo de rechazo en `observaciones` y el mes/hijo al que corresponden.
+ * @param {AbortSignal} [signal]
+ */
+export const getComprobantes = (signal) =>
+  portalClient.get('comprobante/', signal ? { signal } : undefined);
+
+/**
  * Descarga el recibo de cobranza en PDF de un pago confirmado del historial
  * (blob). Es el mismo PDF que imprime el panel y llega por correo.
  * @param {number|string} pagoId
