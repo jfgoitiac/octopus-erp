@@ -27,7 +27,10 @@ const PortalLayout = () => {
   const botonMasRef = useRef(null);
   const masActivo = NAV_SECUNDARIA.some(item => item.to === location.pathname);
   const nombre = [user?.nombre, user?.apellido].filter(Boolean).join(' ') || 'Representante';
-  const hoy = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  // Solo la primera letra en mayúscula ("Miércoles 21 de octubre"); la clase
+  // `capitalize` ponía "21 De Octubre".
+  const fecha = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  const hoy = fecha.charAt(0).toUpperCase() + fecha.slice(1);
   const [resumen, setResumen] = useState(null);
   const [loadingResumen, setLoadingResumen] = useState(true);
   const [errorResumen, setErrorResumen] = useState(false);
@@ -92,7 +95,7 @@ const PortalLayout = () => {
               </span>
               <span className="truncate text-sm font-semibold text-[var(--portal-ink)]">{nombreColegio || 'Portal escolar'}</span>
             </div>
-            <p className="hidden text-sm capitalize text-[var(--portal-muted)] lg:block">{hoy}</p>
+            <p className="hidden text-sm text-[var(--portal-muted)] lg:block">{hoy}</p>
 
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
               <Link
