@@ -303,6 +303,17 @@ class PortalDashboardTests(PortalTestBase):
         por_alumno = {d['alumno_id']: d['deuda_usd'] for d in resumen['deuda_por_alumno']}
         self.assertEqual(por_alumno, {self.alumno.id: 35.0, hermana.id: 35.0})
 
+    def test_mensualidades_traen_fecha_de_vencimiento(self):
+        """Fin de mes de la mensualidad: el mismo corte que usa dias_mora."""
+        import calendar
+        self.auth_portal()
+        vencida = self.client.get('/api/portal/dashboard/').data['resumen_financiero']['mensualidades_vencidas'][0]
+        ultimo_dia = calendar.monthrange(self.mensualidad.anio, self.mensualidad.mes)[1]
+        self.assertEqual(
+            vencida['fecha_vencimiento'],
+            date(self.mensualidad.anio, self.mensualidad.mes, ultimo_dia).isoformat(),
+        )
+
     def test_trae_la_tasa_bcv_vigente(self):
         TasaCambio.objects.create(valor_bs=Decimal('40.5000'))
         self.auth_portal()
@@ -535,6 +546,24 @@ class PortalComprobanteTests(PortalTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
         self.assertEqual(resp.data[0]['estatus'], 'pendiente')
+        # Datos legibles para que el portal muestre a qué mes y a qué hijo
+        # corresponde cada comprobante sin otra consulta.
+        self.assertEqual(resp.data[0]['anio'], self.mensualidad.anio)
+        self.assertEqual(resp.data[0]['mes_nombre'], self.mensualidad.get_mes_display())
+        self.assertEqual(resp.data[0]['alumno_id'], self.alumno.id)
+        self.assertEqual(resp.data[0]['alumno_nombre'], 'Pedro Gonzalez')
+
+    def test_comprobante_rechazado_expone_el_motivo_al_representante(self):
+        self.auth_portal()
+        ComprobantePago.objects.create(
+            mensualidad=self.mensualidad,
+            archivo=SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png'),
+            estatus='rechazado',
+            observaciones='La referencia no coincide con el banco.',
+        )
+        dato = self.client.get('/api/portal/comprobante/').data[0]
+        self.assertEqual(dato['estatus'], 'rechazado')
+        self.assertEqual(dato['observaciones'], 'La referencia no coincide con el banco.')
 
     def test_rechaza_referencia_ya_usada_en_recarga_de_cantina(self):
         """
@@ -940,3 +969,51 @@ class PortalAppInstalableTest(TestCase):
     def test_tamano_no_permitido_da_404(self):
         self._config(nombre_colegio='X')
         self.assertEqual(self.client.get('/api/portal/icono-app/64.png').status_code, 404)
+
+
+class PortalSinIncidentesDisciplinariosTests(PortalTestBase):
+    """
+    Regla de negocio: el representante NO ve los incidentes disciplinarios
+    de sus hijos. El registro es de uso interno (docentes y dirección). Estos
+    tests fijan las dos vías por las que podría filtrarse: el endpoint
+    administrativo con el token del portal y los datos que devuelven las
+    vistas del propio portal.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from academico.models import IncidenteDisciplinario
+        docente = User.objects.create_user(username='docente-inc', password='clave123456')
+        asignar_rol(docente, 'docente')
+        self.incidente = IncidenteDisciplinario.objects.create(
+            alumno=self.alumno, descripcion='Texto interno del incidente',
+            severidad='G', registrado_por=docente,
+        )
+
+    def test_token_del_portal_no_abre_la_lista_de_incidentes(self):
+        self.auth_portal()
+        resp = self.client.get('/api/academico/incidentes/')
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_token_del_portal_no_abre_el_detalle_de_un_incidente(self):
+        self.auth_portal()
+        resp = self.client.get(f'/api/academico/incidentes/{self.incidente.id}/')
+        self.assertIn(resp.status_code, (401, 403))
+
+    def test_ninguna_vista_del_portal_devuelve_el_incidente(self):
+        self.auth_portal()
+        rutas = [
+            '/api/portal/dashboard/',
+            f'/api/portal/historial/?alumno_id={self.alumno.id}',
+            f'/api/portal/academico/rendimiento/alumno/{self.alumno.id}/',
+            f'/api/portal/academico/planes-evaluacion/alumno/{self.alumno.id}/',
+            '/api/portal/comunicacion/circulares/',
+            f'/api/portal/comunicacion/mensajes/?alumno_id={self.alumno.id}',
+        ]
+        for ruta in rutas:
+            with self.subTest(ruta=ruta):
+                resp = self.client.get(ruta)
+                self.assertEqual(resp.status_code, 200, resp.content)
+                cuerpo = resp.content.decode('utf-8').lower()
+                self.assertNotIn('texto interno del incidente', cuerpo)
+                self.assertNotIn('incidente', cuerpo)

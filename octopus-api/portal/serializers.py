@@ -174,6 +174,7 @@ class MensualidadSerializer(serializers.ModelSerializer):
     """
     mes_nombre = serializers.SerializerMethodField()
     dias_mora = serializers.SerializerMethodField()
+    fecha_vencimiento = serializers.SerializerMethodField()
     monto_recargo = serializers.SerializerMethodField()
     nombre_recargo = serializers.SerializerMethodField()
     monto_descuento = serializers.SerializerMethodField()
@@ -185,7 +186,7 @@ class MensualidadSerializer(serializers.ModelSerializer):
         model = Mensualidad
         fields = [
             'id', 'mes', 'mes_nombre', 'anio', 'monto_usd', 'monto_pagado', 'saldo',
-            'pagado', 'fecha_pago', 'dias_mora',
+            'pagado', 'fecha_pago', 'dias_mora', 'fecha_vencimiento',
             'monto_original_usd', 'porcentaje_beca_aplicado',
             'monto_recargo', 'nombre_recargo',
             'monto_descuento', 'nombre_descuento', 'monto_total',
@@ -201,15 +202,22 @@ class MensualidadSerializer(serializers.ModelSerializer):
         # el representante debe ver/pagar el saldo real, no el monto lleno.
         return obj.monto_usd - obj.monto_pagado
 
+    @staticmethod
+    def _fecha_vencimiento(obj):
+        """Último día del mes de la mensualidad: mismo corte que usa dias_mora."""
+        import calendar
+        ultimo_dia = calendar.monthrange(obj.anio, obj.mes)[1]
+        return date(obj.anio, obj.mes, ultimo_dia)
+
+    def get_fecha_vencimiento(self, obj):
+        return self._fecha_vencimiento(obj).isoformat()
+
     def get_dias_mora(self, obj):
         """Calcula días de mora para mensualidades no pagadas y ya vencidas."""
         if obj.pagado:
             return 0
         hoy = date.today()
-        # Último día del mes de la mensualidad
-        import calendar
-        ultimo_dia = calendar.monthrange(obj.anio, obj.mes)[1]
-        fecha_vencimiento = date(obj.anio, obj.mes, ultimo_dia)
+        fecha_vencimiento = self._fecha_vencimiento(obj)
         if hoy > fecha_vencimiento:
             return (hoy - fecha_vencimiento).days
         return 0
@@ -390,14 +398,26 @@ class RecargaTarjetaPortalSerializer(serializers.ModelSerializer):
 class ComprobantePagoSerializer(serializers.ModelSerializer):
     """Serializer completo de ComprobantePago para creación y consulta."""
     estatus_display = serializers.SerializerMethodField()
+    # Datos legibles de la mensualidad para que el portal muestre "Octubre
+    # 2026 · Pedro Gonzalez" junto al estado, sin una consulta extra por
+    # comprobante (la vista hace select_related('mensualidad__alumno')).
+    mes_nombre = serializers.CharField(source='mensualidad.get_mes_display', read_only=True)
+    anio = serializers.IntegerField(source='mensualidad.anio', read_only=True)
+    alumno_id = serializers.IntegerField(source='mensualidad.alumno_id', read_only=True)
+    alumno_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = ComprobantePago
         fields = [
             'id', 'mensualidad', 'archivo', 'fecha_subida',
-            'estatus', 'estatus_display', 'observaciones'
+            'estatus', 'estatus_display', 'observaciones',
+            'mes_nombre', 'anio', 'alumno_id', 'alumno_nombre',
         ]
         read_only_fields = ['fecha_subida', 'estatus', 'subido_por_ip']
 
     def get_estatus_display(self, obj):
         return obj.get_estatus_display()
+
+    def get_alumno_nombre(self, obj):
+        alumno = obj.mensualidad.alumno
+        return f'{alumno.nombre} {alumno.apellido}'
