@@ -46,28 +46,35 @@ const PortalLogin = () => {
   };
 
   return (
-    <div className="min-h-dvh bg-[var(--surface-sunken)] flex flex-col items-center justify-center px-4 py-10">
-      <div className="w-full max-w-[420px]">
-        {/* Logo / branding */}
-        <div className="flex flex-col items-center mb-8 gap-3">
-          <img
-            src={logoUrl || logoColegioFallback}
-            alt={nombreColegio || 'Logo del colegio'}
-            className="w-20 h-20 object-contain"
-            onError={e => { e.target.src = logoColegioFallback; }}
-          />
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-[var(--jet)]">Portal de Representantes</h1>
-            <p className="text-sm text-[var(--ash)] mt-1">Accede a la información de tu representado</p>
+    <div className="portal-shell min-h-dvh flex items-center justify-center px-4 py-8 sm:py-12">
+      <div className="w-full max-w-[440px] lg:max-w-5xl lg:grid lg:grid-cols-2 lg:gap-6 lg:items-stretch">
+        {/* Bloque de marca del colegio */}
+        <section className="portal-hero p-6 sm:p-8 lg:p-10 flex flex-col gap-5 lg:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white p-2 shadow-sm">
+              <img
+                src={logoUrl || logoColegioFallback}
+                alt={nombreColegio || 'Logo del colegio'}
+                className="h-full w-full object-contain"
+                onError={e => { e.target.src = logoColegioFallback; }}
+              />
+            </span>
+            <p className="text-base font-semibold leading-tight text-white/90 line-clamp-2">{nombreColegio || 'Portal escolar'}</p>
           </div>
-        </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-tight">Portal de Representantes</h1>
+            <p className="mt-2 text-sm sm:text-base text-white/80 max-w-sm">Accede a la información de tu representado</p>
+          </div>
+        </section>
 
+        <div className="-mt-4 relative lg:mt-0 lg:flex lg:flex-col lg:justify-center">
         {/* Card formulario */}
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-4">
+        <div className="portal-card p-6 sm:p-8 space-y-4">
+          <h2 className="portal-section-title text-xl">Ingresa a tu cuenta</h2>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Cédula o email */}
             <div>
-              <label htmlFor="portal-cedula" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
+              <label htmlFor="portal-cedula" className="block text-sm font-medium text-[var(--portal-ink)] mb-1.5">
                 Cédula o correo electrónico
               </label>
               <div className="relative">
@@ -79,7 +86,7 @@ const PortalLogin = () => {
                   onChange={(e) => setCedulaOEmail(e.target.value)}
                   placeholder="Ej: V-12345678 o correo@ejemplo.com"
                   autoComplete="username"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
+                  className="w-full pl-9 pr-4 py-3 rounded-2xl border border-[var(--portal-line)] bg-[var(--portal-canvas)] text-base focus:bg-[var(--portal-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
                   disabled={submitting}
                 />
               </div>
@@ -87,7 +94,7 @@ const PortalLogin = () => {
 
             {/* Contraseña */}
             <div>
-              <label htmlFor="portal-password" className="block text-sm font-medium text-[var(--jet-mid)] mb-1.5">
+              <label htmlFor="portal-password" className="block text-sm font-medium text-[var(--portal-ink)] mb-1.5">
                 Contraseña
               </label>
               <div className="relative">
@@ -99,7 +106,7 @@ const PortalLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   autoComplete="current-password"
-                  className="w-full pl-9 pr-12 py-3 rounded-xl border border-[var(--border)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
+                  className="w-full pl-9 pr-12 py-3 rounded-2xl border border-[var(--portal-line)] bg-[var(--portal-canvas)] text-base focus:bg-[var(--portal-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]/30 focus:border-[var(--portal-primary)] transition-colors"
                   disabled={submitting}
                 />
                 <button
@@ -117,7 +124,7 @@ const PortalLogin = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[var(--portal-primary)] hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-[var(--portal-hero)] hover:bg-[color-mix(in_srgb,var(--portal-hero)_85%,black)] text-white font-semibold py-3.5 rounded-2xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
             >
               {submitting ? (
                 <>
@@ -131,7 +138,7 @@ const PortalLogin = () => {
 
             <Link
               to="/portal/olvide-contrasena"
-              className="block text-center text-sm text-[var(--portal-primary)] hover:underline mt-1"
+              className="block text-center text-sm text-[var(--portal-tint-ink)] font-medium hover:underline underline-offset-4 py-2"
             >
               ¿Olvidaste tu contraseña?
             </Link>
@@ -140,9 +147,10 @@ const PortalLogin = () => {
 
         <BannerInstalarApp className="mt-4" />
 
-        <p className="text-center text-xs text-[var(--ash)] mt-6">
+        <p className="text-center text-xs text-[var(--portal-muted)] mt-6">
           ¿Problemas para acceder? Contacta a la administración del colegio.
         </p>
+        </div>
       </div>
     </div>
   );
