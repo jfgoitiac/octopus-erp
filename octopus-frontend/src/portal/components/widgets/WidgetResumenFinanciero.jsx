@@ -46,19 +46,15 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
           <CheckCircle size={18} className="text-[var(--green)] flex-shrink-0" aria-hidden="true" />
         )}
         <h3 id="resumen-financiero" className={`font-semibold text-sm ${tieneDeuda ? 'text-[var(--red)]' : 'text-[var(--green)]'}`}>
-          {tieneDeuda
-            ? (variosAlumnos ? 'Deuda de la familia' : 'Deuda pendiente')
-            : 'Solvente: al día con los pagos'}
+          {tieneDeuda ? 'Pendiente de pago' : 'Solvente: al día con los pagos'}
         </h3>
       </div>
 
+      {/* El total ya está en el saludo de arriba: aquí solo el detalle. */}
       {tieneDeuda && (
-        <div className="mb-3">
-          <MontoRef usd={resumen.total_deuda_usd} tasaBcv={tasaBcv} size="lg" align="left" colorRef="text-[var(--red)]" colorBs="text-[var(--red)]" />
-          <p className="mt-1 text-xs text-[var(--jet-mid)]">
-            {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'} pendiente{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos ? ' entre todos tus hijos' : ''}.
-          </p>
-        </div>
+        <p className="mb-3 text-xs text-[var(--jet-mid)]">
+          {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos ? ' entre todos tus hijos' : ''}. Toca "Pagar" en el mes que ya pagaste para enviar el comprobante.
+        </p>
       )}
 
       {mensualidades.length > 0 && (

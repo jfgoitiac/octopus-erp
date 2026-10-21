@@ -6,7 +6,10 @@ import { textoVencimiento } from '../../utils/fechas';
 
 /** Saludo + estado de cuenta de la familia, con el siguiente paso a la vista. */
 const WidgetHeroPortal = ({ nombre, resumen, logoColegio, variosAlumnos = false, loadingResumen = false, onPagar = null }) => {
-  const hoy = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  // Solo la primera letra en mayúscula: "Miércoles 21 de octubre" (la clase
+  // `capitalize` producía "21 De Octubre").
+  const fecha = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  const hoy = fecha.charAt(0).toUpperCase() + fecha.slice(1);
   const deuda = Number(resumen?.total_deuda_usd || 0);
   const pendiente = resumen?.mensualidades_vencidas?.[0];
 
@@ -24,7 +27,7 @@ const WidgetHeroPortal = ({ nombre, resumen, logoColegio, variosAlumnos = false,
       {logoColegio && <img src={logoColegio} alt="" aria-hidden="true" className="pointer-events-none absolute -right-6 -bottom-8 h-36 w-36 object-contain opacity-15" />}
       <div className="relative flex flex-col gap-5 p-5 sm:p-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs capitalize text-white/80">{hoy}</p>
+          <p className="text-xs text-white/80">{hoy}</p>
           <h1 className="mt-1 text-xl sm:text-2xl font-bold">Hola, {nombre || 'familia'}</h1>
           <p className="mt-2 max-w-xl text-sm text-white/90">Aquí tienes lo importante de tu familia en el colegio.</p>
         </div>
