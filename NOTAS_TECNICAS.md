@@ -4291,3 +4291,11 @@ Deuda técnica detectada (solo anotada, no implementada):
    representante"). Si el panel agrega notas internas, deben ir en otro campo.
 6. **Prompt de notificaciones** (`NotificacionesModal`, `bottom-[70px]`) puede
    tapar el botón fijo "Reportar un pago" en móvil hasta que se descarta.
+7. **Refresh del panel en el portal**: `context/AuthContext.jsx` (panel
+   administrativo) envuelve toda la app y en cada carga hace
+   `POST /api/token/refresh/`; en el portal responde 401 y deja un error en la
+   consola del representante en todas las páginas. No afecta el portal (usa
+   `portal_token`), pero conviene no montar `AuthProvider` bajo `/portal`.
+   Visto en la auditoría con Playwright (360/768/1366/1920): sin desborde
+   horizontal, sin controles cortados, sin `$` sueltos ni texto de incidentes,
+   y el botón "Enviar comprobante" visible en 360×640.
