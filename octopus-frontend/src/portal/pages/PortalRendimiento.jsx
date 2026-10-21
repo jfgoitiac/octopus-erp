@@ -20,9 +20,9 @@ const PortalRendimiento = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-[var(--jet)] flex items-center gap-2">
+        <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
           <TrendingUp size={20} style={{ color: 'var(--portal-primary)' }} />
-          Rendimiento Académico
+          Rendimiento académico
         </h1>
         <p className="text-xs text-[var(--ash)] mt-0.5">Notas y asistencia por lapso</p>
       </div>
@@ -59,13 +59,13 @@ const PortalRendimiento = () => {
       ) : (
         <>
           <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
-            <h2 className="text-sm font-semibold text-[var(--jet-mid)] mb-3">Promedio General por Lapso</h2>
+            <h2 className="text-sm font-semibold text-[var(--jet-mid)] mb-3">Promedio general por lapso</h2>
             <GraficaPromedioLapsos porLapso={rendimiento.por_lapso} />
           </div>
 
           <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
             <h2 className="text-sm font-semibold text-[var(--jet-mid)] mb-3">
-              Por Materia {ultimoLapsoConNotas ? `— ${ultimoLapsoConNotas.lapso}` : ''}
+              Por materia {ultimoLapsoConNotas ? `— ${ultimoLapsoConNotas.lapso}` : ''}
             </h2>
             <GraficaPorMateria porMateria={ultimoLapsoConNotas?.por_materia || []} />
           </div>

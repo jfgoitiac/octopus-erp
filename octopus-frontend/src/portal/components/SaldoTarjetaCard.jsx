@@ -1,5 +1,6 @@
 import { Wallet, AlertTriangle, CreditCard } from 'lucide-react';
 import SkeletonCard from './SkeletonCard';
+import { fmtMonto } from '../utils/montos';
 
 /**
  * SaldoTarjetaCard
@@ -43,13 +44,13 @@ const SaldoTarjetaCard = ({ saldoTarjeta, loading, onRecargar }) => {
       </div>
 
       <p className={`text-3xl font-bold ${esNegativo ? 'text-[var(--red)]' : 'text-[var(--jet)]'}`}>
-        ${saldo.toFixed(2)}
+        {saldo < 0 ? '-' : ''}REF. {fmtMonto(Math.abs(saldo))}
       </p>
 
       {esNegativo && (
         <p className="text-xs text-[var(--red)] mt-1">
           Saldo negativo{diasNegativo ? ` desde hace ${diasNegativo} día${diasNegativo === 1 ? '' : 's'}` : ''}.
-          {' '}Crédito disponible: ${Number(saldoTarjeta.limite_credito ?? 0).toFixed(2)}.
+          {' '}Crédito disponible: REF. {fmtMonto(saldoTarjeta.limite_credito)}.
         </p>
       )}
 

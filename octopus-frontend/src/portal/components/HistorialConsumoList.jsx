@@ -1,16 +1,9 @@
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 import { SkeletonLine } from './SkeletonCard';
+import { fmtFecha } from '../utils/fechas';
+import { fmtMonto } from '../utils/montos';
 
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '—';
-  try {
-    return format(new Date(fechaStr), "d 'de' MMM yyyy, HH:mm", { locale: es });
-  } catch {
-    return fechaStr;
-  }
-};
+const formatFecha = (fechaStr) => fmtFecha(fechaStr, "d 'de' MMM yyyy, h:mm a");
 
 const TIPO_LABELS = {
   recarga: 'Recarga',
@@ -75,11 +68,11 @@ const HistorialConsumoList = ({ movimientos = [], loading, pagina = 1, totalPagi
                     {mov.tipo_display || TIPO_LABELS[mov.tipo] || mov.tipo}
                   </p>
                   <p className="text-sm text-[var(--ash)] mt-0.5">{formatFecha(mov.creado_en)}</p>
-                  <p className="text-xs text-[var(--ash)]">Saldo luego del movimiento: ${Number(mov.saldo_despues ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-[var(--ash)]">Saldo después: REF. {fmtMonto(mov.saldo_despues)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <p className={`text-sm font-semibold ${esPositivo ? 'text-[var(--green)]' : 'text-[var(--jet)]'}`}>
-                    {esPositivo ? '+' : '-'}${Math.abs(monto).toFixed(2)}
+                    {esPositivo ? '+' : '-'} REF. {fmtMonto(Math.abs(monto))}
                   </p>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TIPO_BADGE[mov.tipo] || 'bg-[var(--surface-sunken)] text-[var(--jet-mid)]'}`}>
                     {mov.tipo_display || TIPO_LABELS[mov.tipo] || mov.tipo}

@@ -1,19 +1,9 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 import { Megaphone, Paperclip, CheckCircle2 } from 'lucide-react';
 import { getCirculares, confirmarLectura } from '../api/comunicacion.service';
 import { SkeletonLine } from '../components/SkeletonCard';
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '—';
-  try {
-    return format(new Date(fechaStr), "d 'de' MMM yyyy", { locale: es });
-  } catch {
-    return fechaStr;
-  }
-};
+import { fmtFecha as formatFecha } from '../utils/fechas';
 
 const PortalComunicaciones = () => {
   const [circulares, setCirculares] = useState([]);
@@ -26,7 +16,7 @@ const PortalComunicaciones = () => {
       .then(res => setCirculares(res.data || []))
       .catch(err => {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-        toast.error('No se pudo cargar las comunicaciones.');
+        toast.error('No se pudieron cargar los avisos. Intenta más tarde.');
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
@@ -39,7 +29,7 @@ const PortalComunicaciones = () => {
       setCirculares(prev => prev.map(c =>
         c.id === circularId ? { ...c, leido: true, fecha_lectura: new Date().toISOString() } : c
       ));
-      toast.success('Circular marcada como leída.');
+      toast.success('Listo, el colegio sabe que leíste este aviso.');
     } catch {
       toast.error('No se pudo confirmar la lectura.');
     } finally {
@@ -54,8 +44,8 @@ const PortalComunicaciones = () => {
       {/* Encabezado */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-[var(--jet)]">Comunicaciones</h1>
-          <p className="text-xs text-[var(--ash)] mt-0.5">Circulares y avisos del colegio</p>
+          <h1 className="text-lg font-bold text-[var(--jet)]">Avisos del colegio</h1>
+          <p className="text-xs text-[var(--ash)] mt-0.5">Circulares y comunicados para tu familia</p>
         </div>
         {noLeidas > 0 && (
           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[var(--yellow-light)] text-[var(--yellow)] flex-shrink-0">
@@ -81,7 +71,7 @@ const PortalComunicaciones = () => {
       ) : circulares.length === 0 ? (
         <div className="bg-[var(--surface)] rounded-2xl p-8 border border-[var(--border)] text-center">
           <Megaphone size={32} className="text-[var(--border-md)] mx-auto mb-3" />
-          <p className="text-sm text-[var(--ash)]">No hay circulares publicadas.</p>
+          <p className="text-sm text-[var(--ash)]">El colegio aún no ha publicado avisos.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -94,7 +84,7 @@ const PortalComunicaciones = () => {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   {!c.leido && <span className="w-2 h-2 rounded-full bg-[var(--portal-primary)] flex-shrink-0" />}
-                  <p className="text-sm font-medium text-[var(--jet)] truncate">{c.titulo}</p>
+                  <p className="text-sm font-semibold text-[var(--jet)] break-words">{c.titulo}</p>
                 </div>
                 <span className="text-xs text-[var(--ash)] flex-shrink-0">{formatFecha(c.fecha_publicacion)}</span>
               </div>
@@ -107,7 +97,7 @@ const PortalComunicaciones = () => {
                     href={c.adjunto}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs font-medium text-[var(--portal-primary)]"
+                    className="flex items-center gap-1 text-sm font-medium text-[var(--portal-primary)] min-h-[44px]"
                   >
                     <Paperclip size={13} /> Ver adjunto
                   </a>
@@ -122,10 +112,10 @@ const PortalComunicaciones = () => {
                     <button
                       onClick={() => handleConfirmar(c.id)}
                       disabled={confirmando === c.id}
-                      className="text-xs font-medium px-3 py-1.5 rounded-full text-white disabled:opacity-50 min-h-[32px]"
+                      className="text-sm font-semibold px-4 rounded-full text-white disabled:opacity-50 min-h-[44px]"
                       style={{ background: 'var(--portal-primary)' }}
                     >
-                      {confirmando === c.id ? 'Confirmando...' : 'He leído'}
+                      {confirmando === c.id ? 'Confirmando…' : 'Confirmar que lo leí'}
                     </button>
                   )
                 )}
