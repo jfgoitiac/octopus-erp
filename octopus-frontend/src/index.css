@@ -74,16 +74,16 @@
   --portal-secondary: var(--pb-mid);
   --portal-ink:       var(--jet);
   --portal-muted:     #646b78;
-  /* Lienzo gris muy claro, apenas teñido con la marca del colegio */
-  --portal-canvas:    color-mix(in srgb, var(--portal-primary) 3%, #f2f3f6);
+  /* Lienzo gris-lavanda muy claro, apenas teñido con la marca del colegio */
+  --portal-canvas:    color-mix(in srgb, var(--portal-primary) 3%, #f4f5f9);
   --portal-surface:   #ffffff;
-  --portal-line:      rgba(43,48,58,0.08);
+  --portal-line:      rgba(43,48,58,0.07);
   --portal-tint:      color-mix(in srgb, var(--portal-primary) 10%, #ffffff);
   --portal-tint-ink:  color-mix(in srgb, var(--portal-primary) 70%, #0f172a);
   /* Fondo del bloque protagonista: la marca oscurecida para que el texto
      blanco cumpla contraste con cualquier color que configure el colegio */
   --portal-hero:      color-mix(in srgb, var(--portal-primary) 76%, #0f172a);
-  --portal-shadow:    0 1px 2px rgba(43,48,58,0.04), 0 10px 28px rgba(43,48,58,0.06);
+  --portal-shadow:    0 1px 2px rgba(43,48,58,0.03), 0 12px 32px rgba(43,48,58,0.05);
   --portal-radius:    24px;
   --portal-radius-sm: 16px;
   --portal-radius-xl: 32px;
@@ -100,13 +100,13 @@ html { scroll-behavior: smooth; }
    para navegadores sin soporte de `clip`. */
 html, body { overflow-x: hidden; overflow-x: clip; }
 
-/* Portal de representantes — lienzo claro, tarjetas blancas holgadas y un
-   único bloque protagonista con el color del colegio. Ver DESIGN.md. */
+/* Portal de representantes — riel y encabezado blancos, lienzo gris-lavanda,
+   tarjetas blancas holgadas y un único acento: el color del colegio. Ver DESIGN.md. */
 .portal-shell { background: var(--portal-canvas); color: var(--portal-ink); }
 .portal-shell ::selection { background: color-mix(in srgb, var(--portal-primary) 22%, white); color: var(--portal-ink); }
 .portal-shell :focus-visible { outline: 2px solid var(--portal-primary); outline-offset: 2px; }
 .portal-topbar {
-  background: color-mix(in srgb, var(--portal-canvas) 86%, transparent);
+  background: color-mix(in srgb, var(--portal-surface) 92%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -159,7 +159,8 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 /* Etiqueta discreta en tipo de oración (sin mayúsculas sostenidas) */
 .portal-kicker { color: var(--portal-muted); font-size: .8125rem; font-weight: 500; }
 .portal-page-title { color: var(--portal-ink); font-weight: 700; letter-spacing: -.025em; line-height: 1.15; }
-.portal-section-title { color: var(--portal-ink); font-weight: 650; letter-spacing: -.02em; line-height: 1.2; text-wrap: balance; }
+/* Títulos de sección grandes y livianos */
+.portal-section-title { color: var(--portal-ink); font-weight: 500; letter-spacing: -.015em; line-height: 1.2; text-wrap: balance; }
 .portal-amount { color: var(--portal-ink); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .portal-avatar {
   display: inline-flex;
@@ -183,11 +184,11 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 }
 .portal-action:hover { transform: translateY(-2px); box-shadow: var(--portal-shadow); border-color: color-mix(in srgb, var(--portal-primary) 22%, white); }
 
-/* Riel lateral: el activo es una píldora blanca sobre el lienzo */
-.portal-rail-link { color: var(--portal-muted); transition: color .16s ease, background .16s ease, box-shadow .16s ease; }
-.portal-rail-link:hover { color: var(--portal-ink); background: color-mix(in srgb, var(--portal-surface) 60%, transparent); }
-.portal-rail-link.active { color: var(--portal-ink); background: var(--portal-surface); box-shadow: 0 1px 2px rgba(43,48,58,.05), 0 6px 16px rgba(43,48,58,.05); }
-.portal-rail-link.active svg { color: var(--portal-primary); }
+/* Riel lateral blanco: el activo pasa a tinta plena con el ícono en la marca */
+.portal-rail-link { color: var(--portal-muted); transition: color .16s ease, background .16s ease; }
+.portal-rail-link:hover { color: var(--portal-ink); background: var(--portal-canvas); }
+.portal-rail-link.active { color: var(--portal-ink); font-weight: 600; background: var(--portal-tint); }
+.portal-rail-link.active svg { color: var(--portal-tint-ink); }
 
 /* Barra inferior móvil: el activo lleva una píldora teñida detrás del ícono */
 .portal-tab { color: var(--portal-muted); transition: color .16s ease; }
