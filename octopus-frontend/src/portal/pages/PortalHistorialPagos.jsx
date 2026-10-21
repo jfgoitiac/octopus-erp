@@ -1,42 +1,16 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Receipt, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getDashboard, getHistorial, getReciboPago } from '../api/portal.service';
 import { descargarPdf, nombreArchivoPdf } from '../../utils/pdfArchivo';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
-import SkeletonCard from '../components/SkeletonCard';
 import { SkeletonLine } from '../components/SkeletonCard';
 
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '—';
-  try {
-    return format(new Date(fechaStr), "d 'de' MMM yyyy", { locale: es });
-  } catch {
-    return fechaStr;
-  }
-};
-
-const EstatusBadge = ({ estatus }) => {
-  const config = {
-    completado: 'bg-[var(--green-light)] text-[var(--green)]',
-    anulado: 'bg-[var(--red-light)] text-[var(--red)]',
-    en_revision: 'bg-[var(--yellow-light)] text-[var(--yellow)]',
-  };
-  const labels = {
-    completado: 'Pagado',
-    anulado: 'Anulado',
-    en_revision: 'En revisión',
-  };
-  const cls = config[estatus] || 'bg-[var(--surface-sunken)] text-[var(--jet-mid)]';
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>
-      {labels[estatus] || estatus}
-    </span>
-  );
-};
+import { fmtFecha } from '../utils/fechas';
+import { fmtMonto } from '../utils/montos';
+import { ESTATUS_PAGO, etiquetaMetodoPago } from '../utils/estados';
+import EstadoBadge from '../components/EstadoBadge';
 
 const PortalHistorialPagos = () => {
   const [alumnos, setAlumnos] = useState([]);
@@ -176,14 +150,14 @@ const PortalHistorialPagos = () => {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[var(--jet)] line-clamp-2">{pago.concepto}</p>
-                  <p className="text-sm text-[var(--ash)] mt-0.5">{formatFecha(pago.fecha_pago)}</p>
-                  <p className="text-sm text-[var(--ash)] capitalize">{pago.metodo_pago || 'Transferencia'}</p>
+                  <p className="text-sm text-[var(--ash)] mt-0.5">{fmtFecha(pago.fecha_pago)}</p>
+                  {pago.metodo_pago && <p className="text-sm text-[var(--ash)]">{etiquetaMetodoPago(pago.metodo_pago)}</p>}
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <p className="text-sm font-semibold text-[var(--jet)]">
-                    ${Number(pago.monto_usd).toFixed(2)}
+                    REF. {fmtMonto(pago.monto_usd)}
                   </p>
-                  <EstatusBadge estatus={pago.estatus} />
+                  <EstadoBadge estado={ESTATUS_PAGO[pago.estatus]} fallback={pago.estatus} />
                   {pago.estatus === 'completado' && (
                     <button
                       type="button"

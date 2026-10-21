@@ -4252,3 +4252,42 @@ abonos de CxC (migración `cantina/0009_clientes_cxc`). Deuda técnica detectada
 ## Módulo sitio institucional eliminado (2026-10-17)
 
 Módulo sitio institucional eliminado, incluidas sus tablas `sitio_*` (migración de limpieza en secretaria).
+
+## Auditoría del portal de representantes (2026-10-21)
+
+Incidentes disciplinarios: confirmado que el representante NO los ve (el portal
+no tiene pantalla ni endpoint de incidentes; `AdminJWTAuthentication` rechaza el
+token del portal en `/api/academico/incidentes/`). Fijado con
+`portal.tests.PortalSinIncidentesDisciplinariosTests`. Ya corregido en esta
+auditoría: estado y motivo de rechazo de comprobantes visibles en el inicio,
+elección de qué mensualidad se paga, fechas sin desfase de zona horaria
+(`portal/utils/fechas.js`), montos siempre en `REF.` con formato es-VE.
+
+Deuda técnica detectada (solo anotada, no implementada):
+
+1. **Abonos parciales**: `MensualidadSerializer.monto_total` y
+   `total_deuda_usd` del dashboard usan `monto_usd` completo e ignoran
+   `monto_pagado`. Tras un abono parcial el portal muestra la mensualidad
+   completa como deuda. El campo `saldo` existe pero nadie lo usa. Corregirlo
+   toca el cálculo financiero (recargos/descuentos sobre saldo o sobre monto):
+   decidir con cobranza antes de cambiarlo.
+2. **Un comprobante por mensualidad**: si una familia paga varios meses (o
+   varios hijos) en una sola transferencia, no puede reportarlo desde el
+   portal: el antifraude por hash de archivo y por referencia bloquea el
+   segundo envío. Hoy el modal lo explica y deriva a administración. Requiere
+   un comprobante con N mensualidades (cambio de modelo).
+3. **`ultimos_pagos` sin `alumno_id`**: `PagoHistorialSerializer` no expone el
+   alumno; el inicio filtraba por hijo con un campo inexistente y la lista
+   quedaba vacía con varios hijos. Se resolvió mostrando los pagos de la familia;
+   si se quiere filtrar por hijo, exponer el alumno (titular y hermanos de pago
+   conjunto vía `pagos_de_alumno`).
+4. **Lista de hijos vía `dashboard/`**: Historial, Mensajes, Rendimiento, Plan y
+   Cantina llaman al dashboard completo (deuda, recargos, tasa) solo para obtener
+   la lista de alumnos. Conviene un endpoint liviano `portal/alumnos/` o cachear
+   la lista en `AlumnoActivoContext`.
+5. **Observaciones del comprobante**: el portal ahora muestra
+   `ComprobantePago.observaciones` al representante cuando el comprobante es
+   rechazado (el prompt del panel ya dice "motivo del rechazo para el
+   representante"). Si el panel agrega notas internas, deben ir en otro campo.
+6. **Prompt de notificaciones** (`NotificacionesModal`, `bottom-[70px]`) puede
+   tapar el botón fijo "Reportar un pago" en móvil hasta que se descarta.

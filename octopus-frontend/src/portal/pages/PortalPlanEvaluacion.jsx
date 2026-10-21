@@ -53,7 +53,7 @@ export default function PortalPlanEvaluacion() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-[var(--jet)] flex items-center gap-2">
+        <h1 className="text-lg font-bold text-[var(--jet)] flex items-center gap-2">
           <ClipboardList size={20} style={{ color: 'var(--portal-primary)' }} />
           Plan de evaluación
         </h1>

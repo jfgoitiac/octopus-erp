@@ -1,38 +1,10 @@
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { Clock, ArrowRight } from 'lucide-react';
 import SkeletonCard from '../SkeletonCard';
-
-// Formatea fecha con año: "12 de mayo 2025"
-const formatFechaConAnio = (fechaStr) => {
-  if (!fechaStr) return '—';
-  try {
-    return format(new Date(fechaStr), "d 'de' MMMM yyyy", { locale: es });
-  } catch {
-    return fechaStr;
-  }
-};
-
-// Badge de estatus de pago
-const EstatusBadge = ({ estatus }) => {
-  const config = {
-    completado: 'bg-[var(--green-light)] text-[var(--green)]',
-    anulado: 'bg-[var(--red-light)] text-[var(--red)]',
-    en_revision: 'bg-[var(--yellow-light)] text-[var(--yellow)]',
-  };
-  const labels = {
-    completado: 'Pagado',
-    anulado: 'Anulado',
-    en_revision: 'En revisión',
-  };
-  const cls = config[estatus] || 'bg-[var(--surface-sunken)] text-[var(--jet-mid)]';
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>
-      {labels[estatus] || estatus}
-    </span>
-  );
-};
+import { fmtMonto } from '../../utils/montos';
+import { fmtFecha } from '../../utils/fechas';
+import { ESTATUS_PAGO } from '../../utils/estados';
+import EstadoBadge from '../EstadoBadge';
 
 const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
   if (loading) {
@@ -42,33 +14,33 @@ const WidgetUltimosPagos = ({ ultimosPagos, loading }) => {
   if (!ultimosPagos?.length) return null;
 
   return (
-    <section className="portal-card portal-card--soft p-5 h-full">
-      <div className="flex items-center justify-between mb-3">
+    <section className="portal-card portal-card--soft p-4 sm:p-5" aria-labelledby="ultimos-pagos">
+      <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <Clock size={16} className="text-[var(--portal-primary)]" />
-          <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Últimos pagos</h2>
+          <Clock size={16} className="text-[var(--portal-primary)]" aria-hidden="true" />
+          <h3 id="ultimos-pagos" className="text-sm font-semibold text-[var(--jet)]">Últimos pagos</h3>
         </div>
         <Link
           to="/portal/historial"
-          className="flex items-center gap-1 text-sm text-[var(--portal-primary)] py-2 px-1 -mx-1 min-h-[44px] hover:underline"
+          className="flex items-center gap-1 text-sm text-[var(--portal-primary)] px-1 min-h-[44px] hover:underline"
         >
-          Ver todos <ArrowRight size={14} />
+          Ver todos <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </div>
-      <div className="space-y-2">
+      <ul className="divide-y divide-[var(--border)]">
         {ultimosPagos.slice(0, 3).map((pago) => (
-          <div key={pago.id} className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0">
-            <div>
-              <p className="text-sm text-[var(--jet-mid)]">{pago.concepto}</p>
-              <p className="text-xs text-[var(--ash)]">{formatFechaConAnio(pago.fecha_pago)}</p>
+          <li key={pago.id} className="flex items-center justify-between gap-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm text-[var(--jet)] line-clamp-2">{pago.concepto}</p>
+              <p className="text-xs text-[var(--ash)]">{fmtFecha(pago.fecha_pago, "d 'de' MMMM yyyy")}</p>
             </div>
-            <div className="text-right flex flex-col items-end gap-1">
-              <p className="text-sm font-semibold text-[var(--jet)]">${Number(pago.monto_usd).toFixed(2)}</p>
-              <EstatusBadge estatus={pago.estatus} />
+            <div className="text-right flex flex-col items-end gap-1 flex-shrink-0">
+              <p className="text-sm font-semibold text-[var(--jet)] whitespace-nowrap">REF. {fmtMonto(pago.monto_usd)}</p>
+              <EstadoBadge estado={ESTATUS_PAGO[pago.estatus]} fallback={pago.estatus} />
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 };

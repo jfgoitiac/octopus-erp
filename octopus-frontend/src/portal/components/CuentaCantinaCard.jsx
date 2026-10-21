@@ -1,19 +1,10 @@
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { HandCoins, Receipt } from 'lucide-react';
 import SkeletonCard, { SkeletonLine } from './SkeletonCard';
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '—';
-  try {
-    return format(new Date(fechaStr), "d 'de' MMM yyyy", { locale: es });
-  } catch {
-    return fechaStr;
-  }
-};
+import { fmtFecha as formatFecha } from '../utils/fechas';
+import { fmtMonto } from '../utils/montos';
 
 // Del lado del representante solo dólares de referencia, sin bolívares.
-const usd = (valor) => `REF. ${Number(valor ?? 0).toFixed(2)}`;
+const usd = (valor) => `REF. ${fmtMonto(valor)}`;
 
 /**
  * CuentaCantinaCard — deuda de cantina/librería del representante (solo lectura).
