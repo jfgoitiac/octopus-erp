@@ -385,25 +385,39 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
     mensualidad/cuota que había marcado como pagada. No borra el registro
     (auditoría) — solo cambia estatus, y HistoricalRecords deja constancia.
 
-    LIMITACIÓN CONOCIDA: un pago vinculado a CuotaProyectoInversion solo se
-    anula si esa cuota no recibió abonos de otros pagos vigentes. Los abonos
-    son parciales y no queda registrado, por pago, cuánto abonó cada uno
-    (solo el monto_pagado acumulado de la cuota) — con varios pagos no hay
-    forma segura de saber cuánto restarle. Ver NOTAS_TECNICAS.md.
+    Para operaciones nuevas, AplicacionPago conserva el importe exacto por
+    cuota y permite revertir una sola aplicación aunque existan abonos
+    posteriores. Los registros históricos sin aplicaciones conservan la
+    protección anterior cuando no se puede inferir una reversión segura.
     """
     if pago.estatus == 'anulado':
         raise ValidationError({'estatus': 'Este pago ya fue anulado anteriormente.'})
+
+    # Las aplicaciones pertenecen al pago principal de una operación mixta.
+    # Anular solo un método hermano no permite decidir qué deuda deshacer; se
+    # bloquea antes de caer en el camino legado que podría resetear montos.
+    pago_principal = Pago.objects.filter(operacion_uuid=pago.operacion_uuid).order_by('id').first()
+    if pago_principal and pago_principal.id != pago.id and pago_principal.aplicaciones.filter(
+        anulada_en__isnull=True
+    ).exists():
+        raise ValidationError({
+            'estatus': (
+                'Esta operación usa varios métodos de pago. Anule el pago principal '
+                f'#{pago_principal.id} para revertir sus aplicaciones de deuda de forma segura.'
+            )
+        })
 
     # Cargo especial: la anulación es exacta solo si ningún OTRO pago vigente
     # abonó a la misma cuota (entonces todo su monto_pagado viene de este
     # pago y revertirlo a 0 es seguro). Con abonos de varios pagos no hay
     # snapshot por pago, así que se mantiene el bloqueo.
+    aplicaciones_vigentes = list(pago.aplicaciones.filter(anulada_en__isnull=True))
     cuotas_proyecto = list(pago.proyectos_inversion_pagados.all())
     cuotas_compartidas = [
         c for c in cuotas_proyecto
         if c.pagos.exclude(id=pago.id).exclude(estatus='anulado').exists()
     ]
-    if cuotas_compartidas:
+    if cuotas_compartidas and not aplicaciones_vigentes:
         raise ValidationError({
             'proyecto_inversion': (
                 'No se puede anular automáticamente un pago vinculado a un cargo '
@@ -422,6 +436,21 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         })
 
     with transaction.atomic():
+        # Las operaciones nuevas conservan el importe exacto aplicado a cada
+        # deuda. Revertirlas de forma granular evita que anular un abono de
+        # $10 borre otro abono posterior de $10 sobre la misma mensualidad.
+        if aplicaciones_vigentes:
+            from .deudas import revertir_aplicaciones_pago
+            revertir_aplicaciones_pago(pago, timezone.now())
+            pago.lineas_recargo.all().delete()
+            pago.lineas_descuento.all().delete()
+            pago.estatus = 'anulado'
+            pago.anulado_en = timezone.now()
+            pago.anulado_por = usuario
+            pago.observaciones = f"[ANULACIÓN] {motivo}\n{pago.observaciones or ''}"
+            pago.save()
+            return pago
+
         # Mensualidad ahora deriva pagado/fecha_pago de monto_pagado (abono
         # parcial, ver Mensualidad.save()) — hay que revertir monto_pagado
         # también, si no la fila queda inconsistente (pagado=False pero

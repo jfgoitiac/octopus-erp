@@ -1,6 +1,8 @@
 from datetime import date
 from django.db import models
 from django.db.models import Sum
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from secretaria.models import Alumno
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -1277,6 +1279,52 @@ class LineaDescuentoPago(models.Model):
 
     def __str__(self):
         return f"Descuento '{self.nombre}' - Pago {self.pago_id} - Mensualidad {self.mensualidad_id}"
+
+
+class AplicacionPago(models.Model):
+    """Abono inmutable de una operación a una deuda concreta.
+
+    ``monto_pagado`` de las cuotas es el saldo acumulado rápido para las
+    consultas existentes. Esta tabla es el libro auxiliar que conserva cuánto
+    aplicó *cada operación*; sin ella no es posible emitir un recibo parcial
+    correcto ni revertir un abono cuando la cuota recibió más de un pago.
+
+    Se enlaza al primer Pago de una operación (el mismo que identifica el
+    recibo). Los pagos hermanos representan métodos de pago, no aplicaciones
+    distintas de la deuda.
+    """
+    pago = models.ForeignKey(Pago, on_delete=models.PROTECT, related_name='aplicaciones')
+    content_type = models.ForeignKey(ContentType, on_delete=models.PROTECT)
+    object_id = models.PositiveIntegerField()
+    deuda = GenericForeignKey('content_type', 'object_id')
+    monto_nominal_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_abonado_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_ajuste_usd = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        help_text='Crédito no cobrado, por ejemplo un descuento aprobado.'
+    )
+    saldo_resultante_usd = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text='Saldo de la deuda inmediatamente después de esta aplicación.'
+    )
+    creada_en = models.DateTimeField(auto_now_add=True)
+    anulada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('pago', 'content_type', 'object_id'),
+                name='aplicacion_unica_por_pago_y_deuda',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(monto_abonado_usd__gte=0) & models.Q(monto_ajuste_usd__gte=0),
+                name='aplicacion_montos_no_negativos',
+            ),
+        ]
+        ordering = ('id',)
+
+    def __str__(self):
+        return f"Aplicación ${self.monto_abonado_usd} — pago {self.pago_id}"
 
 
 class ConfiguracionCobranzaInteligente(models.Model):

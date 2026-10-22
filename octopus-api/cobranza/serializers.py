@@ -40,6 +40,39 @@ def calcular_desglose_automatico(principal_pago):
     if not principal_pago:
         return []
 
+    # Desde AplicacionPago el importe de la línea es el abono de ESTA
+    # operación, no el nominal de una cuota enlazada por M2M. El fallback
+    # histórico de abajo conserva los comprobantes anteriores a la migración.
+    from .deudas import aplicaciones_operacion, item_deuda
+    aplicaciones = aplicaciones_operacion(principal_pago)
+    if aplicaciones:
+        etiquetas = {
+            'mensualidad': 'MENSUALIDAD', 'inscripcion': 'INSCRIPCIÓN',
+            'solvencia': 'SOLVENCIA', 'proyecto_inversion': 'PROYECTO DE INVERSIÓN',
+        }
+        tasa = principal_pago.tasa_aplicada or Decimal('0')
+        lineas = []
+        for aplicacion in aplicaciones:
+            deuda = aplicacion.deuda
+            if deuda is None:
+                continue
+            item = item_deuda(deuda)
+            abono = aplicacion.monto_abonado_usd
+            lineas.append({
+                'concepto': item['tipo'],
+                'concepto_display': etiquetas.get(item['tipo'], item['tipo'].upper()),
+                'descripcion': item['descripcion'],
+                'alumno': item['alumno'],
+                'monto_nominal_usd': str(aplicacion.monto_nominal_usd),
+                'monto_usd': str(abono),
+                'monto_ves': str((abono * tasa).quantize(Decimal('0.01'))),
+                'monto_abonado_usd': str(abono),
+                'monto_ajuste_usd': str(aplicacion.monto_ajuste_usd),
+                'saldo_pendiente_usd': str(aplicacion.saldo_resultante_usd),
+                'estado': 'parcial' if aplicacion.saldo_resultante_usd > 0 else 'saldada',
+            })
+        return lineas
+
     tasa = principal_pago.tasa_aplicada or Decimal('0')
     fecha_pago = principal_pago.fecha_pago
 
@@ -697,15 +730,34 @@ class PagoCreateSerializer(serializers.Serializer):
         # es rechazado, en vez de una condición de carrera donde ambos leen
         # `pagado=False` y ambos terminan cobrando la misma cuota.
         if todos_mensualidad_ids:
-            ya_pagada = Mensualidad.objects.select_related('alumno').select_for_update().filter(
-                id__in=todos_mensualidad_ids, pagado=True
-            ).first()
+            mensualidades_bloqueadas = list(
+                Mensualidad.objects.select_related('alumno').select_for_update().filter(
+                    id__in=todos_mensualidad_ids
+                )
+            )
+            ya_pagada = next((m for m in mensualidades_bloqueadas if m.pagado), None)
             if ya_pagada:
                 raise serializers.ValidationError(
                     f"La mensualidad de {ya_pagada.get_mes_display()} {ya_pagada.anio} de "
                     f"{ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} ya está pagada. "
                     "Actualice la página antes de continuar (posible doble envío)."
                 )
+            montos_mensualidades = data.get('montos_mensualidades') or {}
+            mensualidades_por_id = {m.id: m for m in mensualidades_bloqueadas}
+            for clave, monto_abonado in montos_mensualidades.items():
+                try:
+                    mensualidad_id = int(clave)
+                except (TypeError, ValueError):
+                    continue
+                mensualidad = mensualidades_por_id.get(mensualidad_id)
+                if not mensualidad:
+                    continue
+                saldo = mensualidad.monto_usd - mensualidad.monto_pagado
+                if Decimal(str(monto_abonado)) > saldo + Decimal('0.01'):
+                    raise serializers.ValidationError(
+                        f"El abono de {mensualidad.get_mes_display()} {mensualidad.anio} "
+                        f"excede el saldo pendiente (${saldo})."
+                    )
 
         if todos_cuota_inscripcion_ids:
             ya_pagada = CuotaInscripcion.objects.select_related('alumno').select_for_update().filter(
