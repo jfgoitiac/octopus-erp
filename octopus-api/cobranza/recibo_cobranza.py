@@ -104,8 +104,51 @@ def datos_recibo(pago):
     mes_str = MESES_ES[fecha.month - 1].capitalize()
     periodo_label = f"{mes_str} {fecha.year}"
 
+    # Las aplicaciones nuevas son el libro auxiliar exacto de la operación:
+    # un M2M solo dice que una cuota participó, no cuánto de ella se abonó.
+    # Se conserva el camino legado para recibos emitidos antes de esta tabla.
     desglose = c.get('desglose_conceptos') or []
-    if desglose:
+    from .deudas import aplicaciones_operacion, item_deuda
+    aplicaciones = aplicaciones_operacion(principal)
+    if aplicaciones:
+        etiquetas = {
+            'mensualidad': 'MENSUALIDAD', 'inscripcion': 'INSCRIPCIÓN',
+            'solvencia': 'SOLVENCIA', 'proyecto_inversion': 'PROYECTO DE INVERSIÓN',
+        }
+        items = []
+        for aplicacion in aplicaciones:
+            deuda = aplicacion.deuda
+            if deuda is None:
+                continue
+            detalle = item_deuda(deuda)
+            abono = _dec(aplicacion.monto_abonado_usd)
+            ajuste = _dec(aplicacion.monto_ajuste_usd)
+            es_parcial = _dec(aplicacion.saldo_resultante_usd) > 0
+            items.append({
+                'concepto': etiquetas.get(detalle['tipo'], detalle['tipo']),
+                'descripcion': f"{detalle['descripcion']} (ABONO PARCIAL)" if es_parcial else detalle['descripcion'],
+                'monto_ves': abono * tasa,
+                'monto_abonado_usd': abono,
+                'monto_ajuste_usd': ajuste,
+                'saldo_pendiente_usd': _dec(aplicacion.saldo_resultante_usd),
+                'alumno': detalle['alumno'] or None,
+                'es_parcial': es_parcial,
+            })
+        for linea in desglose:
+            if linea.get('concepto') != 'recargo_pago_tardio':
+                continue
+            items.append({
+                'concepto': linea.get('concepto_display') or 'RECARGO POR PAGO TARDÍO',
+                'descripcion': linea.get('descripcion') or 'Recargo por pago tardío',
+                'monto_ves': to_ves(linea.get('monto_ves'), linea.get('monto_usd')),
+                'alumno': linea.get('alumno') or None,
+                'es_recargo': True,
+            })
+        nota_abono = ' '.join(
+            f"Abono: ${it['monto_abonado_usd']:.2f}; saldo pendiente: ${it['saldo_pendiente_usd']:.2f}."
+            for it in items if it['es_parcial']
+        )
+    elif desglose:
         items = [{
             'concepto': dc.get('concepto_display') or dc.get('concepto') or c.get('concepto_display') or '',
             'descripcion': dc.get('descripcion') or periodo_label,
@@ -120,21 +163,22 @@ def datos_recibo(pago):
             'alumno': None,
         }]
 
-    # Abono parcial: el backend no guarda a qué línea se aplicó cada abono;
-    # se detecta comparando lo pagado contra lo que suman las líneas.
-    total_lineas_usd = sum((_dec(dc.get('monto_usd')) for dc in desglose), Decimal('0'))
-    pagado_usd = _dec(c.get('total_usd') or c.get('monto_usd'))
-    es_abono = total_lineas_usd > 0 and pagado_usd > 0 and pagado_usd < total_lineas_usd - Decimal('0.05')
-    saldo_usd = max(Decimal('0'), total_lineas_usd - pagado_usd)
-    nota_abono = ''
-    if es_abono:
-        monto_abono_ves = to_ves(c.get('total_ves'), pagado_usd)
-        if len(items) == 1:
-            items[0]['monto_ves'] = monto_abono_ves
-            items[0]['descripcion'] = f"{items[0]['descripcion']} (ABONO — saldo pendiente: ${saldo_usd:.2f})"
-        else:
-            nota_abono = (f"ABONO PARCIAL: se abonaron ${pagado_usd:.2f} de ${total_lineas_usd:.2f}. "
-                          f"Saldo pendiente: ${saldo_usd:.2f}.")
+    if not aplicaciones:
+        # Legado: el backend anterior no guardaba a qué línea se aplicó cada
+        # abono; se detecta comparando lo pagado contra las líneas nominales.
+        total_lineas_usd = sum((_dec(dc.get('monto_usd')) for dc in desglose), Decimal('0'))
+        pagado_usd = _dec(c.get('total_usd') or c.get('monto_usd'))
+        es_abono = total_lineas_usd > 0 and pagado_usd > 0 and pagado_usd < total_lineas_usd - Decimal('0.05')
+        saldo_usd = max(Decimal('0'), total_lineas_usd - pagado_usd)
+        nota_abono = ''
+        if es_abono:
+            monto_abono_ves = to_ves(c.get('total_ves'), pagado_usd)
+            if len(items) == 1:
+                items[0]['monto_ves'] = monto_abono_ves
+                items[0]['descripcion'] = f"{items[0]['descripcion']} (ABONO — saldo pendiente: ${saldo_usd:.2f})"
+            else:
+                nota_abono = (f"ABONO PARCIAL: se abonaron ${pagado_usd:.2f} de ${total_lineas_usd:.2f}. "
+                              f"Saldo pendiente: ${saldo_usd:.2f}.")
 
     alumnos_operacion = list(dict.fromkeys(it['alumno'] for it in items if it['alumno']))
     if len(alumnos_operacion) > 1:
@@ -157,6 +201,7 @@ def datos_recibo(pago):
         'ci_representante': ci_representante,
         'items': items,
         'hay_varios_alumnos': len(alumnos_operacion) > 1,
+        'es_abono_parcial': any(it.get('es_parcial') or 'ABONO' in str(it.get('descripcion', '')) for it in items),
         'observaciones': ' '.join(x for x in (c.get('observaciones'), nota_abono) if x),
         'numero_solvencia': c.get('numero_solvencia'),
     }
@@ -259,6 +304,25 @@ class _SelloPagado(Flowable):
         cv.setFillColor(SELLO)
         cv.setFont('Helvetica-Bold', 21)
         cv.drawCentredString(0, -7, 'PAGADO', charSpace=2.5)
+        cv.restoreState()
+
+
+class _SelloAbono(_SelloPagado):
+    """Un abono no puede llevar el sello de liquidación total."""
+    def draw(self):
+        cv = self.canv
+        r = self.LADO / 2
+        cv.saveState()
+        cv.translate(r, r)
+        cv.setStrokeColor(NAVY)
+        cv.setLineWidth(2.4)
+        cv.circle(0, 0, r - 1.5, stroke=1, fill=0)
+        cv.setLineWidth(0.9)
+        cv.circle(0, 0, r - 7, stroke=1, fill=0)
+        cv.rotate(20)
+        cv.setFillColor(NAVY)
+        cv.setFont('Helvetica-Bold', 16)
+        cv.drawCentredString(0, -6, 'ABONO', charSpace=1.5)
         cv.restoreState()
 
 
@@ -383,13 +447,18 @@ def _tabla_estudiante(pag, d):
 
 def _tabla_conceptos(pag, d):
     varios = d['hay_varios_alumnos']
-    proporciones = (0.20, 0.24, 0.30, 0.26) if varios else (0.34, 0.374, 0.286)
+    tiene_saldos = any('saldo_pendiente_usd' in it for it in d['items'])
+    if tiene_saldos:
+        proporciones = (0.17, 0.18, 0.24, 0.21, 0.20) if varios else (0.21, 0.27, 0.27, 0.25)
+    else:
+        proporciones = (0.20, 0.24, 0.30, 0.26) if varios else (0.34, 0.374, 0.286)
     anchos = [pag.ancho * f / sum(proporciones) for f in proporciones]
     n = len(anchos)
 
-    encabezados = (['ESTUDIANTE'] if varios else []) + ['CONCEPTO', 'PERIODO', 'MONTO BS.']
+    encabezados = (['ESTUDIANTE'] if varios else []) + ['CONCEPTO', 'PERIODO']
+    encabezados += ['ABONO BS.', 'SALDO PENDIENTE USD'] if tiene_saldos else ['MONTO BS.']
     filas = [
-        [_p('DETALLE DE CONCEPTOS PAGADOS', EST_SECCION)] + [''] * (n - 1),
+        [_p('DETALLE DE ABONOS APLICADOS' if tiene_saldos else 'DETALLE DE CONCEPTOS PAGADOS', EST_SECCION)] + [''] * (n - 1),
         [_p(t, EST_COLUMNA) for t in encabezados],
     ]
     altos = [21, 16]
@@ -401,8 +470,14 @@ def _tabla_conceptos(pag, d):
         fila += [
             _p(str(it['concepto']).upper(), EST_LB),
             _p(str(it['descripcion']).upper(), EST_C),
-            _p(f"Bs. {fmt_bs(monto)}" if monto else '', EST_R),
         ]
+        fila += [_p(f"Bs. {fmt_bs(monto)}" if monto else '', EST_R)]
+        if tiene_saldos:
+            if 'saldo_pendiente_usd' in it:
+                saldo = _dec(it['saldo_pendiente_usd'])
+                fila += [_p(f"$ {saldo:.2f}" if saldo else 'SALDADO', EST_R)]
+            else:
+                fila += [_p('—', EST_R)]
         filas.append(fila)
         altos.append(None)
     for _ in range(max(0, 3 - len(d['items']))):
@@ -438,7 +513,7 @@ def _tabla_observaciones(pag, d):
         celda_izq = ''
         alto_obs = 0
     return Table(
-        [[celda_izq, _SelloPagado()]],
+        [[celda_izq, _SelloAbono() if d.get('es_abono_parcial') else _SelloPagado()]],
         colWidths=[ancho_izq, pag.ancho - ancho_izq],
         rowHeights=[max(92, alto_obs + 30)],
         style=_estilo_tabla([

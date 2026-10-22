@@ -24,6 +24,11 @@ TOKENS_DISPONIBLES = [
     {'token': '{{colegio.nombre}}', 'etiqueta': 'Nombre del colegio', 'boton': '+ Nombre del colegio'},
     {'token': '{{portal.link}}', 'etiqueta': 'Enlace al portal', 'boton': '+ Enlace al portal'},
     {'token': '{{datos_bancarios}}', 'etiqueta': 'Datos bancarios', 'boton': '+ Datos bancarios'},
+    {'token': '{{recargo.aviso}}', 'etiqueta': 'Recordatorio para evitar recargos', 'boton': '+ Aviso de recargo'},
+    {'token': '{{mensualidades.detalle}}', 'etiqueta': 'Detalle de mensualidades pendientes', 'boton': '+ Detalle de mensualidades'},
+    {'token': '{{subtotal.principal}}', 'etiqueta': 'Subtotal de mensualidades', 'boton': '+ Subtotal mensualidades'},
+    {'token': '{{subtotal.recargos}}', 'etiqueta': 'Subtotal de recargos', 'boton': '+ Subtotal recargos'},
+    {'token': '{{total.final}}', 'etiqueta': 'Total final adeudado', 'boton': '+ Total final'},
 ]
 
 
@@ -47,6 +52,23 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     Devuelve una lista de dicts, uno por representante con deuda.
     """
     from cobranza.mora import calcular_dias_atraso
+    from cobranza.models import Mensualidad
+    from cobranza.recargos import resolver_recargo
+    from django.db.models import Q
+    hoy = hoy or timezone.localdate()
+    alumnos = list(alumnos_anotados)
+    pendientes = (Mensualidad.objects.filter(alumno__in=alumnos, pagado=False)
+                  .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
+                  .select_related('alumno').prefetch_related('lineas_recargo').order_by('anio', 'mes'))
+    mensualidades_por_alumno = {}
+    cache_reglas = {}
+    for mensualidad in pendientes:
+        recargo = resolver_recargo(mensualidad, hoy, _cache_reglas=cache_reglas)
+        mensualidades_por_alumno.setdefault(mensualidad.alumno_id, []).append({
+            'mes': mensualidad.get_mes_display(), 'anio': mensualidad.anio,
+            'principal_usd': mensualidad.monto_usd - mensualidad.monto_pagado,
+            'recargo_usd': recargo['monto_usd'] if recargo else Decimal('0.00'),
+        })
 
     grupos = {}
     orden = []
@@ -64,6 +86,9 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
                 'monto_total': Decimal('0.00'),
                 'meses_total': 0,
                 'dias_atraso_max': 0,
+                'subtotal_principal': Decimal('0.00'),
+                'subtotal_recargos': Decimal('0.00'),
+                'mensualidades': [],
             }
             orden.append(cedula)
         dias_atraso = calcular_dias_atraso(a, hoy)
@@ -77,6 +102,11 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
         grupo['monto_total'] += a.monto_adeudado
         grupo['meses_total'] += a.meses_adeudados
         grupo['dias_atraso_max'] = max(grupo['dias_atraso_max'], dias_atraso)
+        for mensualidad in mensualidades_por_alumno.get(a.id, []):
+            mensualidad['alumno'] = f'{a.nombre} {a.apellido}'
+            grupo['mensualidades'].append(mensualidad)
+            grupo['subtotal_principal'] += mensualidad['principal_usd']
+            grupo['subtotal_recargos'] += mensualidad['recargo_usd']
 
     return [grupos[c] for c in orden]
 
@@ -101,6 +131,11 @@ def renderizar_mensaje_cobro(grupo, plantilla):
     else:
         alumno_texto = ', '.join(nombres_alumnos[:-1]) + ' y ' + nombres_alumnos[-1]
 
+    detalle_mensualidades = '\n'.join(
+        f"• {m['alumno']} — {m['mes']} {m['anio']}: {_monto_cobro(m['principal_usd'])}"
+        + (f" + recargo {_monto_cobro(m['recargo_usd'])}" if m['recargo_usd'] else '')
+        for m in grupo.get('mensualidades', [])
+    ) or 'No hay mensualidades vencidas detallables.'
     reemplazos = {
         '{{representante.nombre}}': grupo['representante_nombre'],
         '{{alumno.nombre}}': alumno_texto,
@@ -110,10 +145,18 @@ def renderizar_mensaje_cobro(grupo, plantilla):
         '{{colegio.nombre}}': cfg['nombre_colegio'],
         '{{portal.link}}': cfg['portal_url'],
         '{{datos_bancarios}}': _datos_bancarios_texto(),
+        '{{recargo.aviso}}': '',
+        '{{mensualidades.detalle}}': detalle_mensualidades,
+        '{{subtotal.principal}}': _monto_cobro(grupo.get('subtotal_principal', Decimal('0.00'))),
+        '{{subtotal.recargos}}': _monto_cobro(grupo.get('subtotal_recargos', Decimal('0.00'))),
+        '{{total.final}}': _monto_cobro(grupo['monto_total']),
     }
     mensaje = plantilla.cuerpo
     for token, valor in reemplazos.items():
         mensaje = mensaje.replace(token, valor)
+    recordatorio = 'Paga a tiempo para evitar recargos.'
+    if recordatorio not in mensaje:
+        mensaje = f"{mensaje.rstrip()}\n\n{recordatorio}"
     return mensaje
 
 

@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import FileResponse
 from django.utils import timezone
 import logging
+import json
 import uuid
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -366,6 +367,7 @@ class BuscarAlumnoCobranzaView(APIView):
         mensualidades = to_list_con_recargo_descuento(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
             .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
+            .select_related('alumno').prefetch_related('lineas_recargo')
             .order_by('anio', 'mes')
         )
         mensualidades_futuras = to_list(
@@ -410,9 +412,21 @@ class BuscarAlumnoCobranzaView(APIView):
         # campo persistido que solo se sincroniza con la corrida nocturna.
         from secretaria.models import Alumno as AlumnoModel
         from .mora import annotate_en_mora, estatus_financiero_actual
+        from .deudas import deudas_pendientes_alumno
         alumno_anotado = annotate_en_mora(
             AlumnoModel.todos.filter(pk=alumno.pk), hoy
         ).first() or alumno
+        detalle_deuda = [
+            {
+                **{k: v for k, v in item.items() if k not in (
+                    'monto_nominal_usd', 'monto_pagado_usd', 'saldo_pendiente_usd',
+                )},
+                'monto_nominal_usd': str(item['monto_nominal_usd']),
+                'monto_pagado_usd': str(item['monto_pagado_usd']),
+                'saldo_pendiente_usd': str(item['saldo_pendiente_usd']),
+            }
+            for item in deudas_pendientes_alumno(alumno, hoy)
+        ]
 
         return {
             'id':                            alumno.id,
@@ -426,6 +440,9 @@ class BuscarAlumnoCobranzaView(APIView):
             'cuotas_inscripcion_pendientes': cuotas_inscripcion,
             'cuotas_solvencia_pendientes':   cuotas_solvencia,
             'cuotas_proyecto_inversion_pendientes': cuotas_proyecto_inversion,
+            # Contrato único de deuda: nominal, abonos acumulados, saldo y
+            # estado. Las listas específicas se mantienen por compatibilidad.
+            'detalle_deuda': detalle_deuda,
         }
 
     def _rep_data(self, rep):
@@ -504,7 +521,15 @@ class RegistrarPagoView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        serializer = PagoCreateSerializer(data=request.data, context={'request': request})
+        data_entrada = request.data
+        if request.data.get('payload'):
+            try:
+                data_entrada = json.loads(request.data['payload'])
+            except (TypeError, json.JSONDecodeError):
+                return Response({'error': 'El detalle del pago adjunto no es válido.'}, status=status.HTTP_400_BAD_REQUEST)
+            if request.FILES.get('comprobante_retroactivo'):
+                data_entrada['comprobante_retroactivo'] = request.FILES['comprobante_retroactivo']
+        serializer = PagoCreateSerializer(data=data_entrada, context={'request': request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -532,6 +557,7 @@ class RegistrarPagoView(APIView):
         tasa_valor = data['tasa_valor']
         fecha_pago_retroactiva = data.get('fecha_pago')
         motivo_retroactivo = data.get('motivo')
+        comprobante_retroactivo = data.get('comprobante_retroactivo')
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
 
@@ -611,6 +637,10 @@ class RegistrarPagoView(APIView):
                 vuelto_usd=vuelto_usd if es_primer_pago else Decimal('0.00'),
                 vuelto_ves=vuelto_ves if es_primer_pago else Decimal('0.00'),
             )
+            if es_primer_pago and comprobante_retroactivo:
+                pago.comprobante_retroactivo = comprobante_retroactivo
+                pago.comprobante_retroactivo_subido_en = timezone.now()
+                pago.comprobante_retroactivo_subido_por = request.user
             if fecha_pago_retroactiva:
                 pago.fecha_pago = fecha_pago_retroactiva
             pago.save()
@@ -629,6 +659,7 @@ class RegistrarPagoView(APIView):
         from .recargos import resolver_recargo
         from .descuentos import resolver_descuento
         from .models import LineaRecargoPago, LineaDescuentoPago
+        from .deudas import registrar_aplicacion
 
         # Con carga retroactiva, el recargo por mora y el fecha_pago de la
         # Mensualidad deben reflejar la fecha REAL en que se recibió el
@@ -665,10 +696,12 @@ class RegistrarPagoView(APIView):
                 # abono anterior (LineaRecargoPago), no se vuelve a cobrar:
                 # el recargo se cobra una sola vez por mensualidad, no una
                 # vez por cada abono parcial que reciba.
-                if not LineaRecargoPago.objects.filter(mensualidad_id=m.id).exists():
-                    resultado = resolver_recargo(m, fecha_cobro)
-                    if resultado:
-                        recargos_por_mensualidad[m.id] = resultado
+                lineas_recargo_previas = list(
+                    LineaRecargoPago.objects.select_for_update().filter(mensualidad_id=m.id)
+                )
+                resultado = resolver_recargo(m, fecha_cobro, lineas_cobradas=lineas_recargo_previas)
+                if resultado:
+                    recargos_por_mensualidad[m.id] = resultado
 
                 # Descuento por pago dentro de rango: mismo guard de "una vez
                 # por mensualidad" que el recargo. A diferencia del recargo
@@ -695,14 +728,20 @@ class RegistrarPagoView(APIView):
                     monto_a_abonar = Decimal('0.00')
 
                 # Nunca se permite que monto_pagado supere monto_usd, sin
-                # importar lo que haya venido en el payload.
-                m.monto_pagado = min(m.monto_pagado + monto_a_abonar + credito_descuento, m.monto_usd)
+                # importar lo que haya venido en el payload. Se conserva
+                # además el abono exacto de ESTA operación para el recibo y
+                # para una anulación posterior (AplicacionPago).
+                abono_aplicado = min(monto_a_abonar, saldo_actual)
+                ajuste_aplicado = min(credito_descuento, saldo_actual - abono_aplicado)
+                m.monto_pagado = min(m.monto_pagado + abono_aplicado + ajuste_aplicado, m.monto_usd)
                 if m.monto_usd <= 0 or m.monto_pagado >= m.monto_usd:
                     # Fecha REAL en que se recibió el dinero (retroactiva si
                     # aplica), no la fecha en que se guarda esta fila — save()
                     # respeta este valor si ya viene seteado.
                     m.fecha_pago = fecha_cobro
                 m.save()
+                if abono_aplicado > 0 or ajuste_aplicado > 0:
+                    registrar_aplicacion(pagos_creados[0], m, abono_aplicado, ajuste_aplicado)
 
             todas_mensualidades_qs |= Mensualidad.objects.filter(id__in=ids, alumno=a['alumno'])
 
@@ -726,6 +765,9 @@ class RegistrarPagoView(APIView):
                     mensualidad_id=mensualidad_id,
                     nombre=info['nombre'],
                     monto_usd=info['monto_usd'],
+                    fecha_referencia=fecha_cobro.date() if hasattr(fecha_cobro, 'date') else fecha_cobro,
+                    periodo_desde=info['periodos_cobrados'] + 1 if info['recurrente'] else None,
+                    periodo_hasta=info['periodos_devengados'] if info['recurrente'] else None,
                 )
                 for mensualidad_id, info in recargos_por_mensualidad.items()
             ])
@@ -782,12 +824,16 @@ class RegistrarPagoView(APIView):
             # derive pagado/fecha_pago de monto_pagado — ver
             # CuotaInscripcion.save(). Sin monto explícito se paga el saldo
             # completo; el serializer ya rechazó abonos que excedan el saldo.
-            for cuota in CuotaInscripcion.objects.filter(
+            for cuota in CuotaInscripcion.objects.select_for_update().filter(
                 id__in=a['cuota_inscripcion_ids'], alumno=a['alumno']
             ):
-                abono = montos_cuota_inscripcion.get(str(cuota.id), cuota.saldo)
-                cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
+                saldo = cuota.saldo
+                abono = Decimal(str(montos_cuota_inscripcion.get(str(cuota.id), saldo)))
+                abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
+                cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 cuota.save()
+                if abono_aplicado > 0:
+                    registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
             todas_cuotas_inscripcion_qs |= CuotaInscripcion.objects.filter(
                 id__in=a['cuota_inscripcion_ids'], alumno=a['alumno']
             )
@@ -804,7 +850,7 @@ class RegistrarPagoView(APIView):
             # Se guarda instancia por instancia (no bulk .update()) para que
             # save() derive `pagado`/`fecha_pago` a partir de monto_pagado —
             # ver CuotaSolvencia.save() en models.py.
-            cuotas = CuotaSolvencia.objects.filter(
+            cuotas = CuotaSolvencia.objects.select_for_update().filter(
                 id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
             )
             for cuota in cuotas:
@@ -814,9 +860,12 @@ class RegistrarPagoView(APIView):
                 # flujo sin abono). PagoCreateSerializer.validate ya rechazó
                 # cualquier monto que exceda el saldo pendiente.
                 saldo = cuota.monto_usd - cuota.monto_pagado
-                abono = montos_cuota_solvencia.get(str(cuota.id), saldo)
-                cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
+                abono = Decimal(str(montos_cuota_solvencia.get(str(cuota.id), saldo)))
+                abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
+                cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 cuota.save()
+                if abono_aplicado > 0:
+                    registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
             todas_cuotas_solvencia_qs |= CuotaSolvencia.objects.filter(
                 id__in=a['cuota_solvencia_ids'], alumno=a['alumno']
             )
@@ -832,15 +881,18 @@ class RegistrarPagoView(APIView):
         numero_solvencia = None
         if proyecto_inversion_ids:
             montos_proyecto_inversion = data.get('montos_proyecto_inversion') or {}
-            cuotas_proyecto = CuotaProyectoInversion.objects.filter(
+            cuotas_proyecto = CuotaProyectoInversion.objects.select_for_update().filter(
                 id__in=proyecto_inversion_ids, representante=alumno_titular.representante
             )
             for cuota in cuotas_proyecto:
                 saldo = cuota.monto_usd - cuota.monto_pagado
-                abono = montos_proyecto_inversion.get(str(cuota.id), saldo)
-                cuota.monto_pagado = min(cuota.monto_pagado + abono, cuota.monto_usd)
+                abono = Decimal(str(montos_proyecto_inversion.get(str(cuota.id), saldo)))
+                abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
+                cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 # pagado/fecha_pago se derivan solos en CuotaProyectoInversion.save().
                 cuota.save()
+                if abono_aplicado > 0:
+                    registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
 
             for pago in pagos_creados:
                 pago.proyectos_inversion_pagados.set(

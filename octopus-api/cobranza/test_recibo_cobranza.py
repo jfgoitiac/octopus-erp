@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 from notificaciones.models import NotificacionLog
 from secretaria.models import Alumno, ConfiguracionSistema, Representante
 
-from .models import Mensualidad, Pago
+from .models import AplicacionPago, Mensualidad, Pago
 from .recibo_cobranza import (
     DIAS_VIGENCIA_ENLACE, datos_recibo, firmar_enlace_recibo, generar_pdf_recibo, fmt_bs,
 )
@@ -119,6 +119,29 @@ class MotorReciboTests(ReciboBase):
         item = datos_recibo(pago)['items'][0]
         self.assertIn('ABONO', item['descripcion'])
         self.assertEqual(item['monto_ves'], Decimal('800.00'))
+
+    def test_aplicacion_parcial_muestra_abono_y_saldo_de_esa_cuota(self):
+        """El recibo nuevo nunca debe imprimir el nominal como si se cobró."""
+        from django.contrib.contenttypes.models import ContentType
+        pago = self._pago(monto_usd=Decimal('10.00'))
+        mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('30.00'),
+            monto_pagado=Decimal('10.00'),
+        )
+        AplicacionPago.objects.create(
+            pago=pago, content_type=ContentType.objects.get_for_model(mensualidad),
+            object_id=mensualidad.id, monto_nominal_usd=Decimal('30.00'),
+            monto_abonado_usd=Decimal('10.00'), saldo_resultante_usd=Decimal('20.00'),
+        )
+        datos = datos_recibo(pago)
+        item = datos['items'][0]
+        self.assertEqual(item['monto_abonado_usd'], Decimal('10.00'))
+        self.assertEqual(item['saldo_pendiente_usd'], Decimal('20.00'))
+        self.assertTrue(datos['es_abono_parcial'])
+        self.assertIn('ABONO PARCIAL', item['descripcion'])
+        texto = _texto(generar_pdf_recibo(pago).getvalue())
+        self.assertIn('ABONO', texto)
+        self.assertIn('$ 20.00', texto)
 
     def test_muchas_lineas_no_rompen_el_pdf(self):
         pago = self._pago(monto_usd=Decimal('45.00') * 30)

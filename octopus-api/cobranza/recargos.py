@@ -1,109 +1,99 @@
-"""
-Fuente de verdad ÚNICA para decidir si una Mensualidad impaga carga recargo
-por pago tardío, y de cuánto.
-
-Independiente por diseño de cobranza/mora.py: `mora.py` decide si un alumno
-está en MORA (usa Alumno.dia_limite_pago); este módulo decide si una
-mensualidad concreta ya generó RECARGO (usa ReglaRecargoPago.dia_aplicacion,
-propio de cada regla, sin relación con el día de mora). Un alumno puede
-estar en mora sin tener aún recargo — ej. dia_limite_pago=5,
-dia_aplicacion=19: moroso desde el día 6, con recargo recién desde el 19.
-
-Solo el camino tipo='recargo' está implementado. tipo='descuento' existe
-como campo en el modelo pero no tiene lógica aquí todavía (ver
-NOTAS_TECNICAS.md).
-"""
+"""Cálculo canónico de recargos temporales de mensualidades."""
 import calendar
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 
-from .models import Mensualidad, ReglaRecargoPago
+from .models import LineaRecargoPago, Mensualidad, ReglaRecargoPago
 
 
 def _regla_activa(cache=None):
-    """
-    Única regla activa de tipo='recargo' (configuración global, sin
-    variación por sede). `cache` (dict opcional, compartido entre llamadas)
-    evita repetir la query dentro de una corrida bulk (ver
-    calcular_recargos_para_alumnos) — usa la clave fija `'_regla'`.
-    """
     if cache is not None and '_regla' in cache:
         return cache['_regla']
-
     regla = ReglaRecargoPago.objects.filter(activa=True, tipo='recargo').first()
-
     if cache is not None:
         cache['_regla'] = regla
     return regla
 
 
-def resolver_recargo(mensualidad, fecha_referencia, _cache_reglas=None):
-    """
-    Decide si `mensualidad` (impaga) carga recargo evaluado en
-    `fecha_referencia` (date o datetime), y de cuánto.
+def fecha_vencimiento(mensualidad):
+    """Fecha inmutable de la cuota, con fallback para datos anteriores."""
+    if mensualidad.fecha_vencimiento:
+        return mensualidad.fecha_vencimiento
+    dia_limite = getattr(mensualidad.alumno, 'dia_limite_pago', None) or 5
+    dia = min(dia_limite, calendar.monthrange(mensualidad.anio, mensualidad.mes)[1])
+    return date(mensualidad.anio, mensualidad.mes, dia)
 
-    Retorna {'nombre': str, 'monto_usd': Decimal} si aplica, o None.
 
-    Consumida por: mora.py (vía calcular_recargos_para_alumnos), la
-    cotización del portal (MensualidadSerializer), y RegistrarPagoView al
-    cobrar (autoridad real — el frontend puede replicar esta lógica en JS
-    solo para preview, sin round-trip).
+def _monto_cobrado(mensualidad, lineas_cobradas=None):
+    if lineas_cobradas is None:
+        lineas_cobradas = getattr(mensualidad, '_prefetched_objects_cache', {}).get('lineas_recargo')
+    if lineas_cobradas is not None:
+        return sum((linea.monto_usd for linea in lineas_cobradas), Decimal('0.00'))
+    return LineaRecargoPago.objects.filter(mensualidad_id=mensualidad.id).aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
 
-    `_cache_reglas` es un detalle interno para uso bulk (dict compartido);
-    los callers normales lo dejan en None.
-    """
+
+def _importe_unitario(mensualidad, regla):
+    if regla.modo_calculo == 'monto_fijo_usd':
+        return regla.valor
+    return (mensualidad.monto_usd * regla.valor / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def _programacion(regla, mensualidad, fecha_cmp):
+    if regla.ancla_recargo == 'vencimiento':
+        primera = fecha_vencimiento(mensualidad) + timedelta(days=regla.dias_desde_vencimiento or 0)
+        if fecha_cmp < primera:
+            return 0, primera
+        if regla.frecuencia_recargo == 'recurrente':
+            return ((fecha_cmp - primera).days // regla.cada_dias) + 1, primera
+        return 1, primera
+    dia = min(regla.dia_aplicacion, calendar.monthrange(mensualidad.anio, mensualidad.mes)[1])
+    primera = date(mensualidad.anio, mensualidad.mes, dia)
+    return (1 if fecha_cmp >= primera else 0), primera
+
+
+def resolver_recargo(mensualidad, fecha_referencia, _cache_reglas=None, *, lineas_cobradas=None):
+    """Cotiza el saldo de recargo pendiente para una mensualidad impaga."""
+    if mensualidad.pagado:
+        return None
     regla = _regla_activa(cache=_cache_reglas)
     if regla is None:
         return None
-
     fecha_cmp = fecha_referencia.date() if isinstance(fecha_referencia, datetime) else fecha_referencia
-
-    # Mismo patrón de tope que mora.py::calcular_dias_atraso (línea ~230):
-    # evita ValueError en meses cortos (ej. dia_aplicacion=30 en febrero).
-    dia = min(regla.dia_aplicacion, calendar.monthrange(mensualidad.anio, mensualidad.mes)[1])
-    fecha_aplicacion = date(mensualidad.anio, mensualidad.mes, dia)
-
-    if fecha_cmp < fecha_aplicacion:
+    periodos, primera_fecha = _programacion(regla, mensualidad, fecha_cmp)
+    if not periodos:
         return None
-
-    if regla.modo_calculo == 'monto_fijo_usd':
-        monto = regla.valor
-    else:  # 'porcentaje' — sobre monto_usd YA con beca aplicada, no el original.
-        monto = (mensualidad.monto_usd * regla.valor / Decimal('100')).quantize(
-            Decimal('0.01'), rounding=ROUND_HALF_UP
-        )
-
-    return {'nombre': regla.nombre, 'monto_usd': monto}
+    monto_unitario = _importe_unitario(mensualidad, regla)
+    monto_devengado = (monto_unitario * periodos).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    monto_cobrado = _monto_cobrado(mensualidad, lineas_cobradas)
+    monto_pendiente = max(monto_devengado - monto_cobrado, Decimal('0.00'))
+    if not monto_pendiente:
+        return None
+    periodos_cobrados = int(monto_cobrado / monto_unitario) if monto_unitario > 0 else 0
+    return {
+        'nombre': regla.nombre, 'monto_usd': monto_pendiente,
+        'monto_unitario_usd': monto_unitario, 'monto_devengado_usd': monto_devengado,
+        'monto_cobrado_usd': monto_cobrado, 'periodos_devengados': periodos,
+        'periodos_cobrados': min(periodos_cobrados, periodos),
+        'fecha_primera_aplicacion': primera_fecha,
+        'recurrente': regla.frecuencia_recargo == 'recurrente',
+    }
 
 
 def calcular_recargos_para_alumnos(alumno_ids, hoy):
-    """
-    Versión bulk (sin N+1): dado un iterable de alumno_id, retorna
-    {alumno_id: Decimal(total_recargo_de_sus_mensualidades_vencidas_impagas)}.
-
-    Usa UNA query para las mensualidades impagas vencidas (meses anteriores,
-    o el mes actual si ya alcanzó/pasó su fin — mismo universo "vencido"
-    que cobranza/mora.py::annotate_mora_detalle, overdue_q) de esos alumnos,
-    cachea la única regla activa (a lo sumo 1 query total, no por alumno) y
-    resuelve cada mensualidad con resolver_recargo() en Python.
-    """
+    """Totales pendientes por alumno sin consultas por cada mensualidad."""
     alumno_ids = list(alumno_ids)
     totales = defaultdict(lambda: Decimal('0.00'))
     if not alumno_ids:
         return dict(totales)
-
     overdue_q = Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month)
-    mensualidades = Mensualidad.objects.filter(
-        alumno_id__in=alumno_ids, pagado=False,
-    ).filter(overdue_q)
-
+    mensualidades = (Mensualidad.objects.filter(alumno_id__in=alumno_ids, pagado=False)
+                     .filter(overdue_q).select_related('alumno').prefetch_related('lineas_recargo'))
     cache_reglas = {}
     for m in mensualidades:
         resultado = resolver_recargo(m, hoy, _cache_reglas=cache_reglas)
         if resultado:
             totales[m.alumno_id] += resultado['monto_usd']
-
     return dict(totales)

@@ -40,6 +40,56 @@ def calcular_desglose_automatico(principal_pago):
     if not principal_pago:
         return []
 
+    # Desde AplicacionPago el importe de la línea es el abono de ESTA
+    # operación, no el nominal de una cuota enlazada por M2M. El fallback
+    # histórico de abajo conserva los comprobantes anteriores a la migración.
+    from .deudas import aplicaciones_operacion, item_deuda
+    aplicaciones = aplicaciones_operacion(principal_pago)
+    if aplicaciones:
+        etiquetas = {
+            'mensualidad': 'MENSUALIDAD', 'inscripcion': 'INSCRIPCIÓN',
+            'solvencia': 'SOLVENCIA', 'proyecto_inversion': 'PROYECTO DE INVERSIÓN',
+        }
+        tasa = principal_pago.tasa_aplicada or Decimal('0')
+        recargos_por_mensualidad = {}
+        for recargo in principal_pago.lineas_recargo.all():
+            recargos_por_mensualidad.setdefault(recargo.mensualidad_id, []).append(recargo)
+        lineas = []
+        for aplicacion in aplicaciones:
+            deuda = aplicacion.deuda
+            if deuda is None:
+                continue
+            item = item_deuda(deuda)
+            abono = aplicacion.monto_abonado_usd
+            linea = {
+                'concepto': item['tipo'],
+                'concepto_display': etiquetas.get(item['tipo'], item['tipo'].upper()),
+                'descripcion': item['descripcion'],
+                'alumno': item['alumno'],
+                'monto_nominal_usd': str(aplicacion.monto_nominal_usd),
+                'monto_usd': str(abono),
+                'monto_ves': str((abono * tasa).quantize(Decimal('0.01'))),
+                'monto_abonado_usd': str(abono),
+                'monto_ajuste_usd': str(aplicacion.monto_ajuste_usd),
+                'saldo_pendiente_usd': str(aplicacion.saldo_resultante_usd),
+                'estado': 'parcial' if aplicacion.saldo_resultante_usd > 0 else 'saldada',
+            }
+            lineas.append(linea)
+            if item['tipo'] == 'mensualidad':
+                for recargo in recargos_por_mensualidad.get(deuda.id, []):
+                    descripcion = recargo.nombre
+                    if recargo.periodo_desde is not None and recargo.periodo_hasta is not None:
+                        descripcion = f"{recargo.nombre} · período(s) {recargo.periodo_desde}–{recargo.periodo_hasta}"
+                    lineas.append({
+                        'concepto': 'recargo_pago_tardio',
+                        'concepto_display': 'RECARGO POR PAGO TARDÍO',
+                        'descripcion': descripcion,
+                        'alumno': item['alumno'],
+                        'monto_usd': str(recargo.monto_usd),
+                        'monto_ves': str((recargo.monto_usd * tasa).quantize(Decimal('0.01'))),
+                    })
+        return lineas
+
     tasa = principal_pago.tasa_aplicada or Decimal('0')
     fecha_pago = principal_pago.fecha_pago
 
@@ -63,9 +113,9 @@ def calcular_desglose_automatico(principal_pago):
     # a ESTE pago principal. Se indexa por mensualidad_id para insertar cada
     # línea de recargo inmediatamente después de su mensualidad, sin N+1
     # (una sola query para todas).
-    recargos_por_mensualidad = {
-        r.mensualidad_id: r for r in principal_pago.lineas_recargo.all()
-    }
+    recargos_por_mensualidad = {}
+    for recargo in principal_pago.lineas_recargo.all():
+        recargos_por_mensualidad.setdefault(recargo.mensualidad_id, []).append(recargo)
     # Descuento por pago dentro de rango: mismo criterio de indexado sin N+1
     # que el recargo. Nunca coexiste con un recargo sobre la misma
     # mensualidad (ver ReglaRecargoPago.clean()).
@@ -100,11 +150,13 @@ def calcular_desglose_automatico(principal_pago):
             m.monto_usd, extra,
         ))
 
-        recargo = recargos_por_mensualidad.get(m.id)
-        if recargo:
+        for recargo in recargos_por_mensualidad.get(m.id, []):
+            descripcion_recargo = recargo.nombre
+            if recargo.periodo_desde is not None and recargo.periodo_hasta is not None:
+                descripcion_recargo = f"{recargo.nombre} · período(s) {recargo.periodo_desde}–{recargo.periodo_hasta}"
             lineas.append(_linea(
                 'recargo_pago_tardio', 'RECARGO POR PAGO TARDÍO',
-                recargo.nombre,
+                descripcion_recargo,
                 f"{m.alumno.nombre} {m.alumno.apellido}",
                 recargo.monto_usd,
             ))
@@ -285,7 +337,8 @@ class PagoSerializer(serializers.ModelSerializer):
             'representante_id', 'usuario_receptor', 'cajero', 'operacion_uuid', 'banco_receptor', 'banco_nombre',
             'metodo_pago', 'metodo_pago_display', 'concepto', 'concepto_display', 'monto_usd',
             'tasa_aplicada', 'monto_ves', 'fecha_pago', 'revisado',
-            'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre'
+            'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre',
+            'comprobante_retroactivo', 'comprobante_retroactivo_subido_en', 'comprobante_retroactivo_subido_por',
         ]
         read_only_fields = ['factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada']
 
@@ -509,7 +562,9 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
         model = ReglaRecargoPago
         fields = [
             'id', 'nombre', 'descripcion', 'tipo', 'modo_calculo', 'valor',
-            'dia_aplicacion', 'dia_desde', 'dia_hasta', 'activa', 'creada_por',
+            'dia_aplicacion', 'dia_desde', 'dia_hasta',
+            'ancla_recargo', 'dias_desde_vencimiento', 'frecuencia_recargo', 'cada_dias',
+            'activa', 'creada_por',
             'creada_en', 'modificada_en',
         ]
         read_only_fields = ['creada_por', 'creada_en', 'modificada_en']
@@ -550,6 +605,10 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
             dia_aplicacion=data.get('dia_aplicacion', getattr(self.instance, 'dia_aplicacion', None)),
             dia_desde=data.get('dia_desde', getattr(self.instance, 'dia_desde', None)),
             dia_hasta=data.get('dia_hasta', getattr(self.instance, 'dia_hasta', None)),
+            ancla_recargo=data.get('ancla_recargo', getattr(self.instance, 'ancla_recargo', 'dia_mes')),
+            dias_desde_vencimiento=data.get('dias_desde_vencimiento', getattr(self.instance, 'dias_desde_vencimiento', None)),
+            frecuencia_recargo=data.get('frecuencia_recargo', getattr(self.instance, 'frecuencia_recargo', 'unico')),
+            cada_dias=data.get('cada_dias', getattr(self.instance, 'cada_dias', None)),
             activa=data.get('activa', getattr(self.instance, 'activa', True)),
         )
         try:
@@ -649,6 +708,7 @@ class PagoCreateSerializer(serializers.Serializer):
         max_digits=12, decimal_places=4, min_value=Decimal('0.0001'), required=False
     )
     motivo = serializers.CharField(min_length=10, required=False, allow_blank=False)
+    comprobante_retroactivo = serializers.FileField(required=False, allow_null=True, write_only=True)
 
     def validate(self, data):
         alumnos_resueltos = []
@@ -697,15 +757,34 @@ class PagoCreateSerializer(serializers.Serializer):
         # es rechazado, en vez de una condición de carrera donde ambos leen
         # `pagado=False` y ambos terminan cobrando la misma cuota.
         if todos_mensualidad_ids:
-            ya_pagada = Mensualidad.objects.select_related('alumno').select_for_update().filter(
-                id__in=todos_mensualidad_ids, pagado=True
-            ).first()
+            mensualidades_bloqueadas = list(
+                Mensualidad.objects.select_related('alumno').select_for_update().filter(
+                    id__in=todos_mensualidad_ids
+                )
+            )
+            ya_pagada = next((m for m in mensualidades_bloqueadas if m.pagado), None)
             if ya_pagada:
                 raise serializers.ValidationError(
                     f"La mensualidad de {ya_pagada.get_mes_display()} {ya_pagada.anio} de "
                     f"{ya_pagada.alumno.nombre} {ya_pagada.alumno.apellido} ya está pagada. "
                     "Actualice la página antes de continuar (posible doble envío)."
                 )
+            montos_mensualidades = data.get('montos_mensualidades') or {}
+            mensualidades_por_id = {m.id: m for m in mensualidades_bloqueadas}
+            for clave, monto_abonado in montos_mensualidades.items():
+                try:
+                    mensualidad_id = int(clave)
+                except (TypeError, ValueError):
+                    continue
+                mensualidad = mensualidades_por_id.get(mensualidad_id)
+                if not mensualidad:
+                    continue
+                saldo = mensualidad.monto_usd - mensualidad.monto_pagado
+                if Decimal(str(monto_abonado)) > saldo + Decimal('0.01'):
+                    raise serializers.ValidationError(
+                        f"El abono de {mensualidad.get_mes_display()} {mensualidad.anio} "
+                        f"excede el saldo pendiente (${saldo})."
+                    )
 
         if todos_cuota_inscripcion_ids:
             ya_pagada = CuotaInscripcion.objects.select_related('alumno').select_for_update().filter(
@@ -947,6 +1026,14 @@ class PagoCreateSerializer(serializers.Serializer):
                     {'tasa_aplicada': "Debe indicar la tasa de cambio aplicada para un pago con "
                                       "fecha retroactiva; no se adivina una tasa histórica."}
                 )
+            comprobante = data.get('comprobante_retroactivo')
+            if not comprobante:
+                raise serializers.ValidationError({'comprobante_retroactivo': "Debe adjuntar un comprobante para registrar un pago con fecha retroactiva."})
+            if comprobante.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError({'comprobante_retroactivo': "El comprobante no puede superar 10 MB."})
+            extension = (comprobante.name or '').rsplit('.', 1)[-1].lower() if '.' in (comprobante.name or '') else ''
+            if extension not in {'pdf', 'jpg', 'jpeg', 'png', 'webp'}:
+                raise serializers.ValidationError({'comprobante_retroactivo': "Adjunte un PDF o una imagen (JPG, PNG o WEBP)."})
 
             dentro_periodo, error_periodo = fecha_dentro_periodo_activo(fecha_pago)
             if not dentro_periodo:

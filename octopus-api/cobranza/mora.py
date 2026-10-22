@@ -147,7 +147,7 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
     )
     debt_subq = (
         Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
-        .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
+        .values('alumno').annotate(t=Sum(F('monto_usd') - F('monto_pagado'))).values('t')[:1]
     )
     count_subq = (
         Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
@@ -167,7 +167,7 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
     )
     solvencia_subq = (
         CuotaSolvencia.objects.filter(alumno=OuterRef('pk'), pagado=False, monto_usd__gt=0)
-        .values('alumno').annotate(t=Sum('monto_usd')).values('t')[:1]
+        .values('alumno').annotate(t=Sum(F('monto_usd') - F('monto_pagado'))).values('t')[:1]
     )
     # Filtrado por la semilla histórica "Proyecto de Inversión" (no por
     # bloquea_inscripcion como en `_condicion_mora`): esta columna alimenta un
