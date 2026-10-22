@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, FileText, Loader2, Search, Users } from 'lucide-react';
+import { Download, FileText, LayoutList, Loader2, Search, Users } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-toastify';
@@ -7,6 +7,7 @@ import { Modal } from '../ui/Modal';
 import { TablaScroll } from '../ui/TablaScroll';
 import Pagination from '../shared/Pagination';
 import GradoSelect from '../GradoSelect';
+import MensualidadesPorGradoModal from './MensualidadesPorGradoModal';
 import {
     exportarMensualidadesPorMontoExcel,
     getDetalleMensualidadesPorMonto,
@@ -153,6 +154,8 @@ export default function MensualidadesPorMonto({ mes, sede }) {
     const [grupos, setGrupos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [grupoActivo, setGrupoActivo] = useState(null);
+    const [porGradoAbierto, setPorGradoAbierto] = useState(false);
+    const cerrarPorGrado = useCallback(() => setPorGradoAbierto(false), []);
     const cargar = useCallback(async (signal) => {
         if (!mes) { setGrupos([]); return; }
         setLoading(true);
@@ -167,8 +170,9 @@ export default function MensualidadesPorMonto({ mes, sede }) {
 
     const total = grupos.reduce((acumulado, grupo) => acumulado + Number(grupo.total_facturado_usd || 0), 0);
     return <section className="rounded-[var(--radius-card)] p-4 sm:p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4"><div><h2 className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--jet)' }}><Users size={18} style={{ color: 'var(--pb)' }} />Distribución de mensualidades</h2><p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>Montos registrados para {mes?.etiqueta || 'el período seleccionado'}.</p></div><span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>Total: ${fmt(total, 2)}</span></div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4"><div className="min-w-0"><h2 className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--jet)' }}><Users size={18} style={{ color: 'var(--pb)' }} />Distribución de mensualidades</h2><p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>Montos registrados para {mes?.etiqueta || 'el período seleccionado'}.</p></div><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"><span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>Total: ${fmt(total, 2)}</span><button type="button" className="btn btn-secondary btn-sm w-full sm:w-auto" disabled={!mes || loading || !grupos.length} onClick={() => setPorGradoAbierto(true)}><LayoutList size={16} aria-hidden="true" />Ver detalles</button></div></div>
         {loading ? <div className="skeleton h-36" /> : !grupos.length ? <div className="py-10 text-center text-sm" style={{ color: 'var(--ash)' }}>No hay mensualidades registradas para este período.</div> : <TablaScroll><table className="w-full min-w-[580px] text-sm"><thead><tr className="text-left text-xs uppercase" style={{ color: 'var(--ash)' }}><th className="p-3">Mensualidad</th><th className="p-3 text-right">Estudiantes</th><th className="p-3 text-right">Total mensual</th><th className="p-3 text-right"><span className="sr-only">Ver detalle</span></th></tr></thead><tbody>{grupos.map(grupo => <tr key={grupo.monto_usd} className="hover:bg-[var(--pb-light)] cursor-pointer" style={{ borderTop: '1px solid var(--border)' }} onClick={() => setGrupoActivo(grupo)}><td className="p-3 font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>${fmt(grupo.monto_usd, 2)}</td><td className="p-3 text-right tabular-nums">{grupo.estudiantes}</td><td className="p-3 text-right tabular-nums font-medium">${fmt(grupo.total_facturado_usd, 2)}</td><td className="p-3 text-right"><button type="button" className="btn btn-secondary btn-sm" onClick={(evento) => { evento.stopPropagation(); setGrupoActivo(grupo); }}>Ver detalle</button></td></tr>)}</tbody></table></TablaScroll>}
         <DetalleModal grupo={grupoActivo} mes={mes} sede={sede} onClose={() => setGrupoActivo(null)} />
+        <MensualidadesPorGradoModal open={porGradoAbierto} onClose={cerrarPorGrado} mes={mes} sede={sede} />
     </section>;
 }
