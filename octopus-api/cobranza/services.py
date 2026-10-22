@@ -290,6 +290,7 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
         return 0
 
     porcentajes_por_alumno = {a.pk: porcentaje_beca_vigente(a) for a in alumnos}
+    alumnos_por_id = {a.pk: a for a in alumnos}
     montos_por_alumno = {
         a.pk: monto_con_beca(monto_base, porcentajes_por_alumno[a.pk])
         for a in alumnos
@@ -316,6 +317,10 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
             monto_usd=montos_por_alumno[alumno_id], pagado=False,
             monto_original_usd=monto_base,
             porcentaje_beca_aplicado=porcentajes_por_alumno[alumno_id],
+            fecha_vencimiento=date(
+                anio, mes,
+                min(alumnos_por_id[alumno_id].dia_limite_pago or 5, calendar.monthrange(anio, mes)[1]),
+            ),
         )
         for alumno_id in alumno_ids
         if porcentajes_por_alumno[alumno_id] < 100

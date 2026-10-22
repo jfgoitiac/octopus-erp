@@ -441,7 +441,12 @@ def anular_pago(pago: Pago, usuario, motivo: str) -> Pago:
         # $10 borre otro abono posterior de $10 sobre la misma mensualidad.
         if aplicaciones_vigentes:
             from .deudas import revertir_aplicaciones_pago
+            from .ciclos import reabrir_ciclo_si_impago
             revertir_aplicaciones_pago(pago, timezone.now())
+            for mensualidad in pago.mensualidades_pagadas.select_related('alumno'):
+                mensualidad.refresh_from_db()
+                if not mensualidad.pagado:
+                    reabrir_ciclo_si_impago(mensualidad)
             pago.lineas_recargo.all().delete()
             pago.lineas_descuento.all().delete()
             pago.estatus = 'anulado'

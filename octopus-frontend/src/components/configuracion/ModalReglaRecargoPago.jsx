@@ -11,19 +11,22 @@ const MONTO_EJEMPLO = 32;
  * sin llamar a la API — solo con los valores actuales del formulario.
  */
 const calcularEjemploRecargo = (form) => {
-    const dia = parseInt(form.dia_aplicacion, 10);
+    const porVencimiento = form.ancla_recargo === 'vencimiento';
+    const dia = porVencimiento ? parseInt(form.dias_desde_vencimiento, 10) : parseInt(form.dia_aplicacion, 10);
     const valor = parseFloat(form.valor);
-    if (!dia || isNaN(dia) || form.valor === '' || isNaN(valor)) return null;
+    if ((porVencimiento ? dia < 0 : !dia) || isNaN(dia) || form.valor === '' || isNaN(valor)) return null;
 
     const montoConRecargo = form.modo_calculo === 'porcentaje'
         ? MONTO_EJEMPLO + (MONTO_EJEMPLO * valor / 100)
         : MONTO_EJEMPLO + valor;
 
     return {
-        diaSinRecargo: dia - 1,
-        diaConRecargo: dia,
+        diaSinRecargo: porVencimiento ? `vencimiento + ${Math.max(dia - 1, 0)} día(s)` : dia - 1,
+        diaConRecargo: porVencimiento ? `vencimiento + ${dia} día(s)` : dia,
         montoSinRecargo: MONTO_EJEMPLO.toFixed(2),
         montoConRecargo: montoConRecargo.toFixed(2),
+        recurrente: porVencimiento && form.frecuencia_recargo === 'recurrente',
+        cadaDias: parseInt(form.cada_dias, 10),
     };
 };
 
@@ -120,6 +123,18 @@ export default function ModalReglaRecargoPago({
                     </div>
 
                     {!esDescuento && (
+                        <div className="sm:col-span-2">
+                            <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Ancla del Recargo</label>
+                            <select value={form.ancla_recargo}
+                                onChange={e => setForm(p => ({ ...p, ancla_recargo: e.target.value, frecuencia_recargo: e.target.value === 'dia_mes' ? 'unico' : p.frecuencia_recargo }))}
+                                className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                                <option value="dia_mes">Día fijo del mes (compatibilidad)</option>
+                                <option value="vencimiento">Fecha de vencimiento de cada mensualidad</option>
+                            </select>
+                        </div>
+                    )}
+
+                    {!esDescuento && (
                         <div>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Modo de Cálculo</label>
                             <select value={form.modo_calculo}
@@ -165,6 +180,25 @@ export default function ModalReglaRecargoPago({
                                 <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>Ambos días son inclusive.</p>
                             </div>
                         </>
+                    ) : form.ancla_recargo === 'vencimiento' ? (
+                        <>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Primer cargo: días desde vencimiento *</label>
+                                <input type="number" min="0" value={form.dias_desde_vencimiento}
+                                    onChange={e => setForm(p => ({ ...p, dias_desde_vencimiento: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Frecuencia</label>
+                                <select value={form.frecuencia_recargo} onChange={e => setForm(p => ({ ...p, frecuencia_recargo: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                                    <option value="unico">Un solo cargo</option><option value="recurrente">Recurrente</option>
+                                </select>
+                                {form.frecuencia_recargo === 'recurrente' && <input type="number" min="1" value={form.cada_dias}
+                                    onChange={e => setForm(p => ({ ...p, cada_dias: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                                    className="w-full mt-2 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />}
+                            </div>
+                        </>
                     ) : (
                         <div>
                             <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Día de Aplicación *</label>
@@ -201,6 +235,9 @@ export default function ModalReglaRecargoPago({
                             <p style={{ color: 'var(--red)' }}>
                                 Una mensualidad de ${MONTO_EJEMPLO.toFixed(2)} pagada el día {ejemploRecargo.diaConRecargo} → <span className="font-semibold">${ejemploRecargo.montoConRecargo}</span> (con recargo)
                             </p>
+                            {ejemploRecargo.recurrente && ejemploRecargo.cadaDias > 0 && (
+                                <p style={{ color: 'var(--red)' }}>Luego se suma el mismo recargo cada {ejemploRecargo.cadaDias} día(s) mientras exista saldo.</p>
+                            )}
                         </div>
                     ) : (
                         <p className="text-xs" style={{ color: 'var(--ash)' }}>Completa el día y el valor para ver el ejemplo.</p>

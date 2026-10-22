@@ -477,6 +477,13 @@ class PrevisualizarCobroWhatsAppView(APIView):
             'monto_total': str(grupo['monto_total']),
             'meses_total': grupo['meses_total'],
             'dias_atraso_max': grupo['dias_atraso_max'],
+            'subtotal_principal': str(grupo.get('subtotal_principal', 0)),
+            'subtotal_recargos': str(grupo.get('subtotal_recargos', 0)),
+            'mensualidades': [
+                {'alumno': m['alumno'], 'mes': m['mes'], 'anio': m['anio'],
+                 'principal_usd': str(m['principal_usd']), 'recargo_usd': str(m['recargo_usd'])}
+                for m in grupo.get('mensualidades', [])
+            ],
             'alumnos': [
                 {
                     'nombre': a['nombre'],

@@ -107,6 +107,7 @@ def datos_recibo(pago):
     # Las aplicaciones nuevas son el libro auxiliar exacto de la operación:
     # un M2M solo dice que una cuota participó, no cuánto de ella se abonó.
     # Se conserva el camino legado para recibos emitidos antes de esta tabla.
+    desglose = c.get('desglose_conceptos') or []
     from .deudas import aplicaciones_operacion, item_deuda
     aplicaciones = aplicaciones_operacion(principal)
     if aplicaciones:
@@ -133,11 +134,21 @@ def datos_recibo(pago):
                 'alumno': detalle['alumno'] or None,
                 'es_parcial': es_parcial,
             })
+        for linea in desglose:
+            if linea.get('concepto') != 'recargo_pago_tardio':
+                continue
+            items.append({
+                'concepto': linea.get('concepto_display') or 'RECARGO POR PAGO TARDÍO',
+                'descripcion': linea.get('descripcion') or 'Recargo por pago tardío',
+                'monto_ves': to_ves(linea.get('monto_ves'), linea.get('monto_usd')),
+                'alumno': linea.get('alumno') or None,
+                'es_recargo': True,
+            })
         nota_abono = ' '.join(
             f"Abono: ${it['monto_abonado_usd']:.2f}; saldo pendiente: ${it['saldo_pendiente_usd']:.2f}."
             for it in items if it['es_parcial']
         )
-    elif (desglose := c.get('desglose_conceptos') or []):
+    elif desglose:
         items = [{
             'concepto': dc.get('concepto_display') or dc.get('concepto') or c.get('concepto_display') or '',
             'descripcion': dc.get('descripcion') or periodo_label,
@@ -462,8 +473,11 @@ def _tabla_conceptos(pag, d):
         ]
         fila += [_p(f"Bs. {fmt_bs(monto)}" if monto else '', EST_R)]
         if tiene_saldos:
-            saldo = _dec(it.get('saldo_pendiente_usd'))
-            fila += [_p(f"$ {saldo:.2f}" if saldo else 'SALDADO', EST_R)]
+            if 'saldo_pendiente_usd' in it:
+                saldo = _dec(it['saldo_pendiente_usd'])
+                fila += [_p(f"$ {saldo:.2f}" if saldo else 'SALDADO', EST_R)]
+            else:
+                fila += [_p('—', EST_R)]
         filas.append(fila)
         altos.append(None)
     for _ in range(max(0, 3 - len(d['items']))):

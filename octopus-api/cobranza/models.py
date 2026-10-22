@@ -252,6 +252,14 @@ class Pago(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='pagos_anulados',
     )
+    comprobante_retroactivo = models.FileField(
+        upload_to='pagos/retroactivos/%Y/%m/', null=True, blank=True,
+    )
+    comprobante_retroactivo_subido_en = models.DateTimeField(null=True, blank=True)
+    comprobante_retroactivo_subido_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
 
     # Auditoría automática: registra cada cambio con usuario, fecha y valores anteriores
     history = HistoricalRecords()
@@ -471,6 +479,9 @@ class Mensualidad(models.Model):
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     pagado = models.BooleanField(default=False, db_index=True)
     fecha_pago = models.DateTimeField(blank=True, null=True)
+    # Se fija al crear la cuota para que un cambio posterior del día límite
+    # del alumno no altere los cargos temporales ya devengados.
+    fecha_vencimiento = models.DateField(blank=True, null=True, db_index=True)
     # True cuando el monto fue editado a mano (ActualizarMensualidadesView) en
     # vez de heredado de ParametroGlobal.MONTO_MENSUALIDAD_DEFECTO. Marca la
     # fila como "override": propagar_monto_global() (cobranza/services.py)
@@ -1094,6 +1105,14 @@ class ReglaRecargoPago(models.Model):
         ('recargo', 'Recargo'),
         ('descuento', 'Descuento'),
     ]
+    ANCLAS_RECARGO = [
+        ('dia_mes', 'Día del mes de la cuota (compatibilidad)'),
+        ('vencimiento', 'Fecha de vencimiento de la cuota'),
+    ]
+    FRECUENCIAS_RECARGO = [
+        ('unico', 'Un solo cargo'),
+        ('recurrente', 'Cargo recurrente'),
+    ]
 
     nombre = models.CharField(max_length=100)
     # Texto libre que ve el representante en el portal al cotizar/pagar.
@@ -1128,6 +1147,22 @@ class ReglaRecargoPago(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         help_text="Solo tipo='descuento'. Último día del rango (inclusive).",
     )
+    ancla_recargo = models.CharField(
+        max_length=20, choices=ANCLAS_RECARGO, default='dia_mes',
+        help_text="Solo recargo. Define si la regla usa día de mes o vencimiento.",
+    )
+    dias_desde_vencimiento = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(0)],
+        help_text="Solo recargo anclado al vencimiento. 0 cobra el mismo día.",
+    )
+    frecuencia_recargo = models.CharField(
+        max_length=15, choices=FRECUENCIAS_RECARGO, default='unico',
+        help_text="Solo recargo. Recurrente vuelve a devengar mientras exista saldo.",
+    )
+    cada_dias = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1)],
+        help_text="Solo recargo recurrente: intervalo entre cargos en días.",
+    )
     activa = models.BooleanField(default=True)
     creada_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
@@ -1150,17 +1185,40 @@ class ReglaRecargoPago(models.Model):
             raise ValidationError({'nombre': "El nombre no puede estar vacío."})
 
         if self.tipo == 'recargo':
-            if self.dia_aplicacion is None:
-                raise ValidationError({'dia_aplicacion': "Requerido para tipo 'Recargo'."})
             if self.dia_desde is not None or self.dia_hasta is not None:
                 raise ValidationError(
                     "dia_desde/dia_hasta son exclusivos de tipo 'Descuento'."
                 )
+            if self.ancla_recargo == 'dia_mes':
+                if self.dia_aplicacion is None:
+                    raise ValidationError({'dia_aplicacion': "Requerido para recargo anclado al día del mes."})
+                if self.dias_desde_vencimiento is not None:
+                    raise ValidationError({'dias_desde_vencimiento': "Solo aplica al ancla de vencimiento."})
+            elif self.ancla_recargo == 'vencimiento':
+                if self.dias_desde_vencimiento is None:
+                    raise ValidationError({'dias_desde_vencimiento': "Indique los días desde el vencimiento (puede ser 0)."})
+                if self.dia_aplicacion is not None:
+                    raise ValidationError({'dia_aplicacion': "Solo aplica al ancla de día del mes."})
+            else:
+                raise ValidationError({'ancla_recargo': "Ancla de recargo inválida."})
+            if self.frecuencia_recargo == 'recurrente':
+                if self.ancla_recargo != 'vencimiento':
+                    raise ValidationError({'frecuencia_recargo': "Los recargos recurrentes deben anclarse al vencimiento."})
+                if self.cada_dias is None:
+                    raise ValidationError({'cada_dias': "Indique cada cuántos días se repite el recargo."})
+            elif self.frecuencia_recargo == 'unico':
+                if self.cada_dias is not None:
+                    raise ValidationError({'cada_dias': "Solo aplica a un recargo recurrente."})
+            else:
+                raise ValidationError({'frecuencia_recargo': "Frecuencia de recargo inválida."})
         elif self.tipo == 'descuento':
             if self.dia_aplicacion is not None:
                 raise ValidationError(
                     {'dia_aplicacion': "Exclusivo de tipo 'Recargo'."}
                 )
+            if self.ancla_recargo != 'dia_mes' or self.dias_desde_vencimiento is not None \
+                    or self.frecuencia_recargo != 'unico' or self.cada_dias is not None:
+                raise ValidationError("La programación de recargo no aplica a tipo 'Descuento'.")
             if self.dia_desde is None or self.dia_hasta is None:
                 raise ValidationError(
                     "dia_desde y dia_hasta son requeridos para tipo 'Descuento'."
@@ -1240,6 +1298,9 @@ class LineaRecargoPago(models.Model):
     mensualidad = models.ForeignKey(Mensualidad, on_delete=models.CASCADE, related_name='lineas_recargo')
     nombre = models.CharField(max_length=100)
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha_referencia = models.DateField(null=True, blank=True)
+    periodo_desde = models.PositiveIntegerField(null=True, blank=True)
+    periodo_hasta = models.PositiveIntegerField(null=True, blank=True)
     creada_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -14,7 +14,9 @@ const formatearValor = (regla) =>
 const formatearDia = (regla) =>
     regla.tipo === 'descuento'
         ? `Días ${regla.dia_desde}–${regla.dia_hasta}`
-        : `Día ${regla.dia_aplicacion}`;
+        : regla.ancla_recargo === 'vencimiento'
+            ? `Vencimiento + ${regla.dias_desde_vencimiento || 0} día(s)${regla.frecuencia_recargo === 'recurrente' ? ` · cada ${regla.cada_dias} día(s)` : ''}`
+            : `Día ${regla.dia_aplicacion}`;
 
 /**
  * Sección "Recargos y Descuentos por Pago" de Configuración: CRUD de

@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import FileResponse
 from django.utils import timezone
 import logging
+import json
 import uuid
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -366,6 +367,7 @@ class BuscarAlumnoCobranzaView(APIView):
         mensualidades = to_list_con_recargo_descuento(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
             .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
+            .select_related('alumno').prefetch_related('lineas_recargo')
             .order_by('anio', 'mes')
         )
         mensualidades_futuras = to_list(
@@ -519,7 +521,15 @@ class RegistrarPagoView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        serializer = PagoCreateSerializer(data=request.data, context={'request': request})
+        data_entrada = request.data
+        if request.data.get('payload'):
+            try:
+                data_entrada = json.loads(request.data['payload'])
+            except (TypeError, json.JSONDecodeError):
+                return Response({'error': 'El detalle del pago adjunto no es válido.'}, status=status.HTTP_400_BAD_REQUEST)
+            if request.FILES.get('comprobante_retroactivo'):
+                data_entrada['comprobante_retroactivo'] = request.FILES['comprobante_retroactivo']
+        serializer = PagoCreateSerializer(data=data_entrada, context={'request': request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -547,6 +557,7 @@ class RegistrarPagoView(APIView):
         tasa_valor = data['tasa_valor']
         fecha_pago_retroactiva = data.get('fecha_pago')
         motivo_retroactivo = data.get('motivo')
+        comprobante_retroactivo = data.get('comprobante_retroactivo')
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
 
@@ -626,6 +637,10 @@ class RegistrarPagoView(APIView):
                 vuelto_usd=vuelto_usd if es_primer_pago else Decimal('0.00'),
                 vuelto_ves=vuelto_ves if es_primer_pago else Decimal('0.00'),
             )
+            if es_primer_pago and comprobante_retroactivo:
+                pago.comprobante_retroactivo = comprobante_retroactivo
+                pago.comprobante_retroactivo_subido_en = timezone.now()
+                pago.comprobante_retroactivo_subido_por = request.user
             if fecha_pago_retroactiva:
                 pago.fecha_pago = fecha_pago_retroactiva
             pago.save()
@@ -681,10 +696,12 @@ class RegistrarPagoView(APIView):
                 # abono anterior (LineaRecargoPago), no se vuelve a cobrar:
                 # el recargo se cobra una sola vez por mensualidad, no una
                 # vez por cada abono parcial que reciba.
-                if not LineaRecargoPago.objects.filter(mensualidad_id=m.id).exists():
-                    resultado = resolver_recargo(m, fecha_cobro)
-                    if resultado:
-                        recargos_por_mensualidad[m.id] = resultado
+                lineas_recargo_previas = list(
+                    LineaRecargoPago.objects.select_for_update().filter(mensualidad_id=m.id)
+                )
+                resultado = resolver_recargo(m, fecha_cobro, lineas_cobradas=lineas_recargo_previas)
+                if resultado:
+                    recargos_por_mensualidad[m.id] = resultado
 
                 # Descuento por pago dentro de rango: mismo guard de "una vez
                 # por mensualidad" que el recargo. A diferencia del recargo
@@ -748,6 +765,9 @@ class RegistrarPagoView(APIView):
                     mensualidad_id=mensualidad_id,
                     nombre=info['nombre'],
                     monto_usd=info['monto_usd'],
+                    fecha_referencia=fecha_cobro.date() if hasattr(fecha_cobro, 'date') else fecha_cobro,
+                    periodo_desde=info['periodos_cobrados'] + 1 if info['recurrente'] else None,
+                    periodo_hasta=info['periodos_devengados'] if info['recurrente'] else None,
                 )
                 for mensualidad_id, info in recargos_por_mensualidad.items()
             ])

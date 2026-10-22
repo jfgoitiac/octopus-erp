@@ -14,6 +14,10 @@ const FORM_INICIAL = {
     dia_aplicacion: '',
     dia_desde: '',
     dia_hasta: '',
+    ancla_recargo: 'dia_mes',
+    dias_desde_vencimiento: '',
+    frecuencia_recargo: 'unico',
+    cada_dias: '',
     activa: true,
 };
 
@@ -35,7 +39,18 @@ const construirPayload = (form) => {
     if (form.tipo === 'descuento') {
         return { ...base, modo_calculo: 'monto_fijo_usd', dia_desde: form.dia_desde, dia_hasta: form.dia_hasta };
     }
-    return { ...base, modo_calculo: form.modo_calculo, dia_aplicacion: form.dia_aplicacion };
+    if (form.ancla_recargo === 'vencimiento') {
+        return {
+            ...base, modo_calculo: form.modo_calculo,
+            ancla_recargo: 'vencimiento', dias_desde_vencimiento: form.dias_desde_vencimiento,
+            frecuencia_recargo: form.frecuencia_recargo,
+            ...(form.frecuencia_recargo === 'recurrente' ? { cada_dias: form.cada_dias } : {}),
+        };
+    }
+    return {
+        ...base, modo_calculo: form.modo_calculo, dia_aplicacion: form.dia_aplicacion,
+        ancla_recargo: 'dia_mes', frecuencia_recargo: 'unico',
+    };
 };
 
 export function useReglasRecargoPago() {
@@ -81,6 +96,10 @@ export function useReglasRecargoPago() {
             dia_aplicacion: regla.dia_aplicacion ?? '',
             dia_desde: regla.dia_desde ?? '',
             dia_hasta: regla.dia_hasta ?? '',
+            ancla_recargo: regla.ancla_recargo || 'dia_mes',
+            dias_desde_vencimiento: regla.dias_desde_vencimiento ?? '',
+            frecuencia_recargo: regla.frecuencia_recargo || 'unico',
+            cada_dias: regla.cada_dias ?? '',
             activa: regla.activa,
         });
         setShowReglaRecargoPagoModal(true);
