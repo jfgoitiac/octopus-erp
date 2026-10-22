@@ -17,6 +17,7 @@ Definiciones canónicas (no cambiar sin acordarlo antes):
     que `ListaMorososView._build_qs` (cobranza/views.py).
 """
 import calendar
+import re
 from datetime import date
 from decimal import Decimal
 
@@ -666,6 +667,78 @@ class DetalleMensualidadesPorMontoView(APIView):
             'pagados': resumen['pagados'], 'pendientes': resumen['pendientes'],
         }
         return response
+
+
+def _clave_orden_grado(grado_seccion):
+    """Orden académico natural: Inicial (Sala/Maternal/Preescolar) → Grado → Año.
+
+    No existe un orden de grados persistido (ConfiguracionGrado no tiene
+    campo de orden y el resto del backend ordena alfabéticamente), así que se
+    deduce del texto: nivel, luego el primer número ("1er", "2do"…) y por
+    último el texto completo para desempatar secciones ("1er Grado A" < "B").
+    """
+    texto = grado_seccion.lower()
+    if any(p in texto for p in ('sala', 'maternal', 'preescolar', 'inicial')):
+        nivel = 0
+    elif 'grado' in texto:
+        nivel = 1
+    elif 'año' in texto or 'ano' in texto:
+        nivel = 2
+    else:
+        nivel = 3
+    numero = re.search(r'\d+', texto)
+    return (nivel, int(numero.group()) if numero else 0, texto)
+
+
+class MensualidadesPorGradoView(APIView):
+    """Mensualidades de un período agrupadas por grado, con nombres (modal "Ver detalles").
+
+    Sin paginación: un período cabe completo en memoria. Una sola query
+    (select_related en la base) y el agrupado se hace en Python. Los alumnos
+    sin grado van al final con etiqueta vacía.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if _sin_permiso(request):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+        qs, error = _mensualidades_por_monto_qs(request)
+        if error:
+            return error
+        monto_param = request.query_params.get('monto')
+        if monto_param:
+            try:
+                qs = qs.filter(monto_usd=Decimal(monto_param))
+            except Exception:
+                return Response({'error': 'monto debe ser válido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        grupos = {}
+        for item in qs.order_by('alumno__apellido', 'alumno__nombre', 'id'):
+            alumno, representante = item.alumno, item.alumno.representante
+            grupo = grupos.setdefault(alumno.grado_seccion or '', {'ids': set(), 'total': Decimal('0.00'), 'alumnos': []})
+            grupo['ids'].add(alumno.id)
+            grupo['total'] += item.monto_usd
+            grupo['alumnos'].append({
+                'alumno_id': alumno.id, 'nombre': alumno.nombre, 'apellido': alumno.apellido,
+                'representante': f'{representante.nombre} {representante.apellido}' if representante else None,
+                'monto_usd': str(item.monto_usd), 'estado': 'pagado' if item.pagado else 'pendiente',
+            })
+
+        # Los sin grado ('') al final; el resto en orden académico natural.
+        orden = sorted((g for g in grupos if g), key=_clave_orden_grado) + ([''] if '' in grupos else [])
+        estudiantes = set().union(*(g['ids'] for g in grupos.values()))
+        return Response({
+            'mes': int(request.query_params['mes']), 'anio': int(request.query_params['anio']),
+            'resumen': {
+                'estudiantes': len(estudiantes),
+                'total_usd': str(sum((g['total'] for g in grupos.values()), Decimal('0.00'))),
+                'grados': len(grupos),
+            },
+            'grados': [{
+                'grado_seccion': grado, 'estudiantes': len(grupos[grado]['ids']),
+                'total_usd': str(grupos[grado]['total']), 'alumnos': grupos[grado]['alumnos'],
+            } for grado in orden],
+        })
 
 
 class ExportarMensualidadesPorMontoExcelView(APIView):

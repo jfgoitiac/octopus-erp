@@ -377,6 +377,39 @@ class MensualidadesPorMontoTest(SolvenciaReportesBase):
         self.assertEqual(libro['Detalle de alumnos'].freeze_panes, 'A2')
         self.assertEqual(libro['Detalle de alumnos'].auto_filter.ref, 'A1:K3')
 
+    def test_por_grado_agrupa_con_nombres_representante_y_monto(self):
+        # Grados en orden académico (Año después de Grado) y sin grado al final.
+        otro = _crear_alumno('E3600004', self.representante, nombre='Diego', apellido='Cuatro', grado_seccion='1er Año A')
+        sin_grado = _crear_alumno('E3600005', self.representante, nombre='Eva', apellido='Cinco', grado_seccion=None)
+        Mensualidad.objects.create(alumno=otro, mes=9, anio=2026, monto_usd=Decimal('40.00'), pagado=False)
+        Mensualidad.objects.create(alumno=sin_grado, mes=9, anio=2026, monto_usd=Decimal('30.00'), pagado=True)
+
+        respuesta = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/por-grado/?mes=9&anio=2026')
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.data['resumen'], {'estudiantes': 5, 'total_usd': '180.00', 'grados': 3})
+        self.assertEqual([g['grado_seccion'] for g in respuesta.data['grados']], ['1er Grado A', '1er Año A', ''])
+        primero = respuesta.data['grados'][0]
+        self.assertEqual(primero['estudiantes'], 3)
+        self.assertEqual(primero['total_usd'], '110.00')
+        # Ordenados por apellido: Dos, Tres, Uno.
+        self.assertEqual([a['apellido'] for a in primero['alumnos']], ['Dos', 'Tres', 'Uno'])
+        self.assertEqual(primero['alumnos'][2], {
+            'alumno_id': self.a1.id, 'nombre': 'Alba', 'apellido': 'Uno', 'representante': 'Luis Perez',
+            'monto_usd': '30.00', 'estado': 'pagado',
+        })
+        self.assertEqual(respuesta.data['grados'][2]['alumnos'][0]['nombre'], 'Eva')
+
+    def test_por_grado_respeta_filtro_monto_y_exige_periodo(self):
+        respuesta = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/por-grado/?mes=9&anio=2026&monto=30')
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.data['resumen'], {'estudiantes': 2, 'total_usd': '60.00', 'grados': 1})
+        self.assertEqual({a['nombre'] for a in respuesta.data['grados'][0]['alumnos']}, {'Alba', 'Bruno'})
+
+        invalido = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/por-grado/?mes=9&anio=2026&monto=abc')
+        self.assertEqual(invalido.status_code, 400)
+        sin_periodo = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/por-grado/')
+        self.assertEqual(sin_periodo.status_code, 400)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Bloque 4 — Estado de cuenta del representante

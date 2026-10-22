@@ -167,6 +167,9 @@ export const getMensualidadesPorMonto = (params, signal) =>
 export const getDetalleMensualidadesPorMonto = (params, signal) =>
     apiClient.get(`${BASE_INT}/mensualidades-por-monto/detalle/`, { params, signal });
 
+export const getMensualidadesPorGrado = (params, signal) =>
+    apiClient.get(`${BASE_INT}/mensualidades-por-monto/por-grado/`, { params, signal });
+
 export const exportarMensualidadesPorMontoExcel = (params, signal) =>
     apiClient.get(`${BASE_INT}/mensualidades-por-monto/exportar-excel/`, {
         params, responseType: 'blob', signal,
