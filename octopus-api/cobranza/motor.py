@@ -251,11 +251,14 @@ def construir_mensaje(rep, ciclos, regla):
     montos = montos_ref(total)
     monto_txt = _monto_whatsapp(montos)
     nota = f"\n_{montos['nota_tasa']}_" if montos.get('nota_tasa') else ''
-    lineas = [
-        f"• {c.mensualidad.alumno.nombre} {c.mensualidad.alumno.apellido}: "
-        f"{c.mensualidad.get_mes_display()} {c.mensualidad.anio}"
-        for c in ciclos
-    ]
+    from .deudas import item_deuda
+    lineas = []
+    for c in ciclos:
+        item = item_deuda(c.mensualidad)
+        lineas.append(
+            f"• {item['alumno']}: {item['descripcion']} — saldo pendiente: "
+            f"${item['saldo_pendiente_usd']:.2f}"
+        )
     intro = _INTROS.get(regla.plantilla, 'Tiene pagos pendientes:')
     if regla.destinatario == 'director':
         saludo = (f"*{cfg['nombre_colegio']}* — Aviso a dirección\n"

@@ -8,10 +8,12 @@ Tests de "recargo por pago tardío" (cobranza/recargos.py):
     alumno/mensualidad/instante.
   - Snapshot inmutable de LineaRecargoPago y su reversión al anular un pago.
 """
+import json
 from datetime import date, datetime
 from decimal import Decimal
 
 from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -134,6 +136,47 @@ class DosMesesAtrasadosTest(RecargoPagoTardioBase):
         resultado_5_meses = resolver_recargo(m, date(2026, 7, 20))
         self.assertEqual(resultado_1_mes['monto_usd'], resultado_5_meses['monto_usd'])
         self.assertEqual(resultado_5_meses['monto_usd'], Decimal('2.00'))
+
+
+class RecargoRecurrentePorVencimientoTest(RecargoPagoTardioBase):
+    def _regla_recurrente(self, **kwargs):
+        defaults = dict(
+            nombre='Recargo semanal', tipo='recargo', modo_calculo='monto_fijo_usd',
+            valor=Decimal('5.00'), ancla_recargo='vencimiento',
+            dias_desde_vencimiento=0, frecuencia_recargo='recurrente', cada_dias=7,
+            activa=True,
+        )
+        defaults.update(kwargs)
+        return ReglaRecargoPago.objects.create(**defaults)
+
+    def test_devenga_en_vencimiento_y_cada_siete_dias(self):
+        self._regla_recurrente()
+        m = self._mensualidad(7, 2026)
+        m.fecha_vencimiento = date(2026, 7, 20)
+        m.save(update_fields=['fecha_vencimiento'])
+        self.assertIsNone(resolver_recargo(m, date(2026, 7, 19)))
+        self.assertEqual(resolver_recargo(m, date(2026, 7, 20))['monto_usd'], Decimal('5.00'))
+        resultado = resolver_recargo(m, date(2026, 7, 27))
+        self.assertEqual(resultado['monto_usd'], Decimal('10.00'))
+        self.assertEqual(resultado['periodos_devengados'], 2)
+
+    def test_abono_parcial_no_repite_periodos_ya_cobrados(self):
+        self._regla_recurrente()
+        m = self._mensualidad(7, 2026)
+        m.fecha_vencimiento = date(2026, 7, 20)
+        m.save(update_fields=['fecha_vencimiento'])
+        linea_previa = type('Linea', (), {'monto_usd': Decimal('10.00')})()
+        segunda = resolver_recargo(m, date(2026, 8, 3), lineas_cobradas=[linea_previa])
+        self.assertEqual(segunda['monto_usd'], Decimal('5.00'))
+        self.assertEqual(segunda['periodos_devengados'], 3)
+
+    def test_offset_aplica_despues_de_los_dias_configurados(self):
+        self._regla_recurrente(dias_desde_vencimiento=3)
+        m = self._mensualidad(7, 2026)
+        m.fecha_vencimiento = date(2026, 7, 20)
+        m.save(update_fields=['fecha_vencimiento'])
+        self.assertIsNone(resolver_recargo(m, date(2026, 7, 22)))
+        self.assertEqual(resolver_recargo(m, date(2026, 7, 23))['monto_usd'], Decimal('5.00'))
 
 
 class MesCortoTopadoTest(RecargoPagoTardioBase):
@@ -365,7 +408,10 @@ class RecargoConFechaPagoRetroactivaTest(RecargoPagoTardioBase):
             "tasa_aplicada": "40.0000",
             "motivo": "Pago recibido en efectivo el 10/07, cargado hoy en el sistema",
         }
-        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        response = self.client.post('/api/cobranza/registrar-pago/', {
+            'payload': json.dumps(payload),
+            'comprobante_retroactivo': SimpleUploadedFile('retroactivo.pdf', b'%PDF-1.4 prueba', content_type='application/pdf'),
+        }, format='multipart')
         self.assertEqual(response.status_code, 201, response.content)
 
         pago = Pago.objects.get(alumno=self.alumno)
@@ -392,7 +438,10 @@ class RecargoConFechaPagoRetroactivaTest(RecargoPagoTardioBase):
             "tasa_aplicada": "40.0000",
             "motivo": "Pago recibido en efectivo el 20/07, cargado hoy en el sistema",
         }
-        response = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        response = self.client.post('/api/cobranza/registrar-pago/', {
+            'payload': json.dumps(payload),
+            'comprobante_retroactivo': SimpleUploadedFile('retroactivo-2.pdf', b'%PDF-1.4 prueba', content_type='application/pdf'),
+        }, format='multipart')
         self.assertEqual(response.status_code, 201, response.content)
 
         pago = Pago.objects.get(alumno=self.alumno)

@@ -135,6 +135,13 @@ class EvaluacionTest(MotorBase):
 
 
 class EnvioTest(MotorBase):
+    def test_recordatorio_lista_el_saldo_real_de_un_abono_parcial(self):
+        self.mens(self.alumno(), monto=50, pagado=10)
+        self.preparar()
+        with patch(WA, return_value=True) as wa:
+            procesar_envios(AHORA)
+        self.assertIn('saldo pendiente: $40.00', wa.call_args.args[1])
+
     def test_envia_por_whatsapp_y_registra_el_evento(self):
         self.mens(self.alumno())   # regla +3 => solo whatsapp
         self.preparar()

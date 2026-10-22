@@ -70,6 +70,8 @@ const CobranzaStep2 = ({
     setTasaManual,
     motivoRetro,
     setMotivoRetro,
+    comprobanteRetroactivo,
+    setComprobanteRetroactivo,
     tasaSugerida,
     tasaSugerenciaExacta,
     tasaSugerenciaFechaReal,
@@ -283,6 +285,18 @@ const CobranzaStep2 = ({
                                     </p>
                                     <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
                                         El dinero ya se recibió en una fecha pasada
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
+                                        Comprobante de respaldo <span style={{ color: 'var(--red)' }}>*</span>
+                                    </label>
+                                    <input type="file" accept=".pdf,image/jpeg,image/png,image/webp"
+                                        onChange={e => setComprobanteRetroactivo(e.target.files?.[0] || null)}
+                                        className="w-full px-3 py-2 rounded-lg text-xs"
+                                        style={{ border: `0.5px solid ${comprobanteRetroactivo ? '#16a34a' : 'var(--border-md)'}`, background: '#fff', color: 'var(--jet)' }} />
+                                    <p className="text-[10px] mt-1" style={{ color: comprobanteRetroactivo ? '#16a34a' : 'var(--ash)' }}>
+                                        {comprobanteRetroactivo ? `Adjunto: ${comprobanteRetroactivo.name}` : 'PDF, JPG, PNG o WEBP; máximo 10 MB. Obligatorio para fecha retroactiva.'}
                                     </p>
                                 </div>
                             </div>
