@@ -1,11 +1,5 @@
-import CameraCodeScanner, { FORMATOS_BARRAS_PRODUCTO } from './CameraTarjetaScanner';
-
-// Un código de barras de producto es un token alfanumérico corto. Los QR no
-// se aceptan aquí: son la credencial exclusiva de las tarjetas prepago.
-export function normalizarCodigoProductoLeido(valor) {
-  const codigo = String(valor ?? '').trim();
-  return /^[A-Za-z0-9-]{3,50}$/.test(codigo) ? codigo : null;
-}
+import CameraCodeScanner from './CameraTarjetaScanner';
+import { FORMATOS_BARRAS_PRODUCTO, normalizarCodigoProductoLeido } from './codigosCamara';
 
 export default function CameraProductoScanner({ onCodigoLeido, disabled = false }) {
   return (

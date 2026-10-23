@@ -1,32 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { FORMATOS_QR_TARJETA, normalizarCodigoTarjetaLeido } from './codigosCamara';
 import { Camera, Loader2, RotateCcw, Square, TriangleAlert } from 'lucide-react';
-
-// Los QR se reservan para tarjetas prepago; los códigos de barras son para
-// productos. Esta separación evita enviar por error una lectura al flujo
-// equivocado (contrato de Cantina en móvil).
-export const FORMATOS_QR_TARJETA = ['qr_code'];
-export const FORMATOS_BARRAS_PRODUCTO = [
-  'code_128',
-  'code_39',
-  'code_93',
-  'ean_13',
-  'ean_8',
-  'upc_a',
-  'upc_e',
-  'itf',
-  'codabar',
-];
-
-/**
- * Normaliza un valor leído por la cámara antes de enviarlo al flujo existente
- * de tarjetas. Los QR de Cantina codifican siempre el identificador CANT-,
- * nunca URLs ni texto libre.
- */
-export function normalizarCodigoTarjetaLeido(valor) {
-  const codigo = String(valor ?? '').trim();
-  if (!/^CANT-[A-Za-z0-9-]{3,45}$/i.test(codigo)) return null;
-  return codigo.toUpperCase();
-}
 
 function mensajeErrorCamara(error) {
   if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {

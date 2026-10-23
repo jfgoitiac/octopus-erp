@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -59,12 +59,17 @@ const montar = (rol) => render(
 
 describe('CobranzaInteligenteDashboard', () => {
     beforeEach(() => {
+        // El mes por defecto depende de la fecha actual: se fija para que la
+        // prueba no cambie con el calendario (solo se falsea Date).
+        vi.useFakeTimers({ toFake: ['Date'], now: new Date(2025, 9, 20, 12) });
         Object.values(m).forEach(f => f.mockReset());
         m.resumen.mockResolvedValue({ data: { lineas: [linea(9, 2025, 'Septiembre 2025'), linea(10, 2025, 'Octubre 2025')], totales: {} } });
         m.estado.mockResolvedValue({ data: { count: 1, results: [fila], resumen } });
         m.dashboard.mockResolvedValue({ data: dashboard });
         m.bandeja.mockResolvedValue({ data: { count: 1, results: [caso] } });
     });
+
+    afterEach(() => { vi.useRealTimers(); });
 
     it('muestra KPIs del mes, la tabla y los indicadores de gestión', async () => {
         montar('director');

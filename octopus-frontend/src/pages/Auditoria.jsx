@@ -575,7 +575,7 @@ const Auditoria = () => {
     const [fechaInicio, setFechaInicio] = useState(today);
     const [fechaFin, setFechaFin]       = useState(today);
     const [filtroModulo, setFiltroModulo] = useState('TODOS');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [paginaEstado, setPaginaEstado] = useState({ clave: '', pagina: 1 });
     const [searchInput, setSearchInput] = useState('');
     const [busqueda, setBusqueda]       = useState('');
 
@@ -588,10 +588,14 @@ const Auditoria = () => {
         return () => clearTimeout(id);
     }, [searchInput]);
 
-    // Volver a la página 1 cuando cambian los filtros que afectan el resultado
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [fechaInicio, fechaFin, filtroModulo, busqueda]);
+    // La página se asocia a los filtros con que se eligió: si cambian los
+    // filtros que afectan el resultado, vuelve a la 1 sin necesidad de un efecto.
+    const claveFiltros = `${fechaInicio}|${fechaFin}|${filtroModulo}|${busqueda}`;
+    const currentPage = paginaEstado.clave === claveFiltros ? paginaEstado.pagina : 1;
+    const setCurrentPage = (valor) => setPaginaEstado(prev => {
+        const actual = prev.clave === claveFiltros ? prev.pagina : 1;
+        return { clave: claveFiltros, pagina: typeof valor === 'function' ? valor(actual) : valor };
+    });
 
     const {
         loading, refreshing, exporting, exportingPagos, reporte, logs,
