@@ -37,3 +37,44 @@ export const badgeClass = (accion) => {
         return 'bg-amber-50 text-amber-700 border-amber-100';
     return 'bg-slate-50 text-slate-600 border-slate-100';
 };
+
+// "INICIO_SESION" -> "Inicio sesión" legible para el badge (el valor crudo sigue
+// disponible en el atributo title).
+export const humanizarAccion = (accion) => {
+    if (!accion) return 'Sin acción';
+    const s = String(accion).replace(/_/g, ' ').toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+// Categoría semántica de la acción: sirve para elegir ícono y para no depender
+// solo del color (accesibilidad: color + ícono + texto).
+export const accionCategoria = (accion) => {
+    const a = (accion || '').toUpperCase();
+    if (a.includes('ELIMINACION') || a.includes('ANULACION') || a.includes('DELETE')) return 'baja';
+    if (a.includes('REGISTRO') || a.includes('CREACION') || a.includes('INSCRIPCION')) return 'alta';
+    if (a.includes('INICIO_SESION') || a.includes('LOGIN')) return 'sesion';
+    if (a.includes('ACTUALIZACION') || a.includes('EDICION') || a.includes('AJUSTE')) return 'cambio';
+    return 'otro';
+};
+
+// Pares "antes/después" que el backend puede enviar dentro de `detalles`.
+const PARES_CAMBIO = [
+    ['antes', 'despues'],
+    ['anterior', 'nuevo'],
+    ['valor_anterior', 'valor_nuevo'],
+    ['before', 'after'],
+];
+
+// Devuelve { antes, despues, resto } si `detalles` contiene un par de cambio
+// reconocible; si no, null. `resto` son los demás campos (contexto).
+export const extraerCambio = (detalles) => {
+    if (!detalles || typeof detalles !== 'object' || Array.isArray(detalles)) return null;
+    for (const [kA, kD] of PARES_CAMBIO) {
+        if (kA in detalles || kD in detalles) {
+            const { [kA]: antes, [kD]: despues, ...resto } = detalles;
+            if (antes == null && despues == null) continue;
+            return { antes, despues, resto };
+        }
+    }
+    return null;
+};
