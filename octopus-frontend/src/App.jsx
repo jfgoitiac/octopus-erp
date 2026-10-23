@@ -114,6 +114,7 @@ const AuditoriaCierres         = lazy(() => import('./cantina/auditoria/pages/Au
 const AuditoriaCierreDetalle   = lazy(() => import('./cantina/auditoria/pages/AuditoriaCierreDetalle'));
 const AuditoriaReportes        = lazy(() => import('./cantina/auditoria/pages/AuditoriaReportes'));
 const AuditoriaBitacora        = lazy(() => import('./cantina/auditoria/pages/AuditoriaBitacora'));
+const AuditoriaCorrecciones    = lazy(() => import('./cantina/auditoria/pages/AuditoriaCorrecciones'));
 
 // ── Módulo Multi-Sede ─────────────────────────────────────────────────────────
 const MultiSedeDashboard       = lazy(() => import('./pages/MultiSedeDashboard'));
@@ -430,6 +431,7 @@ function App() {
                 <Route path="cierres/:id" element={<AuditoriaCierreDetalle />} />
                 <Route path="reportes" element={<AuditoriaReportes />} />
                 <Route path="bitacora" element={<AuditoriaBitacora />} />
+                <Route path="correcciones" element={<AuditoriaCorrecciones />} />
               </Route>
               <Route path="configuracion" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS]}>

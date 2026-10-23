@@ -46,7 +46,7 @@ const AuditoriaBitacora = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-4">
+    <div className="w-full max-w-7xl min-w-0 mx-auto flex flex-col gap-4">
       <PageHeader
         titulo="Bitácora y alertas"
         descripcion="Acciones críticas registradas, alertas automáticas y sus umbrales."

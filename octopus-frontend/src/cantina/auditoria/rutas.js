@@ -10,6 +10,7 @@ export const RUTAS_AUDITORIA = {
   reportes: `${RUTA_AUDITORIA}/reportes`,
   bitacora: `${RUTA_AUDITORIA}/bitacora`,
   alertas: `${RUTA_AUDITORIA}/bitacora?tab=alertas`,
+  correcciones: `${RUTA_AUDITORIA}/correcciones`,
 };
 
 export const rutaCierre = (id) => `${RUTA_AUDITORIA}/cierres/${id}`;

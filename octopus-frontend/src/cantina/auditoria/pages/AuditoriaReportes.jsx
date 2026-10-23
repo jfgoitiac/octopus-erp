@@ -60,7 +60,7 @@ const AuditoriaReportes = () => {
   const { Componente } = activa;
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-3 sm:gap-4">
+    <div className="w-full max-w-7xl min-w-0 mx-auto flex flex-col gap-3 sm:gap-4">
       <PageHeader
         titulo="Reportes de auditoría"
         descripcion="Ventas, excepciones, inventario y rentabilidad del período, con exportación a PDF y Excel."

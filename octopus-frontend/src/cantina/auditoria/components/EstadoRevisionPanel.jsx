@@ -81,11 +81,6 @@ export default function EstadoRevisionPanel({ cierreId, revision, onRevisado }) 
           <p className="text-xs" style={{ color: 'var(--ash)' }}>
             {revision.revisado_por.nombre} · {fmtFechaHora(revision.revisado_en)}
           </p>
-          {revision.comentario_director && (
-            <p className="text-sm rounded-xl p-3 whitespace-pre-line break-words" style={{ background: 'var(--porcelain)', color: 'var(--jet)', border: '0.5px solid var(--border)' }}>
-              {revision.comentario_director}
-            </p>
-          )}
         </div>
       ) : (
         <p className="text-sm" style={{ color: 'var(--ash)' }}>Este cierre todavía no ha sido revisado.</p>

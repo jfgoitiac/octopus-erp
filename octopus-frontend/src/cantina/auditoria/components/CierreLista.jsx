@@ -60,7 +60,7 @@ export default function CierreLista({ cierres }) {
           <li key={c.id}>
             <Link
               to={String(c.id)}
-              className="flex flex-col gap-2 rounded-2xl p-3 active:scale-[0.99] transition-transform"
+              className="flex flex-col gap-2 rounded-2xl p-3 transition-[transform,box-shadow] active:scale-[0.99] hover:shadow-md"
               style={ESTILO_TARJETA}
             >
               <div className="flex items-start justify-between gap-2">

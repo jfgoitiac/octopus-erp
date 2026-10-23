@@ -10,6 +10,7 @@ import CierreCabecera from '../components/CierreCabecera';
 import CierreResumenVentas from '../components/CierreResumenVentas';
 import EstadoRevisionPanel from '../components/EstadoRevisionPanel';
 import AdjuntoPanel from '../components/AdjuntoPanel';
+import NotasDirectorPanel from '../components/NotasDirectorPanel';
 import LineaTiempoHistorial from '../components/LineaTiempoHistorial';
 import { ReabrirCajaBoton } from '../components/ReabrirCajaModal';
 import { ESTILO_TARJETA, esCancelacion, fmtFecha } from '../components/CierreFormato';
@@ -74,7 +75,7 @@ const AuditoriaCierreDetalle = () => {
   const { cierre } = estado;
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-4">
+    <div className="w-full max-w-7xl min-w-0 mx-auto flex flex-col gap-4">
       <PageHeader
         titulo={`Cierre #${id}`}
         descripcion={cierre ? `${cierre.cajero?.nombre ?? 'Cajero'} · ${fmtFecha(cierre.fecha)}` : 'Detalle del cierre de caja'}
@@ -124,6 +125,7 @@ const AuditoriaCierreDetalle = () => {
             </div>
             <div className="flex flex-col gap-4 min-w-0">
               <EstadoRevisionPanel cierreId={cierre.id ?? id} revision={cierre.revision} onRevisado={refrescar} />
+              <NotasDirectorPanel cierreId={cierre.id ?? id} notas={cierre.revision?.comentario_director ?? cierre.notas_director} onCambio={refrescar} />
               <AdjuntoPanel cierreId={cierre.id ?? id} adjuntos={cierre.adjuntos} onCambio={refrescar} />
             </div>
           </div>

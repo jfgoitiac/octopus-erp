@@ -89,5 +89,5 @@ export const haceNDias = (n) => {
 };
 
 // Estilos compartidos de tarjetas y campos, coherentes con la cantina.
-export const ESTILO_TARJETA = { background: '#fff', border: '0.5px solid var(--border-md)' };
+export const ESTILO_TARJETA = { background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' };
 export const ESTILO_CAMPO = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };

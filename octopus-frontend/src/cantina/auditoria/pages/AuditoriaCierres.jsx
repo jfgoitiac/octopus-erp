@@ -5,6 +5,7 @@ import { PageHeader } from '../../../components/ui/PageHeader';
 import { parseApiError } from '../../../utils/apiError';
 import { getCierres } from '../api/auditoriaApi';
 import CierreFiltros from '../components/CierreFiltros';
+import CierreResumenLista from '../components/CierreResumenLista';
 import CierreLista, { CierreListaSkeleton } from '../components/CierreLista';
 import { aFechaISO, esCancelacion, haceNDias } from '../components/CierreFormato';
 
@@ -74,7 +75,7 @@ const AuditoriaCierres = () => {
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-4">
+    <div className="w-full max-w-7xl min-w-0 mx-auto flex flex-col gap-4">
       <PageHeader
         titulo="Cierres diarios"
         descripcion="Consulta los cierres de caja, sus diferencias y su estado de revisión."
@@ -87,9 +88,11 @@ const AuditoriaCierres = () => {
         onLimpiar={() => cambiarFiltros(filtrosIniciales())}
       />
 
-      <p className="text-xs" style={{ color: 'var(--ash)' }} aria-live="polite">
-        {cargando ? 'Cargando…' : `${datos.count} cierre${datos.count !== 1 ? 's' : ''} encontrado${datos.count !== 1 ? 's' : ''}`}
-      </p>
+      {cargando ? (
+        <p className="text-xs" style={{ color: 'var(--ash)' }} aria-live="polite">Cargando…</p>
+      ) : (
+        <CierreResumenLista cierres={datos.results} total={datos.count} />
+      )}
 
       {cargando ? <CierreListaSkeleton /> : <CierreLista cierres={datos.results} />}
 

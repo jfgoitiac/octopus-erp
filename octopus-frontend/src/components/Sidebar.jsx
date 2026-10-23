@@ -16,7 +16,8 @@ import {
   Loader2, Banknote, CreditCard, Monitor, Contact, AlertTriangle, GraduationCap, ReceiptText, GitCompareArrows, FileText,
   BookOpen, CalendarCheck, Clock, Building2, Bell, X, BadgeCheck, FileSearch, ShieldAlert, Megaphone,
   Pin, PinOff, ChevronDown, LayoutTemplate, FileOutput, History, FileSignature, MessageCircle, Receipt, Sparkles,
-  Gauge, ClipboardCheck, ScrollText
+  Gauge, ClipboardCheck, ScrollText,
+  PencilLine,
 } from 'lucide-react';
 
 const TODOS_LOS_ROLES = ['director', 'sistemas', 'administrador', 'cobranza', 'cajero', 'secretaria', 'directivo_red', 'docente', 'coordinador'];
@@ -72,6 +73,7 @@ const navSections = [
       { name: 'Panel ejecutivo', path: RUTAS_AUDITORIA.panel, match: [`${RUTA_AUDITORIA}/panel`], icon: Gauge, roles: ['director'] },
       { name: 'Cierres de caja', path: RUTAS_AUDITORIA.cierres, match: [`${RUTA_AUDITORIA}/cierres`], icon: ClipboardCheck, roles: ['director'] },
       { name: 'Reportes de cantina', path: RUTAS_AUDITORIA.reportes, match: [`${RUTA_AUDITORIA}/reportes`], icon: BarChart3, roles: ['director'] },
+      { name: 'Correcciones', path: RUTAS_AUDITORIA.correcciones, match: [`${RUTA_AUDITORIA}/correcciones`], icon: PencilLine, roles: ['director'] },
       { name: 'Bitácora y alertas', path: RUTAS_AUDITORIA.bitacora, match: [`${RUTA_AUDITORIA}/bitacora`], icon: ScrollText, roles: ['director'], contadorAlertas: true },
     ],
   },

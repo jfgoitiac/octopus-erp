@@ -111,3 +111,22 @@ export const getParametrosAuditoria = (signal) =>
 
 export const actualizarParametrosAuditoria = (payload) =>
   USAR_MOCKS ? mock({ ...mocks.parametros, ...payload }) : cantinaApiClient.put(`${BASE}parametros/`, payload);
+
+/* ── §10 Correcciones del Director ── */
+
+// params: { q, fecha_inicio, fecha_fin, area, estado, page, page_size }
+export const buscarVentas = (params, signal) =>
+  USAR_MOCKS ? mock(mocks.ventasBuscables) : cantinaApiClient.get(`${BASE}ventas/`, { params, signal });
+
+// payload: { motivo, metodo_pago?, referencia?, descuento_usd?, motivo_descuento?, observaciones? }
+// 409 = regla de negocio (anulada, turno cerrado, prepago/CxC); el mensaje viene en `error`.
+export const corregirVenta = (id, payload) =>
+  USAR_MOCKS
+    ? mock({ ...mocks.ventasBuscables.results[0], ...payload, corregida: true })
+    : cantinaApiClient.post(`${BASE}ventas/${id}/corregir/`, payload);
+
+// payload: { motivo, notas_director } — edita revision.comentario_director sin cambiar el estado.
+export const actualizarNotasCierre = (id, payload) =>
+  USAR_MOCKS
+    ? mock({ id, notas_director: payload.notas_director })
+    : cantinaApiClient.patch(`${BASE}cierres/${id}/notas/`, payload);

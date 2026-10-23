@@ -282,3 +282,42 @@ export const parametros = {
   actualizado_por: director,
   actualizado_en: '2026-10-10T08:00:00-04:00',
 };
+
+/* ── §10 Correcciones ── */
+export const ventasBuscables = {
+  count: 2,
+  next: null,
+  previous: null,
+  results: [
+    {
+      id: 311,
+      fecha: '2026-10-15T09:14:00-04:00',
+      area: 'cantina',
+      cajero: ana,
+      total_usd: '4.50',
+      descuento_usd: '0.50',
+      metodo_pago: 'efectivo',
+      estado: 'completada',
+      cliente: { tipo: 'alumno', id: 12, nombre: 'Luis Gómez' },
+      turno: turno41,
+      cierre_id: null,
+      cierre_cerrado: false,
+      corregible: true,
+    },
+    {
+      id: 288,
+      fecha: '2026-10-14T10:15:00-04:00',
+      area: 'libreria',
+      cajero: luis,
+      total_usd: '3.00',
+      descuento_usd: '0.00',
+      metodo_pago: 'pago_movil',
+      estado: 'completada',
+      cliente: null,
+      turno: turno42,
+      cierre_id: 88,
+      cierre_cerrado: true,
+      corregible: true,
+    },
+  ],
+};

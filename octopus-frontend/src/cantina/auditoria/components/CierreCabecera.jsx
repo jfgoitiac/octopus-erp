@@ -20,7 +20,7 @@ function Dato({ icono: Icono, etiqueta, valor }) {
 
 function Cifra({ etiqueta, valor, ayuda }) {
   return (
-    <div className="rounded-2xl p-3 sm:p-4" style={ESTILO_TARJETA}>
+    <div className="rounded-2xl p-3 sm:p-4" style={{ ...ESTILO_TARJETA, boxShadow: 'var(--shadow-sm)' }}>
       <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>{etiqueta}</p>
       <p className="text-lg sm:text-xl font-semibold font-mono tabular-nums mt-1" style={{ color: 'var(--jet)' }}>{valor}</p>
       {ayuda && <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>{ayuda}</p>}
@@ -63,7 +63,7 @@ export default function CierreCabecera({ cierre }) {
           ayuda={cierre.monto_inicial_usd != null ? `Incluye ${usd(cierre.monto_inicial_usd)} de fondo inicial` : null}
         />
         <Cifra etiqueta="Conteo físico" valor={usd(cierre.conteo_fisico_usd)} ayuda="Reportado por el cajero" />
-        <div className="rounded-2xl p-3 sm:p-4" style={{ background: fondoDiferencia(diferencia), border: `0.5px solid ${tono}` }}>
+        <div className="rounded-2xl p-3 sm:p-4" style={{ background: fondoDiferencia(diferencia), border: `1px solid ${tono}`, boxShadow: 'var(--shadow-sm)' }}>
           <p className="text-xs uppercase tracking-widest" style={{ color: tono }}>Diferencia</p>
           <p className="text-lg sm:text-xl font-bold font-mono tabular-nums mt-1" style={{ color: tono }}>
             {usdConSigno(diferencia)}
