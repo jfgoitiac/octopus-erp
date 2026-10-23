@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { FileText, Printer, Download } from 'lucide-react';
+import { FileText, Printer, Download, MessageCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Modal } from '../../ui/Modal';
-import { plantillaCobroPdf } from '../../../api/plantillaCobro.service';
+import { plantillaCobroPdf, plantillaCobroWhatsApp } from '../../../api/plantillaCobro.service';
 import { AREA_LABELS, descargarBlob, mensajeError } from './utilsCxc';
 
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[40px]';
 const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' };
 
 // Genera la plantilla de cobro (PDF en Bs a la tasa vigente) del titular:
-// se puede imprimir (abre el PDF) o descargar, con rango de fechas opcional.
+// se puede imprimir (abre el PDF), descargar o enviar por WhatsApp al titular,
+// con rango de fechas opcional.
 // El área sale del filtro de la pantalla que lo contiene.
 const PlantillaCobroButton = ({ titular, area, disabled = false }) => {
   const [abierto, setAbierto] = useState(false);
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [trabajando, setTrabajando] = useState(false);
 
   const rangoInvalido = Boolean(fechaInicio && fechaFin && fechaInicio > fechaFin);
@@ -41,6 +43,23 @@ const PlantillaCobroButton = ({ titular, area, disabled = false }) => {
       setAbierto(false);
     } catch (err) {
       toast.error(await mensajeError(err, 'No se pudo generar la plantilla de cobro.'));
+    } finally {
+      setTrabajando(false);
+    }
+  };
+
+  const enviarWhatsApp = async () => {
+    if (rangoInvalido) {
+      toast.warning('La fecha final no puede ser anterior a la inicial.');
+      return;
+    }
+    setTrabajando(true);
+    try {
+      const res = await plantillaCobroWhatsApp(titular, { area, fechaInicio, fechaFin }, telefono);
+      toast.success(`Plantilla de cobro enviada por WhatsApp al ${res.data?.telefono || 'titular'}.`);
+      setAbierto(false);
+    } catch (err) {
+      toast.error(await mensajeError(err, 'No se pudo enviar la plantilla por WhatsApp.'));
     } finally {
       setTrabajando(false);
     }
@@ -93,6 +112,25 @@ const PlantillaCobroButton = ({ titular, area, disabled = false }) => {
         {rangoInvalido && (
           <p className="text-xs mt-2" role="alert" style={{ color: 'var(--red)' }}>La fecha final no puede ser anterior a la inicial.</p>
         )}
+
+        <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--border-md)' }}>
+          <label htmlFor="plantilla-telefono" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Enviar por WhatsApp</label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <input
+              id="plantilla-telefono"
+              type="tel"
+              inputMode="tel"
+              value={telefono}
+              onChange={e => setTelefono(e.target.value)}
+              placeholder="Teléfono (vacío: el del titular)"
+              className={inputCls}
+              style={inputStyle}
+            />
+            <button type="button" onClick={enviarWhatsApp} disabled={trabajando || rangoInvalido} className={`${btnSec} sm:shrink-0`} style={{ border: '0.5px solid var(--border-md)', color: 'var(--jet)' }}>
+              <MessageCircle size={15} /> {trabajando ? 'Enviando…' : 'Enviar'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </>
   );

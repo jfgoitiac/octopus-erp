@@ -15,3 +15,15 @@ export const plantillaCobroPdf = (titular, filtros = {}, signal) => {
   };
   return cantinaApiClient.get('cxc/plantilla-cobro/', { params, signal, responseType: 'blob' });
 };
+
+/**
+ * Envía la plantilla de cobro (PDF) por WhatsApp al titular.
+ * `telefono` es opcional: sin él, el backend usa el del titular.
+ */
+export const plantillaCobroWhatsApp = (titular, filtros = {}, telefono = '') => cantinaApiClient.post('cxc/plantilla-cobro/whatsapp/', {
+  [titular.tipo === 'representante' ? 'representante' : 'cliente']: titular.id,
+  area: filtros.area || undefined,
+  fecha_inicio: filtros.fechaInicio || undefined,
+  fecha_fin: filtros.fechaFin || undefined,
+  telefono: telefono.trim() || undefined,
+});
