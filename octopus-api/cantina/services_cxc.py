@@ -170,10 +170,11 @@ lock_cliente = _lock_cliente
 # ─────────────────────────────────────────────
 # Cargos
 # ─────────────────────────────────────────────
-def crear_cargo_por_venta(venta):
+def crear_cargo_por_venta(venta, fecha=None):
     """Crea el CargoCantina de una venta 'credito_representante' (valida bloqueo y límite).
     El titular es el representante o el cliente de la venta.
-    Se llama dentro de la transacción de RegistrarVentaView."""
+    Se llama dentro de la transacción de RegistrarVentaView.
+    `fecha` (venta retroactiva, solo admin) fija `creado_en` del cargo."""
     if venta.metodo_pago != 'credito_representante' or not (venta.representante_id or venta.cliente_id):
         raise ValidationError({'detail': 'La venta no es un cargo a cuenta de un representante o cliente.'})
 
@@ -198,13 +199,33 @@ def crear_cargo_por_venta(venta):
                 ),
             })
 
-        return CargoCantina.objects.create(
+        cargo = CargoCantina.objects.create(
             **filtro_titular(titular),
             alumno=venta.alumno,
             venta=venta,
             area=venta.area,
             monto_usd=venta.total_usd,
         )
+        if fecha is not None:
+            # creado_en es auto_now_add: se fuerza con update() para no
+            # alterar el orden FIFO de los abonos (se aplican por creado_en).
+            CargoCantina.objects.filter(pk=cargo.pk).update(creado_en=fecha)
+            cargo.creado_en = fecha
+        return cargo
+
+
+def resolver_fecha_venta_retroactiva(fecha_venta, motivo):
+    """Valida la fecha y el motivo de una venta a crédito retroactiva (solo admin).
+
+    Mismas reglas que el abono retroactivo: no futura y dentro del período
+    escolar activo (`fecha_dentro_periodo_activo`), motivo >= MOTIVO_MIN_CARACTERES.
+    Devuelve (fecha_aware, motivo_limpio).
+    """
+    motivo = (motivo or '').strip()
+    if len(motivo) < MOTIVO_MIN_CARACTERES:
+        raise ValidationError({'motivo_retroactivo': f'El motivo es obligatorio (mínimo {MOTIVO_MIN_CARACTERES} caracteres).'})
+    fecha = _resolver_fecha_retroactiva(fecha_venta, campo='fecha_venta', etiqueta='de la venta')
+    return fecha, motivo
 
 
 def anular_cargo_por_venta(venta, usuario):
@@ -231,18 +252,21 @@ def anular_cargo_por_venta(venta, usuario):
 # ─────────────────────────────────────────────
 # Abonos
 # ─────────────────────────────────────────────
-def _resolver_fecha_retroactiva(fecha_pago):
+def _resolver_fecha_retroactiva(fecha_pago, campo='fecha_pago', etiqueta='del pago'):
     if fecha_pago is None:
-        raise ValidationError({'fecha_pago': 'El pago retroactivo requiere la fecha real del pago.'})
+        raise ValidationError({campo: (
+            'El pago retroactivo requiere la fecha real del pago.' if campo == 'fecha_pago'
+            else f'La venta retroactiva requiere la fecha real {etiqueta}.'
+        )})
     if not isinstance(fecha_pago, datetime):
         fecha_pago = datetime.combine(fecha_pago, time(12, 0))
     if timezone.is_naive(fecha_pago):
         fecha_pago = timezone.make_aware(fecha_pago)
     if timezone.localtime(fecha_pago).date() > timezone.localdate():
-        raise ValidationError({'fecha_pago': 'La fecha del pago no puede ser futura.'})
+        raise ValidationError({campo: f'La fecha {etiqueta} no puede ser futura.'})
     dentro, error = fecha_dentro_periodo_activo(fecha_pago)
     if not dentro:
-        raise ValidationError({'fecha_pago': error})
+        raise ValidationError({campo: error})
     return fecha_pago
 
 

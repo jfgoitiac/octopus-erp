@@ -13,6 +13,7 @@ from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import permissions, serializers as drf_serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +33,7 @@ from .models import (
     DetalleVentaCantina,
     HistorialCodigoTarjeta,
     LoteTarjetas,
+    MovimientoInventario,
     ClienteCantina,
     ParametroCantina,
     ProductoCantina,
@@ -1034,12 +1036,63 @@ class RegistrarVentaView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def post(self, request):
+        # ── Venta retroactiva (solo admin/director, solo a crédito) ─────────
+        # Con `fecha_venta` pasada la venta NO entra a ninguna caja: queda con
+        # apertura=None, así que no altera el arqueo ni el cierre (abierto o
+        # ya cerrado/revisado) de ningún cajero — igual que el abono
+        # retroactivo. Exige `motivo_retroactivo`, no admite fecha futura ni
+        # fuera del período escolar activo, y deja evento en la bitácora.
+        fecha_venta = None
+        motivo_retroactivo = ''
+        fecha_raw = request.data.get('fecha_venta')
+        if fecha_raw not in (None, ''):
+            fecha_parsed = parse_datetime(fecha_raw) if isinstance(fecha_raw, str) else None
+            if fecha_parsed is None and isinstance(fecha_raw, str):
+                fecha_parsed = parse_date(fecha_raw)
+            if fecha_parsed is None:
+                return Response(
+                    {'error': "'fecha_venta' tiene un formato inválido; use YYYY-MM-DD o ISO 8601."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            dia = fecha_parsed
+            if isinstance(dia, datetime):
+                if timezone.is_naive(dia):
+                    dia = timezone.make_aware(dia)
+                dia = timezone.localtime(dia).date()
+            if dia > timezone.localdate():
+                return Response(
+                    {'error': 'La fecha de la venta no puede ser futura.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if dia == timezone.localdate():
+                fecha_parsed = None  # fecha de hoy: venta normal de caja
+            if fecha_parsed is not None:
+                if not EsAdminCantina().has_permission(request, self):
+                    return Response(
+                        {'error': 'Solo el administrador o director puede registrar ventas retroactivas.'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                if request.data.get('metodo_pago') != 'credito_representante':
+                    return Response(
+                        {'error': 'Solo se admite fecha retroactiva en ventas a crédito (cargo a cuenta).'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                try:
+                    fecha_venta, motivo_retroactivo = services_cxc.resolver_fecha_venta_retroactiva(
+                        fecha_parsed, request.data.get('motivo_retroactivo'),
+                    )
+                except drf_serializers.ValidationError as exc:
+                    return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        retroactiva = fecha_venta is not None
+
         apertura = AperturaCajaCantina.objects.filter(cajero=request.user, estado='abierta').first()
-        if not apertura:
+        if not apertura and not retroactiva:
             return Response(
                 {'error': 'Debes abrir tu caja (declarar el monto inicial) antes de registrar una venta.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if retroactiva:
+            apertura = None  # nunca se asocia a una caja (ver nota arriba)
 
         items = request.data.get('items')
         if not items or not isinstance(items, list):
@@ -1229,6 +1282,7 @@ class RegistrarVentaView(APIView):
         # ── Resolver productos y calcular total (solo lectura) ──────────────
         lineas = []
         subtotal_usd = Decimal('0.00')
+        area_venta = apertura.area if apertura is not None else None
         for item in items:
             if not isinstance(item, dict):
                 return Response(
@@ -1261,14 +1315,17 @@ class RegistrarVentaView(APIView):
                     {'error': f"No se encontró ningún producto activo con id '{_texto_seguro(item.get('producto_id'))}'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            if producto.area != apertura.area:
-                return Response(
-                    {'error': (
+            if area_venta is None:
+                area_venta = producto.area  # retroactiva: el área sale de los productos
+            if producto.area != area_venta:
+                if retroactiva:
+                    mensaje_area = 'Una venta retroactiva solo puede incluir productos de una misma área (cantina o librería).'
+                else:
+                    mensaje_area = (
                         f"El producto '{producto.nombre}' pertenece a {AREAS_VALIDAS.get(producto.area, producto.area)} "
-                        f"y tu caja es de {AREAS_VALIDAS.get(apertura.area, apertura.area)}."
-                    )},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                        f"y tu caja es de {AREAS_VALIDAS.get(area_venta, area_venta)}."
+                    )
+                return Response({'error': mensaje_area}, status=status.HTTP_400_BAD_REQUEST)
             if producto.stock_actual < cantidad:
                 return Response(
                     {'error': f"Stock insuficiente de '{producto.nombre}' (disponible: {producto.stock_actual}, solicitado: {cantidad})."},
@@ -1344,7 +1401,7 @@ class RegistrarVentaView(APIView):
                     alumno=alumno,
                     tarjeta=tarjeta,
                     apertura=apertura,
-                    area=apertura.area,
+                    area=area_venta,
                     cajero=request.user,
                     metodo_pago=metodo_pago,
                     banco_receptor=banco_receptor,
@@ -1363,11 +1420,20 @@ class RegistrarVentaView(APIView):
                     es_manual=es_manual,
                 )
 
+                if retroactiva:
+                    # creado_en es auto_now_add: se fuerza con update().
+                    VentaCantina.objects.filter(pk=venta.pk).update(creado_en=fecha_venta)
+                    venta.creado_en = fecha_venta
+
                 for producto, cantidad, precio_unitario, subtotal in lineas:
-                    aplicar_movimiento_inventario(
+                    movimiento_inv = aplicar_movimiento_inventario(
                         producto, 'salida', cantidad,
-                        motivo=f'Venta #{venta.id}', venta=venta, usuario=request.user,
+                        motivo=(
+                            f'Venta retroactiva #{venta.id}' if retroactiva else f'Venta #{venta.id}'
+                        ), venta=venta, usuario=request.user,
                     )
+                    if retroactiva:
+                        MovimientoInventario.objects.filter(pk=movimiento_inv.pk).update(creado_en=fecha_venta)
                     DetalleVentaCantina.objects.create(
                         venta=venta, producto=producto, cantidad=cantidad,
                         precio_unitario=precio_unitario, subtotal=subtotal,
@@ -1392,6 +1458,19 @@ class RegistrarVentaView(APIView):
                         },
                     )
 
+                if retroactiva:
+                    registrar_evento(
+                        'venta_retroactiva', objeto=venta, request=request, area=venta.area,
+                        despues={
+                            'fecha_venta': fecha_venta, 'total_usd': total_usd,
+                            'metodo_pago': metodo_pago,
+                            'titular': (
+                                f'cliente:{cliente.pk}' if cliente is not None else f'representante:{representante.pk}'
+                            ),
+                        },
+                        motivo=motivo_retroactivo,
+                    )
+
                 if tarjeta is not None:
                     movimiento = aplicar_movimiento_tarjeta(
                         tarjeta, 'consumo', total_usd, venta=venta, usuario=request.user,
@@ -1402,7 +1481,7 @@ class RegistrarVentaView(APIView):
                 if metodo_pago == 'credito_representante':
                     # Valida bloqueo y límite de crédito y crea el CargoCantina
                     # dentro de ESTA transacción: si falla, se revierte todo.
-                    services_cxc.crear_cargo_por_venta(venta)
+                    services_cxc.crear_cargo_por_venta(venta, fecha=fecha_venta)
         except drf_serializers.ValidationError as exc:
             return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except DjangoValidationError as exc:

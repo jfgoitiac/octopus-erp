@@ -68,6 +68,7 @@ class EventoAuditoriaCantina(models.Model):
         ('parametros_auditoria', 'Cambio de parámetros de auditoría'),
         ('correccion_venta', 'Corrección de venta por el Director'),
         ('nota_cierre', 'Nota del Director en un cierre'),
+        ('venta_retroactiva', 'Venta a crédito retroactiva'),
     )
 
     tipo = models.CharField(max_length=30, choices=TIPOS, db_index=True)

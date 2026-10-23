@@ -47,7 +47,7 @@ export default function CantinaCuentasPorCobrar() {
   const [total, setTotal] = useState(0);
   const [hayMas, setHayMas] = useState(false);
   const [cargadoPara, setCargadoPara] = useState(null);
-  const [errorCarga, setErrorCarga] = useState(false);
+  const [errorPara, setErrorPara] = useState(null); // clave de filtros que falló
   const [tasa, setTasa] = useState(0);
   const [exportando, setExportando] = useState(false);
   const [seleccionado, setSeleccionado] = useState(null);
@@ -62,9 +62,9 @@ export default function CantinaCuentasPorCobrar() {
 
   const claveFiltros = `${area}|${tipo}|${soloDeuda}|${pagina}`;
   const cargando = cargadoPara !== claveFiltros;
+  const errorCarga = errorPara === claveFiltros;
 
   const cargar = useCallback((signal) => {
-    setErrorCarga(false);
     return listarCuentasCxc({
       area: area || undefined,
       tipo: tipo || undefined,
@@ -73,13 +73,14 @@ export default function CantinaCuentasPorCobrar() {
     }, signal)
       .then(res => {
         const lista = listaDe(res.data);
+        setErrorPara(null);
         setCuentas(lista);
         setTotal(res.data?.count ?? lista.length);
         setHayMas(Boolean(res.data?.next));
       })
       .catch(async err => {
         if (esCancelacion(err)) return;
-        setErrorCarga(true);
+        setErrorPara(claveFiltros);
         toast.error(await mensajeError(err, 'No se pudieron cargar las cuentas por cobrar.'));
       })
       .finally(() => { if (!signal?.aborted) setCargadoPara(claveFiltros); });
@@ -155,6 +156,7 @@ export default function CantinaCuentasPorCobrar() {
           esAdmin={esAdmin}
           onVolver={() => setSeleccionado(null)}
           onCambio={() => cargar()}
+          onVentaCreada={setTicket}
         />
         {ticketModal}
       </>
@@ -249,6 +251,7 @@ export default function CantinaCuentasPorCobrar() {
           open
           onClose={() => setVendiendo(false)}
           onVentaCreada={ventaCreada}
+          esAdmin={esAdmin}
         />
       )}
       {ticketModal}
@@ -258,7 +261,7 @@ export default function CantinaCuentasPorCobrar() {
           <p className="text-sm" style={{ color: 'var(--red)' }}>No se pudieron cargar las cuentas por cobrar.</p>
           <button
             type="button"
-            onClick={() => { setCargadoPara(null); cargar(); }}
+            onClick={() => { setErrorPara(null); setCargadoPara(null); cargar(); }}
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto"
             style={{ background: 'var(--pb)' }}
           >

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { HandCoins, Loader2, Info } from 'lucide-react';
 import { Modal } from '../../../ui/Modal';
+import DatePickerES from '../../../DatePickerES';
 import {
   getProductos, getTasaVigenteCantina, registrarVenta, getAperturaCajaActual,
 } from '../../../../api/cantina.service';
@@ -10,11 +11,16 @@ import CargoCuentaPanel from '../../pos/CargoCuentaPanel';
 import CarritoVenta from '../../pos/CarritoVenta';
 import DescuentoVenta from '../../pos/DescuentoVenta';
 import { evaluarCredito } from '../../pos/evaluarCredito';
-import { esCancelacion, esCliente, nombreCompleto, num, fmtUsd, fmtVes } from '../utilsCxc';
+import { esCancelacion, esCliente, nombreCompleto, num, fmtUsd, fmtVes, fechaLocalISO } from '../utilsCxc';
 import CatalogoProductosVenta from './CatalogoProductosVenta';
 import useCarritoVenta, { origenProductos } from './useCarritoVenta';
 
 const noop = () => {};
+const MOTIVO_MIN = 10;
+const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '15px' };
+
+// Si el titular inicial es un representante con un único hijo, se preselecciona.
+const alumnoInicial = (t) => (t && !esCliente(t) && t.alumnos?.length === 1 ? String(t.alumnos[0].id) : '');
 
 function mensajeVenta(err) {
   const d = err?.response?.data;
@@ -27,20 +33,32 @@ function mensajeVenta(err) {
 // descuenta inventario, cuelga de la caja abierta del cajero, deja bitácora de
 // descuento / venta manual y genera el cargo en la cuenta del titular. El
 // backend revalida límite de crédito y bloqueo de la cuenta.
-// Props: { open, onClose, onVentaCreada({ venta, titular }) }.
-export default function NuevaVentaCreditoModal({ open, onClose, onVentaCreada }) {
+// Props: { open, onClose, onVentaCreada({ venta, titular }),
+//          titularInicial (opcional: titular ya elegido, con saldo_usd / limite_usd / bloqueado / alumnos),
+//          esAdmin (opcional: habilita la venta retroactiva) }.
+// Venta retroactiva (solo admin/director): fecha pasada + motivo. No entra a ninguna
+// caja (ni abierta ni cerrada), por eso el administrador puede registrarla sin
+// caja abierta eligiendo el área.
+export default function NuevaVentaCreditoModal({ open, onClose, onVentaCreada, titularInicial = null, esAdmin = false }) {
   const [apertura, setApertura] = useState(null); // null = cargando, false = sin caja
   const [productos, setProductos] = useState([]);
   const [productosDe, setProductosDe] = useState(null); // área para la que ya se cargó el catálogo
   const [tasa, setTasa] = useState(0);
-  const [titular, setTitular] = useState(null);
-  const [alumnoId, setAlumnoId] = useState('');
+  const [titular, setTitular] = useState(titularInicial);
+  const [alumnoId, setAlumnoId] = useState(() => alumnoInicial(titularInicial));
+  const [retro, setRetro] = useState(false);
+  const [fechaRetro, setFechaRetro] = useState(() => fechaLocalISO(-1));
+  const [motivoRetro, setMotivoRetro] = useState('');
+  const [areaRetro, setAreaRetro] = useState('cantina');
   const [descuento, setDescuento] = useState('');
   const [motivoDescuento, setMotivoDescuento] = useState('');
   const [guardando, setGuardando] = useState(false);
   const abortRef = useRef(null);
 
-  const areaCaja = apertura?.area ?? null;
+  // Admin sin caja abierta: solo puede vender de forma retroactiva (modo forzado).
+  const sinCajaAdmin = esAdmin && apertura === false;
+  const retroActiva = esAdmin && (retro || sinCajaAdmin);
+  const areaCaja = apertura?.area ?? (sinCajaAdmin ? areaRetro : null);
   const { carrito, agregar, cambiarCantidad, quitar, subtotalUsd } = useCarritoVenta(areaCaja);
 
   useEffect(() => {
@@ -85,7 +103,9 @@ export default function NuevaVentaCreditoModal({ open, onClose, onVentaCreada })
   const ev = evaluarCredito(titular, totalUsd);
 
   let motivoBloqueo = '';
-  if (!apertura) motivoBloqueo = 'Necesitas una caja abierta.';
+  if (!apertura && !retroActiva) motivoBloqueo = 'Necesitas una caja abierta.';
+  else if (retroActiva && (!fechaRetro || fechaRetro >= fechaLocalISO())) motivoBloqueo = 'La fecha de la venta retroactiva debe ser anterior a hoy.';
+  else if (retroActiva && motivoRetro.trim().length < MOTIVO_MIN) motivoBloqueo = `Explica el motivo de la venta retroactiva (mínimo ${MOTIVO_MIN} caracteres).`;
   else if (!titular) motivoBloqueo = ev.motivo;
   else if (carrito.length === 0) motivoBloqueo = 'Agrega al menos un producto al carrito.';
   else if (descuentoExcede) motivoBloqueo = 'El descuento no puede superar el subtotal.';
@@ -118,6 +138,10 @@ export default function NuevaVentaCreditoModal({ open, onClose, onVentaCreada })
       origen_alumno: 'no_aplica',
     };
     if (descuentoUsd > 0) payload.motivo_descuento = motivoDescuento.trim();
+    if (retroActiva) {
+      payload.fecha_venta = fechaRetro;
+      payload.motivo_retroactivo = motivoRetro.trim();
+    }
     if (esCliente(titular)) {
       payload.cliente_id = titular.id;
     } else {
@@ -181,7 +205,7 @@ export default function NuevaVentaCreditoModal({ open, onClose, onVentaCreada })
     >
       {apertura === null ? (
         <div className="h-40 rounded-2xl animate-pulse" aria-busy="true" style={{ background: 'var(--border-md)' }} />
-      ) : apertura === false ? (
+      ) : apertura === false && !esAdmin ? (
         <div className="rounded-2xl p-4 flex items-start gap-3 text-sm" role="alert" style={{ background: 'var(--pb-light)', color: 'var(--jet)' }}>
           <Info size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--pb)' }} />
           <p>
@@ -192,8 +216,65 @@ export default function NuevaVentaCreditoModal({ open, onClose, onVentaCreada })
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-xs" style={{ color: 'var(--ash)' }}>
-            Caja de {ETIQUETA_AREA[areaCaja] ?? areaCaja} · tasa vigente {tasa ? `${fmtVes(tasa)} por $ 1,00` : 'no registrada'}
+            {apertura ? `Caja de ${ETIQUETA_AREA[areaCaja] ?? areaCaja}` : 'Sin caja abierta'} · tasa vigente {tasa ? `${fmtVes(tasa)} por $ 1,00` : 'no registrada'}
           </p>
+
+          {esAdmin && (
+            <div className="rounded-xl p-3 flex flex-col gap-3" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+              {sinCajaAdmin ? (
+                <p className="text-sm font-medium" style={{ color: 'var(--jet)' }}>
+                  Venta retroactiva <span className="font-normal text-xs" style={{ color: 'var(--ash)' }}>· no tienes caja abierta; la venta no afecta ninguna caja.</span>
+                </p>
+              ) : (
+                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer min-h-[40px]" style={{ color: 'var(--jet)' }}>
+                  <input type="checkbox" role="switch" checked={retro} disabled={guardando} onChange={e => setRetro(e.target.checked)} className="h-4 w-4" />
+                  Venta retroactiva
+                </label>
+              )}
+              {retroActiva && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Fecha de la venta</span>
+                    <DatePickerES
+                      value={fechaRetro}
+                      onChange={e => setFechaRetro(e.target.value)}
+                      maxDate={fechaLocalISO(-1)}
+                      className="w-full px-3 py-2 rounded-lg outline-none min-h-[40px]"
+                      style={FIELD_STYLE}
+                    />
+                  </div>
+                  {sinCajaAdmin && (
+                    <div>
+                      <label htmlFor="venta-retro-area" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Área</label>
+                      <select
+                        id="venta-retro-area"
+                        value={areaRetro}
+                        onChange={e => setAreaRetro(e.target.value)}
+                        disabled={guardando || carrito.length > 0}
+                        className="w-full px-3 py-2 rounded-lg outline-none min-h-[40px]"
+                        style={FIELD_STYLE}
+                      >
+                        <option value="cantina">Cantina</option>
+                        <option value="libreria">Librería</option>
+                      </select>
+                    </div>
+                  )}
+                  <div className="sm:col-span-2">
+                    <label htmlFor="venta-retro-motivo" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Motivo (obligatorio)</label>
+                    <textarea
+                      id="venta-retro-motivo"
+                      rows={2}
+                      value={motivoRetro}
+                      onChange={e => setMotivoRetro(e.target.value)}
+                      placeholder="Por qué se registra esta venta con fecha pasada"
+                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                      style={FIELD_STYLE}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <CargoCuentaPanel
             representante={titular}

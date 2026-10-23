@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw, Pencil } from 'lucide-react';
+import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw, Pencil, ShoppingCart } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { estadoCuentaCxc, estadoCuentaClienteCxc } from '../../../api/cantina.service';
 import { TablaScroll } from '../../ui/TablaScroll';
@@ -8,6 +8,7 @@ import RegistrarAbonoModal from './RegistrarAbonoModal';
 import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
 import ClienteFormModal from './ClienteFormModal';
+import NuevaVentaCreditoModal from './venta/NuevaVentaCreditoModal';
 import PlantillaCobroButton from './PlantillaCobroButton';
 import {
   AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
@@ -51,22 +52,26 @@ const metodosDe = (abono) =>
   (abono.lineas || []).map(l => METODO_LABELS[l.metodo_pago] || l.metodo_pago).join(' + ') || '—';
 
 // `titular` = { tipo, id }: 'representante' o cliente general ('personal' | 'otro').
-const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) => {
+const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio, onVentaCreada }) => {
   const representanteId = titular.id;
   const cliente = esCliente(titular);
   const consultar = cliente ? estadoCuentaClienteCxc : estadoCuentaCxc;
   const [data, setData] = useState(null);
   const [saldoTotal, setSaldoTotal] = useState(null);
-  const [errorCarga, setErrorCarga] = useState(false);
+  // Clave de la consulta que falló (derivar `errorCarga` de ella evita setState síncrono en el efecto).
+  const [errorPara, setErrorPara] = useState(null);
   const [cargadoPara, setCargadoPara] = useState(null);
   const [pestana, setPestana] = useState('cargos');
   const [abonoAbierto, setAbonoAbierto] = useState(false);
+  const [vendiendo, setVendiendo] = useState(false);
   const [creditoAbierto, setCreditoAbierto] = useState(false);
   const [abonoAAnular, setAbonoAAnular] = useState(null);
   const [editandoCliente, setEditandoCliente] = useState(false);
 
+  const claveConsulta = `${titular.tipo}|${representanteId}|${area}`;
+  const errorCarga = errorPara === claveConsulta;
+
   const cargar = useCallback((signal) => {
-    setErrorCarga(false);
     // El abono se aplica FIFO a toda la deuda: con filtro de área se pide también
     // el saldo total (sin área) para el modal de abono.
     const total = area
@@ -75,15 +80,16 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
     return Promise.all([consultar(representanteId, { area: area || undefined }, signal), total])
       .then(([res, saldoGlobal]) => {
         setData(res.data);
+        setErrorPara(null);
         setSaldoTotal(saldoGlobal ?? num(res.data?.saldo_usd));
       })
       .catch(async err => {
         if (esCancelacion(err)) return;
-        setErrorCarga(true);
+        setErrorPara(claveConsulta);
         toast.error(await mensajeError(err, 'No se pudo cargar el estado de cuenta.'));
       })
-      .finally(() => { if (!signal?.aborted) setCargadoPara(`${titular.tipo}|${representanteId}|${area}`); });
-  }, [consultar, titular.tipo, representanteId, area]);
+      .finally(() => { if (!signal?.aborted) setCargadoPara(claveConsulta); });
+  }, [consultar, representanteId, area, claveConsulta]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -112,7 +118,7 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
     }
   };
 
-  const cargando = cargadoPara !== `${titular.tipo}|${representanteId}|${area}`;
+  const cargando = cargadoPara !== claveConsulta;
   const rep = { ...(data?.representante || data?.cliente || {}), tipo: titular.tipo };
   const saldo = num(data?.saldo_usd);
   const bloqueado = Boolean(data?.bloqueado ?? rep.bloqueado);
@@ -143,7 +149,7 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
       {errorCarga && !cargando && (
         <div className="rounded-xl p-6 flex flex-col items-center gap-3 text-center" role="alert" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
           <p className="text-sm" style={{ color: 'var(--red)' }}>No se pudo cargar el estado de cuenta.</p>
-          <button type="button" onClick={() => { setCargadoPara(null); cargar(); }} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto" style={{ background: 'var(--pb)' }}>
+          <button type="button" onClick={() => { setErrorPara(null); setCargadoPara(null); cargar(); }} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto" style={{ background: 'var(--pb)' }}>
             <RefreshCw size={15} /> Reintentar
           </button>
         </div>
@@ -190,6 +196,9 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
                   </button>
                 )}
                 <PlantillaCobroButton titular={titular} area={area} disabled={saldo <= 0} />
+                <button type="button" onClick={() => setVendiendo(true)} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm min-h-[40px] w-full sm:w-auto" style={{ border: '0.5px solid var(--pb)', color: 'var(--pb)' }}>
+                  <ShoppingCart size={15} /> Nueva venta
+                </button>
                 <button type="button" onClick={() => setAbonoAbierto(true)} disabled={(saldoTotal ?? saldo) <= 0} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto disabled:opacity-60" style={{ background: 'var(--pb)' }}>
                   <HandCoins size={16} /> Registrar abono
                 </button>
@@ -319,6 +328,26 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
             )
           )}
 
+          {vendiendo && (
+            <NuevaVentaCreditoModal
+              open
+              onClose={() => setVendiendo(false)}
+              esAdmin={esAdmin}
+              titularInicial={{
+                ...rep,
+                tipo: titular.tipo,
+                saldo_usd: saldoTotal ?? saldo,
+                limite_usd: data.limite_usd,
+                bloqueado,
+                alumnos: rep.alumnos ?? [],
+              }}
+              onVentaCreada={({ venta }) => {
+                setVendiendo(false);
+                onVentaCreada?.(venta);
+                refrescar();
+              }}
+            />
+          )}
           {abonoAbierto && (
             <RegistrarAbonoModal
               open

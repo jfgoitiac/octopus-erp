@@ -188,3 +188,99 @@ class BuscadorParaVentaTests(VentaCreditoBase):
     def test_activo_aparece_para_venta(self):
         resp = self.client_cajero.get(BASE + 'buscar/', {'q': 'maria', 'para_venta': '1'})
         self.assertEqual([r['id'] for r in resp.data], [self.rep.id])
+
+
+class VentaRetroactivaTests(VentaCreditoBase):
+    """Venta a crédito con fecha pasada: solo admin/director, sin tocar ninguna caja."""
+
+    def setUp(self):
+        super().setUp()
+        from django.utils import timezone
+        self.hace_5 = (timezone.localdate() - __import__('datetime').timedelta(days=5)).isoformat()
+
+    def vender_admin(self, **extra):
+        body = {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 2}],
+            'metodo_pago': 'credito_representante',
+            'representante_id': self.rep.id,
+            'fecha_venta': self.hace_5,
+            'motivo_retroactivo': 'Venta olvidada del cuaderno de caja',
+        }
+        body.update(extra)
+        return self.client_admin.post(VENTAS, body, format='json')
+
+    def test_admin_registra_venta_retroactiva_con_fechas_y_bitacora(self):
+        from django.utils import timezone
+        resp = self.vender_admin()
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        venta = VentaCantina.objects.get(pk=resp.data['id'])
+        esperado = timezone.localdate() - __import__('datetime').timedelta(days=5)
+        self.assertEqual(timezone.localtime(venta.creado_en).date(), esperado)
+        self.assertIsNone(venta.apertura_id)
+        self.assertEqual(venta.area, 'cantina')
+        cargo = CargoCantina.objects.get(venta=venta)
+        self.assertEqual(timezone.localtime(cargo.creado_en).date(), esperado)
+        mov = MovimientoInventario.objects.get(venta=venta)
+        self.assertEqual(timezone.localtime(mov.creado_en).date(), esperado)
+        self.assertEqual(Decimal(services_cxc.saldo_titular(self.rep)), Decimal('5.00'))
+        evento = EventoAuditoria.objects.get(tipo='venta_retroactiva')
+        self.assertEqual(evento.objeto_id, str(venta.id))
+        self.assertEqual(evento.motivo, 'Venta olvidada del cuaderno de caja')
+
+    def test_no_altera_ninguna_apertura(self):
+        resp = self.vender_admin()
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertFalse(VentaCantina.objects.filter(apertura__in=[self.apertura_cantina, self.apertura_admin]).exists())
+
+    def test_cajero_no_puede_vender_retroactivo(self):
+        resp = self.client_cajero.post(VENTAS, {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 1}], 'metodo_pago': 'credito_representante',
+            'representante_id': self.rep.id, 'fecha_venta': self.hace_5, 'motivo_retroactivo': 'Motivo suficiente largo',
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(VentaCantina.objects.exists())
+
+    def test_exige_motivo(self):
+        resp = self.vender_admin(motivo_retroactivo='corto')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(VentaCantina.objects.exists())
+
+    def test_fecha_futura_es_rechazada(self):
+        from django.utils import timezone
+        manana = (timezone.localdate() + __import__('datetime').timedelta(days=1)).isoformat()
+        resp = self.vender_admin(fecha_venta=manana)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(VentaCantina.objects.exists())
+
+    def test_fuera_de_periodo_activo_es_rechazada(self):
+        from secretaria.models import ConfiguracionSistema
+        ConfiguracionSistema.objects.all().update(periodo_escolar_activo='2019-2020')
+        resp = self.vender_admin()
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(VentaCantina.objects.exists())
+
+    def test_solo_a_credito(self):
+        resp = self.vender_admin(metodo_pago='efectivo')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_fecha_de_hoy_es_venta_normal_de_caja(self):
+        from django.utils import timezone
+        resp = self.client_cajero.post(VENTAS, {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 1}], 'metodo_pago': 'credito_representante',
+            'representante_id': self.rep.id, 'fecha_venta': timezone.localdate().isoformat(),
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertEqual(VentaCantina.objects.get().apertura_id, self.apertura_cantina.id)
+        self.assertFalse(EventoAuditoria.objects.filter(tipo='venta_retroactiva').exists())
+
+    def test_productos_de_dos_areas_se_rechazan(self):
+        resp = self.vender_admin(items=[
+            {'producto_id': self.jugo.id, 'cantidad': 1}, {'producto_id': self.cuaderno.id, 'cantidad': 1},
+        ])
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_respeta_limite_de_credito_y_revierte(self):
+        resp = self.vender_admin(items=[{'producto_id': self.jugo.id, 'cantidad': 9}])  # 22.50 > 20
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(VentaCantina.objects.exists())
+        self.assertFalse(EventoAuditoria.objects.filter(tipo='venta_retroactiva').exists())
