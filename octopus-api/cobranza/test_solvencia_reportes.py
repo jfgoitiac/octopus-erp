@@ -399,6 +399,19 @@ class MensualidadesPorMontoTest(SolvenciaReportesBase):
         })
         self.assertEqual(respuesta.data['grados'][2]['alumnos'][0]['nombre'], 'Eva')
 
+    def test_reportes_por_monto_excluyen_alumnos_retirados(self):
+        retirado = _crear_alumno('E3600006', self.representante, nombre='Alba', apellido='Uno', grado_seccion='1er Grado A')
+        Mensualidad.objects.create(alumno=retirado, mes=9, anio=2026, monto_usd=Decimal('50.00'), pagado=False)
+        Alumno.todos.filter(pk=retirado.pk).update(activo=False)
+
+        por_grado = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/por-grado/?mes=9&anio=2026')
+        self.assertEqual(por_grado.data['resumen']['estudiantes'], 3)
+        self.assertNotIn(retirado.id, [a['alumno_id'] for g in por_grado.data['grados'] for a in g['alumnos']])
+
+        excel = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/exportar-excel/?mes=9&anio=2026')
+        hoja = load_workbook(BytesIO(excel.content))['Detalle de alumnos']
+        self.assertEqual(hoja.max_row, 4)  # encabezado + 3 activos
+
     def test_por_grado_respeta_filtro_monto_y_exige_periodo(self):
         respuesta = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/por-grado/?mes=9&anio=2026&monto=30')
         self.assertEqual(respuesta.status_code, 200)

@@ -569,7 +569,12 @@ def _mensualidades_por_monto_qs(request):
     if not 1 <= mes_num <= 12:
         return None, Response({'error': 'mes debe estar entre 1 y 12.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    qs = Mensualidad.objects.filter(mes=mes_num, anio=anio_num, monto_usd__gt=0).select_related(
+    # `alumno__activo=True`: los retirados/eliminados conservan sus Mensualidad
+    # (soft delete) y, al reinscribir a un alumno, aparecen como filas extra
+    # del mismo nombre con otro monto — es lo que duplicaba listados y Excel/PDF.
+    qs = Mensualidad.objects.filter(
+        mes=mes_num, anio=anio_num, monto_usd__gt=0, alumno__activo=True,
+    ).select_related(
         'alumno', 'alumno__representante'
     )
     qs = filtrar_por_sede(request.user, qs, campo='alumno__sede')
