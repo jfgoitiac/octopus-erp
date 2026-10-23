@@ -8,6 +8,7 @@ import RegistrarAbonoModal from './RegistrarAbonoModal';
 import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
 import ClienteFormModal from './ClienteFormModal';
+import PlantillaCobroButton from './PlantillaCobroButton';
 import {
   AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
   esCancelacion, mensajeError, abrirReciboAbono, abrirReciboVenta, TIPO_LABELS, esCliente,
@@ -188,6 +189,7 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
                     <Settings2 size={15} /> Límite y bloqueo
                   </button>
                 )}
+                <PlantillaCobroButton titular={titular} area={area} disabled={saldo <= 0} />
                 <button type="button" onClick={() => setAbonoAbierto(true)} disabled={(saldoTotal ?? saldo) <= 0} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto disabled:opacity-60" style={{ background: 'var(--pb)' }}>
                   <HandCoins size={16} /> Registrar abono
                 </button>
