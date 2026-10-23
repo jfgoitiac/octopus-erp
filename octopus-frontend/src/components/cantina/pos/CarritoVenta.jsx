@@ -39,6 +39,8 @@ export default function CarritoVenta({
   cobrando,
   cobrarDisabled,
   cobrarDisabledMotivo,
+  ocultarMetodo = false, // venta a crédito: el método es fijo, no se elige
+  ocultarCobrar = false, // el botón de confirmar vive fuera (p. ej. en el footer de un Modal)
   children,
 }) {
   return (
@@ -138,6 +140,7 @@ export default function CarritoVenta({
           </div>
         </div>
 
+        {!ocultarMetodo && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Método de pago</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -161,10 +164,12 @@ export default function CarritoVenta({
             })}
           </div>
         </div>
+        )}
 
         {children}
       </div>
 
+      {!ocultarCobrar && (
       <div
         className="sticky bottom-0 z-10 bg-[var(--surface)] rounded-b-2xl px-4 py-3 space-y-2"
         style={{ borderTop: '0.5px solid var(--border-md)' }}
@@ -183,6 +188,7 @@ export default function CarritoVenta({
           {cobrando ? <><Loader2 size={16} className="animate-spin" /> Cobrando...</> : 'COBRAR'}
         </button>
       </div>
+      )}
     </div>
   );
 }

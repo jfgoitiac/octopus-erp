@@ -12,7 +12,7 @@ import { etiquetaMetodo } from '../metodoPagoUtils';
  * Campos consumidos: exactamente los que devuelve VentaCantinaSerializer
  * (ver cantina.service.js::registrarVenta para el contrato completo).
  */
-export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando }) {
+export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando, etiquetaCerrar = 'Nueva venta' }) {
   if (!venta) return null;
 
   // `total_usd` ya es el neto (CONTRATO_AUDITORIA_CANTINA.md §1); el subtotal
@@ -28,7 +28,7 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
         className="w-full sm:w-auto px-4 rounded-xl py-2.5 text-sm min-h-[44px]"
         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
       >
-        Nueva venta
+        {etiquetaCerrar}
       </button>
       {/* Sin onDescargarPdf (venta a cuenta) no se ofrece el recibo aquí. */}
       {onDescargarPdf && (

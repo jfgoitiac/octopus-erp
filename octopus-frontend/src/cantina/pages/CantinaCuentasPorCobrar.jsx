@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
-import { HandCoins, Download, ChevronLeft, ChevronRight, RefreshCw, UserPlus } from 'lucide-react';
+import { HandCoins, Download, ChevronLeft, ChevronRight, RefreshCw, UserPlus, ShoppingCart } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../../context/AuthContext';
 import { listarCuentasCxc, exportarCuentasCxc, getTasaVigenteCantina } from '../../api/cantina.service';
@@ -7,8 +7,10 @@ import BuscadorRepresentanteCxc from '../../components/cantina/cxc/BuscadorRepre
 import ListaCuentasCxc from '../../components/cantina/cxc/ListaCuentasCxc';
 import EstadoCuentaCxc from '../../components/cantina/cxc/EstadoCuentaCxc';
 import ClienteFormModal from '../../components/cantina/cxc/ClienteFormModal';
+import NuevaVentaCreditoModal from '../../components/cantina/cxc/venta/NuevaVentaCreditoModal';
+import TicketVenta from '../../components/cantina/pos/TicketVenta';
 import {
-  ROLES_ADMIN_CANTINA, listaDe, num, esCancelacion, mensajeError, descargarBlob,
+  ROLES_ADMIN_CANTINA, listaDe, num, esCancelacion, mensajeError, descargarBlob, abrirReciboVenta,
 } from '../../components/cantina/cxc/utilsCxc';
 
 const AREAS = [
@@ -35,6 +37,10 @@ export default function CantinaCuentasPorCobrar() {
   const [area, setArea] = useState('');
   const [tipo, setTipo] = useState('');
   const [agregando, setAgregando] = useState(false);
+  const [vendiendo, setVendiendo] = useState(false);
+  const [ticket, setTicket] = useState(null);
+  const [versionCuenta, setVersionCuenta] = useState(0);
+  const [descargandoTicket, setDescargandoTicket] = useState(false);
   const [soloDeuda, setSoloDeuda] = useState(true);
   const [pagina, setPagina] = useState(1);
   const [cuentas, setCuentas] = useState([]);
@@ -106,16 +112,52 @@ export default function CantinaCuentasPorCobrar() {
     }
   };
 
+  // Tras confirmar una venta a crédito: se refresca la lista, se abre el estado
+  // de cuenta del titular (se remonta con la deuda nueva) y se ofrece el ticket.
+  const ventaCreada = ({ venta, titular }) => {
+    setVendiendo(false);
+    setTicket(venta);
+    setSeleccionado(titular);
+    setVersionCuenta(v => v + 1);
+    cargar();
+  };
+
+  const descargarTicket = async () => {
+    if (!ticket || descargandoTicket) return;
+    setDescargandoTicket(true);
+    try {
+      await abrirReciboVenta(ticket.id);
+    } catch (err) {
+      toast.error(await mensajeError(err, 'No se pudo generar el ticket.'));
+    } finally {
+      setDescargandoTicket(false);
+    }
+  };
+
+  const ticketModal = ticket && (
+    <TicketVenta
+      venta={ticket}
+      onCerrar={() => setTicket(null)}
+      onDescargarPdf={descargarTicket}
+      descargando={descargandoTicket}
+      etiquetaCerrar="Cerrar"
+    />
+  );
+
   if (seleccionado) {
     return (
-      <EstadoCuentaCxc
-        titular={seleccionado}
-        area={area}
-        tasa={tasa}
-        esAdmin={esAdmin}
-        onVolver={() => setSeleccionado(null)}
-        onCambio={() => cargar()}
-      />
+      <>
+        <EstadoCuentaCxc
+          key={`${seleccionado.tipo}-${seleccionado.id}-${versionCuenta}`}
+          titular={seleccionado}
+          area={area}
+          tasa={tasa}
+          esAdmin={esAdmin}
+          onVolver={() => setSeleccionado(null)}
+          onCambio={() => cargar()}
+        />
+        {ticketModal}
+      </>
     );
   }
 
@@ -166,8 +208,16 @@ export default function CantinaCuentasPorCobrar() {
           </label>
           <button
             type="button"
+            onClick={() => setVendiendo(true)}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto sm:ml-auto"
+            style={{ background: 'var(--pb)' }}
+          >
+            <ShoppingCart size={15} /> Nueva venta a crédito
+          </button>
+          <button
+            type="button"
             onClick={() => setAgregando(true)}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium min-h-[40px] w-full sm:w-auto sm:ml-auto"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium min-h-[40px] w-full sm:w-auto"
             style={{ border: '0.5px solid var(--pb)', color: 'var(--pb)' }}
           >
             <UserPlus size={15} /> Agregar cliente
@@ -193,6 +243,15 @@ export default function CantinaCuentasPorCobrar() {
           onGuardado={nuevo => setSeleccionado({ tipo: nuevo.tipo, id: nuevo.id })}
         />
       )}
+
+      {vendiendo && (
+        <NuevaVentaCreditoModal
+          open
+          onClose={() => setVendiendo(false)}
+          onVentaCreada={ventaCreada}
+        />
+      )}
+      {ticketModal}
 
       {errorCarga && !cargando ? (
         <div className="rounded-xl p-6 flex flex-col items-center gap-3 text-center" role="alert" style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>

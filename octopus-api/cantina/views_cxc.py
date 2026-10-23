@@ -115,8 +115,13 @@ class BuscarRepresentanteCxcView(APIView):
             raise ValidationError({'q': f'Escriba al menos {LONGITUD_MINIMA_BUSQUEDA} caracteres.'})
 
         # Activos, más cualquier inactivo que todavía tenga saldo pendiente.
-        con_saldo = Exists(CargoCantina.objects.filter(representante=OuterRef('pk'), estado='pendiente'))
-        qs = Representante.objects.filter(Q(activo=True) | con_saldo)
+        para_venta = request.query_params.get('para_venta') in ('1', 'true', 'True')
+        if para_venta:
+            # Una venta nueva solo admite representantes activos (RegistrarVentaView).
+            qs = Representante.objects.filter(activo=True)
+        else:
+            con_saldo = Exists(CargoCantina.objects.filter(representante=OuterRef('pk'), estado='pendiente'))
+            qs = Representante.objects.filter(Q(activo=True) | con_saldo)
         # Cada palabra puede caer en el representante o en un alumno activo
         # (tolerante a tildes/mayúsculas; palabras en cualquier orden).
         for palabra in q.split():
@@ -137,7 +142,7 @@ class BuscarRepresentanteCxcView(APIView):
         # Clientes generales. `para_venta=1` excluye inactivos (no admiten ventas nuevas);
         # sin él, un inactivo con saldo pendiente sigue apareciendo para poder cobrarle.
         clientes = ClienteCantina.objects.all()
-        if request.query_params.get('para_venta') in ('1', 'true', 'True'):
+        if para_venta:
             clientes = clientes.filter(activo=True)
         else:
             con_saldo_cli = Exists(CargoCantina.objects.filter(cliente=OuterRef('pk'), estado='pendiente'))
