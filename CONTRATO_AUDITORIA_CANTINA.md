@@ -391,3 +391,91 @@ atendida. Registra `alerta_atendida`.
   con el contador de alertas (`useResumenAlertas` + `ContadorAlertas`).
 - Páginas vacías en `src/cantina/auditoria/pages/` para que cada carril F
   las reemplace.
+
+---
+
+## 10. Correcciones (el Director modifica desde Auditoría)
+
+Permiso: `EsDirector` (superusuario también). Otros roles → `403`.
+**Sin DELETE.** Todo cambio exige `motivo` (string, ≥ 5 caracteres tras `trim`,
+≤ 500) y queda en la bitácora (hash-chain) con valores antes/después, dentro de
+la misma transacción. Errores: `400 {"error": "..."}` validación ·
+`404` no existe · `409 {"error": "..."}` regla de negocio.
+
+Nuevos tipos de evento de bitácora: `correccion_venta` y `nota_cierre`.
+
+### 10.1 Buscar ventas — `GET /api/cantina/auditoria/ventas/`
+
+Query: `q` (texto: id de venta, username/nombre del cajero, nombre/apellido
+del alumno, nombre del representante/cliente, referencia), `fecha_inicio`,
+`fecha_fin` (YYYY-MM-DD; omitidas → hoy), `area` (`cantina|libreria`),
+`estado` (`completada|anulada`, opcional), `page`, `page_size` (≤ 100).
+Más recientes primero. Respuesta paginada estándar:
+
+```json
+{"count": 1, "next": null, "previous": null, "results": [
+  {"id": 311, "fecha": "2026-10-15T09:14:00-04:00", "area": "cantina",
+   "cajero": {"id": 7, "nombre": "Ana Pérez"},
+   "total_usd": "4.50", "descuento_usd": "0.50", "metodo_pago": "efectivo",
+   "estado": "completada",
+   "cliente": {"tipo": "alumno", "id": 12, "nombre": "Luis Gómez"},
+   "turno": {"apertura_id": 41, "etiqueta": "Turno #41 · 07:02–12:30",
+             "inicio": "...", "fin": "..."},
+   "cierre_id": 88, "cierre_cerrado": true,
+   "corregible": false}
+]}
+```
+- `cliente`: `null` (venta anónima) o `{"tipo": "alumno|representante|cliente", "id", "nombre"}`
+  (prioridad: representante/cliente a cuenta, si no el alumno).
+- `cierre_id`/`cierre_cerrado`: cierre del turno de la venta (`null`/`false` si el turno sigue abierto).
+- `corregible`: `false` si `estado='anulada'`. (Las ediciones financieras
+  además se rechazan con 409 si el turno ya está cerrado, ver 10.2.)
+
+### 10.2 Corregir venta — `POST /api/cantina/auditoria/ventas/<id>/corregir/`
+
+Body (JSON); solo `motivo` es obligatorio y debe venir **al menos un** campo a cambiar:
+```json
+{"motivo": "Cliente pagó por Zelle, no en efectivo",
+ "metodo_pago": "zelle", "referencia": "ZL-123",
+ "descuento_usd": "0.50", "motivo_descuento": "Empleado",
+ "observaciones": "texto libre"}
+```
+- `metodo_pago`: uno de `efectivo, efectivo_ves, zelle, transferencia, pago_movil, punto_de_venta`.
+  Si el nuevo método es bancario (`zelle, transferencia, pago_movil, punto_de_venta`) se
+  exige `referencia` (en el body o ya guardada en la venta).
+- `descuento_usd`: ≥ 0 y ≤ subtotal (`total_usd + descuento_usd` actual). Si queda > 0,
+  `motivo_descuento` es obligatorio (en el body o ya guardado). Recalcula
+  `total_usd = subtotal − descuento` y `total_ves = total_usd × tasa_aplicada`
+  (la tasa original no cambia). No toca stock.
+- `observaciones`: texto libre (campo nuevo `VentaCantina.observaciones`, migración 0010).
+- Campos que no cambian de valor se ignoran; si ningún campo cambia → `400`.
+
+Respuesta `200`: la venta serializada con los campos de `VentaCantinaSerializer`
+(`cantina/serializers.py`: `id, metodo_pago, total_usd, total_ves, descuento_usd,
+motivo_descuento, subtotal_usd, estado, detalles, ...`) más `observaciones`.
+
+Errores:
+- `400` motivo ausente/corto, método o monto inválido, nada que cambiar, referencia faltante.
+- `409` en estos casos (nada se modifica):
+  - venta `anulada` ("Las ventas anuladas no se editan");
+  - **cambio de `metodo_pago` o `descuento_usd` en un turno ya cerrado**: los totales del
+    cierre son un snapshot y no se recalculan; el mensaje indica el cierre afectado.
+    Sí se permiten en turno cerrado `motivo_descuento` y `observaciones` (no alteran importes);
+  - método actual o nuevo = `tarjeta_prepago` o `credito_representante` (implican saldo/CxC;
+    para eso se anula y se re-registra la venta). **Excepción:** `descuento_usd` en una venta
+    `credito_representante` sí se permite y reajusta el `CargoCantina` (vía `services_cxc`);
+    `409` si el cargo ya tiene abonos aplicados o el monto nuevo quedaría por debajo de lo
+    ya pagado. En `tarjeta_prepago` el cambio de descuento → `409`.
+- Bitácora: evento `correccion_venta` (`objeto_tipo='ventacantina'`) con
+  `antes`/`despues` = solo los campos que cambiaron (`metodo_pago, referencia, descuento_usd,
+  motivo_descuento, observaciones, total_usd, total_ves`) y el `motivo`.
+
+### 10.3 Nota del Director en un cierre — `PATCH /api/cantina/auditoria/cierres/<id>/notas/`
+
+Body: `{"motivo": "Aclaración tras revisar el conteo", "notas_director": "texto (puede ser vacío para limpiar, ≤ 2000)"}`.
+`notas_director` edita `RevisionCierre.comentario_director` **sin cambiar el estado** de la
+revisión (no hay migración). Funciona también si el cierre está `aprobado`.
+Respuesta `200`: el detalle del cierre (igual a `GET cierres/<id>/`).
+Errores: `400` motivo corto / `notas_director` ausente o demasiado larga; `404` cierre.
+Bitácora: evento `nota_cierre` (`objeto_tipo='cierrecajacantina'`) con
+`antes={"notas_director": "..."}`, `despues={"notas_director": "..."}`, `motivo`.

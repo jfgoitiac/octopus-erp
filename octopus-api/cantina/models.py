@@ -364,6 +364,8 @@ class VentaCantina(models.Model):
     origen_producto = models.CharField(max_length=10, choices=ORIGENES_PRODUCTO, default='escaner')
     origen_alumno = models.CharField(max_length=10, choices=ORIGENES_ALUMNO, default='no_aplica')
     es_manual = models.BooleanField(default=False, db_index=True)
+    # Nota libre; la edita el Director desde Auditoría (corrección de venta).
+    observaciones = models.TextField(blank=True, default='')
 
     class Meta:
         ordering = ['-creado_en']

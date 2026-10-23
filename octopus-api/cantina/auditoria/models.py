@@ -66,6 +66,8 @@ class EventoAuditoriaCantina(models.Model):
         ('adjunto_cierre', 'Adjunto en revisión de cierre'),
         ('alerta_atendida', 'Alerta atendida'),
         ('parametros_auditoria', 'Cambio de parámetros de auditoría'),
+        ('correccion_venta', 'Corrección de venta por el Director'),
+        ('nota_cierre', 'Nota del Director en un cierre'),
     )
 
     tipo = models.CharField(max_length=30, choices=TIPOS, db_index=True)

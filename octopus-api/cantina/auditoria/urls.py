@@ -23,6 +23,7 @@ from .views_cierres import (
     HistorialCierreView,
     RevisarCierreView,
 )
+from .views_correcciones import CorregirVentaView, NotasCierreView, VentasBuscarView
 from .views_panel import PanelEjecutivoView
 from .views_reportes import (
     ReporteExcepcionesView,
@@ -42,6 +43,11 @@ urlpatterns = [
     path('cierres/<int:pk>/adjuntos/', AdjuntosCierreView.as_view(), name='auditoria-cierre-adjuntos'),
     path('cierres/<int:pk>/historial/', HistorialCierreView.as_view(), name='auditoria-cierre-historial'),
     path('cierres/<int:pk>/reabrir/', ReabrirCajaView.as_view(), name='auditoria-cierre-reabrir'),
+
+    # §10 Correcciones
+    path('ventas/', VentasBuscarView.as_view(), name='auditoria-ventas'),
+    path('ventas/<int:pk>/corregir/', CorregirVentaView.as_view(), name='auditoria-venta-corregir'),
+    path('cierres/<int:pk>/notas/', NotasCierreView.as_view(), name='auditoria-cierre-notas'),
 
     # §4 Reportes
     path('reportes/ventas/', ReporteVentasAuditoriaView.as_view(), name='auditoria-reporte-ventas'),
