@@ -451,3 +451,25 @@ class RecargoConFechaPagoRetroactivaTest(RecargoPagoTardioBase):
 
         m.refresh_from_db()
         self.assertEqual(m.fecha_pago.date(), date(2026, 7, 20))
+
+    def test_fecha_retroactiva_sin_comprobante_se_registra(self):
+        # El comprobante de respaldo es opcional en pagos retroactivos.
+        m = self._mensualidad(7, 2026)
+
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [m.id]}],
+            "concepto": "mensualidad",
+            "pagos": [
+                {"metodo_pago": "efectivo", "monto_usd": "30.00", "referencia": "EFEC-RETRO-SIN-COMP"},
+            ],
+            "fecha_pago": "2026-07-10T10:00:00Z",
+            "tasa_aplicada": "40.0000",
+            "motivo": "Pago recibido en efectivo el 10/07, sin comprobante a mano",
+        }
+        response = self.client.post('/api/cobranza/registrar-pago/', {
+            'payload': json.dumps(payload),
+        }, format='multipart')
+        self.assertEqual(response.status_code, 201, response.content)
+
+        pago = Pago.objects.get(alumno=self.alumno)
+        self.assertFalse(pago.comprobante_retroactivo)

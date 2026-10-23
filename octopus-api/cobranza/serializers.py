@@ -1026,14 +1026,14 @@ class PagoCreateSerializer(serializers.Serializer):
                     {'tasa_aplicada': "Debe indicar la tasa de cambio aplicada para un pago con "
                                       "fecha retroactiva; no se adivina una tasa histórica."}
                 )
+            # El comprobante es opcional; si se adjunta, se valida tamaño y formato.
             comprobante = data.get('comprobante_retroactivo')
-            if not comprobante:
-                raise serializers.ValidationError({'comprobante_retroactivo': "Debe adjuntar un comprobante para registrar un pago con fecha retroactiva."})
-            if comprobante.size > 10 * 1024 * 1024:
-                raise serializers.ValidationError({'comprobante_retroactivo': "El comprobante no puede superar 10 MB."})
-            extension = (comprobante.name or '').rsplit('.', 1)[-1].lower() if '.' in (comprobante.name or '') else ''
-            if extension not in {'pdf', 'jpg', 'jpeg', 'png', 'webp'}:
-                raise serializers.ValidationError({'comprobante_retroactivo': "Adjunte un PDF o una imagen (JPG, PNG o WEBP)."})
+            if comprobante:
+                if comprobante.size > 10 * 1024 * 1024:
+                    raise serializers.ValidationError({'comprobante_retroactivo': "El comprobante no puede superar 10 MB."})
+                extension = (comprobante.name or '').rsplit('.', 1)[-1].lower() if '.' in (comprobante.name or '') else ''
+                if extension not in {'pdf', 'jpg', 'jpeg', 'png', 'webp'}:
+                    raise serializers.ValidationError({'comprobante_retroactivo': "Adjunte un PDF o una imagen (JPG, PNG o WEBP)."})
 
             dentro_periodo, error_periodo = fecha_dentro_periodo_activo(fecha_pago)
             if not dentro_periodo:

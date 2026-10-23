@@ -454,7 +454,6 @@ const Cobranza = () => {
                 toast.error(`Explica el motivo del pago retroactivo (mínimo ${MOTIVO_MIN_LEN} caracteres).`);
                 return;
             }
-            if (!comprobanteRetroactivo) { toast.error('Adjunta el comprobante que respalda la fecha real del pago.'); return; }
         }
         if (enviandoPagoRef.current) return;
         enviandoPagoRef.current = true;
@@ -570,7 +569,7 @@ const Cobranza = () => {
             const cuerpo = retroActivo ? new FormData() : payloadPago;
             if (retroActivo) {
                 cuerpo.append('payload', JSON.stringify(payloadPago));
-                cuerpo.append('comprobante_retroactivo', comprobanteRetroactivo);
+                if (comprobanteRetroactivo) cuerpo.append('comprobante_retroactivo', comprobanteRetroactivo);
             }
             const res = await axiosInstance.post('cobranza/registrar-pago/', cuerpo);
 
