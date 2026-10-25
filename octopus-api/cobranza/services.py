@@ -256,6 +256,33 @@ def monto_con_beca(monto_base, porcentaje_beca):
     return (monto_base - descuento).quantize(Decimal('0.01'))
 
 
+def depurar_mensualidades_fuera_de_periodo(alumno_ids, config=None):
+    """
+    Elimina las mensualidades de `alumno_ids` que caen FUERA del año escolar
+    configurado (ej. un "Septiembre 2027" que quedó de una generación previa
+    cuando el año terminaba en agosto). Solo borra filas sin movimiento: impagas,
+    sin abonos y sin pagos ligados; lo que ya tiene cobro se conserva.
+
+    Devuelve la cantidad de filas eliminadas (0 si no hay período configurado).
+    """
+    rango = rango_ano_escolar(config)
+    if not rango or not alumno_ids:
+        return 0
+    fecha_inicio, fecha_fin = rango
+    inicio = fecha_inicio.year * 12 + fecha_inicio.month
+    fin = fecha_fin.year * 12 + fecha_fin.month
+    huerfanas = [
+        m.pk for m in Mensualidad.objects.filter(
+            alumno_id__in=alumno_ids, pagado=False, monto_pagado=0, pagos__isnull=True,
+        ).only('pk', 'mes', 'anio')
+        if not inicio <= m.anio * 12 + m.mes <= fin
+    ]
+    if not huerfanas:
+        return 0
+    total, _ = Mensualidad.objects.filter(pk__in=huerfanas).delete()
+    return total
+
+
 def generar_mensualidades(alumnos, meses, monto=None, config=None):
     """
     Crea (idempotente) las mensualidades indicadas para los alumnos dados.
@@ -279,15 +306,19 @@ def generar_mensualidades(alumnos, meses, monto=None, config=None):
     fecha_inicio, fecha_fin = rango
     inicio = (fecha_inicio.year, fecha_inicio.month)
     fin = (fecha_fin.year, fecha_fin.month)
+    alumnos = list(alumnos)
+    alumno_ids = [a.pk for a in alumnos]
+    if not alumno_ids:
+        return 0
+    # Barre filas huérfanas fuera del año escolar antes de crear nada: el
+    # período configurado es la única fuente de verdad de qué meses existen.
+    depurar_mensualidades_fuera_de_periodo(alumno_ids, config)
+
     meses = [(m, a) for (m, a) in meses if inicio <= (a, m) <= fin]
     if not meses:
         return 0
 
     monto_base = monto if monto is not None else monto_mensualidad_defecto()
-    alumnos = list(alumnos)
-    alumno_ids = [a.pk for a in alumnos]
-    if not alumno_ids:
-        return 0
 
     porcentajes_por_alumno = {a.pk: porcentaje_beca_vigente(a) for a in alumnos}
     alumnos_por_id = {a.pk: a for a in alumnos}

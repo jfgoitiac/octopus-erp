@@ -76,6 +76,16 @@ class ServicioGeneracionTest(GeneracionMensualidadesBase):
         self.assertEqual(creadas, 0)
         self.assertFalse(Mensualidad.objects.filter(alumno=self.alumno).exists())
 
+    def test_depura_mensualidades_huerfanas_fuera_del_periodo(self):
+        """Una cuota impaga fuera del año (ej. agosto/2026) se elimina; la que ya tiene abono se conserva."""
+        Mensualidad.objects.create(alumno=self.alumno, mes=8, anio=2026, monto_usd=Decimal('50'))
+        abonada = Mensualidad.objects.create(
+            alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('50'), monto_pagado=Decimal('10'),
+        )
+        generar_mensualidades([self.alumno], [(7, 2026)])
+        self.assertFalse(Mensualidad.objects.filter(alumno=self.alumno, mes=8, anio=2026).exists())
+        self.assertTrue(Mensualidad.objects.filter(pk=abonada.pk).exists())
+
     def test_sin_configuracion_no_genera_nada(self):
         ConfiguracionSistema.objects.all().delete()
         creadas = generar_mensualidades([self.alumno], [(7, 2026)])
