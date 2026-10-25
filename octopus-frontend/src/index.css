@@ -458,6 +458,14 @@ h1, h2, h3, h4, h5, h6 {
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--pb); border-radius: 20px; opacity: 0.4; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
+/* Scroll interno fino y contenido: no arrastra el scroll de la página al llegar al borde */
+.scroll-fino {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--pb) 40%, transparent) transparent;
+  overscroll-behavior: contain;
+}
+.scroll-fino-y { scrollbar-gutter: stable; }
+
 button, a {
   transition-property: background-color, border-color, color, box-shadow, opacity, transform;
   transition-duration: 0.15s;

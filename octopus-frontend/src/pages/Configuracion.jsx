@@ -453,7 +453,7 @@ const Configuracion = () => {
                                 <p className="text-sm">No hay grados configurados.</p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto scroll-fino">
                                 <table className="w-full text-left min-w-[480px]">
                                     <thead>
                                         <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
@@ -517,7 +517,7 @@ const Configuracion = () => {
                 </div>
 
                 {/* Right Sidebar */}
-                <div className="space-y-5 self-start sticky" style={{ top: '66px' }}>
+                <div className="space-y-5 lg:self-start lg:sticky lg:top-[72px] lg:max-h-[calc(100dvh-88px)] lg:overflow-y-auto lg:-mr-2 lg:pr-2 lg:pb-1 scroll-fino scroll-fino-y">
 
                     {/* Panel Cobros */}
                     <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
@@ -775,7 +775,7 @@ const Configuracion = () => {
                             <p className="text-sm">No hay bancos registrados.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto scroll-fino">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
@@ -859,7 +859,7 @@ const Configuracion = () => {
                             <p className="text-sm">No hay bancos de nómina registrados.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto scroll-fino">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
@@ -932,7 +932,7 @@ const Configuracion = () => {
                             <p className="text-sm">No hay tipos de cargo registrados.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto scroll-fino">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
@@ -1197,7 +1197,7 @@ const Configuracion = () => {
                                 <p className="text-sm">No hay notificaciones registradas.</p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto rounded-xl" style={{ border: '0.5px solid var(--border-md)' }}>
+                            <div className="overflow-x-auto scroll-fino rounded-xl" style={{ border: '0.5px solid var(--border-md)' }}>
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
