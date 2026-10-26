@@ -39,20 +39,28 @@ export default function CarritoVenta({
   cobrando,
   cobrarDisabled,
   cobrarDisabledMotivo,
+  embebido = false, // dentro de un Modal (celular): sin marco ni cabecera propios
   children,
 }) {
   return (
     // Desde `lg` el POS tiene altura fija y la tarjeta scrollea por dentro;
     // debajo de `lg` la página scrollea. En ambos casos el pie con COBRAR es
     // sticky para que el botón de confirmar nunca quede fuera de alcance.
-    <div className="flex flex-col lg:h-full lg:overflow-y-auto rounded-2xl bg-[var(--surface)]" style={{ border: '0.5px solid var(--border-md)' }}>
-      <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-        <ShoppingCart size={18} style={{ color: 'var(--pb)' }} />
-        <h2 className="font-semibold" style={{ color: 'var(--jet)' }}>Carrito</h2>
-        <span className="ml-auto text-xs" style={{ color: 'var(--ash)' }}>
-          {items.length} línea{items.length !== 1 ? 's' : ''}
-        </span>
-      </div>
+    <div
+      className={embebido
+        ? 'flex flex-col bg-[var(--surface)]'
+        : 'flex flex-col lg:h-full lg:overflow-y-auto rounded-2xl bg-[var(--surface)]'}
+      style={embebido ? undefined : { border: '0.5px solid var(--border-md)' }}
+    >
+      {!embebido && (
+        <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '0.5px solid var(--border-md)' }}>
+          <ShoppingCart size={18} style={{ color: 'var(--pb)' }} />
+          <h2 className="font-semibold" style={{ color: 'var(--jet)' }}>Carrito</h2>
+          <span className="ml-auto text-xs" style={{ color: 'var(--ash)' }}>
+            {items.length} línea{items.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
 
       <div className="flex-1 px-4 py-3 space-y-2 min-h-[120px]">
         {items.length === 0 ? (
@@ -70,7 +78,7 @@ export default function CarritoVenta({
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad - 1)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center"
                   style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                   aria-label={`Quitar una unidad de ${producto.nombre}`}
                 >
@@ -80,7 +88,7 @@ export default function CarritoVenta({
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad + 1)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center"
                   style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                   aria-label={`Agregar una unidad de ${producto.nombre}`}
                 >
@@ -93,7 +101,7 @@ export default function CarritoVenta({
               <button
                 type="button"
                 onClick={() => onQuitar(producto.id)}
-                className="shrink-0 p-1.5 rounded-lg"
+                className="shrink-0 w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg"
                 style={{ color: 'var(--red)' }}
                 aria-label={`Quitar ${producto.nombre} del carrito`}
               >
@@ -166,7 +174,7 @@ export default function CarritoVenta({
       </div>
 
       <div
-        className="sticky bottom-0 z-10 bg-[var(--surface)] rounded-b-2xl px-4 py-3 space-y-2"
+        className={`sticky bottom-0 z-10 bg-[var(--surface)] px-4 py-3 space-y-2 ${embebido ? '' : 'rounded-b-2xl'}`}
         style={{ borderTop: '0.5px solid var(--border-md)' }}
       >
         {cobrarDisabled && cobrarDisabledMotivo && (

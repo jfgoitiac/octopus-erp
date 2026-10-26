@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Search, X } from 'lucide-react';
 import {
   getProductos, crearProducto, actualizarProducto, eliminarProducto,
   getCategorias, registrarMovimientoInventario,
@@ -10,6 +10,9 @@ import ProductoFormModal from '../../components/cantina/inventario/ProductoFormM
 import MovimientoStockModal from '../../components/cantina/inventario/MovimientoStockModal';
 import EliminarProductoModal from '../../components/cantina/inventario/EliminarProductoModal';
 import AlertaStockBajo from '../../components/cantina/inventario/AlertaStockBajo';
+
+// Minúsculas y sin tildes, para que "cafe" encuentre "Café".
+const normalizar = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function SkeletonTabla() {
   return (
@@ -44,6 +47,7 @@ export default function CantinaInventario() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
   const [areaFiltro, setAreaFiltro]           = useState('');
   const [refreshKey, setRefreshKey]           = useState(0);
+  const [busqueda, setBusqueda]               = useState('');
 
   const [modalProducto, setModalProducto]   = useState(null); // { modo: 'crear'|'editar', producto }
   const [modalMovimiento, setModalMovimiento] = useState(null); // producto
@@ -95,6 +99,16 @@ export default function CantinaInventario() {
   };
 
   const forzarRecarga = () => setRefreshKey(k => k + 1);
+
+  // Búsqueda en el cliente (el listado ya viene completo): nombre, código de
+  // barras o categoría; todas las palabras escritas deben aparecer.
+  const terminos = normalizar(busqueda).split(/\s+/).filter(Boolean);
+  const productosVisibles = terminos.length === 0
+    ? productos
+    : productos.filter(p => {
+      const texto = normalizar(`${p.nombre} ${p.codigo_barras ?? ''} ${p.categoria_nombre ?? p.categoria?.nombre ?? ''}`);
+      return terminos.every(t => texto.includes(t));
+    });
 
   const handleCrearProducto = async (payload) => {
     try {
@@ -169,7 +183,9 @@ export default function CantinaInventario() {
             Inventario de Cantina y Librería
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-            {loading ? 'Cargando productos...' : `${productos.length} producto${productos.length !== 1 ? 's' : ''}`}
+            {loading
+              ? 'Cargando productos...'
+              : `${productosVisibles.length}${terminos.length ? ` de ${productos.length}` : ''} producto${productos.length !== 1 ? 's' : ''}`}
           </p>
         </div>
 
@@ -185,7 +201,32 @@ export default function CantinaInventario() {
 
       <AlertaStockBajo refreshKey={refreshKey} />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <div className="relative w-full sm:w-72">
+          <label htmlFor="inv-busqueda" className="sr-only">Buscar producto</label>
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--ash)' }} />
+          <input
+            id="inv-busqueda"
+            type="search"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, código o categoría"
+            autoComplete="off"
+            className="w-full pl-9 pr-10 py-1.5 rounded-lg outline-none min-h-[44px] sm:min-h-[40px]"
+            style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
+          />
+          {busqueda && (
+            <button
+              type="button"
+              onClick={() => setBusqueda('')}
+              aria-label="Limpiar búsqueda"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg"
+              style={{ color: 'var(--ash)' }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <label htmlFor="inv-area" className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--ash)' }}>
             Caja
@@ -225,7 +266,9 @@ export default function CantinaInventario() {
         <SkeletonTabla />
       ) : (
         <ProductosTable
-          productos={productos}
+          productos={productosVisibles}
+          hayBusqueda={terminos.length > 0}
+          onLimpiarBusqueda={() => setBusqueda('')}
           onEditar={(p) => setModalProducto({ modo: 'editar', producto: p })}
           onAjustar={(p) => setModalMovimiento(p)}
           onEliminar={setProductoAEliminar}

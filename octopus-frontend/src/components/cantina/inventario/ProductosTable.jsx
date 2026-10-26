@@ -10,15 +10,25 @@ function margenPct(p) {
   return ((precio - Number(p.costo)) / precio) * 100;
 }
 
-export default function ProductosTable({ productos, onEditar, onAjustar, onEliminar }) {
+export default function ProductosTable({ productos, hayBusqueda = false, onLimpiarBusqueda, onEditar, onAjustar, onEliminar }) {
   if (productos.length === 0) {
     return (
       <div
-        className="flex flex-col items-center justify-center rounded-xl py-16"
+        className="flex flex-col items-center justify-center rounded-xl py-16 px-4 text-center"
         style={{ border: '1px dashed var(--border-md)', color: 'var(--ash)' }}
       >
         <Package size={32} className="mb-2 opacity-30" />
-        <p className="text-sm">Sin productos registrados</p>
+        <p className="text-sm">{hayBusqueda ? 'Ningún producto coincide con la búsqueda' : 'Sin productos registrados'}</p>
+        {hayBusqueda && onLimpiarBusqueda && (
+          <button
+            type="button"
+            onClick={onLimpiarBusqueda}
+            className="mt-3 px-4 rounded-xl text-sm font-medium min-h-[44px]"
+            style={{ color: 'var(--pb)', border: '0.5px solid var(--border-md)', background: '#fff' }}
+          >
+            Limpiar búsqueda
+          </button>
+        )}
       </div>
     );
   }
@@ -32,8 +42,8 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
               <th
                 key={h}
                 scope="col"
-                className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--ash)', whiteSpace: 'nowrap' }}
+                className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider ${h === 'Acciones' ? 'sticky right-0 z-10' : ''}`}
+                style={{ color: 'var(--ash)', whiteSpace: 'nowrap', ...(h === 'Acciones' ? { background: 'var(--porcelain)', boxShadow: '-6px 0 8px -6px rgba(0,0,0,0.12)' } : {}) }}
               >
                 {h}
               </th>
@@ -91,11 +101,11 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                   {p.activo === false ? 'Inactivo' : 'Activo'}
                 </span>
               </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-1">
+              <td className="px-2 sm:px-4 py-1 sticky right-0 z-10" style={{ background: 'var(--porcelain)', boxShadow: '-6px 0 8px -6px rgba(0,0,0,0.12)' }}>
+                <div className="flex items-center gap-0.5">
                   <button
                     onClick={() => onEditar(p)}
-                    className="p-1.5 rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
                     style={{ color: 'var(--ash)' }}
                     title="Editar producto"
                     aria-label={`Editar ${p.nombre}`}
@@ -104,7 +114,7 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                   </button>
                   <button
                     onClick={() => onAjustar(p)}
-                    className="p-1.5 rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
                     style={{ color: 'var(--pb)' }}
                     title="Ajustar stock"
                     aria-label={`Ajustar stock de ${p.nombre}`}
@@ -113,7 +123,7 @@ export default function ProductosTable({ productos, onEditar, onAjustar, onElimi
                   </button>
                   <button
                     onClick={() => onEliminar(p)}
-                    className="p-1.5 rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
                     style={{ color: 'var(--red)' }}
                     title="Eliminar producto"
                     aria-label={`Eliminar ${p.nombre}`}

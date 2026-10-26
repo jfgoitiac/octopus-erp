@@ -11,7 +11,7 @@ const SIZE_CLASSES = {
 };
 
 export const Modal = forwardRef(function Modal(
-  { open, onClose, titulo, children, footer, size = 'md', className = 'z-50' },
+  { open, onClose, titulo, children, footer, size = 'md', className = 'z-50', bodyClassName = 'p-6' },
   ref
 ) {
   const tituloId = useId();
@@ -81,7 +81,7 @@ export const Modal = forwardRef(function Modal(
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto scroll-fino p-6">
+        <div className={`flex-1 overflow-y-auto scroll-fino ${bodyClassName}`}>
           {children}
         </div>
 

@@ -29,6 +29,8 @@ import ResumenCobro from '../../components/cantina/pos/ResumenCobro';
 import TicketVenta from '../../components/cantina/pos/TicketVenta';
 import AperturaCajaModal from '../../components/cantina/pos/AperturaCajaModal';
 import DescuentoVenta from '../../components/cantina/pos/DescuentoVenta';
+import { Modal } from '../../components/ui/Modal';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 // Origen de la venta (D2, CONTRATO_AUDITORIA_CANTINA.md §8): cada línea del
 // carrito recuerda por dónde entró ('escaner' = ScannerProducto; 'manual' =
@@ -93,6 +95,11 @@ export default function CantinaPOS() {
 
   const [cobrando, setCobrando] = useState(false);
   const [ventaActual, setVentaActual] = useState(null);
+
+  // Desde `lg` el carrito es una columna fija; debajo (celular, tablet) vive en
+  // un Modal que se abre desde la barra inferior, así COBRAR nunca queda lejos.
+  const esLg = useMediaQuery('(min-width: 1024px)');
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
 
   const abortRef = useRef(null);
 
@@ -403,6 +410,7 @@ export default function CantinaPOS() {
         }
         : res.data);
       limpiarVenta();
+      setCarritoAbierto(false);
       // El POS no abre ni ofrece el ticket PDF al cobrar (ninguna venta): el
       // recibo se descarga después desde el historial de ventas o, para ventas
       // a cuenta, desde Cuentas por cobrar.
@@ -417,11 +425,89 @@ export default function CantinaPOS() {
 
   const cerrarTicket = () => setVentaActual(null);
 
+  const renderCarrito = (embebido) => (
+    <CarritoVenta
+      embebido={embebido}
+      items={carrito}
+      onCambiarCantidad={cambiarCantidad}
+      onQuitar={quitarProducto}
+      subtotalUsd={subtotalUsd}
+      descuentoUsd={descuentoUsd}
+      descuento={(
+        <DescuentoVenta
+          subtotalUsd={subtotalUsd}
+          descuento={descuento}
+          onCambiarDescuento={setDescuento}
+          motivo={motivoDescuento}
+          onCambiarMotivo={setMotivoDescuento}
+          disabled={cobrando}
+        />
+      )}
+      totalUsd={totalUsd}
+      totalVes={totalVes}
+      resaltarMoneda={resaltarMoneda}
+      metodoPago={metodoPago}
+      onCambiarMetodo={cambiarMetodo}
+      onCobrar={handleCobrar}
+      cobrando={cobrando}
+      cobrarDisabled={cobrarDisabled}
+      cobrarDisabledMotivo={cobrarDisabledMotivo}
+    >
+      {metodoPago === 'tarjeta_prepago' && (
+        <div className="space-y-3">
+          {!tarjeta ? (
+            <>
+              <ScannerTarjeta onTarjetaResuelta={t => resolverTarjeta(t, 'escaner')} />
+              <BuscadorAlumnoManual onTarjetaResuelta={t => resolverTarjeta(t, 'manual')} />
+            </>
+          ) : (
+            <ResumenCobro
+              tarjeta={tarjeta}
+              totalUsd={totalUsd}
+              onCambiarTarjeta={cambiarTarjeta}
+              identidadConfirmada={identidadConfirmada}
+              onCambiarIdentidadConfirmada={setIdentidadConfirmada}
+              confirmarSaldoNegativo={confirmarSaldoNegativo}
+              onCambiarConfirmarSaldoNegativo={setConfirmarSaldoNegativo}
+            />
+          )}
+        </div>
+      )}
+
+      {esMetodoBancario(metodoPago) && (
+        <div className="space-y-3">
+          <MetodoPagoFields
+            value={valorPago}
+            onChange={setDatosPago}
+            bancos={bancos}
+            tasa={tasaVigente}
+            metodosPermitidos={[metodoPago]}
+            ocultarMonto
+            ocultarSelector
+            disabled={cobrando}
+          />
+        </div>
+      )}
+
+      {metodoPago === 'credito_representante' && (
+        <CargoCuentaPanel
+          representante={representante}
+          onSeleccionar={seleccionarRepresentante}
+          onCambiar={cambiarRepresentante}
+          alumnoId={alumnoId}
+          onCambiarAlumno={setAlumnoId}
+          totalUsd={totalUsd}
+          disabled={cobrando}
+        />
+      )}
+    </CarritoVenta>
+  );
+
   return (
     // Desde `lg` el POS ocupa la altura de la ventana (dvh) con dos columnas;
     // debajo de `lg` (tablet 768×1024, celular) la página scrollea y el botón
     // COBRAR queda fijo al pie del carrito (ver CarritoVenta).
-    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-64px-4rem)]">
+    <div className="flex flex-col gap-4 lg:h-[calc(100dvh-4rem)]">
       {consultandoSaldo && <ConsultarSaldoModal onClose={() => setConsultandoSaldo(false)} />}
       {configurandoImpresora && <ConfigImpresoraModal onCerrar={() => setConfigurandoImpresora(false)} />}
       {!cargandoApertura && apertura === false && (
@@ -483,7 +569,7 @@ export default function CantinaPOS() {
             />
           )}
 
-          <div className="max-h-[45dvh] lg:max-h-none lg:flex-1 overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
+          <div className="lg:flex-1 lg:overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
             <p className="text-xs uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
               <Package size={13} /> Productos
             </p>
@@ -514,84 +600,45 @@ export default function CantinaPOS() {
           </div>
         </div>
 
-        {/* Columna derecha: carrito */}
-        <div className="lg:min-h-0">
-          <CarritoVenta
-            items={carrito}
-            onCambiarCantidad={cambiarCantidad}
-            onQuitar={quitarProducto}
-            subtotalUsd={subtotalUsd}
-            descuentoUsd={descuentoUsd}
-            descuento={(
-              <DescuentoVenta
-                subtotalUsd={subtotalUsd}
-                descuento={descuento}
-                onCambiarDescuento={setDescuento}
-                motivo={motivoDescuento}
-                onCambiarMotivo={setMotivoDescuento}
-                disabled={cobrando}
-              />
-            )}
-            totalUsd={totalUsd}
-            totalVes={totalVes}
-            resaltarMoneda={resaltarMoneda}
-            metodoPago={metodoPago}
-            onCambiarMetodo={cambiarMetodo}
-            onCobrar={handleCobrar}
-            cobrando={cobrando}
-            cobrarDisabled={cobrarDisabled}
-            cobrarDisabledMotivo={cobrarDisabledMotivo}
-          >
-            {metodoPago === 'tarjeta_prepago' && (
-              <div className="space-y-3">
-                {!tarjeta ? (
-                  <>
-                    <ScannerTarjeta onTarjetaResuelta={t => resolverTarjeta(t, 'escaner')} />
-                    <BuscadorAlumnoManual onTarjetaResuelta={t => resolverTarjeta(t, 'manual')} />
-                  </>
-                ) : (
-                  <ResumenCobro
-                    tarjeta={tarjeta}
-                    totalUsd={totalUsd}
-                    onCambiarTarjeta={cambiarTarjeta}
-                    identidadConfirmada={identidadConfirmada}
-                    onCambiarIdentidadConfirmada={setIdentidadConfirmada}
-                    confirmarSaldoNegativo={confirmarSaldoNegativo}
-                    onCambiarConfirmarSaldoNegativo={setConfirmarSaldoNegativo}
-                  />
-                )}
-              </div>
-            )}
-
-            {esMetodoBancario(metodoPago) && (
-              <div className="space-y-3">
-                <MetodoPagoFields
-                  value={valorPago}
-                  onChange={setDatosPago}
-                  bancos={bancos}
-                  tasa={tasaVigente}
-                  metodosPermitidos={[metodoPago]}
-                  ocultarMonto
-                  ocultarSelector
-                  disabled={cobrando}
-                />
-              </div>
-            )}
-
-            {metodoPago === 'credito_representante' && (
-              <CargoCuentaPanel
-                representante={representante}
-                onSeleccionar={seleccionarRepresentante}
-                onCambiar={cambiarRepresentante}
-                alumnoId={alumnoId}
-                onCambiarAlumno={setAlumnoId}
-                totalUsd={totalUsd}
-                disabled={cobrando}
-              />
-            )}
-          </CarritoVenta>
-        </div>
+        {/* Columna derecha: carrito (desde lg; debajo vive en el Modal del pie) */}
+        {esLg && (
+          <div className="lg:min-h-0">
+            {renderCarrito(false)}
+          </div>
+        )}
       </div>
+
+      {!esLg && (
+        <>
+          <div
+            className="sticky bottom-0 z-20 -mx-3 sm:-mx-8 px-3 sm:px-8 py-3 flex items-center gap-3"
+            style={{ background: 'var(--surface)', borderTop: '0.5px solid var(--border-md)' }}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-tight" style={{ color: 'var(--pb)' }}>${totalUsd.toFixed(2)}</p>
+              <p className="text-xs truncate" style={{ color: 'var(--ash)' }}>Bs. {totalVes.toFixed(2)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCarritoAbierto(true)}
+              className="shrink-0 flex items-center justify-center gap-2 px-5 rounded-xl text-sm font-semibold text-white min-h-[48px]"
+              style={{ background: 'var(--pb)' }}
+            >
+              <ShoppingCart size={16} />
+              Ver carrito ({carrito.length})
+            </button>
+          </div>
+          <Modal
+            open={carritoAbierto && !ventaActual}
+            onClose={() => setCarritoAbierto(false)}
+            size="lg"
+            bodyClassName="p-0"
+            titulo={<><ShoppingCart size={17} /> Carrito · {carrito.length} línea{carrito.length !== 1 ? 's' : ''}</>}
+          >
+            {renderCarrito(true)}
+          </Modal>
+        </>
+      )}
 
       {ventaActual && (
         <TicketVenta
