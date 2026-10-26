@@ -19,7 +19,7 @@ const PASOS = [
 // `serial` humano es alfanumérico tipo L003-0001. Se detecta automáticamente
 // para no obligar al cajero/admin a elegir un modo de búsqueda aparte.
 function esCodigoQR(valor) {
-  return /^CANT-/i.test(valor.trim());
+  return /CANT-/i.test(valor);
 }
 
 export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirReponer }) {
@@ -62,10 +62,10 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       setPaso(2);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      if (err.response?.status === 404) {
-        setErrorTarjeta('No se encontró ninguna tarjeta sin asignar con ese código/serial.');
-      } else if (err.response?.data?.detail) {
+      if (err.response?.data?.detail) {
         setErrorTarjeta(err.response.data.detail);
+      } else if (err.response?.status === 404) {
+        setErrorTarjeta('No se encontró ninguna tarjeta sin asignar con ese código/serial.');
       } else {
         setErrorTarjeta('Esa tarjeta ya está asignada o no está disponible.');
       }

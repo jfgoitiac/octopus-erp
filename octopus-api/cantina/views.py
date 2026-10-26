@@ -398,6 +398,24 @@ class GenerarLoteTarjetasView(APIView):
         return response
 
 
+def _resolver_tarjeta(codigo, serial):
+    """Resuelve una `TarjetaPrepago` tolerando espacios, mayúsculas/minúsculas
+    y payloads de QR con texto extra alrededor del `CANT-XXXXXXXXXX` (lectores
+    que anteponen/agregan caracteres). Si el valor no resuelve como código,
+    se prueba como serial."""
+    import re
+    codigo = (codigo or '').strip()
+    serial = (serial or '').strip()
+    if codigo:
+        m = re.search(r'CANT-[A-Z0-9]+', codigo, re.IGNORECASE)
+        if m:
+            codigo = m.group(0)
+        return (TarjetaPrepago.objects.filter(codigo__iexact=codigo).first()
+                or TarjetaPrepago.objects.filter(serial__iexact=codigo).first())
+    return (TarjetaPrepago.objects.filter(serial__iexact=serial).first()
+            or TarjetaPrepago.objects.filter(codigo__iexact=serial).first())
+
+
 class BuscarTarjetaSinAsignarView(APIView):
     """
     GET ?codigo= o ?serial=: resuelve una `TarjetaPrepago` en estado
@@ -416,8 +434,7 @@ class BuscarTarjetaSinAsignarView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tarjeta = TarjetaPrepago.objects.filter(codigo=codigo).first() if codigo \
-            else TarjetaPrepago.objects.filter(serial=serial).first()
+        tarjeta = _resolver_tarjeta(codigo, serial)
 
         if not tarjeta:
             return Response(
@@ -456,8 +473,7 @@ class BuscarTarjetaParaReponerView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tarjeta = TarjetaPrepago.objects.filter(codigo=codigo).first() if codigo \
-            else TarjetaPrepago.objects.filter(serial=serial).first()
+        tarjeta = _resolver_tarjeta(codigo, serial)
 
         if not tarjeta:
             return Response(
