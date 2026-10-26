@@ -88,7 +88,7 @@ export default function MetasBancoTab({ bancos = [] }) {
     catch { toast.error('No se pudo eliminar la meta.'); }
   };
 
-  return <section className="rounded-xl overflow-hidden lg:col-span-3" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
+  return <section className="rounded-xl overflow-hidden lg:col-span-2" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
     <div className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3" style={{ borderBottom: '0.5px solid var(--border-md)', background: 'var(--bg)' }}>
       <div className="flex items-center gap-3"><div className="p-1.5 rounded-lg" style={{ background: 'var(--pb-light)' }}><BarChart3 size={15} style={{ color: 'var(--pb)' }} /></div><div><h3 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Meta de banco</h3><p className="text-xs" style={{ color: 'var(--ash)' }}>Seguimiento opcional de pagos de Cobranza por banco y método.</p></div></div>
       <div className="flex items-center gap-3"><label className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--jet)' }}><span>{habilitada ? 'Activa' : 'Desactivada'}</span><input type="checkbox" checked={habilitada} onChange={e => toggle(e.target.checked)} disabled={cargando} /></label>{habilitada && <button type="button" onClick={() => setModalAbierto(true)} className="btn btn-primary"><Plus size={15} /> Agregar meta</button>}</div>
