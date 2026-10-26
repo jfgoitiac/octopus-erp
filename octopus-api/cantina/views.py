@@ -398,22 +398,22 @@ class GenerarLoteTarjetasView(APIView):
         return response
 
 
-def _resolver_tarjeta(codigo, serial):
+def _resolver_tarjeta(codigo, serial=None, queryset=None):
     """Resuelve una `TarjetaPrepago` tolerando espacios, mayúsculas/minúsculas
     y payloads de QR con texto extra alrededor del `CANT-XXXXXXXXXX` (lectores
-    que anteponen/agregan caracteres). Si el valor no resuelve como código,
-    se prueba como serial."""
+    que anteponen/agregan caracteres). El valor puede llegar en `codigo` o en
+    `serial`: siempre se extrae el `CANT-...` si existe, y si no resuelve como
+    código se prueba como serial. `queryset` permite acotar (ej. solo activas)."""
     import re
-    codigo = (codigo or '').strip()
-    serial = (serial or '').strip()
-    if codigo:
-        m = re.search(r'CANT-[A-Z0-9]+', codigo, re.IGNORECASE)
-        if m:
-            codigo = m.group(0)
-        return (TarjetaPrepago.objects.filter(codigo__iexact=codigo).first()
-                or TarjetaPrepago.objects.filter(serial__iexact=codigo).first())
-    return (TarjetaPrepago.objects.filter(serial__iexact=serial).first()
-            or TarjetaPrepago.objects.filter(codigo__iexact=serial).first())
+    qs = TarjetaPrepago.objects.all() if queryset is None else queryset
+    valor = (codigo or serial or '').strip()
+    if not valor:
+        return None
+    m = re.search(r'CANT-[A-Z0-9]+', valor, re.IGNORECASE)
+    if m:
+        valor = m.group(0)
+    return (qs.filter(codigo__iexact=valor).first()
+            or qs.filter(serial__iexact=valor).first())
 
 
 class BuscarTarjetaSinAsignarView(APIView):
@@ -669,14 +669,28 @@ class BuscarTarjetaView(APIView):
     def get(self, request):
         codigo = request.query_params.get('codigo')
         serial = request.query_params.get('serial')
+        nombre = (request.query_params.get('nombre') or '').strip()
+        tarjetas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
+
+        # Búsqueda por nombre del alumno: cada palabra debe aparecer en nombre
+        # o apellido. Devuelve hasta 10 coincidencias para que el cajero elija.
+        if nombre and not codigo and not serial:
+            from django.db.models import Q
+            for palabra in nombre.split():
+                tarjetas = tarjetas.filter(
+                    Q(alumno__nombre__icontains=palabra) | Q(alumno__apellido__icontains=palabra)
+                )
+            resultados = tarjetas.order_by('alumno__apellido', 'alumno__nombre')[:10]
+            return Response({'resultados': TarjetaPrepagoSerializer(
+                resultados, many=True, context={'request': request}).data})
+
         if not codigo and not serial:
             return Response(
-                {'detail': "Debe indicar el parámetro 'codigo' o 'serial'."},
+                {'detail': "Debe indicar el parámetro 'codigo', 'serial' o 'nombre'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tarjetas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
-        tarjeta = tarjetas.filter(codigo=codigo).first() if codigo else tarjetas.filter(serial=serial).first()
+        tarjeta = _resolver_tarjeta(codigo, serial, tarjetas)
         if not tarjeta:
             return Response(
                 {'detail': f"No se encontró ninguna tarjeta activa con ese código/serial ('{codigo or serial}')."},
@@ -1184,7 +1198,7 @@ class RegistrarVentaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             tarjetas_activas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
-            tarjeta = tarjetas_activas.filter(codigo=str(tarjeta_codigo)).first() if tarjeta_codigo \
+            tarjeta = _resolver_tarjeta(str(tarjeta_codigo), None, tarjetas_activas) if tarjeta_codigo \
                 else tarjetas_activas.filter(pk=tarjeta_id).first()
             if not tarjeta:
                 return Response(
