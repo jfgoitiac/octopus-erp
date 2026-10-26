@@ -680,13 +680,17 @@ class BuscarTarjetaView(APIView):
         nombre = (request.query_params.get('nombre') or '').strip()
         tarjetas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
 
-        # Búsqueda por nombre del alumno: cada palabra debe aparecer en nombre
-        # o apellido. Devuelve hasta 10 coincidencias para que el cajero elija.
+        # Búsqueda por nombre: cada palabra debe aparecer en nombre o apellido
+        # del alumno o de su representante. Devuelve hasta 10 coincidencias
+        # para que el cajero elija.
         if nombre and not codigo and not serial:
             from django.db.models import Q
+            tarjetas = tarjetas.select_related('alumno__representante')
             for palabra in nombre.split():
                 tarjetas = tarjetas.filter(
                     Q(alumno__nombre__icontains=palabra) | Q(alumno__apellido__icontains=palabra)
+                    | Q(alumno__representante__nombre__icontains=palabra)
+                    | Q(alumno__representante__apellido__icontains=palabra)
                 )
             resultados = tarjetas.order_by('alumno__apellido', 'alumno__nombre')[:10]
             return Response({'resultados': TarjetaPrepagoSerializer(

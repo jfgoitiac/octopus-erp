@@ -11,11 +11,11 @@ const ES_SERIAL = /^L\d+-\d+$/i;
  * Búsqueda manual de respaldo del alumno/tarjeta (§6 cantina.md) — por si
  * el QR está dañado y no hay tiempo/forma de escanearlo. Acepta el código
  * (CANT-XXXXXXXXXX, aunque venga con texto extra), el serial impreso o el
- * nombre/apellido del alumno. Con nombre puede haber varias coincidencias:
+ * nombre/apellido del alumno o de su representante. Con nombre puede haber varias coincidencias:
  * se listan y el cajero elige; la tarjeta elegida sigue el mismo flujo de
  * confirmación de identidad y cobro que una tarjeta escaneada.
  */
-export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = false }) {
+export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = false, autoFocus = false }) {
   const [valor, setValor] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [coincidencias, setCoincidencias] = useState([]);
@@ -30,7 +30,7 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
   const buscar = async () => {
     const entrada = valor.trim();
     if (!entrada) {
-      toast.warning('Escribe el código, el serial o el nombre del alumno.');
+      toast.warning('Escribe el código, el serial o el nombre del alumno o representante.');
       return;
     }
     abortRef.current?.abort();
@@ -50,7 +50,7 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
         const res = await buscarTarjetaActiva({ nombre: entrada }, controller.signal);
         const lista = res.data?.resultados || [];
         if (lista.length === 0) {
-          toast.error(`No se encontró ningún alumno con tarjeta activa para "${entrada}".`);
+          toast.error(`No se encontró ningún alumno ni representante con tarjeta activa para "${entrada}".`);
         } else if (lista.length === 1) {
           elegir(lista[0]);
         } else {
@@ -79,12 +79,13 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
       <div className="flex gap-2">
         <input id="buscadoralumnomanual-busqueda-manual-si-el-qr-no-"
           type="text"
+          autoFocus={autoFocus}
           disabled={disabled || buscando}
           value={valor}
           onChange={e => setValor(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Código, serial o nombre del alumno"
-          aria-label="Búsqueda manual de tarjeta por código, serial o nombre del alumno"
+          placeholder="Código, serial, alumno o representante"
+          aria-label="Búsqueda manual de tarjeta por código, serial o nombre del alumno o del representante"
           className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
           style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}
         />
@@ -110,7 +111,7 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
               >
                 <span className="block text-sm font-medium" style={{ color: 'var(--jet)' }}>{t.alumno_nombre}</span>
                 <span className="block text-xs" style={{ color: 'var(--ash)' }}>
-                  {[t.alumno_grado_seccion, t.serial].filter(Boolean).join(' · ')}
+                  {[t.alumno_grado_seccion, t.representante_nombre && `Repr.: ${t.representante_nombre}`, t.serial].filter(Boolean).join(' · ')}
                 </span>
               </button>
             </li>

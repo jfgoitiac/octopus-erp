@@ -130,11 +130,13 @@ class TarjetaPrepagoSerializer(serializers.ModelSerializer):
     alumno_nombre = serializers.SerializerMethodField()
     alumno_foto = serializers.SerializerMethodField()
     alumno_grado_seccion = serializers.SerializerMethodField()
+    representante_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = TarjetaPrepago
         fields = (
             'id', 'alumno', 'alumno_nombre', 'alumno_foto', 'alumno_grado_seccion',
+            'representante_nombre',
             'lote', 'serial', 'codigo',
             'saldo', 'estado', 'limite_credito', 'saldo_negativo_desde',
             'asignada_en', 'creado_en', 'actualizado_en',
@@ -148,6 +150,11 @@ class TarjetaPrepagoSerializer(serializers.ModelSerializer):
         if not obj.alumno_id:
             return None
         return f'{obj.alumno.nombre} {obj.alumno.apellido}'
+
+    def get_representante_nombre(self, obj):
+        # Ayuda al cajero a distinguir hermanos u homónimos al buscar por nombre.
+        rep = obj.alumno.representante if obj.alumno_id else None
+        return f'{rep.nombre} {rep.apellido}'.strip() if rep else None
 
     def get_alumno_foto(self, obj):
         # §7.2 cantina.md — verificación visual obligatoria antes de cobrar

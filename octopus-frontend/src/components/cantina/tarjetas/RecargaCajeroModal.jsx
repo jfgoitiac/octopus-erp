@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import {
-  Loader2, Search, Wallet, AlertTriangle, CheckCircle2, UserRound,
+  Loader2, Wallet, CheckCircle2, UserRound,
 } from 'lucide-react';
 import {
-  buscarTarjetaActiva, getBancosCantina, getTasaVigenteCantina, recargarTarjetaCajero,
+  getBancosCantina, getTasaVigenteCantina, recargarTarjetaCajero,
 } from '../../../api/cantina.service';
 import { Modal } from '../../ui/Modal';
+import BuscadorAlumnoManual from '../pos/BuscadorAlumnoManual';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const LABEL_STYLE = { color: 'var(--ash)' };
@@ -42,10 +43,7 @@ const referenciaInvalida = (m, ref) => {
 const monedaDefault = (m) => (m === 'efectivo_ves' || m === 'transferencia' || m === 'pago_movil' ? 'VES' : 'USD');
 
 export default function RecargaCajeroModal({ onClose, onRecargada }) {
-  // Búsqueda de tarjeta
-  const [entradaTarjeta, setEntradaTarjeta] = useState('');
-  const [buscando, setBuscando] = useState(false);
-  const [errorBusqueda, setErrorBusqueda] = useState('');
+  // Tarjeta a recargar (resuelta por código QR, serial o nombre del alumno/representante)
   const [tarjeta, setTarjeta] = useState(null);
 
   // Formulario de recarga
@@ -59,8 +57,6 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
   const [referencia, setReferencia] = useState('');
   const [tocado, setTocado] = useState({});
   const [enviando, setEnviando] = useState(false);
-
-  const abortRef = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,33 +84,6 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
     return () => controller.abort();
   }, []);
 
-  const handleBuscarTarjeta = async () => {
-    const valor = entradaTarjeta.trim();
-    if (!valor) {
-      toast.warning('Escanea el código QR o escribe el serial de la tarjeta.');
-      return;
-    }
-    setBuscando(true);
-    setErrorBusqueda('');
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      const query = /^CANT-/i.test(valor) ? { codigo: valor } : { serial: valor };
-      const res = await buscarTarjetaActiva(query, controller.signal);
-      setTarjeta(res.data);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      if (err.response?.status === 404) {
-        setErrorBusqueda('No se encontró ninguna tarjeta activa con ese código/serial.');
-      } else {
-        setErrorBusqueda(err.response?.data?.detail || 'No se pudo buscar la tarjeta.');
-      }
-    } finally {
-      setBuscando(false);
-    }
-  };
-
   const handleCambiarMetodo = (m) => {
     setMetodoPago(m);
     setMoneda(monedaDefault(m));
@@ -125,8 +94,6 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
 
   const cambiarTarjeta = () => {
     setTarjeta(null);
-    setEntradaTarjeta('');
-    setErrorBusqueda('');
   };
 
   const marcarTocado = (campo) => setTocado(p => ({ ...p, [campo]: true }));
@@ -237,44 +204,13 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
       size="md"
     >
       {!tarjeta ? (
-        <div className="space-y-3">
-          <label htmlFor="recargacajeromodal-codigo-qr-o-serial-de-la-tar" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
-            Código QR o serial de la tarjeta
-          </label>
-          <div className="flex gap-2">
-            <input id="recargacajeromodal-codigo-qr-o-serial-de-la-tar"
-              autoFocus
-              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
-              style={FIELD_STYLE}
-              value={entradaTarjeta}
-              onChange={e => { setEntradaTarjeta(e.target.value); setErrorBusqueda(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleBuscarTarjeta(); }}
-              placeholder="CANT-7K9M2XQPRT o L003-0007"
-            />
-            <button
-              onClick={handleBuscarTarjeta}
-              disabled={buscando}
-              className="px-4 rounded-xl text-sm font-medium text-white flex items-center gap-1.5 disabled:opacity-50 min-h-[44px]"
-              style={{ background: 'var(--pb)' }}
-            >
-              {buscando ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-              Buscar
-            </button>
-          </div>
-          {errorBusqueda && (
-            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--red)' }}>
-              <AlertTriangle size={14} /> {errorBusqueda}
-            </p>
-          )}
-        </div>
+        <BuscadorAlumnoManual onTarjetaResuelta={setTarjeta} autoFocus />
       ) : (
         <div className="space-y-4">
           <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
             <span className="flex items-center gap-2">
               <UserRound size={16} />
-              {tarjeta.alumno?.nombre
-                ? `${tarjeta.alumno.nombre} ${tarjeta.alumno.apellido || ''}`.trim()
-                : `Tarjeta ${tarjeta.serial}`}
+              {tarjeta.alumno_nombre || `Tarjeta ${tarjeta.serial}`}
             </span>
             <span className="font-semibold" style={{ color: tarjeta.saldo < 0 ? 'var(--red)' : 'var(--pb-mid)' }}>
               Saldo: ${Number(tarjeta.saldo ?? 0).toFixed(2)}

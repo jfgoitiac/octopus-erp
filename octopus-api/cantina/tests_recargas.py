@@ -401,3 +401,20 @@ class BancosCantinaYBuscarTarjetaTests(RecargaTarjetaTestsBase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         for tarjeta in resp.data:
             self.assertEqual(tarjeta['estado'], 'sin_asignar')
+
+
+class BuscarTarjetaPorNombreTests(RecargaTarjetaTestsBase):
+    def _buscar(self, nombre):
+        self.client.force_authenticate(user=self.cajero_user)
+        return self.client.get('/api/cantina/tarjetas/buscar/', {'nombre': nombre})
+
+    def test_encuentra_por_nombre_del_representante(self):
+        resp = self._buscar('Marisol')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        seriales = {t['serial'] for t in resp.data['resultados']}
+        self.assertEqual(seriales, {'L001-0001', 'L001-0002'})
+        self.assertEqual(resp.data['resultados'][0]['representante_nombre'], 'Marisol Duarte')
+
+    def test_combina_alumno_y_representante(self):
+        resp = self._buscar('Valeria Marisol')
+        self.assertEqual([t['serial'] for t in resp.data['resultados']], ['L001-0002'])
