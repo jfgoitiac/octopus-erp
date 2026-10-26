@@ -250,7 +250,8 @@ class Ticket {
     for (let i = 0; i < bits.length; i++) this.buf.push(bits[i]);
     return this;
   }
-  cortar() { return this.raw(LF, LF, LF, GS, 0x56, 0x42, 0x00); }
+  // GS V 66 0 ya avanza el papel hasta la cuchilla antes de cortar: basta un avance mínimo.
+  cortar() { return this.raw(LF, GS, 0x56, 0x42, 0x00); }
   bytes() { return new Uint8Array(this.buf); }
 }
 
@@ -285,41 +286,56 @@ async function logoRaster(url, puntosAncho) {
   }
 }
 
-const usd = (n) => `$${Number(n || 0).toFixed(2)}`;
+/**
+ * Tasa Bs/USD congelada en la venta. Los recibos de cantina se muestran solo
+ * en bolívares: cada monto en USD se convierte con esta tasa.
+ */
+export const tasaVenta = (venta) => {
+  const tasa = Number(venta?.tasa_aplicada);
+  if (tasa > 0) return tasa;
+  const usdTotal = Number(venta?.total_usd);
+  return usdTotal > 0 && venta?.total_ves != null ? Number(venta.total_ves) / usdTotal : 0;
+};
+
+export const formatoBs = (n) =>
+  `Bs. ${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Monto USD → "Bs. 1.234,56" con la tasa de la venta. */
+export const bsDesdeUsd = (montoUsd, tasa) => formatoBs(Number(montoUsd || 0) * tasa);
 
 export async function construirReciboEscPos(venta, ancho, logoUrl) {
   const t = new Ticket(ancho === 80 ? 48 : 32);
   const detalles = venta.detalles || [];
+  const tasa = tasaVenta(venta);
+  const bs = (usdMonto) => bsDesdeUsd(usdMonto, tasa);
   const subtotal = detalles.reduce((acc, d) => acc + Number(d.subtotal || 0), 0);
   const descuento = Number(venta.descuento_usd) || 0;
-  const fecha = format(venta.creado_en ? parseISO(venta.creado_en) : new Date(), 'dd/MM/yyyy HH:mm', { locale: es });
+  const fecha = format(venta.creado_en ? parseISO(venta.creado_en) : new Date(), 'dd/MM/yy HH:mm', { locale: es });
   const metodo = venta.metodo_pago === 'credito_representante' ? 'Cargo a cuenta' : etiquetaMetodo(venta.metodo_pago);
   const area = venta.area ? (ETIQUETA_AREA[venta.area] ?? venta.area) : '';
   const cliente = venta.alumno_nombre || venta.cliente_nombre || '';
   const cajero = venta.cajero_nombre || venta.cajero_username || '';
+  const totalBs = venta.total_ves != null ? formatoBs(venta.total_ves) : bs(venta.total_usd);
 
+  // Compacto: logo pequeño, sin líneas en blanco ni mensajes de cortesía.
   t.alinear(1);
-  const logo = logoUrl ? await logoRaster(logoUrl, ancho === 80 ? 288 : 192) : null;
+  const logo = logoUrl ? await logoRaster(logoUrl, ancho === 80 ? 160 : 112) : null;
   if (logo) t.raster(logo.bits, logo.anchoBytes, logo.alto);
-  t.linea(area ? `Caja ${area}` : 'Cantina').alinear(0).guiones();
-  t.fila('Recibo', `#${venta.id}`).fila('Fecha', fecha);
+  t.linea(area ? `Caja ${area}` : 'Cantina').alinear(0);
+  t.fila(`#${venta.id}`, fecha);
   if (cajero) t.fila('Cajero', cajero);
   if (cliente) t.fila('Alumno', cliente);
   t.guiones();
-  detalles.forEach(d => t.fila(`${d.cantidad}x ${d.producto?.nombre ?? ''}`, usd(d.subtotal)));
+  detalles.forEach(d => t.fila(`${d.cantidad}x ${d.producto?.nombre ?? ''}`, bs(d.subtotal)));
   t.guiones();
-  if (descuento > 0) t.fila('Subtotal', usd(subtotal)).fila('Descuento', `-${usd(descuento)}`);
-  t.negrita(true).fila('TOTAL', usd(venta.total_usd)).negrita(false);
-  if (venta.total_ves != null) t.fila('Bs.', Number(venta.total_ves).toFixed(2));
-  t.fila('Pago', metodo);
-  if (venta.referencia) t.fila('Ref.', venta.referencia);
+  if (descuento > 0) t.fila('Subtotal', bs(subtotal)).fila('Descuento', `-${bs(descuento)}`);
+  t.negrita(true).fila('TOTAL', totalBs).negrita(false);
+  t.fila('Pago', venta.referencia ? `${metodo} ${venta.referencia}` : metodo);
   if (venta.saldo_tarjeta_despues != null) {
-    t.guiones()
-      .fila('Saldo anterior', usd(Number(venta.saldo_tarjeta_despues) + Number(venta.total_usd)))
-      .negrita(true).fila('Saldo restante', usd(venta.saldo_tarjeta_despues)).negrita(false);
+    t.fila('Saldo anterior', bs(Number(venta.saldo_tarjeta_despues) + Number(venta.total_usd)))
+      .negrita(true).fila('Saldo restante', bs(venta.saldo_tarjeta_despues)).negrita(false);
   }
-  t.linea().alinear(1).negrita(true).linea('** ENTREGAR AL ALUMNO **').negrita(false)
-    .linea().linea('¡Gracias por su compra!').alinear(0);
+  t.guiones().alinear(1).negrita(true).linea('ENTREGAR AL ALUMNO').negrita(false).alinear(0);
   return t.cortar().bytes();
 }
 

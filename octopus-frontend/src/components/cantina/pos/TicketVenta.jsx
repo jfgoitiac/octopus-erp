@@ -7,6 +7,7 @@ import ConfigImpresoraModal from './ConfigImpresoraModal';
 import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 import { etiquetaMetodo } from '../metodoPagoUtils';
 import { imprimirReciboCantina, getAnchoPapel, setAnchoPapel } from '../../../utils/imprimirReciboCantina';
+import { tasaVenta, bsDesdeUsd, formatoBs } from '../../../utils/impresoraTermica';
 
 /**
  * Vista previa en pantalla del ticket recién cobrado (§6 cantina.md,
@@ -42,6 +43,8 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
 
   // `total_usd` ya es el neto (CONTRATO_AUDITORIA_CANTINA.md §1); el subtotal
   // es la suma de las líneas.
+  const tasa = tasaVenta(venta);
+  const bs = (usdMonto) => bsDesdeUsd(usdMonto, tasa);
   const descuentoUsd = Number(venta.descuento_usd) || 0;
   const subtotalUsd = (venta.detalles || []).reduce((acc, d) => acc + Number(d.subtotal || 0), 0);
   const fecha = venta.creado_en ? format(parseISO(venta.creado_en), "d 'de' MMMM yyyy, HH:mm", { locale: es }) : '';
@@ -129,7 +132,7 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
         {(venta.detalles || []).map(d => (
           <div key={d.id} className="flex justify-between text-sm">
             <span style={{ color: 'var(--jet)' }}>{d.cantidad}x {d.producto?.nombre}</span>
-            <span style={{ color: 'var(--jet)' }}>${Number(d.subtotal).toFixed(2)}</span>
+            <span style={{ color: 'var(--jet)' }}>{bs(d.subtotal)}</span>
           </div>
         ))}
       </div>
@@ -139,7 +142,7 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
           <>
             <div className="flex justify-between text-sm" style={{ color: 'var(--ash)' }}>
               <span>Subtotal</span>
-              <span>${subtotalUsd.toFixed(2)}</span>
+              <span>{bs(subtotalUsd)}</span>
             </div>
             <div className="flex justify-between gap-3 text-sm" style={{ color: 'var(--red)' }}>
               <span className="min-w-0">
@@ -148,17 +151,13 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
                   <span className="block text-xs break-words" style={{ color: 'var(--ash)' }}>{venta.motivo_descuento}</span>
                 )}
               </span>
-              <span className="shrink-0">−${descuentoUsd.toFixed(2)}</span>
+              <span className="shrink-0">−{bs(descuentoUsd)}</span>
             </div>
           </>
         )}
         <div className="flex justify-between font-semibold" style={{ color: 'var(--jet)' }}>
           <span>{descuentoUsd > 0 ? 'Total neto' : 'Total'}</span>
-          <span>${Number(venta.total_usd).toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-sm" style={{ color: 'var(--ash)' }}>
-          <span>Equivalente</span>
-          <span>Bs. {Number(venta.total_ves).toFixed(2)}</span>
+          <span>{venta.total_ves != null ? formatoBs(venta.total_ves) : bs(venta.total_usd)}</span>
         </div>
         <div className="flex justify-between text-xs pt-1" style={{ color: 'var(--ash)', borderTop: '0.5px solid var(--border-md)' }}>
           <span>Método</span>
@@ -194,11 +193,11 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
           <>
             <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
               <span>Saldo tarjeta antes</span>
-              <span>${(Number(venta.saldo_tarjeta_despues) + Number(venta.total_usd)).toFixed(2)}</span>
+              <span>{bs(Number(venta.saldo_tarjeta_despues) + Number(venta.total_usd))}</span>
             </div>
             <div className="flex justify-between text-sm font-semibold" style={{ color: 'var(--jet)' }}>
               <span>Saldo restante en tarjeta</span>
-              <span>${Number(venta.saldo_tarjeta_despues).toFixed(2)}</span>
+              <span>{bs(venta.saldo_tarjeta_despues)}</span>
             </div>
           </>
         )}
