@@ -6,8 +6,10 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   getProductos, getTasaVigenteCantina, registrarVenta,
-  getAperturaCajaActual, getBancosCantina,
+  getAperturaCajaActual, getBancosCantina, getPlantillasVenta,
 } from '../../api/cantina.service';
+import PlantillasVentaBar from '../../components/cantina/pos/PlantillasVentaBar';
+import GestionPlantillasModal from '../../components/cantina/pos/GestionPlantillasModal';
 import { AuthContext } from '../../context/AuthContext';
 import { nombreUsuario } from '../../utils/nombreUsuario';
 import { notificarAperturaCambiada, ETIQUETA_AREA } from '../aperturaEvento';
@@ -79,6 +81,9 @@ export default function CantinaPOS() {
 
   const [tarjeta, setTarjeta] = useState(null);
   const [consultandoSaldo, setConsultandoSaldo] = useState(false);
+  const [plantillas, setPlantillas] = useState([]);
+  const [gestionandoPlantillas, setGestionandoPlantillas] = useState(false);
+  const [recargaPlantillas, setRecargaPlantillas] = useState(0);
   // Cómo se identificó al alumno de la tarjeta: 'escaner' | 'manual'.
   const [origenTarjeta, setOrigenTarjeta] = useState(null);
   const [identidadConfirmada, setIdentidadConfirmada] = useState(false);
@@ -170,6 +175,50 @@ export default function CantinaPOS() {
       return [...prev, { producto, cantidad: 1, origenes: [origen] }];
     });
   }, [areaCaja]);
+
+  useEffect(() => {
+    if (!areaCaja) return undefined;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await getPlantillasVenta({ activo: true, area: areaCaja }, controller.signal);
+        setPlantillas(res.data?.results ?? res.data ?? []);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudieron cargar las plantillas de cobro.');
+      }
+    })();
+    return () => controller.abort();
+  }, [areaCaja, recargaPlantillas]);
+
+  // Suma al carrito los productos de la plantilla (con el catálogo y precios
+  // vigentes). Lo que no tiene stock suficiente se omite y se avisa.
+  const aplicarPlantilla = (plantilla) => {
+    const omitidos = [];
+    let nuevo = [...carrito];
+    plantilla.items.forEach(({ producto: id, cantidad }) => {
+      const producto = productos.find(p => p.id === id);
+      if (!producto) { omitidos.push(`${id}`); return; }
+      const idx = nuevo.findIndex(l => l.producto.id === id);
+      const deseada = (idx >= 0 ? nuevo[idx].cantidad : 0) + cantidad;
+      if (producto.stock_actual != null && deseada > producto.stock_actual) {
+        omitidos.push(`${producto.nombre} (stock: ${producto.stock_actual})`);
+        return;
+      }
+      if (idx >= 0) {
+        nuevo[idx] = {
+          ...nuevo[idx],
+          cantidad: deseada,
+          origenes: nuevo[idx].origenes.includes('manual') ? nuevo[idx].origenes : [...nuevo[idx].origenes, 'manual'],
+        };
+      } else {
+        nuevo = [...nuevo, { producto, cantidad, origenes: ['manual'] }];
+      }
+    });
+    setCarrito(nuevo);
+    if (omitidos.length) toast.warning(`No se agregó por falta de stock o catálogo: ${omitidos.join(', ')}.`);
+    else toast.success(`"${plantilla.nombre}" agregada al carrito.`);
+  };
 
   const cambiarCantidad = useCallback((productoId, nuevaCantidad) => {
     setCarrito(prev => {
@@ -403,6 +452,23 @@ export default function CantinaPOS() {
         <div className="lg:col-span-2 flex flex-col gap-3 lg:min-h-0">
           <ScannerProducto onProductoEncontrado={p => agregarProducto(p, 'escaner')} disabled={Boolean(ventaActual)} />
           <BuscadorProductoManual productos={productos} onSeleccionar={p => agregarProducto(p, 'manual')} />
+          <PlantillasVentaBar
+            plantillas={plantillas}
+            tasa={tasaVigente}
+            onAplicar={aplicarPlantilla}
+            onGestionar={() => setGestionandoPlantillas(true)}
+            disabled={Boolean(ventaActual)}
+          />
+          {gestionandoPlantillas && (
+            <GestionPlantillasModal
+              area={areaCaja}
+              productos={productos}
+              plantillas={plantillas}
+              tasa={tasaVigente}
+              onClose={() => setGestionandoPlantillas(false)}
+              onCambio={() => setRecargaPlantillas(n => n + 1)}
+            />
+          )}
 
           <div className="max-h-[45dvh] lg:max-h-none lg:flex-1 overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
             <p className="text-xs uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>

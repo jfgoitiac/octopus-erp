@@ -9,6 +9,19 @@ import cantinaApiClient from '../cantina/api/cantinaApiClient';
 export const getProductos = (params, signal) =>
   cantinaApiClient.get('productos/', { params, signal });
 
+// Plantillas de venta (combos del POS): productos + cantidades predefinidos.
+export const getPlantillasVenta = (params, signal) =>
+  cantinaApiClient.get('plantillas-venta/', { params, signal });
+
+export const crearPlantillaVenta = (payload) =>
+  cantinaApiClient.post('plantillas-venta/', payload);
+
+export const actualizarPlantillaVenta = (id, payload) =>
+  cantinaApiClient.put(`plantillas-venta/${id}/`, payload);
+
+export const eliminarPlantillaVenta = (id) =>
+  cantinaApiClient.delete(`plantillas-venta/${id}/`);
+
 export const crearProducto = (payload, signal) =>
   cantinaApiClient.post('productos/', payload, { signal });
 

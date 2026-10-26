@@ -385,6 +385,37 @@ class VentaCantina(models.Model):
         return self.total_usd + self.descuento_usd
 
 
+class PlantillaVenta(models.Model):
+    """Combo de venta rápida del POS (ej. 'Combo desayuno', 'Kit de útiles'):
+    productos y cantidades predefinidos que el cajero carga al carrito con un
+    clic. No guarda precios — se toman del producto al momento de cobrar."""
+    nombre = models.CharField(max_length=80)
+    area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
+    activo = models.BooleanField(default=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['orden', 'nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['area', 'nombre'], name='cantina_plantilla_nombre_area_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.nombre} ({self.area})'
+
+
+class PlantillaVentaItem(models.Model):
+    plantilla = models.ForeignKey(PlantillaVenta, on_delete=models.CASCADE, related_name='items')
+    producto = models.ForeignKey(ProductoCantina, on_delete=models.PROTECT, related_name='+')
+    cantidad = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['plantilla', 'producto'], name='cantina_plantilla_item_uniq'),
+        ]
+
+
 class DetalleVentaCantina(models.Model):
     venta = models.ForeignKey(VentaCantina, on_delete=models.CASCADE, related_name='detalles')
     producto = models.ForeignKey(ProductoCantina, on_delete=models.PROTECT, related_name='detalles_venta')

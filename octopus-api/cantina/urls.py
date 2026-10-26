@@ -35,6 +35,8 @@ from .views import (
     TasaVigenteCantinaView,
 )
 
+from .views_plantillas import PlantillaVentaDetailView, PlantillasVentaListCreateView
+
 app_name = 'cantina'
 
 # NOTA: login/refresh del cajero se unificaron con el resto del staff —
@@ -42,6 +44,8 @@ app_name = 'cantina'
 # CookieTokenObtainPairView / CookieTokenRefreshView).
 
 urlpatterns = [
+    path('plantillas-venta/', PlantillasVentaListCreateView.as_view(), name='cantina-plantillas-venta'),
+    path('plantillas-venta/<int:pk>/', PlantillaVentaDetailView.as_view(), name='cantina-plantilla-venta-detalle'),
     # Fase 1 — Inventario (§8 FASE 1 de cantina.md)
     path('productos/', ProductosListCreateView.as_view(), name='cantina-productos'),
     path('productos/<int:pk>/', ProductoDetailView.as_view(), name='cantina-producto-detalle'),
