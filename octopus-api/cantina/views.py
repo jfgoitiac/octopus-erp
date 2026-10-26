@@ -409,11 +409,19 @@ def _resolver_tarjeta(codigo, serial=None, queryset=None):
     valor = (codigo or serial or '').strip()
     if not valor:
         return None
-    m = re.search(r'CANT-[A-Z0-9]+', valor, re.IGNORECASE)
+    # Los lectores USB emulan teclado: con otra distribución (ej. español) el
+    # guion llega como apóstrofe u otro símbolo ("CANT'K9VQRN9J8X"). El código
+    # son 10 caracteres alfanuméricos tras 'CANT', con cualquier separador.
+    m = re.search(r'CANT[^A-Z0-9]{0,2}([A-Z0-9]{10})', valor, re.IGNORECASE)
     if m:
-        valor = m.group(0)
-    return (qs.filter(codigo__iexact=valor).first()
-            or qs.filter(serial__iexact=valor).first())
+        valor = f'CANT-{m.group(1)}'
+    tarjeta = (qs.filter(codigo__iexact=valor).first()
+               or qs.filter(serial__iexact=valor).first())
+    if tarjeta:
+        return tarjeta
+    # Serial tipo 'L001-0001' leído con el guion cambiado ('L001\'0001').
+    normalizado = re.sub(r'[^A-Za-z0-9]+', '-', valor).strip('-')
+    return qs.filter(serial__iexact=normalizado).first() if normalizado != valor else None
 
 
 class BuscarTarjetaSinAsignarView(APIView):
