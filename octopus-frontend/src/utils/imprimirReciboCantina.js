@@ -1,7 +1,9 @@
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ETIQUETA_AREA } from '../cantina/aperturaEvento';
+import { toast } from 'react-toastify';
 import { etiquetaMetodo } from '../components/cantina/metodoPagoUtils';
+import { getConfigImpresora, imprimirReciboDirecto, MODOS } from './impresoraTermica';
 
 /**
  * Recibo de la caja de cantina para impresora térmica (Bluetooth o USB).
@@ -93,6 +95,14 @@ function construirHtml(venta, ancho) {
 
 export function imprimirReciboCantina(venta, ancho = getAnchoPapel()) {
   if (!venta) return;
+  // Impresora Bluetooth configurada: ESC/POS directo, sin diálogo del sistema.
+  if (getConfigImpresora().modo !== MODOS.DIALOGO) {
+    imprimirReciboDirecto(venta, ancho, LOGO).catch((e) => {
+      if (e?.name === 'AbortError') return;
+      toast.error(e?.message || 'No se pudo imprimir en la impresora Bluetooth.');
+    });
+    return;
+  }
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
   document.body.appendChild(iframe);

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Printer, Loader2, CheckCircle2 } from 'lucide-react';
+import { Printer, Loader2, CheckCircle2, Settings } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
+import ConfigImpresoraModal from './ConfigImpresoraModal';
 import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 import { etiquetaMetodo } from '../metodoPagoUtils';
 import { imprimirReciboCantina, getAnchoPapel, setAnchoPapel } from '../../../utils/imprimirReciboCantina';
@@ -22,6 +23,7 @@ const leerAuto = () => {
 export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando }) {
   const [ancho, setAncho] = useState(getAnchoPapel);
   const [auto, setAuto] = useState(leerAuto);
+  const [configurando, setConfigurando] = useState(false);
   const ventaId = venta?.id;
 
   // Impresión automática al cobrar (si el cajero la activó): una vez por venta.
@@ -89,6 +91,7 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
       footer={footer}
       size="sm"
     >
+      {configurando && <ConfigImpresoraModal onCerrar={() => setConfigurando(false)} />}
       <p className="text-xs mb-3" style={{ color: 'var(--ash)' }}>{fecha}</p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 text-xs" style={{ color: 'var(--ash)' }}>
@@ -96,6 +99,14 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
           <input type="checkbox" checked={auto} onChange={e => cambiarAuto(e.target.checked)} />
           Imprimir automáticamente al cobrar
         </label>
+        <button
+          type="button"
+          onClick={() => setConfigurando(true)}
+          className="flex items-center gap-1.5 px-2.5 rounded-lg min-h-[32px] self-start"
+          style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+        >
+          <Settings size={13} /> Impresora
+        </button>
         <div className="flex items-center gap-1.5">
           Papel
           {[58, 80].map(mm => (
