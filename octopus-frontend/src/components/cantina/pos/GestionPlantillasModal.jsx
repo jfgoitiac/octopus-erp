@@ -106,7 +106,7 @@ export default function GestionPlantillasModal({ area, productos, plantillas, ta
                     {p.items.map(i => `${i.cantidad}× ${i.producto_nombre}`).join(' · ')}
                   </p>
                   <p className="text-sm font-semibold" style={{ color: 'var(--pb-mid)' }}>
-                    {tasa > 0 && <>Bs. {(Number(p.total_usd) * tasa).toFixed(2)} · </>}${Number(p.total_usd).toFixed(2)}
+                    {tasa > 0 ? `Bs. ${(Number(p.total_usd) * tasa).toFixed(2)}` : `$${Number(p.total_usd).toFixed(2)}`}
                   </p>
                 </div>
                 {aEliminar === p.id ? (
@@ -150,7 +150,9 @@ export default function GestionPlantillasModal({ area, productos, plantillas, ta
                   >
                     <option value="">Elige un producto…</option>
                     {productos.map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre} — ${Number(p.precio).toFixed(2)}</option>
+                      <option key={p.id} value={p.id}>
+                        {p.nombre} — {tasa > 0 ? `Bs. ${(Number(p.precio) * tasa).toFixed(2)}` : `$${Number(p.precio).toFixed(2)}`}
+                      </option>
                     ))}
                   </select>
                   <input
@@ -184,7 +186,7 @@ export default function GestionPlantillasModal({ area, productos, plantillas, ta
             </div>
 
             <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>
-              Total: {tasa > 0 && <>Bs. {(totalUsd * tasa).toFixed(2)} · </>}${totalUsd.toFixed(2)}
+              Total: {tasa > 0 ? `Bs. ${(totalUsd * tasa).toFixed(2)}` : `$${totalUsd.toFixed(2)}`}
             </p>
 
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">

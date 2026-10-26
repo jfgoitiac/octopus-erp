@@ -43,7 +43,6 @@ export default function PlantillasVentaBar({ plantillas, tasa, onAplicar, onGest
                 <span className="text-sm font-semibold" style={{ color: 'var(--pb-mid)' }}>
                   {tasa > 0 ? `Bs. ${(totalUsd * tasa).toFixed(2)}` : `$${totalUsd.toFixed(2)}`}
                 </span>
-                {tasa > 0 && <span className="text-xs" style={{ color: 'var(--ash)' }}>${totalUsd.toFixed(2)}</span>}
               </button>
             );
           })}
