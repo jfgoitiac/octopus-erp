@@ -126,10 +126,16 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
           </div>
         )}
         {venta.saldo_tarjeta_despues != null && (
-          <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
-            <span>Saldo tarjeta después</span>
-            <span>${Number(venta.saldo_tarjeta_despues).toFixed(2)}</span>
-          </div>
+          <>
+            <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
+              <span>Saldo tarjeta antes</span>
+              <span>${(Number(venta.saldo_tarjeta_despues) + Number(venta.total_usd)).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold" style={{ color: 'var(--jet)' }}>
+              <span>Saldo restante en tarjeta</span>
+              <span>${Number(venta.saldo_tarjeta_despues).toFixed(2)}</span>
+            </div>
+          </>
         )}
       </div>
     </Modal>

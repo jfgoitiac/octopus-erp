@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import { toast } from 'react-toastify';
-import { ShoppingCart, Package } from 'lucide-react';
+import { ShoppingCart, Package, Wallet } from 'lucide-react';
+import ConsultarSaldoModal from '../../components/cantina/tarjetas/ConsultarSaldoModal';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -77,6 +78,7 @@ export default function CantinaPOS() {
   const [alumnoId, setAlumnoId] = useState('');
 
   const [tarjeta, setTarjeta] = useState(null);
+  const [consultandoSaldo, setConsultandoSaldo] = useState(false);
   // Cómo se identificó al alumno de la tarjeta: 'escaner' | 'manual'.
   const [origenTarjeta, setOrigenTarjeta] = useState(null);
   const [identidadConfirmada, setIdentidadConfirmada] = useState(false);
@@ -369,6 +371,7 @@ export default function CantinaPOS() {
     // debajo de `lg` (tablet 768×1024, celular) la página scrollea y el botón
     // COBRAR queda fijo al pie del carrito (ver CarritoVenta).
     <div className="flex flex-col gap-4 lg:h-[calc(100dvh-64px-4rem)]">
+      {consultandoSaldo && <ConsultarSaldoModal onClose={() => setConsultandoSaldo(false)} />}
       {!cargandoApertura && apertura === false && (
         <AperturaCajaModal
           onAbierta={data => { setApertura(data); notificarAperturaCambiada(); }}
@@ -385,6 +388,14 @@ export default function CantinaPOS() {
             Cajero: {nombreUsuario(user)} · {format(new Date(), "d 'de' MMMM, HH:mm", { locale: es })}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setConsultandoSaldo(true)}
+          className="flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-medium min-h-[44px] w-full sm:w-auto"
+          style={{ border: '1.5px solid var(--pb)', color: 'var(--pb)', background: '#fff' }}
+        >
+          <Wallet size={16} /> Consultar saldo
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { CreditCard, ScanLine, AlertTriangle, Layers, Wallet, Percent } from 'lucide-react';
+import { CreditCard, ScanLine, AlertTriangle, Layers, Wallet, Percent, Search } from 'lucide-react';
+import ConsultarSaldoModal from '../../components/cantina/tarjetas/ConsultarSaldoModal';
 import GenerarLoteModal from '../../components/cantina/tarjetas/GenerarLoteModal';
 import AsignarTarjetaModal from '../../components/cantina/tarjetas/AsignarTarjetaModal';
 import ReponerTarjetaModal from '../../components/cantina/tarjetas/ReponerTarjetaModal';
@@ -24,6 +25,14 @@ const ACCIONES = [
     descripcion: 'Crea N tarjetas nuevas sin asignar y descarga un .zip con los QR listos para imprimir.',
     color: 'var(--pb)',
     bg: 'var(--pb-light)',
+  },
+  {
+    key: 'consultar',
+    icon: Search,
+    titulo: 'Consultar saldo',
+    descripcion: 'Escanea la tarjeta o busca al alumno para ver su saldo, límite de crédito y lo disponible para gastar.',
+    color: 'var(--teal)',
+    bg: 'var(--teal-light)',
   },
   {
     key: 'asignar',
@@ -153,6 +162,8 @@ export default function CantinaTarjetas() {
       {modalActivo === 'generar' && (
         <GenerarLoteModal onClose={cerrarModal} />
       )}
+
+      {modalActivo === 'consultar' && <ConsultarSaldoModal onClose={cerrarModal} />}
 
       {modalActivo === 'asignar' && (
         <AsignarTarjetaModal

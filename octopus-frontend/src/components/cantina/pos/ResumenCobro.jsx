@@ -77,18 +77,22 @@ export default function ResumenCobro({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-        <div className="rounded-lg px-3 py-2" style={{ background: '#fff' }}>
-          <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo actual</p>
-          <p className="font-semibold" style={{ color: saldoActual < 0 ? 'var(--red)' : 'var(--jet)' }}>
+      <div className="rounded-lg px-3 py-2 text-sm space-y-1" style={{ background: '#fff' }}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo actual</span>
+          <span className="font-semibold" style={{ color: saldoActual < 0 ? 'var(--red)' : 'var(--jet)' }}>
             ${saldoActual.toFixed(2)}
-          </p>
+          </span>
         </div>
-        <div className="rounded-lg px-3 py-2" style={{ background: '#fff' }}>
-          <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo después</p>
-          <p className="font-semibold" style={{ color: saldoDespues < 0 ? 'var(--red)' : 'var(--jet)' }}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Total a cobrar</span>
+          <span className="font-semibold" style={{ color: 'var(--jet)' }}>− ${Number(totalUsd || 0).toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 pt-1" style={{ borderTop: '0.5px solid var(--border-md)' }}>
+          <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--ash)' }}>Saldo restante</span>
+          <span className="text-lg font-bold" style={{ color: saldoDespues < 0 ? 'var(--red)' : 'var(--jet)' }}>
             ${saldoDespues.toFixed(2)}
-          </p>
+          </span>
         </div>
       </div>
 
