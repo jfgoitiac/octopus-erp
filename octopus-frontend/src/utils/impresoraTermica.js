@@ -20,7 +20,7 @@ import { etiquetaMetodo } from '../components/cantina/metodoPagoUtils';
  */
 const CLAVE_CONFIG = 'cantina_impresora';
 
-export const MODOS = { DIALOGO: 'dialogo', BLE: 'ble', SERIAL: 'serial' };
+export const MODOS = { DIALOGO: 'dialogo', BLE: 'ble', SERIAL: 'serial', RAWBT: 'rawbt' };
 
 const CONFIG_BASE = { modo: MODOS.DIALOGO, nombre: '', deviceId: '', baudRate: 9600 };
 
@@ -169,8 +169,27 @@ export async function desconectarImpresora() {
   guardarConfigImpresora({ modo: MODOS.DIALOGO, nombre: '', deviceId: '' });
 }
 
+/* --------------------------------- RawBT --------------------------------- */
+
+// Celular Android con impresora Bluetooth clásica: la app gratuita RawBT
+// (ru.a402d.rawbtprinter) recibe los bytes ESC/POS por intent y los envía a
+// la impresora que el usuario eligió en ella. No hay conexión que mantener.
+export function activarRawBT() {
+  guardarConfigImpresora({ modo: MODOS.RAWBT, nombre: 'RawBT (Android)', deviceId: '' });
+  return 'RawBT (Android)';
+}
+
+function enviarRawBT(bytes) {
+  let binario = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  window.location.href = `intent:base64,${btoa(binario)}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+}
+
 export const impresoraConectada = () => {
   const { modo } = getConfigImpresora();
+  if (modo === MODOS.RAWBT) return true;
   if (modo === MODOS.BLE) return !!ble?.device?.gatt?.connected;
   if (modo === MODOS.SERIAL) return !!serial?.port?.writable;
   return false;
@@ -180,6 +199,7 @@ export async function enviarBytes(bytes) {
   const { modo } = getConfigImpresora();
   if (modo === MODOS.BLE) return escribirBluetooth(bytes);
   if (modo === MODOS.SERIAL) return escribirSerial(bytes);
+  if (modo === MODOS.RAWBT) return enviarRawBT(bytes);
   throw new Error('No hay impresora Bluetooth configurada.');
 }
 

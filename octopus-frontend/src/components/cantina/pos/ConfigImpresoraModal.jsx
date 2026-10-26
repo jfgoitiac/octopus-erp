@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Bluetooth, Cable, Printer, Unplug, Loader2 } from 'lucide-react';
+import { Bluetooth, Cable, Printer, Unplug, Loader2, Smartphone } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { getAnchoPapel, setAnchoPapel } from '../../../utils/imprimirReciboCantina';
 import {
   MODOS, getConfigImpresora, guardarConfigImpresora, soporteBluetooth, soporteSerial,
-  conectarBluetooth, conectarSerial, desconectarImpresora, impresoraConectada, imprimirPrueba,
+  conectarBluetooth, conectarSerial, activarRawBT, desconectarImpresora, impresoraConectada, imprimirPrueba,
 } from '../../../utils/impresoraTermica';
 
 /**
@@ -65,7 +65,7 @@ export default function ConfigImpresoraModal({ onCerrar }) {
             <>
               <p className="font-semibold break-words">{config.nombre || 'Impresora Bluetooth'}</p>
               <p className="text-xs" style={{ color: 'var(--ash)' }}>
-                {config.modo === MODOS.BLE ? 'Bluetooth (BLE)' : 'Bluetooth (puerto serie)'} ·{' '}
+                {{ [MODOS.BLE]: 'Bluetooth (BLE)', [MODOS.SERIAL]: 'Bluetooth (puerto serie)', [MODOS.RAWBT]: 'App RawBT' }[config.modo]} ·{' '}
                 {conectada ? 'conectada' : 'se reconecta al imprimir'}
               </p>
             </>
@@ -103,6 +103,21 @@ export default function ConfigImpresoraModal({ onCerrar }) {
           <p className="text-xs" style={{ color: 'var(--ash)' }}>
             Si el modo anterior no encuentra la MP80-12 (Bluetooth clásico), empárela primero en
             Windows → Configuración → Bluetooth y elija aquí el puerto COM que se crea.
+          </p>
+
+          <button
+            type="button"
+            disabled={ocupado}
+            onClick={() => ejecutar(activarRawBT, n => `Activado: ${n}`)}
+            className={botonBase}
+            style={botonLinea}
+          >
+            <Smartphone size={15} /> Usar app RawBT (celular Android)
+          </button>
+          <p className="text-xs" style={{ color: 'var(--ash)' }}>
+            En el celular, Chrome solo ve impresoras Bluetooth LE. Si la suya es Bluetooth clásico,
+            instale la app gratuita RawBT desde Play Store, empareje la impresora en el Bluetooth del
+            teléfono y elíjala dentro de RawBT. Octopus le enviará cada ticket.
           </p>
         </div>
 
