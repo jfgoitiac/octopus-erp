@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Printer, Loader2, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 import { etiquetaMetodo } from '../metodoPagoUtils';
+import { imprimirReciboCantina, getAnchoPapel, setAnchoPapel } from '../../../utils/imprimirReciboCantina';
 
 /**
  * Vista previa en pantalla del ticket recién cobrado (§6 cantina.md,
@@ -12,8 +14,29 @@ import { etiquetaMetodo } from '../metodoPagoUtils';
  * Campos consumidos: exactamente los que devuelve VentaCantinaSerializer
  * (ver cantina.service.js::registrarVenta para el contrato completo).
  */
+const CLAVE_AUTO = 'cantina_imprimir_auto';
+const leerAuto = () => {
+  try { return localStorage.getItem(CLAVE_AUTO) === '1'; } catch { return false; }
+};
+
 export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando }) {
+  const [ancho, setAncho] = useState(getAnchoPapel);
+  const [auto, setAuto] = useState(leerAuto);
+  const ventaId = venta?.id;
+
+  // Impresión automática al cobrar (si el cajero la activó): una vez por venta.
+  useEffect(() => {
+    if (ventaId && leerAuto()) imprimirReciboCantina(venta, getAnchoPapel());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventaId]);
+
   if (!venta) return null;
+
+  const cambiarAncho = (mm) => { setAnchoPapel(mm); setAncho(mm); };
+  const cambiarAuto = (valor) => {
+    try { localStorage.setItem(CLAVE_AUTO, valor ? '1' : '0'); } catch { /* sin persistencia */ }
+    setAuto(valor);
+  };
 
   // `total_usd` ya es el neto (CONTRATO_AUDITORIA_CANTINA.md §1); el subtotal
   // es la suma de las líneas.
@@ -29,6 +52,14 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
         style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
       >
         Nueva venta
+      </button>
+      <button
+        onClick={() => imprimirReciboCantina(venta, ancho)}
+        className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2 min-h-[44px]"
+        style={{ background: 'var(--pb)' }}
+      >
+        <Printer size={14} />
+        Imprimir recibo
       </button>
       {/* Sin onDescargarPdf (venta a cuenta) no se ofrece el recibo aquí. */}
       {onDescargarPdf && (
@@ -58,7 +89,30 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
       footer={footer}
       size="sm"
     >
-      <p className="text-xs mb-4" style={{ color: 'var(--ash)' }}>{fecha}</p>
+      <p className="text-xs mb-3" style={{ color: 'var(--ash)' }}>{fecha}</p>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 text-xs" style={{ color: 'var(--ash)' }}>
+        <label className="flex items-center gap-2 min-h-[32px]">
+          <input type="checkbox" checked={auto} onChange={e => cambiarAuto(e.target.checked)} />
+          Imprimir automáticamente al cobrar
+        </label>
+        <div className="flex items-center gap-1.5">
+          Papel
+          {[58, 80].map(mm => (
+            <button
+              key={mm}
+              type="button"
+              onClick={() => cambiarAncho(mm)}
+              className="px-2.5 rounded-lg min-h-[32px]"
+              style={ancho === mm
+                ? { background: 'var(--pb)', color: '#fff' }
+                : { border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+            >
+              {mm} mm
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="space-y-1.5 mb-4">
         {(venta.detalles || []).map(d => (

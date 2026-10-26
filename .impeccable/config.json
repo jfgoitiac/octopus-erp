@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-09-08T15:05:28.651Z",
         "reason": "pre-existing Toastify severity border (success/error/warning/info), conventional toast pattern not an AI card tell; unrelated to current task"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "octopus-frontend/src/utils/imprimirReciboCantina.js"
+        ],
+        "createdAt": "2026-10-26T12:41:43.341Z",
+        "reason": "Recibo térmico: Arial/Helvetica es la fuente de sistema más legible y segura al imprimir en 58/80 mm; no es UI de pantalla. Decisión del agente, no confirmada por el usuario."
       }
     ]
   }
