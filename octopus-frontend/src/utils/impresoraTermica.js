@@ -49,8 +49,12 @@ const SERVICIOS_BLE = [
   '49535343-fe7d-4ae5-8fa9-9fafd205e455',
 ];
 
-const CHUNK_BLE = 100;
-const PAUSA_BLE_MS = 20;
+// UUID de datos habituales en impresoras térmicas, por orden de preferencia.
+const UUID_DATOS = ['ff02', '2af1', 'bef8d6c9', '49535343-8841-43f4-a8d4-ecbe34729bb3', 'ffe1', 'ff01', 'ae01'];
+
+// 20 bytes = tamaño que toda impresora BLE acepta sin negociar MTU.
+const CHUNK_BLE = 20;
+const PAUSA_BLE_MS = 25;
 const pausa = (ms) => new Promise(r => setTimeout(r, ms));
 
 // Estado de la conexión viva (se pierde al recargar; se recupera con reconectar).
@@ -62,12 +66,25 @@ let serial = null;   // { port }
 async function abrirCaracteristica(device) {
   const server = device.gatt.connected ? device.gatt : await device.gatt.connect();
   const servicios = await server.getPrimaryServices();
+  const candidatas = [];
   for (const servicio of servicios) {
+    // Servicios estándar (Generic Access / Attribute / Device Information): nunca son de impresión.
+    if (/^0000(1800|1801|180a)-/.test(servicio.uuid)) continue;
     const chars = await servicio.getCharacteristics();
-    const char = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
-    if (char) return char;
+    chars.filter(c => c.properties.writeWithoutResponse || c.properties.write)
+      .forEach(c => candidatas.push(c));
   }
-  throw new Error('La impresora no expone una característica de escritura. Pruebe el modo "Puerto serie".');
+  // Muchas impresoras exponen varias características escribibles: se prefieren las conocidas de datos.
+  const rango = (c) => {
+    const i = UUID_DATOS.findIndex(p => c.uuid.includes(p));
+    return i === -1 ? UUID_DATOS.length : i;
+  };
+  candidatas.sort((a, b) => rango(a) - rango(b));
+  console.info('[impresora] características escribibles:', candidatas.map(c => c.uuid), '→ usando', candidatas[0]?.uuid);
+  if (!candidatas.length) {
+    throw new Error('La impresora no expone una característica de escritura. Pruebe el modo "Puerto serie".');
+  }
+  return candidatas[0];
 }
 
 export async function conectarBluetooth() {
