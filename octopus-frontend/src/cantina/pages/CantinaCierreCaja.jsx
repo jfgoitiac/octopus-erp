@@ -6,6 +6,7 @@ import { Wallet, CheckCircle2, Loader2 } from 'lucide-react';
 import { getCierreCajaHoy, cerrarCajaCantina } from '../../api/cantina.service';
 import ResumenCierreCaja from '../../components/cantina/cierre/ResumenCierreCaja';
 import TotalesPorMetodo from '../../components/cantina/cierre/TotalesPorMetodo';
+import ReporteCierreTicket from '../../components/cantina/cierre/ReporteCierreTicket';
 import { notificarAperturaCambiada, ETIQUETA_AREA } from '../aperturaEvento';
 
 function SkeletonCierre() {
@@ -191,6 +192,8 @@ export default function CantinaCierreCaja() {
               <p className="text-sm" style={{ color: 'var(--jet)' }}>{cierre.observaciones}</p>
             </div>
           )}
+
+          <ReporteCierreTicket cierre={cierre} />
         </div>
       ) : (
         <form

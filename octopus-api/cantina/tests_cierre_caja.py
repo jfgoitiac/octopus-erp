@@ -205,6 +205,9 @@ class CierreCajaCantinaPostTests(CierreCajaCantinaTestsBase):
         self.assertEqual(Decimal(resp.data['diferencia']), Decimal('0.00'))
         self.assertEqual(resp.data['observaciones'], 'Cuadró todo')
         self.assertEqual(resp.data['cajero_username'], self.cajero_user.username)
+        # Datos del reporte de cierre en pantalla/impresión.
+        self.assertEqual(Decimal(resp.data['efectivo_esperado']), Decimal('30.00'))
+        self.assertIsNotNone(resp.data['fecha_hora_apertura'])
 
         cierre = CierreCajaCantina.objects.get(cajero=self.cajero_user, apertura=self.apertura)
         self.assertEqual(cierre.diferencia, Decimal('0.00'))

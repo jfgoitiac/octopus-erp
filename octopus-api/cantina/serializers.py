@@ -369,6 +369,15 @@ class CierreCajaCantinaSerializer(serializers.ModelSerializer):
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
     cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     monto_inicial = serializers.DecimalField(source='apertura.monto_inicial', max_digits=10, decimal_places=2, read_only=True, default=None)
+    # Datos del reporte de cierre: cuándo se abrió la caja y el efectivo que
+    # debía haber (conteo_fisico - diferencia, ya calculado al cerrar).
+    fecha_hora_apertura = serializers.DateTimeField(source='apertura.fecha_hora_apertura', read_only=True, default=None)
+    efectivo_esperado = serializers.SerializerMethodField()
+
+    def get_efectivo_esperado(self, obj):
+        if obj.conteo_fisico is None or obj.diferencia is None:
+            return None
+        return str(obj.conteo_fisico - obj.diferencia)
 
     class Meta:
         model = CierreCajaCantina
@@ -376,6 +385,7 @@ class CierreCajaCantinaSerializer(serializers.ModelSerializer):
             'id', 'cajero', 'cajero_username', 'cajero_nombre', 'apertura', 'monto_inicial', 'fecha', 'total_ventas',
             'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo',
             'area', 'totales_por_metodo', 'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
+            'fecha_hora_apertura', 'efectivo_esperado',
         )
         read_only_fields = fields
 

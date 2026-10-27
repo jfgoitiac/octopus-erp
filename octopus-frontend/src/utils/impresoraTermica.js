@@ -221,7 +221,7 @@ const aBytes = (texto) => Array.from(String(texto ?? '')).map((c) => {
   return CP858[c] ?? 0x3f;
 });
 
-class Ticket {
+export class Ticket {
   constructor(cols) {
     this.cols = cols;
     this.buf = [ESC, 0x40, ESC, 0x74, 19]; // reset + CP858
@@ -256,7 +256,7 @@ class Ticket {
 }
 
 /** Logo → bitmap 1 bit. Devuelve null si no se puede cargar (se imprime sin logo). */
-async function logoRaster(url, puntosAncho) {
+export async function logoRaster(url, puntosAncho) {
   try {
     const img = new Image();
     img.src = url;
