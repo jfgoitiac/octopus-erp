@@ -364,6 +364,13 @@ class GenerarLoteTarjetasView(APIView):
         with transaction.atomic():
             lote = LoteTarjetas.objects.create(cantidad=cantidad, generado_por=request.user)
 
+            # El límite inicial sale del parámetro configurado; el default del
+            # modelo (5.00) solo aplica si nunca se configuró.
+            parametro = ParametroCantina.objects.first()
+            if parametro is None:
+                parametro, _ = ParametroCantina.objects.get_or_create()
+            limite_inicial = parametro.limite_credito_default
+
             tarjetas = []
             # Códigos ya asignados en ESTE mismo lote (aún no persistidos) —
             # generar_codigo_tarjeta() solo valida contra la BD, así que sin
@@ -382,6 +389,7 @@ class GenerarLoteTarjetasView(APIView):
                     codigo=codigo,
                     lote=lote,
                     estado='sin_asignar',
+                    limite_credito=limite_inicial,
                 ))
             TarjetaPrepago.objects.bulk_create(tarjetas)
 
