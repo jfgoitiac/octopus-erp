@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import {
   Minus, Plus, Trash2, ShoppingCart, Loader2, Banknote, CreditCard as CreditCardIcon,
-  Landmark, Smartphone, Receipt, Globe, HandCoins,
+  Landmark, Smartphone, Receipt, Globe, HandCoins, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 // Métodos de la VENTA (una venta = un método): tarjeta prepago, los 6 de
@@ -15,6 +16,10 @@ const METODOS = [
   { value: 'zelle', label: 'Zelle', icon: Globe },
   { value: 'credito_representante', label: 'Cargar a cuenta', icon: HandCoins },
 ];
+
+// Los de uso diario van a la vista; el resto queda tras "Más métodos" para no
+// ocupar tres filas del carrito en cada venta.
+const METODOS_FRECUENTES = ['efectivo', 'efectivo_ves', 'tarjeta_prepago', 'pago_movil'];
 
 /**
  * Carrito de venta del POS (§7.2 cantina.md): líneas editables, total en
@@ -42,6 +47,11 @@ export default function CarritoVenta({
   embebido = false, // dentro de un Modal (celular): sin marco ni cabecera propios
   children,
 }) {
+  const [verTodosMetodos, setVerTodosMetodos] = useState(false);
+  // Si el método activo no es de los frecuentes, se muestran todos para que se vea cuál está elegido.
+  const mostrarTodos = verTodosMetodos || !METODOS_FRECUENTES.includes(metodoPago);
+  const metodosVisibles = mostrarTodos ? METODOS : METODOS.filter(m => METODOS_FRECUENTES.includes(m.value));
+
   return (
     // Desde `lg` el POS tiene altura fija y la tarjeta scrollea por dentro;
     // debajo de `lg` la página scrollea. En ambos casos el pie con COBRAR es
@@ -149,7 +159,7 @@ export default function CarritoVenta({
         <div>
           <p className="text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Método de pago</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {METODOS.map(m => {
+            {metodosVisibles.map(m => {
               const Icon = m.icon;
               const activo = metodoPago === m.value;
               return (
@@ -168,6 +178,17 @@ export default function CarritoVenta({
               );
             })}
           </div>
+          {METODOS_FRECUENTES.includes(metodoPago) && (
+            <button
+              type="button"
+              onClick={() => setVerTodosMetodos(v => !v)}
+              className="mt-1.5 w-full flex items-center justify-center gap-1 text-xs font-medium min-h-[36px]"
+              style={{ color: 'var(--pb-mid)' }}
+              aria-expanded={verTodosMetodos}
+            >
+              {verTodosMetodos ? <>Menos métodos <ChevronUp size={14} /></> : <>Más métodos <ChevronDown size={14} /></>}
+            </button>
+          )}
         </div>
 
         {children}

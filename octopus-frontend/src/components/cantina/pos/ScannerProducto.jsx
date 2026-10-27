@@ -17,7 +17,18 @@ import CameraProductoScanner from './CameraProductoScanner';
  * - Sin loops de re-render: el listener de foco vive en un solo useEffect
  *   con dependencias estables (useCallback).
  */
-export default function ScannerProducto({ onProductoEncontrado, disabled = false }) {
+export default function ScannerProducto({
+  onProductoEncontrado,
+  disabled = false,
+  // Solo con lector físico (escritorio) tiene sentido robar el foco: en un
+  // celular cada re-enfoque abriría el teclado virtual sobre el POS.
+  autoEnfocar = true,
+  // Contador que el POS incrementa tras cada venta para devolver el foco al input.
+  enfocarTrigger = 0,
+  // (codigo) => producto | undefined: busca en el catálogo ya cargado antes de
+  // ir al servidor (el backend sigue validando stock y área al cobrar).
+  buscarLocal,
+}) {
   const [valor, setValor] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -25,14 +36,15 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
   const abortRef = useRef(null);
 
   const enfocar = useCallback(() => {
-    if (disabled) return;
+    if (disabled || !autoEnfocar) return;
     const activo = document.activeElement;
     if (!activo || activo === document.body || activo === inputRef.current) {
       inputRef.current?.focus();
     }
-  }, [disabled]);
+  }, [disabled, autoEnfocar]);
 
   useEffect(() => {
+    if (!autoEnfocar) return undefined;
     enfocar();
     // focusout se dispara ANTES de que el nuevo elemento reciba el foco —
     // se espera un tick para que document.activeElement ya refleje al
@@ -40,7 +52,11 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
     const handleFocusOut = () => window.setTimeout(enfocar, 0);
     document.addEventListener('focusout', handleFocusOut);
     return () => document.removeEventListener('focusout', handleFocusOut);
-  }, [enfocar]);
+  }, [enfocar, autoEnfocar]);
+
+  useEffect(() => {
+    if (enfocarTrigger > 0 && autoEnfocar && !disabled) inputRef.current?.focus();
+  }, [enfocarTrigger, autoEnfocar, disabled]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -52,6 +68,15 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
   const buscarCodigo = async (valorLeido) => {
     const codigo = valorLeido.trim();
     if (!codigo) return;
+
+    // Acierto en el catálogo ya cargado: sin viaje al servidor.
+    const local = buscarLocal?.(codigo);
+    if (local) {
+      onProductoEncontrado(local);
+      setValor('');
+      enfocar();
+      return;
+    }
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -91,12 +116,12 @@ export default function ScannerProducto({ onProductoEncontrado, disabled = false
       <input
         ref={inputRef}
         type="text"
-        autoFocus
+        autoFocus={autoEnfocar}
         disabled={disabled}
         value={valor}
         onChange={e => { setValor(e.target.value); if (aviso) setAviso(""); }}
         onKeyDown={handleKeyDown}
-        placeholder="Escanea el código de barras del producto y presiona Enter"
+        placeholder={autoEnfocar ? 'Escanea el código de barras del producto y presiona Enter' : 'Código de barras del producto'}
         aria-label="Escaneo de producto por código de barras"
         className="w-full pl-10 pr-10 py-3 rounded-xl text-sm outline-none min-h-[48px] font-mono"
         style={{ border: '1.5px solid var(--pb)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}

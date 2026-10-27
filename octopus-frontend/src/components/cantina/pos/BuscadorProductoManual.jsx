@@ -30,7 +30,14 @@ export default function BuscadorProductoManual({ productos, onSeleccionar }) {
           type="text"
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
-          placeholder="Buscar producto manualmente por nombre..."
+          onKeyDown={e => {
+            // Enter agrega el primer resultado (el teclado alcanza para vender).
+            if (e.key === 'Enter' && resultados[0]) {
+              e.preventDefault();
+              seleccionar(resultados[0]);
+            }
+          }}
+          placeholder="Buscar producto por nombre..."
           aria-label="Búsqueda manual de producto"
           className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm outline-none min-h-[44px]"
           style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' }}

@@ -22,7 +22,7 @@ const CLAVE_CONFIG = 'cantina_impresora';
 
 export const MODOS = { DIALOGO: 'dialogo', BLE: 'ble', SERIAL: 'serial', RAWBT: 'rawbt' };
 
-const CONFIG_BASE = { modo: MODOS.DIALOGO, nombre: '', deviceId: '', baudRate: 9600 };
+const CONFIG_BASE = { modo: MODOS.DIALOGO, nombre: '', deviceId: '', baudRate: 9600, bleRapido: false };
 
 export const getConfigImpresora = () => {
   try {
@@ -52,9 +52,14 @@ const SERVICIOS_BLE = [
 // UUID de datos habituales en impresoras térmicas, por orden de preferencia.
 const UUID_DATOS = ['ff02', '2af1', 'bef8d6c9', '49535343-8841-43f4-a8d4-ecbe34729bb3', 'ffe1', 'ff01', 'ae01'];
 
-// 20 bytes = tamaño que toda impresora BLE acepta sin negociar MTU.
+// 20 bytes = tamaño que toda impresora BLE acepta sin negociar MTU. Con
+// "envío rápido" (opt-in, `bleRapido`) se usan trozos mayores y menos pausa:
+// el ticket sale en una fracción del tiempo, pero una impresora con buffer
+// pequeño puede imprimir basura — por eso no es el valor por defecto.
 const CHUNK_BLE = 20;
 const PAUSA_BLE_MS = 25;
+const CHUNK_BLE_RAPIDO = 100;
+const PAUSA_BLE_RAPIDO_MS = 8;
 const pausa = (ms) => new Promise(r => setTimeout(r, ms));
 
 // Estado de la conexión viva (se pierde al recargar; se recupera con reconectar).
@@ -115,11 +120,14 @@ async function escribirBluetooth(bytes) {
   await reconectarBluetooth();
   const { char } = ble;
   const sinRespuesta = char.properties.writeWithoutResponse;
-  for (let i = 0; i < bytes.length; i += CHUNK_BLE) {
-    const trozo = bytes.slice(i, i + CHUNK_BLE);
+  const rapido = getConfigImpresora().bleRapido;
+  const tamano = rapido ? CHUNK_BLE_RAPIDO : CHUNK_BLE;
+  const espera = rapido ? PAUSA_BLE_RAPIDO_MS : PAUSA_BLE_MS;
+  for (let i = 0; i < bytes.length; i += tamano) {
+    const trozo = bytes.slice(i, i + tamano);
     if (sinRespuesta) await char.writeValueWithoutResponse(trozo);
     else await char.writeValue(trozo);
-    await pausa(PAUSA_BLE_MS);
+    await pausa(espera);
   }
 }
 
@@ -255,8 +263,29 @@ export class Ticket {
   bytes() { return new Uint8Array(this.buf); }
 }
 
-/** Logo → bitmap 1 bit. Devuelve null si no se puede cargar (se imprime sin logo). */
-export async function logoRaster(url, puntosAncho) {
+// El bitmap del logo no cambia entre ventas: se calcula una sola vez por
+// (url, ancho) y se reutiliza (antes se decodificaba y rasterizaba en cada ticket).
+const cacheLogo = new Map();
+
+/** Logo → bitmap 1 bit, cacheado. Devuelve null si no se puede cargar (se imprime sin logo). */
+export function logoRaster(url, puntosAncho) {
+  const clave = `${url}|${puntosAncho}`;
+  if (!cacheLogo.has(clave)) {
+    const promesa = rasterizarLogo(url, puntosAncho).then((r) => {
+      if (!r) cacheLogo.delete(clave); // fallo transitorio: reintentar en el próximo ticket
+      return r;
+    });
+    cacheLogo.set(clave, promesa);
+  }
+  return cacheLogo.get(clave);
+}
+
+/** Calienta la caché del logo (ambos anchos de papel) para que el primer ticket no espere. */
+export function precalentarLogo(url) {
+  [112, 160].forEach(w => { logoRaster(url, w); });
+}
+
+async function rasterizarLogo(url, puntosAncho) {
   try {
     const img = new Image();
     img.src = url;

@@ -4,7 +4,7 @@ import { ETIQUETA_AREA } from '../cantina/aperturaEvento';
 import { toast } from 'react-toastify';
 import { etiquetaMetodo } from '../components/cantina/metodoPagoUtils';
 import {
-  getConfigImpresora, imprimirReciboDirecto, MODOS, tasaVenta, bsDesdeUsd, formatoBs,
+  getConfigImpresora, imprimirReciboDirecto, precalentarLogo, MODOS, tasaVenta, bsDesdeUsd, formatoBs,
 } from './impresoraTermica';
 
 /**
@@ -30,6 +30,28 @@ export const getAnchoPapel = () => {
 export const setAnchoPapel = (mm) => {
   try { localStorage.setItem(CLAVE_ANCHO, String(mm)); } catch { /* sin persistencia */ }
 };
+
+const CLAVE_AUTO = 'cantina_imprimir_auto';
+
+/** ¿Imprimir el recibo automáticamente al cobrar? (preferencia del cajero). */
+export const getImprimirAuto = () => {
+  try { return localStorage.getItem(CLAVE_AUTO) === '1'; } catch { return false; }
+};
+
+export const setImprimirAuto = (valor) => {
+  try { localStorage.setItem(CLAVE_AUTO, valor ? '1' : '0'); } catch { /* sin persistencia */ }
+};
+
+/**
+ * Deja listo lo que tarda en el primer ticket: bitmap del logo (modo
+ * Bluetooth) y la imagen en la caché del navegador (modo diálogo). Se llama
+ * al abrir el POS, no al cobrar.
+ */
+export function precalentarRecibo() {
+  precalentarLogo(LOGO);
+  const img = new Image();
+  img.src = LOGO;
+}
 
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fila = (izq, der, clase = '') =>
@@ -120,6 +142,6 @@ export function imprimirReciboCantina(venta, ancho = getAnchoPapel()) {
     img.onload = imprimir;
     img.onerror = imprimir;
   } else {
-    setTimeout(imprimir, 100);
+    setTimeout(imprimir, 0);
   }
 }

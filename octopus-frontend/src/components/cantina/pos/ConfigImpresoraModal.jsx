@@ -135,6 +135,21 @@ export default function ConfigImpresoraModal({ onCerrar }) {
           </label>
         )}
 
+        {config.modo === MODOS.BLE && (
+          <label className="flex items-start gap-2 text-xs" style={{ color: 'var(--ash)' }}>
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={Boolean(config.bleRapido)}
+              onChange={e => setConfig(guardarConfigImpresora({ bleRapido: e.target.checked }))}
+            />
+            <span>
+              Envío rápido: el ticket sale mucho antes. Si sale con símbolos raros o cortado,
+              desactívalo.
+            </span>
+          </label>
+        )}
+
         <div className="flex items-center justify-between gap-3 text-xs" style={{ color: 'var(--ash)' }}>
           Papel
           <div className="flex items-center gap-1.5">

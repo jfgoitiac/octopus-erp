@@ -6,7 +6,9 @@ import { Modal } from '../../ui/Modal';
 import ConfigImpresoraModal from './ConfigImpresoraModal';
 import { ETIQUETA_AREA } from '../../../cantina/aperturaEvento';
 import { etiquetaMetodo } from '../metodoPagoUtils';
-import { imprimirReciboCantina, getAnchoPapel, setAnchoPapel } from '../../../utils/imprimirReciboCantina';
+import {
+  imprimirReciboCantina, getAnchoPapel, setAnchoPapel, getImprimirAuto, setImprimirAuto,
+} from '../../../utils/imprimirReciboCantina';
 import { tasaVenta, bsDesdeUsd, formatoBs } from '../../../utils/impresoraTermica';
 
 /**
@@ -16,20 +18,17 @@ import { tasaVenta, bsDesdeUsd, formatoBs } from '../../../utils/impresoraTermic
  * Campos consumidos: exactamente los que devuelve VentaCantinaSerializer
  * (ver cantina.service.js::registrarVenta para el contrato completo).
  */
-const CLAVE_AUTO = 'cantina_imprimir_auto';
-const leerAuto = () => {
-  try { return localStorage.getItem(CLAVE_AUTO) === '1'; } catch { return false; }
-};
-
-export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando }) {
+// `sinImpresionAuto`: el POS ya imprimió (o decidió no hacerlo) al cobrar; el
+// ticket se abre solo a pedido, así que no debe volver a imprimir al montarse.
+export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargando, sinImpresionAuto = false }) {
   const [ancho, setAncho] = useState(getAnchoPapel);
-  const [auto, setAuto] = useState(leerAuto);
+  const [auto, setAuto] = useState(getImprimirAuto);
   const [configurando, setConfigurando] = useState(false);
   const ventaId = venta?.id;
 
   // Impresión automática al cobrar (si el cajero la activó): una vez por venta.
   useEffect(() => {
-    if (ventaId && leerAuto()) imprimirReciboCantina(venta, getAnchoPapel());
+    if (!sinImpresionAuto && ventaId && getImprimirAuto()) imprimirReciboCantina(venta, getAnchoPapel());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventaId]);
 
@@ -37,7 +36,7 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
 
   const cambiarAncho = (mm) => { setAnchoPapel(mm); setAncho(mm); };
   const cambiarAuto = (valor) => {
-    try { localStorage.setItem(CLAVE_AUTO, valor ? '1' : '0'); } catch { /* sin persistencia */ }
+    setImprimirAuto(valor);
     setAuto(valor);
   };
 
