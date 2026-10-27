@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 
 from django.conf import settings
 from django.db import models
@@ -334,6 +335,10 @@ class VentaCantina(models.Model):
     # exige una apertura abierta (ver RegistrarVentaView).
     apertura = models.ForeignKey('AperturaCajaCantina', null=True, blank=True, on_delete=models.PROTECT, related_name='ventas')
     cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='ventas_cantina')
+    # Identificador estable generado por el dispositivo antes de enviar la
+    # venta. Si la respuesta se pierde, repetir el POST devuelve esta misma
+    # venta en vez de volver a descontar stock o saldo.
+    operacion_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     metodo_pago = models.CharField(max_length=25, choices=METODOS_PAGO)
     area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
     # Datos bancarios (solo métodos bancarios) — mismas reglas que RecargaTarjeta.

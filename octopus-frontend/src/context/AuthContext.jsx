@@ -7,6 +7,21 @@ import { AuthContext } from './AuthContextValue';
 export { AuthContext } from './AuthContextValue';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+const AUTH_TIMEOUT_MS = 8000;
+let bootstrapRefreshPromise = null;
+
+const refreshAccessToken = () => {
+    if (!bootstrapRefreshPromise) {
+        bootstrapRefreshPromise = axios.post(
+            `${API_BASE}/api/token/refresh/`,
+            {},
+            { withCredentials: true, timeout: AUTH_TIMEOUT_MS }
+        ).finally(() => {
+            bootstrapRefreshPromise = null;
+        });
+    }
+    return bootstrapRefreshPromise;
+};
 
 const extractUserData = (token) => {
     try {
@@ -35,11 +50,20 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const silentRefresh = async () => {
             try {
-                const res = await axios.post(
-                    `${API_BASE}/api/token/refresh/`,
-                    {},
-                    { withCredentials: true }
-                );
+                // Una recarga dentro de la misma pestaña puede continuar aun si
+                // la conexión está caída. Solo recurrimos a la cookie cuando el
+                // access token falta o ya expiró.
+                const cachedToken = tokenStore.get();
+                const cachedUser = cachedToken ? extractUserData(cachedToken) : null;
+                if (cachedUser) {
+                    setUser(cachedUser);
+                    return;
+                }
+                tokenStore.clear();
+
+                // React StrictMode monta dos veces en desarrollo. Compartir la
+                // promesa evita rotar/invalidar la misma cookie simultáneamente.
+                const res = await refreshAccessToken();
                 const token = res.data.access;
                 tokenStore.set(token);
                 const userData = extractUserData(token);

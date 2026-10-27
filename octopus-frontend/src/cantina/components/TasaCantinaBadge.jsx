@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { Modal } from '../../components/ui/Modal';
 import { TablaScroll } from '../../components/ui/TablaScroll';
 import { cambiarTasaCantina, getHistorialTasaCantina, getTasaVigenteCantina } from '../../api/cantina.service';
+import { guardarCachePos, leerCachePos, valorCachePos } from '../posCache';
 
 const EVENTO_TASA_CAMBIADA = 'cantina:tasa-cambiada';
 
@@ -21,19 +22,34 @@ const TasaCantinaBadge = () => {
   const [modalEditar, setModalEditar] = useState(false);
   const [modalHistorial, setModalHistorial] = useState(false);
 
-  const cargar = useCallback((signal) => {
-    getTasaVigenteCantina(signal)
-      .then(res => setTasa(res.data))
-      .catch(err => {
+  const cargar = useCallback(async (signal) => {
+    let cacheDisponible = false;
+    const registro = await leerCachePos('tasa-detalle');
+    let guardada = valorCachePos(registro);
+    if (!guardada) {
+      const tasaSimple = Number(valorCachePos(await leerCachePos('tasa')));
+      if (tasaSimple > 0) guardada = { valor_bs: tasaSimple, puede_editar: false };
+    }
+    if (!signal?.aborted && guardada) {
+      cacheDisponible = true;
+      setTasa(guardada);
+    }
+    try {
+      const res = await getTasaVigenteCantina(signal);
+      setTasa(res.data);
+      guardarCachePos('tasa-detalle', res.data);
+    } catch (err) {
         if (err?.code === 'ERR_CANCELED') return;
         if (err?.response?.status === 404) setTasa({ sinTasa: true, puede_editar: !!err.response.data?.puede_editar });
-        else toast.error('No se pudo cargar la tasa de Cantina.');
-      });
+        else if (!cacheDisponible) toast.error('No se pudo cargar la tasa de Cantina.');
+    }
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    cargar(controller.signal);
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) cargar(controller.signal);
+    });
     const alCambiar = () => cargar();
     window.addEventListener(EVENTO_TASA_CAMBIADA, alCambiar);
     return () => {

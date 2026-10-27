@@ -6,6 +6,7 @@ tests_recargas.py (APIClient + perfil.rol/perfil.esta_activo).
 """
 from datetime import timedelta
 from decimal import Decimal
+import uuid
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -66,6 +67,27 @@ class VentaCantinaTestsBase(TestCase):
 
 
 class RegistrarVentaViewTests(VentaCantinaTestsBase):
+    def test_reintento_con_misma_operacion_no_duplica_venta_ni_stock(self):
+        self.client.force_authenticate(user=self.cajero_user)
+        operacion_id = str(uuid.uuid4())
+        payload = {
+            'operacion_id': operacion_id,
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 2}],
+            'metodo_pago': 'efectivo',
+        }
+
+        primera = self.client.post('/api/cantina/ventas/registrar/', payload, format='json')
+        segunda = self.client.post('/api/cantina/ventas/registrar/', payload, format='json')
+
+        self.assertEqual(primera.status_code, status.HTTP_201_CREATED, primera.data)
+        self.assertEqual(segunda.status_code, status.HTTP_200_OK, segunda.data)
+        self.assertEqual(primera.data['id'], segunda.data['id'])
+        self.assertEqual(str(primera.data['operacion_id']), operacion_id)
+        self.assertEqual(VentaCantina.objects.filter(operacion_id=operacion_id).count(), 1)
+        self.jugo.refresh_from_db()
+        self.assertEqual(self.jugo.stock_actual, 8)
+        self.assertEqual(MovimientoInventario.objects.filter(producto=self.jugo, tipo='salida').count(), 1)
+
     def test_venta_efectivo_sin_datos_de_cliente(self):
         """Camino rápido por defecto (§7.2): efectivo no exige alumno/tarjeta."""
         self.client.force_authenticate(user=self.cajero_user)

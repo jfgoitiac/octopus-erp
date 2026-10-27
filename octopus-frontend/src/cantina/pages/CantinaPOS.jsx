@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useContext, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { ShoppingCart, Package, Wallet, Printer, ScanLine, Loader2 } from 'lucide-react';
+import { ShoppingCart, Package, Wallet, Printer, ScanLine, Loader2, WifiOff } from 'lucide-react';
 import { precalentarRecibo, imprimirReciboCantina, getImprimirAuto, getAnchoPapel } from '../../utils/imprimirReciboCantina';
 import GrillaProductos from '../../components/cantina/pos/GrillaProductos';
 import ConfigImpresoraModal from '../../components/cantina/pos/ConfigImpresoraModal';
@@ -33,6 +33,7 @@ import AperturaCajaModal from '../../components/cantina/pos/AperturaCajaModal';
 import DescuentoVenta from '../../components/cantina/pos/DescuentoVenta';
 import { Modal } from '../../components/ui/Modal';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { guardarCachePos, leerCachePos, valorCachePos } from '../posCache';
 
 // Origen de la venta (D2, CONTRATO_AUDITORIA_CANTINA.md §8): cada línea del
 // carrito recuerda por dónde entró ('escaner' = ScannerProducto; 'manual' =
@@ -46,12 +47,38 @@ function origenProductos(carrito) {
 // "Más vendidos" por dispositivo y área: el POS ordena la grilla por unidades
 // vendidas desde este equipo (sin endpoint nuevo; se acumula en localStorage).
 const CLAVE_USOS = 'cantina_pos_usos';
+const CLAVE_OPERACION_PENDIENTE = 'cantina_pos_operacion_pendiente';
 const leerUsos = (area) => {
   try { return JSON.parse(localStorage.getItem(`${CLAVE_USOS}_${area}`) || '{}') || {}; } catch { return {}; }
 };
 const guardarUsos = (area, usos) => {
   try { localStorage.setItem(`${CLAVE_USOS}_${area}`, JSON.stringify(usos)); } catch { /* sin persistencia */ }
 };
+
+const nuevoUuid = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
+  });
+};
+
+function operacionParaPayload(payload) {
+  const firma = JSON.stringify(payload);
+  try {
+    const pendiente = JSON.parse(localStorage.getItem(CLAVE_OPERACION_PENDIENTE) || 'null');
+    if (pendiente?.firma === firma && pendiente?.id) return pendiente.id;
+    const id = nuevoUuid();
+    localStorage.setItem(CLAVE_OPERACION_PENDIENTE, JSON.stringify({ firma, id }));
+    return id;
+  } catch {
+    return nuevoUuid();
+  }
+}
+
+function limpiarOperacionPendiente() {
+  try { localStorage.removeItem(CLAVE_OPERACION_PENDIENTE); } catch { /* sin persistencia */ }
+}
 
 function SkeletonGrid() {
   return (
@@ -112,6 +139,7 @@ export default function CantinaPOS() {
 
   const [cobrando, setCobrando] = useState(false);
   const [ventaActual, setVentaActual] = useState(null);
+  const [enLinea, setEnLinea] = useState(() => navigator.onLine);
 
   // Desde `lg` el carrito es una columna fija; debajo (celular, tablet) vive en
   // un Modal que se abre desde la barra inferior, así COBRAR nunca queda lejos.
@@ -121,37 +149,74 @@ export default function CantinaPOS() {
   const abortRef = useRef(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    getAperturaCajaActual(controller.signal)
-      .then(res => setApertura(res.data?.apertura ?? false))
-      .catch(err => {
-        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-        toast.error('No se pudo verificar tu apertura de caja.');
-        setApertura(false);
-      })
-      .finally(() => setCargandoApertura(false));
-    return () => controller.abort();
+    const online = () => setEnLinea(true);
+    const offline = () => setEnLinea(false);
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offline);
+    return () => {
+      window.removeEventListener('online', online);
+      window.removeEventListener('offline', offline);
+    };
   }, []);
 
-  // El POS solo muestra productos del área de la apertura (D2). El catálogo se
-  // pide en paralelo con la apertura (antes esperaba a conocerla) y se filtra
-  // por área acá mismo.
-  const areaCaja = apertura?.area ?? null;
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
+      let cacheDisponible = false;
+      const registro = await leerCachePos('apertura');
+      const guardada = valorCachePos(registro);
+      if (!controller.signal.aborted && guardada) {
+        cacheDisponible = true;
+        setApertura(guardada);
+        setCargandoApertura(false);
+      }
       try {
-        const res = await getProductos({ activo: true }, controller.signal);
-        setCatalogo(res.data?.results ?? res.data ?? []);
+        const res = await getAperturaCajaActual(controller.signal);
+        const vigente = res.data?.apertura ?? false;
+        setApertura(vigente);
+        guardarCachePos('apertura', vigente);
+        setEnLinea(true);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-        toast.error('Error al cargar los productos del POS.');
+        if (!err.response) setEnLinea(false);
+        if (!cacheDisponible) toast.warning('No se pudo verificar tu apertura de caja.');
+        if (!cacheDisponible) setApertura(false);
+      } finally {
+        setCargandoApertura(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  // Mostrar primero el catálogo local del área y actualizarlo en segundo plano.
+  const areaCaja = apertura?.area ?? null;
+  useEffect(() => {
+    if (!areaCaja) return undefined;
+    const controller = new AbortController();
+    (async () => {
+      const registro = await leerCachePos(`productos:${areaCaja}`);
+      const guardados = valorCachePos(registro);
+      const cacheDisponible = Array.isArray(guardados);
+      if (!controller.signal.aborted && Array.isArray(guardados)) {
+        setCatalogo(guardados);
+        setLoadingProductos(false);
+      }
+      try {
+        const res = await getProductos({ activo: true, area: areaCaja }, controller.signal);
+        const vigentes = res.data?.results ?? res.data ?? [];
+        setCatalogo(vigentes);
+        guardarCachePos(`productos:${areaCaja}`, vigentes);
+        setEnLinea(true);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        if (!err.response) setEnLinea(false);
+        if (!cacheDisponible) toast.error('Error al cargar los productos del POS.');
       } finally {
         setLoadingProductos(false);
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [areaCaja]);
 
   // Deja listo el logo del recibo para que el primer ticket no espere.
   useEffect(() => { precalentarRecibo(); }, []);
@@ -197,8 +262,16 @@ export default function CantinaPOS() {
 
   useEffect(() => {
     const controller = new AbortController();
+    leerCachePos('tasa').then(registro => {
+      const guardada = Number(valorCachePos(registro));
+      if (!controller.signal.aborted && guardada > 0) setTasaVigente(guardada);
+    });
     getTasaVigenteCantina(controller.signal)
-      .then(res => setTasaVigente(Number(res.data?.valor_bs) || 0))
+      .then(res => {
+        const vigente = Number(res.data?.valor_bs) || 0;
+        setTasaVigente(vigente);
+        if (vigente > 0) guardarCachePos('tasa', vigente);
+      })
       .catch(err => {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
         // Sin tasa, el equivalente en VES queda en 0 — no bloquea el cobro en
@@ -239,12 +312,19 @@ export default function CantinaPOS() {
     if (!areaCaja) return undefined;
     const controller = new AbortController();
     (async () => {
+      const registro = await leerCachePos(`plantillas:${areaCaja}`);
+      const guardadas = valorCachePos(registro);
+      const cacheDisponible = Array.isArray(guardadas);
+      if (!controller.signal.aborted && Array.isArray(guardadas)) setPlantillas(guardadas);
       try {
         const res = await getPlantillasVenta({ activo: true, area: areaCaja }, controller.signal);
-        setPlantillas(res.data?.results ?? res.data ?? []);
+        const vigentes = res.data?.results ?? res.data ?? [];
+        setPlantillas(vigentes);
+        guardarCachePos(`plantillas:${areaCaja}`, vigentes);
       } catch (err) {
         if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-        toast.error('No se pudieron cargar las plantillas de cobro.');
+        if (!err.response) setEnLinea(false);
+        if (!cacheDisponible) toast.error('No se pudieron cargar las plantillas de cobro.');
       }
     })();
     return () => controller.abort();
@@ -441,6 +521,7 @@ export default function CantinaPOS() {
         if (alumnoId) payload.alumno_id = Number(alumnoId);
       }
     }
+    payload.operacion_id = operacionParaPayload(payload);
     const repVenta = representante;
     const alumnoVenta = repVenta?.alumnos?.find(a => String(a.id) === alumnoId);
 
@@ -486,12 +567,16 @@ export default function CantinaPOS() {
         </div>,
         { toastId: idAviso, autoClose: 4000 },
       );
+      limpiarOperacionPendiente();
       limpiarVenta();
       setCarritoAbierto(false);
       setEnfocarScanner(n => n + 1);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo registrar la venta.';
+      const esTimeout = err.code === 'ECONNABORTED';
+      const msg = esTimeout
+        ? 'La conexión tardó demasiado. La operación quedó identificada: vuelve a pulsar Cobrar para verificarla sin duplicarla.'
+        : (err.response?.data?.error || err.response?.data?.detail || 'No se pudo registrar la venta. Puedes reintentar sin riesgo de duplicarla.');
       toast.error(msg);
     } finally {
       setCobrando(false);
@@ -599,11 +684,17 @@ export default function CantinaPOS() {
     // debajo de `lg` (tablet 768×1024, celular) la página scrollea y el botón
     // COBRAR queda fijo al pie del carrito (ver CarritoVenta).
     <div className="flex flex-col gap-4 lg:h-[calc(100dvh-4rem)]">
+      {!enLinea && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900" role="status">
+          <WifiOff size={17} className="shrink-0" />
+          Sin conexión. Puedes preparar el carrito; el cobro se verificará al reconectar.
+        </div>
+      )}
       {consultandoSaldo && <ConsultarSaldoModal onClose={() => setConsultandoSaldo(false)} />}
       {configurandoImpresora && <ConfigImpresoraModal onCerrar={() => setConfigurandoImpresora(false)} />}
       {!cargandoApertura && apertura === false && (
         <AperturaCajaModal
-          onAbierta={data => { setApertura(data); notificarAperturaCambiada(); }}
+          onAbierta={data => { setApertura(data); guardarCachePos('apertura', data); notificarAperturaCambiada(); }}
         />
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">

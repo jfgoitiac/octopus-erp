@@ -30,6 +30,9 @@ export function usePortalHeroExtra(alumnos) {
 
   useEffect(() => {
     const controller = new AbortController();
+    // Esperar a que el dashboard compartido resuelva. Antes se solicitaban
+    // circulares una vez con `undefined` y otra al llegar los alumnos.
+    if (!Array.isArray(alumnos)) return () => controller.abort();
     const listaAlumnos = alumnos || [];
 
     setLoadingAvisos(true);

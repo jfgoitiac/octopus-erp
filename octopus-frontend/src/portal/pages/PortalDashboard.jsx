@@ -1,10 +1,8 @@
-import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { Upload } from 'lucide-react';
 import { PortalAuthContext } from '../context/PortalAuthContext';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
-import { getDashboard } from '../api/portal.service';
 import { usePortalHeroExtra } from '../hooks/usePortalHeroExtra';
 import { useComprobantesPortal } from '../hooks/useComprobantesPortal';
 import ComprobantePagoModal from '../components/ComprobantePagoModal';
@@ -18,35 +16,20 @@ import WidgetFamiliaHoy from '../components/widgets/WidgetFamiliaHoy';
 
 const PortalDashboard = () => {
   const { user } = useContext(PortalAuthContext);
-  const { logoColegio } = useOutletContext() || {};
-
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState(null);
+  const {
+    logoColegio,
+    dashboardData,
+    loadingDashboard: loading = true,
+    recargarResumen,
+  } = useOutletContext() || {};
   const { alumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [modalOpen, setModalOpen] = useState(false);
   const [mensualidadInicialId, setMensualidadInicialId] = useState(null);
   const { comprobantes, ultimoPorMensualidad, recargar: recargarComprobantes } = useComprobantesPortal();
 
-  const cargarDashboard = useCallback(async (signal) => {
-    setLoading(true);
-    try {
-      const res = await getDashboard(signal);
-      const data = res.data;
-      setDashboardData(data);
-      sincronizarConLista(data.alumnos);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error('No se pudo cargar la información. Intenta más tarde.');
-    } finally {
-      setLoading(false);
-    }
-  }, [sincronizarConLista]);
-
   useEffect(() => {
-    const controller = new AbortController();
-    cargarDashboard(controller.signal);
-    return () => controller.abort();
-  }, [cargarDashboard]);
+    if (dashboardData?.alumnos) sincronizarConLista(dashboardData.alumnos);
+  }, [dashboardData, sincronizarConLista]);
 
   const { avisosSinLeer, alertaRendimiento, loadingAvisos, loadingRendimiento } =
     usePortalHeroExtra(dashboardData?.alumnos);
@@ -166,7 +149,7 @@ const PortalDashboard = () => {
         variosAlumnos={variosAlumnos}
         onSuccess={() => {
           recargarComprobantes();
-          cargarDashboard();
+          recargarResumen?.();
         }}
       />
     </div>

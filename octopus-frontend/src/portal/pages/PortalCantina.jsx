@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getDashboard, getSaldoTarjetaCantina, getHistorialConsumoCantina, getCuentaCantina } from '../api/portal.service';
+import { getSaldoTarjetaCantina, getHistorialConsumoCantina, getCuentaCantina } from '../api/portal.service';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
@@ -10,6 +11,7 @@ import CuentaCantinaCard from '../components/CuentaCantinaCard';
 
 const PortalCantina = () => {
   const [alumnos, setAlumnos] = useState([]);
+  const { dashboardData, loadingDashboard } = useOutletContext() || {};
   const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [loadingAlumnos, setLoadingAlumnos] = useState(true);
 
@@ -45,28 +47,18 @@ const PortalCantina = () => {
     return () => controller.abort();
   }, []);
 
-  // Cargar alumnos del representante al montar
+  // La lista ya fue solicitada por PortalLayout; compartirla evita repetir el
+  // endpoint de dashboard en cada pantalla.
   useEffect(() => {
-    const controller = new AbortController();
-
-    const cargarAlumnos = async () => {
-      setLoadingAlumnos(true);
-      try {
-        const res = await getDashboard(controller.signal);
-        const lista = res.data.alumnos || [];
-        setAlumnos(lista);
-        sincronizarConLista(lista);
-      } catch (err) {
-        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-        toast.error('No se pudo cargar los datos del representante.');
-      } finally {
-        setLoadingAlumnos(false);
-      }
-    };
-
-    cargarAlumnos();
-    return () => controller.abort();
-  }, [sincronizarConLista]);
+    if (!dashboardData) {
+      setLoadingAlumnos(Boolean(loadingDashboard));
+      return;
+    }
+    const lista = dashboardData.alumnos || [];
+    setAlumnos(lista);
+    sincronizarConLista(lista);
+    setLoadingAlumnos(false);
+  }, [dashboardData, loadingDashboard, sincronizarConLista]);
 
   // PortalSaldoTarjetaView SIEMPRE responde un arreglo (uno por alumno,
   // filtrado a 1 elemento cuando se pasa alumno_id) — nunca un objeto suelto.

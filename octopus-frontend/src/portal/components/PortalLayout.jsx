@@ -32,6 +32,7 @@ const PortalLayout = () => {
   const fecha = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
   const hoy = fecha.charAt(0).toUpperCase() + fecha.slice(1);
   const [resumen, setResumen] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
   const [loadingResumen, setLoadingResumen] = useState(true);
   const [errorResumen, setErrorResumen] = useState(false);
 
@@ -39,6 +40,7 @@ const PortalLayout = () => {
   // contexto del Outlet para que las páginas puedan refrescarlo tras un pago.
   const cargarResumen = useCallback((signal) => getDashboard(signal)
     .then((res) => {
+      setDashboardData(res.data ?? null);
       setResumen(res.data?.resumen_financiero ?? null);
       setErrorResumen(false);
     })
@@ -123,7 +125,13 @@ const PortalLayout = () => {
         <main className="mx-auto max-w-6xl px-4 pb-36 pt-5 sm:px-6 sm:pt-6 md:pb-12 lg:px-10 lg:pt-8">
           <BannerInstalarApp className="mb-5" />
           <AlumnoActivoProvider>
-            <Outlet context={{ logoColegio: logoUrl, resumenFinanciero: resumen, recargarResumen: cargarResumen }} />
+            <Outlet context={{
+              logoColegio: logoUrl,
+              dashboardData,
+              loadingDashboard: loadingResumen,
+              resumenFinanciero: resumen,
+              recargarResumen: cargarResumen,
+            }} />
           </AlumnoActivoProvider>
         </main>
       </div>

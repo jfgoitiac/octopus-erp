@@ -4,6 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import portalClient from '../api/portalClient';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+const AUTH_TIMEOUT_MS = 8000;
 
 export const PortalAuthContext = createContext(null);
 
@@ -61,7 +62,7 @@ export const PortalAuthProvider = ({ children }) => {
         const res = await axios.post(
           `${API_BASE}/api/portal/token/refresh/`,
           {},
-          { withCredentials: true }
+          { withCredentials: true, timeout: AUTH_TIMEOUT_MS }
         );
         const newAccessToken = res.data.access;
         localStorage.setItem('portal_token', newAccessToken);
@@ -104,6 +105,13 @@ export const PortalAuthProvider = ({ children }) => {
     // si la red falla — el estado del cliente se limpia de todas formas.
     portalClient.post('logout/').catch(() => {});
     localStorage.removeItem('portal_token');
+    // Las versiones anteriores guardaban respuestas privadas del portal en
+    // Cache Storage. Se eliminan al salir para evitar datos cruzados en
+    // dispositivos compartidos; las versiones nuevas solo cachean recursos
+    // públicos y estáticos.
+    if ('caches' in window) {
+      caches.delete('portal-api-cache').catch(() => {});
+    }
     setUser(null);
   };
 

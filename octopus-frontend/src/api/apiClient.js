@@ -2,6 +2,7 @@ import axios from 'axios';
 import { tokenStore } from './tokenStore';
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+const AUTH_TIMEOUT_MS = 8000;
 
 const apiClient = axios.create({
   baseURL: `${API_BASE}/api/`,
@@ -54,7 +55,7 @@ apiClient.interceptors.response.use(
       const res = await axios.post(
         `${API_BASE}/api/token/refresh/`,
         {},
-        { withCredentials: true }
+        { withCredentials: true, timeout: AUTH_TIMEOUT_MS }
       );
       const newToken = res.data.access;
       tokenStore.set(newToken);

@@ -1,6 +1,7 @@
 import io
 import logging
 import zipfile
+from uuid import UUID
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -1091,6 +1092,29 @@ class RegistrarVentaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        operacion_raw = request.data.get('operacion_id')
+        operacion_id = None
+        if operacion_raw:
+            try:
+                operacion_id = UUID(str(operacion_raw))
+            except (ValueError, TypeError, AttributeError):
+                return Response(
+                    {'error': "'operacion_id' debe ser un UUID válido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            existente = VentaCantina.objects.filter(operacion_id=operacion_id).first()
+            if existente:
+                if existente.cajero_id != request.user.id:
+                    return Response(
+                        {'error': 'La operación ya pertenece a otra caja.'},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                existente = VentaCantina.objects.select_related(
+                    'alumno', 'tarjeta', 'cajero', 'representante', 'cliente'
+                ).prefetch_related('detalles__producto').get(pk=existente.pk)
+                return Response(VentaCantinaSerializer(existente).data, status=status.HTTP_200_OK)
+
         items = request.data.get('items')
         if not items or not isinstance(items, list):
             return Response(
@@ -1391,6 +1415,7 @@ class RegistrarVentaView(APIView):
                             f"(#{dup['id']}, {dup['detalle']}). Si cree que es un error, contacte al administrador."
                         )})
                 venta = VentaCantina.objects.create(
+                    **({'operacion_id': operacion_id} if operacion_id else {}),
                     alumno=alumno,
                     tarjeta=tarjeta,
                     apertura=apertura,
@@ -1455,6 +1480,18 @@ class RegistrarVentaView(APIView):
                     services_cxc.crear_cargo_por_venta(venta)
         except drf_serializers.ValidationError as exc:
             return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            # Dos reintentos simultáneos con el mismo UUID pueden superar la
+            # lectura inicial. La restricción única decide el ganador y el
+            # perdedor devuelve exactamente la venta ya confirmada.
+            existente = operacion_id and VentaCantina.objects.filter(
+                operacion_id=operacion_id, cajero=request.user
+            ).select_related(
+                'alumno', 'tarjeta', 'cajero', 'representante', 'cliente'
+            ).prefetch_related('detalles__producto').first()
+            if existente:
+                return Response(VentaCantinaSerializer(existente).data, status=status.HTTP_200_OK)
+            raise
         except DjangoValidationError as exc:
             # Cubre tanto el ValidationError de stock insuficiente
             # (`aplicar_movimiento_inventario`) como `SaldoInsuficienteError`

@@ -307,7 +307,7 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
     class Meta:
         model = VentaCantina
         fields = (
-            'id', 'alumno', 'alumno_nombre', 'tarjeta', 'tarjeta_serial',
+            'id', 'operacion_id', 'alumno', 'alumno_nombre', 'tarjeta', 'tarjeta_serial',
             'cajero', 'cajero_username', 'cajero_nombre', 'metodo_pago', 'total_usd',
             'tasa_aplicada', 'total_ves', 'estado', 'saldo_tarjeta_despues',
             'area', 'banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote',

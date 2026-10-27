@@ -14,6 +14,7 @@ import axios from 'axios';
 // está activado: el navegador adjunta esa cookie automáticamente en cada
 // petición a este baseURL, sin que JS pueda leerla ni manipularla.
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+const AUTH_TIMEOUT_MS = 8000;
 
 const portalClient = axios.create({
   baseURL: `${API_BASE}/api/portal/`,
@@ -90,7 +91,7 @@ portalClient.interceptors.response.use(
       const res = await axios.post(
         `${API_BASE}/api/portal/token/refresh/`,
         {},
-        { withCredentials: true }
+        { withCredentials: true, timeout: AUTH_TIMEOUT_MS }
       );
 
       const newAccessToken = res.data.access;
