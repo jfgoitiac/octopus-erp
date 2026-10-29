@@ -756,19 +756,24 @@ def notificar_mensaje_directo(mensaje):
                      area='control_estudios')
 
 
-def notificar_pago_exitoso(mensualidad, pago):
+def notificar_pago_exitoso(mensualidad, pago, push=True, monto_usd=None):
+    """`monto_usd` permite informar el abono real (pago parcial aprobado
+    desde la revisión de comprobantes) en vez del monto nominal de la
+    mensualidad. `push=False` cuando el llamador ya manda su propio push
+    (ver enviar_avisos_comprobante), para no duplicarlo."""
     alumno = mensualidad.alumno
     rep    = alumno.representante
+    monto_usd = mensualidad.monto_usd if monto_usd is None else monto_usd
     ctx = {
         'nombre_representante': f'{rep.nombre} {rep.apellido}',
         'nombre_alumno': f'{alumno.nombre} {alumno.apellido}',
         'mes_nombre': mensualidad.get_mes_display(),
         'anio': mensualidad.anio,
-        'monto_usd': str(mensualidad.monto_usd),
+        'monto_usd': str(monto_usd),
         'metodo_pago': pago.get_metodo_pago_display(),
         'referencia': pago.referencia or str(pago.id),
         # REF. + Bs. a la tasa con la que se cobró este pago.
-        **montos_ref(mensualidad.monto_usd, pago.tasa_aplicada, pago.fecha_pago),
+        **montos_ref(monto_usd, pago.tasa_aplicada, pago.fecha_pago),
     }
     # Mismo recibo que imprime el panel y descarga el portal (motor único).
     from cobranza.recibo_cobranza import generar_pdf_recibo, nombre_archivo_recibo, numero_recibo
@@ -813,10 +818,57 @@ def notificar_pago_exitoso(mensualidad, pago):
                             representante_cedula=rep.cedula)
 
     usuario_portal = _usuario_portal_de(rep)
-    if usuario_portal:
+    if usuario_portal and push:
         _push_representante(
             usuario_portal, 'factura', 'Pago confirmado',
             f'{ctx["nombre_alumno"]} -- {ctx["mes_nombre"]} {ctx["anio"]} -- {ctx["monto_ref"]}',
             url='/portal/historial', tipo_log='pago_exitoso',
             representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
+        )
+
+
+def enviar_avisos_comprobante(comprobante):
+    """Push (y, si fue rechazado, email) al representante cuando se resuelve
+    un comprobante del portal. El AvisoPortal de la bandeja ya lo creó
+    portal.services.crear_aviso_comprobante (síncrono); esto es lo que puede
+    tardar o fallar, por eso corre en la tarea Celery. Al aprobar se manda
+    además el email de "pago confirmado" con el recibo, sin su push propio."""
+    from .plantillas_aviso import renderizar_aviso, valores_comprobante
+
+    if comprobante.estatus not in ('aprobado', 'rechazado'):
+        return
+    clave = f'comprobante_{comprobante.estatus}'
+    mensualidad = comprobante.mensualidad
+    alumno = mensualidad.alumno
+    rep = alumno.representante
+    valores = valores_comprobante(comprobante)
+    asunto, cuerpo = renderizar_aviso(clave, valores)
+    nombre_alumno = valores['{{alumno.nombre}}']
+
+    usuario_portal = _usuario_portal_de(rep)
+    if usuario_portal:
+        if comprobante.estatus == 'rechazado':
+            resumen = f'Motivo: {comprobante.observaciones or "consulte el portal"}'
+        else:
+            resumen = f'{nombre_alumno} -- {valores["{{mensualidad}}"]} -- {valores["{{monto}}"]}'
+        _push_representante(
+            usuario_portal, 'factura', asunto, resumen[:180],
+            url='/portal', tipo_log=clave,
+            representante_cedula=rep.cedula, alumno_nombre=nombre_alumno,
+        )
+
+    if comprobante.estatus == 'rechazado':
+        html = _render_email('aviso_portal.html', {
+            'cuerpo': cuerpo, 'portal_url': valores['{{portal.link}}'],
+        })
+        enviar_email(
+            rep.correo, asunto, html, texto_plano=cuerpo, tipo=clave,
+            representante_cedula=rep.cedula, alumno_nombre=nombre_alumno,
+        )
+        # Futuro: WhatsApp (Twilio / Meta Business API) con el mismo texto
+        # renderizado — requiere plantilla aprobada por Meta; no implementado.
+    elif comprobante.pago_id:
+        notificar_pago_exitoso(
+            mensualidad, comprobante.pago, push=False,
+            monto_usd=comprobante.monto_usd_aplicado,
         )

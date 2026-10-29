@@ -544,11 +544,11 @@ class PortalComprobantePagoView(APIView):
     def post(self, request):
         representante = _get_representante(request)
 
+        # El representante SOLO envía el archivo y la mensualidad. Referencia,
+        # método y banco los llena el revisor al aprobar; si un cliente viejo
+        # los manda se ignoran (y el antifraude de referencia se hace allá).
         mensualidad_id     = request.data.get('mensualidad_id')
         archivo            = request.FILES.get('archivo')
-        referencia_raw     = (request.data.get('referencia_bancaria') or '').strip()
-        metodo_pago        = (request.data.get('metodo_pago') or 'transferencia').strip().lower()
-        banco_receptor_id  = request.data.get('banco_receptor_id')
 
         if not mensualidad_id:
             return Response(
@@ -583,29 +583,6 @@ class PortalComprobantePagoView(APIView):
                 {'error': 'Mensualidad no encontrada, ya pagada, o no pertenece a sus alumnos.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-
-        # --- Banco receptor: OPCIONAL, nunca bloquea el envío. Solo se valida
-        # que exista y esté activo si el representante sí eligió uno. ---
-        banco_receptor = None
-        if banco_receptor_id:
-            from cobranza.models import BancoInstitucional
-            try:
-                banco_receptor = BancoInstitucional.objects.get(id=banco_receptor_id, activo=True)
-            except (BancoInstitucional.DoesNotExist, ValueError, TypeError):
-                return Response(
-                    {'error': 'Banco receptor no encontrado.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        # --- ANTIFRAUDE 1: referencia obligatoria para métodos bancarios ---
-        if metodo_pago in _METODOS_CON_REFERENCIA_OBLIGATORIA and not referencia_raw:
-            return Response(
-                {'error': 'Debe ingresar el número de referencia o confirmación de la transacción.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Normalizar referencia (mayúsculas, sin espacios dobles)
-        referencia = ' '.join(referencia_raw.upper().split()) if referencia_raw else None
 
         # --- ANTIFRAUDE 2: bloquear múltiples comprobantes pendientes por mensualidad ---
         comprobante_pendiente = ComprobantePago.objects.filter(
@@ -653,80 +630,6 @@ class PortalComprobantePagoView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
 
-        # --- ANTIFRAUDE 4: referencia ya usada en otro comprobante o pago registrado ---
-        # Clave compuesta (referencia, metodo_pago, banco_receptor): la misma
-        # referencia con otro método o banco receptor no es duplicado. Cuando
-        # este comprobante no trae banco, se compara solo contra otros
-        # comprobantes/pagos que TAMPOCO tienen banco (isnull=True), porque
-        # NULL no colisiona con NULL a nivel de columna.
-        if referencia:
-            dup_comprobante_qs = ComprobantePago.objects.filter(
-                referencia_bancaria=referencia,
-                metodo_pago=metodo_pago,
-                estatus__in=['pendiente', 'aprobado'],
-            ).exclude(mensualidad=mensualidad)
-            if banco_receptor_id:
-                dup_comprobante_qs = dup_comprobante_qs.filter(banco_receptor_id=banco_receptor.id)
-            else:
-                dup_comprobante_qs = dup_comprobante_qs.filter(banco_receptor__isnull=True)
-            dup_comprobante = dup_comprobante_qs.first()
-            if dup_comprobante:
-                return Response(
-                    {
-                        'error': (
-                            f"La referencia '{referencia}' ya fue enviada en otro comprobante "
-                            f"(#{dup_comprobante.id}). Cada transacción bancaria solo puede "
-                            "usarse para pagar una mensualidad."
-                        )
-                    },
-                    status=status.HTTP_409_CONFLICT
-                )
-
-            dup_pago_qs = Pago.objects.filter(
-                referencia=referencia,
-                metodo_pago=metodo_pago,
-                estatus__in=['completado', 'en_revision'],
-            )
-            if banco_receptor_id:
-                dup_pago_qs = dup_pago_qs.filter(banco_receptor_id=banco_receptor.id)
-            else:
-                dup_pago_qs = dup_pago_qs.filter(banco_receptor__isnull=True)
-            dup_pago = dup_pago_qs.first()
-            if dup_pago:
-                return Response(
-                    {
-                        'error': (
-                            f"La referencia '{referencia}' ya fue registrada como pago "
-                            f"confirmado (factura {dup_pago.factura_id or dup_pago.pk}). "
-                            "Si cree que hay un error, contacte a la administración."
-                        )
-                    },
-                    status=status.HTTP_409_CONFLICT
-                )
-
-            # --- ANTIFRAUDE 4b: referencia ya usada en una recarga de cantina ---
-            # Cierra el hueco cruzado descrito en cantina.md §5.9: sin este
-            # chequeo, una referencia ya usada para recargar la tarjeta de
-            # cantina de un alumno podía reciclarse aquí para "pagar" una
-            # mensualidad, porque este endpoint solo miraba sus propias
-            # tablas (ComprobantePago/Pago) y no sabía que `cantina` existe.
-            from pagos_comunes.referencias import buscar_referencia_duplicada
-            duplicado_cantina = buscar_referencia_duplicada(
-                referencia, metodo_pago=metodo_pago,
-                banco_receptor_id=(banco_receptor.id if banco_receptor_id else None),
-            )
-            if duplicado_cantina and duplicado_cantina['origen'] == 'cantina.RecargaTarjeta':
-                return Response(
-                    {
-                        'error': (
-                            f"La referencia '{referencia}' ya está en uso en una recarga "
-                            f"de cantina (#{duplicado_cantina['id']}, {duplicado_cantina['detalle']}). "
-                            "Si cree que es un error, contacte a la administración."
-                        )
-                    },
-                    status=status.HTTP_409_CONFLICT
-                )
-
         # Obtener IP del cliente
         ip_cliente = (
             request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
@@ -736,9 +639,6 @@ class PortalComprobantePagoView(APIView):
         comprobante = ComprobantePago.objects.create(
             mensualidad=mensualidad,
             archivo=archivo,
-            referencia_bancaria=referencia,
-            metodo_pago=metodo_pago,
-            banco_receptor=banco_receptor,
             hash_archivo=hash_sha256,
             subido_por_ip=ip_cliente,
         )
@@ -751,9 +651,8 @@ class PortalComprobantePagoView(APIView):
             logger.warning(f'No se pudo encolar notificación de comprobante: {e}')
 
         logger.info(
-            "Comprobante #%s subido por representante %s para mensualidad %s (ref=%s, hash=%s…)",
-            comprobante.id, representante.cedula, mensualidad_id,
-            referencia or 'N/A', hash_sha256[:12],
+            "Comprobante #%s subido por representante %s para mensualidad %s (hash=%s…)",
+            comprobante.id, representante.cedula, mensualidad_id, hash_sha256[:12],
         )
 
         return Response(
@@ -1324,66 +1223,144 @@ class PortalMetodosPagoView(APIView):
 # ADMIN — GESTIÓN DE COMPROBANTES PENDIENTES
 # ──────────────────────────────────────────────────────────────────────────────
 
+_ROLES_REVISION_COMPROBANTES = ('director', 'sistemas', 'administrador', 'cobranza')
+
+
+def _puede_revisar_comprobantes(request):
+    rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
+    return rol in _ROLES_REVISION_COMPROBANTES
+
+
+_EXTENSIONES_IMAGEN = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp'}
+
+
+def _tipo_archivo_comprobante(archivo):
+    """'imagen' | 'pdf' | None según la extensión del archivo guardado."""
+    if not archivo:
+        return None
+    extension = os.path.splitext(archivo.name or '')[1].lower()
+    if extension == '.pdf':
+        return 'pdf'
+    if extension in _EXTENSIONES_IMAGEN:
+        return 'imagen'
+    return None
+
+
+def _url_archivo_comprobante(request, comprobante):
+    # Ruta protegida (pagos_comunes.media_views.ComprobanteProtegidoView)
+    # en vez de la URL directa de /media/ — esa última no tiene control
+    # de acceso real si nginx la sirve estático en producción.
+    if not comprobante.archivo:
+        return None
+    return request.build_absolute_uri(
+        f'/media-protegido/comprobantes/{os.path.basename(comprobante.archivo.name)}/'
+    )
+
+
+def _dinero(valor):
+    return None if valor is None else str(Decimal(valor).quantize(Decimal('0.01')))
+
+
+def _datos_basicos_comprobante(request, c):
+    """Campos comunes de la lista y el detalle del panel de revisión."""
+    mensualidad = c.mensualidad
+    alumno = mensualidad.alumno
+    rep = alumno.representante
+    return {
+        'id': c.id,
+        'fecha_subida': c.fecha_subida,
+        'estatus': c.estatus,
+        'observaciones': c.observaciones,
+        'archivo_url': _url_archivo_comprobante(request, c),
+        'alumno': f'{alumno.nombre} {alumno.apellido}',
+        'grado': alumno.grado_seccion,
+        'representante': f'{rep.nombre} {rep.apellido}',
+        'representante_cedula': rep.cedula,
+        'mensualidad': f'{mensualidad.get_mes_display()} {mensualidad.anio}',
+        'monto_usd': str(mensualidad.monto_usd),
+        # Pueden venir null: el representante ya no los escribe; solo los
+        # traen los comprobantes viejos o los ya aprobados.
+        'referencia_bancaria': c.referencia_bancaria,
+        'metodo_pago': c.metodo_pago,
+        'banco_receptor_id': c.banco_receptor_id,
+        'banco_receptor_nombre': c.banco_receptor.nombre if c.banco_receptor_id else None,
+    }
+
+
 class AdminComprobantesView(APIView):
     """
-    Vista para el panel administrativo: lista y gestiona comprobantes pendientes.
+    Vista para el panel administrativo: lista, detalle y revisión de los
+    comprobantes que suben los representantes.
     Solo roles: director, sistemas, administrador, cobranza.
     """
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request):
-        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
-        if rol not in ('director', 'sistemas', 'administrador', 'cobranza'):
+    def get(self, request, comprobante_id=None):
+        if not _puede_revisar_comprobantes(request):
             return Response({'error': 'Sin permiso.'}, status=403)
+        if comprobante_id is not None:
+            return self._detalle(request, comprobante_id)
 
         estatus = request.query_params.get('estatus', 'pendiente')
         comprobantes = ComprobantePago.objects.filter(
             estatus=estatus
         ).select_related(
-            'mensualidad__alumno__representante'
+            'mensualidad__alumno__representante', 'banco_receptor',
         ).order_by('-fecha_subida')
 
-        data = []
-        for c in comprobantes:
-            alumno = c.mensualidad.alumno
-            rep = alumno.representante
-            data.append({
-                'id': c.id,
-                'fecha_subida': c.fecha_subida,
-                'estatus': c.estatus,
-                'observaciones': c.observaciones,
-                # Ruta protegida (pagos_comunes.media_views.ComprobanteProtegidoView)
-                # en vez de la URL directa de /media/ — esa última no tiene control
-                # de acceso real si nginx la sirve estático en producción.
-                'archivo_url': (
-                    request.build_absolute_uri(
-                        f'/media-protegido/comprobantes/{os.path.basename(c.archivo.name)}/'
-                    ) if c.archivo else None
-                ),
-                'alumno': f'{alumno.nombre} {alumno.apellido}',
-                'grado': alumno.grado_seccion,
-                'representante': f'{rep.nombre} {rep.apellido}',
-                'representante_cedula': rep.cedula,
-                'mensualidad': f'{c.mensualidad.get_mes_display()} {c.mensualidad.anio}',
-                'monto_usd': str(c.mensualidad.monto_usd),
-            })
+        return Response([_datos_basicos_comprobante(request, c) for c in comprobantes])
 
+    def _detalle(self, request, comprobante_id):
+        from cobranza.deudas import saldo_deuda
+        from .services import advertencias_hash
+
+        c = ComprobantePago.objects.select_related(
+            'mensualidad__alumno__representante', 'banco_receptor', 'revisado_por',
+        ).filter(id=comprobante_id).first()
+        if not c:
+            return Response({'error': 'Comprobante no encontrado.'}, status=404)
+
+        mensualidad = c.mensualidad
+        data = _datos_basicos_comprobante(request, c)
+        data.update({
+            'archivo_tipo': _tipo_archivo_comprobante(c.archivo),
+            'mensualidad_id': mensualidad.id,
+            'monto_pagado_usd': _dinero(mensualidad.monto_pagado),
+            'saldo_pendiente_usd': _dinero(saldo_deuda(mensualidad)),
+            # Chequeo previo de solo lectura (mismo que se recalcula al aprobar).
+            'advertencias': advertencias_hash(c) if c.estatus == 'pendiente' else [],
+            'motivo_rechazo_id': c.motivo_rechazo_id,
+            'revision': None,
+        })
+        if c.estatus != 'pendiente':
+            data['revision'] = {
+                'fecha_pago': c.fecha_pago.isoformat() if c.fecha_pago else None,
+                'monto_recibido': _dinero(c.monto_recibido),
+                'moneda': c.moneda or None,
+                'tasa_aplicada': (
+                    str(c.tasa_aplicada.quantize(Decimal('0.0001'))) if c.tasa_aplicada is not None else None
+                ),
+                'monto_usd_aplicado': _dinero(c.monto_usd_aplicado),
+                'revisado_por': c.revisado_por.username if c.revisado_por_id else None,
+                'fecha_revision': c.fecha_revision,
+                'pago_id': c.pago_id,
+            }
         return Response(data)
 
     def patch(self, request, comprobante_id):
         """
         Aprobar o rechazar un comprobante.
-        Al APROBAR:
-        - Marca la mensualidad como pagada.
-        - Crea un registro Pago vinculado (para auditoría y coherencia del sistema).
-        - Advierte si la referencia ya existe en otro Pago confirmado (alerta de fraude).
+        Al APROBAR (todos obligatorios salvo observaciones): referencia,
+        banco_receptor_id, metodo_pago, fecha_pago, monto_recibido, moneda.
+        Abona lo realmente recibido a la tasa BCV de la fecha del pago (puede
+        ser parcial) y crea el Pago. Referencia ya usada → 400.
+        Al RECHAZAR: motivo_rechazo_id y/o observaciones (al menos uno).
         """
-        rol = getattr(getattr(request.user, 'perfil', None), 'rol', '')
-        if rol not in ('director', 'sistemas', 'administrador', 'cobranza'):
+        if not _puede_revisar_comprobantes(request):
             return Response({'error': 'Sin permiso.'}, status=403)
 
         nuevo_estatus = request.data.get('estatus')
-        observaciones = request.data.get('observaciones', '')
+        observaciones = (request.data.get('observaciones') or '').strip()
 
         if nuevo_estatus not in ('aprobado', 'rechazado'):
             return Response({'error': "estatus debe ser 'aprobado' o 'rechazado'."}, status=400)
@@ -1392,14 +1369,40 @@ class AdminComprobantesView(APIView):
         # portal/services.py y se comparte con la conciliación bancaria.
         # Todo lo que toca dinero corre dentro de un atomic() SIN try/except que
         # lo trague: si algo falla a mitad de camino, hace rollback completo.
+        from cobranza.deudas import saldo_deuda
+        from .models import MotivoRechazo
         from .services import (
-            ComprobanteNoEncontrado, ComprobanteYaProcesado,
-            notificar_pago_aprobado, resolver_comprobante,
+            ComprobanteNoEncontrado, ComprobanteYaProcesado, DatosPagoInvalidos,
+            notificar_comprobante_resuelto, resolver_comprobante, validar_datos_aprobacion,
         )
 
+        def _error_campos(campos):
+            return Response({'error': 'Revise los datos del pago.', 'campos': campos}, status=400)
+
+        datos_pago = None
+        motivo = None
+        if nuevo_estatus == 'aprobado':
+            try:
+                datos_pago = validar_datos_aprobacion(request.data)
+            except DatosPagoInvalidos as exc:
+                return _error_campos(exc.campos)
+        else:
+            motivo_id = request.data.get('motivo_rechazo_id')
+            if motivo_id not in (None, ''):
+                try:
+                    motivo = MotivoRechazo.objects.get(pk=int(motivo_id))
+                except (MotivoRechazo.DoesNotExist, TypeError, ValueError):
+                    return _error_campos({'motivo_rechazo_id': 'Motivo de rechazo no encontrado.'})
+            if motivo is None and not observaciones:
+                return _error_campos({
+                    'motivo_rechazo_id': 'Elija un motivo o escriba el detalle del rechazo.',
+                    'observaciones': 'Elija un motivo o escriba el detalle del rechazo.',
+                })
+
         try:
-            _comprobante, pago_creado, mensualidad, advertencias = resolver_comprobante(
-                comprobante_id, nuevo_estatus, request.user, observaciones
+            comprobante, pago_creado, mensualidad, advertencias = resolver_comprobante(
+                comprobante_id, nuevo_estatus, request.user, observaciones,
+                datos_pago=datos_pago, motivo_rechazo=motivo,
             )
         except ComprobanteNoEncontrado:
             return Response({'error': 'Comprobante no encontrado.'}, status=404)
@@ -1408,6 +1411,8 @@ class AdminComprobantesView(APIView):
                 {'error': f'Este comprobante ya fue procesado (estatus actual: {exc.estatus}).'},
                 status=409
             )
+        except DatosPagoInvalidos as exc:
+            return _error_campos(exc.campos)
         except Exception as exc:
             logger.error(
                 'Error al %s comprobante #%s — se revirtió la operación completa: %s',
@@ -1418,8 +1423,8 @@ class AdminComprobantesView(APIView):
                 status=500
             )
 
-        if nuevo_estatus == 'aprobado' and pago_creado:
-            notificar_pago_aprobado(mensualidad, pago_creado)
+        # Fuera del atomic: aviso de bandeja + push/email (best-effort).
+        notificar_comprobante_resuelto(comprobante)
 
         logger.info(
             'Comprobante %s marcado como %s por %s. Advertencias: %s',
@@ -1427,10 +1432,204 @@ class AdminComprobantesView(APIView):
             len(advertencias),
         )
 
-        respuesta = {'mensaje': f'Comprobante {nuevo_estatus} correctamente.'}
-        if advertencias:
-            respuesta['advertencias'] = advertencias
-        return Response(respuesta)
+        abono = comprobante.monto_usd_aplicado or Decimal('0.00')
+        excedente = Decimal('0.00')
+        if pago_creado and comprobante.monto_usd_aplicado is not None:
+            excedente = max(Decimal('0.00'), pago_creado.monto_usd - abono)
+        mensualidad = mensualidad or comprobante.mensualidad
+        if mensualidad:
+            mensualidad.refresh_from_db()
+        return Response({
+            'mensaje': f'Comprobante {nuevo_estatus} correctamente.',
+            'advertencias': advertencias,
+            'abono_usd': _dinero(abono),
+            'saldo_pendiente_usd': _dinero(saldo_deuda(mensualidad)),
+            'excedente_usd': _dinero(excedente),
+        })
+
+
+class AdminTasaComprobanteView(APIView):
+    """
+    GET /api/portal/admin/comprobantes/tasa/?fecha=YYYY-MM-DD
+    Tasa BCV que se aplicará a un pago de esa fecha (la del día o la última
+    anterior), para que el revisor vea la conversión antes de aprobar.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not _puede_revisar_comprobantes(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        from cobranza.models import TasaCambio
+        from finanzas.monedas import tasa_para_fecha
+        from django.utils import timezone
+
+        try:
+            fecha = date.fromisoformat((request.query_params.get('fecha') or '')[:10])
+        except ValueError:
+            return Response({'error': 'Indique fecha=AAAA-MM-DD.'}, status=400)
+        try:
+            tasa = tasa_para_fecha(fecha)
+        except TasaCambio.DoesNotExist:
+            return Response(
+                {'error': 'No hay tasa BCV registrada para esa fecha ni para una anterior.'},
+                status=404,
+            )
+        return Response({
+            'fecha': timezone.localtime(tasa.fecha).date().isoformat(),
+            'valor_bs': str(tasa.valor_bs.quantize(Decimal('0.0001'))),
+            'fuente': tasa.fuente,
+        })
+
+
+def _serializar_motivo(m):
+    return {'id': m.id, 'nombre': m.nombre, 'texto': m.texto, 'activo': m.activo, 'orden': m.orden}
+
+
+def _aplicar_campos_motivo(motivo, data, parcial):
+    """Valida y asigna nombre/texto/activo/orden. Devuelve dict de errores."""
+    errores = {}
+    for campo in ('nombre', 'texto'):
+        if campo in data or not parcial:
+            valor = (data.get(campo) or '').strip()
+            if not valor:
+                errores[campo] = 'Este campo es obligatorio.'
+            else:
+                setattr(motivo, campo, valor[:100] if campo == 'nombre' else valor)
+    if 'activo' in data:
+        valor = data.get('activo')
+        motivo.activo = valor if isinstance(valor, bool) else str(valor).lower() in ('1', 'true', 'si', 'sí')
+    if 'orden' in data:
+        try:
+            motivo.orden = max(0, int(data.get('orden')))
+        except (TypeError, ValueError):
+            errores['orden'] = 'Debe ser un número entero.'
+    return errores
+
+
+class AdminMotivosRechazoView(APIView):
+    """GET (?activos=1) / POST /api/portal/admin/motivos-rechazo/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not _puede_revisar_comprobantes(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        from .models import MotivoRechazo
+        motivos = MotivoRechazo.objects.all()
+        if request.query_params.get('activos') in ('1', 'true'):
+            motivos = motivos.filter(activo=True)
+        return Response([_serializar_motivo(m) for m in motivos])
+
+    def post(self, request):
+        if not _puede_revisar_comprobantes(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        from .models import MotivoRechazo
+        motivo = MotivoRechazo()
+        errores = _aplicar_campos_motivo(motivo, request.data, parcial=False)
+        if errores:
+            return Response({'error': 'Revise los datos del motivo.', 'campos': errores}, status=400)
+        if 'orden' not in request.data:
+            ultimo = MotivoRechazo.objects.order_by('-orden').first()
+            motivo.orden = (ultimo.orden + 1) if ultimo else 1
+        motivo.save()
+        return Response(_serializar_motivo(motivo), status=status.HTTP_201_CREATED)
+
+
+class AdminMotivoRechazoDetalleView(APIView):
+    """PATCH / DELETE /api/portal/admin/motivos-rechazo/<id>/
+    Un motivo ya usado en algún comprobante no se borra: se desactiva."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get(self, motivo_id):
+        from .models import MotivoRechazo
+        return MotivoRechazo.objects.filter(pk=motivo_id).first()
+
+    def patch(self, request, motivo_id):
+        if not _puede_revisar_comprobantes(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        motivo = self._get(motivo_id)
+        if not motivo:
+            return Response({'error': 'Motivo no encontrado.'}, status=404)
+        errores = _aplicar_campos_motivo(motivo, request.data, parcial=True)
+        if errores:
+            return Response({'error': 'Revise los datos del motivo.', 'campos': errores}, status=400)
+        motivo.save()
+        return Response(_serializar_motivo(motivo))
+
+    def delete(self, request, motivo_id):
+        if not _puede_revisar_comprobantes(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        motivo = self._get(motivo_id)
+        if not motivo:
+            return Response({'error': 'Motivo no encontrado.'}, status=404)
+        if motivo.comprobantes.exists():
+            motivo.activo = False
+            motivo.save(update_fields=['activo'])
+            return Response({
+                'ok': True, 'desactivado': True,
+                'mensaje': 'El motivo ya se usó en comprobantes: se desactivó en vez de borrarse.',
+                'motivo': _serializar_motivo(motivo),
+            })
+        motivo.delete()
+        return Response({'ok': True, 'desactivado': False, 'mensaje': 'Motivo eliminado.'})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AVISOS DEL PORTAL (bandeja del representante)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalAvisosView(APIView):
+    """GET /api/portal/avisos/ — últimos 50 avisos del representante autenticado."""
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .models import AvisoPortal
+        usuario_portal = request.user.representante_portal
+        avisos = AvisoPortal.objects.filter(usuario_portal=usuario_portal)
+        resultados = [
+            {
+                'id': a.id, 'tipo': a.tipo, 'titulo': a.titulo, 'cuerpo': a.cuerpo,
+                'url': a.url, 'leido': a.leido_en is not None, 'creado_en': a.creado_en,
+            }
+            for a in avisos.order_by('-creado_en', '-id')[:50]
+        ]
+        return Response({
+            'no_leidos': avisos.filter(leido_en__isnull=True).count(),
+            'resultados': resultados,
+        })
+
+
+class PortalAvisoLeerView(APIView):
+    """POST /api/portal/avisos/<id>/leer/ — 404 si el aviso no es suyo."""
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, aviso_id):
+        from django.utils import timezone
+        from .models import AvisoPortal
+        aviso = AvisoPortal.objects.filter(
+            pk=aviso_id, usuario_portal=request.user.representante_portal,
+        ).first()
+        if not aviso:
+            return Response({'error': 'Aviso no encontrado.'}, status=404)
+        if aviso.leido_en is None:
+            aviso.leido_en = timezone.now()
+            aviso.save(update_fields=['leido_en'])
+        return Response({'ok': True})
+
+
+class PortalAvisosLeerTodosView(APIView):
+    """POST /api/portal/avisos/leer-todos/"""
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from django.utils import timezone
+        from .models import AvisoPortal
+        marcados = AvisoPortal.objects.filter(
+            usuario_portal=request.user.representante_portal, leido_en__isnull=True,
+        ).update(leido_en=timezone.now())
+        return Response({'ok': True, 'marcados': marcados})
 
 
 # ──────────────────────────────────────────────────────────────────────────────

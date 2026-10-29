@@ -433,6 +433,63 @@ class VariablesPlantillaWhatsAppView(APIView):
         return Response(TOKENS_DISPONIBLES)
 
 
+def _puede_editar_plantillas_aviso(request):
+    # Mismos roles que revisan comprobantes del portal (portal/views.py).
+    return getattr(getattr(request.user, 'perfil', None), 'rol', '') in (
+        'director', 'sistemas', 'administrador', 'cobranza')
+
+
+def _serializar_plantilla_aviso(p):
+    return {'id': p.id, 'clave': p.clave, 'nombre': p.nombre, 'asunto': p.asunto,
+            'cuerpo': p.cuerpo, 'activa': p.activa, 'actualizada_en': p.actualizada_en}
+
+
+class PlantillasAvisoView(APIView):
+    """GET /api/notificaciones/plantillas-aviso/ — plantillas sembradas +
+    tokens disponibles. No se crean ni se borran desde la UI."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not _puede_editar_plantillas_aviso(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        from .models import PlantillaAviso
+        from .plantillas_aviso import TOKENS_AVISO
+        return Response({
+            'plantillas': [_serializar_plantilla_aviso(p) for p in PlantillaAviso.objects.all()],
+            'tokens': TOKENS_AVISO,
+        })
+
+
+class PlantillaAvisoDetailView(APIView):
+    """PATCH /api/notificaciones/plantillas-aviso/<id>/ — asunto, cuerpo, activa."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        if not _puede_editar_plantillas_aviso(request):
+            return Response({'error': 'Sin permiso.'}, status=403)
+        from .models import PlantillaAviso
+        plantilla = PlantillaAviso.objects.filter(pk=pk).first()
+        if not plantilla:
+            return Response({'error': 'Plantilla no encontrada.'}, status=404)
+        campos = {}
+        for campo in ('asunto', 'cuerpo'):
+            if campo in request.data:
+                valor = (request.data.get(campo) or '').strip()
+                if not valor:
+                    campos[campo] = 'No puede quedar vacío.'
+                elif campo == 'asunto' and len(valor) > 255:
+                    campos[campo] = 'Máximo 255 caracteres.'
+                else:
+                    setattr(plantilla, campo, valor)
+        if 'activa' in request.data:
+            valor = request.data.get('activa')
+            plantilla.activa = valor if isinstance(valor, bool) else str(valor).lower() in ('1', 'true')
+        if campos:
+            return Response({'error': 'Revise la plantilla.', 'campos': campos}, status=400)
+        plantilla.save()
+        return Response(_serializar_plantilla_aviso(plantilla))
+
+
 def _registrar_en_cobranza(request, cedula, mensaje, log_id):
     """El cobro enviado queda como gestión en las deudas abiertas de Cobranza Inteligente."""
     from cobranza.gestion import registrar_cobro_whatsapp
