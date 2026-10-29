@@ -4299,3 +4299,64 @@ Deuda técnica detectada (solo anotada, no implementada):
    Visto en la auditoría con Playwright (360/768/1366/1920): sin desborde
    horizontal, sin controles cortados, sin `$` sueltos ni texto de incidentes,
    y el botón "Enviar comprobante" visible en 360×640.
+
+## Recordatorios de cobranza por el portal — pospuesto (2026-10-29)
+
+Se excluyó del flujo de revisión de comprobantes el canal "Portal" (push
+gratuito + aviso en la bandeja del portal) para las reglas de Cobranza
+Inteligente. Queda pendiente hasta corregir los fallos de la lista de morosos
+de Cobranza Inteligente; montar el canal sobre esa lista multiplicaría avisos
+erróneos a representantes al día.
+
+1. **Canal `portal` en `ReglaCobranza.CANALES`**: agregar la opción y su
+   rama en `cobranza/motor.py::_canales_permitidos` / `procesar_envio`
+   (hoy solo `whatsapp`, `email`, `ambos`, `interno`).
+2. **Copia en la bandeja**: todo envío con destinatario `representante`
+   podría crear además un `portal.AvisoPortal` (costo cero), así el aviso
+   queda visible aunque el representante no haya activado push.
+3. **Textos de `_ASUNTOS` / `_INTROS` fijos en código**: deberían leerse de
+   `notificaciones.PlantillaAviso` (misma tabla de las plantillas de
+   comprobantes) para que el colegio los personalice.
+4. **Reglas por defecto**: evaluar mover las preventivas (`-5`, `-1`, `0`) a
+   canal `portal` para abaratar el envío; WhatsApp solo en etapa prioritaria.
+
+## Revisión de comprobantes del portal (2026-10-29)
+
+Desde este cambio el representante solo sube el archivo y el revisor del
+colegio transcribe referencia, banco, método, fecha, monto y moneda. Deuda
+detectada (solo anotada):
+
+1. **Conciliación semiautomática no ve los comprobantes nuevos**:
+   `cobranza/conciliacion_semiauto.py` (~l. 251) filtra los pendientes por
+   `banco_receptor_id`; los comprobantes nuevos llegan sin banco hasta que se
+   revisan, así que no aparecen como candidatos de conciliación.
+2. **Aprobación por conciliación usa el flujo viejo**: `aprobar_comprobante`
+   sin `datos_pago` acredita el monto nominal con la última tasa y no crea
+   `AvisoPortal`.
+3. **Excedente sin saldo a favor**: si el monto recibido supera el saldo, se
+   aplica solo el saldo; el excedente queda en observaciones y advertencia.
+4. **Sin recargo ni descuento**: la aprobación desde el portal no aplica
+   `resolver_recargo` / `resolver_descuento` como sí hace la caja.
+5. **Punto de venta no admitido en la revisión**: `Pago` exige número de lote;
+   el formulario no lo pide y el backend devuelve 400.
+6. **Precisión de tasa**: `Pago.save()` redondea `tasa_aplicada` a 2
+   decimales; el comprobante guarda 4.
+7. **Sin filtro por sede** en `AdminComprobantesView` y las vistas nuevas de
+   revisión (la conciliación sí usa `filtrar_por_sede`).
+8. **Código muerto**: `_METODOS_CON_REFERENCIA_OBLIGATORIA` en
+   `portal/views.py` y `verificarReferencia` en `portal/api/portal.service.js`.
+9. **Avisos con montos nominales**: `portal/tasks.notificar_comprobante_subido`
+   y `task_notificar_mora_programada` informan el monto nominal, no el saldo
+   real tras abonos parciales.
+10. **Cantina**: `RecargarTarjetaModal.jsx` sigue pidiendo referencia, banco y
+    método al representante; no se le aplicó la misma decisión.
+11. **Dos contadores de no leídos en el portal**: la campana (`AvisoPortal`) y
+    `avisosSinLeer` de `usePortalHeroExtra` (circulares).
+12. **Frontend**: no hay `Input`/`Select`/`Tabs` comunes en `components/ui`
+    (estilos de input y pestañas copiados); `METODOS_PAGO` duplica
+    `Pago.METODOS`; `TablaScroll` trae `-mx-4 px-4` fijo; `DecimalInput` no
+    acepta `id`/`aria-invalid`; `NotificacionesModal` usa `fixed` propio;
+    192 avisos previos de `react-hooks/set-state-in-effect` en otros archivos.
+13. **Tests de cobranza que ya fallaban en `main`** (no relacionados): 10 en
+    `test_descuento_integracion`, `test_descuento_pago`, `test_metas_banco`,
+    `DesgloseConceptosTest` y `DobleAbonoSucesivoTest`.
