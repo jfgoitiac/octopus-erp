@@ -20,7 +20,7 @@ from decimal import Decimal
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
-from .ciclos import calcular_fecha_vencimiento
+from .ciclos import calcular_fecha_vencimiento, dias_de_mora, etapa_por_dias
 from .gestion import calcular_bandeja, pagos_en_revision
 from .models import (
     CicloCobranza, ConfiguracionCobranzaInteligente, EnvioCobranza, EventoCiclo,
@@ -28,6 +28,9 @@ from .models import (
 )
 
 DIAS_ATRIBUCION = 7
+# "Preventiva" en la cartera = cuotas que vencen dentro de este plazo; las de
+# meses más lejanos tienen ciclo abierto pero aún no son deuda a gestionar.
+DIAS_VENTANA_PREVENTIVA = 30
 EVENTOS_DE_GESTION = ('mensaje_enviado', 'llamada_registrada', 'whatsapp_manual', 'nota', 'convenio_creado')
 REGLA_ATRIBUCION = (
     f'Se atribuye a Cobranza Inteligente un pago que llega dentro de los {DIAS_ATRIBUCION} días '
@@ -180,7 +183,14 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
     hoy = hoy or date.today()
     ahora = ahora or timezone.now()
     ciclos = CicloCobranza.objects.filter(q_sedes(sedes, 'mensualidad__alumno__'))
-    abiertos = ciclos.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS).select_related('mensualidad')
+    # Mismo universo que Morosos y la bandeja: deuda viva de alumnos activos no
+    # becados. Un pago que no pasó por save() o un retiro no esperan a la tarea diaria.
+    abiertos = (
+        ciclos.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS, mensualidad__pagado=False,
+                      mensualidad__alumno__activo=True)
+        .exclude(mensualidad__alumno__estatus_financiero='becado')
+        .select_related('mensualidad')
+    )
 
     mes = (
         Mensualidad.objects.filter(mes=hoy.month, anio=hoy.year, alumno__activo=True)
@@ -193,7 +203,16 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
     distribucion = {e: {'casos': 0, 'saldo_usd': Decimal('0.00')}
                     for e in (*CicloCobranza.ETAPAS_CALCULADAS, CicloCobranza.PAUSADA)}
     for c in abiertos:
-        d = distribucion[c.estado]
+        # La etapa se calcula HOY desde el vencimiento de la cuota: la guardada
+        # en el ciclo solo se actualiza en la corrida diaria y puede ir un día atrás.
+        if c.estado == CicloCobranza.PAUSADA:
+            etapa = CicloCobranza.PAUSADA
+        else:
+            dias = dias_de_mora(c.mensualidad.fecha_vencimiento or c.fecha_vencimiento, hoy)
+            if dias < -DIAS_VENTANA_PREVENTIVA:
+                continue  # cuotas de meses futuros: todavía no son cartera
+            etapa = etapa_por_dias(dias)
+        d = distribucion[etapa]
         d['casos'] += 1
         d['saldo_usd'] += c.mensualidad.monto_usd - c.mensualidad.monto_pagado
 
@@ -219,6 +238,7 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
         'comparacion_linea_base': _comparacion(efectividad, _linea_base(sedes)),
         'distribucion_por_etapa': {
             k: {'casos': v['casos'], 'saldo_usd': str(v['saldo_usd'])} for k, v in distribucion.items()},
+        'ventana_preventiva_dias': DIAS_VENTANA_PREVENTIVA,
         'cambios_de_etapa_7_dias': cambios,
         'bandeja': {
             'casos_abiertos': len(bandeja),

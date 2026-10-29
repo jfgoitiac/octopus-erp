@@ -12,7 +12,6 @@ Un CicloCobranza acompaña UNA mensualidad impaga. Este módulo concentra:
 Todo opera solo sobre sedes con Cobranza Inteligente efectivamente encendida
 (cobranza/inteligente.py). Nada aquí envía mensajes.
 """
-import calendar
 from datetime import date
 
 from django.db import transaction
@@ -20,6 +19,7 @@ from django.utils import timezone
 
 from .inteligente import sedes_con_inteligente_activa
 from .models import CicloCobranza, EventoCiclo, Mensualidad
+from .mora import DIA_LIMITE_POR_DEFECTO, fecha_vencimiento_mensualidad  # noqa: F401
 
 # Límites de cada etapa en días de mora (hoy - vencimiento). Valores por
 # defecto de la Fase 0; se firman con el colegio piloto.
@@ -27,14 +27,14 @@ DIAS_SEGUIMIENTO = 3
 DIAS_PRIORITARIA = 15
 DIAS_CRITICA = 30
 
-DIA_LIMITE_POR_DEFECTO = 5
-
 
 def calcular_fecha_vencimiento(mensualidad):
-    """Día límite del alumno dentro del mes de la mensualidad (acotado al mes)."""
-    dia_limite = getattr(mensualidad.alumno, 'dia_limite_pago', None) or DIA_LIMITE_POR_DEFECTO
-    dia = min(dia_limite, calendar.monthrange(mensualidad.anio, mensualidad.mes)[1])
-    return date(mensualidad.anio, mensualidad.mes, dia)
+    """
+    Vencimiento del ciclo: el mismo de mora y recargos (la fecha congelada en
+    la cuota). Antes se recalculaba con el día límite actual del alumno y el
+    ciclo podía vencer en una fecha distinta a la que usaba el resto del sistema.
+    """
+    return fecha_vencimiento_mensualidad(mensualidad)
 
 
 def dias_de_mora(fecha_vencimiento, hoy=None):
@@ -166,6 +166,10 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
             eventos.append(_evento(ciclo, 'ciclo_cerrado', {'motivo': motivo}))
             resumen['cerrados'] += 1
             continue
+        # Ciclos creados antes de unificar el vencimiento: se alinean con la cuota.
+        if m.fecha_vencimiento and ciclo.fecha_vencimiento != m.fecha_vencimiento:
+            ciclo.fecha_vencimiento = m.fecha_vencimiento
+            ciclo.save(update_fields=['fecha_vencimiento'])
         if ciclo.estado == CicloCobranza.PAUSADA:
             continue
         nueva = etapa_por_dias(dias_de_mora(ciclo.fecha_vencimiento, hoy))

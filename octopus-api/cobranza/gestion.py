@@ -309,10 +309,6 @@ def _respuestas_sin_contestar(por_rep, ahora):
     return pendientes
 
 
-def _etapa(ciclo):
-    return ciclo.estado_previo_pausa if ciclo.estado == CicloCobranza.PAUSADA else ciclo.estado
-
-
 def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     """
     Una fila por representante con su puntuación y las razones que la forman
@@ -364,16 +360,22 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
         # Lo tomado por una persona sigue en la bandeja: la pausa solo calla al bot.
         tomados = [c for c in ciclos if c.motivo_pausa == MOTIVO_GESTION_HUMANA]
         activos = [c for c in ciclos if c.estado != CicloCobranza.PAUSADA] + tomados
-        morosos = [c for c in activos if _etapa(c) != CicloCobranza.PREVENTIVA]
+        # Mora calculada hoy desde el vencimiento (la etapa guardada se pone al
+        # día en la corrida diaria y puede ir atrasada).
+        morosos = [c for c in activos if dias_de_mora(c.fecha_vencimiento, hoy) >= 0]
+        # Saldo y número de deudas: solo lo ya vencido. Los ciclos de cuotas de
+        # meses futuros inflaban el saldo del caso con deuda que aún no existe.
+        vencidos = [c for c in ciclos if dias_de_mora(c.fecha_vencimiento, hoy) >= 0]
+        cartera = vencidos or ciclos
         razones = []
         dias_max = max((dias_de_mora(c.fecha_vencimiento, hoy) for c in morosos), default=0)
         _razon(razones, f'Mora de {dias_max} días', min(dias_max, 30))
         if dias_max >= 30:
             _razon(razones, 'Más de 30 días de mora', 20)
-        _razon(razones, f'{len(ciclos)} mensualidades pendientes', 5 * (len(ciclos) - 1))
-        saldo = sum((_saldo(c) for c in ciclos), Decimal('0.00'))
+        _razon(razones, f'{len(cartera)} mensualidades pendientes', 5 * (len(cartera) - 1))
+        saldo = sum((_saldo(c) for c in cartera), Decimal('0.00'))
         _razon(razones, f'Saldo total ${saldo}', min(20, int(saldo // 10)))
-        if any(0 < c.mensualidad.monto_pagado < c.mensualidad.monto_usd for c in ciclos):
+        if any(0 < c.mensualidad.monto_pagado < c.mensualidad.monto_usd for c in cartera):
             _razon(razones, 'Pago parcial', 5)
         if rep_id in pagos_viejos:
             _razon(razones, f'Pago en revisión hace más de {DIAS_PAGO_REVISION_VIEJO} días', 10)
@@ -402,14 +404,14 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
             'razones': razones,
             'saldo_total_usd': str(saldo),
             'dias_mora_max': dias_max,
-            'ciclos': [c.id for c in ciclos],
-            'estados': sorted({c.estado for c in ciclos}),
+            'ciclos': [c.id for c in cartera],
+            'estados': sorted({c.estado for c in cartera}),
             'responsable': responsable.get_username() if responsable else None,
             'gestion_humana': bool(tomados),
             'accion_sugerida': _accion_sugerida({
                 'respuesta_pendiente': rep_id in respuestas, 'pago_viejo': rep_id in pagos_viejos, 'incumplido': rep_id in incumplidos,
                 'fallido': rep_id in fallidos, 'cuota_proxima': rep_id in proximos,
-                'dias_max': dias_max, 'deudas': len(ciclos),
+                'dias_max': dias_max, 'deudas': len(cartera),
                 'sin_respuesta': rep_id in avisos_viejos and bool(morosos),
             }),
         })

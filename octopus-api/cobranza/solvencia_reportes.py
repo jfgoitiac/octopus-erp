@@ -16,7 +16,6 @@ Definiciones canónicas (no cambiar sin acordarlo antes):
     EXCLUYENDO estatus_financiero='becado'. Mismo criterio de exclusión
     que `ListaMorososView._build_qs` (cobranza/views.py).
 """
-import calendar
 import re
 from datetime import date
 from decimal import Decimal
@@ -38,6 +37,7 @@ from .models import (
     Pago,
     TipoCargoEspecial,
 )
+from .mora import fecha_vencimiento_mensualidad
 from .permissions import filtrar_por_sede
 from .serializers import PagoSerializer
 from .services import configuracion_activa, meses_ano_escolar, rango_ano_escolar
@@ -297,17 +297,17 @@ def _estado_monto_saldo(obj, tiene_monto_pagado):
 
 
 def _dias_atraso_fila(obj, clave, tiene_monto_pagado, hoy):
-    """dias_atraso solo aplica a mensualidad pendiente; None para el resto.
-    Misma fórmula que cobranza/mora.py::calcular_dias_atraso (~línea 260)."""
+    """Días de atraso de una mensualidad con saldo (pendiente o abono parcial)
+    que ya venció; None si está pagada, aún no vence o no es mensualidad.
+    Mismo vencimiento que mora y Cobranza Inteligente
+    (cobranza/mora.py::fecha_vencimiento_mensualidad)."""
     if clave != 'mensualidad':
         return None
     estado, _, _ = _estado_monto_saldo(obj, tiene_monto_pagado)
-    if estado != 'pendiente':
+    if estado == 'pagado':
         return None
-    alumno = obj.alumno
-    dia = min(alumno.dia_limite_pago or 1, calendar.monthrange(obj.anio, obj.mes)[1])
-    vencimiento = date(obj.anio, obj.mes, dia)
-    return max((hoy - vencimiento).days, 0)
+    dias = (hoy - fecha_vencimiento_mensualidad(obj)).days
+    return dias if dias >= 0 else None
 
 
 def _agregar_conteos(qs, group_fields, tiene_monto_pagado):
@@ -897,6 +897,9 @@ class EstadoPorConceptoView(APIView):
                 'estado': estado,
                 'fecha_pago': obj.fecha_pago,
                 'dias_atraso': dias_atraso,
+                # Con saldo pero sin vencer: el panel la muestra "Por vencer", no "Con deuda".
+                'fecha_vencimiento': fecha_vencimiento_mensualidad(obj) if clave == 'mensualidad' else None,
+                'vencida': estado != 'pagado' and dias_atraso is not None,
             }
 
         representante = obj.representante

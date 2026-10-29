@@ -14,9 +14,9 @@ Este módulo centraliza la regla para que morosos, la tarea Celery y las vistas
 de alumnos usen exactamente el mismo criterio.
 
 Criterio de MORA (alumno activo, no becado):
-  - Deuda de meses anteriores: cualquier mensualidad de un mes/año previo sin pagar.
-  - Deuda del mes actual: mensualidad del mes actual sin pagar y hoy ya alcanzó
-    (o pasó) el dia_limite_pago del alumno.
+  - Deuda de mensualidad: cualquier mensualidad sin pagar cuya fecha de
+    vencimiento (`fecha_vencimiento_mensualidad`: la congelada en la cuota o,
+    en cuotas antiguas, el dia_limite_pago del alumno) ya llegó o pasó.
   - Deuda de inscripción: cualquier cuota de inscripción sin pagar (no tiene
     fecha límite propia, se considera vencida desde que se genera).
   - Deuda de solvencia: cualquier cuota de solvencia sin pagar con monto > 0
@@ -35,7 +35,7 @@ from decimal import Decimal
 
 from django.db.models import (
     F, Q, Exists, OuterRef, Sum, Count, Subquery,
-    DecimalField, IntegerField, BooleanField, Case, When, Value,
+    DateField, DecimalField, IntegerField, BooleanField, Case, When, Value,
 )
 from django.db.models.functions import Coalesce
 
@@ -46,33 +46,49 @@ def _hoy(hoy=None):
     return hoy or date.today()
 
 
+# Mismo valor por defecto que Alumno.dia_limite_pago y generar_mensualidades.
+DIA_LIMITE_POR_DEFECTO = 5
+
+
+def fecha_vencimiento_mensualidad(mensualidad):
+    """
+    Fecha de vencimiento ÚNICA de una mensualidad, compartida por mora,
+    ciclos de Cobranza Inteligente, recargos y reportes. Usa la fecha
+    congelada al generar la cuota (Mensualidad.fecha_vencimiento); para
+    cuotas antiguas sin ella, el día límite del alumno acotado al mes.
+    """
+    if mensualidad.fecha_vencimiento:
+        return mensualidad.fecha_vencimiento
+    dia_limite = getattr(mensualidad.alumno, 'dia_limite_pago', None) or DIA_LIMITE_POR_DEFECTO
+    dia = min(dia_limite, calendar.monthrange(mensualidad.anio, mensualidad.mes)[1])
+    return date(mensualidad.anio, mensualidad.mes, dia)
+
+
+def q_mensualidad_vencida(hoy, prefijo=''):
+    """
+    Q de mensualidad impaga y ya vencida a `hoy` (vence el mismo día del
+    vencimiento), equivalente en SQL a `fecha_vencimiento_mensualidad(m) <= hoy`.
+    `prefijo` permite aplicarlo desde otro modelo (p. ej. 'mensualidad__').
+    """
+    p = prefijo
+    sin_fecha = Q(**{f'{p}fecha_vencimiento__isnull': True}) & (
+        Q(**{f'{p}anio__lt': hoy.year})
+        | Q(**{f'{p}anio': hoy.year, f'{p}mes__lt': hoy.month})
+        | Q(**{f'{p}anio': hoy.year, f'{p}mes': hoy.month, f'{p}alumno__dia_limite_pago__lte': hoy.day})
+    )
+    return Q(**{f'{p}pagado': False}) & (Q(**{f'{p}fecha_vencimiento__lte': hoy}) | sin_fecha)
+
+
 def _condicion_mora(hoy):
     """
-    Devuelve (deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion,
-    deuda_solvencia, deuda_proyecto_inversion) como expresiones para anotar
-    sobre un queryset de Alumno. OuterRef('pk') referencia al Alumno;
-    deuda_proyecto_inversion usa OuterRef('representante') porque esa cuota
-    es por representante, no por alumno.
+    Devuelve (deuda_mensualidad, deuda_inscripcion, deuda_solvencia,
+    deuda_proyecto_inversion) como expresiones para anotar sobre un queryset
+    de Alumno. OuterRef('pk') referencia al Alumno; deuda_proyecto_inversion
+    usa OuterRef('representante') porque esa cuota es por representante, no
+    por alumno.
     """
-    deuda_mes_pasado = Exists(
-        Mensualidad.objects.filter(
-            alumno=OuterRef('pk'),
-            pagado=False,
-        ).filter(
-            Q(anio__lt=hoy.year) |
-            Q(anio=hoy.year, mes__lt=hoy.month)
-        )
-    )
-
-    deuda_mes_actual = (
-        Exists(
-            Mensualidad.objects.filter(
-                alumno=OuterRef('pk'),
-                pagado=False,
-                anio=hoy.year,
-                mes=hoy.month,
-            )
-        ) & Q(dia_limite_pago__lte=hoy.day)
+    deuda_mensualidad = Exists(
+        Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(q_mensualidad_vencida(hoy))
     )
 
     deuda_inscripcion = Exists(
@@ -98,10 +114,7 @@ def _condicion_mora(hoy):
         )
     )
 
-    return (
-        deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia,
-        deuda_proyecto_inversion,
-    )
+    return deuda_mensualidad, deuda_inscripcion, deuda_solvencia, deuda_proyecto_inversion
 
 
 def annotate_en_mora(alumno_qs, hoy=None):
@@ -111,15 +124,11 @@ def annotate_en_mora(alumno_qs, hoy=None):
     consumidor (la tarea Celery los excluye; el serializer conserva la etiqueta).
     """
     hoy = _hoy(hoy)
-    (
-        deuda_mes_pasado, deuda_mes_actual, deuda_inscripcion, deuda_solvencia,
-        deuda_proyecto_inversion,
-    ) = _condicion_mora(hoy)
+    deuda_mensualidad, deuda_inscripcion, deuda_solvencia, deuda_proyecto_inversion = _condicion_mora(hoy)
     return alumno_qs.annotate(
         en_mora=Case(
             When(
-                deuda_mes_pasado | deuda_mes_actual | deuda_inscripcion | deuda_solvencia
-                | deuda_proyecto_inversion,
+                deuda_mensualidad | deuda_inscripcion | deuda_solvencia | deuda_proyecto_inversion,
                 then=Value(True),
             ),
             default=Value(False),
@@ -131,8 +140,10 @@ def annotate_en_mora(alumno_qs, hoy=None):
 def annotate_mora_detalle(alumno_qs, hoy=None):
     """
     Como annotate_en_mora pero además anota `monto_adeudado`, `meses_adeudados`
-    y `monto_solvencia_adeudado`. `monto_adeudado` suma mensualidades vencidas
-    (meses anteriores + mes actual) más cuotas de inscripción impagas.
+    y `monto_solvencia_adeudado`. `monto_adeudado` suma las mensualidades ya
+    vencidas (`q_mensualidad_vencida`: el mismo criterio que decide `en_mora`,
+    así que la cuota del mes que aún no vence no infla la deuda) más cuotas de
+    inscripción impagas.
     `meses_adeudados` cuenta solo mensualidades, ya que la inscripción no es una
     deuda mensual. `monto_solvencia_adeudado` va aparte, sin sumarse a
     `monto_adeudado`, para mostrarse como renglón separado en morosos.
@@ -141,10 +152,7 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
     hoy = _hoy(hoy)
     alumno_qs = annotate_en_mora(alumno_qs, hoy)
 
-    overdue_q = Q(pagado=False) & (
-        Q(anio__lt=hoy.year) |
-        Q(anio=hoy.year, mes__lte=hoy.month)
-    )
+    overdue_q = q_mensualidad_vencida(hoy)
     debt_subq = (
         Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
         .values('alumno').annotate(t=Sum(F('monto_usd') - F('monto_pagado'))).values('t')[:1]
@@ -160,6 +168,10 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
     mes_min_subq = (
         Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
         .order_by('anio', 'mes').values('mes')[:1]
+    )
+    venc_min_subq = (
+        Mensualidad.objects.filter(alumno=OuterRef('pk')).filter(overdue_q)
+        .order_by('anio', 'mes').values('fecha_vencimiento')[:1]
     )
     inscripcion_subq = (
         CuotaInscripcion.objects.filter(alumno=OuterRef('pk'), pagado=False)
@@ -206,6 +218,7 @@ def annotate_mora_detalle(alumno_qs, hoy=None):
         ),
         _anio_mensualidad_mas_antigua=Subquery(anio_min_subq, output_field=IntegerField()),
         _mes_mensualidad_mas_antigua=Subquery(mes_min_subq, output_field=IntegerField()),
+        _venc_mensualidad_mas_antigua=Subquery(venc_min_subq, output_field=DateField()),
     )
 
 
@@ -245,9 +258,8 @@ def enriquecer_monto_adeudado_con_recargo(alumnos, hoy=None):
 def calcular_dias_atraso(alumno, hoy=None):
     """
     Días transcurridos desde el vencimiento de la mensualidad impaga más
-    antigua (el mes/año más antiguo con `pagado=False`) hasta hoy. La fecha
-    de vencimiento dentro de ese mes usa `dia_limite_pago` del alumno, igual
-    criterio que `_condicion_mora` para la deuda del mes actual.
+    antigua hasta hoy, con la misma fecha que `fecha_vencimiento_mensualidad`
+    (la congelada en la cuota o, si no la tiene, el día límite del alumno).
 
     Requiere que `alumno` provenga de un queryset anotado con
     `annotate_mora_detalle` (usa `_anio_mensualidad_mas_antigua` y
@@ -260,8 +272,10 @@ def calcular_dias_atraso(alumno, hoy=None):
     mes = getattr(alumno, '_mes_mensualidad_mas_antigua', None)
     if not anio or not mes:
         return 0
-    dia = min(alumno.dia_limite_pago or 1, calendar.monthrange(anio, mes)[1])
-    vencimiento = date(anio, mes, dia)
+    vencimiento = getattr(alumno, '_venc_mensualidad_mas_antigua', None)
+    if not vencimiento:
+        dia = min(alumno.dia_limite_pago or DIA_LIMITE_POR_DEFECTO, calendar.monthrange(anio, mes)[1])
+        vencimiento = date(anio, mes, dia)
     return max((hoy - vencimiento).days, 0)
 
 
