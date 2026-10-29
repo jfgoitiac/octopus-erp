@@ -92,16 +92,18 @@ describe('propuestas', () => {
       observacion: 'ajuste',
       transaccion: { referencia: '1', fecha: '2026-03-01', monto: '100.00' },
     });
-    expect(resumenConfirmacion(con)).toEqual({ operaciones: 2, comprobantes: 0, fueraTolerancia: 1 });
+    expect(resumenConfirmacion(con)).toEqual({ operaciones: 2, fueraTolerancia: 1 });
   });
 
-  it('comprobantes pendientes envian comprobante_id', () => {
-    const p = prop({ id: 'k', tipo: 'comprobante_pendiente', operacion_uuid: null, comprobante_id: 9 });
-    const [e] = propuestasAEnviar([p], { seleccion: { k: true }, elecciones: {}, observaciones: {}, tolerancia: 0 });
-    const [item] = construirItems([e]);
-    expect(item.comprobante_id).toBe(9);
-    expect(item.operacion_uuid).toBeUndefined();
-    expect(resumenConfirmacion([e]).comprobantes).toBe(1);
+  it('comprobantes por procesar en caja no son seleccionables', () => {
+    const p = prop({
+      id: 'k', estado: 'requiere_caja', tipo: 'comprobante_por_procesar',
+      operacion_uuid: null, comprobante_id: 9, confirmable: false,
+    });
+    const [e] = efectivasDe([p]);
+    expect(esSeleccionable(e)).toBe(false);
+    expect(propuestasAEnviar([p], { seleccion: { k: true }, elecciones: {}, observaciones: {}, tolerancia: 0 })).toEqual([]);
+    expect(contarPorEstado([p]).requiere_caja).toBe(1);
   });
 });
 

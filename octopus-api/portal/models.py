@@ -131,6 +131,26 @@ class ComprobantePago(models.Model):
         verbose_name='IP de quien subió el comprobante'
     )
 
+    # ── Resultado de la revisión ─────────────────────────────────────────────
+    # El representante solo sube el archivo. Se aprueba registrando el pago en
+    # caja (POST cobranza/registrar-pago/ con comprobante_portal_id): ahí se
+    # enlaza `pago` y se copian referencia, método y banco (campos de arriba)
+    # desde la primera línea bancaria. Los datos del pago (fecha, montos, tasa)
+    # viven en el Pago; aquí no se duplican.
+    revisado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='comprobantes_revisados', verbose_name='Revisado por',
+    )
+    fecha_revision = models.DateTimeField(null=True, blank=True)
+    motivo_rechazo = models.ForeignKey(
+        'portal.MotivoRechazo', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='comprobantes', verbose_name='Motivo de rechazo',
+    )
+    pago = models.ForeignKey(
+        'cobranza.Pago', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='comprobantes_portal', verbose_name='Pago registrado en caja',
+    )
+
     class Meta:
         verbose_name = 'Comprobante de Pago'
         verbose_name_plural = 'Comprobantes de Pago'
@@ -153,3 +173,56 @@ class ComprobantePago(models.Model):
             f"{self.mensualidad.get_mes_display()} {self.mensualidad.anio} "
             f"[{self.estatus}]"
         )
+
+
+class MotivoRechazo(models.Model):
+    """
+    Catálogo de motivos de rechazo de comprobantes. `texto` es lo que lee el
+    representante; `nombre` es la etiqueta corta del selector del revisor.
+    Un motivo ya usado no se borra (PROTECT): se desactiva.
+    """
+    nombre = models.CharField(max_length=100)
+    texto = models.TextField()
+    activo = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Motivo de rechazo'
+        verbose_name_plural = 'Motivos de rechazo'
+        ordering = ['orden', 'id']
+
+    def __str__(self):
+        return self.nombre
+
+
+class AvisoPortal(models.Model):
+    """
+    Aviso persistente para la bandeja del portal del representante. El push
+    se pierde si el teléfono no está suscrito; esta fila queda siempre.
+    """
+    TIPOS = [
+        ('comprobante_aprobado', 'Comprobante aprobado'),
+        ('comprobante_rechazado', 'Comprobante rechazado'),
+        ('otro', 'Otro'),
+    ]
+
+    usuario_portal = models.ForeignKey(
+        RepresentanteUser, on_delete=models.CASCADE, related_name='avisos',
+    )
+    tipo = models.CharField(max_length=30, choices=TIPOS, default='otro')
+    titulo = models.CharField(max_length=255)
+    cuerpo = models.TextField(blank=True, default='')
+    url = models.CharField(max_length=300, blank=True, default='/portal')
+    leido_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Aviso del portal'
+        verbose_name_plural = 'Avisos del portal'
+        ordering = ['-creado_en', '-id']
+        indexes = [
+            models.Index(fields=['usuario_portal', 'leido_en'], name='aviso_portal_usuario_leido'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} — {self.usuario_portal_id}'

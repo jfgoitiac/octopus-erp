@@ -10,6 +10,7 @@ import {
   propuestasAEnviar, construirItems, resumenConfirmacion, dividirEnLotes, agregarResultados,
   DIGITOS_MIN, DIGITOS_MAX,
 } from '../utils/conciliacionMasiva';
+import { useProcesarEnCaja } from './useProcesarEnCaja';
 
 const DIGITOS_DEFECTO = 6;
 
@@ -291,8 +292,15 @@ export function useConciliacionMasiva({ banco, transactions, fileName, onConcili
     }
   }, [enviables, enviando, observaciones, bancoActivo, tolerancia, fileName, onConciliado]);
 
+  // Sugerencia `requiere_caja`: abre la caja con el comprobante y su línea.
+  const irACaja = useProcesarEnCaja({ banco, transactions, fileName });
+  const procesarEnCaja = useCallback(
+    (e) => irACaja(e, e.transaccionEfectiva, bancoActivo),
+    [irACaja, bancoActivo],
+  );
+
   return {
-    open, abrir, cerrar,
+    open, abrir, cerrar, procesarEnCaja,
     bancoActivo, cambiarBanco,
     desde, hasta, cambiarDesde, cambiarHasta, rangoInvalido,
     digitos, cambiarDigitos, digitosValidos,

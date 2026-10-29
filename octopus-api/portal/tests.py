@@ -453,18 +453,12 @@ class PortalIDORTests(PortalTestBase):
 
 class PortalComprobanteTests(PortalTestBase):
     def _subir(self, archivo, mensualidad_id=None):
-        # 'transferencia' (default de metodo_pago cuando no se envía) exige
-        # referencia_bancaria — sin esto, todas estas subidas fallaban con
-        # 400 "referencia obligatoria" antes de siquiera llegar a validar lo
-        # que cada test realmente quiere probar (extensión, content-type,
-        # magic bytes, tamaño). Bug preexistente, no introducido por Fase 3
-        # de cantina.md — la app real (ComprobantePagoModal.jsx) ya siempre
-        # envía referencia, por eso nunca se notó en producción.
+        # El representante solo envía archivo + mensualidad: la referencia la
+        # llena el revisor al aprobar (ver tests_revision_comprobantes.py).
         with mock.patch('portal.tasks.notificar_comprobante_subido.delay'):
             return self.client.post('/api/portal/comprobante/', {
                 'mensualidad_id': mensualidad_id or self.mensualidad.id,
                 'archivo': archivo,
-                'referencia_bancaria': '123456',
             }, format='multipart')
 
     def test_subida_png_valido(self):
@@ -486,26 +480,45 @@ class PortalComprobanteTests(PortalTestBase):
         comprobante = ComprobantePago.objects.get()
         self.assertIsNone(comprobante.banco_receptor_id)
 
-    def test_dos_comprobantes_sin_banco_misma_referencia_y_metodo_el_segundo_se_rechaza(self):
-        """Sin banco, dos comprobantes activos con la misma referencia y
-        método NO chocan en el UniqueConstraint de BD (NULL != NULL), así
-        que debe atraparlo la validación de la vista (antifraude 4)."""
+    def test_dos_comprobantes_con_la_misma_referencia_se_suben_y_se_ignora(self):
+        """La referencia que mande un cliente viejo se ignora en la subida: el
+        antifraude de referencia pasó a la aprobación (el revisor la escribe;
+        ver tests_revision_comprobantes.AprobarConDatosTests)."""
         self.auth_portal()
         archivo1 = SimpleUploadedFile('pago1.png', PNG_BYTES, content_type='image/png')
-        resp1 = self._subir(archivo1)
+        with mock.patch('portal.tasks.notificar_comprobante_subido.delay'):
+            resp1 = self.client.post('/api/portal/comprobante/', {
+                'mensualidad_id': self.mensualidad.id, 'archivo': archivo1,
+                'referencia_bancaria': '123456',
+            }, format='multipart')
         self.assertEqual(resp1.status_code, 201, resp1.content)
 
         hoy = date.today()
         mes_siguiente = crear_mensualidad(
             self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0)
         )
-        archivo2 = SimpleUploadedFile('pago2.png', PNG_BYTES, content_type='image/png')
-        resp2 = self.client.post('/api/portal/comprobante/', {
-            'mensualidad_id': mes_siguiente.id,
-            'archivo': archivo2,
-            'referencia_bancaria': '123456',
-        }, format='multipart')
-        self.assertEqual(resp2.status_code, 409, resp2.content)
+        # Bytes distintos para no caer en el antifraude de hash duplicado.
+        archivo2 = SimpleUploadedFile('pago2.png', PNG_BYTES + b'\x00', content_type='image/png')
+        with mock.patch('portal.tasks.notificar_comprobante_subido.delay'):
+            resp2 = self.client.post('/api/portal/comprobante/', {
+                'mensualidad_id': mes_siguiente.id, 'archivo': archivo2,
+                'referencia_bancaria': '123456',
+            }, format='multipart')
+        self.assertEqual(resp2.status_code, 201, resp2.content)
+        self.assertFalse(ComprobantePago.objects.exclude(referencia_bancaria=None).exists())
+
+    def test_mismo_archivo_en_otra_mensualidad_se_rechaza(self):
+        """El antifraude de archivo (hash) sigue en la subida."""
+        self.auth_portal()
+        self.assertEqual(
+            self._subir(SimpleUploadedFile('a.png', PNG_BYTES, content_type='image/png')).status_code, 201)
+        hoy = date.today()
+        mes_siguiente = crear_mensualidad(
+            self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0)
+        )
+        resp = self._subir(SimpleUploadedFile('b.png', PNG_BYTES, content_type='image/png'),
+                           mensualidad_id=mes_siguiente.id)
+        self.assertEqual(resp.status_code, 409, resp.content)
         self.assertEqual(ComprobantePago.objects.count(), 1)
 
     def test_rechaza_extension_invalida(self):
@@ -569,39 +582,49 @@ class PortalComprobanteTests(PortalTestBase):
         """
         Validación cruzada (cantina.md §5.9): una referencia ya usada para
         recargar la tarjeta de cantina de un alumno no puede reciclarse para
-        "pagar" una mensualidad por este endpoint. Antes de este fix,
-        PortalComprobantePagoView solo miraba ComprobantePago/Pago (su propia
-        antifraude 4) y no llamaba a pagos_comunes.buscar_referencia_duplicada,
-        así que este caso cruzado pasaba sin detectarse.
+        "pagar" una mensualidad. Desde que el representante solo sube el
+        archivo, el chequeo corre al procesar el comprobante en caja (el cajero
+        escribe la referencia) y responde 400.
         """
         from cantina.models import RecargaTarjeta, TarjetaPrepago
+        from cobranza.models import BancoInstitucional
 
+        banco = BancoInstitucional.objects.create(nombre='Banesco', tipos=['transferencia'])
         tarjeta = TarjetaPrepago.objects.create(
             alumno=self.alumno, serial='L001-0001', codigo='CANT-TTTTTTTTTT',
             estado='activa', saldo=Decimal('0.00'), limite_credito=Decimal('5.00'),
         )
-        # Comparten método ('transferencia', el default del endpoint de
-        # comprobante cuando no se envía metodo_pago) y banco (ninguno de los
-        # dos indica uno) para que la clave compuesta coincida y el caso
-        # cruzado siga detectándose.
+        # Misma clave compuesta (referencia, método, banco) para que el caso
+        # cruzado se detecte.
         RecargaTarjeta.objects.create(
             tarjeta=tarjeta, metodo_pago='transferencia', monto_usd=Decimal('10.00'),
             tasa_aplicada=Decimal('40.0000'), monto_ves=Decimal('400.00'),
             referencia='REF-YA-USADA', estatus='pendiente', registrado_por_portal=True,
+            banco_receptor=banco,
         )
+        TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        comprobante = ComprobantePago.objects.create(
+            mensualidad=self.mensualidad,
+            archivo=SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png'),
+        )
+        admin = User.objects.create_user(username='cobranza9', password='clave123456')
+        asignar_rol(admin, 'cobranza')
+        from rest_framework_simplejwt.tokens import RefreshToken
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {RefreshToken.for_user(admin).access_token}')
+        resp = self.client.post('/api/cobranza/registrar-pago/', {
+            'alumnos': [{'alumno_id': self.alumno.id, 'mensualidad_ids': [self.mensualidad.id]}],
+            'concepto': 'mensualidad',
+            'pagos': [{'metodo_pago': 'transferencia', 'monto_ves': '1400.00',
+                       'referencia': 'ref-ya-usada', 'banco_receptor_id': banco.id}],
+            'comprobante_portal_id': comprobante.id,
+        }, format='json')
 
-        self.auth_portal()
-        archivo = SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png')
-        resp = self.client.post('/api/portal/comprobante/', {
-            'mensualidad_id': self.mensualidad.id,
-            'archivo': archivo,
-            'referencia_bancaria': 'REF-YA-USADA',
-            'metodo_pago': 'transferencia',
-        }, format='multipart')
-
-        self.assertEqual(resp.status_code, 409, resp.content)
-        self.assertIn('cantina', resp.data['error'])
-        self.assertEqual(ComprobantePago.objects.count(), 0)
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('cantina', str(resp.content))
+        comprobante.refresh_from_db()
+        self.assertEqual(comprobante.estatus, 'pendiente')
+        self.assertEqual(Pago.objects.count(), 0)
 
 
 class AdminComprobantesTests(PortalTestBase):
@@ -627,45 +650,46 @@ class AdminComprobantesTests(PortalTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
 
-    def test_aprobar_marca_mensualidad_pagada(self):
+    def test_aprobar_desde_el_panel_devuelve_400(self):
+        """El panel ya no aprueba: se aprueba registrando el pago en caja."""
         self._auth_admin()
         resp = self.client.patch(
             f'/api/portal/admin/comprobantes/{self.comprobante.id}/',
-            {'estatus': 'aprobado'},
+            {'estatus': 'aprobado'}, format='json',
         )
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 400)
         self.mensualidad.refresh_from_db()
-        self.assertTrue(self.mensualidad.pagado)
+        self.assertFalse(self.mensualidad.pagado)
+        self.assertEqual(Pago.objects.count(), 0)
 
-    def test_aprobar_comprobante_sin_banco_no_revienta(self):
-        """Regresión más probable del cambio a unicidad compuesta: el
-        comprobante que llega del portal casi nunca trae banco_receptor
-        (es opcional), y Pago.full_clean() ahora compara también método y
-        banco — si esa comparación no maneja bien banco_receptor=None,
-        aprobar CUALQUIER comprobante del portal revienta con un 500
-        (ver portal/views.py:1362 y el comentario en Pago.clean())."""
+    def test_procesar_en_caja_en_efectivo_sin_banco(self):
+        """Regresión de la unicidad compuesta con banco_receptor=None: un
+        comprobante sin banco ni método procesado en caja en efectivo."""
         self.assertIsNone(self.comprobante.banco_receptor_id)
-        self.assertIsNone(self.comprobante.metodo_pago)
-
+        TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
         self._auth_admin()
-        resp = self.client.patch(
-            f'/api/portal/admin/comprobantes/{self.comprobante.id}/',
-            {'estatus': 'aprobado'},
-        )
-        self.assertEqual(resp.status_code, 200, resp.content)
-
+        with mock.patch('notificaciones.tasks.task_notificar_comprobante_resuelto.delay'), \
+                mock.patch('notificaciones.tasks.task_notificar_pago_exitoso.delay'):
+            resp = self.client.post('/api/cobranza/registrar-pago/', {
+                'alumnos': [{'alumno_id': self.alumno.id, 'mensualidad_ids': [self.mensualidad.id]}],
+                'concepto': 'mensualidad',
+                'pagos': [{'metodo_pago': 'efectivo', 'monto_usd': '35.00'}],
+                'comprobante_portal_id': self.comprobante.id,
+            }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
         self.mensualidad.refresh_from_db()
         self.assertTrue(self.mensualidad.pagado)
-        pago_creado = self.mensualidad.pagos.get()
-        self.assertEqual(pago_creado.estatus, 'completado')
-        self.assertIsNone(pago_creado.banco_receptor_id)
+        self.comprobante.refresh_from_db()
+        self.assertEqual(self.comprobante.estatus, 'aprobado')
+        self.assertIsNone(self.comprobante.banco_receptor_id)
 
     def test_rechazar_no_marca_pagada(self):
         self._auth_admin()
-        resp = self.client.patch(
-            f'/api/portal/admin/comprobantes/{self.comprobante.id}/',
-            {'estatus': 'rechazado', 'observaciones': 'Ilegible'},
-        )
+        with mock.patch('notificaciones.tasks.task_notificar_comprobante_resuelto.delay'):
+            resp = self.client.patch(
+                f'/api/portal/admin/comprobantes/{self.comprobante.id}/',
+                {'estatus': 'rechazado', 'observaciones': 'Ilegible'},
+            )
         self.assertEqual(resp.status_code, 200)
         self.mensualidad.refresh_from_db()
         self.assertFalse(self.mensualidad.pagado)

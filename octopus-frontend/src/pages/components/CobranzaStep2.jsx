@@ -77,6 +77,10 @@ const CobranzaStep2 = ({
     tasaSugerenciaFechaReal,
     tasaSugerenciaLoading,
     metaBancoRevision,
+    // Comprobante del portal que se procesa: su archivo es el respaldo del
+    // pago retroactivo (no se pide otro) y el visor ocupa el costado (conVisor).
+    comprobantePortalId = null,
+    conVisor = false,
     children,
 }) => {
     const { config: configColegio, loading: loadingConfig } = useConfiguracion();
@@ -189,9 +193,9 @@ const CobranzaStep2 = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                {/* Formulario (3/5) */}
-                <div className="lg:col-span-3 space-y-4">
+            <div className={conVisor ? 'grid grid-cols-1 gap-5' : 'grid grid-cols-1 lg:grid-cols-5 gap-5'}>
+                {/* Formulario (3/5; a todo el ancho con el visor al costado) */}
+                <div className={conVisor ? 'space-y-4' : 'lg:col-span-3 space-y-4'}>
                     {/* Concepto */}
                     <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                         <label className="block text-[11px] uppercase tracking-widest mb-2" style={{ color: 'var(--ash)' }}>
@@ -287,6 +291,11 @@ const CobranzaStep2 = ({
                                         El dinero ya se recibió en una fecha pasada
                                     </p>
                                 </div>
+                                {comprobantePortalId ? (
+                                    <p className="text-[10px]" style={{ color: '#16a34a' }}>
+                                        Respaldo: comprobante #{comprobantePortalId} del portal
+                                    </p>
+                                ) : (
                                 <div>
                                     <label className="block text-[10px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--jet)' }}>
                                         Comprobante de respaldo <span style={{ color: 'var(--ash)' }}>(opcional)</span>
@@ -299,6 +308,7 @@ const CobranzaStep2 = ({
                                         {comprobanteRetroactivo ? `Adjunto: ${comprobanteRetroactivo.name}` : 'PDF, JPG, PNG o WEBP; máximo 10 MB.'}
                                     </p>
                                 </div>
+                                )}
                             </div>
                             <button
                                 type="button"
@@ -486,7 +496,6 @@ const CobranzaStep2 = ({
                                                 style={{ border: '1px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
                                                 value={esDivisa(l.metodo_pago) ? l.monto_usd : l.monto_ves}
                                                 onChange={v => actualizarLinea(i, esDivisa(l.metodo_pago) ? 'monto_usd' : 'monto_ves', v)}
-                                                max={esCash(l.metodo_pago) ? undefined : maxForLine(i)}
                                                 autoFocus={i === 0}
                                                 aria-label={`Monto pago ${i + 1} en ${esDivisa(l.metodo_pago) ? 'USD' : 'Bolívares'}`}
                                             />
@@ -505,7 +514,7 @@ const CobranzaStep2 = ({
                                             const mx = maxForLine(i);
                                             return mx !== undefined && mx > 0 ? (
                                                 <p className="text-[10px] mt-1 font-medium" style={{ color: 'var(--ash)' }}>
-                                                    Máx: {esDivisa(l.metodo_pago) ? `$${fmt(mx)}` : `Bs. ${fmt(mx)}`}
+                                                    Por cubrir: {esDivisa(l.metodo_pago) ? `$${fmt(mx)}` : `Bs. ${fmt(mx)}`}
                                                 </p>
                                             ) : null;
                                         })()}

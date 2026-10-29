@@ -192,6 +192,21 @@ def task_notificar_pago_exitoso(mensualidad_id, pago_id):
 
 
 @shared_task
+def task_notificar_comprobante_resuelto(comprobante_id):
+    """Push/email al representante tras aprobar o rechazar su comprobante
+    (best-effort: un fallo aquí no afecta lo ya registrado)."""
+    try:
+        from portal.models import ComprobantePago
+        c = ComprobantePago.objects.select_related(
+            'mensualidad__alumno__representante', 'pago',
+        ).get(id=comprobante_id)
+        from notificaciones.services import enviar_avisos_comprobante
+        enviar_avisos_comprobante(c)
+    except Exception as e:
+        logger.error(f'task_notificar_comprobante_resuelto({comprobante_id}): {e}')
+
+
+@shared_task
 def task_notificar_comprobante_inscripcion(inscripcion_id):
     try:
         from secretaria.models import Inscripcion

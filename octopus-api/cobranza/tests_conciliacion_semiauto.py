@@ -130,7 +130,7 @@ class CandidatosTest(BaseConciliacionTest):
         self.assertEqual(len(res[0]['alumnos']), 2)
         self.assertEqual(res[0]['representante'], 'Rosa Mena')
 
-    def test_incluye_comprobante_pendiente(self):
+    def test_incluye_comprobante_pendiente_con_referencia(self):
         mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
         comp = ComprobantePago.objects.create(
             mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
@@ -139,11 +139,80 @@ class CandidatosTest(BaseConciliacionTest):
         resp = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '6655'})
         res = resp.data['resultados']
         self.assertEqual(len(res), 1)
-        self.assertEqual(res[0]['tipo'], 'comprobante_pendiente')
+        self.assertEqual(res[0]['tipo'], 'comprobante_por_procesar')
         self.assertEqual(res[0]['comprobante_id'], comp.id)
         self.assertIsNone(res[0]['operacion_uuid'])
-        self.assertTrue(res[0]['se_aprobara'])
+        self.assertFalse(res[0]['se_aprobara'])
         self.assertEqual(Decimal(res[0]['monto_ves']), Decimal('400.00'))
+
+    def comprobante_solo_archivo(self, usd='10.00', pagado='0.00', dias_atras=0, mes=9):
+        mens = Mensualidad.objects.create(
+            alumno=self.alumno, mes=mes, anio=2026, monto_usd=Decimal(usd), monto_pagado=Decimal(pagado),
+        )
+        comp = ComprobantePago.objects.create(
+            mensualidad=mens, archivo=SimpleUploadedFile('solo.png', PNG_BYTES, content_type='image/png'),
+        )
+        if dias_atras:
+            ComprobantePago.objects.filter(pk=comp.pk).update(
+                fecha_subida=timezone.now() - timedelta(days=dias_atras),
+            )
+        return comp
+
+    def test_comprobante_sin_banco_ni_referencia_es_por_procesar(self):
+        comp = self.comprobante_solo_archivo(usd='10.00', pagado='4.00')
+        resp = self.client.get(URL_CAND, {'banco': self.otro_banco.id, 'ref': '1234'})
+        self.assertEqual(resp.status_code, 200, resp.data)
+        res = resp.data['resultados']
+        self.assertEqual(len(res), 1)
+        c = res[0]
+        self.assertEqual(c['tipo'], 'comprobante_por_procesar')
+        self.assertFalse(c['se_aprobara'])
+        self.assertEqual(c['comprobante_id'], comp.id)
+        self.assertEqual(c['cedula_representante'], 'V70000001')
+        self.assertEqual(c['alumno_id'], self.alumno.id)
+        self.assertEqual(c['referencia'], '')
+        # Saldo pendiente (10 − 4) × tasa de la fecha de subida (40).
+        self.assertEqual(Decimal(c['monto_ves']), Decimal('240.00'))
+        self.assertTrue(c['monto_estimado'])
+        self.assertEqual(c['mensualidad']['id'], comp.mensualidad_id)
+        self.assertEqual(Decimal(c['mensualidad']['saldo_usd']), Decimal('6.00'))
+        self.assertTrue(c['archivo_url'].endswith(
+            f'/media-protegido/comprobantes/{comp.archivo.name.split("/")[-1]}/'
+        ))
+        self.assertTrue(c['archivo_url'].startswith('http'))
+        self.assertEqual(c['archivo_tipo'], 'imagen')
+
+    def test_comprobante_sin_referencia_usa_ventana_de_la_fecha_de_la_linea(self):
+        cerca = self.comprobante_solo_archivo(dias_atras=4, mes=9)
+        self.comprobante_solo_archivo(dias_atras=20, mes=8)
+        # Sin fecha de línea la ventana se centra en hoy (±5 días).
+        resp = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '1234'})
+        self.assertEqual([r['comprobante_id'] for r in resp.data['resultados']], [cerca.id])
+        # Con la fecha de la línea (hace 20 días) aparece solo el lejano.
+        fecha = (timezone.localdate() - timedelta(days=20)).isoformat()
+        resp = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '1234', 'fecha': fecha})
+        self.assertEqual(len(resp.data['resultados']), 1)
+        self.assertNotEqual(resp.data['resultados'][0]['comprobante_id'], cerca.id)
+        self.assertEqual(
+            self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '1234', 'fecha': 'x'}).status_code, 400,
+        )
+
+    def test_comprobante_sin_referencia_con_rango_se_filtra_por_rango(self):
+        dentro = self.comprobante_solo_archivo(dias_atras=30, mes=9)
+        self.comprobante_solo_archivo(dias_atras=2, mes=8)
+        d = (timezone.localdate() - timedelta(days=31)).isoformat()
+        h = (timezone.localdate() - timedelta(days=29)).isoformat()
+        resp = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '1234', 'desde': d, 'hasta': h})
+        self.assertEqual([r['comprobante_id'] for r in resp.data['resultados']], [dentro.id])
+
+    def test_comprobante_con_referencia_distinta_no_aparece(self):
+        mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
+        ComprobantePago.objects.create(
+            mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
+            referencia_bancaria='88776655', metodo_pago='transferencia', banco_receptor=self.banco,
+        )
+        resp = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '1234'})
+        self.assertEqual(resp.data['resultados'], [])
 
     def test_marca_ya_conciliados_con_lote(self):
         p = self.pago()
@@ -237,34 +306,7 @@ class ConciliarTest(BaseConciliacionTest):
         self.assertEqual(r.status_code, 400)
         self.assertEqual(ConciliacionBancaria.objects.count(), 1)
 
-    def test_aprueba_comprobante_con_mismos_efectos_que_el_patch(self):
-        mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
-        comp = ComprobantePago.objects.create(
-            mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
-            referencia_bancaria='88776655', metodo_pago='transferencia', banco_receptor=self.banco,
-        )
-        with patch('portal.services.notificar_pago_aprobado') as notif,                 self.captureOnCommitCallbacks(execute=True):
-            r = self.client.post(URL_CONC, {
-                'comprobante_id': comp.id, 'banco': self.banco.id,
-                'transaccion': {'referencia': '88776655', 'fecha': '2026-10-01', 'monto': '400.00'},
-                'tolerancia': 200, 'observacion': '', 'archivo': 'e.pdf',
-            }, format='json')
-            self.assertEqual(r.status_code, 201, r.data)
-        comp.refresh_from_db()
-        mens.refresh_from_db()
-        self.assertEqual(comp.estatus, 'aprobado')
-        self.assertTrue(mens.pagado)
-        pago = mens.pagos.get()
-        self.assertEqual(pago.referencia, '88776655')
-        self.assertEqual(pago.banco_receptor, self.banco)
-        self.assertEqual(pago.estatus, 'completado')
-        conc = ConciliacionBancaria.objects.get()
-        self.assertEqual(conc.comprobante_aprobado, comp)
-        self.assertEqual(conc.operacion_uuid, pago.operacion_uuid)
-        self.assertIn(pago, conc.lote.pagos.all())
-        notif.assert_called_once()
-
-    def test_comprobante_fuera_de_tolerancia_sin_observacion_no_se_aprueba(self):
+    def test_conciliar_comprobante_exige_procesarlo_en_caja(self):
         mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
         comp = ComprobantePago.objects.create(
             mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
@@ -272,15 +314,48 @@ class ConciliarTest(BaseConciliacionTest):
         )
         r = self.client.post(URL_CONC, {
             'comprobante_id': comp.id, 'banco': self.banco.id,
-            'transaccion': {'referencia': '88776655', 'fecha': '2026-10-01', 'monto': '900.00'},
-            'tolerancia': 200,
+            'transaccion': {'referencia': '88776655', 'fecha': '2026-10-01', 'monto': '400.00'},
+            'tolerancia': 200, 'observacion': '', 'archivo': 'e.pdf',
         }, format='json')
         self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data, {'error': 'Procese el comprobante en caja antes de conciliarlo.'})
         comp.refresh_from_db()
         mens.refresh_from_db()
         self.assertEqual(comp.estatus, 'pendiente')
         self.assertFalse(mens.pagado)
         self.assertEqual(Pago.objects.count(), 0)
+        self.assertEqual(ConciliacionBancaria.objects.count(), 0)
+
+    def test_comprobante_en_lista_de_operaciones_revierte_todo(self):
+        """Mezclado con un pago válido, el comprobante hace fallar la transacción completa."""
+        p = self.pago()
+        mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
+        comp = ComprobantePago.objects.create(
+            mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
+        )
+        r = self.client.post(URL_CONC, {
+            'operaciones': [{'operacion_uuid': str(p.operacion_uuid)}, {'comprobante_id': comp.id}],
+            'banco': self.banco.id,
+            'transaccion': {'referencia': '00123456', 'fecha': '2026-10-01', 'monto': '800.00'},
+            'tolerancia': 200, 'observacion': 'x',
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('caja', r.data['error'])
+        self.assertEqual(ConciliacionBancaria.objects.count(), 0)
+
+    def test_pago_procesado_desde_comprobante_queda_referenciado(self):
+        p = self.pago(referencia='88776655')
+        mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
+        comp = ComprobantePago.objects.create(
+            mensualidad=mens, archivo=SimpleUploadedFile('p.png', PNG_BYTES, content_type='image/png'),
+            estatus='aprobado', pago=p,
+        )
+        r = self.client.post(URL_CONC, self.body(p.operacion_uuid, ref='88776655'), format='json')
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data['conciliacion']['comprobante_aprobado_id'], comp.id)
+        # El comprobante ya aprobado no vuelve a salir como candidato.
+        resp = self.client.get(URL_CAND, {'banco': self.banco.id, 'ref': '6655'})
+        self.assertEqual([c['tipo'] for c in resp.data['resultados']], ['pago'])
 
     def test_comprobante_de_otro_banco_400(self):
         mens = Mensualidad.objects.create(alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('10.00'))
@@ -293,6 +368,8 @@ class ConciliarTest(BaseConciliacionTest):
             'transaccion': {'referencia': '88776655', 'fecha': '2026-10-01', 'monto': '400.00'},
         }, format='json')
         self.assertEqual(r.status_code, 400)
+        comp.refresh_from_db()
+        self.assertEqual(comp.estatus, 'pendiente')
 
     def test_sede_ajena_404(self):
         sede_a = Sede.objects.create(nombre='Sede A')

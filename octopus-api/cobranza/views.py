@@ -550,6 +550,38 @@ class RegistrarPagoView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
+        # Comprobante del portal que procesa este pago (aprobar = registrar el
+        # pago en caja). Se bloquea ANTES de crear los pagos y dentro de este
+        # mismo atomic: si cualquier paso posterior falla, todo se revierte y
+        # el comprobante sigue pendiente.
+        comprobante_portal = None
+        comprobante_portal_id = data.get('comprobante_portal_id')
+        if comprobante_portal_id:
+            from portal.services import (
+                ComprobanteDeOtroAlumno, ComprobanteNoEncontrado, ComprobanteYaProcesado,
+                bloquear_comprobante_para_caja,
+            )
+            try:
+                comprobante_portal = bloquear_comprobante_para_caja(
+                    comprobante_portal_id, [a['alumno'].id for a in alumnos_resueltos],
+                )
+            except ComprobanteNoEncontrado:
+                return Response(
+                    {"error": "Comprobante del portal no encontrado."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except ComprobanteYaProcesado as exc:
+                return Response(
+                    {"error": f"Este comprobante ya fue procesado (estatus: {exc.estatus})."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            except ComprobanteDeOtroAlumno:
+                return Response(
+                    {"error": "El comprobante es de una mensualidad de otro alumno; "
+                              "no corresponde a los alumnos de este pago."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         tasa   = data['tasa']
         # Tasa efectiva de la operación: manual (histórica) si vino, si no
         # la de hoy — resuelta en un solo lugar por el serializer (ver
@@ -560,6 +592,11 @@ class RegistrarPagoView(APIView):
         comprobante_retroactivo = data.get('comprobante_retroactivo')
         vuelto_usd = data.get('vuelto_usd', Decimal('0.00')) or Decimal('0.00')
         vuelto_ves = data.get('vuelto_ves', Decimal('0.00')) or Decimal('0.00')
+        # Excedente (pagado de más que se queda en el colegio). El serializer
+        # ya rechazó vuelto + excedente a la vez; abajo, con los abonos y
+        # recargos resueltos, se valida que no supere lo pagado de más.
+        excedente_usd = data.get('excedente_usd') or Decimal('0.00')
+        excedente_ves = data.get('excedente_ves') or Decimal('0.00')
 
         proyecto_inversion_ids = data.get('proyecto_inversion_ids', [])
 
@@ -636,9 +673,22 @@ class RegistrarPagoView(APIView):
                 representante_nombre=data.get('representante_nombre', '') or '',
                 vuelto_usd=vuelto_usd if es_primer_pago else Decimal('0.00'),
                 vuelto_ves=vuelto_ves if es_primer_pago else Decimal('0.00'),
+                # Mismo criterio que el vuelto: solo en el primer pago.
+                excedente_usd=excedente_usd if es_primer_pago else Decimal('0.00'),
+                excedente_ves=excedente_ves if es_primer_pago else Decimal('0.00'),
             )
             if es_primer_pago and comprobante_retroactivo:
                 pago.comprobante_retroactivo = comprobante_retroactivo
+                pago.comprobante_retroactivo_subido_en = timezone.now()
+                pago.comprobante_retroactivo_subido_por = request.user
+            elif (es_primer_pago and fecha_pago_retroactiva and comprobante_portal is not None
+                  and comprobante_portal.archivo):
+                # Carga retroactiva de un comprobante del portal sin adjunto
+                # propio: el respaldo es el MISMO archivo que subió el
+                # representante (se reutiliza el name; no se duplican bytes).
+                # Sigue servido por /media-protegido/comprobantes/<archivo>/
+                # (ComprobanteProtegidoView lo busca por ComprobantePago.archivo).
+                pago.comprobante_retroactivo.name = comprobante_portal.archivo.name
                 pago.comprobante_retroactivo_subido_en = timezone.now()
                 pago.comprobante_retroactivo_subido_por = request.user
             if fecha_pago_retroactiva:
@@ -673,6 +723,10 @@ class RegistrarPagoView(APIView):
         # siempre, sin regresión) — mismo contrato que ya usa
         # montos_proyecto_inversion para CuotaProyectoInversion.
         montos_mensualidades = data.get('montos_mensualidades') or {}
+        # Deuda realmente cobrada en esta operación (USD): abonos de dinero a
+        # cada cuota + recargos. Los descuentos (ajuste) no son dinero
+        # recibido y no cuentan. Sirve para validar el excedente.
+        deuda_cobrada_usd = Decimal('0.00')
         todas_mensualidades_qs = Mensualidad.objects.none()
         recargos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_usd':...}}
         descuentos_por_mensualidad = {}  # {mensualidad_id: {'nombre':..., 'monto_final_usd':..., 'monto_descontado_usd':...}}
@@ -702,6 +756,7 @@ class RegistrarPagoView(APIView):
                 resultado = resolver_recargo(m, fecha_cobro, lineas_cobradas=lineas_recargo_previas)
                 if resultado:
                     recargos_por_mensualidad[m.id] = resultado
+                    deuda_cobrada_usd += resultado['monto_usd']
 
                 # Descuento por pago dentro de rango: mismo guard de "una vez
                 # por mensualidad" que el recargo. A diferencia del recargo
@@ -740,6 +795,7 @@ class RegistrarPagoView(APIView):
                     # respeta este valor si ya viene seteado.
                     m.fecha_pago = fecha_cobro
                 m.save()
+                deuda_cobrada_usd += abono_aplicado
                 if abono_aplicado > 0 or ajuste_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], m, abono_aplicado, ajuste_aplicado)
 
@@ -802,17 +858,22 @@ class RegistrarPagoView(APIView):
             # no debe fallar el registro del pago solo porque no se pudo
             # encolar el aviso (mismo patrón que portal/views.py, ver
             # PortalComprobantePagoDetailView.patch).
+            # Se encola en on_commit: si la operación se revierte después
+            # (p. ej. excedente inválido, más abajo), no sale el correo de un
+            # pago que no existe.
             from notificaciones.tasks import task_notificar_pago_exitoso
             for pago in pagos_creados:
                 mensualidad_ref = pago.mensualidades_pagadas.first()
                 if mensualidad_ref:
-                    try:
-                        task_notificar_pago_exitoso.delay(mensualidad_ref.id, pago.id)
-                    except Exception as exc:
-                        logger.error(
-                            'Pago #%s registrado pero falló el encolado de la notificación '
-                            'al representante: %s', pago.id, exc
-                        )
+                    def _encolar_correo(mensualidad_id=mensualidad_ref.id, pago_id=pago.id):
+                        try:
+                            task_notificar_pago_exitoso.delay(mensualidad_id, pago_id)
+                        except Exception as exc:
+                            logger.error(
+                                'Pago #%s registrado pero falló el encolado de la notificación '
+                                'al representante: %s', pago_id, exc
+                            )
+                    transaction.on_commit(_encolar_correo)
                     break
 
         montos_cuota_inscripcion = data.get('montos_cuota_inscripcion') or {}
@@ -832,6 +893,7 @@ class RegistrarPagoView(APIView):
                 abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
                 cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 cuota.save()
+                deuda_cobrada_usd += abono_aplicado
                 if abono_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
             todas_cuotas_inscripcion_qs |= CuotaInscripcion.objects.filter(
@@ -864,6 +926,7 @@ class RegistrarPagoView(APIView):
                 abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
                 cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 cuota.save()
+                deuda_cobrada_usd += abono_aplicado
                 if abono_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
             todas_cuotas_solvencia_qs |= CuotaSolvencia.objects.filter(
@@ -891,6 +954,7 @@ class RegistrarPagoView(APIView):
                 cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 # pagado/fecha_pago se derivan solos en CuotaProyectoInversion.save().
                 cuota.save()
+                deuda_cobrada_usd += abono_aplicado
                 if abono_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
 
@@ -920,6 +984,38 @@ class RegistrarPagoView(APIView):
             if solvencia:
                 numero_solvencia = solvencia.numero
 
+        # --- Excedente: no puede superar lo pagado de más ---
+        # pagado − deuda cobrada (abonos + recargos), con tolerancia de
+        # redondeo por línea (cada conversión Bs.→USD redondea a 0,01).
+        # excedente_usd y excedente_ves son el mismo monto en dos monedas
+        # (como el vuelto): se valida el mayor de los dos, en USD. Si falla,
+        # la excepción revierte todo el atomic (pagos, abonos y comprobante).
+        # El excedente NO se resta de ningún total: es dinero que entró.
+        if excedente_usd > 0 or excedente_ves > 0:
+            pagado_usd = sum((p.monto_usd for p in pagos_creados), Decimal('0.00'))
+            pagado_de_mas_usd = pagado_usd - deuda_cobrada_usd
+            tolerancia = Decimal('0.01') + Decimal('0.005') * len(pagos_creados)
+            excedente_en_usd = max(
+                excedente_usd,
+                (excedente_ves / tasa_valor).quantize(Decimal('0.01')) if tasa_valor else Decimal('0.00'),
+            )
+            if excedente_en_usd > pagado_de_mas_usd + tolerancia:
+                from rest_framework.exceptions import ValidationError as DRFValidationError
+                raise DRFValidationError({
+                    'excedente_usd': (
+                        f"El excedente ({excedente_en_usd:.2f} USD) supera lo pagado de más "
+                        f"({max(pagado_de_mas_usd, Decimal('0.00')):.2f} USD)."
+                    ),
+                })
+
+        if comprobante_portal is not None:
+            from portal.services import aprobar_comprobante_en_caja, notificar_comprobante_resuelto
+            aprobar_comprobante_en_caja(comprobante_portal, pagos_creados, request.user)
+            # Aviso de bandeja + push al representante, fuera del atomic y
+            # best-effort. El correo es el de caja de siempre (arriba): no se
+            # manda otro.
+            transaction.on_commit(lambda: notificar_comprobante_resuelto(comprobante_portal))
+
         LogAuditoria.objects.create(
             usuario=request.user,
             accion="REGISTRO_PAGO",
@@ -942,16 +1038,19 @@ class RegistrarPagoView(APIView):
                 "concepto":                      concepto,
                 "proyectos_inversion_pagados":   proyecto_inversion_ids,
                 "numero_solvencia_generado":     numero_solvencia,
+                "comprobante_portal_id":         comprobante_portal.id if comprobante_portal else None,
+                "excedente_usd":                 str(excedente_usd),
+                "excedente_ves":                 str(excedente_ves),
             }
         )
 
-        return Response(
-            {
-                'pagos': PagoSerializer(pagos_creados, many=True).data,
-                'numero_solvencia': numero_solvencia,
-            },
-            status=status.HTTP_201_CREATED
-        )
+        respuesta = {
+            'pagos': PagoSerializer(pagos_creados, many=True).data,
+            'numero_solvencia': numero_solvencia,
+        }
+        if comprobante_portal is not None:
+            respuesta['comprobante_portal_id'] = comprobante_portal.id
+        return Response(respuesta, status=status.HTTP_201_CREATED)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

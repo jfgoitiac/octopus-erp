@@ -57,6 +57,11 @@ from .views import (
     PortalBancosView,
     PortalMetodosPagoView,
     AdminComprobantesView,
+    AdminMotivosRechazoView,
+    AdminMotivoRechazoDetalleView,
+    PortalAvisosView,
+    PortalAvisoLeerView,
+    PortalAvisosLeerTodosView,
     VerificarReferenciaView,
     ConfiguracionColegioPublicaView,
     CambiarContrasenaPortalView,
@@ -112,8 +117,18 @@ urlpatterns = [
     # Admin — Listar comprobantes pendientes: GET /api/portal/admin/comprobantes/?estatus=pendiente
     path('admin/comprobantes/', AdminComprobantesView.as_view(), name='portal_admin_comprobantes'),
 
-    # Admin — Aprobar/rechazar comprobante: PATCH /api/portal/admin/comprobantes/<id>/
+    # Admin — Detalle (GET) y rechazar (PATCH): /api/portal/admin/comprobantes/<id>/
     path('admin/comprobantes/<int:comprobante_id>/', AdminComprobantesView.as_view(), name='portal_admin_comprobante_detalle'),
+
+    # Admin — Catálogo de motivos de rechazo: GET/POST y PATCH/DELETE por id
+    path('admin/motivos-rechazo/', AdminMotivosRechazoView.as_view(), name='portal_admin_motivos_rechazo'),
+    path('admin/motivos-rechazo/<int:motivo_id>/', AdminMotivoRechazoDetalleView.as_view(), name='portal_admin_motivo_rechazo_detalle'),
+
+    # Avisos del representante (bandeja del portal):
+    # GET /api/portal/avisos/ — POST /api/portal/avisos/<id>/leer/ — POST /api/portal/avisos/leer-todos/
+    path('avisos/', PortalAvisosView.as_view(), name='portal_avisos'),
+    path('avisos/leer-todos/', PortalAvisosLeerTodosView.as_view(), name='portal_avisos_leer_todos'),
+    path('avisos/<int:aviso_id>/leer/', PortalAvisoLeerView.as_view(), name='portal_aviso_leer'),
 
 
     # Verificar si una referencia bancaria ya existe en el sistema

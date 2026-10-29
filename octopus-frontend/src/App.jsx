@@ -34,6 +34,8 @@ const CobranzaDashboard        = lazy(() => import('./pages/CobranzaDashboard'))
 const Cobranza                 = lazy(() => import('./pages/Cobranza'));
 const Comprobantes             = lazy(() => import('./pages/Comprobantes'));
 const RevisionComprobantes     = lazy(() => import('./pages/RevisionComprobantes'));
+const RevisarComprobante       = lazy(() => import('./pages/RevisarComprobante'));
+const PlantillasAvisosPortal   = lazy(() => import('./pages/PlantillasAvisosPortal'));
 const ConsultaSolvencia        = lazy(() => import('./pages/ConsultaSolvencia'));
 const ListaAlumnos             = lazy(() => import('./pages/ListaAlumnos'));
 const ConsultaInscripcion      = lazy(() => import('./pages/ConsultaInscripcion'));
@@ -295,6 +297,16 @@ function App() {
               <Route path="comprobantes/revision" element={
                 <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.COBRANZA]}>
                   <RevisionComprobantes />
+                </ProtectedRoute>
+              } />
+              <Route path="comprobantes/revision/:id" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.COBRANZA]}>
+                  <RevisarComprobante />
+                </ProtectedRoute>
+              } />
+              <Route path="cobranza/avisos-portal" element={
+                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR, ROLES.COBRANZA]}>
+                  <PlantillasAvisosPortal />
                 </ProtectedRoute>
               } />
               <Route path="cobranza/solvencia" element={

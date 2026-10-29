@@ -153,6 +153,8 @@ class NotificacionLog(models.Model):
         ('bienvenida',   'Bienvenida portal'),
         ('reset_password', 'Recuperación de contraseña'),
         ('pago_exitoso', 'Pago confirmado'),
+        ('comprobante_aprobado', 'Comprobante del portal aprobado'),
+        ('comprobante_rechazado', 'Comprobante del portal rechazado'),
         ('prueba',       'Mensaje de prueba'),
         ('cobro_whatsapp', 'Cobro por WhatsApp'),
         ('otro',         'Otro'),
@@ -228,3 +230,26 @@ class PlantillaWhatsApp(models.Model):
         if self.predeterminada:
             PlantillaWhatsApp.objects.exclude(pk=self.pk).update(predeterminada=False)
         super().save(*args, **kwargs)
+
+
+class PlantillaAviso(models.Model):
+    """Texto personalizable de los avisos al representante (bandeja del
+    portal, push y email). Las claves las siembra una migración y no se crean
+    ni se borran desde la UI. Tokens `{{grupo.campo}}`: ver
+    notificaciones/plantillas_aviso.py. Si la plantilla falta o está
+    inactiva se usa el texto por defecto del código."""
+
+    clave          = models.CharField(max_length=50, unique=True)
+    nombre         = models.CharField(max_length=100)
+    asunto         = models.CharField(max_length=255)
+    cuerpo         = models.TextField()
+    activa         = models.BooleanField(default=True)
+    actualizada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['clave']
+        verbose_name = 'Plantilla de aviso al representante'
+        verbose_name_plural = 'Plantillas de aviso al representante'
+
+    def __str__(self):
+        return self.nombre

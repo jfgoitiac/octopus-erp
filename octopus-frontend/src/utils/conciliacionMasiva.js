@@ -38,7 +38,9 @@ export const rangoFechas = (transactions) => {
   return { desde: min, hasta: max };
 };
 
-export const ESTADOS = ['exacta', 'dentro_tolerancia', 'fuera_tolerancia', 'ambigua', 'sin_banco'];
+// `requiere_caja`: comprobante del portal que coincide con una línea libre;
+// no se concilia, se procesa en caja (no es seleccionable).
+export const ESTADOS = ['exacta', 'dentro_tolerancia', 'fuera_tolerancia', 'ambigua', 'requiere_caja', 'sin_banco'];
 
 const ORDEN_ESTADO = Object.fromEntries(ESTADOS.map((e, i) => [e, i]));
 
@@ -55,12 +57,13 @@ export const filtrarPorEstado = (propuestas, estado) =>
 
 /** Contadores por estado calculados en el cliente (respaldo del resumen del API). */
 export const contarPorEstado = (propuestas) => {
-  const r = { total: propuestas.length, exactas: 0, dentro_tolerancia: 0, fuera_tolerancia: 0, ambiguas: 0, sin_banco: 0 };
+  const r = { total: propuestas.length, exactas: 0, dentro_tolerancia: 0, fuera_tolerancia: 0, ambiguas: 0, requiere_caja: 0, sin_banco: 0 };
   for (const p of propuestas) {
     if (p.estado === 'exacta') r.exactas += 1;
     else if (p.estado === 'dentro_tolerancia') r.dentro_tolerancia += 1;
     else if (p.estado === 'fuera_tolerancia') r.fuera_tolerancia += 1;
     else if (p.estado === 'ambigua') r.ambiguas += 1;
+    else if (p.estado === 'requiere_caja') r.requiere_caja += 1;
     else if (p.estado === 'sin_banco') r.sin_banco += 1;
   }
   return r;
@@ -132,9 +135,9 @@ export const aplicarConjuntos = (efectivas, tolerancia = 0) => {
 export const idsAlternables = (efectiva) =>
   efectiva?.grupo && efectiva.conjuntoIds ? efectiva.conjuntoIds : [efectiva?.id];
 
-/** Una propuesta es seleccionable si tiene una transacción de banco asignada. */
+/** Una propuesta es seleccionable si es confirmable y tiene una transacción de banco asignada. */
 export const esSeleccionable = (efectiva) =>
-  efectiva.estado !== 'sin_banco' && Boolean(efectiva.transaccionEfectiva);
+  efectiva.confirmable !== false && efectiva.estado !== 'sin_banco' && Boolean(efectiva.transaccionEfectiva);
 
 /** Selección inicial: las marcadas por el servidor. */
 export const seleccionInicial = (propuestas) =>
@@ -178,14 +181,12 @@ export const construirItems = (efectivas, observaciones = {}) =>
       transaccion: { referencia: t.referencia, fecha: fechaBancoAISO(t.fecha), monto: t.monto },
       observacion: String(observaciones[e.id] || '').trim(),
     };
-    if (e.tipo === 'comprobante_pendiente') item.comprobante_id = e.comprobante_id;
-    else item.operacion_uuid = e.operacion_uuid;
+    item.operacion_uuid = e.operacion_uuid;
     return item;
   });
 
 export const resumenConfirmacion = (efectivas) => ({
   operaciones: efectivas.length,
-  comprobantes: efectivas.filter((e) => e.tipo === 'comprobante_pendiente').length,
   fueraTolerancia: efectivas.filter((e) => e.fueraEfectiva).length,
 });
 

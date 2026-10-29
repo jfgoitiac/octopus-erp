@@ -1,12 +1,12 @@
 import { memo } from 'react';
-import { Link2, CheckCircle, AlertCircle, Lock, RotateCcw, Loader2, Users, Info } from 'lucide-react';
+import { Link2, CheckCircle, AlertCircle, Lock, RotateCcw, Loader2, Users, Info, Banknote } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Modal } from '../ui/Modal';
 import { Tabla } from '../ui/Tabla';
 import DatePickerES from '../DatePickerES';
 import { Bone } from '../shared/Skeleton';
-import { claveCandidato } from '../../hooks/useConciliacionSemiauto';
+import { claveCandidato, esPorProcesar } from '../../hooks/useConciliacionSemiauto';
 
 const fmt = (v) =>
   Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -37,7 +37,7 @@ const inputBase = {
   fontSize: '16px',
 };
 
-function EstadoCandidato({ c }) {
+function EstadoCandidato({ c, onProcesar }) {
   if (c.conciliado) {
     return (
       <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: 'var(--ash)' }}>
@@ -46,14 +46,25 @@ function EstadoCandidato({ c }) {
       </span>
     );
   }
-  if (c.se_aprobara || c.tipo === 'comprobante_pendiente') {
+  if (esPorProcesar(c)) {
+    // Comprobante del portal sin pago: se registra en caja y luego se concilia.
     return (
-      <span
-        className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium"
-        style={{ background: '#fef9c3', color: '#a16207' }}
-      >
-        Se aprobará al conciliar
-      </span>
+      <div className="flex flex-col items-start gap-1.5">
+        <span
+          className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium"
+          style={{ background: '#fef9c3', color: '#a16207' }}
+        >
+          Pendiente de procesar{c.monto_estimado ? ' · monto estimado' : ''}
+        </span>
+        <button
+          type="button"
+          onClick={(ev) => { ev.preventDefault(); onProcesar(c); }}
+          className="inline-flex w-full sm:w-auto min-h-[36px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white"
+          style={{ background: 'var(--pb)' }}
+        >
+          <Banknote size={13} /> Procesar en caja
+        </button>
+      </div>
     );
   }
   return (
@@ -136,7 +147,7 @@ function PasoTransacciones({ matches, txSel, onSelect }) {
   );
 }
 
-function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
+function PasoCandidatos({ candidatos, loading, candSel, onSelect, onProcesar }) {
   if (loading) return <SkeletonCandidatos />;
   if (candidatos.length === 0) {
     return (
@@ -161,7 +172,7 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
                   <input
                     type="checkbox"
                     aria-label={`Seleccionar referencia ${c.referencia}`}
-                    disabled={c.conciliado}
+                    disabled={c.conciliado || esPorProcesar(c)}
                     checked={candSel.includes(k)}
                     onChange={() => onSelect(k)}
                     className="w-4 h-4"
@@ -174,7 +185,7 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
                   <p style={{ color: 'var(--ash)' }}>{alumnosTexto(c)}</p>
                 </td>
                 <td className="px-3 py-2.5 sm:px-4 text-right text-xs font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>{fmt(c.monto_ves)}</td>
-                <td className="px-3 py-2.5 sm:px-4"><EstadoCandidato c={c} /></td>
+                <td className="px-3 py-2.5 sm:px-4"><EstadoCandidato c={c} onProcesar={onProcesar} /></td>
               </tr>
             );
           })}
@@ -194,12 +205,12 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
                 border: `1.5px solid ${activo ? 'var(--pb)' : 'var(--border-md)'}`,
                 background: activo ? 'var(--pb-light)' : 'var(--porcelain)',
                 opacity: c.conciliado ? 0.55 : 1,
-                cursor: c.conciliado ? 'not-allowed' : 'pointer',
+                cursor: c.conciliado || esPorProcesar(c) ? 'default' : 'pointer',
               }}
             >
               <input
                 type="checkbox"
-                disabled={c.conciliado}
+                disabled={c.conciliado || esPorProcesar(c)}
                 checked={activo}
                 onChange={() => onSelect(k)}
                 className="mt-1 w-4 h-4"
@@ -212,7 +223,7 @@ function PasoCandidatos({ candidatos, loading, candSel, onSelect }) {
                 <p className="text-[11px]" style={{ color: 'var(--ash)' }}>{fechaLarga(c.fecha)}</p>
                 <p className="text-xs font-medium" style={{ color: 'var(--jet)' }}>{c.representante || '—'}</p>
                 <p className="text-[11px]" style={{ color: 'var(--ash)' }}>{alumnosTexto(c)}</p>
-                <EstadoCandidato c={c} />
+                <EstadoCandidato c={c} onProcesar={onProcesar} />
               </div>
             </label>
           );
@@ -296,7 +307,7 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
     movimientoPrevio, montoPrevioDistinto,
     toleranciaInput, cambiarTolerancia, restablecerTolerancia, toleranciaGlobal, toleranciaValida,
     observacion, setObservacion, observacionRequerida,
-    comparacion, puedeConfirmar, enviando, confirmar,
+    comparacion, puedeConfirmar, enviando, confirmar, procesarEnCaja,
   } = c;
 
   const titulo = (
@@ -446,6 +457,7 @@ function ModalConciliarReferenciaBase({ c, bankInfo, transactions, banks = [] })
                 loading={loadingCand}
                 candSel={candSel}
                 onSelect={alternarCandidato}
+                onProcesar={procesarEnCaja}
               />
             </div>
           </>

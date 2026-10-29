@@ -124,7 +124,7 @@ class PropuestasTest(MasivaBase):
         self.assertEqual(pa['alumnos'], ['Luis Mena'])
         self.assertEqual(r.data['resumen'], {
             'total': 3, 'exactas': 1, 'dentro_tolerancia': 1, 'fuera_tolerancia': 1,
-            'ambiguas': 0, 'sin_banco': 0, 'pagos_conjuntos': 0,
+            'ambiguas': 0, 'sin_banco': 0, 'requiere_caja': 0, 'pagos_conjuntos': 0,
         })
         self.assertEqual(r.data['sin_operacion'], [])
 
@@ -241,10 +241,12 @@ class PropuestasTest(MasivaBase):
         comp = self.comprobante(referencia='88776655', fecha_subida=aware(2026, 10, 2))
         r = self.propone([tx('776655', '400.00')])
         p = r.data['propuestas'][0]
-        self.assertEqual(p['tipo'], 'comprobante_pendiente')
+        # Se sugiere procesarlo en caja; nunca se concilia directo.
+        self.assertEqual(p['tipo'], 'comprobante_por_procesar')
         self.assertEqual(p['comprobante_id'], comp.id)
         self.assertIsNone(p['operacion_uuid'])
-        self.assertEqual(p['estado'], 'exacta')
+        self.assertEqual(p['estado'], 'requiere_caja')
+        self.assertFalse(p['confirmable'])
         self.assertFalse(p['seleccionada_por_defecto'])
 
     def test_es_solo_lectura(self):
@@ -357,20 +359,14 @@ class ConfirmarMasivaTest(MasivaBase):
         self.assertIn('observación', r.data['errores'][0]['error'])
         self.assertEqual(ConciliacionBancaria.objects.count(), 0)
 
-    def test_comprobante_se_aprueba_y_concilia_y_error_no_lo_aprueba(self):
-        ok = self.comprobante(referencia='88776655', fecha_subida=aware(2026, 10, 2), mes=9)
-        mal = self.comprobante(referencia='11223344', fecha_subida=aware(2026, 10, 2), mes=8)
-        r = self.confirma([
-            {'comprobante_id': ok.id, 'transaccion': tx('88776655', '400.00')},
-            {'comprobante_id': mal.id, 'transaccion': tx('11223344', '900.00')},
-        ])
-        self.assertEqual([x['indice'] for x in r.data['conciliadas']], [0])
-        self.assertEqual([x['indice'] for x in r.data['errores']], [1])
-        ok.refresh_from_db()
-        mal.refresh_from_db()
-        self.assertEqual(ok.estatus, 'aprobado')
-        self.assertEqual(mal.estatus, 'pendiente')
-        self.assertEqual(ConciliacionBancaria.objects.get().comprobante_aprobado_id, ok.id)
+    def test_comprobante_no_se_concilia_directo(self):
+        comp = self.comprobante(referencia='88776655', fecha_subida=aware(2026, 10, 2), mes=9)
+        r = self.confirma([{'comprobante_id': comp.id, 'transaccion': tx('88776655', '400.00')}])
+        self.assertEqual(r.data['conciliadas'], [])
+        self.assertIn('caja', r.data['errores'][0]['error'])
+        comp.refresh_from_db()
+        self.assertEqual(comp.estatus, 'pendiente')
+        self.assertEqual(ConciliacionBancaria.objects.count(), 0)
 
     def test_sede_ajena_va_a_errores(self):
         sede_a = Sede.objects.create(nombre='Sede A')

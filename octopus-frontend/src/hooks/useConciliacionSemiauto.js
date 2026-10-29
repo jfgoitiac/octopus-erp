@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import apiClient from '../api/apiClient';
 import { fechaBancoAISO, filtrarPorFechas } from '../utils/conciliacionMasiva';
+import { useProcesarEnCaja } from './useProcesarEnCaja';
 
 export const TOLERANCIA_KEY = 'conciliador_tolerancia_sesion';
 export const TOLERANCIA_DEFECTO = 200;
@@ -29,6 +30,9 @@ export const msgError = (err, fallback) =>
 export { fechaBancoAISO };
 
 export const claveCandidato = (c) => c.operacion_uuid || `comprobante-${c.comprobante_id}`;
+
+// Comprobante del portal sin pago: no se concilia, se procesa en caja.
+export const esPorProcesar = (c) => c.tipo === 'comprobante_por_procesar';
 
 /**
  * Lógica de la conciliación semiautomática por referencia (modal del
@@ -137,7 +141,9 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   const cambiarDesde = useCallback((valor) => { setDesde(valor || ''); resetBusqueda(); }, [resetBusqueda]);
   const cambiarHasta = useCallback((valor) => { setHasta(valor || ''); resetBusqueda(); }, [resetBusqueda]);
 
-  const consultarCandidatos = useCallback(async (bancoId, refBuscada, d, h) => {
+  // `fechas`: de las líneas del banco encontradas (ubican comprobantes sin
+  // referencia). `operacion`: la que se preselecciona al volver de caja.
+  const consultarCandidatos = useCallback(async (bancoId, refBuscada, d, h, fechas = [], operacion = null) => {
     const id = ++reqId.current;
     setCandSel([]);
     setCandidatos([]);
@@ -148,13 +154,16 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
       if (refBuscada) params.ref = refBuscada;
       if (d) params.desde = d;
       if (h) params.hasta = h;
+      if (fechas.length) params.fecha = fechas.join(',');
       const { data } = await apiClient.get('cobranza/conciliacion/candidatos/', { params });
       if (id !== reqId.current) return;
       const lista = data?.resultados || [];
       setCandidatos(lista);
       setMovimientosPrevios(data?.movimientos_previos || []);
-      const libres = lista.filter(c => !c.conciliado);
-      if (libres.length === 1) setCandSel([claveCandidato(libres[0])]);
+      const libres = lista.filter(c => !c.conciliado && !esPorProcesar(c));
+      const preferida = operacion && libres.find(c => c.operacion_uuid === operacion);
+      if (preferida) setCandSel([claveCandidato(preferida)]);
+      else if (libres.length === 1) setCandSel([claveCandidato(libres[0])]);
     } catch (err) {
       if (id !== reqId.current) return;
       toast.error(msgError(err, 'No se pudieron consultar los candidatos del sistema.'));
@@ -163,18 +172,42 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
     }
   }, []);
 
-  const buscar = useCallback(async () => {
-    if (!puedeBuscar) return;
-    const n = ref.length;
-    const enRango = filtrarPorFechas(transactions, desde, hasta);
+  const buscarCon = useCallback(async (bancoId, refBuscada, d, h, operacion = null) => {
+    const n = refBuscada.length;
+    const enRango = filtrarPorFechas(transactions, d, h);
     const encontradas = enRango.filter(
-      tx => tx.tipo !== 'egreso' && (n === 0 || tx.referencia.replace(/\D/g, '').slice(-n) === ref)
+      tx => tx.tipo !== 'egreso' && (n === 0 || tx.referencia.replace(/\D/g, '').slice(-n) === refBuscada)
     );
     setBuscado(true);
     setMatches(encontradas);
     setTxSel(encontradas.length === 1 ? encontradas[0] : null);
-    await consultarCandidatos(bancoActivo, ref, desde, hasta);
-  }, [puedeBuscar, ref, desde, hasta, transactions, bancoActivo, consultarCandidatos]);
+    const fechas = [...new Set(encontradas.slice(0, 20).map(tx => fechaBancoAISO(tx.fecha)))];
+    await consultarCandidatos(bancoId, refBuscada, d, h, fechas, operacion);
+  }, [transactions, consultarCandidatos]);
+
+  const buscar = useCallback(async () => {
+    if (!puedeBuscar) return;
+    await buscarCon(bancoActivo, ref, desde, hasta);
+  }, [puedeBuscar, ref, desde, hasta, bancoActivo, buscarCon]);
+
+  // Vuelta de caja (?operacion=): reabre el modal con la referencia de la
+  // línea del banco y preselecciona la operación recién registrada.
+  const abrirConOperacion = useCallback(({ referencia, operacion }) => {
+    const digitos = String(referencia || '').replace(/\D/g, '').slice(-6);
+    if (!banco || digitos.length < 4) return;
+    setRef(digitos);
+    setDesde('');
+    setHasta('');
+    setBancoReceptor(banco);
+    resetBusqueda();
+    setOpen(true);
+    fetchToleranciaGlobal();
+    fetchLoteAbierto();
+    buscarCon(banco, digitos, '', '', operacion);
+  }, [banco, resetBusqueda, fetchToleranciaGlobal, fetchLoteAbierto, buscarCon]);
+
+  const irACaja = useProcesarEnCaja({ banco, transactions, fileName });
+  const procesarEnCaja = useCallback((c) => irACaja(c, txSel, bancoActivo), [irACaja, txSel, bancoActivo]);
 
   // Cambia el banco receptor; si ya hay una búsqueda, vuelve a consultar candidatos.
   const cambiarBanco = useCallback((id) => {
@@ -257,20 +290,16 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
         tolerancia,
         observacion: observacion.trim(),
         archivo: fileName || '',
-        operaciones: candidatosSel.map(c => (
-          c.operacion_uuid ? { operacion_uuid: c.operacion_uuid } : { comprobante_id: c.comprobante_id }
-        )),
+        operaciones: candidatosSel.map(c => ({ operacion_uuid: c.operacion_uuid })),
       };
 
       const { data } = await apiClient.post('cobranza/conciliacion/conciliar/', body);
       if (data?.lote) setLote(prev => ({ ...(prev || {}), ...data.lote }));
       else fetchLoteAbierto();
-      const aprobados = candidatosSel.filter(c => c.se_aprobara).length;
       let mensaje = candidatosSel.length > 1
         ? `${candidatosSel.length} operaciones conciliadas como pago conjunto.`
         : 'Operación conciliada y agregada al lote abierto.';
       if (movimientoPrevio) mensaje = 'Operación agregada al pago conjunto ya conciliado.';
-      if (aprobados > 0) mensaje += aprobados > 1 ? ` Se aprobaron ${aprobados} comprobantes del portal.` : ' El comprobante del portal fue aprobado.';
       toast.success(mensaje);
       setOpen(false);
     } catch (err) {
@@ -284,7 +313,7 @@ export function useConciliacionSemiauto({ banco, transactions, fileName }) {
   ]);
 
   return {
-    open, abrir, cerrar,
+    open, abrir, abrirConOperacion, cerrar, procesarEnCaja,
     bancoActivo, cambiarBanco,
     ref, cambiarRef, refValida, buscar, buscado,
     desde, hasta, cambiarDesde, cambiarHasta, hayFechas, rangoInvalido, puedeBuscar,

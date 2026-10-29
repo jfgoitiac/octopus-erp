@@ -1,0 +1,13 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+{# Cuerpo de PlantillaAviso ya renderizado (texto plano); linebreaks escapa el HTML. #}
+<div style="font-size:14px; color:#444; line-height:1.7;">
+  {{ cuerpo|linebreaks }}
+</div>
+
+{% if portal_url %}
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ir al portal</a>
+</div>
+{% endif %}
+{% endblock %}

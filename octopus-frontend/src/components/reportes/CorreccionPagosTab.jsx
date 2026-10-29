@@ -258,7 +258,14 @@ const CorreccionPagosTab = ({ bancosDisponibles }) => {
                                                 {p.banco_nombre ? ` · ${p.banco_nombre}` : ''}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>${fmt(p.monto_usd)}</td>
+                                        <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#16a34a' }}>
+                                            ${fmt(p.monto_usd)}
+                                            {Number(p.excedente_ves) > 0 && (
+                                                <span className="block text-[10px] font-normal" style={{ color: 'var(--ash)' }}>
+                                                    Excedente: Bs. {fmt(p.excedente_ves)}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 text-center">
                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap"
                                                 style={{ background: estStyle.bg, color: estStyle.color }}>

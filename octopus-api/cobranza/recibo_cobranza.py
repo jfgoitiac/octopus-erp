@@ -180,6 +180,15 @@ def datos_recibo(pago):
                 nota_abono = (f"ABONO PARCIAL: se abonaron ${pagado_usd:.2f} de ${total_lineas_usd:.2f}. "
                               f"Saldo pendiente: ${saldo_usd:.2f}.")
 
+    # Lo pagado de más que se quedó en el colegio: entra al TOTAL PAGADO (es
+    # dinero recibido), no es vuelto ni saldo a favor. Ver Pago.excedente_ves.
+    excedente_ves = _dec(c.get('excedente_ves'))
+    if excedente_ves > 0:
+        items.append({
+            'concepto': 'EXCEDENTE', 'descripcion': 'Pagado de más',
+            'monto_ves': excedente_ves, 'alumno': None,
+        })
+
     alumnos_operacion = list(dict.fromkeys(it['alumno'] for it in items if it['alumno']))
     if len(alumnos_operacion) > 1:
         nombre_estudiante = ', '.join(alumnos_operacion)

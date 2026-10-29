@@ -2,7 +2,7 @@ import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ListChecks, CheckCircle, AlertCircle, Loader2, RotateCcw, ChevronDown, ChevronRight,
-  ArrowRight, Search, Users,
+  ArrowRight, Search, Users, Banknote,
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -39,6 +39,7 @@ const ESTADO_INFO = {
   dentro_tolerancia: { label: 'Dentro de tolerancia', color: '#a16207', bg: '#fef9c3' },
   fuera_tolerancia: { label: 'Fuera de tolerancia', color: 'var(--red)', bg: 'var(--red-light)' },
   ambigua: { label: 'Ambigua', color: '#9a3412', bg: '#ffedd5' },
+  requiere_caja: { label: 'Pendiente de procesar', color: '#a16207', bg: '#fef9c3' },
   sin_banco: { label: 'Sin banco', color: 'var(--ash)', bg: 'var(--surface-sunken, #f3f4f6)' },
 };
 
@@ -48,6 +49,7 @@ const FILTROS = [
   { key: 'dentro_tolerancia', label: 'Dentro de tolerancia', campo: 'dentro_tolerancia' },
   { key: 'fuera_tolerancia', label: 'Fuera de tolerancia', campo: 'fuera_tolerancia' },
   { key: 'ambigua', label: 'Ambiguas', campo: 'ambiguas' },
+  { key: 'requiere_caja', label: 'Pendientes de procesar', campo: 'requiere_caja' },
   { key: 'sin_banco', label: 'Sin banco', campo: 'sin_banco' },
 ];
 
@@ -81,14 +83,6 @@ function EstadoBadge({ e }) {
         >
           <Users size={10} />
           Pago conjunto
-        </span>
-      )}
-      {e.tipo === 'comprobante_pendiente' && (
-        <span
-          className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium"
-          style={{ background: '#fef9c3', color: '#a16207' }}
-        >
-          Se aprobará al conciliar
         </span>
       )}
     </div>
@@ -177,9 +171,21 @@ function CampoObservacion({ e, valor, onCambiar }) {
 function Extras({ c, e }) {
   const ambigua = e.estado === 'ambigua';
   const error = c.erroresFila[e.id];
-  if (!ambigua && !e.fueraEfectiva && !error) return null;
+  const porProcesar = e.tipo === 'comprobante_por_procesar';
+  if (!ambigua && !e.fueraEfectiva && !error && !porProcesar) return null;
   return (
     <div className="space-y-2">
+      {porProcesar && (
+        // Comprobante del portal: se registra en caja y luego se concilia.
+        <button
+          type="button"
+          onClick={() => c.procesarEnCaja(e)}
+          className="inline-flex w-full sm:w-auto min-h-[36px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white"
+          style={{ background: 'var(--pb)' }}
+        >
+          <Banknote size={13} /> Procesar en caja
+        </button>
+      )}
       {ambigua && <SelectorCandidata e={e} valor={c.elecciones[e.id]} onElegir={c.elegirCandidata} />}
       {/* En un pago conjunto basta una observación: se pide en su primera fila. */}
       {e.fueraEfectiva && (!e.conjuntoIds || e.conjuntoIds[0] === e.id) && (
@@ -371,7 +377,7 @@ function ResultadoConciliacion({ r, errores }) {
 }
 
 function ModalConfirmacion({ c }) {
-  const { operaciones, comprobantes, fueraTolerancia } = c.resumenSeleccion;
+  const { operaciones, fueraTolerancia } = c.resumenSeleccion;
   const footer = (
     <>
       <button
@@ -399,7 +405,6 @@ function ModalConfirmacion({ c }) {
     <Modal open={c.confirmando} onClose={c.cancelarConfirmacion} titulo="Confirmar conciliación" footer={footer} size="sm" className="z-[60]">
       <div className="space-y-2 text-sm" style={{ color: 'var(--jet)' }}>
         <p>Se conciliarán <strong>{operaciones}</strong> {operaciones === 1 ? 'operación' : 'operaciones'}.</p>
-        <p><strong>{comprobantes}</strong> {comprobantes === 1 ? 'comprobante se aprobará' : 'comprobantes se aprobarán'}.</p>
         <p style={{ color: fueraTolerancia ? 'var(--red)' : undefined }}>
           <strong>{fueraTolerancia}</strong> {fueraTolerancia === 1 ? 'operación está' : 'operaciones están'} fuera de tolerancia.
         </p>

@@ -4,6 +4,7 @@ from .views import (
     PerfilEmailRemitenteView,
     PlantillasWhatsAppView, PlantillaWhatsAppDetailView, VariablesPlantillaWhatsAppView,
     SuscripcionPushUsuarioView,
+    PlantillasAvisoView, PlantillaAvisoDetailView,
     PrevisualizarCobroWhatsAppView, RegistrarEnvioManualCobroWhatsAppView, EnviarCobroWhatsAppView,
     WebhookMetaWhatsAppView, WebhookTwilioWhatsAppView, AdjuntoWhatsAppView,
 )
@@ -20,6 +21,9 @@ urlpatterns = [
     path('plantillas-whatsapp/variables/',          VariablesPlantillaWhatsAppView.as_view()),
     path('plantillas-whatsapp/',                    PlantillasWhatsAppView.as_view()),
     path('plantillas-whatsapp/<int:pk>/',           PlantillaWhatsAppDetailView.as_view()),
+    # Plantillas de aviso al representante (comprobante aprobado/rechazado)
+    path('plantillas-aviso/',                       PlantillasAvisoView.as_view()),
+    path('plantillas-aviso/<int:pk>/',              PlantillaAvisoDetailView.as_view()),
     path('cobro-whatsapp/previsualizar/',           PrevisualizarCobroWhatsAppView.as_view()),
     path('cobro-whatsapp/registrar-envio-manual/',  RegistrarEnvioManualCobroWhatsAppView.as_view()),
     path('cobro-whatsapp/enviar/',                  EnviarCobroWhatsAppView.as_view()),

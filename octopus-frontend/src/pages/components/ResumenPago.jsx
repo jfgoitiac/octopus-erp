@@ -1,4 +1,4 @@
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, Landmark } from 'lucide-react';
 import { fmt } from '../../utils/formato';
 
 const ResumenPago = ({
@@ -12,8 +12,19 @@ const ResumenPago = ({
     montosParcialesProyectos,
     confirming,
     deudaVES,
-    vueltoVES,
-    vueltoUSD,
+    // Lo pagado de más (pagado − deuda). Se muestra como "Excedente" cuando
+    // `esExcedente` (todas las líneas bancarias, o el cajero lo marcó con
+    // efectivo) y como "Vuelto" en el resto de los casos (ver
+    // clasificarSobrante en components/comprobantes/cajaComprobante.js).
+    sobranteVES,
+    sobranteUSD,
+    esExcedente,
+    hayEfectivo,
+    registrarComoExcedente,
+    setRegistrarComoExcedente,
+    // Con el visor del comprobante al lado, el resumen va debajo del
+    // formulario (sin sticky) para no comprimir las columnas.
+    conVisor = false,
     pct,
     saldoVES,
     totalGenUSD,
@@ -24,8 +35,9 @@ const ResumenPago = ({
 }) => {
     return (
         <div
-            className="lg:col-span-2 space-y-4 self-start sticky"
-            style={{ top: '66px', maxHeight: 'calc(100vh - 82px)', overflowY: 'auto' }}
+            className={conVisor
+                ? 'space-y-4'
+                : 'lg:col-span-2 space-y-4 self-start lg:sticky lg:top-[66px] lg:max-h-[calc(100dvh-82px)] lg:overflow-y-auto'}
         >
             <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}>
                 <p className="text-[11px] uppercase tracking-widest font-semibold mb-4 pb-2"
@@ -212,7 +224,7 @@ const ResumenPago = ({
                         <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--ash)' }}>
                             <span>{pct}% cubierto</span>
                             {saldoVES > 0 && <span className="font-medium" style={{ color: 'var(--red)' }}>Falta: Bs. {fmt(saldoVES)}</span>}
-                            {saldoVES === 0 && vueltoVES === 0 && <span className="font-medium" style={{ color: '#16a34a' }}>✓ Completo</span>}
+                            {saldoVES === 0 && sobranteVES === 0 && <span className="font-medium" style={{ color: '#16a34a' }}>✓ Completo</span>}
                         </div>
                         <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: 'var(--border)' }}>
                             <div className="h-full transition-all duration-500 rounded-full"
@@ -221,18 +233,66 @@ const ResumenPago = ({
                     </div>
                 )}
 
-                {/* Vuelto */}
-                {vueltoVES > 0 && (
+                {/* Excedente (dinero que entró de más al banco) */}
+                {sobranteVES > 0 && esExcedente && (
+                    <div className="mb-4 p-3 rounded-lg" style={{ background: '#ecfdf5', border: '1px solid #6ee7b7' }}>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Landmark size={14} aria-hidden="true" style={{ color: '#047857', flexShrink: 0 }} />
+                                <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: '#065f46' }}>
+                                    Excedente
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-lg font-bold" style={{ color: '#047857' }}>Bs. {fmt(sobranteVES)}</span>
+                                <p className="text-[10px]" style={{ color: '#047857' }}>≈ ${fmt(sobranteUSD)}</p>
+                            </div>
+                        </div>
+                        <p className="text-[11px] mt-2" style={{ color: '#065f46' }}>
+                            Excedente: Bs. {fmt(sobranteVES)} — se registra con el pago; no es saldo a favor.
+                        </p>
+                    </div>
+                )}
+
+                {/* Vuelto (hay efectivo y el cajero no lo marcó como excedente) */}
+                {sobranteVES > 0 && !esExcedente && (
                     <div className="mb-4 p-3 rounded-lg" style={{ background: '#fefce8', border: '1px solid #fbbf24' }}>
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: '#92400e' }}>
                                     Vuelto a entregar
                                 </p>
-                                <p className="text-[10px] mt-0.5" style={{ color: '#b45309' }}>≈ ${fmt(vueltoUSD)}</p>
+                                <p className="text-[10px] mt-0.5" style={{ color: '#b45309' }}>≈ ${fmt(sobranteUSD)}</p>
                             </div>
-                            <span className="text-lg font-bold" style={{ color: '#b45309' }}>Bs. {fmt(vueltoVES)}</span>
+                            <span className="text-lg font-bold" style={{ color: '#b45309' }}>Bs. {fmt(sobranteVES)}</span>
                         </div>
+                    </div>
+                )}
+
+                {/* Con efectivo, el cajero decide si lo pagado de más es vuelto o excedente */}
+                {sobranteVES > 0 && hayEfectivo && (
+                    <div className="mb-4 flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
+                        style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}>
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold" style={{ color: 'var(--jet)' }}>Registrar como excedente</p>
+                            <p className="text-[10px]" style={{ color: 'var(--ash)' }}>
+                                No se entrega vuelto; la diferencia queda registrada con el pago.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={Boolean(registrarComoExcedente)}
+                            aria-label="Registrar como excedente"
+                            onClick={() => setRegistrarComoExcedente(v => !v)}
+                            className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                            style={{ background: registrarComoExcedente ? '#047857' : 'var(--border-md)' }}
+                        >
+                            <span
+                                className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                                style={{ transform: registrarComoExcedente ? 'translateX(22px)' : 'translateX(4px)' }}
+                            />
+                        </button>
                     </div>
                 )}
 

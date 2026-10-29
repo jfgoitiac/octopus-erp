@@ -339,8 +339,12 @@ class PagoSerializer(serializers.ModelSerializer):
             'tasa_aplicada', 'monto_ves', 'fecha_pago', 'revisado',
             'referencia', 'numero_lote', 'estatus', 'observaciones', 'representante_documento', 'representante_nombre',
             'comprobante_retroactivo', 'comprobante_retroactivo_subido_en', 'comprobante_retroactivo_subido_por',
+            'vuelto_usd', 'vuelto_ves', 'excedente_usd', 'excedente_ves',
         ]
-        read_only_fields = ['factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada']
+        read_only_fields = [
+            'factura_id', 'monto_ves', 'fecha_pago', 'tasa_aplicada',
+            'vuelto_usd', 'vuelto_ves', 'excedente_usd', 'excedente_ves',
+        ]
 
     def get_revisado(self, obj):
         pk_set = self.context.get('revisado_pago_ids')
@@ -410,6 +414,8 @@ class ComprobanteSerializer(serializers.ModelSerializer):
     desglose_conceptos = serializers.SerializerMethodField()
     total_ves = serializers.SerializerMethodField()
     total_usd = serializers.SerializerMethodField()
+    excedente_usd = serializers.SerializerMethodField()
+    excedente_ves = serializers.SerializerMethodField()
     representante_nombre = serializers.SerializerMethodField()
     numero_solvencia = serializers.SerializerMethodField()
 
@@ -519,6 +525,14 @@ class ComprobanteSerializer(serializers.ModelSerializer):
         total = sum((h.monto_usd for h in self._get_hermanos(obj)), Decimal('0'))
         return str(total or obj.monto_usd)
 
+    # Excedente de la OPERACIÓN (solo lo guarda el primer pago). Ya está
+    # incluido en total_usd/total_ves: es dinero recibido, no se resta.
+    def get_excedente_usd(self, obj):
+        return str(sum((h.excedente_usd or Decimal('0') for h in self._get_hermanos(obj)), Decimal('0.00')))
+
+    def get_excedente_ves(self, obj):
+        return str(sum((h.excedente_ves or Decimal('0') for h in self._get_hermanos(obj)), Decimal('0.00')))
+
     class Meta:
         model = Pago
         fields = [
@@ -528,6 +542,7 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             'referencia', 'estatus', 'estatus_display', 'observaciones',
             'representante_documento', 'representante_nombre',
             'desglose_pagos', 'desglose_conceptos', 'total_ves', 'total_usd', 'numero_solvencia',
+            'excedente_usd', 'excedente_ves',
         ]
 
 class SolvenciaRepresentanteSerializer(serializers.ModelSerializer):
@@ -699,6 +714,19 @@ class PagoCreateSerializer(serializers.Serializer):
     operacion_uuid = serializers.UUIDField(required=False)
     vuelto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal('0.00'))
     vuelto_ves = serializers.DecimalField(max_digits=20, decimal_places=2, required=False, default=Decimal('0.00'))
+    # Excedente: lo pagado de más que se queda en el colegio (no es vuelto ni
+    # saldo a favor). Mismo monto en las dos monedas, como el vuelto. Excluyente
+    # con el vuelto; RegistrarPagoView valida que no supere lo pagado de más
+    # (necesita el recargo y los abonos ya resueltos). Ver Pago.excedente_usd.
+    excedente_usd = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal('0'), required=False, default=Decimal('0.00'),
+    )
+    excedente_ves = serializers.DecimalField(
+        max_digits=20, decimal_places=2, min_value=Decimal('0'), required=False, default=Decimal('0.00'),
+    )
+    # Comprobante del portal que procesa este pago (aprobarlo = registrar el
+    # pago en caja). Se bloquea y valida dentro del atomic de la vista.
+    comprobante_portal_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     # --- Carga retroactiva desde Cobranza (multi-alumno/multi-línea) ---
     # Si `fecha_pago` se omite, el comportamiento es exactamente el actual
     # (tasa de hoy, sin exigir motivo). Si viene, exige tasa_aplicada y
@@ -711,6 +739,14 @@ class PagoCreateSerializer(serializers.Serializer):
     comprobante_retroactivo = serializers.FileField(required=False, allow_null=True, write_only=True)
 
     def validate(self, data):
+        hay_vuelto = (data.get('vuelto_usd') or 0) > 0 or (data.get('vuelto_ves') or 0) > 0
+        hay_excedente = (data.get('excedente_usd') or 0) > 0 or (data.get('excedente_ves') or 0) > 0
+        if hay_vuelto and hay_excedente:
+            raise serializers.ValidationError({
+                'excedente_usd': "Lo pagado de más es vuelto o excedente, no ambos. "
+                                 "Envíe solo uno de los dos.",
+            })
+
         alumnos_resueltos = []
         representantes = set()
         for item in data['alumnos']:
@@ -936,6 +972,13 @@ class PagoCreateSerializer(serializers.Serializer):
                 ref_normalizada, metodo_pago=metodo_item, banco_receptor_id=banco_item_id,
                 numero_lote=lote_item,
             )
+            if (
+                duplicado and duplicado['origen'] == 'portal.ComprobantePago'
+                and duplicado['id'] == data.get('comprobante_portal_id')
+            ):
+                # Comprobante viejo (subido con referencia) que este mismo pago
+                # procesa: no es un duplicado, es la misma transacción.
+                duplicado = None
             if duplicado:
                 raise serializers.ValidationError(
                     f"Pago {i}: La referencia '{ref_normalizada}' ya está en uso en "
