@@ -1,4 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import {
   Upload, Search, FileSpreadsheet, Link2, ListChecks,
   CheckCircle, AlertCircle, Building2, Trash2,
@@ -364,12 +366,30 @@ export default function Conciliador() {
     page, setPage,
     banks, banksLoading, bankInfo, fileRef,
     processFile, handleDrop, handleFileInput,
-    handleSearch, openSearch, clearFile,
+    handleSearch, openSearch, clearFile, retorno,
   } = useConciliador();
   const semiauto = useConciliacionSemiauto({ banco: bank, transactions, fileName });
   const masiva = useConciliacionMasiva({
     banco: bank, transactions, fileName, onConciliado: semiauto.refrescarLote,
   });
+
+  // Vuelta de caja tras procesar un comprobante del portal (?operacion=):
+  // reabre la conciliación por referencia con esa operación preseleccionada.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const retornoAtendido = useRef(false);
+  const { abrirConOperacion } = semiauto;
+  useEffect(() => {
+    const operacion = new URLSearchParams(location.search).get('operacion');
+    if (!operacion || retornoAtendido.current) return;
+    retornoAtendido.current = true;
+    navigate(location.pathname, { replace: true });
+    if (retorno?.referencia && transactions.length > 0) {
+      abrirConOperacion({ referencia: retorno.referencia, operacion });
+    } else {
+      toast.info('Pago registrado. Carga el estado de cuenta y búscalo para conciliarlo.');
+    }
+  }, [location.search, location.pathname, navigate, retorno, transactions.length, abrirConOperacion]);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

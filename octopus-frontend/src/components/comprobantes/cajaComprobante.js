@@ -14,12 +14,49 @@ export const RUTA_REVISION = '/comprobantes/revision';
 const METODOS_LINEA_BANCO = ['transferencia', 'pago_movil', 'zelle', 'punto_de_venta'];
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-/** URL de caja para procesar un comprobante del portal. */
-export const urlCajaComprobante = ({ cedula, comprobanteId }) => {
+/**
+ * URL de caja para procesar un comprobante del portal. Con `linea` (desde el
+ * conciliador: {metodo, banco, referencia, fecha ISO, monto en Bs.}) prellena
+ * la primera línea de pago y vuelve al conciliador al registrar.
+ */
+export const urlCajaComprobante = ({ cedula, comprobanteId, linea = null }) => {
     const params = new URLSearchParams();
     if (cedula) params.set('cedula', cedula);
     params.set('comprobante', String(comprobanteId));
+    if (linea) {
+        params.set('metodo', linea.metodo || 'transferencia');
+        if (linea.banco) params.set('banco', String(linea.banco));
+        if (linea.referencia) params.set('referencia', String(linea.referencia));
+        if (linea.fecha) params.set('fecha', linea.fecha);
+        if (linea.monto) params.set('monto', String(linea.monto));
+        params.set('moneda', 'VES');
+        params.set('volver', 'conciliacion');
+    }
     return `${RUTA_CAJA}?${params.toString()}`;
+};
+
+// Al ir a caja desde el conciliador se guarda el estado de cuenta cargado
+// (vive solo en memoria) para restaurarlo al volver con ?operacion=.
+const CLAVE_RETORNO_CONCILIADOR = 'conciliador_retorno_caja';
+
+export const guardarRetornoConciliador = (estado) => {
+    try {
+        sessionStorage.setItem(CLAVE_RETORNO_CONCILIADOR, JSON.stringify(estado));
+    } catch {
+        /* sin storage: al volver se carga de nuevo el estado de cuenta */
+    }
+};
+
+export const leerRetornoConciliador = () => {
+    try {
+        return JSON.parse(sessionStorage.getItem(CLAVE_RETORNO_CONCILIADOR) || 'null');
+    } catch {
+        return null;
+    }
+};
+
+export const borrarRetornoConciliador = () => {
+    try { sessionStorage.removeItem(CLAVE_RETORNO_CONCILIADOR); } catch { /* sin storage */ }
 };
 
 /** Motivo prellenado del modo retroactivo cuando se procesa un comprobante. */

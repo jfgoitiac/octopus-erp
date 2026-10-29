@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { parseStatement, PRESETS, FORMATO_DEFECTO } from '../utils/bankParsers';
 import apiClient from '../api/apiClient';
+import { borrarRetornoConciliador, leerRetornoConciliador } from '../components/comprobantes/cajaComprobante';
 
 const COLOR_NEUTRO = '#64748b';
 
@@ -35,9 +36,12 @@ function trimLeadingWhitespace(buffer) {
 }
 
 export function useConciliador() {
-  const [bank, setBank]                       = useState('');
-  const [transactions, setTransactions]       = useState([]);
-  const [fileName, setFileName]               = useState('');
+  // Al volver de procesar un comprobante en caja se restaura el estado de
+  // cuenta que estaba cargado (ver useProcesarEnCaja).
+  const [retorno] = useState(leerRetornoConciliador);
+  const [bank, setBank]                       = useState(() => retorno?.banco || '');
+  const [transactions, setTransactions]       = useState(() => retorno?.transactions || []);
+  const [fileName, setFileName]               = useState(() => retorno?.fileName || '');
   const [dragging, setDragging]               = useState(false);
   const [loading, setLoading]                 = useState(false);
   const [searchOpen, setSearchOpen]           = useState(false);
@@ -70,6 +74,8 @@ export function useConciliador() {
     })();
     return () => controller.abort();
   }, []);
+
+  useEffect(() => { borrarRetornoConciliador(); }, []);
 
   const bankInfo = useMemo(() => banks.find(b => b.id === bank), [banks, bank]);
 
@@ -228,5 +234,6 @@ export function useConciliador() {
     handleSearch,
     openSearch,
     clearFile,
+    retorno,
   };
 }
