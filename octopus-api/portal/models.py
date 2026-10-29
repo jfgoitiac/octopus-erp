@@ -131,30 +131,12 @@ class ComprobantePago(models.Model):
         verbose_name='IP de quien subió el comprobante'
     )
 
-    # ── Datos verificados por el revisor del colegio ─────────────────────────
-    # El representante solo sube el archivo; referencia, banco y método (arriba)
-    # y todo lo de abajo los llena quien revisa, al aprobar. Quedan null en los
-    # comprobantes pendientes, en los rechazados y en los aprobados antes de
-    # este flujo (o por la conciliación bancaria, que no los envía).
-    MONEDAS = [('USD', 'Dólares'), ('VES', 'Bolívares')]
-
-    fecha_pago = models.DateField(
-        null=True, blank=True, verbose_name='Fecha del pago (según el banco)',
-    )
-    monto_recibido = models.DecimalField(
-        max_digits=14, decimal_places=2, null=True, blank=True,
-        verbose_name='Monto recibido', help_text='En la moneda indicada en `moneda`.',
-    )
-    moneda = models.CharField(max_length=3, choices=MONEDAS, blank=True, default='')
-    tasa_aplicada = models.DecimalField(
-        max_digits=12, decimal_places=4, null=True, blank=True,
-        verbose_name='Tasa BCV de la fecha del pago',
-    )
-    monto_usd_aplicado = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True,
-        verbose_name='Abono aplicado a la mensualidad (USD)',
-        help_text='Puede ser menor que lo recibido si hubo excedente.',
-    )
+    # ── Resultado de la revisión ─────────────────────────────────────────────
+    # El representante solo sube el archivo. Se aprueba registrando el pago en
+    # caja (POST cobranza/registrar-pago/ con comprobante_portal_id): ahí se
+    # enlaza `pago` y se copian referencia, método y banco (campos de arriba)
+    # desde la primera línea bancaria. Los datos del pago (fecha, montos, tasa)
+    # viven en el Pago; aquí no se duplican.
     revisado_por = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='comprobantes_revisados', verbose_name='Revisado por',
@@ -166,7 +148,7 @@ class ComprobantePago(models.Model):
     )
     pago = models.ForeignKey(
         'cobranza.Pago', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='comprobantes_portal', verbose_name='Pago generado al aprobar',
+        related_name='comprobantes_portal', verbose_name='Pago registrado en caja',
     )
 
     class Meta:

@@ -31,43 +31,18 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='comprobantepago',
-            name='fecha_pago',
-            field=models.DateField(blank=True, null=True, verbose_name='Fecha del pago (según el banco)'),
-        ),
-        migrations.AddField(
-            model_name='comprobantepago',
             name='fecha_revision',
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
             model_name='comprobantepago',
-            name='moneda',
-            field=models.CharField(blank=True, choices=[('USD', 'Dólares'), ('VES', 'Bolívares')], default='', max_length=3),
-        ),
-        migrations.AddField(
-            model_name='comprobantepago',
-            name='monto_recibido',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='En la moneda indicada en `moneda`.', max_digits=14, null=True, verbose_name='Monto recibido'),
-        ),
-        migrations.AddField(
-            model_name='comprobantepago',
-            name='monto_usd_aplicado',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Puede ser menor que lo recibido si hubo excedente.', max_digits=10, null=True, verbose_name='Abono aplicado a la mensualidad (USD)'),
-        ),
-        migrations.AddField(
-            model_name='comprobantepago',
             name='pago',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='comprobantes_portal', to='cobranza.pago', verbose_name='Pago generado al aprobar'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='comprobantes_portal', to='cobranza.pago', verbose_name='Pago registrado en caja'),
         ),
         migrations.AddField(
             model_name='comprobantepago',
             name='revisado_por',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='comprobantes_revisados', to=settings.AUTH_USER_MODEL, verbose_name='Revisado por'),
-        ),
-        migrations.AddField(
-            model_name='comprobantepago',
-            name='tasa_aplicada',
-            field=models.DecimalField(blank=True, decimal_places=4, max_digits=12, null=True, verbose_name='Tasa BCV de la fecha del pago'),
         ),
         migrations.AddField(
             model_name='comprobantepago',

@@ -757,10 +757,9 @@ def notificar_mensaje_directo(mensaje):
 
 
 def notificar_pago_exitoso(mensualidad, pago, push=True, monto_usd=None):
-    """`monto_usd` permite informar el abono real (pago parcial aprobado
-    desde la revisión de comprobantes) en vez del monto nominal de la
-    mensualidad. `push=False` cuando el llamador ya manda su propio push
-    (ver enviar_avisos_comprobante), para no duplicarlo."""
+    """`monto_usd` permite informar un abono real en vez del monto nominal de
+    la mensualidad. `push=False` cuando el llamador ya manda su propio push,
+    para no duplicarlo."""
     alumno = mensualidad.alumno
     rep    = alumno.representante
     monto_usd = mensualidad.monto_usd if monto_usd is None else monto_usd
@@ -831,8 +830,10 @@ def enviar_avisos_comprobante(comprobante):
     """Push (y, si fue rechazado, email) al representante cuando se resuelve
     un comprobante del portal. El AvisoPortal de la bandeja ya lo creó
     portal.services.crear_aviso_comprobante (síncrono); esto es lo que puede
-    tardar o fallar, por eso corre en la tarea Celery. Al aprobar se manda
-    además el email de "pago confirmado" con el recibo, sin su push propio."""
+    tardar o fallar, por eso corre en la tarea Celery. Al aprobar SOLO va el
+    push: el comprobante se aprueba registrando el pago en caja, y caja ya
+    manda su correo de "pago confirmado" con el recibo (uno por operación,
+    RegistrarPagoView); mandarlo aquí también lo duplicaría."""
     from .plantillas_aviso import renderizar_aviso, valores_comprobante
 
     if comprobante.estatus not in ('aprobado', 'rechazado'):
@@ -867,8 +868,3 @@ def enviar_avisos_comprobante(comprobante):
         )
         # Futuro: WhatsApp (Twilio / Meta Business API) con el mismo texto
         # renderizado — requiere plantilla aprobada por Meta; no implementado.
-    elif comprobante.pago_id:
-        notificar_pago_exitoso(
-            mensualidad, comprobante.pago, push=False,
-            monto_usd=comprobante.monto_usd_aplicado,
-        )

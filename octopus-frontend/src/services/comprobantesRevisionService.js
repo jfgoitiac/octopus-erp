@@ -12,11 +12,24 @@ export const listarComprobantes = (estatus, signal) =>
 export const obtenerComprobante = (id, signal) =>
   apiClient.get(`portal/admin/comprobantes/${id}/`, conSignal(signal));
 
-export const obtenerTasaComprobante = (fecha, signal) =>
-  apiClient.get('portal/admin/comprobantes/tasa/', conSignal(signal, { params: { fecha } }));
+// La aprobación ya no tiene endpoint propio: un comprobante se aprueba
+// registrando el pago en caja (`POST cobranza/registrar-pago/` con
+// `comprobante_portal_id`). Aquí solo queda el rechazo.
 
-export const aprobarComprobante = (id, datos) =>
-  apiClient.patch(`portal/admin/comprobantes/${id}/`, { ...datos, estatus: 'aprobado' });
+/**
+ * Id del primer comprobante pendiente distinto de `excluirId`, o null.
+ * Se usa al terminar una revisión (rechazo o pago en caja) para seguir con el
+ * siguiente. Si la consulta falla devuelve null y el caller vuelve a la lista.
+ */
+export const buscarSiguientePendiente = async (excluirId) => {
+  try {
+    const { data } = await listarComprobantes('pendiente');
+    const lista = Array.isArray(data) ? data : data?.results || [];
+    return lista.find((c) => String(c.id) !== String(excluirId))?.id ?? null;
+  } catch {
+    return null;
+  }
+};
 
 export const rechazarComprobante = (id, { motivo_rechazo_id, observaciones }) =>
   apiClient.patch(`portal/admin/comprobantes/${id}/`, {

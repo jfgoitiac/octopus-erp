@@ -14,19 +14,23 @@ Decisiones (ver PROMPT_MODULO_CONCILIADOR.md):
   - La diferencia (banco - sistema) se recalcula en el servidor. Si supera la
     tolerancia se exige una observación; igual se puede conciliar.
   - El excedente solo se registra: no se toca ningún saldo.
-  - Un comprobante pendiente del portal se aprueba al conciliarlo, con los
-    mismos efectos que la aprobación manual (portal.services).
+  - Un comprobante pendiente del portal NO se aprueba al conciliar: aparece
+    como candidato `comprobante_por_procesar` y el operador lo procesa en
+    caja (POST cobranza/registrar-pago/ con comprobante_portal_id). El pago
+    resultante aparece luego como una operación normal (tipo 'pago') y es la
+    que se concilia. Un solo camino de aprobación: el de caja.
 """
 import logging
+import os
 import re
 import uuid
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from itertools import combinations
 
 from django.db import IntegrityError, transaction
-from django.db.models import Max, Min
+from django.db.models import Max, Min, Q
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -185,15 +189,18 @@ def _parsear_rango(desde, hasta):
     return d, h
 
 
-def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, solo_no_conciliadas=False):
+def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, solo_no_conciliadas=False,
+                       fechas_linea=None, request=None):
     """
     Operaciones del banco receptor visibles para `user`: pagos `completado`
-    agrupados por operación + comprobantes `pendiente` del portal.
+    agrupados por operación + comprobantes `pendiente` del portal (tipo
+    `comprobante_por_procesar`, ver `listar_comprobantes_por_procesar`).
 
     Fecha de filtro (desde/hasta, inclusivos, en hora local): `Pago.fecha_pago`
-    y `ComprobantePago.fecha_subida` (equivalente a la fecha de pago del
-    comprobante: el modelo no guarda otra). `sufijo` filtra por referencia
-    terminada en esos dígitos.
+    y `ComprobantePago.fecha_subida` (el comprobante no guarda otra fecha).
+    `sufijo` filtra por referencia terminada en esos dígitos; los comprobantes
+    sin referencia se filtran por fecha (`fechas_linea`: fechas de las líneas
+    del banco buscadas, para la ventana cuando no hay rango).
     """
     resultados = []
 
@@ -245,55 +252,171 @@ def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, s
             'se_aprobara': False,
         })
 
-    # ── Comprobantes pendientes del portal ──
+    # ── Comprobantes pendientes del portal (por procesar en caja) ──
+    resultados.extend(listar_comprobantes_por_procesar(
+        user, banco_id, sufijo=sufijo, desde=desde, hasta=hasta,
+        fechas_linea=fechas_linea, request=request,
+    ))
+    return resultados
+
+
+# Ventana (en días, a cada lado) alrededor de la fecha de la línea del banco en
+# la que se buscan comprobantes SIN referencia cuando la búsqueda es por
+# sufijo y no trae rango de fechas. El representante suele subir el
+# comprobante el mismo día o pocos días después de transferir; ±5 días cubre
+# fines de semana/feriados sin inundar la lista. Sin fecha de línea, la
+# ventana se centra en hoy.
+VENTANA_COMPROBANTES_DIAS = 5
+
+
+def _url_archivo_comprobante(request, comprobante):
+    """Ruta protegida del archivo (misma que portal.views): /media/ no tiene
+    control de acceso real si nginx la sirve estático en producción."""
+    if not comprobante.archivo:
+        return None
+    ruta = f'/media-protegido/comprobantes/{os.path.basename(comprobante.archivo.name)}/'
+    return request.build_absolute_uri(ruta) if request is not None else ruta
+
+
+def _tipo_archivo(archivo):
+    if not archivo:
+        return None
+    extension = os.path.splitext(archivo.name or '')[1].lower()
+    if extension == '.pdf':
+        return 'pdf'
+    if extension in {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp'}:
+        return 'imagen'
+    return None
+
+
+def _tasa_en(fecha, cache_tasas):
+    """Tasa BCV (valor_bs) de la fecha, o la última anterior; si no hay
+    ninguna, la última registrada; None si no existe ninguna tasa."""
+    if fecha in cache_tasas:
+        return cache_tasas[fecha]
+    from finanzas.monedas import tasa_para_fecha
+    try:
+        valor = tasa_para_fecha(fecha).valor_bs
+    except TasaCambio.DoesNotExist:
+        ultima = TasaCambio.objects.order_by('-fecha').first()
+        valor = ultima.valor_bs if ultima else None
+    cache_tasas[fecha] = valor
+    return valor
+
+
+def listar_comprobantes_por_procesar(user, banco_id, *, sufijo=None, desde=None, hasta=None,
+                                     fechas_linea=None, request=None):
+    """
+    Comprobantes `pendiente` del portal candidatos para una línea del banco.
+    Ya no se aprueban al conciliar: se informan como `comprobante_por_procesar`
+    para que el operador los procese en caja.
+
+    - Banco: el receptor elegido o ninguno (desde que el representante solo
+      sube el archivo, los comprobantes nuevos no traen banco ni referencia).
+    - Con `sufijo`: los que tienen referencia deben terminar en él; los que no
+      tienen referencia se incluyen por fecha (rango `desde/hasta` o, sin
+      rango, ±VENTANA_COMPROBANTES_DIAS alrededor de `fechas_linea`).
+    - Sin `sufijo`: todos los del rango de fechas (fecha_subida).
+    `monto_ves` es una ESTIMACIÓN: saldo pendiente de la mensualidad
+    (monto_usd − monto_pagado) × tasa BCV de la fecha de subida.
+    """
     from portal.models import ComprobantePago
 
-    filtros = {'banco_receptor_id': banco_id, 'estatus': 'pendiente'}
-    if sufijo:
-        filtros['referencia_bancaria__endswith'] = sufijo
+    qs = ComprobantePago.objects.filter(estatus='pendiente').filter(
+        Q(banco_receptor_id=banco_id) | Q(banco_receptor__isnull=True),
+    )
     if desde:
-        filtros['fecha_subida__date__gte'] = desde
+        qs = qs.filter(fecha_subida__date__gte=desde)
     if hasta:
-        filtros['fecha_subida__date__lte'] = hasta
+        qs = qs.filter(fecha_subida__date__lte=hasta)
+    if sufijo:
+        sin_referencia = Q(referencia_bancaria__isnull=True) | Q(referencia_bancaria='')
+        if not (desde or hasta):
+            fechas = [f for f in (fechas_linea or []) if f] or [timezone.localdate()]
+            inicio = min(fechas) - timedelta(days=VENTANA_COMPROBANTES_DIAS)
+            fin = max(fechas) + timedelta(days=VENTANA_COMPROBANTES_DIAS)
+            sin_referencia &= Q(fecha_subida__date__gte=inicio, fecha_subida__date__lte=fin)
+        qs = qs.filter(Q(referencia_bancaria__endswith=sufijo) | sin_referencia)
     comprobantes = (
-        filtrar_por_sede(user, ComprobantePago.objects.filter(**filtros), campo='mensualidad__alumno__sede')
+        filtrar_por_sede(user, qs, campo='mensualidad__alumno__sede')
         .select_related('mensualidad__alumno__representante')
         .order_by('-fecha_subida')
     )
-    tasa = TasaCambio.objects.order_by('-fecha').first()
-    tasa_valor = tasa.valor_bs if tasa else Decimal('1')
+    resultados, cache_tasas = [], {}
     for c in comprobantes:
-        alumno = c.mensualidad.alumno
+        mensualidad = c.mensualidad
+        alumno = mensualidad.alumno
         rep = alumno.representante
+        fecha = timezone.localtime(c.fecha_subida).date()
+        saldo_usd = max(
+            (mensualidad.monto_usd or Decimal('0')) - (mensualidad.monto_pagado or Decimal('0')),
+            Decimal('0'),
+        ).quantize(CENT)
+        tasa = _tasa_en(fecha, cache_tasas)
+        monto_ves = (saldo_usd * tasa).quantize(CENT) if tasa is not None else Decimal('0.00')
         resultados.append({
             'operacion_uuid': None,
             'comprobante_id': c.id,
-            'tipo': 'comprobante_pendiente',
-            'referencia': c.referencia_bancaria,
-            'fecha': timezone.localtime(c.fecha_subida).date().isoformat(),
-            'monto_ves': str((c.mensualidad.monto_usd * tasa_valor).quantize(CENT)),
+            'tipo': 'comprobante_por_procesar',
+            'referencia': c.referencia_bancaria or '',
+            'fecha': fecha.isoformat(),
+            'monto_ves': str(monto_ves),
+            'monto_estimado': True,
+            'saldo_usd': str(saldo_usd),
+            'tasa_ves': str(tasa) if tasa is not None else None,
+            'banco_receptor_id': c.banco_receptor_id,
+            'metodo_pago': c.metodo_pago or None,
             'representante_id': rep.id,
             'representante': f'{rep.nombre} {rep.apellido}'.strip(),
+            'cedula_representante': rep.cedula,
+            'alumno_id': alumno.id,
             'alumnos': [f'{alumno.nombre} {alumno.apellido}'.strip()],
+            'mensualidad': {
+                'id': mensualidad.id,
+                'mes': mensualidad.mes,
+                'anio': mensualidad.anio,
+                'nombre': f'{mensualidad.get_mes_display()} {mensualidad.anio}',
+                'monto_usd': str(mensualidad.monto_usd),
+                'saldo_usd': str(saldo_usd),
+            },
+            'archivo_url': _url_archivo_comprobante(request, c),
+            'archivo_tipo': _tipo_archivo(c.archivo),
             'pagos_ids': [],
             'conciliado': False,
             'lote_id': None,
-            'se_aprobara': True,
+            'se_aprobara': False,
         })
     return resultados
 
 
+def _parsear_fechas_linea(valor):
+    """'AAAA-MM-DD[,AAAA-MM-DD...]' → [date]. Lanza ErrorConciliacion."""
+    fechas = []
+    for parte in str(valor or '').split(','):
+        parte = parte.strip()
+        if not parte:
+            continue
+        try:
+            fechas.append(date.fromisoformat(parte))
+        except ValueError:
+            raise ErrorConciliacion('fecha inválida (use AAAA-MM-DD).')
+    return fechas[:MAX_RESULTADOS]
+
+
 class CandidatosConciliacionView(APIView):
     """
-    GET cobranza/conciliacion/candidatos/?banco=<id>&ref=<4-6 dígitos>[&desde=&hasta=]
+    GET cobranza/conciliacion/candidatos/?banco=<id>&ref=<4-6 dígitos>[&desde=&hasta=][&fecha=]
 
     Operaciones candidatas del banco receptor cuya referencia termina en los
     dígitos indicados: pagos `completado` agrupados por operación y
-    comprobantes `pendiente` del portal (que se aprobarán al conciliar).
+    comprobantes `pendiente` del portal (`comprobante_por_procesar`: se
+    procesan en caja, NO se aprueban al conciliar).
 
     `desde`/`hasta` (AAAA-MM-DD, inclusivos) filtran por fecha de pago
     (Pago.fecha_pago; comprobante: fecha_subida). `ref` es obligatorio salvo
-    que se indique desde y/o hasta.
+    que se indique desde y/o hasta. `fecha` (una o varias separadas por coma):
+    fecha de la(s) línea(s) del banco; sin rango, los comprobantes sin
+    referencia se buscan a ±VENTANA_COMPROBANTES_DIAS de ella.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -306,6 +429,7 @@ class CandidatosConciliacionView(APIView):
             desde, hasta = _parsear_rango(
                 request.query_params.get('desde'), request.query_params.get('hasta'),
             )
+            fechas_linea = _parsear_fechas_linea(request.query_params.get('fecha'))
         except ErrorConciliacion as exc:
             return Response({'error': exc.mensaje}, status=status.HTTP_400_BAD_REQUEST)
         con_rango = bool(desde or hasta)
@@ -321,6 +445,7 @@ class CandidatosConciliacionView(APIView):
 
         resultados = listar_operaciones(
             request.user, banco_id, sufijo=ref or None, desde=desde, hasta=hasta,
+            fechas_linea=fechas_linea, request=request,
         )
         return Response({
             'resultados': resultados[:MAX_RESULTADOS],
@@ -395,19 +520,20 @@ def parsear_tolerancia(valor):
 
 
 MAX_OPERACIONES_POR_MOVIMIENTO = 20
+MSG_PROCESAR_EN_CAJA = 'Procese el comprobante en caja antes de conciliarlo.'
 
 
 def _resolver_operacion(user, banco, operacion_uuid, comprobante_id):
     """
     Resuelve UNA operación a conciliar (dentro de la transacción del llamador).
-    Un comprobante pendiente se aprueba aquí. Devuelve
-    (operacion_uuid, pagos, comprobante|None, advertencias, (mensualidad, pago)|None).
+    Un comprobante del portal ya no se concilia directamente: se procesa en
+    caja y se concilia el pago resultante. Devuelve
+    (operacion_uuid, pagos, comprobante_del_portal|None).
     """
     if bool(operacion_uuid) == bool(comprobante_id):
         raise ErrorConciliacion('Indique operacion_uuid o comprobante_id (solo uno).')
     if comprobante_id:
-        comprobante, pagos, advertencias, notificar = _aprobar_comprobante(user, banco, comprobante_id)
-        return pagos[0].operacion_uuid, pagos, comprobante, advertencias, notificar
+        raise ErrorConciliacion(MSG_PROCESAR_EN_CAJA)
     try:
         operacion_uuid = uuid.UUID(str(operacion_uuid))
     except ValueError:
@@ -419,7 +545,11 @@ def _resolver_operacion(user, banco, operacion_uuid, comprobante_id):
         raise ErrorConciliacion('Operación no encontrada para ese banco.', status.HTTP_404_NOT_FOUND)
     if ConciliacionBancaria.objects.filter(operacion_uuid=operacion_uuid).exists():
         raise ErrorConciliacion('Esta operación ya fue conciliada.')
-    return operacion_uuid, pagos, None, [], None
+    # Trazabilidad: si la operación se registró en caja procesando un
+    # comprobante del portal, la conciliación lo referencia.
+    from portal.models import ComprobantePago
+    comprobante = ComprobantePago.objects.filter(pago__in=pagos).order_by('id').first()
+    return operacion_uuid, pagos, comprobante
 
 
 def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_banco, monto_banco,
@@ -441,9 +571,12 @@ def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_ba
     Antifraude: si el movimiento mezcla operaciones de representantes
     distintos se exige observación (igual que al superar la tolerancia).
 
+    Un `comprobante_id` se rechaza (400): el comprobante se procesa primero en
+    caja y se concilia el pago resultante (operacion_uuid).
+
     Atómica por sí misma (savepoint si ya hay una transacción abierta): ante
-    cualquier ErrorConciliacion no queda ningún efecto (ni la aprobación de
-    comprobantes). Devuelve (conciliaciones_nuevas, lote, advertencias, movimiento).
+    cualquier ErrorConciliacion no queda ningún efecto.
+    Devuelve (conciliaciones_nuevas, lote, advertencias, movimiento).
     """
     if not isinstance(operaciones, list) or not operaciones:
         raise ErrorConciliacion('Indique al menos una operación a conciliar.')
@@ -465,10 +598,10 @@ def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_ba
                 )
             previas = list(movimiento.conciliaciones.all()) if movimiento else []
 
-            nuevas, vistas, notificar = [], {c.operacion_uuid for c in previas}, []
+            nuevas, vistas = [], {c.operacion_uuid for c in previas}
             for item in operaciones:
                 item = item if isinstance(item, dict) else {}
-                op_uuid, pagos, comprobante, adv, notif = _resolver_operacion(
+                op_uuid, pagos, comprobante = _resolver_operacion(
                     user, banco, item.get('operacion_uuid') or None, item.get('comprobante_id') or None,
                 )
                 if op_uuid in vistas:
@@ -476,9 +609,6 @@ def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_ba
                 vistas.add(op_uuid)
                 monto_op = sum((p.monto_ves for p in pagos), Decimal('0')).quantize(CENT)
                 nuevas.append((op_uuid, pagos, comprobante, monto_op))
-                advertencias.extend(adv)
-                if notif:
-                    notificar.append(notif)
 
             monto_sistema = (
                 sum((c.monto_operacion_ves for c in previas), Decimal('0'))
@@ -487,7 +617,6 @@ def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_ba
             diferencia = (monto_banco - monto_sistema).quantize(CENT)
             fuera = abs(diferencia) > tolerancia
             if fuera and not observacion:
-                # Al propagar la excepción se revierte la aprobación de comprobantes.
                 raise ErrorConciliacion('La diferencia supera la tolerancia: la observación es obligatoria.')
 
             representantes = {p.alumno.representante_id for n in nuevas for p in n[1]}
@@ -541,14 +670,6 @@ def conciliar_movimiento(user, banco, *, operaciones, referencia_banco, fecha_ba
                 ))
                 lote.pagos.add(*pagos)
             _recalcular_fechas(lote)
-
-            if notificar:
-                from portal.services import notificar_pago_aprobado
-
-                def _notificar(pendientes=tuple(notificar)):
-                    for mensualidad, pago in pendientes:
-                        notificar_pago_aprobado(mensualidad, pago)
-                transaction.on_commit(_notificar)
     except IntegrityError:
         raise ErrorConciliacion('La operación o la línea del estado de cuenta ya fue conciliada.')
     return creadas, lote, advertencias, movimiento
@@ -565,36 +686,6 @@ def conciliar_item(user, banco, *, operacion_uuid, comprobante_id, referencia_ba
         tolerancia=tolerancia, observacion=observacion, archivo=archivo,
     )
     return creadas[0], lote, advertencias
-
-
-def _aprobar_comprobante(user, banco, comprobante_id):
-    """Aprueba el comprobante vía servicio. Devuelve
-    (comprobante, [pago], advertencias, (mensualidad, pago)) o lanza ErrorConciliacion."""
-    from portal.models import ComprobantePago
-    from portal.services import ComprobanteNoEncontrado, ComprobanteYaProcesado, aprobar_comprobante
-
-    try:
-        comprobante_id = int(comprobante_id)
-    except (TypeError, ValueError):
-        raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
-    visible = filtrar_por_sede(
-        user, ComprobantePago.objects.filter(id=comprobante_id),
-        campo='mensualidad__alumno__sede',
-    ).first()
-    if not visible:
-        raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
-    if visible.banco_receptor_id != banco.id:
-        raise ErrorConciliacion('El comprobante pertenece a otro banco receptor.')
-    try:
-        comprobante, pago, mensualidad, advertencias = aprobar_comprobante(
-            comprobante_id, user,
-            observaciones='Aprobado automáticamente por conciliación bancaria',
-        )
-    except ComprobanteNoEncontrado:
-        raise ErrorConciliacion('Comprobante no encontrado.', status.HTTP_404_NOT_FOUND)
-    except ComprobanteYaProcesado as exc:
-        raise ErrorConciliacion(f'Este comprobante ya fue procesado (estatus actual: {exc.estatus}).')
-    return comprobante, [pago], advertencias, (mensualidad, pago)
 
 
 class ConciliarOperacionView(APIView):
@@ -878,6 +969,47 @@ def _agrupar(ops, lineas, pares, tolerancia):
     return {j: combo for j, combo in elegidos.items() if all(uso[i] == 1 for i in combo)}
 
 
+CAMPOS_COMPROBANTE_PROPUESTA = (
+    'cedula_representante', 'representante_id', 'alumno_id', 'mensualidad', 'archivo_url',
+    'archivo_tipo', 'banco_receptor_id', 'metodo_pago', 'monto_estimado', 'saldo_usd', 'tasa_ves',
+)
+
+
+def _sugerir_comprobantes(ops, lineas, *, ocupadas, tolerancia, digitos):
+    """
+    Sugerencias "requiere procesar en caja": empareja comprobantes del portal
+    con líneas LIBRES (`ocupadas` = tomadas por pagos o candidatas de algún
+    pago) cuando el acuerdo es único en ambos sentidos (`_asignar`).
+    Criterio por comprobante: monto estimado dentro de la tolerancia y, si
+    trae referencia, que coincida; si no, fecha de la línea a
+    ±VENTANA_COMPROBANTES_DIAS de la fecha de subida.
+    Devuelve {i_op: j_linea}.
+    """
+    indices = [i for i, op in enumerate(ops) if op['tipo'] != 'pago']
+    if not indices:
+        return {}
+    ventana = timedelta(days=VENTANA_COMPROBANTES_DIAS)
+    sub = []
+    for i in indices:
+        op = ops[i]
+        fecha = date.fromisoformat(op['fecha'])
+        candidatas = []
+        for j, t in enumerate(lineas):
+            if j in ocupadas or '_previo' in t:
+                continue
+            if abs(t['monto'] - op['_monto']) > tolerancia:
+                continue
+            if op['referencia']:
+                if not _refs_coinciden(op['referencia'], t['referencia'], digitos):
+                    continue
+            elif abs(t['fecha'] - fecha) > ventana:
+                continue
+            candidatas.append(j)
+        sub.append({'_lineas': candidatas, '_monto': op['_monto']})
+    pares, _pendientes = _asignar(sub, lineas, tolerancia)
+    return {indices[k]: j for k, j in pares.items()}
+
+
 class PropuestasConciliacionView(APIView):
     """
     POST cobranza/conciliacion/auto/propuestas/  (solo lectura)
@@ -886,6 +1018,13 @@ class PropuestasConciliacionView(APIView):
            transacciones: [{referencia, fecha, monto}]}
     Cruza las líneas del estado de cuenta con las operaciones y comprobantes
     pendientes del banco receptor en el rango, aún no conciliadas.
+
+    Los comprobantes del portal (`comprobante_por_procesar`) NUNCA se emparejan
+    automáticamente ni son confirmables (`confirmable: false`): si una línea
+    libre (sin ningún pago candidato) coincide de forma única con uno de ellos
+    por monto estimado (dentro de la tolerancia) y fecha (±VENTANA_COMPROBANTES_DIAS
+    de la subida; o por referencia si el comprobante la trae), sale como
+    sugerencia `requiere_caja` con esa línea, para procesarlo en caja.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -917,13 +1056,15 @@ class PropuestasConciliacionView(APIView):
         lineas = _lineas_disponibles(banco, transacciones, tolerancia)
 
         ops = listar_operaciones(
-            request.user, banco.id, desde=desde, hasta=hasta, solo_no_conciliadas=True,
+            request.user, banco.id, desde=desde, hasta=hasta, solo_no_conciliadas=True, request=request,
         )
         ops.sort(key=lambda o: (o['fecha'], o['tipo'], o['operacion_uuid'] or '', o['comprobante_id'] or 0))
         lineas_con_op = set()
         for op in ops:
             op['_monto'] = Decimal(op['monto_ves'])
-            op['_lineas_todas'] = [
+            # Los comprobantes del portal quedan fuera del emparejamiento
+            # automático (1:1 y pago conjunto): se sugieren aparte.
+            op['_lineas_todas'] = [] if op['tipo'] != 'pago' else [
                 j for j, t in enumerate(lineas) if _refs_coinciden(op['referencia'], t['referencia'], digitos)
             ]
             # El emparejamiento 1:1 solo usa líneas libres; las ya conciliadas
@@ -935,19 +1076,32 @@ class PropuestasConciliacionView(APIView):
         grupos = _agrupar(ops, lineas, pares, tolerancia)
         grupo_de = {i: j for j, combo in grupos.items() for i in combo}
         tomadas_por_grupo = set(grupos)
+        sugerencias = _sugerir_comprobantes(
+            ops, lineas, ocupadas=set(pares.values()) | tomadas_por_grupo | lineas_con_op,
+            tolerancia=tolerancia, digitos=digitos,
+        )
+        lineas_con_op.update(sugerencias.values())
 
         propuestas = []
         resumen = {
             'total': 0, 'exactas': 0, 'dentro_tolerancia': 0,
-            'fuera_tolerancia': 0, 'ambiguas': 0, 'sin_banco': 0,
+            'fuera_tolerancia': 0, 'ambiguas': 0, 'sin_banco': 0, 'requiere_caja': 0,
         }
         clave_resumen = {
             'exacta': 'exactas', 'dentro_tolerancia': 'dentro_tolerancia',
             'fuera_tolerancia': 'fuera_tolerancia', 'ambigua': 'ambiguas', 'sin_banco': 'sin_banco',
+            'requiere_caja': 'requiere_caja',
         }
         for i, op in enumerate(ops):
             tx, candidatas, dif, grupo, por_defecto = None, [], None, None, op['tipo'] == 'pago'
-            if i in pares or i in grupo_de:
+            if i in sugerencias:
+                t = lineas[sugerencias[i]]
+                tx = _tx_json(t)
+                dif = str((t['monto'] - op['_monto']).quantize(CENT))
+                estado = 'requiere_caja'
+            elif op['tipo'] != 'pago':
+                estado = 'sin_banco'
+            elif i in pares or i in grupo_de:
                 j = pares[i] if i in pares else grupo_de[i]
                 t = lineas[j]
                 tx = _tx_json(t)
@@ -974,7 +1128,7 @@ class PropuestasConciliacionView(APIView):
                     candidatas = [_tx_json(lineas[j]) for j in sorted(restantes)]
                 else:
                     estado = 'sin_banco'
-            propuestas.append({
+            propuesta = {
                 'id': i,
                 'estado': estado,
                 'tipo': op['tipo'],
@@ -989,8 +1143,12 @@ class PropuestasConciliacionView(APIView):
                 'candidatas': candidatas,
                 'diferencia_ves': dif,
                 'grupo': grupo,
+                'confirmable': op['tipo'] == 'pago',
                 'seleccionada_por_defecto': estado in ('exacta', 'dentro_tolerancia') and por_defecto,
-            })
+            }
+            if op['tipo'] != 'pago':
+                propuesta.update({k: op.get(k) for k in CAMPOS_COMPROBANTE_PROPUESTA})
+            propuestas.append(propuesta)
             resumen['total'] += 1
             resumen[clave_resumen[estado]] += 1
         resumen['pagos_conjuntos'] = len(grupos)

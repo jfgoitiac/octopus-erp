@@ -77,8 +77,9 @@ def renderizar_aviso(clave, valores):
 
 
 def valores_comprobante(comprobante):
-    """Tokens de un ComprobantePago ya resuelto. `{{monto}}` es el abono
-    aplicado si lo hubo (aprobado) o el saldo pendiente de la mensualidad."""
+    """Tokens de un ComprobantePago ya resuelto. `{{monto}}` es, si fue
+    aprobado en caja, lo abonado a SU mensualidad en esa operación (o el total
+    del pago si no hay aplicación registrada); si no, el saldo pendiente."""
     from cobranza.deudas import saldo_deuda
     from cobranza.recibo_cobranza import fmt_bs
     from .services import _config_colegio
@@ -87,10 +88,13 @@ def valores_comprobante(comprobante):
     alumno = mensualidad.alumno
     rep = alumno.representante
     cfg = _config_colegio()
-    if comprobante.monto_usd_aplicado is not None:
-        monto = comprobante.monto_usd_aplicado
-    elif comprobante.estatus == 'aprobado' and comprobante.pago_id:
-        monto = comprobante.pago.monto_usd
+    if comprobante.estatus == 'aprobado' and comprobante.pago_id:
+        from cobranza.deudas import aplicaciones_operacion
+        abono = next((
+            a.monto_abonado_usd for a in aplicaciones_operacion(comprobante.pago)
+            if a.content_type.model == 'mensualidad' and a.object_id == mensualidad.id
+        ), None)
+        monto = abono if abono is not None else comprobante.pago.monto_usd
     else:
         monto = saldo_deuda(mensualidad)
     referencia = comprobante.referencia_bancaria or (

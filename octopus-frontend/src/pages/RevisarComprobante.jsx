@@ -1,21 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Banknote, Info, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Card } from '../components/ui/Card';
 import { Bone } from '../components/shared/Skeleton';
 import VisorComprobante from '../components/comprobantes/VisorComprobante';
 import ResumenComprobante from '../components/comprobantes/ResumenComprobante';
-import FormularioRevision from '../components/comprobantes/FormularioRevision';
 import ModalRechazo from '../components/comprobantes/ModalRechazo';
 import RevisionSoloLectura from '../components/comprobantes/RevisionSoloLectura';
-import { getBancos } from '../api/cobranza.service';
 import {
-  aprobarComprobante, listarComprobantes, obtenerComprobante, rechazarComprobante,
+  buscarSiguientePendiente, obtenerComprobante, rechazarComprobante,
 } from '../services/comprobantesRevisionService';
 import { mensajeError, normalizarCampos } from '../components/comprobantes/comprobantesUtils';
-
-const RUTA_LISTA = '/comprobantes/revision';
+import { RUTA_REVISION as RUTA_LISTA, urlCajaComprobante } from '../components/comprobantes/cajaComprobante';
 
 const EsqueletoPanel = () => (
   <div className="space-y-4">
@@ -30,12 +27,46 @@ const EsqueletoPanel = () => (
   </div>
 );
 
+/**
+ * Acciones de un comprobante pendiente. La aprobación no tiene formulario
+ * propio: el pago se registra en caja con todas sus reglas (tasa, retroactivo,
+ * excedente, recibo) y eso aprueba el comprobante.
+ */
+const AccionesRevision = ({ procesando, onProcesar, onRechazar }) => (
+  <div className="space-y-3">
+    <p className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
+      <Info size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+      Para aprobarlo, procesa el pago en caja: verás este comprobante al lado y,
+      al registrar el pago, quedará aprobado y se avisará al representante.
+    </p>
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        onClick={onRechazar}
+        disabled={procesando}
+        className="inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-red-700 disabled:opacity-60 sm:w-auto"
+        style={{ border: '0.5px solid #fca5a5', background: 'var(--porcelain)' }}
+      >
+        <XCircle size={16} aria-hidden="true" /> Rechazar
+      </button>
+      <button
+        type="button"
+        onClick={onProcesar}
+        disabled={procesando}
+        className="inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
+        style={{ background: 'var(--pb)' }}
+      >
+        <Banknote size={16} aria-hidden="true" /> Procesar pago
+      </button>
+    </div>
+  </div>
+);
+
 const RevisarComprobante = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [comprobante, setComprobante] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const [bancos, setBancos] = useState([]);
   const [errores, setErrores] = useState({});
   const [procesando, setProcesando] = useState(false);
   const [rechazoAbierto, setRechazoAbierto] = useState(false);
@@ -67,31 +98,22 @@ const RevisarComprobante = () => {
     return () => controller.abort();
   }, [cargar]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    getBancos(controller.signal)
-      .then(({ data }) => setBancos(Array.isArray(data) ? data : data?.results || []))
-      .catch((error) => {
-        if (error?.code !== 'ERR_CANCELED') toast.error('No se pudieron cargar los bancos del colegio.');
-      });
-    return () => controller.abort();
-  }, []);
-
   const irAlSiguiente = async () => {
-    try {
-      const { data } = await listarComprobantes('pendiente');
-      const lista = Array.isArray(data) ? data : data?.results || [];
-      const siguiente = lista.find((c) => String(c.id) !== String(id));
-      if (siguiente) {
-        toast.info('Abriendo el siguiente comprobante pendiente.');
-        navigate(`${RUTA_LISTA}/${siguiente.id}`);
-        return;
-      }
-      toast.info('No quedan comprobantes pendientes.');
-    } catch {
-      // Si falla la consulta del siguiente, volver a la lista es suficiente.
+    const siguienteId = await buscarSiguientePendiente(id);
+    if (siguienteId) {
+      toast.info('Abriendo el siguiente comprobante pendiente.');
+      navigate(`${RUTA_LISTA}/${siguienteId}`);
+      return;
     }
+    toast.info('No quedan comprobantes pendientes.');
     navigate(RUTA_LISTA);
+  };
+
+  // Aprobar = registrar el pago en caja. La caja carga este comprobante,
+  // preselecciona representante, alumno y mensualidad y, al registrar, lo
+  // marca como aprobado (POST cobranza/registrar-pago/ con comprobante_portal_id).
+  const procesarPago = () => {
+    navigate(urlCajaComprobante({ cedula: comprobante?.representante_cedula, comprobanteId: comprobante.id }));
   };
 
   const manejarErrorProceso = (error, porDefecto) => {
@@ -116,20 +138,6 @@ const RevisarComprobante = () => {
     toast.success(data?.mensaje || 'Comprobante procesado.');
   };
 
-  const aprobar = async (datos) => {
-    setProcesando(true);
-    setErrores({});
-    try {
-      const { data } = await aprobarComprobante(id, datos);
-      mostrarResultado(data);
-      await irAlSiguiente();
-    } catch (error) {
-      manejarErrorProceso(error, 'No se pudo aprobar el comprobante.');
-    } finally {
-      setProcesando(false);
-    }
-  };
-
   const rechazar = async (datos) => {
     setProcesando(true);
     setErrores({});
@@ -144,10 +152,6 @@ const RevisarComprobante = () => {
       setProcesando(false);
     }
   };
-
-  const limpiarError = useCallback((campo) => {
-    setErrores((e) => (e[campo] ? { ...e, [campo]: undefined } : e));
-  }, []);
 
   const pendiente = comprobante?.estatus === 'pendiente';
 
@@ -181,15 +185,10 @@ const RevisarComprobante = () => {
               <ResumenComprobante comprobante={comprobante} />
               <div className="pt-4" style={{ borderTop: '0.5px solid var(--border)' }}>
                 {pendiente ? (
-                  <FormularioRevision
-                    key={comprobante.id}
-                    comprobante={comprobante}
-                    bancos={bancos}
-                    errores={errores}
+                  <AccionesRevision
                     procesando={procesando}
-                    onAprobar={aprobar}
+                    onProcesar={procesarPago}
                     onRechazar={() => setRechazoAbierto(true)}
-                    onLimpiarError={limpiarError}
                   />
                 ) : (
                   <RevisionSoloLectura comprobante={comprobante} />

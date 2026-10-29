@@ -236,6 +236,21 @@ class Pago(models.Model):
         default=Decimal('0.00'), null=True, blank=True,
         help_text="Vuelto entregado al representante en Bolívares"
     )
+    # EXCEDENTE: lo pagado de más que NO se devuelve (p. ej. se deben Bs. 1.950
+    # y transfieren Bs. 2.000 → Bs. 50 de excedente). Igual que el vuelto, va
+    # solo en el PRIMER pago de la operación y es el MISMO monto expresado en
+    # las dos monedas (no se suman). A diferencia del vuelto, es dinero que SÍ
+    # entró al banco: ningún reporte de ingresos debe restarlo (monto_usd /
+    # monto_ves del Pago ya lo incluyen y así debe quedar). Es excluyente con
+    # el vuelto y no genera saldo a favor (deuda técnica).
+    excedente_usd = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        help_text="Pagado de más que se queda en el colegio (USD). No se resta de los ingresos.",
+    )
+    excedente_ves = models.DecimalField(
+        max_digits=20, decimal_places=2, default=Decimal('0.00'),
+        help_text="Pagado de más que se queda en el colegio (Bs.). No se resta de los ingresos.",
+    )
     # Multi-sede
     sede = models.ForeignKey(
         'multisede.Sede',

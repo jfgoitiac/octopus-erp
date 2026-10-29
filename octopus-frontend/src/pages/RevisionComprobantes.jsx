@@ -52,7 +52,7 @@ const RevisionComprobantes = () => {
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
         titulo="Revisión de comprobantes"
-        descripcion="Revisa los pagos enviados desde el portal de representantes, registra sus datos y apruébalos o recházalos."
+        descripcion="Revisa los pagos enviados desde el portal de representantes: procésalos en caja para aprobarlos o recházalos con un motivo."
         acciones={
           <button
             type="button"
