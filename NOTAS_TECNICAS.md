@@ -4360,3 +4360,30 @@ detectada (solo anotada):
 13. **Tests de cobranza que ya fallaban en `main`** (no relacionados): 10 en
     `test_descuento_integracion`, `test_descuento_pago`, `test_metas_banco`,
     `DesgloseConceptosTest` y `DobleAbonoSucesivoTest`.
+
+## Comprobantes del portal procesados en caja — v2 (2026-10-29)
+
+Aprobar un comprobante = registrar el pago en caja (`POST
+cobranza/registrar-pago/` con `comprobante_portal_id`). Con esto quedan
+resueltos los puntos 1 a 6 de la sección anterior (conciliación sin banco,
+aprobación legada, excedente, recargo/descuento, punto de venta y precisión de
+tasa). Deuda nueva (solo anotada):
+
+1. **Saldo a favor**: lo pagado de más se registra como excedente
+   (`Pago.excedente_usd/ves`) y no se acredita a deudas futuras.
+2. **Excedente por operación, no por línea**: igual que el vuelto, vive solo
+   en el primer `Pago` de la operación; un reporte por método o banco no sabe
+   de qué línea salió.
+3. **Monto estimado en conciliación**: los comprobantes por procesar se
+   emparejan con saldo de la mensualidad × tasa de la fecha de subida; si el
+   representante pagó varias mensualidades con una transferencia, no coincide.
+4. **Retorno al conciliador**: el estado de cuenta cargado se guarda en
+   `sessionStorage` al ir a caja; si el navegador no lo permite (o es muy
+   grande) hay que volver a cargarlo.
+5. **Preselección en caja**: si la mensualidad del comprobante ya no está
+   pendiente (pagada por otra vía), la caja no la marca y el cajero elige.
+6. **Adjunto retroactivo de caja** (`CobranzaStep2.jsx`): el uploader está
+   dentro del encabezado del bloque "Pago retroactivo" y se ve aunque el modo
+   esté apagado (anterior a este cambio).
+7. **Un test de notificaciones llama a la API real de Meta** (log
+   `Error Meta -> +58…: HTTP 400`): falta mockear el envío de WhatsApp.
