@@ -52,7 +52,7 @@ const navSections = [
       { name: 'Cobranza',      path: '/cobranza',      icon: Calculator,   roles: ['director','cobranza','administrador','cajero'] },
       { name: 'Comprobantes',  path: '/comprobantes',  icon: ReceiptText,  roles: ['director','cobranza','administrador','cajero'] },
       { name: 'Cobranza Inteligente', path: '/cobranza/inteligente', match: ['/cobranza/inteligente'], icon: Sparkles, roles: ['director','cobranza','administrador','cajero','sistemas'] },
-      { name: 'Revisar pagos', path: '/comprobantes/revision', icon: ReceiptText, roles: ['director','sistemas','cobranza','administrador'] },
+      { name: 'Revisar pagos', path: '/comprobantes/revision', match: ['/comprobantes/revision'], icon: ReceiptText, roles: ['director','sistemas','cobranza','administrador'] },
       { name: 'Solvencia',     path: '/cobranza/solvencia', icon: BadgeCheck, roles: TODOS_MENOS_SISTEMAS },
       { name: 'Reportes',      path: '/reportes',      icon: BarChart3,    roles: ['director','cobranza','administrador'] },
       { name: 'Nómina',        path: '/nomina',        icon: Banknote,          roles: ['director','administrador'] },
@@ -62,6 +62,7 @@ const navSections = [
       { name: 'Conciliador',  path: '/conciliador',   icon: GitCompareArrows,  roles: ['director','administrador','cobranza'] },
       { name: 'Cobros WhatsApp', path: '/cobranza/plantillas-whatsapp', icon: MessageCircle, roles: ['director','administrador','cajero','cobranza'] },
       { name: 'Historial WhatsApp', path: '/cobranza/historial-whatsapp', icon: History, roles: ['director','administrador','cajero','cobranza'] },
+      { name: 'Avisos del portal', path: '/cobranza/avisos-portal', icon: Bell, roles: ['director','sistemas','administrador','cobranza'] },
     ],
   },
   {
