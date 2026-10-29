@@ -57,7 +57,6 @@ from .views import (
     PortalBancosView,
     PortalMetodosPagoView,
     AdminComprobantesView,
-    AdminTasaComprobanteView,
     AdminMotivosRechazoView,
     AdminMotivoRechazoDetalleView,
     PortalAvisosView,
@@ -118,12 +117,7 @@ urlpatterns = [
     # Admin — Listar comprobantes pendientes: GET /api/portal/admin/comprobantes/?estatus=pendiente
     path('admin/comprobantes/', AdminComprobantesView.as_view(), name='portal_admin_comprobantes'),
 
-    # Admin — Tasa BCV que se aplicará a un pago de esa fecha:
-    # GET /api/portal/admin/comprobantes/tasa/?fecha=YYYY-MM-DD
-    # (antes que '<int:comprobante_id>/'; no chocan por ser int, pero queda claro)
-    path('admin/comprobantes/tasa/', AdminTasaComprobanteView.as_view(), name='portal_admin_comprobantes_tasa'),
-
-    # Admin — Detalle (GET) y aprobar/rechazar (PATCH): /api/portal/admin/comprobantes/<id>/
+    # Admin — Detalle (GET) y rechazar (PATCH): /api/portal/admin/comprobantes/<id>/
     path('admin/comprobantes/<int:comprobante_id>/', AdminComprobantesView.as_view(), name='portal_admin_comprobante_detalle'),
 
     # Admin — Catálogo de motivos de rechazo: GET/POST y PATCH/DELETE por id

@@ -1,7 +1,7 @@
 """
-Tests de la revisión de comprobantes del portal (contrato 2026-10-29):
-el representante solo sube el archivo y el revisor del colegio llena
-referencia, banco, método, fecha, monto y moneda al aprobar.
+Tests de la revisión de comprobantes del portal (contratos 2026-10-29):
+el representante solo sube el archivo; el colegio lo rechaza desde el panel
+o lo aprueba registrando el pago en caja (comprobante_portal_id).
 """
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -66,177 +66,127 @@ class RevisionBase(PortalTestBase):
     def _auth_admin(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
 
-    def _datos(self, **extra):
-        datos = {
-            'estatus': 'aprobado', 'referencia': '123456', 'banco_receptor_id': self.banco.id,
-            'metodo_pago': 'pago_movil', 'fecha_pago': self.ayer.isoformat(),
-            'monto_recibido': '1417.50', 'moneda': 'VES', 'observaciones': '',
-        }
-        datos.update(extra)
-        return datos
-
-    def _aprobar(self, comprobante=None, **extra):
+    def _pagar(self, comprobante=None, monto_ves='1750.00', **extra):
+        """Procesa el comprobante en caja (POST cobranza/registrar-pago/).
+        Por defecto: 35 USD a la tasa de hoy (50) en una línea de pago móvil."""
         self._auth_admin()
-        with mock.patch('notificaciones.tasks.task_notificar_comprobante_resuelto.delay') as delay:
-            resp = self.client.patch(
-                f'{URL}{(comprobante or self.comprobante).id}/', self._datos(**extra), format='json',
-            )
-        self.delay = delay
+        payload = {
+            'alumnos': [{'alumno_id': self.alumno.id, 'mensualidad_ids': [self.mensualidad.id]}],
+            'concepto': 'mensualidad',
+            'pagos': [{
+                'metodo_pago': 'pago_movil', 'monto_ves': monto_ves,
+                'referencia': '123456', 'banco_receptor_id': self.banco.id,
+            }],
+            'comprobante_portal_id': (comprobante or self.comprobante).id,
+        }
+        payload.update(extra)
+        with mock.patch('notificaciones.tasks.task_notificar_comprobante_resuelto.delay') as delay, \
+                mock.patch('notificaciones.tasks.task_notificar_pago_exitoso.delay') as delay_pago, \
+                self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+        self.delay, self.delay_pago = delay, delay_pago
         return resp
 
 
-class AprobarConDatosTests(RevisionBase):
-    def test_pago_completo_con_la_tasa_de_la_fecha(self):
-        # 35 USD * 40.50 = 1417.50 Bs (tasa de AYER, no la de hoy ni la vieja)
-        resp = self._aprobar()
-        self.assertEqual(resp.status_code, 200, resp.content)
-        self.assertEqual(resp.data['abono_usd'], '35.00')
-        self.assertEqual(resp.data['saldo_pendiente_usd'], '0.00')
-        self.assertEqual(resp.data['excedente_usd'], '0.00')
-
+class ProcesarEnCajaTests(RevisionBase):
+    def test_registrar_pago_aprueba_el_comprobante(self):
+        resp = self._pagar()
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data['comprobante_portal_id'], self.comprobante.id)
+        pago = Pago.objects.get()
         self.mensualidad.refresh_from_db()
         self.assertTrue(self.mensualidad.pagado)
-        self.assertEqual(self.mensualidad.monto_pagado, Decimal('35.00'))
-        self.assertEqual(self.mensualidad.fecha_pago.date(), self.ayer)
-
-        pago = Pago.objects.get()
-        self.assertEqual(pago.monto_usd, Decimal('35.00'))
-        self.assertEqual(pago.monto_ves, Decimal('1417.50'))
-        self.assertEqual(pago.tasa_aplicada, Decimal('40.50'))
-        self.assertEqual(pago.referencia, '123456')
-        self.assertEqual(pago.metodo_pago, 'pago_movil')
-        self.assertEqual(pago.banco_receptor_id, self.banco.id)
-        self.assertEqual(timezone.localtime(pago.fecha_pago).date(), self.ayer)
-        self.assertIn(pago, self.mensualidad.pagos.all())
-        aplicacion = AplicacionPago.objects.get(pago=pago)
-        self.assertEqual(aplicacion.monto_abonado_usd, Decimal('35.00'))
+        self.assertEqual(AplicacionPago.objects.get(pago=pago).monto_abonado_usd, Decimal('35.00'))
 
         self.comprobante.refresh_from_db()
         self.assertEqual(self.comprobante.estatus, 'aprobado')
         self.assertEqual(self.comprobante.pago_id, pago.id)
-        self.assertEqual(self.comprobante.tasa_aplicada, Decimal('40.5000'))
-        self.assertEqual(self.comprobante.monto_usd_aplicado, Decimal('35.00'))
         self.assertEqual(self.comprobante.revisado_por, self.admin)
         self.assertIsNotNone(self.comprobante.fecha_revision)
         self.assertEqual(self.comprobante.referencia_bancaria, '123456')
-        self.delay.assert_called_once_with(self.comprobante.id)
-
-    def test_monto_en_usd_no_convierte(self):
-        resp = self._aprobar(metodo_pago='zelle', moneda='USD', monto_recibido='35')
-        self.assertEqual(resp.status_code, 200, resp.content)
-        pago = Pago.objects.get()
-        self.assertEqual(pago.monto_usd, Decimal('35.00'))
-        self.assertEqual(pago.monto_ves, Decimal('1417.50'))
-
-    def test_moneda_por_defecto_segun_metodo(self):
-        resp = self._aprobar(metodo_pago='zelle', moneda='', monto_recibido='35')
-        self.assertEqual(resp.status_code, 200, resp.content)
-        self.comprobante.refresh_from_db()
-        self.assertEqual(self.comprobante.moneda, 'USD')
-
-    def test_pago_parcial_deja_la_mensualidad_pendiente(self):
-        resp = self._aprobar(monto_recibido='810.00')  # 20 USD
-        self.assertEqual(resp.status_code, 200, resp.content)
-        self.assertEqual(resp.data['abono_usd'], '20.00')
-        self.assertEqual(resp.data['saldo_pendiente_usd'], '15.00')
-        self.assertTrue(any('parcial' in a.lower() for a in resp.data['advertencias']))
-        self.mensualidad.refresh_from_db()
-        self.assertFalse(self.mensualidad.pagado)
-        self.assertEqual(self.mensualidad.monto_pagado, Decimal('20.00'))
-        self.assertEqual(Pago.objects.get().monto_usd, Decimal('20.00'))
-
-    def test_excedente_solo_aplica_el_saldo(self):
-        resp = self._aprobar(metodo_pago='zelle', moneda='USD', monto_recibido='50')
-        self.assertEqual(resp.status_code, 200, resp.content)
-        self.assertEqual(resp.data['abono_usd'], '35.00')
-        self.assertEqual(resp.data['excedente_usd'], '15.00')
-        self.assertEqual(resp.data['saldo_pendiente_usd'], '0.00')
-        self.assertTrue(any('excedente' in a.lower() for a in resp.data['advertencias']))
-        self.mensualidad.refresh_from_db()
-        self.assertEqual(self.mensualidad.monto_pagado, Decimal('35.00'))
-        # El Pago registra lo realmente recibido; la aplicación, solo el saldo.
-        pago = Pago.objects.get()
-        self.assertEqual(pago.monto_usd, Decimal('50.00'))
-        self.assertEqual(AplicacionPago.objects.get(pago=pago).monto_abonado_usd, Decimal('35.00'))
-
-    def test_referencia_duplicada_en_pago_devuelve_400_y_no_aprueba(self):
-        Pago.objects.create(
-            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='pago_movil',
-            banco_receptor=self.banco, monto_usd=Decimal('10.00'), tasa_aplicada=Decimal('40.50'),
-            monto_ves=Decimal('405.00'), referencia='123456', estatus='completado',
-        )
-        resp = self._aprobar()
-        self.assertEqual(resp.status_code, 400, resp.content)
-        self.assertIn('referencia', resp.data['campos'])
-        self.comprobante.refresh_from_db()
-        self.assertEqual(self.comprobante.estatus, 'pendiente')
-        self.mensualidad.refresh_from_db()
-        self.assertEqual(self.mensualidad.monto_pagado, Decimal('0.00'))
-        self.assertEqual(Pago.objects.count(), 1)
-        self.delay.assert_not_called()
-
-    def test_referencia_duplicada_en_otro_comprobante_pendiente(self):
-        hoy = date.today()
-        otra = crear_mensualidad(self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0))
-        self._comprobante(otra, referencia_bancaria='123456', metodo_pago='pago_movil',
-                          banco_receptor=self.banco)
-        resp = self._aprobar()
-        self.assertEqual(resp.status_code, 400, resp.content)
-        self.assertIn('referencia', resp.data['campos'])
-
-    def test_misma_referencia_otro_banco_no_es_duplicado(self):
-        otro_banco = BancoInstitucional.objects.create(nombre='Mercantil', tipos=['pago_movil'])
-        Pago.objects.create(
-            alumno=self.alumno, usuario_receptor=self.admin, metodo_pago='pago_movil',
-            banco_receptor=otro_banco, monto_usd=Decimal('10.00'), tasa_aplicada=Decimal('40.50'),
-            monto_ves=Decimal('405.00'), referencia='123456', estatus='completado',
-        )
-        resp = self._aprobar()
-        self.assertEqual(resp.status_code, 200, resp.content)
-
-    def test_faltan_datos_devuelve_400_con_campos(self):
-        self._auth_admin()
-        resp = self.client.patch(f'{URL}{self.comprobante.id}/', {'estatus': 'aprobado'}, format='json')
-        self.assertEqual(resp.status_code, 400)
-        for campo in ('referencia', 'banco_receptor_id', 'metodo_pago', 'fecha_pago', 'monto_recibido'):
-            self.assertIn(campo, resp.data['campos'])
-        self.comprobante.refresh_from_db()
-        self.assertEqual(self.comprobante.estatus, 'pendiente')
-
-    def test_fecha_futura_y_monto_cero_se_rechazan(self):
-        manana = (timezone.localdate() + timedelta(days=1)).isoformat()
-        resp = self._aprobar(fecha_pago=manana, monto_recibido='0')
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn('fecha_pago', resp.data['campos'])
-        self.assertIn('monto_recibido', resp.data['campos'])
-
-    def test_sin_tasa_y_moneda_ves_devuelve_400(self):
-        TasaCambio.objects.all().delete()
-        resp = self._aprobar()
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn('fecha_pago', resp.data['campos'])
-
-    def test_ya_procesado_devuelve_409(self):
-        self.assertEqual(self._aprobar().status_code, 200)
-        self.assertEqual(self._aprobar(referencia='999').status_code, 409)
-
-    def test_aprobar_crea_aviso_aprobado(self):
-        resp = self._aprobar()
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.comprobante.banco_receptor_id, self.banco.id)
+        # Aviso de bandeja + push; el correo es el de caja (uno solo).
         aviso = AvisoPortal.objects.get(usuario_portal=self.rep_user)
         self.assertEqual(aviso.tipo, 'comprobante_aprobado')
         self.assertIn('REF. 35,00', aviso.cuerpo)
+        self.delay.assert_called_once_with(self.comprobante.id)
+        self.delay_pago.assert_called_once()
 
-    def test_conciliacion_sin_datos_conserva_el_comportamiento_anterior(self):
-        """El servicio sin datos_pago (conciliación bancaria) sigue marcando la
-        mensualidad pagada por el nominal."""
-        from .services import aprobar_comprobante
-        comprobante, pago, mensualidad, _ = aprobar_comprobante(self.comprobante.id, self.admin)
-        mensualidad.refresh_from_db()
-        self.assertTrue(mensualidad.pagado)
-        self.assertEqual(pago.monto_usd, Decimal('35.00'))
-        self.assertEqual(comprobante.revisado_por, self.admin)
-        self.assertEqual(comprobante.pago_id, pago.id)
+    def test_ya_procesado_devuelve_409(self):
+        self.assertEqual(self._pagar().status_code, 201)
+        # Otra deuda, para que el 409 venga del comprobante y no de la mensualidad.
+        hoy = date.today()
+        otra = crear_mensualidad(self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0))
+        resp = self._pagar(alumnos=[{'alumno_id': self.alumno.id, 'mensualidad_adelanto_ids': [otra.id]}], pagos=[{
+            'metodo_pago': 'zelle', 'monto_usd': '35.00',
+            'referencia': 'ZL-999', 'banco_receptor_id': self.banco.id,
+        }])
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(Pago.objects.count(), 1)
+
+    def test_comprobante_de_otro_alumno_devuelve_400_y_no_registra(self):
+        otro = crear_alumno(self.rep, 'CE-OTRO-01', nombre='Otro')
+        hoy = date.today()
+        comprobante_otro = self._comprobante(crear_mensualidad(otro, hoy.month, hoy.year))
+        resp = self._pagar(comprobante=comprobante_otro)
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(Pago.objects.count(), 0)
+        comprobante_otro.refresh_from_db()
+        self.assertEqual(comprobante_otro.estatus, 'pendiente')
+
+    def test_retroactivo_usa_el_archivo_del_comprobante(self):
+        from secretaria.models import ConfiguracionSistema
+        hoy = timezone.localdate()
+        inicio = hoy.year if hoy.month >= 9 else hoy.year - 1
+        ConfiguracionSistema.objects.update_or_create(pk=1, defaults=dict(
+            fecha_inicio_inscripciones=hoy, fecha_fin_inscripciones=hoy,
+            fecha_inicio_ano_escolar=date(inicio, 9, 1), fecha_fin_ano_escolar=date(inicio + 1, 7, 31),
+            periodo_escolar_activo=f'{inicio}-{inicio + 1}',
+        ))
+        resp = self._pagar(
+            monto_ves='1417.50', fecha_pago=f'{self.ayer.isoformat()}T12:00:00',
+            tasa_aplicada='40.50', motivo=f'Pago reportado en el portal (comprobante #{self.comprobante.id})',
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        pago = Pago.objects.get()
+        self.assertEqual(pago.comprobante_retroactivo.name, self.comprobante.archivo.name)
+        self.assertEqual(timezone.localtime(pago.fecha_pago).date(), self.ayer)
+
+    def test_pagado_de_mas_se_registra_como_excedente(self):
+        # Se deben Bs. 1.750 y transfieren Bs. 2.000 → Bs. 250 (5 USD) de excedente.
+        resp = self._pagar(monto_ves='2000.00', excedente_ves='250.00', excedente_usd='5.00')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        pago = Pago.objects.get()
+        self.assertEqual(pago.excedente_ves, Decimal('250.00'))
+        self.assertEqual(pago.vuelto_ves, Decimal('0.00'))
+        self.assertEqual(pago.monto_ves, Decimal('2000.00'))
+        self.mensualidad.refresh_from_db()
+        self.assertEqual(self.mensualidad.monto_pagado, Decimal('35.00'))
+        # El recibo lo muestra como línea propia dentro del total pagado.
+        from cobranza.recibo_cobranza import datos_recibo
+        linea = next(it for it in datos_recibo(pago)['items'] if it['concepto'] == 'EXCEDENTE')
+        self.assertEqual(linea['monto_ves'], Decimal('250.00'))
+
+    def test_excedente_mayor_a_lo_pagado_de_mas_revierte_todo(self):
+        resp = self._pagar(monto_ves='1800.00', excedente_ves='250.00', excedente_usd='5.00')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(Pago.objects.count(), 0)
+        self.comprobante.refresh_from_db()
+        self.assertEqual(self.comprobante.estatus, 'pendiente')
+        self.assertFalse(AvisoPortal.objects.exists())
+
+    def test_vuelto_y_excedente_a_la_vez_devuelve_400(self):
+        resp = self._pagar(monto_ves='2000.00', excedente_ves='250.00', vuelto_ves='250.00')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(Pago.objects.count(), 0)
+
+    def test_patch_aprobado_ya_no_existe(self):
+        self._auth_admin()
+        resp = self.client.patch(f'{URL}{self.comprobante.id}/', {'estatus': 'aprobado'}, format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('caja', resp.data['error'])
+        self.comprobante.refresh_from_db()
+        self.assertEqual(self.comprobante.estatus, 'pendiente')
 
 
 class RechazoTests(RevisionBase):
@@ -305,7 +255,7 @@ class RechazoTests(RevisionBase):
         self.assertTrue(AvisoPortal.objects.filter(usuario_portal=self.rep_user).exists())
 
 
-class DetalleListaTasaTests(RevisionBase):
+class DetalleListaTests(RevisionBase):
     def test_lista_trae_campos_nuevos(self):
         self._auth_admin()
         resp = self.client.get(f'{URL}?estatus=pendiente')
@@ -321,7 +271,8 @@ class DetalleListaTasaTests(RevisionBase):
         self.assertEqual(resp.data['archivo_tipo'], 'imagen')
         self.assertEqual(resp.data['saldo_pendiente_usd'], '35.00')
         self.assertEqual(resp.data['mensualidad_id'], self.mensualidad.id)
-        self.assertIsNone(resp.data['revision'])
+        self.assertEqual(resp.data['alumno_id'], self.alumno.id)
+        self.assertIsNone(resp.data['pago'])
         self.assertEqual(resp.data['advertencias'], [])
 
     def test_detalle_advierte_hash_repetido_sin_modificar(self):
@@ -336,32 +287,18 @@ class DetalleListaTasaTests(RevisionBase):
         self.comprobante.refresh_from_db()
         self.assertEqual(self.comprobante.estatus, 'pendiente')
 
-    def test_detalle_revisado_trae_revision(self):
-        self._aprobar()
+    def test_detalle_aprobado_trae_el_pago(self):
+        self._pagar()
         resp = self.client.get(f'{URL}{self.comprobante.id}/')
-        revision = resp.data['revision']
-        self.assertEqual(revision['fecha_pago'], self.ayer.isoformat())
-        self.assertEqual(revision['moneda'], 'VES')
-        self.assertEqual(revision['tasa_aplicada'], '40.5000')
-        self.assertEqual(revision['monto_usd_aplicado'], '35.00')
-        self.assertEqual(revision['revisado_por'], 'revisor1')
-        self.assertEqual(revision['pago_id'], Pago.objects.get().id)
+        pago = Pago.objects.get()
+        self.assertEqual(resp.data['pago']['id'], pago.id)
+        self.assertEqual(resp.data['pago']['monto_ves'], '1750.00')
+        self.assertEqual(resp.data['pago']['referencia'], '123456')
+        self.assertEqual(resp.data['revisado_por'], 'revisor1')
 
     def test_detalle_inexistente_404(self):
         self._auth_admin()
         self.assertEqual(self.client.get(f'{URL}999999/').status_code, 404)
-
-    def test_tasa_por_fecha(self):
-        self._auth_admin()
-        resp = self.client.get(f'{URL}tasa/?fecha={self.ayer.isoformat()}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['valor_bs'], '40.5000')
-        self.assertEqual(resp.data['fuente'], 'BCV')
-        # Sin tasa ese día: la última anterior.
-        resp = self.client.get(f'{URL}tasa/?fecha={(self.hace_10 + timedelta(days=2)).isoformat()}')
-        self.assertEqual(resp.data['valor_bs'], '30.0000')
-        resp = self.client.get(f'{URL}tasa/?fecha=2000-01-01')
-        self.assertEqual(resp.status_code, 404)
 
     def test_representante_no_accede_a_la_revision(self):
         self.auth_portal()

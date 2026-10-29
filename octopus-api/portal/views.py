@@ -1315,7 +1315,7 @@ class AdminComprobantesView(APIView):
         from .services import advertencias_hash
 
         c = ComprobantePago.objects.select_related(
-            'mensualidad__alumno__representante', 'banco_receptor', 'revisado_por',
+            'mensualidad__alumno__representante', 'banco_receptor', 'revisado_por', 'pago',
         ).filter(id=comprobante_id).first()
         if not c:
             return Response({'error': 'Comprobante no encontrado.'}, status=404)
@@ -1330,31 +1330,27 @@ class AdminComprobantesView(APIView):
             # Chequeo previo de solo lectura (mismo que se recalcula al aprobar).
             'advertencias': advertencias_hash(c) if c.estatus == 'pendiente' else [],
             'motivo_rechazo_id': c.motivo_rechazo_id,
-            'revision': None,
+            'alumno_id': mensualidad.alumno_id,
+            'revisado_por': c.revisado_por.username if c.revisado_por_id else None,
+            'fecha_revision': c.fecha_revision,
+            # Pago registrado en caja que aprobó el comprobante (null si no hay).
+            'pago': {
+                'id': c.pago.id,
+                'factura_id': c.pago.factura_id,
+                'fecha_pago': c.pago.fecha_pago,
+                'monto_usd': _dinero(c.pago.monto_usd),
+                'monto_ves': _dinero(c.pago.monto_ves),
+                'metodo_pago': c.pago.metodo_pago,
+                'referencia': c.pago.referencia,
+            } if c.pago_id else None,
         })
-        if c.estatus != 'pendiente':
-            data['revision'] = {
-                'fecha_pago': c.fecha_pago.isoformat() if c.fecha_pago else None,
-                'monto_recibido': _dinero(c.monto_recibido),
-                'moneda': c.moneda or None,
-                'tasa_aplicada': (
-                    str(c.tasa_aplicada.quantize(Decimal('0.0001'))) if c.tasa_aplicada is not None else None
-                ),
-                'monto_usd_aplicado': _dinero(c.monto_usd_aplicado),
-                'revisado_por': c.revisado_por.username if c.revisado_por_id else None,
-                'fecha_revision': c.fecha_revision,
-                'pago_id': c.pago_id,
-            }
         return Response(data)
 
     def patch(self, request, comprobante_id):
         """
-        Aprobar o rechazar un comprobante.
-        Al APROBAR (todos obligatorios salvo observaciones): referencia,
-        banco_receptor_id, metodo_pago, fecha_pago, monto_recibido, moneda.
-        Abona lo realmente recibido a la tasa BCV de la fecha del pago (puede
-        ser parcial) y crea el Pago. Referencia ya usada → 400.
-        Al RECHAZAR: motivo_rechazo_id y/o observaciones (al menos uno).
+        Rechazar un comprobante: motivo_rechazo_id y/o observaciones (al menos
+        uno). Aprobar NO se hace aquí: se registra el pago en caja (POST
+        cobranza/registrar-pago/ con comprobante_portal_id).
         """
         if not _puede_revisar_comprobantes(request):
             return Response({'error': 'Sin permiso.'}, status=403)
@@ -1362,47 +1358,36 @@ class AdminComprobantesView(APIView):
         nuevo_estatus = request.data.get('estatus')
         observaciones = (request.data.get('observaciones') or '').strip()
 
-        if nuevo_estatus not in ('aprobado', 'rechazado'):
-            return Response({'error': "estatus debe ser 'aprobado' o 'rechazado'."}, status=400)
+        if nuevo_estatus == 'aprobado':
+            return Response({'error': 'Los comprobantes se aprueban registrando el pago en caja.'}, status=400)
+        if nuevo_estatus != 'rechazado':
+            return Response({'error': "estatus debe ser 'rechazado'."}, status=400)
 
-        # La lógica (antifraude, Pago, mensualidad, solvencia) vive en
-        # portal/services.py y se comparte con la conciliación bancaria.
-        # Todo lo que toca dinero corre dentro de un atomic() SIN try/except que
-        # lo trague: si algo falla a mitad de camino, hace rollback completo.
-        from cobranza.deudas import saldo_deuda
         from .models import MotivoRechazo
         from .services import (
-            ComprobanteNoEncontrado, ComprobanteYaProcesado, DatosPagoInvalidos,
-            notificar_comprobante_resuelto, resolver_comprobante, validar_datos_aprobacion,
+            ComprobanteNoEncontrado, ComprobanteYaProcesado,
+            notificar_comprobante_resuelto, resolver_comprobante,
         )
 
         def _error_campos(campos):
-            return Response({'error': 'Revise los datos del pago.', 'campos': campos}, status=400)
+            return Response({'error': 'Revise los datos del rechazo.', 'campos': campos}, status=400)
 
-        datos_pago = None
         motivo = None
-        if nuevo_estatus == 'aprobado':
+        motivo_id = request.data.get('motivo_rechazo_id')
+        if motivo_id not in (None, ''):
             try:
-                datos_pago = validar_datos_aprobacion(request.data)
-            except DatosPagoInvalidos as exc:
-                return _error_campos(exc.campos)
-        else:
-            motivo_id = request.data.get('motivo_rechazo_id')
-            if motivo_id not in (None, ''):
-                try:
-                    motivo = MotivoRechazo.objects.get(pk=int(motivo_id))
-                except (MotivoRechazo.DoesNotExist, TypeError, ValueError):
-                    return _error_campos({'motivo_rechazo_id': 'Motivo de rechazo no encontrado.'})
-            if motivo is None and not observaciones:
-                return _error_campos({
-                    'motivo_rechazo_id': 'Elija un motivo o escriba el detalle del rechazo.',
-                    'observaciones': 'Elija un motivo o escriba el detalle del rechazo.',
-                })
+                motivo = MotivoRechazo.objects.get(pk=int(motivo_id))
+            except (MotivoRechazo.DoesNotExist, TypeError, ValueError):
+                return _error_campos({'motivo_rechazo_id': 'Motivo de rechazo no encontrado.'})
+        if motivo is None and not observaciones:
+            return _error_campos({
+                'motivo_rechazo_id': 'Elija un motivo o escriba el detalle del rechazo.',
+                'observaciones': 'Elija un motivo o escriba el detalle del rechazo.',
+            })
 
         try:
-            comprobante, pago_creado, mensualidad, advertencias = resolver_comprobante(
-                comprobante_id, nuevo_estatus, request.user, observaciones,
-                datos_pago=datos_pago, motivo_rechazo=motivo,
+            comprobante = resolver_comprobante(
+                comprobante_id, request.user, observaciones, motivo_rechazo=motivo,
             )
         except ComprobanteNoEncontrado:
             return Response({'error': 'Comprobante no encontrado.'}, status=404)
@@ -1411,74 +1396,12 @@ class AdminComprobantesView(APIView):
                 {'error': f'Este comprobante ya fue procesado (estatus actual: {exc.estatus}).'},
                 status=409
             )
-        except DatosPagoInvalidos as exc:
-            return _error_campos(exc.campos)
-        except Exception as exc:
-            logger.error(
-                'Error al %s comprobante #%s — se revirtió la operación completa: %s',
-                nuevo_estatus, comprobante_id, exc
-            )
-            return Response(
-                {'error': 'No se pudo procesar el comprobante. Intente nuevamente o contacte a sistemas.'},
-                status=500
-            )
 
         # Fuera del atomic: aviso de bandeja + push/email (best-effort).
         notificar_comprobante_resuelto(comprobante)
 
-        logger.info(
-            'Comprobante %s marcado como %s por %s. Advertencias: %s',
-            comprobante_id, nuevo_estatus, request.user.username,
-            len(advertencias),
-        )
-
-        abono = comprobante.monto_usd_aplicado or Decimal('0.00')
-        excedente = Decimal('0.00')
-        if pago_creado and comprobante.monto_usd_aplicado is not None:
-            excedente = max(Decimal('0.00'), pago_creado.monto_usd - abono)
-        mensualidad = mensualidad or comprobante.mensualidad
-        if mensualidad:
-            mensualidad.refresh_from_db()
-        return Response({
-            'mensaje': f'Comprobante {nuevo_estatus} correctamente.',
-            'advertencias': advertencias,
-            'abono_usd': _dinero(abono),
-            'saldo_pendiente_usd': _dinero(saldo_deuda(mensualidad)),
-            'excedente_usd': _dinero(excedente),
-        })
-
-
-class AdminTasaComprobanteView(APIView):
-    """
-    GET /api/portal/admin/comprobantes/tasa/?fecha=YYYY-MM-DD
-    Tasa BCV que se aplicará a un pago de esa fecha (la del día o la última
-    anterior), para que el revisor vea la conversión antes de aprobar.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        if not _puede_revisar_comprobantes(request):
-            return Response({'error': 'Sin permiso.'}, status=403)
-        from cobranza.models import TasaCambio
-        from finanzas.monedas import tasa_para_fecha
-        from django.utils import timezone
-
-        try:
-            fecha = date.fromisoformat((request.query_params.get('fecha') or '')[:10])
-        except ValueError:
-            return Response({'error': 'Indique fecha=AAAA-MM-DD.'}, status=400)
-        try:
-            tasa = tasa_para_fecha(fecha)
-        except TasaCambio.DoesNotExist:
-            return Response(
-                {'error': 'No hay tasa BCV registrada para esa fecha ni para una anterior.'},
-                status=404,
-            )
-        return Response({
-            'fecha': timezone.localtime(tasa.fecha).date().isoformat(),
-            'valor_bs': str(tasa.valor_bs.quantize(Decimal('0.0001'))),
-            'fuente': tasa.fuente,
-        })
+        logger.info('Comprobante %s rechazado por %s.', comprobante_id, request.user.username)
+        return Response({'mensaje': 'Comprobante rechazado correctamente.'})
 
 
 def _serializar_motivo(m):
