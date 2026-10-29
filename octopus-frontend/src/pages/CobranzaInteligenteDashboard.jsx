@@ -23,9 +23,11 @@ const ROLES_RESULTADOS = [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SISTEMAS];
 const sinResultados = () => Promise.resolve({ data: null });
 const RESUMEN_VACIO = { total_filas: 0, pagados: 0, parciales: 0, pendientes: 0, monto_cobrado_usd: 0, monto_pendiente_usd: 0 };
 
+/* Mismas claves que CicloCobranza.estado en el backend (no las etapas de las reglas de envío). */
 const ETAPAS = [
-    { clave: 'preventiva', label: 'Preventiva', color: 'var(--teal)' },
-    { clave: 'temprana', label: 'Temprana', color: 'var(--yellow)' },
+    { clave: 'preventiva', label: 'Por vencer', color: 'var(--teal)' },
+    { clave: 'vencida', label: 'Vencida', color: 'var(--yellow)' },
+    { clave: 'seguimiento', label: 'Seguimiento', color: 'var(--amber-ink)' },
     { clave: 'prioritaria', label: 'Prioritaria', color: 'var(--orange)' },
     { clave: 'critica', label: 'Crítica', color: 'var(--red)' },
     { clave: 'pausada', label: 'Pausada', color: 'var(--ash)' },
@@ -129,18 +131,21 @@ function Indicador({ icono: Icono, titulo, valor, detalle, pie }) {
     );
 }
 
-function CarteraPorEtapa({ distribucion }) {
+function CarteraPorEtapa({ distribucion, ventanaDias = 30 }) {
     const total = ETAPAS.reduce((s, e) => s + (distribucion[e.clave]?.casos ?? 0), 0);
+    const porVencer = distribucion.preventiva?.casos ?? 0;
     return (
         <div className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs font-medium mb-3" style={{ color: 'var(--ash)' }}>Cartera por etapa · {total} casos abiertos</p>
+            <p className="text-xs font-medium mb-3" style={{ color: 'var(--ash)' }}>
+                Cartera por etapa · {total - porVencer} en mora · {porVencer} por vencer en {ventanaDias} días
+            </p>
             <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5" style={{ background: 'var(--ash-light)' }}>
                 {ETAPAS.map(e => {
                     const casos = distribucion[e.clave]?.casos ?? 0;
                     return casos ? <div key={e.clave} title={`${e.label}: ${casos}`} style={{ width: `${pctDe(casos, total)}%`, background: e.color }} /> : null;
                 })}
             </div>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mt-3">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
                 {ETAPAS.map(e => (
                     <li key={e.clave} className="flex items-center gap-2 text-xs">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: e.color }} />
@@ -177,7 +182,7 @@ function GestionInteligente({ d }) {
                     detalle={`${d.bandeja.casos_mas_de_15_dias} con más de 15 días · ${d.pagos_por_conciliar} pagos por conciliar`}
                     pie={<LinkVer to="/cobranza/inteligente/gestion">Abrir bandeja</LinkVer>} />
             </div>
-            <CarteraPorEtapa distribucion={d.distribucion_por_etapa} />
+            <CarteraPorEtapa distribucion={d.distribucion_por_etapa} ventanaDias={d.ventana_preventiva_dias} />
         </section>
     );
 }
@@ -230,14 +235,15 @@ const CobranzaInteligenteDashboard = () => {
     const { sedeId } = inteligente;
     const d = inteligente.data;
 
-    const { lineas, totales, loading, error } = useResumenPorConcepto({ concepto: 'mensualidad', sede: sedeId });
+    // autoRefresh: KPIs, barras y tabla se ponen al día solos cuando alguien paga.
+    const { lineas, totales, loading, error } = useResumenPorConcepto({ concepto: 'mensualidad', sede: sedeId, autoRefresh: true });
     const cargandoMeses = loading || (!totales && !error);
     const [mesElegido, setMesElegido] = useState('');
     const etiquetaMes = mesElegido || mesPorDefecto(lineas);
     const mes = lineas.find(l => l.etiqueta === etiquetaMes);
 
     const [filtros, setFiltros] = useState({ buscar: '', grado: '', estado: 'todos' });
-    const periodo = { concepto: 'mensualidad', mes: mes?.mes, anio: mes?.anio, sede: sedeId, enabled: Boolean(mes) };
+    const periodo = { concepto: 'mensualidad', mes: mes?.mes, anio: mes?.anio, sede: sedeId, enabled: Boolean(mes), autoRefresh: true };
     const { resumen } = useEstadoPorConcepto(periodo);
     const r = resumen ?? RESUMEN_VACIO;
     const listado = useEstadoPorConcepto({ ...periodo, estado: filtros.estado, gradoSeccion: filtros.grado, buscar: filtros.buscar });

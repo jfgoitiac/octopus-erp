@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import {
     getEstadoPorConcepto,
     exportarEstadoPorConceptoExcel,
 } from '../api/cobranza.service';
+import { useAutoRefresh } from './useAutoRefresh';
 
 const PAGE_SIZE = 20;
 
@@ -12,10 +13,14 @@ const PAGE_SIZE = 20;
  * Listado paginado de filas (alumno o representante) para el detalle por
  * nombre de un concepto — el modal de la pestaña "Pagos por concepto".
  * Solo consulta cuando `enabled` es true (el modal está abierto).
+ *
+ * `autoRefresh`: vuelve a pedir la página actual cada minuto y al regresar a
+ * la pestaña, en silencio (sin skeleton ni toast), para que un pago recién
+ * registrado se vea sin recargar la pantalla.
  */
 export function useEstadoPorConcepto({
     concepto, estado = 'todos', mes, anio, numeroCuota,
-    periodoEscolar, gradoSeccion, buscar, sede, enabled = true,
+    periodoEscolar, gradoSeccion, buscar, sede, enabled = true, autoRefresh = false,
 } = {}) {
     const [filas, setFilas] = useState([]);
     const [resumen, setResumen] = useState(null);
@@ -23,6 +28,9 @@ export function useEstadoPorConcepto({
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [exportingExcel, setExportingExcel] = useState(false);
+    // Solo se aplica la respuesta de la última consulta: un refresco lento no
+    // pisa el resultado de un filtro que el usuario cambió después.
+    const ultimaConsulta = useRef(0);
 
     const buildParams = useCallback(() => {
         const params = { concepto, estado, page, page_size: PAGE_SIZE };
@@ -36,23 +44,32 @@ export function useEstadoPorConcepto({
         return params;
     }, [concepto, estado, page, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar, sede]);
 
-    const fetchEstado = useCallback(async (signal) => {
+    const fetchEstado = useCallback(async (signal, silencioso = false) => {
         if (!enabled || !concepto) return;
-        setLoading(true);
+        const consulta = ++ultimaConsulta.current;
+        if (!silencioso) setLoading(true);
         try {
             const res = await getEstadoPorConcepto(buildParams(), signal);
+            if (consulta !== ultimaConsulta.current) return;
             setFilas(res.data?.results ?? []);
             setTotal(res.data?.count ?? 0);
             setResumen(res.data?.resumen ?? null);
         } catch (err) {
             if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+            if (consulta !== ultimaConsulta.current || silencioso) return;
             if (err.response?.status === 404 && page > 1) { setPage(1); return; }
             setFilas([]);
             toast.error('No se pudo cargar el detalle del concepto.');
         } finally {
-            setLoading(false);
+            // También al terminar un refresco: pudo haber reemplazado a una carga visible.
+            if (consulta === ultimaConsulta.current) setLoading(false);
         }
     }, [enabled, concepto, page, buildParams]);
+
+    const refrescar = useCallback(() => {
+        if (autoRefresh) fetchEstado(undefined, true);
+    }, [autoRefresh, fetchEstado]);
+    useAutoRefresh(refrescar);
 
     // Cambiar cualquier filtro reinicia siempre a la página 1
     useEffect(() => { setPage(1); }, [concepto, estado, mes, anio, numeroCuota, periodoEscolar, gradoSeccion, buscar, sede]);

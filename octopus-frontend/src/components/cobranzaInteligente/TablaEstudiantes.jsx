@@ -25,8 +25,12 @@ const separar = (nombre) => {
     return { nombre: n, apellido: resto.at(-1) || '' };
 };
 
+/* Con saldo pero aún no vence: no es mora y no debe pintarse en rojo. */
+const POR_VENCER = { label: 'Por vencer', color: 'var(--pb-mid)', fondo: 'var(--pb-light)', avatar: '#2563eb' };
+const badgeDe = (fila) => (fila.estado !== 'pagado' && fila.vencida === false ? POR_VENCER : BADGE[fila.estado]);
+
 function Estado({ fila }) {
-    const b = BADGE[fila.estado];
+    const b = badgeDe(fila);
     return (
         <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap"
             style={{ background: b.fondo, color: b.color }}>
@@ -38,9 +42,10 @@ function Estado({ fila }) {
 
 function Monto({ fila }) {
     const debe = fila.estado !== 'pagado';
+    const enMora = debe && fila.vencida !== false;
     return (
         <div className="tabular-nums text-right whitespace-nowrap">
-            <p className="text-sm font-semibold" style={{ color: debe ? 'var(--red)' : 'var(--jet)' }}>
+            <p className="text-sm font-semibold" style={{ color: enMora ? 'var(--red)' : 'var(--jet)' }}>
                 ${fmt(debe ? fila.saldo_usd : fila.monto_usd, 2)}
             </p>
             {debe && <p className="text-[11px]" style={{ color: 'var(--ash)' }}>de ${fmt(fila.monto_usd, 2)}</p>}
@@ -144,7 +149,7 @@ export default function TablaEstudiantes({ filtros, setFiltros, listado }) {
                             const p = separar(f.nombre);
                             return (
                                 <li key={`${f.alumno_id}-${f.monto_usd}`} className="py-3 flex gap-3">
-                                    <InitialsAvatar nombre={p.nombre} apellido={p.apellido} color={BADGE[f.estado].avatar} />
+                                    <InitialsAvatar nombre={p.nombre} apellido={p.apellido} color={badgeDe(f).avatar} />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <p className="text-sm font-medium truncate" style={{ color: 'var(--jet)' }}>{f.nombre}</p>
@@ -185,7 +190,7 @@ export default function TablaEstudiantes({ filtros, setFiltros, listado }) {
                                             style={{ borderTop: '1px solid var(--border)' }}>
                                             <td className="py-2.5 pr-3">
                                                 <div className="flex items-center gap-2.5">
-                                                    <InitialsAvatar nombre={p.nombre} apellido={p.apellido} color={BADGE[f.estado].avatar} />
+                                                    <InitialsAvatar nombre={p.nombre} apellido={p.apellido} color={badgeDe(f).avatar} />
                                                     <div className="min-w-0">
                                                         <p className="font-medium truncate" style={{ color: 'var(--jet)' }}>{f.nombre}</p>
                                                         <p className="text-[11px]" style={{ color: 'var(--ash)' }}>{f.cedula_escolar}</p>

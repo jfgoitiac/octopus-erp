@@ -35,7 +35,11 @@ const fila = {
 const dashboard = {
     efectividad: { cobrado_al_vencimiento_pct: 80, mora_15_pct: 12, base_meses: 3 },
     comparacion_linea_base: { delta_cobrado_al_vencimiento_pp: 5, delta_mora_15_pp: -2 },
-    distribucion_por_etapa: { temprana: { casos: 2, saldo_usd: '100.00' } },
+    distribucion_por_etapa: {
+        vencida: { casos: 2, saldo_usd: '100.00' }, seguimiento: { casos: 1, saldo_usd: '30.00' },
+        preventiva: { casos: 3, saldo_usd: '90.00' },
+    },
+    ventana_preventiva_dias: 30,
     bandeja: { casos_abiertos: 7, antiguedad_max_dias: 20, casos_mas_de_15_dias: 3 },
     pagos_por_conciliar: 2,
     envios_7_dias: { enviado: 11, pendiente: 4 },
@@ -78,6 +82,22 @@ describe('CobranzaInteligenteDashboard', () => {
         expect(await screen.findByText('Casos críticos')).toBeInTheDocument();
         expect(screen.getByText('64 pts')).toBeInTheDocument();
         expect(m.estado).toHaveBeenCalledWith(expect.objectContaining({ concepto: 'mensualidad', mes: 10, anio: 2025 }), expect.anything());
+    });
+
+    it('la cartera usa las etapas reales del ciclo y separa lo que aún no vence', async () => {
+        montar('director');
+        expect(await screen.findByText('Cartera por etapa · 3 en mora · 3 por vencer en 30 días')).toBeInTheDocument();
+        expect(screen.getByText('Seguimiento')).toBeInTheDocument();
+        expect(screen.getByText('1 · $30')).toBeInTheDocument();
+    });
+
+    it('una mensualidad con saldo que aún no vence se muestra "Por vencer", no "Con deuda"', async () => {
+        m.estado.mockResolvedValue({
+            data: { count: 1, results: [{ ...fila, dias_atraso: null, vencida: false }], resumen },
+        });
+        montar('cajero');
+        expect((await screen.findAllByText('Por vencer')).length).toBeGreaterThan(0);
+        expect(screen.queryByText(/^Con deuda ·/)).not.toBeInTheDocument();
     });
 
     it('la acción sugerida de un caso crítico abre su modal', async () => {

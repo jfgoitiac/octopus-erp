@@ -14,6 +14,7 @@ import {
     getMensualidadesPorMonto,
 } from '../../api/cobranza.service';
 import { fmt, fmtFecha } from '../../utils/format';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 const PAGE_SIZE = 20;
 const ESTADO = [
@@ -156,17 +157,23 @@ export default function MensualidadesPorMonto({ mes, sede }) {
     const [grupoActivo, setGrupoActivo] = useState(null);
     const [porGradoAbierto, setPorGradoAbierto] = useState(false);
     const cerrarPorGrado = useCallback(() => setPorGradoAbierto(false), []);
-    const cargar = useCallback(async (signal) => {
-        if (!mes) { setGrupos([]); return; }
-        setLoading(true);
+    // Depende del mes/año, no del objeto: el resumen se refresca cada minuto y
+    // trae un objeto nuevo para el mismo mes, lo que antes recargaba con skeleton.
+    const numMes = mes?.mes;
+    const anio = mes?.anio;
+    const cargar = useCallback(async (signal, silencioso = false) => {
+        if (!numMes) { setGrupos([]); return; }
+        if (!silencioso) setLoading(true);
         try {
-            const response = await getMensualidadesPorMonto({ mes: mes.mes, anio: mes.anio, sede }, signal);
+            const response = await getMensualidadesPorMonto({ mes: numMes, anio, sede }, signal);
             setGrupos(response.data.grupos || []);
         } catch (error) {
-            if (error.code !== 'ERR_CANCELED') toast.error('No se pudo cargar la distribución de mensualidades.');
-        } finally { setLoading(false); }
-    }, [mes, sede]);
+            if (error.code !== 'ERR_CANCELED' && !silencioso) toast.error('No se pudo cargar la distribución de mensualidades.');
+        } finally { if (!silencioso) setLoading(false); }
+    }, [numMes, anio, sede]);
     useEffect(() => { const controller = new AbortController(); cargar(controller.signal); return () => controller.abort(); }, [cargar]);
+    const refrescar = useCallback(() => cargar(undefined, true), [cargar]);
+    useAutoRefresh(refrescar);
 
     const total = grupos.reduce((acumulado, grupo) => acumulado + Number(grupo.total_facturado_usd || 0), 0);
     return <section className="rounded-[var(--radius-card)] p-4 sm:p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
