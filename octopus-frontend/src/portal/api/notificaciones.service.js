@@ -33,3 +33,17 @@ export const desuscribirPush = (endpoint) =>
  */
 export const actualizarTiposPush = (tipos) =>
   portalClient.patch('notificaciones/push/tipos/', { tipos });
+
+/**
+ * Bandeja de avisos del portal (campana): últimos 50, más recientes primero.
+ * Respuesta: { no_leidos, resultados: [{ id, tipo, titulo, cuerpo, url, leido, creado_en }] }
+ * @param {AbortSignal} [signal]
+ */
+export const getAvisosPortal = (signal) =>
+  portalClient.get('avisos/', signal ? { signal } : undefined);
+
+/** Marca un aviso de la bandeja como leído. */
+export const marcarAvisoLeido = (id) => portalClient.post(`avisos/${id}/leer/`);
+
+/** Marca como leídos todos los avisos del representante. */
+export const marcarTodosAvisosLeidos = () => portalClient.post('avisos/leer-todos/');

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Upload, X, FileText, CheckCircle, AlertCircle, Hash, Camera } from 'lucide-react';
+import { Upload, X, FileText, CheckCircle, AlertCircle, Camera, Landmark, Info } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { subirComprobante, getMetodosPago } from '../api/portal.service';
 import { Modal } from '../../components/ui/Modal';
@@ -8,7 +8,6 @@ import { textoVencimiento } from '../utils/fechas';
 
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024;
-const METODOS_CON_REFERENCIA = ['transferencia', 'pago_movil', 'punto_de_venta', 'zelle'];
 const ETIQUETAS_DATOS = { titular: 'Titular', identificacion: 'Cédula / RIF', numero_cuenta: 'Número de cuenta', telefono: 'Teléfono', correo: 'Correo Zelle', instrucciones: 'Indicaciones' };
 
 const montoDe = (m) => m.monto_total ?? m.monto_usd;
@@ -26,8 +25,10 @@ const Paso = ({ numero, titulo, children }) => (
 /**
  * Reporte de un pago hecho por transferencia, pago móvil, Zelle o punto de
  * venta. El representante elige qué mensualidad paga (cualquiera pendiente,
- * vencida o próxima, de cualquiera de sus hijos), cómo pagó, y adjunta el
- * comprobante. Las mensualidades con un comprobante aún en revisión no se
+ * vencida o próxima, de cualquiera de sus hijos) y adjunta el comprobante.
+ * Nada más: la referencia, el banco, el método, la fecha y el monto los llena
+ * el colegio al revisarlo, para evitar errores de tipeo. Los datos bancarios
+ * del colegio se muestran solo como guía de a dónde transferir. Las mensualidades con un comprobante aún en revisión no se
  * pueden elegir: el backend rechazaría un segundo envío (409).
  *
  * Props:
@@ -44,8 +45,8 @@ const ComprobantePagoModal = ({
   const [preview, setPreview] = useState(null);
   const [estado, setEstado] = useState('idle');
   const [metodos, setMetodos] = useState([]);
-  const [metodoSeleccionado, setMetodoSeleccionado] = useState(null);
-  const [referencia, setReferencia] = useState('');
+  // Solo informativo: qué datos bancarios del colegio se están viendo.
+  const [metodoVistoId, setMetodoVistoId] = useState(null);
 
   const enRevision = useCallback(
     (id) => comprobantePorMensualidad[id]?.estatus === 'pendiente',
@@ -70,7 +71,7 @@ const ComprobantePagoModal = ({
   const quitarArchivo = () => { setArchivo(null); setPreview(null); setEstado('idle'); };
 
   const cerrar = useCallback(() => {
-    setArchivo(null); setPreview(null); setEstado('idle'); setReferencia(''); setMetodoSeleccionado(null); setSeleccionadaId(null);
+    setArchivo(null); setPreview(null); setEstado('idle'); setMetodoVistoId(null); setSeleccionadaId(null);
     onClose();
   }, [onClose]);
 
@@ -92,9 +93,8 @@ const ComprobantePagoModal = ({
   }
 
   const seleccionada = opciones.find((m) => m.id === seleccionId) || null;
-  const metodoPago = metodoSeleccionado?.metodo || '';
-  const referenciaObligatoria = METODOS_CON_REFERENCIA.includes(metodoPago);
-  const listo = Boolean(seleccionada && metodoSeleccionado && archivo && (!referenciaObligatoria || referencia.trim()));
+  const metodoVisto = metodos.find((m) => m.id === metodoVistoId) || metodos[0] || null;
+  const listo = Boolean(seleccionada && archivo);
 
   const seleccionarArchivo = (event) => {
     const file = event.target.files[0];
@@ -110,8 +110,7 @@ const ComprobantePagoModal = ({
     if (!listo) return;
     setEstado('uploading');
     try {
-      const bancoId = ['transferencia', 'pago_movil'].includes(metodoPago) ? metodoSeleccionado.banco_id : '';
-      await subirComprobante(seleccionada.id, archivo, referencia.trim(), metodoPago, bancoId);
+      await subirComprobante(seleccionada.id, archivo);
       toast.success('Comprobante enviado. El colegio lo revisará y verás aquí su estado.');
       onSuccess?.();
       cerrar();
@@ -122,10 +121,7 @@ const ComprobantePagoModal = ({
   };
 
   // Indica qué falta para habilitar el envío, en vez de un botón gris mudo.
-  const faltante = !metodoSeleccionado ? 'Elige cómo pagaste.'
-    : !archivo ? 'Adjunta la foto o el PDF del comprobante.'
-    : referenciaObligatoria && !referencia.trim() ? 'Escribe el número de referencia.'
-    : null;
+  const faltante = !archivo ? 'Adjunta la foto o el PDF del comprobante.' : null;
 
   const footer = (
     <div className="space-y-2">
@@ -177,7 +173,7 @@ const ComprobantePagoModal = ({
                     </span>
                   </span>
                   {rechazo && (
-                    <span className="mt-1.5 block rounded-lg bg-[var(--red-light)] px-2 py-1 text-xs text-[var(--red)]">
+                    <span className="mt-1.5 block whitespace-pre-line break-words rounded-lg bg-[var(--red-light)] px-2 py-1 text-xs text-[var(--red)]">
                       Tu comprobante anterior fue rechazado{rechazo.observaciones ? `: ${rechazo.observaciones}` : '.'}
                     </span>
                   )}
@@ -188,88 +184,84 @@ const ComprobantePagoModal = ({
           <p className="text-xs text-[var(--ash)]">Envía un comprobante por mensualidad. Si pagaste varias en una sola transferencia, avisa a administración.</p>
         </Paso>
 
-        <Paso numero={2} titulo="¿Cómo pagaste?">
+        <Paso numero={2} titulo="¿A dónde transferir?">
           {metodos.length === 0 ? (
-            <p className="text-xs rounded-xl bg-[var(--yellow-light)] text-[var(--jet-mid)] px-3 py-2.5">No hay métodos de pago configurados. Contacta a administración.</p>
+            <p className="text-xs rounded-xl bg-[var(--yellow-light)] text-[var(--jet-mid)] px-3 py-2.5">No hay datos bancarios configurados. Consulta a administración a qué cuenta pagar.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {metodos.map((metodo) => (
-                <button
-                  key={metodo.id}
-                  type="button"
-                  aria-pressed={metodoSeleccionado?.id === metodo.id}
-                  onClick={() => { setMetodoSeleccionado(metodo); setReferencia(''); }}
-                  className={`text-left rounded-xl border px-3 py-2.5 min-h-[44px] ${metodoSeleccionado?.id === metodo.id ? 'border-[var(--portal-primary)] bg-[var(--portal-primary)]/10' : 'border-[var(--border)] bg-[var(--surface)]'}`}
-                >
-                  <span className="block text-sm font-semibold text-[var(--jet-mid)]">{metodo.nombre}</span>
-                  {metodo.banco && <span className="block text-xs text-[var(--ash)]">{metodo.banco}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-          {metodoSeleccionado && (
-            <div className="rounded-xl bg-[var(--surface-sunken)] p-3 space-y-1.5">
-              <p className="text-xs font-semibold text-[var(--jet-mid)]">Datos para {metodoSeleccionado.nombre}</p>
-              {metodoSeleccionado.banco && <p className="text-xs font-medium text-[var(--jet-mid)]">{metodoSeleccionado.banco}</p>}
-              {Object.entries(metodoSeleccionado.datos || {}).filter(([, valor]) => valor).map(([campo, valor]) => (
-                <p key={campo} className="text-xs text-[var(--jet-mid)] break-words"><span className="text-[var(--ash)]">{ETIQUETAS_DATOS[campo] || campo}:</span> {valor}</p>
-              ))}
-            </div>
+            <>
+              {metodos.length > 1 && (
+                <div className="flex flex-wrap gap-2" role="tablist" aria-label="Formas de pago del colegio">
+                  {metodos.map((metodo) => {
+                    const activo = metodoVisto?.id === metodo.id;
+                    return (
+                      <button
+                        key={metodo.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activo}
+                        onClick={() => setMetodoVistoId(metodo.id)}
+                        className={`rounded-full border px-3 py-2 text-xs font-semibold min-h-[44px] transition-colors ${activo ? 'border-[var(--portal-primary)] bg-[var(--portal-primary)]/10 text-[var(--jet)]' : 'border-[var(--border)] bg-[var(--surface)] text-[var(--jet-mid)]'}`}
+                      >
+                        {metodo.nombre}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {metodoVisto && (
+                <div className="rounded-xl bg-[var(--surface-sunken)] p-3 space-y-1.5" role={metodos.length > 1 ? 'tabpanel' : undefined}>
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--jet-mid)]">
+                    <Landmark size={14} className="shrink-0 text-[var(--portal-primary)]" aria-hidden="true" />
+                    <span className="min-w-0 break-words">{metodoVisto.nombre}{metodoVisto.banco ? ` · ${metodoVisto.banco}` : ''}</span>
+                  </p>
+                  {Object.entries(metodoVisto.datos || {}).filter(([, valor]) => valor).map(([campo, valor]) => (
+                    <p key={campo} className="text-xs text-[var(--jet-mid)] break-words"><span className="text-[var(--ash)]">{ETIQUETAS_DATOS[campo] || campo}:</span> {valor}</p>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </Paso>
 
-        {metodoSeleccionado && (
-          <Paso numero={3} titulo="Adjunta el comprobante">
-            {!archivo ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] focus-within:border-[var(--portal-primary)] min-h-[90px]">
-                  <Camera size={26} className="text-[var(--portal-primary)]" aria-hidden="true" />
-                  <span className="text-sm font-medium text-[var(--jet-mid)]">Tomar foto</span>
-                  <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={seleccionarArchivo} />
-                </label>
-                <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] focus-within:border-[var(--portal-primary)] min-h-[90px]">
-                  <Upload size={26} className="text-[var(--ash)]" aria-hidden="true" />
-                  <span className="text-sm font-medium text-[var(--jet-mid)]">Subir imagen o PDF</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={seleccionarArchivo} />
-                </label>
-              </div>
-            ) : (
-              <div className="relative">
-                {preview ? (
-                  <img src={preview} alt="Vista previa del comprobante" className="w-full max-h-48 rounded-2xl object-contain bg-[var(--surface-sunken)]" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[var(--surface-sunken)] text-[var(--portal-primary)]">
-                    <FileText size={40} aria-hidden="true" />
-                    <span className="text-sm text-[var(--jet-mid)] break-all">{archivo.name}</span>
-                  </div>
-                )}
-                <button type="button" onClick={quitarArchivo} className="absolute top-1 right-1 w-11 h-11 bg-black/50 rounded-full flex items-center justify-center" aria-label="Quitar archivo">
-                  <X size={14} className="text-white" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-            <div className="space-y-1">
-              <label htmlFor="comprobante-referencia" className="text-xs font-semibold text-[var(--jet-mid)] flex items-center gap-1">
-                <Hash size={12} aria-hidden="true" />Número de referencia o confirmación {referenciaObligatoria && <span className="text-[var(--red)]" aria-hidden="true">*</span>}
+        <Paso numero={3} titulo="Adjunta el comprobante">
+          <p className="flex items-start gap-2 text-xs text-[var(--jet-mid)]">
+            <Info size={14} className="mt-0.5 shrink-0 text-[var(--portal-primary)]" aria-hidden="true" />
+            <span>Sube la captura o PDF de tu pago. El colegio verificará los datos.</span>
+          </p>
+          {!archivo ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] focus-within:border-[var(--portal-primary)] min-h-[90px]">
+                <Camera size={26} className="text-[var(--portal-primary)]" aria-hidden="true" />
+                <span className="text-sm font-medium text-[var(--jet-mid)]">Tomar foto</span>
+                <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={seleccionarArchivo} />
               </label>
-              <input
-                id="comprobante-referencia"
-                type="text"
-                value={referencia}
-                onChange={(event) => setReferencia(event.target.value)}
-                placeholder="Ej: 12345678"
-                required={referenciaObligatoria}
-                className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)] uppercase"
-                maxLength={100}
-                autoComplete="off"
-              />
+              <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-[var(--border)] cursor-pointer hover:border-[var(--portal-primary)] focus-within:border-[var(--portal-primary)] min-h-[90px]">
+                <Upload size={26} className="text-[var(--ash)]" aria-hidden="true" />
+                <span className="text-sm font-medium text-[var(--jet-mid)]">Subir imagen o PDF</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={seleccionarArchivo} />
+              </label>
             </div>
-          </Paso>
-        )}
+          ) : (
+            <div className="relative">
+              {preview ? (
+                <img src={preview} alt="Vista previa del comprobante" className="w-full max-h-48 rounded-2xl object-contain bg-[var(--surface-sunken)]" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[var(--surface-sunken)] text-[var(--portal-primary)]">
+                  <FileText size={40} aria-hidden="true" />
+                  <span className="text-sm text-[var(--jet-mid)] break-all">{archivo.name}</span>
+                </div>
+              )}
+              <button type="button" onClick={quitarArchivo} className="absolute top-1 right-1 w-11 h-11 bg-black/50 rounded-full flex items-center justify-center" aria-label="Quitar archivo">
+                <X size={14} className="text-white" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-[var(--ash)]">JPG, PNG, WEBP o PDF de hasta 10 MB.</p>
+        </Paso>
 
         {estado === 'error' && (
           <div role="alert" className="flex items-center gap-2 bg-[var(--red-light)] text-[var(--red)] rounded-xl px-4 py-3 text-sm">
-            <AlertCircle size={18} aria-hidden="true" /><span>No se pudo enviar. Revisa los datos e intenta nuevamente.</span>
+            <AlertCircle size={18} aria-hidden="true" /><span>No se pudo enviar. Revisa el archivo e intenta nuevamente.</span>
           </div>
         )}
       </div>

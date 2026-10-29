@@ -8,6 +8,7 @@ import { usePortalAuth } from '../context/PortalAuthContext';
 import { AlumnoActivoProvider } from '../context/AlumnoActivoContext';
 import { useBranding } from '../../context/BrandingContext';
 import NotificacionesModal from './NotificacionesModal';
+import BandejaAvisos from './BandejaAvisos';
 import RepresentanteRail from './RepresentanteRail';
 import BannerInstalarApp from './BannerInstalarApp';
 import useAccionInstalar from '../hooks/useAccionInstalar';
@@ -100,6 +101,7 @@ const PortalLayout = () => {
             <p className="hidden text-sm text-[var(--portal-muted)] lg:block">{hoy}</p>
 
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <BandejaAvisos />
               <Link
                 to="/portal/perfil"
                 className="flex min-h-[44px] items-center gap-2 rounded-full py-1 pl-1 pr-1 transition-colors hover:bg-[var(--portal-canvas)] sm:pr-3"

@@ -49,7 +49,8 @@ const PortalDashboard = () => {
     return [...(resumen?.mensualidades_vencidas || []), ...(resumen?.proximos_vencimientos || [])]
       .filter((m) => (vistas.has(m.id) ? false : vistas.add(m.id)));
   }, [resumen]);
-  const hayPorReportar = pagables.some((m) => ultimoPorMensualidad[m.id]?.estatus !== 'pendiente');
+  const idsPagables = useMemo(() => new Set(pagables.map((m) => m.id)), [pagables]);
+  const hayPorReportar =pagables.some((m) => ultimoPorMensualidad[m.id]?.estatus !== 'pendiente');
   // Rechazos vigentes: el último comprobante de una mensualidad que sigue sin pagar.
   const rechazados = pagables
     .map((m) => ultimoPorMensualidad[m.id])
@@ -111,7 +112,12 @@ const PortalDashboard = () => {
           />
 
           <div className="space-y-5 lg:space-y-6">
-            <WidgetMisComprobantes comprobantes={comprobantes} variosAlumnos={variosAlumnos} />
+            <WidgetMisComprobantes
+              comprobantes={comprobantes}
+              variosAlumnos={variosAlumnos}
+              onSubirNuevo={(mensualidadId) => abrirPago({ id: mensualidadId })}
+              puedeResubir={(c) => idsPagables.has(c.mensualidad) && ultimoPorMensualidad[c.mensualidad]?.id === c.id}
+            />
             <WidgetProximosVencimientos
               resumen={resumen}
               loading={loading}
