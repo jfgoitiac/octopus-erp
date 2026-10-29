@@ -17,6 +17,12 @@ import CobranzaStep1 from './components/CobranzaStep1';
 import CobranzaStep2 from './components/CobranzaStep2';
 import ResumenPago from './components/ResumenPago';
 import Stepper from '../components/shared/Stepper';
+import CajaComprobanteLayout from '../components/comprobantes/CajaComprobanteLayout';
+import {
+    RUTA_CONCILIADOR, RUTA_REVISION, aplicarPrellenadoALinea, clasificarSobrante,
+    leerPrellenadoCaja, motivoComprobante,
+} from '../components/comprobantes/cajaComprobante';
+import { buscarSiguientePendiente, obtenerComprobante } from '../services/comprobantesRevisionService';
 
 const MOTIVO_MIN_LEN = 10;
 
@@ -53,6 +59,14 @@ const Cobranza = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { tasa: tasaBCV, error: tasaError, ultimaActualizacion, refetch: refetchTasa } = useTasaBCV();
+
+    // Prellenado por URL (CONTRATO_V2_COMPROBANTES_CAJA): comprobante del
+    // portal a procesar y, desde el conciliador, los datos de la línea del banco.
+    const prellenado = useMemo(() => leerPrellenadoCaja(location.search), [location.search]);
+    const comprobanteId = prellenado.comprobanteId;
+    const [comprobantePortal, setComprobantePortal] = useState(null);
+    const [errorComprobante, setErrorComprobante] = useState(false);
+    const [registrarComoExcedente, setRegistrarComoExcedente] = useState(false);
 
     // ── Modo retroactivo: el dinero ya se recibió en una fecha pasada. Cuando
     // está activo, la tasa manual del operador reemplaza a la del BCV de hoy
@@ -108,7 +122,7 @@ const Cobranza = () => {
     const [adelantosRequierenUSD, setAdelantosRequierenUSD] = useState(true);
     const [abonosParcialesRequierenUSD, setAbonosParcialesRequierenUSD] = useState(true);
     const [concepto, setConcepto]                 = useState('mensualidad');
-    const [lineas, setLineas]                     = useState([crearLinea()]);
+    const [lineas, setLineas]                     = useState(() => [aplicarPrellenadoALinea(crearLinea(), prellenado)]);
     const [bancos, setBancos]                     = useState([]);
     const [loading, setLoading]                   = useState(false);
 
@@ -194,8 +208,9 @@ const Cobranza = () => {
     const totalGenUSD = haySeleccion ? totalSelUSD : totalUSD;
     const totalGenVES = haySeleccion ? totalSelUSD * tasa : totalVES;
     const saldoVES   = Math.max(0, deudaVES - pagoVES);
-    const vueltoVES  = deudaVES > 0 ? Math.max(0, pagoVES - deudaVES) : 0;
-    const vueltoUSD  = tasa > 0 ? vueltoVES / tasa : 0;
+    const sobranteVES = deudaVES > 0 ? Math.max(0, pagoVES - deudaVES) : 0;
+    const sobranteUSD = tasa > 0 ? sobranteVES / tasa : 0;
+    const sobrante = clasificarSobrante({ lineas, sobranteVES, tasa, registrarComoExcedente });
     const pct        = deudaVES > 0 ? Math.min(100, Math.round((pagoVES / deudaVES) * 100)) : 0;
 
     const todosDivisas    = lineas.length > 0 && lineas.every(l => esDivisa(l.metodo_pago));
@@ -259,6 +274,7 @@ const Cobranza = () => {
     // por el representante en sus últimos 3 pagos (queda editable, no bloqueado).
     // Best-effort: si falla, el operador simplemente los completa a mano.
     const autocompletarPagoRepresentante = useCallback(async (cedulaRepresentante) => {
+        if (prellenado.metodo) return; // la línea ya trae los datos del banco
         try {
             const res = await axiosInstance.get('cobranza/pagos/lista/', {
                 params: { representante_documento: cedulaRepresentante, page_size: 3, page: 1 },
@@ -288,7 +304,7 @@ const Cobranza = () => {
         } catch {
             // Autocompletado no crítico: no interrumpe la búsqueda del representante.
         }
-    }, []);
+    }, [prellenado.metodo]);
 
     const buscarAlumno = useCallback((val) => {
         setCedula(val);
@@ -381,6 +397,53 @@ const Cobranza = () => {
     }, []);
 
     useEffect(() => { fetchFlagsDivisas(); }, [fetchFlagsDivisas]);
+
+    // Comprobante del portal: se carga para el visor y para preseleccionar
+    // alumno y mensualidad cuando llega la búsqueda del representante.
+    useEffect(() => {
+        if (!comprobanteId) return undefined;
+        const controller = new AbortController();
+        obtenerComprobante(comprobanteId, controller.signal)
+            .then(({ data }) => setComprobantePortal(data))
+            .catch(err => {
+                if (err.code === 'ERR_CANCELED') return;
+                setErrorComprobante(true);
+                toast.error(err.response?.data?.error || 'No se pudo cargar el comprobante del portal.');
+            });
+        return () => controller.abort();
+    }, [comprobanteId]);
+
+    useEffect(() => {
+        if (!comprobantePortal || !alumnosRep.length) return;
+        const alu = alumnosRep.find(a => a.id === comprobantePortal.alumno_id);
+        if (!alu) return;
+        const mid = comprobantePortal.mensualidad_id;
+        const enPendientes = (alu.mensualidades_pendientes || []).some(m => m.id === mid);
+        const enFuturas = (alu.mensualidades_futuras || []).some(m => m.id === mid);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- preselección tras respuesta HTTP
+        setAlumnosSeleccionados([alu.id]);
+        setDatosAlumnos({ [alu.id]: alu });
+        setSeleccion({ [alu.id]: {
+            ...crearSeleccionAlumno(),
+            selectedMens: enPendientes ? [mid] : [],
+            selectedFuturas: enFuturas ? [mid] : [],
+        } });
+    }, [comprobantePortal, alumnosRep]);
+
+    // Fecha de la línea del banco distinta de hoy → modo retroactivo.
+    useEffect(() => {
+        if (prellenado.fecha && prellenado.fecha !== today()) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- prellenado por URL, tras la búsqueda
+            setRetroActivo(true);
+            setFechaPagoRetro(prellenado.fecha);
+        }
+    }, [prellenado.fecha, alumnosRep]);
+
+    // En modo retroactivo, el motivo se prellena con el comprobante (editable).
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- solo rellena si está vacío
+        if (comprobanteId && retroActivo) setMotivoRetro(m => m || motivoComprobante(comprobanteId));
+    }, [comprobanteId, retroActivo]);
 
     // Alterna la inclusión de un alumno en la operación de pago (checkbox).
     const toggleAlumno = (alu) => {
@@ -546,8 +609,9 @@ const Cobranza = () => {
                         .filter(id => montosParcialesProyectos[id] !== undefined && montosParcialesProyectos[id] !== '')
                         .map(id => [id, parseFloat(montosParcialesProyectos[id]) || 0])
                 ),
-                vuelto_usd: parseFloat(vueltoUSD.toFixed(2)),
-                vuelto_ves: parseFloat(vueltoVES.toFixed(2)),
+                // Lo pagado de más va como excedente o como vuelto, nunca ambos.
+                ...sobrante.payload,
+                ...(comprobanteId ? { comprobante_portal_id: comprobanteId } : {}),
                 pagos: lineas.map(l => ({
                     metodo_pago: l.metodo_pago,
                     concepto,
@@ -569,7 +633,8 @@ const Cobranza = () => {
             const cuerpo = retroActivo ? new FormData() : payloadPago;
             if (retroActivo) {
                 cuerpo.append('payload', JSON.stringify(payloadPago));
-                if (comprobanteRetroactivo) cuerpo.append('comprobante_retroactivo', comprobanteRetroactivo);
+                // Con comprobante del portal no se adjunta: su archivo es el respaldo.
+                if (comprobanteRetroactivo && !comprobanteId) cuerpo.append('comprobante_retroactivo', comprobanteRetroactivo);
             }
             const res = await axiosInstance.post('cobranza/registrar-pago/', cuerpo);
 
@@ -599,8 +664,17 @@ const Cobranza = () => {
                 setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
                 setCuotasProyectoInversion([]); setSelectedProyectos([]); setMontosParcialesProyectos({});
                 setRetroActivo(false); setFechaPagoRetro(today()); setTasaManual(''); setMotivoRetro('');
+                setRegistrarComoExcedente(false);
                 setConfirming(false);
                 setStep(1);
+
+                if (prellenado.volverConciliacion) {
+                    const operacion = res.data.pagos?.[0]?.operacion_uuid;
+                    navigate(operacion ? `${RUTA_CONCILIADOR}?operacion=${operacion}` : RUTA_CONCILIADOR);
+                } else if (comprobanteId) {
+                    const siguienteId = await buscarSiguientePendiente(comprobanteId);
+                    navigate(siguienteId ? `${RUTA_REVISION}/${siguienteId}` : RUTA_REVISION);
+                }
             }
         } catch (err) {
             const data = err.response?.data;
@@ -633,8 +707,20 @@ const Cobranza = () => {
         .filter(Boolean)
         .join(', ');
 
+    // Con comprobante del portal, la caja va dentro del marco con su visor.
+    const conMarco = (contenido) => (comprobanteId ? (
+        <CajaComprobanteLayout
+            comprobanteId={comprobanteId}
+            comprobante={comprobantePortal}
+            error={errorComprobante}
+            volverConciliacion={prellenado.volverConciliacion}
+        >
+            {contenido}
+        </CajaComprobanteLayout>
+    ) : contenido);
+
     /* ── STEP 1: Búsqueda ── */
-    if (step === 1) return (
+    if (step === 1) return conMarco(
         <>
         <Stepper steps={COBRANZA_STEPS} current={step} />
         <CobranzaStep1
@@ -668,7 +754,7 @@ const Cobranza = () => {
     );
 
     /* ── STEP 2: Pago ── */
-    return (
+    return conMarco(
         <>
         <Stepper steps={COBRANZA_STEPS} current={step} />
         <CobranzaStep2
@@ -714,6 +800,8 @@ const Cobranza = () => {
             tasaSugerenciaFechaReal={tasaSugerenciaFechaReal}
             tasaSugerenciaLoading={tasaSugerenciaLoading}
             metaBancoRevision={metaBancoRevision}
+            comprobantePortalId={comprobanteId}
+            conVisor={Boolean(comprobanteId)}
         >
             <ResumenPago
                 nombreAlumno={nombresSeleccionados}
@@ -726,8 +814,13 @@ const Cobranza = () => {
                 montosParcialesProyectos={montosParcialesProyectos}
                 confirming={confirming}
                 deudaVES={deudaVES}
-                vueltoVES={vueltoVES}
-                vueltoUSD={vueltoUSD}
+                sobranteVES={sobranteVES}
+                sobranteUSD={sobranteUSD}
+                esExcedente={sobrante.esExcedente}
+                hayEfectivo={sobrante.hayEfectivo}
+                registrarComoExcedente={registrarComoExcedente}
+                setRegistrarComoExcedente={setRegistrarComoExcedente}
+                conVisor={Boolean(comprobanteId)}
                 pct={pct}
                 saldoVES={saldoVES}
                 totalGenUSD={totalGenUSD}
