@@ -24,10 +24,14 @@ TOKENS_DISPONIBLES = [
     {'token': '{{colegio.nombre}}', 'etiqueta': 'Nombre del colegio', 'boton': '+ Nombre del colegio'},
     {'token': '{{portal.link}}', 'etiqueta': 'Enlace al portal', 'boton': '+ Enlace al portal'},
     {'token': '{{datos_bancarios}}', 'etiqueta': 'Datos bancarios', 'boton': '+ Datos bancarios'},
-    {'token': '{{recargo.aviso}}', 'etiqueta': 'Recordatorio para evitar recargos', 'boton': '+ Aviso de recargo'},
-    {'token': '{{mensualidades.detalle}}', 'etiqueta': 'Detalle de mensualidades pendientes', 'boton': '+ Detalle de mensualidades'},
-    {'token': '{{subtotal.principal}}', 'etiqueta': 'Subtotal de mensualidades', 'boton': '+ Subtotal mensualidades'},
-    {'token': '{{subtotal.recargos}}', 'etiqueta': 'Subtotal de recargos', 'boton': '+ Subtotal recargos'},
+    {'token': '{{recargo.aviso}}', 'etiqueta': 'Recordatorio para evitar recargos',
+     'boton': '+ Aviso de recargo'},
+    {'token': '{{mensualidades.detalle}}', 'etiqueta': 'Detalle de mensualidades pendientes',
+     'boton': '+ Detalle de mensualidades'},
+    {'token': '{{subtotal.principal}}', 'etiqueta': 'Subtotal de mensualidades',
+     'boton': '+ Subtotal mensualidades'},
+    {'token': '{{subtotal.recargos}}', 'etiqueta': 'Subtotal de recargos',
+     'boton': '+ Subtotal recargos'},
     {'token': '{{total.final}}', 'etiqueta': 'Total final adeudado', 'boton': '+ Total final'},
 ]
 
@@ -50,16 +54,24 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     Recibe un queryset/lista ya anotado con cobranza.mora.annotate_mora_detalle
     (mismo criterio que ListaMorososView) y agrupa por representante.
     Devuelve una lista de dicts, uno por representante con deuda.
+
+    Los montos del grupo se suman a partir de los mismos renglones que el
+    mensaje detalla (mensualidades vencidas con su recargo + inscripciones
+    impagas), así `{{total.final}}` siempre cuadra con `{{mensualidades.detalle}}`.
+    Las mensualidades son las vencidas según cobranza.mora.q_mensualidad_vencida
+    (la cuota del mes que todavía no vence no se cobra).
     """
-    from cobranza.mora import calcular_dias_atraso
-    from cobranza.models import Mensualidad
+    from cobranza.mora import calcular_dias_atraso, q_mensualidad_vencida
+    from cobranza.models import CuotaInscripcion, Mensualidad
     from cobranza.recargos import resolver_recargo
-    from django.db.models import Q
+    from django.db.models import F
     hoy = hoy or timezone.localdate()
     alumnos = list(alumnos_anotados)
-    pendientes = (Mensualidad.objects.filter(alumno__in=alumnos, pagado=False)
-                  .filter(Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month))
-                  .select_related('alumno').prefetch_related('lineas_recargo').order_by('anio', 'mes'))
+    pendientes = (
+        Mensualidad.objects.filter(alumno__in=alumnos).filter(q_mensualidad_vencida(hoy))
+        .filter(monto_usd__gt=F('monto_pagado'))
+        .select_related('alumno').prefetch_related('lineas_recargo').order_by('anio', 'mes')
+    )
     mensualidades_por_alumno = {}
     cache_reglas = {}
     for mensualidad in pendientes:
@@ -69,10 +81,18 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
             'principal_usd': mensualidad.monto_usd - mensualidad.monto_pagado,
             'recargo_usd': recargo['monto_usd'] if recargo else Decimal('0.00'),
         })
+    otros_por_alumno = {}
+    inscripciones = CuotaInscripcion.objects.filter(
+        alumno__in=alumnos, pagado=False, monto_usd__gt=F('monto_pagado'))
+    for cuota in inscripciones:
+        otros_por_alumno.setdefault(cuota.alumno_id, []).append({
+            'concepto': f'Inscripción {cuota.periodo_escolar}'.strip(),
+            'saldo_usd': cuota.monto_usd - cuota.monto_pagado,
+        })
 
     grupos = {}
     orden = []
-    for a in alumnos_anotados:
+    for a in alumnos:
         rep = a.representante
         if rep is None:
             continue
@@ -88,25 +108,38 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
                 'dias_atraso_max': 0,
                 'subtotal_principal': Decimal('0.00'),
                 'subtotal_recargos': Decimal('0.00'),
+                'subtotal_otros': Decimal('0.00'),
                 'mensualidades': [],
+                'otros': [],
             }
             orden.append(cedula)
+        nombre = f'{a.nombre} {a.apellido}'
         dias_atraso = calcular_dias_atraso(a, hoy)
         grupo = grupos[cedula]
+        mensualidades = mensualidades_por_alumno.get(a.id, [])
+        otros = otros_por_alumno.get(a.id, [])
+        monto_alumno = (
+            sum((m['principal_usd'] + m['recargo_usd'] for m in mensualidades), Decimal('0.00'))
+            + sum((o['saldo_usd'] for o in otros), Decimal('0.00'))
+        )
         grupo['alumnos'].append({
-            'nombre': f'{a.nombre} {a.apellido}',
-            'monto_adeudado': a.monto_adeudado,
-            'meses_adeudados': a.meses_adeudados,
+            'nombre': nombre,
+            'monto_adeudado': monto_alumno,
+            'meses_adeudados': len(mensualidades),
             'dias_atraso': dias_atraso,
         })
-        grupo['monto_total'] += a.monto_adeudado
-        grupo['meses_total'] += a.meses_adeudados
+        grupo['monto_total'] += monto_alumno
+        grupo['meses_total'] += len(mensualidades)
         grupo['dias_atraso_max'] = max(grupo['dias_atraso_max'], dias_atraso)
-        for mensualidad in mensualidades_por_alumno.get(a.id, []):
-            mensualidad['alumno'] = f'{a.nombre} {a.apellido}'
+        for mensualidad in mensualidades:
+            mensualidad['alumno'] = nombre
             grupo['mensualidades'].append(mensualidad)
             grupo['subtotal_principal'] += mensualidad['principal_usd']
             grupo['subtotal_recargos'] += mensualidad['recargo_usd']
+        for otro in otros:
+            otro['alumno'] = nombre
+            grupo['otros'].append(otro)
+            grupo['subtotal_otros'] += otro['saldo_usd']
 
     return [grupos[c] for c in orden]
 
@@ -131,11 +164,17 @@ def renderizar_mensaje_cobro(grupo, plantilla):
     else:
         alumno_texto = ', '.join(nombres_alumnos[:-1]) + ' y ' + nombres_alumnos[-1]
 
-    detalle_mensualidades = '\n'.join(
+    renglones = [
         f"• {m['alumno']} — {m['mes']} {m['anio']}: {_monto_cobro(m['principal_usd'])}"
         + (f" + recargo {_monto_cobro(m['recargo_usd'])}" if m['recargo_usd'] else '')
         for m in grupo.get('mensualidades', [])
-    ) or 'No hay mensualidades vencidas detallables.'
+    ]
+    # Inscripción impaga: forma parte del total, así que también va en el detalle.
+    renglones += [
+        f"• {o['alumno']} — {o['concepto']}: {_monto_cobro(o['saldo_usd'])}"
+        for o in grupo.get('otros', [])
+    ]
+    detalle_mensualidades = '\n'.join(renglones) or 'No hay mensualidades vencidas detallables.'
     reemplazos = {
         '{{representante.nombre}}': grupo['representante_nombre'],
         '{{alumno.nombre}}': alumno_texto,
@@ -145,6 +184,7 @@ def renderizar_mensaje_cobro(grupo, plantilla):
         '{{colegio.nombre}}': cfg['nombre_colegio'],
         '{{portal.link}}': cfg['portal_url'],
         '{{datos_bancarios}}': _datos_bancarios_texto(),
+        # El aviso se agrega al final para que no interrumpa el detalle ni el total.
         '{{recargo.aviso}}': '',
         '{{mensualidades.detalle}}': detalle_mensualidades,
         '{{subtotal.principal}}': _monto_cobro(grupo.get('subtotal_principal', Decimal('0.00'))),

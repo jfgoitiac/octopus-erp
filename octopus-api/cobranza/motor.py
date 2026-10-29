@@ -113,17 +113,23 @@ def evaluar_reglas_sede(sede_id, hoy=None):
 
     ciclos = (
         CicloCobranza.objects.filter(
-            mensualidad__alumno__sede_id=sede_id,
+            mensualidad__alumno__sede_id=sede_id, mensualidad__pagado=False,
             estado__in=[e for e in CicloCobranza.ESTADOS_ABIERTOS if e != CicloCobranza.PAUSADA])
         .select_related('mensualidad__alumno__representante')
     )
     por_representante = {}
+    vencidos_por_rep = {}
     for ciclo in ciclos:
+        rep = ciclo.mensualidad.alumno.representante
+        if rep is None:
+            continue
         # dias_de_mora = hoy - vencimiento: coincide con dia_relativo tal cual.
-        regla = reglas.get(dias_de_mora(ciclo.fecha_vencimiento, hoy))
+        dias = dias_de_mora(ciclo.fecha_vencimiento, hoy)
+        if dias >= 0 and _saldo(ciclo) > 0:
+            vencidos_por_rep.setdefault(rep.id, []).append(ciclo)
+        regla = reglas.get(dias)
         if regla is None or _saldo(ciclo) < regla.saldo_minimo:
             continue
-        rep = ciclo.mensualidad.alumno.representante
         por_representante.setdefault(rep.id, {'rep': rep, 'items': []})['items'].append((ciclo, regla))
 
     for datos in por_representante.values():
@@ -135,9 +141,13 @@ def evaluar_reglas_sede(sede_id, hoy=None):
             resumen['repetidos'] += 1
             continue
         real = _envia_de_verdad(cfg, regla)
+        # El mensaje lista TODO lo vencido del representante, no solo la cuota
+        # que cumple hoy el día de la regla: si no, el total no cuadra con lo que debe.
+        deudas = [c for c, _ in items]
+        deudas += [c for c in vencidos_por_rep.get(rep.id, []) if c not in deudas]
         detalle = {
-            'ciclos': [c.id for c, _ in items],
-            'saldo_total': str(sum((_saldo(c) for c, _ in items), Decimal('0.00'))),
+            'ciclos': [c.id for c in deudas],
+            'saldo_total': str(sum((_saldo(c) for c in deudas), Decimal('0.00'))),
             'dia_relativo': regla.dia_relativo,
         }
         try:
@@ -246,19 +256,28 @@ _INTROS = {
 def construir_mensaje(rep, ciclos, regla):
     """Asunto y texto plano. El monto en Bs se calcula AHORA con la tasa vigente."""
     from notificaciones.services import _config_colegio, _monto_whatsapp, montos_ref
-    cfg = _config_colegio()
-    total = sum((_saldo(c) for c in ciclos), Decimal('0.00'))
-    montos = montos_ref(total)
-    monto_txt = _monto_whatsapp(montos)
-    nota = f"\n_{montos['nota_tasa']}_" if montos.get('nota_tasa') else ''
     from .deudas import item_deuda
+    from .recargos import resolver_recargo
+    cfg = _config_colegio()
+    hoy = timezone.localdate()
+    cache_reglas = {}
+    total = Decimal('0.00')
     lineas = []
-    for c in ciclos:
+    # Mismo desglose que el cobro manual por WhatsApp: saldo + recargo vigente,
+    # y el total es la suma exacta de los renglones.
+    for c in sorted(ciclos, key=lambda c: c.fecha_vencimiento):
         item = item_deuda(c.mensualidad)
+        recargo = resolver_recargo(c.mensualidad, hoy, _cache_reglas=cache_reglas)
+        recargo_usd = recargo['monto_usd'] if recargo else Decimal('0.00')
+        total += item['saldo_pendiente_usd'] + recargo_usd
         lineas.append(
             f"• {item['alumno']}: {item['descripcion']} — saldo pendiente: "
             f"${item['saldo_pendiente_usd']:.2f}"
+            + (f" + recargo ${recargo_usd:.2f}" if recargo_usd else '')
         )
+    montos = montos_ref(total)
+    monto_txt = _monto_whatsapp(montos)
+    nota = f"\n_{montos['nota_tasa']}_" if montos.get('nota_tasa') else ''
     intro = _INTROS.get(regla.plantilla, 'Tiene pagos pendientes:')
     if regla.destinatario == 'director':
         saludo = (f"*{cfg['nombre_colegio']}* — Aviso a dirección\n"
