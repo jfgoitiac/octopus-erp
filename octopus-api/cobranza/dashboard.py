@@ -179,6 +179,30 @@ def _modulo(sedes):
     return filas
 
 
+TAREAS_MOTOR = ('evaluar-reglas-cobranza-inteligente', 'procesar-envios-cobranza-inteligente')
+HORAS_MOTOR_DETENIDO = 26
+
+
+def estado_motor(ahora=None):
+    """
+    ¿Está corriendo Celery Beat? Los recordatorios automáticos solo se crean y
+    se despachan desde sus tareas programadas; sin beat no sale ningún mensaje
+    y el dashboard lo debe decir en vez de mostrar ceros sin explicación.
+    Fuente: `last_run_at` que django_celery_beat (DatabaseScheduler) guarda
+    cada vez que encola la tarea.
+    """
+    ahora = ahora or timezone.now()
+    try:
+        from django_celery_beat.models import PeriodicTask
+        ultimas = [t for t in PeriodicTask.objects.filter(name__in=TAREAS_MOTOR)
+                   .values_list('last_run_at', flat=True) if t]
+    except Exception:
+        ultimas = []
+    ultima = max(ultimas, default=None)
+    activo = bool(ultima and ultima >= ahora - timedelta(hours=HORAS_MOTOR_DETENIDO))
+    return {'activo': activo, 'ultima_ejecucion': ultima}
+
+
 def calcular_dashboard(sedes, hoy=None, ahora=None):
     hoy = hoy or date.today()
     ahora = ahora or timezone.now()
@@ -249,4 +273,5 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
         'envios_7_dias': {e['estado']: e['n'] for e in envios},
         'recuperado': _recuperado(sedes, hoy),
         'modulo': _modulo(sedes),
+        'motor': estado_motor(ahora),
     }

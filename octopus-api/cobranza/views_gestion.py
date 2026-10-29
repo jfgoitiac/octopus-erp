@@ -16,6 +16,7 @@ from authentication.views import EsPersonalCobranza, IsDirector, IsSystemAdminOr
 from secretaria.models import Representante
 
 from . import gestion
+from .ciclos import poner_al_dia_si_hace_falta
 from .conversacion import construir_conversacion, responder
 from .dashboard import calcular_dashboard, q_sedes
 from .inteligente import sedes_con_inteligente_activa
@@ -60,6 +61,7 @@ class BandejaView(APIView):
         sedes = sedes_activas_accesibles(request.user, request.query_params.get('sede'))
         if not sedes:
             return _apagada()
+        poner_al_dia_si_hace_falta(sedes)
         filas = gestion.calcular_bandeja(_ciclos(sedes))
         if request.query_params.get('responsable'):
             filas = [f for f in filas if f['responsable'] == request.query_params['responsable']]
@@ -266,6 +268,7 @@ class DashboardInteligenteView(APIView):
         sedes = sedes_activas_accesibles(request.user, request.query_params.get('sede'))
         if not sedes:
             return _apagada()
+        poner_al_dia_si_hace_falta(sedes)
         return Response(calcular_dashboard(sedes))
 
 

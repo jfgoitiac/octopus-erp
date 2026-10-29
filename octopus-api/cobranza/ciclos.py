@@ -12,6 +12,7 @@ Un CicloCobranza acompaña UNA mensualidad impaga. Este módulo concentra:
 Todo opera solo sobre sedes con Cobranza Inteligente efectivamente encendida
 (cobranza/inteligente.py). Nada aquí envía mensajes.
 """
+import logging
 from datetime import date
 
 from django.db import transaction
@@ -26,6 +27,8 @@ from .mora import DIA_LIMITE_POR_DEFECTO, fecha_vencimiento_mensualidad  # noqa:
 DIAS_SEGUIMIENTO = 3
 DIAS_PRIORITARIA = 15
 DIAS_CRITICA = 30
+
+logger = logging.getLogger(__name__)
 
 
 def calcular_fecha_vencimiento(mensualidad):
@@ -187,6 +190,32 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
 def evaluar_ciclos(hoy=None):
     """Tarea diaria: evalúa solo las sedes con el módulo efectivamente encendido."""
     return {sede_id: evaluar_ciclos_sede(sede_id, hoy) for sede_id in sedes_con_inteligente_activa()}
+
+
+def poner_al_dia_si_hace_falta(sedes, hoy=None):
+    """
+    Evalúa los ciclos de cada sede como mucho una vez por día y proceso, al
+    abrir la bandeja o el dashboard. La evaluación diaria dependía solo de
+    Celery Beat: si el beat no corre (instalación en modo sencillo, servicio
+    caído) los ciclos de cuotas nuevas no se creaban y las etapas quedaban
+    congeladas días enteros. Es idempotente, así que coexistir con la tarea
+    de Beat no duplica nada. Un fallo aquí nunca rompe la lectura.
+    """
+    from django.core.cache import cache
+    from .gestion import actualizar_proximas_acciones
+    hoy = hoy or date.today()
+    for sede_id in sedes:
+        clave = f'cobranza_inteligente:ciclos_evaluados:{sede_id}:{hoy.isoformat()}'
+        if not cache.add(clave, True, timeout=26 * 3600):
+            continue
+        try:
+            resumen = evaluar_ciclos_sede(sede_id, hoy)
+            if any(resumen.values()):
+                actualizar_proximas_acciones(
+                    CicloCobranza.objects.filter(mensualidad__alumno__sede_id=sede_id), hoy)
+        except Exception:
+            cache.delete(clave)
+            logger.exception('No se pudo poner al día los ciclos de la sede %s', sede_id)
 
 
 def poner_al_dia_sede(sede_id, usuario=None, hoy=None):

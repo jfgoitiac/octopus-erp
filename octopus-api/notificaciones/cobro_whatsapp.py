@@ -194,6 +194,13 @@ def renderizar_mensaje_cobro(grupo, plantilla):
     mensaje = plantilla.cuerpo
     for token, valor in reemplazos.items():
         mensaje = mensaje.replace(token, valor)
+    # Una plantilla con solo {{monto}} y {{meses}} decía, p. ej., "REF. 280
+    # correspondiente a 6 meses" cuando 6 cuotas suman 240 (el resto era
+    # inscripción o recargo). Si la plantilla no trae el detalle, se agrega:
+    # el representante siempre ve qué cuotas componen el monto.
+    if '{{mensualidades.detalle}}' not in plantilla.cuerpo and renglones:
+        mensaje = (f"{mensaje.rstrip()}\n\n*Detalle:*\n{detalle_mensualidades}"
+                   f"\n*Total: {_monto_cobro(grupo['monto_total'])}*")
     recordatorio = 'Paga a tiempo para evitar recargos.'
     if recordatorio not in mensaje:
         mensaje = f"{mensaje.rstrip()}\n\n{recordatorio}"

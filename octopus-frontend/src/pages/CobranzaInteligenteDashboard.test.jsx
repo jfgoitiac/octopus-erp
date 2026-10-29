@@ -100,6 +100,22 @@ describe('CobranzaInteligenteDashboard', () => {
         expect(screen.queryByText(/^Con deuda ·/)).not.toBeInTheDocument();
     });
 
+    it('avisa cuando el motor de recordatorios (Celery Beat) no está corriendo', async () => {
+        m.dashboard.mockResolvedValue({ data: { ...dashboard, motor: { activo: false, ultima_ejecucion: null } } });
+        montar('director');
+        expect(await screen.findByText('Los recordatorios automáticos no están saliendo')).toBeInTheDocument();
+        expect(screen.getByText(/No se ha ejecutado nunca/)).toBeInTheDocument();
+    });
+
+    it('no muestra el aviso si el motor corrió recientemente', async () => {
+        m.dashboard.mockResolvedValue({
+            data: { ...dashboard, motor: { activo: true, ultima_ejecucion: '2026-10-28T12:05:00Z' } },
+        });
+        montar('director');
+        expect(await screen.findByText('Gestión inteligente')).toBeInTheDocument();
+        expect(screen.queryByText('Los recordatorios automáticos no están saliendo')).not.toBeInTheDocument();
+    });
+
     it('la acción sugerida de un caso crítico abre su modal', async () => {
         montar('cobranza');
         await userEvent.click(await screen.findByRole('button', { name: 'Ofrecer un convenio de pago' }));

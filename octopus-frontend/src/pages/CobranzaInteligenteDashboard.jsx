@@ -17,6 +17,8 @@ import { useResumenPorConcepto } from '../hooks/useResumenPorConcepto';
 import { useEstadoPorConcepto } from '../hooks/useEstadoPorConcepto';
 import { getDashboardInteligente, guardarLineaBaseInteligente } from '../api/cobranza.service';
 import { fmt } from '../utils/format';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 /* El dashboard de Cobranza Inteligente solo lo sirve el backend a estos roles. */
 const ROLES_RESULTADOS = [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.SISTEMAS];
@@ -160,6 +162,26 @@ function CarteraPorEtapa({ distribucion, ventanaDias = 30 }) {
     );
 }
 
+/* Sin Celery Beat no se crea ni sale ningún recordatorio: se avisa en vez de mostrar ceros. */
+function MotorDetenido({ motor }) {
+    const ultima = motor.ultima_ejecucion
+        ? `Última ejecución: ${format(new Date(motor.ultima_ejecucion), "d 'de' MMMM, h:mm a", { locale: es })}.`
+        : 'No se ha ejecutado nunca en este servidor.';
+    return (
+        <div role="alert" className="flex gap-3 rounded-[var(--radius-card)] p-3 sm:p-4 text-sm"
+            style={{ background: 'var(--red-light)', border: '1px solid var(--red)', color: 'var(--jet)' }}>
+            <AlertTriangle size={20} className="shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
+            <div className="min-w-0">
+                <p className="font-semibold">Los recordatorios automáticos no están saliendo</p>
+                <p className="mt-0.5" style={{ color: 'var(--jet-mid)' }}>
+                    El servicio programado (Celery Beat y worker) no está corriendo. {ultima} Las cifras de esta
+                    pantalla sí están al día; los avisos automáticos se reanudan al encender el servicio.
+                </p>
+            </div>
+        </div>
+    );
+}
+
 function GestionInteligente({ d }) {
     const comp = d.comparacion_linea_base;
     return (
@@ -282,6 +304,8 @@ const CobranzaInteligenteDashboard = () => {
                     </button>
                 </div>
             </header>
+
+            {d?.motor && !d.motor.activo && <MotorDetenido motor={d.motor} />}
 
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {cargandoKpis ? [1, 2, 3, 4].map(i => <Bloque key={i} className="h-32 sm:h-40 !rounded-[var(--radius-card)]" />) : (
