@@ -1516,7 +1516,7 @@ class RegistrarVentaView(APIView):
             mensaje = exc.messages[0] if hasattr(exc, 'messages') and exc.messages else str(exc)
             return Response({'error': mensaje}, status=status.HTTP_400_BAD_REQUEST)
 
-        venta = VentaCantina.objects.select_related('alumno', 'tarjeta', 'cajero', 'representante', 'cliente').prefetch_related(
+        venta = VentaCantina.objects.select_related('alumno', 'tarjeta__cliente', 'cajero', 'representante', 'cliente').prefetch_related(
             'detalles__producto',
         ).get(pk=venta.pk)
         return Response(VentaCantinaSerializer(venta).data, status=status.HTTP_201_CREATED)
@@ -1951,7 +1951,7 @@ class ReporteVentasView(APIView):
         except ValueError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        ventas_lista = ventas.select_related('alumno', 'tarjeta', 'cajero', 'representante').prefetch_related(
+        ventas_lista = ventas.select_related('alumno', 'tarjeta__cliente', 'cajero', 'representante', 'cliente').prefetch_related(
             'detalles__producto',
         )
         ventas_completadas = ventas.filter(estado='completada')
@@ -2013,12 +2013,13 @@ class ExportarVentasExcelView(APIView):
         except ValueError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        ventas = ventas.select_related('alumno', 'cajero', 'representante').order_by('-creado_en')
+        ventas = ventas.select_related('alumno', 'cajero', 'representante', 'tarjeta__cliente').order_by('-creado_en')
 
         columns = [
             ('Fecha',          lambda x: x.creado_en.strftime('%d/%m/%Y %H:%M')),
             ('Área',           lambda x: x.get_area_display()),
-            ('Alumno',         lambda x: f'{x.alumno.nombre} {x.alumno.apellido}' if x.alumno_id else 'Sin identificar'),
+            ('Alumno / titular', lambda x: f'{x.alumno.nombre} {x.alumno.apellido}' if x.alumno_id
+                else (x.tarjeta.titular_nombre if x.tarjeta_id else None) or 'Sin identificar'),
             ('Representante',  lambda x: f'{x.representante.nombre} {x.representante.apellido}' if x.representante_id else ''),
             ('Método de pago', lambda x: x.get_metodo_pago_display()),
             ('Total USD',      'total_usd'),
@@ -2114,7 +2115,7 @@ class ReporteMorosidadView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        tarjetas = TarjetaPrepago.objects.select_related('alumno__representante').filter(
+        tarjetas = TarjetaPrepago.objects.select_related('alumno__representante', 'cliente').filter(
             saldo__lt=0, saldo_negativo_desde__isnull=False,
         )
 
@@ -2122,16 +2123,19 @@ class ReporteMorosidadView(APIView):
         for tarjeta in tarjetas:
             alumno = tarjeta.alumno
             representante = alumno.representante if alumno else None
+            # Tarjeta de personal u otra persona: el contacto de cobro es la persona misma.
+            cliente = tarjeta.cliente
             filas.append({
                 'tarjeta_id': tarjeta.id,
                 'serial': tarjeta.serial,
                 'codigo': tarjeta.codigo,
                 'alumno_id': alumno.id if alumno else None,
-                'alumno_nombre': f'{alumno.nombre} {alumno.apellido}' if alumno else None,
+                'alumno_nombre': tarjeta.titular_nombre,
+                'titular_tipo': tarjeta.titular_tipo,
                 'grado_seccion': alumno.grado_seccion if alumno else None,
                 'representante_nombre': f'{representante.nombre} {representante.apellido}' if representante else None,
-                'representante_telefono': representante.telefono if representante else None,
-                'representante_correo': representante.correo if representante else None,
+                'representante_telefono': representante.telefono if representante else (cliente.telefono if cliente else None),
+                'representante_correo': representante.correo if representante else (cliente.email if cliente else None),
                 'saldo': tarjeta.saldo,
                 'limite_credito': tarjeta.limite_credito,
                 'saldo_negativo_desde': tarjeta.saldo_negativo_desde,

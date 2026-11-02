@@ -177,6 +177,9 @@ def generar_pdf_ticket(venta):
     if venta.alumno_id:
         c.drawString(margin, y, f'Estudiante: {venta.alumno.nombre} {venta.alumno.apellido}')
         y -= 0.22 * inch
+    elif venta.tarjeta_id and venta.tarjeta.cliente_id:
+        c.drawString(margin, y, f'Titular: {venta.tarjeta.titular_nombre}')
+        y -= 0.22 * inch
     if venta.tarjeta_id:
         c.drawString(margin, y, f'Tarjeta: {venta.tarjeta.serial}')
         y -= 0.22 * inch

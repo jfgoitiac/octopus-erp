@@ -139,6 +139,19 @@ class TarjetaPrepago(models.Model):
     def titular(self):
         return self.alumno or self.cliente
 
+    @property
+    def titular_nombre(self):
+        if self.alumno_id:
+            return f'{self.alumno.nombre} {self.alumno.apellido}'
+        return self.cliente.nombre_completo if self.cliente_id else None
+
+    @property
+    def titular_tipo(self):
+        """'alumno', 'personal', 'otro' o None si está sin asignar."""
+        if self.alumno_id:
+            return 'alumno'
+        return self.cliente.tipo if self.cliente_id else None
+
     def __str__(self):
         return f'{self.serial} — {self.titular or "sin asignar"}'
 

@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 from cobranza.models import BancoInstitucional, TasaCambio
 from secretaria.models import Alumno, Representante
 
-from .models import AperturaCajaCantina, CategoriaProducto, MovimientoInventario, MovimientoTarjeta, ParametroCantina, ProductoCantina, TarjetaPrepago, VentaCantina
+from .models import AperturaCajaCantina, CategoriaProducto, ClienteCantina, MovimientoInventario, MovimientoTarjeta, ParametroCantina, ProductoCantina, TarjetaPrepago, VentaCantina
 
 User = get_user_model()
 
@@ -338,3 +338,36 @@ class ReciboVentaPDFViewTests(VentaCantinaTestsBase):
         self.assertEqual(resp['Content-Type'], 'application/pdf')
         contenido = b''.join(resp.streaming_content) if resp.streaming else resp.content
         self.assertTrue(contenido.startswith(b'%PDF'))
+
+
+class VentaConTarjetaDeClienteTests(VentaCantinaTestsBase):
+    """Tarjeta de personal u otra persona de CxC: se cobra igual y se muestra el titular."""
+
+    def setUp(self):
+        super().setUp()
+        self.cliente = ClienteCantina.objects.create(nombre='Elena', apellido='Ríos', tipo='personal')
+        self.tarjeta_cliente = TarjetaPrepago.objects.create(
+            cliente=self.cliente, serial='L005-0001', codigo='CANT-PERSONAL01',
+            estado='activa', saldo=Decimal('10.00'),
+        )
+        self.client.force_authenticate(user=self.cajero_user)
+
+    def test_venta_con_tarjeta_de_cliente(self):
+        resp = self.client.post('/api/cantina/ventas/registrar/', {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 1}],
+            'metodo_pago': 'tarjeta_prepago',
+            'tarjeta_codigo': self.tarjeta_cliente.codigo,
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertIsNone(resp.data['alumno'])
+        self.assertIsNone(resp.data['cliente'])  # no es una venta a crédito
+        self.assertEqual(resp.data['cliente_nombre'], 'Elena Ríos')
+        self.assertEqual(Decimal(resp.data['saldo_tarjeta_despues']), Decimal('8.50'))
+
+        recibo = self.client.get(f"/api/cantina/ventas/{resp.data['id']}/recibo/")
+        self.assertEqual(recibo.status_code, status.HTTP_200_OK)
+
+    def test_buscar_tarjeta_devuelve_titular(self):
+        resp = self.client.get('/api/cantina/tarjetas/buscar/', {'codigo': self.tarjeta_cliente.codigo})
+        self.assertEqual((resp.data['titular_nombre'], resp.data['titular_tipo']), ('Elena Ríos', 'personal'))
+        self.assertIsNone(resp.data['alumno_nombre'])
