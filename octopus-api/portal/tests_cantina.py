@@ -1,6 +1,6 @@
 """
 Tests del lado PORTAL de la Fase 3 de cantina.md (§5.6/§7.5/§8 FASE 3):
-saldo de tarjeta, historial de consumo y solicitud de recarga con
+saldo de tarjeta, estado de cuenta de consumos y solicitud de recarga con
 comprobante desde /portal — el portal usa su propio JWT (portal_token),
 nunca el de cantina, y solo lee/crea sobre cantina.models.
 
@@ -17,7 +17,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from cantina.models import (
-    CargoCantina, CategoriaProducto, DetalleVentaCantina, MovimientoTarjeta,
+    CargoCantina, CategoriaProducto, DetalleVentaCantina,
     ProductoCantina, RecargaTarjeta, TarjetaPrepago, VentaCantina,
 )
 from cobranza.models import BancoInstitucional, Pago, TasaCambio
@@ -136,37 +136,6 @@ class PortalSaldoTarjetaTests(PortalCantinaTestBase):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# HISTORIAL DE CONSUMO
-# ──────────────────────────────────────────────────────────────────────────────
-
-class PortalHistorialConsumoCantinaTests(PortalCantinaTestBase):
-    def test_requiere_alumno_id(self):
-        self.auth_portal()
-        resp = self.client.get('/api/portal/cantina/historial/')
-        self.assertEqual(resp.status_code, 400)
-
-    def test_no_puede_ver_historial_de_alumno_ajeno(self):
-        self.auth_portal()
-        resp = self.client.get(f'/api/portal/cantina/historial/?alumno_id={self.alumno2.id}')
-        self.assertEqual(resp.status_code, 404)
-
-    def test_historial_paginado_solo_consumos(self):
-        MovimientoTarjeta.objects.create(
-            tarjeta=self.tarjeta, tipo='consumo', monto=Decimal('1.50'),
-            saldo_antes=Decimal('5.00'), saldo_despues=Decimal('3.50'),
-        )
-        MovimientoTarjeta.objects.create(
-            tarjeta=self.tarjeta, tipo='recarga', monto=Decimal('5.00'),
-            saldo_antes=Decimal('0.00'), saldo_despues=Decimal('5.00'),
-        )
-        self.auth_portal()
-        resp = self.client.get(f'/api/portal/cantina/historial/?alumno_id={self.alumno.id}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['total'], 1)
-        self.assertEqual(resp.data['results'][0]['tipo'], 'consumo')
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # ESTADO DE CUENTA DE CONSUMOS (qué compró el alumno)
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -238,6 +207,15 @@ class PortalConsumosCantinaTests(PortalCantinaTestBase):
         resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}')
         self.assertEqual(Decimal(resp.data['total_consumido_usd']), Decimal('3.50'))
         self.assertEqual(Decimal(resp.data['total_mes_usd']), Decimal('1.50'))
+
+    def test_incluye_compras_en_efectivo_indicadas_con_el_alumno(self):
+        self._venta(self.alumno, [(self.jugo, 1)], metodo='efectivo')
+        self._venta(None, [(self.empanada, 1)], metodo='efectivo')
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}')
+        self.assertEqual(resp.data['total'], 1)
+        self.assertEqual(resp.data['results'][0]['metodo_pago'], 'efectivo')
+        self.assertEqual(Decimal(resp.data['total_consumido_usd']), Decimal('1.00'))
 
     def test_cargo_a_cuenta_informa_lo_pendiente(self):
         venta = self._venta(self.alumno, [(self.empanada, 2)], metodo='credito_representante', representante=self.rep)

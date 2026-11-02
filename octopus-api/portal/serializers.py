@@ -10,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from secretaria.models import Representante
 from cobranza.models import Mensualidad, Pago
 from cantina.models import (
-    DetalleVentaCantina, MovimientoTarjeta, RecargaTarjeta as RecargaTarjetaCantina, VentaCantina,
+    DetalleVentaCantina, RecargaTarjeta as RecargaTarjetaCantina, VentaCantina,
 )
 from .models import ComprobantePago, RepresentanteUser
 
@@ -354,18 +354,6 @@ class TarjetaCantinaPortalSerializer(serializers.Serializer):
     en_negativo = serializers.BooleanField()
     saldo_negativo_desde = serializers.DateField(allow_null=True)
     dias_en_negativo = serializers.IntegerField()
-
-
-class MovimientoTarjetaPortalSerializer(serializers.ModelSerializer):
-    """Consumo/recarga/ajuste de una tarjeta de cantina, para el historial del portal."""
-    tipo_display = serializers.SerializerMethodField()
-
-    class Meta:
-        model = MovimientoTarjeta
-        fields = ['id', 'tipo', 'tipo_display', 'monto', 'saldo_antes', 'saldo_despues', 'creado_en']
-
-    def get_tipo_display(self, obj):
-        return obj.get_tipo_display()
 
 
 class DetalleConsumoPortalSerializer(serializers.ModelSerializer):

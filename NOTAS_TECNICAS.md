@@ -2,16 +2,6 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
-## Portal: endpoint `cantina/historial/` sin uso (02/11/2026)
-
-El estado de cuenta de consumos del portal ahora usa `cantina/consumos/`.
-`PortalHistorialConsumoCantinaView` (`cantina/historial/`) y sus tests siguen
-existiendo, pero ninguna pantalla los llama. Se pueden retirar cuando se confirme
-que ningún cliente externo o PWA cacheada depende de ellos.
-
-Las ventas sin alumno identificado (efectivo o banco en el camino rápido del POS)
-no aparecen en el estado de cuenta, porque `VentaCantina.alumno` queda vacío.
-
 ## Cantina/Librería: cuentas por cobrar y dos cajas (06/10/2026)
 
 Deuda detectada durante la revisión; solo se anota, no se implementa.

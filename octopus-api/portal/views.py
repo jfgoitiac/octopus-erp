@@ -34,7 +34,6 @@ from .serializers import (
     ComprobantePagoSerializer,
     MensualidadSerializer,
     ConsumoCantinaPortalSerializer,
-    MovimientoTarjetaPortalSerializer,
     PagoHistorialSerializer,
     PortalConfirmarResetSerializer,
     PortalPerfilSerializer,
@@ -776,84 +775,13 @@ class PortalSaldoTarjetaView(APIView):
         return Response(TarjetaCantinaPortalSerializer(resultados, many=True).data)
 
 
-class PortalHistorialConsumoCantinaView(APIView):
-    """
-    GET /api/portal/cantina/historial/?alumno_id=X&page=&page_size=
-    Historial paginado de consumos (MovimientoTarjeta tipo 'consumo') de la
-    tarjeta de cantina de un alumno del representante autenticado.
-    Se separa de PortalSaldoTarjetaView (en vez de anidar el historial ahí)
-    porque es paginado igual que PortalHistorialPagosView — mezclarlo con el
-    saldo de todos los hijos en una sola respuesta hubiera forzado paginar
-    varias listas independientes en el mismo payload.
-    """
-    authentication_classes = [PortalJWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        from cantina.models import MovimientoTarjeta
-
-        representante = _get_representante(request)
-
-        alumno_id = request.query_params.get('alumno_id')
-        if not alumno_id:
-            return Response(
-                {'error': 'El parámetro alumno_id es requerido.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            alumno = Alumno.objects.select_related('tarjeta_cantina').get(
-                id=alumno_id, representante=representante, activo=True
-            )
-        except (Alumno.DoesNotExist, ValueError, TypeError):
-            return Response(
-                {'error': 'Alumno no encontrado o no pertenece a este representante.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        tarjeta = getattr(alumno, 'tarjeta_cantina', None)
-        if tarjeta is None:
-            return Response({
-                'alumno': f'{alumno.nombre} {alumno.apellido}',
-                'tiene_tarjeta': False,
-                'total': 0,
-                'page': 1,
-                'page_size': 10,
-                'total_pages': 1,
-                'results': [],
-            })
-
-        try:
-            page = max(1, int(request.query_params.get('page', 1)))
-            page_size = min(50, max(1, int(request.query_params.get('page_size', 10))))
-        except (ValueError, TypeError):
-            page, page_size = 1, 10
-
-        movimientos_qs = MovimientoTarjeta.objects.filter(
-            tarjeta=tarjeta, tipo='consumo'
-        ).order_by('-creado_en')
-        total = movimientos_qs.count()
-        offset = (page - 1) * page_size
-        pagina = movimientos_qs[offset:offset + page_size]
-
-        return Response({
-            'alumno': f'{alumno.nombre} {alumno.apellido}',
-            'tiene_tarjeta': True,
-            'total': total,
-            'page': page,
-            'page_size': page_size,
-            'total_pages': max(1, (total + page_size - 1) // page_size),
-            'results': MovimientoTarjetaPortalSerializer(pagina, many=True).data,
-        })
-
-
 class PortalConsumosCantinaView(APIView):
     """
     GET /api/portal/cantina/consumos/?alumno_id=X&page=&page_size=
     Estado de cuenta de consumos de un alumno del representante autenticado:
     sus compras de cantina/librería con el detalle de productos.
     Parte de VentaCantina y no de MovimientoTarjeta para incluir también las
-    compras cargadas a la cuenta del representante, que no mueven la tarjeta.
+    compras que no mueven la tarjeta (efectivo, banco o cargo a cuenta).
     Las ventas anuladas se listan marcadas, pero no suman en los totales.
     """
     authentication_classes = [PortalJWTAuthentication]
