@@ -50,7 +50,9 @@ export default function CantinaCuentasPorCobrar() {
     const controller = new AbortController();
     getTasaVigenteCantina(controller.signal)
       .then(res => setTasa(num(res.data?.valor_bs)))
-      .catch(() => { /* sin tasa: se omite el equivalente en Bs. */ });
+      .catch(err => {
+        if (!esCancelacion(err)) toast.warning('No se pudo cargar la tasa BCV: no se mostrará el equivalente en bolívares.');
+      });
     return () => controller.abort();
   }, []);
 
