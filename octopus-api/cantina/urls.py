@@ -13,6 +13,7 @@ from .views import (
     BuscarTarjetaView,
     CategoriasListCreateView,
     CierreCajaCantinaView,
+    CierreCajaUltimoView,
     ExportarVentasExcelView,
     GenerarLoteTarjetasView,
     MovimientoInventarioCreateView,
@@ -80,6 +81,7 @@ urlpatterns = [
 
     # Fase 5 — Cierre de caja (§8 FASE 5 de cantina.md)
     path('cierre-caja/', CierreCajaCantinaView.as_view(), name='cantina-cierre-caja'),
+    path('cierre-caja/ultimo/', CierreCajaUltimoView.as_view(), name='cantina-cierre-caja-ultimo'),
 
     # Fase 7 — Reportes y reimpresión de tickets (§8 FASE 7 de cantina.md)
     path('reportes/ventas/', ReporteVentasView.as_view(), name='cantina-reporte-ventas'),

@@ -366,7 +366,7 @@ class CierreCajaCantinaSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'cajero', 'cajero_username', 'cajero_nombre', 'apertura', 'monto_inicial', 'fecha', 'total_ventas',
             'total_tarjeta', 'total_efectivo', 'total_recargas_efectivo',
-            'area', 'totales_por_metodo', 'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
+            'area', 'totales_por_metodo', 'desglose', 'conteo_fisico', 'diferencia', 'observaciones', 'cerrado_en',
             'fecha_hora_apertura', 'efectivo_esperado',
         )
         read_only_fields = fields

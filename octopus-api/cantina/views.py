@@ -3,7 +3,7 @@ import logging
 import zipfile
 from uuid import UUID
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import qrcode
 from django.core.cache import cache
@@ -1644,6 +1644,61 @@ class ReciboVentaPDFView(APIView):
 # FASE 5 — Cierre de caja (§5.7/§8 FASE 5 de cantina.md)
 # ─────────────────────────────────────────────
 
+# Topes de lo que cabe guardar: `conteo_fisico`/`diferencia` son
+# DecimalField(max_digits=10) en USD; los Bs solo viven en el JSON de
+# `desglose`, con el mismo tamaño que `total_ves`/`monto_ves`.
+CONTEO_MAXIMO_USD = Decimal('99999999.99')
+CONTEO_MAXIMO_VES = Decimal('999999999999999999.99')
+
+
+def _monto_str(valor):
+    """Monto del `desglose`: string decimal con 2 decimales."""
+    return str(valor.quantize(Decimal('0.01')))
+
+
+def _parsear_conteo(valor, campo, maximo):
+    """
+    Convierte un conteo enviado por el cajero a `Decimal` con 2 decimales.
+    Lanza `ValueError` con el mensaje listo para el 400 si no es un número,
+    es NaN/Infinity, es negativo o no cabe en lo que se guarda.
+    """
+    try:
+        monto = Decimal(str(valor))
+    except InvalidOperation:
+        raise ValueError(f"El campo '{campo}' debe ser un número.")
+    # is_finite va primero: comparar un sNaN lanza InvalidOperation.
+    if not monto.is_finite():
+        raise ValueError(f"El campo '{campo}' debe ser un número.")
+    if monto < 0:
+        raise ValueError(f"El campo '{campo}' no puede ser negativo.")
+    if monto > maximo:
+        raise ValueError(f"El campo '{campo}' supera el monto máximo permitido.")
+    return monto.quantize(Decimal('0.01'))
+
+
+def _resumen_origen(queryset, campo_usd):
+    """{usd, operaciones} de un origen del `desglose`."""
+    fila = queryset.aggregate(total=Sum(campo_usd), operaciones=Count('id'))
+    return {'usd': _monto_str(fila['total'] or Decimal('0.00')), 'operaciones': fila['operaciones']}
+
+
+def _tasa_del_turno(movimiento_ves):
+    """
+    Tasa para convertir los Bs de la caja a USD, sin redondear: la implícita
+    del turno si hubo movimiento en Bs (`movimiento_ves` = acumulado del método
+    `efectivo_ves`), porque es la que cuadra con lo que se cobró aunque la BCV
+    haya cambiado durante el turno. Si no, la vigente. `None` si no hay ninguna.
+    """
+    if movimiento_ves:
+        total_usd = movimiento_ves['ventas'] + movimiento_ves['abonos'] + movimiento_ves['recargas']
+        if total_usd > 0 and movimiento_ves['total_ves'] > 0:
+            return movimiento_ves['total_ves'] / total_usd
+    tasa = tasa_cantina_activa()
+    if tasa and tasa.valor_bs > 0:
+        return tasa.valor_bs
+    return None
+
+
 def _calcular_totales_apertura(cajero, apertura):
     """
     Agrega las ventas, abonos de CxC y recargas registrados bajo la
@@ -1663,6 +1718,13 @@ def _calcular_totales_apertura(cajero, apertura):
         total_usd, total_ves}}` (strings), solo para métodos con movimiento.
       - `efectivo_esperado`: monto inicial + efectivo (USD y VES, en USD)
         de ventas + abonos + recargas de ESTA apertura.
+      - `desglose`: `origen` (de dónde salió cada monto) y `arqueo` (lo que
+        debe haber físicamente por moneda). Las recargas de portal que aprobó
+        el cajero van en `origen` solo como información: ese dinero no pasó
+        por su caja, así que no entra en los totales ni en el esperado.
+        Se cumple `esperado_usd + efectivo_ves.total_usd == efectivo_esperado`.
+      - `tasa_ves`: tasa sin redondear para convertir Bs a USD (o `None`). El
+        `arqueo` guarda la misma con 4 decimales, solo para mostrarla.
     """
     ventas_apertura = VentaCantina.objects.filter(
         cajero=cajero, estado='completada', apertura=apertura,
@@ -1717,6 +1779,44 @@ def _calcular_totales_apertura(cajero, apertura):
 
     efectivo_esperado = apertura.monto_inicial + total_efectivo + total_abonos_efectivo + total_recargas_efectivo
 
+    def _total_usd_metodo(metodo):
+        entrada = por_metodo.get(metodo)
+        return entrada['ventas'] + entrada['abonos'] + entrada['recargas'] if entrada else cero
+
+    # El `total_ves` del método `efectivo` es solo un equivalente contable:
+    # esos billetes son dólares, así que no se suman a los Bs esperados.
+    movimiento_ves = por_metodo.get('efectivo_ves')
+    tasa_ves = _tasa_del_turno(movimiento_ves)
+
+    recargas_cobradas = _resumen_origen(recargas, 'monto_usd')
+    recargas_cobradas['efectivo_usd'] = _monto_str(total_recargas_efectivo)
+    recargas_cobradas['banco_usd'] = _monto_str(Decimal(recargas_cobradas['usd']) - total_recargas_efectivo)
+
+    desglose = {
+        'origen': {
+            'ventas': _resumen_origen(ventas_apertura, 'total_usd'),
+            'recargas_cobradas': recargas_cobradas,
+            'consumo_recargas': _resumen_origen(ventas_apertura.filter(metodo_pago='tarjeta_prepago'), 'total_usd'),
+            'abonos': _resumen_origen(abonos, 'monto_usd'),
+            'cargado_a_cuenta': _resumen_origen(ventas_apertura.filter(metodo_pago='credito_representante'), 'total_usd'),
+            'anuladas': _resumen_origen(
+                VentaCantina.objects.filter(cajero=cajero, estado='anulada', apertura=apertura), 'total_usd',
+            ),
+            'recargas_portal': _resumen_origen(
+                RecargaTarjeta.objects.filter(
+                    registrado_por_portal=True, estatus='aprobado', revisado_por=cajero,
+                    revisado_en__gte=apertura.fecha_hora_apertura,
+                ),
+                'monto_usd',
+            ),
+        },
+        'arqueo': {
+            'esperado_usd': _monto_str(apertura.monto_inicial + _total_usd_metodo('efectivo')),
+            'esperado_ves': _monto_str(movimiento_ves['total_ves'] if movimiento_ves else cero),
+            'tasa_ves': str(tasa_ves.quantize(Decimal('0.0001'))) if tasa_ves is not None else None,
+        },
+    }
+
     return {
         'total_ventas': total_ventas,
         'total_tarjeta': total_tarjeta,
@@ -1725,6 +1825,8 @@ def _calcular_totales_apertura(cajero, apertura):
         'total_abonos_efectivo': total_abonos_efectivo,
         'totales_por_metodo': totales_por_metodo,
         'efectivo_esperado': efectivo_esperado,
+        'desglose': desglose,
+        'tasa_ves': tasa_ves,
     }
 
 
@@ -1744,11 +1846,17 @@ class CierreCajaCantinaView(APIView):
       - Si no, calcula (sin persistir) un resumen preliminar de esa
         apertura vía `_calcular_totales_apertura` + `"ya_cerrado": false`.
 
-    POST {conteo_fisico, observaciones}:
+    POST {conteo_usd, conteo_ves, observaciones} — o el payload antiguo
+    {conteo_fisico, observaciones}, que no guarda el contado por moneda:
       - Recalcula los mismos 4 totales server-side, sobre la apertura
         abierta del cajero (nunca confía en lo que mande el frontend), y
         compara el conteo físico contra monto_inicial + efectivo + recargas
         de ESA apertura — nunca contra las ventas de otro cajero.
+      - Cada moneda se compara contra su propio esperado y la diferencia en
+        Bs se convierte a USD a la tasa del turno: `diferencia` (USD) es la
+        que usan auditoría y alertas, y `conteo_fisico` queda como
+        efectivo_esperado + diferencia, de modo que contar exactamente lo
+        esperado da diferencia 0 sin importar la tasa.
       - Crea el `CierreCajaCantina` (ligado 1:1 a la apertura vía
         `OneToOneField`) y marca la apertura como 'cerrada', todo dentro de
         `transaction.atomic()`. Un segundo POST sobre la misma apertura
@@ -1776,6 +1884,9 @@ class CierreCajaCantinaView(APIView):
         return Response({
             'ya_cerrado': False,
             'apertura_id': apertura.id,
+            'cajero_nombre': request.user.nombre_completo,
+            'cajero_username': request.user.username,
+            'fecha_hora_apertura': apertura.fecha_hora_apertura,
             'monto_inicial': str(apertura.monto_inicial),
             'total_ventas': str(totales['total_ventas']),
             'total_tarjeta': str(totales['total_tarjeta']),
@@ -1785,6 +1896,7 @@ class CierreCajaCantinaView(APIView):
             'efectivo_esperado': str(totales['efectivo_esperado']),
             'area': apertura.area,
             'totales_por_metodo': totales['totales_por_metodo'],
+            'desglose': totales['desglose'],
         })
 
     def post(self, request):
@@ -1801,23 +1913,35 @@ class CierreCajaCantinaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        conteo_usd_raw = request.data.get('conteo_usd')
+        conteo_ves_raw = request.data.get('conteo_ves')
         conteo_fisico_raw = request.data.get('conteo_fisico')
-        if conteo_fisico_raw in (None, ''):
+        conteo_por_moneda = conteo_usd_raw not in (None, '') or conteo_ves_raw not in (None, '')
+        if not conteo_por_moneda and conteo_fisico_raw in (None, ''):
             return Response(
-                {'detail': "El campo 'conteo_fisico' es obligatorio."},
+                {'detail': "Debes indicar el conteo de la caja ('conteo_usd' y/o 'conteo_ves')."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            conteo_fisico = Decimal(str(conteo_fisico_raw))
-        except Exception:
-            return Response(
-                {'detail': "El campo 'conteo_fisico' debe ser un número."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            if conteo_por_moneda:
+                # Si llega solo una moneda, de la otra se contó 0.
+                conteo_usd = _parsear_conteo(
+                    Decimal('0') if conteo_usd_raw in (None, '') else conteo_usd_raw,
+                    'conteo_usd', CONTEO_MAXIMO_USD,
+                )
+                conteo_ves = _parsear_conteo(
+                    Decimal('0') if conteo_ves_raw in (None, '') else conteo_ves_raw,
+                    'conteo_ves', CONTEO_MAXIMO_VES,
+                )
+            else:
+                conteo_fisico = _parsear_conteo(conteo_fisico_raw, 'conteo_fisico', CONTEO_MAXIMO_USD)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         observaciones = request.data.get('observaciones', '') or ''
 
         totales = _calcular_totales_apertura(request.user, apertura)
+        desglose = totales['desglose']
 
         # La diferencia de caja se calcula contra el dinero que debería
         # estar FÍSICAMENTE en la caja de ESTE cajero: su monto inicial
@@ -1826,7 +1950,34 @@ class CierreCajaCantinaView(APIView):
         # son dinero físico, pero sí entran en `total_ventas`/el registro
         # para contexto administrativo.
         efectivo_esperado = totales['efectivo_esperado']
-        diferencia = (conteo_fisico - efectivo_esperado).quantize(Decimal('0.01'))
+        if conteo_por_moneda:
+            arqueo = desglose['arqueo']
+            diferencia_usd = conteo_usd - Decimal(arqueo['esperado_usd'])
+            diferencia_ves = conteo_ves - Decimal(arqueo['esperado_ves'])
+            tasa_ves = totales['tasa_ves']
+            if tasa_ves is None and (conteo_ves > 0 or diferencia_ves != 0):
+                return Response(
+                    {'detail': 'No hay tasa de cambio para convertir los bolívares contados.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            diferencia_ves_en_usd = diferencia_ves / tasa_ves if diferencia_ves else Decimal('0')
+            diferencia = (diferencia_usd + diferencia_ves_en_usd).quantize(Decimal('0.01'))
+            conteo_fisico = efectivo_esperado + diferencia
+            arqueo.update({
+                'contado_usd': _monto_str(conteo_usd),
+                'contado_ves': _monto_str(conteo_ves),
+                'diferencia_usd': _monto_str(diferencia_usd),
+                'diferencia_ves': _monto_str(diferencia_ves),
+            })
+        else:
+            diferencia = (conteo_fisico - efectivo_esperado).quantize(Decimal('0.01'))
+
+        # Muchos Bs a una tasa baja pueden no caber en los campos en USD.
+        if max(abs(diferencia), abs(conteo_fisico)) > CONTEO_MAXIMO_USD:
+            return Response(
+                {'detail': 'El conteo supera el monto máximo permitido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             with transaction.atomic():
@@ -1835,6 +1986,7 @@ class CierreCajaCantinaView(APIView):
                     apertura=apertura,
                     area=apertura.area,
                     totales_por_metodo=totales['totales_por_metodo'],
+                    desglose=desglose,
                     fecha=timezone.localtime(apertura.fecha_hora_apertura).date(),
                     total_ventas=totales['total_ventas'],
                     total_tarjeta=totales['total_tarjeta'],
@@ -1863,7 +2015,35 @@ class CierreCajaCantinaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(CierreCajaCantinaSerializer(cierre).data, status=status.HTTP_201_CREATED)
+        data = CierreCajaCantinaSerializer(cierre).data
+        data['ya_cerrado'] = True
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+class CierreCajaUltimoView(APIView):
+    """
+    GET <sin parámetros>: último cierre del cajero autenticado — nunca el de
+    otro cajero — para volver a ver el resultado después de cerrar, cuando ya
+    no hay apertura abierta y `cierre-caja/` responde 400. 404 si no tiene
+    ninguno.
+    """
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request):
+        cierre = (
+            CierreCajaCantina.objects.filter(cajero=request.user)
+            .select_related('cajero', 'apertura')
+            .order_by('-cerrado_en', '-id')
+            .first()
+        )
+        if not cierre:
+            return Response(
+                {'detail': 'Todavía no tienes ningún cierre de caja.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        data = CierreCajaCantinaSerializer(cierre).data
+        data['ya_cerrado'] = True
+        return Response(data)
 
 
 # ─────────────────────────────────────────────
