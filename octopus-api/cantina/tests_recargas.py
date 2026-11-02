@@ -418,3 +418,29 @@ class BuscarTarjetaPorNombreTests(RecargaTarjetaTestsBase):
     def test_combina_alumno_y_representante(self):
         resp = self._buscar('Valeria Marisol')
         self.assertEqual([t['serial'] for t in resp.data['resultados']], ['L001-0002'])
+
+    def test_ignora_tildes_y_mayusculas(self):
+        Alumno.objects.filter(pk=self.otro_alumno.pk).update(nombre='Sofía')
+        seriales = [t['serial'] for t in self._buscar('SOFIA').data['resultados']]
+        self.assertEqual(seriales, ['L001-0002'])
+
+    def test_una_sola_coincidencia_igual_devuelve_lista(self):
+        resp = self._buscar('Diego')
+        self.assertEqual(len(resp.data['resultados']), 1)
+        self.assertFalse(resp.data['hay_mas'])
+
+    def test_encuentra_por_cedula_del_representante(self):
+        resp = self._buscar('8888888')
+        self.assertEqual(len(resp.data['resultados']), 2)
+
+    def test_tope_de_resultados_avisa_si_hay_mas(self):
+        for i in range(21):
+            alumno = Alumno.objects.create(
+                nombre=f'Hermano{i}', apellido='Duarte', representante=self.representante, grado_seccion='1ro A',
+            )
+            TarjetaPrepago.objects.create(
+                alumno=alumno, serial=f'L009-{i:04d}', codigo=f'CANT-T{i:09d}', estado='activa',
+            )
+        resp = self._buscar('duarte')
+        self.assertEqual(len(resp.data['resultados']), 20)
+        self.assertTrue(resp.data['hay_mas'])

@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from cobranza.exports import ExcelExporter
 from cobranza.models import BancoInstitucional, Pago
+from common.busqueda import filtrar_busqueda
 from secretaria.models import Alumno, Representante
 from .mora_cantina import cuentas_cxc_morosas, dias_en_negativo
 from . import services_cxc
@@ -66,6 +67,11 @@ logger = logging.getLogger(__name__)
 
 CANTIDAD_MAXIMA_LOTE = 500
 MOTIVOS_REPOSICION = ('extravio', 'dano')
+TOPE_BUSQUEDA_TARJETAS = 20
+CAMPOS_BUSQUEDA_TITULAR = [
+    'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
+    'alumno__representante__nombre', 'alumno__representante__apellido', 'alumno__representante__cedula',
+]
 AREAS_VALIDAS = dict(AREAS)
 # Métodos de cobranza en los que se guardan los datos bancarios de la venta.
 METODOS_VENTA_BANCARIOS = ('transferencia', 'pago_movil', 'punto_de_venta', 'zelle')
@@ -689,21 +695,18 @@ class BuscarTarjetaView(APIView):
         nombre = (request.query_params.get('nombre') or '').strip()
         tarjetas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
 
-        # Búsqueda por nombre: cada palabra debe aparecer en nombre o apellido
-        # del alumno o de su representante. Devuelve hasta 10 coincidencias
-        # para que el cajero elija.
+        # Búsqueda por nombre o cédula, sin distinguir tildes ni mayúsculas.
+        # Siempre devuelve una lista para que el cajero elija.
         if nombre and not codigo and not serial:
-            from django.db.models import Q
-            tarjetas = tarjetas.select_related('alumno__representante')
-            for palabra in nombre.split():
-                tarjetas = tarjetas.filter(
-                    Q(alumno__nombre__icontains=palabra) | Q(alumno__apellido__icontains=palabra)
-                    | Q(alumno__representante__nombre__icontains=palabra)
-                    | Q(alumno__representante__apellido__icontains=palabra)
-                )
-            resultados = tarjetas.order_by('alumno__apellido', 'alumno__nombre')[:10]
-            return Response({'resultados': TarjetaPrepagoSerializer(
-                resultados, many=True, context={'request': request}).data})
+            tarjetas = filtrar_busqueda(
+                tarjetas.select_related('alumno__representante'), nombre, CAMPOS_BUSQUEDA_TITULAR,
+            ).order_by('alumno__apellido', 'alumno__nombre', 'id')
+            resultados = list(tarjetas[:TOPE_BUSQUEDA_TARJETAS + 1])
+            return Response({
+                'resultados': TarjetaPrepagoSerializer(
+                    resultados[:TOPE_BUSQUEDA_TARJETAS], many=True, context={'request': request}).data,
+                'hay_mas': len(resultados) > TOPE_BUSQUEDA_TARJETAS,
+            })
 
         if not codigo and not serial:
             return Response(
