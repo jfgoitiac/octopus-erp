@@ -39,7 +39,7 @@ export function useMensualidadesAlumno() {
     // C-2 fix: usa parsedValor (float) en lugar de valor (string)
     const handleBulkUpdate = (valor) => {
         const parsedValor = parseFloat(valor);
-        if (isNaN(parsedValor) || parsedValor < 0) {
+        if (isNaN(parsedValor) || parsedValor <= 0) {
             toast.error('Ingrese un monto válido mayor a 0.');
             return;
         }
@@ -49,6 +49,10 @@ export function useMensualidadesAlumno() {
     const handleSave = async () => {
         if (!mensualidades || mensualidades.length === 0) {
             toast.error('No hay mensualidades cargadas para actualizar.');
+            return;
+        }
+        if (mensualidades.some(m => !(parseFloat(m.monto_usd) > 0))) {
+            toast.error('Ingrese un monto válido mayor a 0.');
             return;
         }
         setSavingMensualidades(true);

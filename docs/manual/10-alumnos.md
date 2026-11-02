@@ -101,7 +101,8 @@ correctamente."**.
 
 1. Haz clic en **"Ajustar Deuda"**. Se abre **"Ajustar Mensualidades"**.
 2. Puedes cambiar mes por mes, o usar **"Cambiar todas las cuotas:"** para poner
-   el mismo monto en todas (*"Ej: 30"*).
+   el mismo monto en todas (*"Ej: 30"*). El monto debe ser mayor a 0: para
+   exonerar a un alumno usa una beca.
 3. Guarda. Verás **"¡Mensualidades actualizadas correctamente!"**.
 
 ### Ajustar la cuota de inscripción

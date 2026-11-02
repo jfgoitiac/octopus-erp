@@ -4387,3 +4387,19 @@ tasa). Deuda nueva (solo anotada):
    esté apagado (anterior a este cambio).
 7. **Un test de notificaciones llama a la API real de Meta** (log
    `Error Meta -> +58…: HTTP 400`): falta mockear el envío de WhatsApp.
+
+## Ajuste manual de montos de mensualidades (2026-11-02)
+
+1. **`ActualizarCuotaInscripcionView` no valida el monto**: convierte con
+   `Decimal(str(monto))` igual que hacía `ActualizarMensualidadesView` antes de
+   exigir un monto mayor a 0. Un texto inválido da 500, y no se revisó si un 0
+   ahí también salda la cuota sin pago.
+2. **Devolver una mensualidad saldada a impaga no reabre su ciclo de Cobranza
+   Inteligente**: `sincronizar_ciclo_cobranza_inteligente` solo crea el ciclo al
+   crear la fila. Afecta a correcciones manuales como la de la alumna 776.
+3. **`depurar_mensualidades_fuera_de_periodo` no cuenta mensualidades**: devuelve
+   el total de `QuerySet.delete()`, que incluye filas borradas en cascada. Reportó
+   4 al eliminar una sola en la alumna 776; no se identificó cuáles eran las otras 3.
+4. **6 tests de `cobranza` ya fallan sin relación con este cambio** (mismos fallos
+   con el `views.py` de `main`): `PantallaDeCobroAdminTest` (2), `DesgloseReciboTest`
+   (1), `DesgloseConceptosTest` (2) y `DobleAbonoSucesivoTest` (1).

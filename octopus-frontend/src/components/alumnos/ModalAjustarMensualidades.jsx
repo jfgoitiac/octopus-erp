@@ -99,6 +99,8 @@ const ModalAjustarMensualidades = ({
                                 </div>
                                 <input
                                     type="number"
+                                    min="0.01"
+                                    step="0.01"
                                     placeholder="Ej: 30"
                                     className="w-20 px-3 py-2 rounded-lg text-sm outline-none font-bold text-center"
                                     style={{ border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)' }}
@@ -124,6 +126,7 @@ const ModalAjustarMensualidades = ({
                                             <span className="absolute left-3 top-2.5 text-slate-400 text-sm">$</span>
                                             <input
                                                 type="number"
+                                                min="0.01"
                                                 step="0.01"
                                                 className="w-24 pl-6 pr-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700"
                                                 value={m.monto_usd}

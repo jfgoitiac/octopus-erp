@@ -1600,6 +1600,24 @@ class ActualizarMensualidadesView(APIView):
             request.user, Mensualidad.objects.all(), campo='alumno__sede'
         )
 
+        # Se valida todo el lote antes de guardar: devolver un 400 a mitad del
+        # bucle no revierte @transaction.atomic. Un monto en 0 haría que save()
+        # marque la fila como pagada sin ningún pago, y ya no se listaría en
+        # este mismo modal para poder revertirla.
+        for item in items:
+            monto = item.get('monto_usd')
+            if item.get('id') and monto is not None:
+                try:
+                    monto_valido = Decimal(str(monto))
+                    monto_valido = monto_valido.is_finite() and monto_valido > 0
+                except InvalidOperation:
+                    monto_valido = False
+                if not monto_valido:
+                    return Response(
+                        {"error": "El monto de cada mensualidad debe ser mayor a 0."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
         actualizadas = 0
         for item in items:
             mensualidad_id = item.get('id')
