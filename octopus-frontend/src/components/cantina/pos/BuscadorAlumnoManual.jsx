@@ -11,20 +11,24 @@ const ES_SERIAL = /^L\d+-\d+$/i;
  * Búsqueda manual de respaldo del alumno/tarjeta (§6 cantina.md) — por si
  * el QR está dañado y no hay tiempo/forma de escanearlo. Acepta el código
  * (CANT-XXXXXXXXXX, aunque venga con texto extra), el serial impreso o el
- * nombre/apellido del alumno o de su representante. Con nombre puede haber varias coincidencias:
- * se listan y el cajero elige; la tarjeta elegida sigue el mismo flujo de
+ * nombre/cédula del titular o de su representante. Por nombre siempre se
+ * listan las coincidencias (flechas + Enter) y el cajero elige; QR y serial
+ * seleccionan directo. La tarjeta elegida sigue el mismo flujo de
  * confirmación de identidad y cobro que una tarjeta escaneada.
  */
 export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = false, autoFocus = false }) {
   const [valor, setValor] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [coincidencias, setCoincidencias] = useState([]);
+  const [hayMas, setHayMas] = useState(false);
+  const [activo, setActivo] = useState(0);
   const abortRef = useRef(null);
 
   const elegir = (tarjeta) => {
     onTarjetaResuelta(tarjeta);
     setValor('');
     setCoincidencias([]);
+    setHayMas(false);
   };
 
   const buscar = async () => {
@@ -39,6 +43,7 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
 
     setBuscando(true);
     setCoincidencias([]);
+    setHayMas(false);
     try {
       if (/CANT-/i.test(entrada)) {
         const res = await buscarTarjetaActiva({ codigo: entrada }, controller.signal);
@@ -50,11 +55,11 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
         const res = await buscarTarjetaActiva({ nombre: entrada }, controller.signal);
         const lista = res.data?.resultados || [];
         if (lista.length === 0) {
-          toast.error(`No se encontró ningún alumno ni representante con tarjeta activa para "${entrada}".`);
-        } else if (lista.length === 1) {
-          elegir(lista[0]);
+          toast.error(`No se encontró ninguna persona con tarjeta activa para "${entrada}".`);
         } else {
           setCoincidencias(lista);
+          setHayMas(Boolean(res.data?.hay_mas));
+          setActivo(0);
         }
       }
     } catch (err) {
@@ -69,7 +74,18 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
     }
   };
 
-  const handleKeyDown = (e) => { if (e.key === 'Enter') buscar(); };
+  const handleKeyDown = (e) => {
+    const total = coincidencias.length;
+    if (total && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      setActivo(i => (i + (e.key === 'ArrowDown' ? 1 : total - 1)) % total);
+    } else if (e.key === 'Escape' && total) {
+      setCoincidencias([]);
+    } else if (e.key === 'Enter') {
+      if (total) elegir(coincidencias[activo]);
+      else buscar();
+    }
+  };
 
   return (
     <div>
@@ -82,7 +98,7 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
           autoFocus={autoFocus}
           disabled={disabled || buscando}
           value={valor}
-          onChange={e => setValor(e.target.value)}
+          onChange={e => { setValor(e.target.value); setCoincidencias([]); }}
           onKeyDown={handleKeyDown}
           placeholder="Código, serial, alumno o representante"
           aria-label="Búsqueda manual de tarjeta por código, serial o nombre del alumno o del representante"
@@ -102,12 +118,14 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
       </div>
       {coincidencias.length > 0 && (
         <ul className="mt-2 rounded-xl overflow-hidden max-h-60 overflow-y-auto" style={{ border: '0.5px solid var(--border-md)' }}>
-          {coincidencias.map(t => (
+          {coincidencias.map((t, i) => (
             <li key={t.id}>
               <button
                 type="button"
                 onClick={() => elegir(t)}
-                className="w-full text-left px-3 py-2.5 min-h-[44px] bg-white hover:bg-black/5"
+                onMouseEnter={() => setActivo(i)}
+                aria-current={i === activo}
+                className={`w-full text-left px-3 py-2.5 min-h-[44px] ${i === activo ? 'bg-black/5' : 'bg-white'}`}
               >
                 <span className="block text-sm font-medium" style={{ color: 'var(--jet)' }}>{t.alumno_nombre}</span>
                 <span className="block text-xs" style={{ color: 'var(--ash)' }}>
@@ -117,6 +135,11 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
             </li>
           ))}
         </ul>
+      )}
+      {hayMas && (
+        <p className="mt-1.5 text-xs" style={{ color: 'var(--ash)' }}>
+          Se muestran las primeras {coincidencias.length} coincidencias. Escribe más datos para afinar.
+        </p>
       )}
     </div>
   );
