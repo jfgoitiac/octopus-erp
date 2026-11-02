@@ -109,12 +109,12 @@ export const cambiarContrasena = (data) =>
   portalClient.post('cambiar-contrasena/', data);
 
 // ── Cantina (Fase 3 — extensión del portal, contrato real de portal/views.py:
-// PortalSaldoTarjetaView / PortalHistorialConsumoCantinaView / PortalRecargarTarjetaView) ──
+// PortalSaldoTarjetaView / PortalConsumosCantinaView / PortalRecargarTarjetaView) ──
 
 /**
  * Cuenta por cobrar de cantina/librería del representante (solo lectura).
  * Respuesta: { saldo_usd, por_area: [{ area, area_display, saldo_usd }],
- *   cargos: [{ id, fecha, area, area_display, alumno_nombre, monto_usd, monto_pagado, saldo_usd }],
+ *   cargos: [{ id, fecha, area, area_display, alumno_nombre, monto_usd, monto_pagado, saldo_usd, consumo }],
  *   abonos: [{ operacion_uuid, fecha_pago, total_usd, metodos }] }
  * @param {AbortSignal} [signal]
  */
@@ -139,17 +139,20 @@ export const getSaldoTarjetaCantina = (alumnoId, signal) => {
 };
 
 /**
- * Obtiene el historial de consumos (MovimientoTarjeta tipo 'consumo') de la
- * tarjeta de cantina de un alumno, paginado.
- * Retorna: { alumno, tiene_tarjeta, total, page, page_size, total_pages,
- *   results: [{ id, tipo, tipo_display, monto, saldo_antes, saldo_despues, creado_en }] }
+ * Obtiene el estado de cuenta de consumos de un alumno: sus compras de
+ * cantina/librería con el detalle de productos, paginadas.
+ * Retorna: { alumno, total_mes_usd, total_consumido_usd, total, page, page_size, total_pages,
+ *   results: [{ id, creado_en, alumno_nombre, area, area_display, metodo_pago,
+ *     metodo_pago_display, estado, subtotal_usd, descuento_usd, total_usd,
+ *     saldo_tarjeta_despues, saldo_pendiente_usd,
+ *     items: [{ id, producto_nombre, cantidad, precio_unitario, subtotal }] }] }
  * @param {number|string} alumnoId
  * @param {number} page
  * @param {number} pageSize
  * @param {AbortSignal} [signal]
  */
-export const getHistorialConsumoCantina = (alumnoId, page = 1, pageSize = 10, signal) => {
-  return portalClient.get('cantina/historial/', {
+export const getConsumosCantina = (alumnoId, page = 1, pageSize = 10, signal) => {
+  return portalClient.get('cantina/consumos/', {
     params: { alumno_id: alumnoId, page, page_size: pageSize },
     ...(signal ? { signal } : {}),
   });
