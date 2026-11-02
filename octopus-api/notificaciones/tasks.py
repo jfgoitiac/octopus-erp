@@ -50,6 +50,13 @@ def task_notificar_mora_programada(self, mensualidad_id, tipo):
         if m.pagado:
             logger.info(f"Mensualidad {mensualidad_id} ya pagada. Se omite notificación {tipo}.")
             return
+        # Comprobante del portal esperando revisión: no se le cobra al
+        # representante algo que ya reportó (mismo criterio que el motor de
+        # Cobranza Inteligente, cobranza.motor._tiene_pago_en_revision).
+        from portal.models import ComprobantePago
+        if ComprobantePago.objects.filter(mensualidad=m, estatus='pendiente').exists():
+            logger.info(f"Mensualidad {mensualidad_id} con comprobante pendiente de revisión. Se omite {tipo}.")
+            return
         # Avisos ya agendados antes de encender Cobranza Inteligente: se descartan.
         from cobranza.inteligente import inteligente_activa_para_sede
         if inteligente_activa_para_sede(m.alumno.sede_id):

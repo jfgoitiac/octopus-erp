@@ -177,7 +177,7 @@ class CandidatosTest(BaseConciliacionTest):
         self.assertEqual(c['mensualidad']['id'], comp.mensualidad_id)
         self.assertEqual(Decimal(c['mensualidad']['saldo_usd']), Decimal('6.00'))
         self.assertTrue(c['archivo_url'].endswith(
-            f'/media-protegido/comprobantes/{comp.archivo.name.split("/")[-1]}/'
+            f'/api/media-protegido/comprobantes/{comp.archivo.name.split("/")[-1]}/'
         ))
         self.assertTrue(c['archivo_url'].startswith('http'))
         self.assertEqual(c['archivo_tipo'], 'imagen')

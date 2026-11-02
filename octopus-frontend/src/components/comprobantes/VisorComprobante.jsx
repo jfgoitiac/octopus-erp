@@ -7,6 +7,12 @@ import { descargarArchivoComprobante } from '../../services/comprobantesRevision
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
 
+const MENSAJES_ERROR = {
+  'no-encontrado': 'El archivo del comprobante no está disponible en el servidor. Pide al representante que lo vuelva a subir.',
+  red: 'No se pudo cargar el archivo del comprobante. Revisa tu conexión e inténtalo de nuevo.',
+  imagen: 'El archivo no se puede mostrar como imagen. Ábrelo en otra pestaña para verlo.',
+};
+
 const BotonHerramienta = ({ titulo, onClick, children, disabled }) => (
   <button
     type="button"
@@ -29,6 +35,15 @@ const inferirTipo = (tipo, blob) => {
   return null;
 };
 
+// Una respuesta HTML/JSON con 200 (p. ej. el index.html del SPA cuando el
+// proxy no reenvía la ruta) no es el archivo: se trata como no disponible.
+const esRespuestaNoArchivo = (blob) => /^(text\/html|application\/json)/.test(blob?.type || '');
+
+// El iframe solo renderiza el PDF si el blob declara su tipo.
+const conTipo = (blob, tipo) => (
+  tipo === 'pdf' && blob.type !== 'application/pdf' ? new Blob([blob], { type: 'application/pdf' }) : blob
+);
+
 /**
  * Visor del archivo del comprobante. La ruta del archivo es protegida, por
  * eso se descarga como blob con apiClient y se muestra vía object URL, que se
@@ -48,13 +63,15 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
     let objectUrl = null;
     descargarArchivoComprobante(archivoUrl, controller.signal)
       .then(({ data }) => {
-        objectUrl = URL.createObjectURL(data);
-        setEstado({ url: objectUrl, tipo: inferirTipo(archivoTipo, data), cargando: false, error: false });
+        if (esRespuestaNoArchivo(data)) throw new Error('respuesta-no-archivo');
+        const tipo = inferirTipo(archivoTipo, data);
+        objectUrl = URL.createObjectURL(conTipo(data, tipo));
+        setEstado({ url: objectUrl, tipo, cargando: false, error: false });
       })
       .catch((error) => {
         if (error?.code === 'ERR_CANCELED') return;
         toast.error('No se pudo cargar el archivo del comprobante.');
-        setEstado({ url: null, tipo: null, cargando: false, error: true });
+        setEstado({ url: null, tipo: null, cargando: false, error: error?.response?.status === 404 ? 'no-encontrado' : 'red' });
       });
     return () => {
       controller.abort();
@@ -65,6 +82,10 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
   const abrirEnPestana = () => {
     if (estado.url) window.open(estado.url, '_blank', 'noopener,noreferrer');
   };
+
+  // Formato que el navegador no decodifica (p. ej. HEIC): mensaje en vez del
+  // icono roto; se conserva la URL para "Abrir en otra pestaña".
+  const marcarImagenInvalida = () => setEstado((e) => ({ ...e, tipo: null, error: 'imagen' }));
 
   const esImagen = estado.tipo === 'imagen';
   const cambiarZoom = (delta) => {
@@ -115,7 +136,7 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
           <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
             <FileQuestion size={32} style={{ color: 'var(--ash)' }} aria-hidden="true" />
             <p className="text-sm" style={{ color: 'var(--ash)' }}>
-              {estado.error ? 'No se pudo cargar el archivo.' : 'Este comprobante no tiene archivo adjunto.'}
+              {MENSAJES_ERROR[estado.error] || 'Este comprobante no tiene archivo adjunto.'}
             </p>
           </div>
         )}
@@ -126,6 +147,7 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
               <img
                 src={estado.url}
                 alt="Comprobante de pago"
+                onError={marcarImagenInvalida}
                 className="max-h-full max-w-full object-contain transition-transform"
                 style={{ transform: `rotate(${rotacion}deg)` }}
               />
@@ -135,6 +157,7 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
               <img
                 src={estado.url}
                 alt="Comprobante de pago"
+                onError={marcarImagenInvalida}
                 className="inline-block max-w-none transition-transform"
                 style={{ width: `${zoom * 100}%`, transform: `rotate(${rotacion}deg)` }}
               />
@@ -148,7 +171,7 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
 
         {estado.url && !estado.tipo && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-sm" style={{ color: 'var(--ash)' }}>No se puede previsualizar este tipo de archivo.</p>
+            <p className="text-sm" style={{ color: 'var(--ash)' }}>{MENSAJES_ERROR[estado.error] || 'No se puede previsualizar este tipo de archivo.'}</p>
             <button
               type="button"
               onClick={abrirEnPestana}

@@ -722,6 +722,41 @@ class RecordatoriosCobranzaTests(PortalTestBase):
         destinatarios = [d for m in mail.outbox for d in m.to]
         self.assertIn('director@example.com', destinatarios)
 
+    @override_settings(DIRECTOR_WHATSAPP='')
+    def test_dia_15_sin_whatsapp_del_director_no_avisa_al_representante(self):
+        # La alerta interna (con datos de cobranza) nunca debe caer en el
+        # teléfono del representante por falta del número del director.
+        from notificaciones.tasks import task_notificar_mora_programada
+        with mock.patch('notificaciones.services.enviar_whatsapp') as wa:
+            task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_15'])
+        wa.assert_not_called()
+
+    @override_settings(DIRECTOR_WHATSAPP='04120000000')
+    def test_dia_15_whatsapp_va_al_director(self):
+        from notificaciones.tasks import task_notificar_mora_programada
+        with mock.patch('notificaciones.services.enviar_whatsapp') as wa:
+            task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_15'])
+        wa.assert_called_once()
+        self.assertEqual(wa.call_args.args[0], '04120000000')
+
+    def test_recordatorio_omitido_con_comprobante_pendiente(self):
+        from notificaciones.tasks import task_notificar_mora_programada
+        ComprobantePago.objects.create(
+            mensualidad=self.mensualidad,
+            archivo=SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png'),
+        )
+        task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_5'])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_recordatorio_sale_si_el_comprobante_fue_rechazado(self):
+        from notificaciones.tasks import task_notificar_mora_programada
+        ComprobantePago.objects.create(
+            mensualidad=self.mensualidad, estatus='rechazado',
+            archivo=SimpleUploadedFile('pago.png', PNG_BYTES, content_type='image/png'),
+        )
+        task_notificar_mora_programada.apply(args=[self.mensualidad.id, 'mora_dia_5'])
+        self.assertEqual(len(mail.outbox), 1)
+
     def test_dia_0_registra_en_notificacion_log(self):
         from notificaciones.tasks import task_notificar_mora_programada
         from notificaciones.models import NotificacionLog

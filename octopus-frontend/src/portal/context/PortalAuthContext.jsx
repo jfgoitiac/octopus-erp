@@ -2,6 +2,7 @@ import { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import portalClient from '../api/portalClient';
+import { cancelarPushDelDispositivo } from '../hooks/useWebPush';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 const AUTH_TIMEOUT_MS = 8000;
@@ -104,6 +105,9 @@ export const PortalAuthProvider = ({ children }) => {
     // backend. No se espera la respuesta para no bloquear el logout local
     // si la red falla — el estado del cliente se limpia de todas formas.
     portalClient.post('logout/').catch(() => {});
+    // En un celular compartido, los avisos (montos, motivos de rechazo) de
+    // esta cuenta no deben seguir llegando a quien entre después.
+    cancelarPushDelDispositivo(localStorage.getItem('portal_token')).catch(() => {});
     localStorage.removeItem('portal_token');
     // Las versiones anteriores guardaban respuestas privadas del portal en
     // Cache Storage. Se eliminan al salir para evitar datos cruzados en

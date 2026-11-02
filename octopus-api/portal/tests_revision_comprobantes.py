@@ -10,6 +10,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -256,6 +257,22 @@ class RechazoTests(RevisionBase):
 
 
 class DetalleListaTests(RevisionBase):
+    def test_detalle_advierte_mensualidad_saldada_por_otra_via(self):
+        # Pago registrado en caja sin comprobante_portal_id: el comprobante
+        # queda pendiente con saldo 0 (estado legítimo, pero se avisa).
+        self.mensualidad.monto_pagado = self.mensualidad.monto_usd
+        self.mensualidad.save()
+        self._auth_admin()
+        resp = self.client.get(f'{URL}{self.comprobante.id}/')
+        self.assertEqual(resp.data['saldo_pendiente_usd'], '0.00')
+        self.assertEqual(resp.data['estatus'], 'pendiente')
+        self.assertTrue(any('ya está saldada' in a for a in resp.data['advertencias']))
+
+    def test_detalle_sin_advertencia_si_hay_saldo(self):
+        self._auth_admin()
+        resp = self.client.get(f'{URL}{self.comprobante.id}/')
+        self.assertFalse(any('ya está saldada' in a for a in resp.data['advertencias']))
+
     def test_lista_trae_campos_nuevos(self):
         self._auth_admin()
         resp = self.client.get(f'{URL}?estatus=pendiente')
@@ -304,6 +321,51 @@ class DetalleListaTests(RevisionBase):
         self.auth_portal()
         self.assertIn(self.client.get(f'{URL}{self.comprobante.id}/').status_code, (401, 403))
         self.assertIn(self.client.get('/api/portal/admin/motivos-rechazo/').status_code, (401, 403))
+
+
+class ArchivoComprobanteTests(RevisionBase):
+    """El visor descarga archivo_url con el token del panel. La ruta debe vivir
+    bajo /api/: nginx solo reenvía /api/ a Django y el resto cae en el
+    index.html del SPA (200 text/html -> imagen rota en el visor)."""
+
+    def _archivo_url(self):
+        self._auth_admin()
+        resp = self.client.get(f'{URL}{self.comprobante.id}/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        return resp.data['archivo_url']
+
+    def test_archivo_url_vive_bajo_api(self):
+        self.assertIn('/api/media-protegido/comprobantes/', self._archivo_url())
+
+    @override_settings(DEBUG=True)
+    def test_archivo_url_sirve_los_bytes_del_archivo(self):
+        resp = self.client.get(self._archivo_url())
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'image/png')
+        self.assertEqual(b''.join(resp.streaming_content), PNG_BYTES)
+
+    def test_produccion_delega_en_nginx_con_el_tipo_real(self):
+        resp = self.client.get(self._archivo_url())
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['X-Accel-Redirect'], f'/protected-media/{self.comprobante.archivo.name}')
+        self.assertEqual(resp['Content-Type'], 'image/png')
+
+    def test_pdf_declara_application_pdf(self):
+        self.comprobante.archivo = SimpleUploadedFile('pago.pdf', b'%PDF-1.4 test', content_type='application/pdf')
+        self.comprobante.save()
+        url = self._archivo_url()
+        self.assertTrue(url.endswith('.pdf/'))
+        self.assertEqual(self.client.get(url)['Content-Type'], 'application/pdf')
+
+    def test_sin_token_no_entrega_el_archivo(self):
+        url = self._archivo_url()
+        self.client.credentials()
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_archivo_borrado_del_disco_da_404(self):
+        url = self._archivo_url()
+        self.comprobante.archivo.storage.delete(self.comprobante.archivo.name)
+        self.assertEqual(self.client.get(url).status_code, 404)
 
 
 class MotivosRechazoTests(RevisionBase):

@@ -22,6 +22,7 @@ from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, Mensualida
 from authentication.serializers import PerfilFotoSerializer
 
 from pagos_comunes.comprobantes import validar_comprobante
+from pagos_comunes.media_views import url_archivo_comprobante
 
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -1243,17 +1244,6 @@ def _tipo_archivo_comprobante(archivo):
     return None
 
 
-def _url_archivo_comprobante(request, comprobante):
-    # Ruta protegida (pagos_comunes.media_views.ComprobanteProtegidoView)
-    # en vez de la URL directa de /media/ — esa última no tiene control
-    # de acceso real si nginx la sirve estático en producción.
-    if not comprobante.archivo:
-        return None
-    return request.build_absolute_uri(
-        f'/media-protegido/comprobantes/{os.path.basename(comprobante.archivo.name)}/'
-    )
-
-
 def _dinero(valor):
     return None if valor is None else str(Decimal(valor).quantize(Decimal('0.01')))
 
@@ -1268,7 +1258,7 @@ def _datos_basicos_comprobante(request, c):
         'fecha_subida': c.fecha_subida,
         'estatus': c.estatus,
         'observaciones': c.observaciones,
-        'archivo_url': _url_archivo_comprobante(request, c),
+        'archivo_url': url_archivo_comprobante(request, c),
         'alumno': f'{alumno.nombre} {alumno.apellido}',
         'grado': alumno.grado_seccion,
         'representante': f'{rep.nombre} {rep.apellido}',
@@ -1309,7 +1299,7 @@ class AdminComprobantesView(APIView):
 
     def _detalle(self, request, comprobante_id):
         from cobranza.deudas import saldo_deuda
-        from .services import advertencias_hash
+        from .services import advertencia_mensualidad_saldada, advertencias_hash
 
         c = ComprobantePago.objects.select_related(
             'mensualidad__alumno__representante', 'banco_receptor', 'revisado_por', 'pago',
@@ -1325,7 +1315,10 @@ class AdminComprobantesView(APIView):
             'monto_pagado_usd': _dinero(mensualidad.monto_pagado),
             'saldo_pendiente_usd': _dinero(saldo_deuda(mensualidad)),
             # Chequeo previo de solo lectura (mismo que se recalcula al aprobar).
-            'advertencias': advertencias_hash(c) if c.estatus == 'pendiente' else [],
+            'advertencias': (
+                advertencias_hash(c) + advertencia_mensualidad_saldada(c)
+                if c.estatus == 'pendiente' else []
+            ),
             'motivo_rechazo_id': c.motivo_rechazo_id,
             'alumno_id': mensualidad.alumno_id,
             'revisado_por': c.revisado_por.username if c.revisado_por_id else None,

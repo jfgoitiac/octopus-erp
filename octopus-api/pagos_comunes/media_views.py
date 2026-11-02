@@ -27,12 +27,11 @@ IMPORTANTE: mientras el nginx real de app.clhma.com no tenga el bloque
 `location /protected-media/ { internal; ... }` configurado, el
 X-Accel-Redirect no funcionará. Ver el snippet de nginx para más detalle.
 
-Pendiente (fuera del alcance de este archivo): portal/views.py arma URLs de
-comprobantes con request.build_absolute_uri(c.archivo.url), que apuntan
-directo a /media/comprobantes/... — hay que migrar esas referencias para que
-usen esta ruta protegida (/media-protegido/comprobantes/<filename>/) en su
-lugar, tanto en el backend como en el frontend que las consume.
+La ruta vive bajo /api/ (api/media-protegido/comprobantes/<filename>/) porque
+nginx solo reenvía /api/ y /admin/ a Django: fuera de /api/ el `try_files` del
+SPA devolvía index.html con 200 y el visor mostraba una imagen rota.
 """
+import mimetypes
 import os
 
 from django.conf import settings
@@ -46,6 +45,15 @@ from portal.authentication import PortalJWTAuthentication
 from portal.models import ComprobantePago
 
 ROLES_STAFF_PERMITIDOS = ('director', 'sistemas', 'administrador', 'cobranza', 'cajero')
+RUTA_COMPROBANTES = '/api/media-protegido/comprobantes/'
+
+
+def url_archivo_comprobante(request, comprobante):
+    """URL (absoluta si hay request) de la ruta protegida del archivo, o None."""
+    if not comprobante.archivo:
+        return None
+    ruta = f'{RUTA_COMPROBANTES}{os.path.basename(comprobante.archivo.name)}/'
+    return request.build_absolute_uri(ruta) if request is not None else ruta
 
 
 class ComprobanteProtegidoView(APIView):
@@ -92,7 +100,11 @@ class ComprobanteProtegidoView(APIView):
         # — ver deploy/nginx/app.clhma.com.snippet.conf.
         internal_path = f'/protected-media/{comprobante.archivo.name}'
         response = HttpResponse()
-        response['Content-Type'] = ''  # deja que nginx determine el tipo real
+        # nginx conserva el Content-Type de la respuesta original: se envía el
+        # real para que el navegador sepa renderizar imagen o PDF.
+        response['Content-Type'] = (
+            mimetypes.guess_type(comprobante.archivo.name)[0] or 'application/octet-stream'
+        )
         response['X-Accel-Redirect'] = internal_path
         return response
 

@@ -32,7 +32,7 @@ Lista existente; se le agregan los campos `referencia_bancaria`, `metodo_pago`, 
 ```json
 {
   "id": 12, "estatus": "pendiente", "fecha_subida": "2026-10-29T10:12:00-04:00",
-  "archivo_url": "https://.../media-protegido/comprobantes/x.jpg/",
+  "archivo_url": "https://.../api/media-protegido/comprobantes/x.jpg/",
   "archivo_tipo": "imagen",
   "alumno": "Amelia Rojas", "grado": "Sala 4",
   "representante": "Mariangeles Rodríguez", "representante_cedula": "30354677",

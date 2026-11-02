@@ -36,6 +36,21 @@ export async function ensureServiceWorkerReady() {
 }
 
 /**
+ * Da de baja el push de ESTE navegador (backend + navegador). Best-effort:
+ * aunque el backend falle, el navegador deja de recibir (y el próximo envío
+ * al endpoint muerto lo marca inactivo).
+ * @param {string} [token] - access token explícito (ver desuscribirPush)
+ */
+export async function cancelarPushDelDispositivo(token) {
+  if (!isPushSupported()) return;
+  const registration = await navigator.serviceWorker.getRegistration('/');
+  const subscription = await registration?.pushManager.getSubscription();
+  if (!subscription) return;
+  await desuscribirPush(subscription.endpoint, token).catch(() => {});
+  await subscription.unsubscribe();
+}
+
+/**
  * Suscripción/desuscripción a notificaciones Web Push del portal.
  * Fallback esperado: Safari < 16.4 (o cualquier navegador sin PushManager)
  * reporta `supported: false` — el llamador debe mostrar el aviso de que las
@@ -84,12 +99,7 @@ export default function useWebPush() {
     if (!supported) return;
     setLoading(true);
     try {
-      const registration = await navigator.serviceWorker.getRegistration('/');
-      const subscription = await registration?.pushManager.getSubscription();
-      if (subscription) {
-        await desuscribirPush(subscription.endpoint).catch(() => {});
-        await subscription.unsubscribe();
-      }
+      await cancelarPushDelDispositivo();
     } finally {
       setLoading(false);
     }

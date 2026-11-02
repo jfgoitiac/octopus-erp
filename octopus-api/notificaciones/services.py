@@ -568,9 +568,13 @@ def notificar_mora(mensualidad, dias_mora, tipo):
             f'Mora: {dias_mora} dias | Monto: {monto_wa}{nota_wa}'
         ),
     }
-    if tipo in mensajes_wa and rep.telefono:
-        dir_wa = (cfg_notif.director_whatsapp if cfg_notif else '') or getattr(settings, 'DIRECTOR_WHATSAPP', '')
-        tel = (dir_wa or rep.telefono) if tipo == 'mora_dia_15' else rep.telefono
+    if tipo == 'mora_dia_15':
+        # Alerta interna para el director: sin su número no se envía (nunca
+        # cae al teléfono del representante, mismo criterio que el email).
+        tel = (cfg_notif.director_whatsapp if cfg_notif else '') or getattr(settings, 'DIRECTOR_WHATSAPP', '')
+    else:
+        tel = rep.telefono
+    if tipo in mensajes_wa and tel:
         enviar_whatsapp(tel, mensajes_wa[tipo], tipo=tipo,
                         representante_cedula=rep.cedula,
                         alumno_nombre=ctx['nombre_alumno'])

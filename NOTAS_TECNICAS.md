@@ -2,6 +2,44 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## Notificaciones del portal y visor de comprobantes (02/11/2026)
+
+Detectado en la auditoría de notificaciones; solo se anota, no se implementa.
+
+1. **Doble programación de los avisos de mora**: la señal `post_save` de
+   `Mensualidad` (`cobranza/signals.py`) agenda los días 0/5/10/15 con
+   `countdown` desde la creación, y el beat diario
+   (`revisar_y_programar_notificaciones_pendientes`) los vuelve a disparar según
+   el vencimiento. Hoy solo afecta a mensualidades creadas con `.save()` (admin de
+   Django); la generación mensual usa `bulk_create`. Además, un `countdown` de 15
+   días en Redis supera el `visibility_timeout` por defecto (1 h) y Celery puede
+   reentregar la tarea. Conviene dejar un solo programador.
+2. **Sin deduplicación ni recuperación en el beat de mora**: dispara por igualdad
+   exacta de días (`dias_vencida == N`); si el beat no corre ese día, el aviso se
+   pierde, y si corre dos veces, sale dos veces. `NotificacionLog` no guarda la
+   mensualidad, así que no sirve para deduplicar.
+3. **"Día 0" sale al vencer, no al generar la factura** (CLAUDE.md pide "al
+   generar"): decisión documentada en `cobranza/services.py`, pero difiere del
+   requerimiento original.
+4. **Logout del portal sin Bearer**: los interceptores de `portalClient` son
+   asíncronos, así que `post('logout/')` lee `localStorage` cuando el token ya se
+   borró; el 401 dispara el refresh por cookie, que vuelve a guardar
+   `portal_token`. Además el refresh deja `Authorization` fijo en
+   `portalClient.defaults`. Verificar en navegador y corregir en auth.
+   (La baja del push al salir ya pasa el token explícito y no depende de esto.)
+5. **Push compartido entre panel y portal**: ambos usan el mismo Service Worker y
+   endpoint en un navegador; cerrar sesión en el portal también da de baja el push
+   del panel en ese navegador (caso raro: personal que usa ambos en el mismo equipo).
+6. **La bandeja del portal solo guarda avisos de comprobantes**: pago confirmado y
+   recordatorios de mora llegan solo por push/email y no quedan en la campana.
+7. **`{{referencia}}` vacío en el aviso de aprobado** cuando el pago fue en
+   efectivo: el texto por defecto queda "(referencia )".
+8. **Extensiones de imagen desalineadas**: el portal solo acepta jpg/png/webp/pdf
+   (`pagos_comunes/comprobantes.py`), pero el visor clasifica también heic/gif/bmp
+   como imagen (`_tipo_archivo_comprobante`, `_tipo_archivo`). Si alguno llega por
+   otra vía y el navegador no lo decodifica, el visor ya muestra un mensaje y
+   "Abrir archivo".
+
 ## Cantina opera con la tasa BCV: restos de la tasa propia (02/11/2026)
 
 Cantina y librería ya no usan una tasa propia. Quedan sin uso, a propósito, el
