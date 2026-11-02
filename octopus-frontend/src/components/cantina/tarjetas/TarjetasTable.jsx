@@ -1,4 +1,5 @@
 import { CreditCard, SlidersHorizontal } from 'lucide-react';
+import { TIPO_LABELS } from '../cxc/utilsCxc';
 
 const ESTADO_LABELS = {
   sin_asignar: 'Sin asignar',
@@ -80,9 +81,11 @@ export default function TarjetasTable({ tarjetas, cargando, onAjustarCredito }) 
               style={{ borderBottom: idx < tarjetas.length - 1 ? '0.5px solid var(--border-md)' : 'none' }}
             >
               <td className="px-4 py-3 font-medium" style={{ color: 'var(--jet)' }}>
-                {t.alumno_nombre || '— sin asignar —'}
-                {t.alumno_grado_seccion && (
-                  <span className="block text-xs font-normal" style={{ color: 'var(--ash)' }}>{t.alumno_grado_seccion}</span>
+                {t.titular_nombre || '— sin asignar —'}
+                {t.titular_tipo && (
+                  <span className="block text-xs font-normal" style={{ color: 'var(--ash)' }}>
+                    {t.alumno_grado_seccion || TIPO_LABELS[t.titular_tipo]}
+                  </span>
                 )}
               </td>
               <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--ash)' }}>{t.serial}</td>
@@ -104,7 +107,7 @@ export default function TarjetasTable({ tarjetas, cargando, onAjustarCredito }) 
                   className="p-1.5 rounded-lg transition-colors"
                   style={{ color: 'var(--pb)' }}
                   title="Ajustar crédito"
-                  aria-label={`Ajustar crédito de ${t.alumno_nombre || t.serial}`}
+                  aria-label={`Ajustar crédito de ${t.titular_nombre || t.serial}`}
                 >
                   <SlidersHorizontal size={15} />
                 </button>

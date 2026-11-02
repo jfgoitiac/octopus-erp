@@ -1,4 +1,5 @@
 import { UserX, Phone, Mail, SlidersHorizontal } from 'lucide-react';
+import { TIPO_LABELS } from '../cxc/utilsCxc';
 
 // Badge de días en negativo: ámbar 1-3 días, rojo si supera los 3 (§ contrato
 // de GET reportes/morosos/, dias_en_negativo).
@@ -79,7 +80,7 @@ export default function MorosidadTable({ resultados, cargando, onAjustarCredito 
                 {r.alumno_nombre}
                 <span className="block text-xs font-normal font-mono" style={{ color: 'var(--ash)' }}>{r.serial}</span>
               </td>
-              <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{r.grado_seccion || '—'}</td>
+              <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>{r.grado_seccion || TIPO_LABELS[r.titular_tipo] || '—'}</td>
               <td className="px-4 py-3" style={{ color: 'var(--ash)' }}>
                 <div>{r.representante_nombre || '—'}</div>
                 <div className="flex flex-col gap-0.5 text-xs mt-0.5">

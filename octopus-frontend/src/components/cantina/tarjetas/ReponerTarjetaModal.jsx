@@ -139,8 +139,8 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--ash)' }}>
             Tarjeta <strong style={{ color: 'var(--jet)' }}>{tarjeta.serial}</strong>
-            {tarjeta.alumnoNombre || tarjeta.alumno ? (
-              <> — {tarjeta.alumnoNombre || `${tarjeta.alumno?.nombre ?? ''} ${tarjeta.alumno?.apellido ?? ''}`.trim()}</>
+            {tarjeta.alumnoNombre || tarjeta.titular_nombre || tarjeta.alumno ? (
+              <> — {tarjeta.alumnoNombre || tarjeta.titular_nombre || `${tarjeta.alumno?.nombre ?? ''} ${tarjeta.alumno?.apellido ?? ''}`.trim()}</>
             ) : null}
           </p>
 

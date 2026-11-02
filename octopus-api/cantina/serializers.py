@@ -131,19 +131,21 @@ class TarjetaPrepagoSerializer(serializers.ModelSerializer):
     alumno_foto = serializers.SerializerMethodField()
     alumno_grado_seccion = serializers.SerializerMethodField()
     representante_nombre = serializers.SerializerMethodField()
+    titular_nombre = serializers.CharField(read_only=True)
+    titular_tipo = serializers.CharField(read_only=True)
 
     class Meta:
         model = TarjetaPrepago
         fields = (
             'id', 'alumno', 'alumno_nombre', 'alumno_foto', 'alumno_grado_seccion',
-            'representante_nombre',
+            'representante_nombre', 'cliente', 'titular_nombre', 'titular_tipo',
             'lote', 'serial', 'codigo',
             'saldo', 'estado', 'limite_credito', 'saldo_negativo_desde',
             'asignada_en', 'creado_en', 'actualizado_en',
         )
         read_only_fields = (
             'codigo', 'saldo', 'saldo_negativo_desde', 'asignada_en',
-            'creado_en', 'actualizado_en',
+            'creado_en', 'actualizado_en', 'cliente',
         )
 
     def get_alumno_nombre(self, obj):
@@ -193,6 +195,7 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
     metodo_pago = serializers.ChoiceField(choices=METODOS_RECARGA)
     tarjeta_serial = serializers.CharField(source='tarjeta.serial', read_only=True)
     alumno_nombre = serializers.SerializerMethodField()
+    titular_nombre = serializers.CharField(source='tarjeta.titular_nombre', read_only=True, default=None)
     cajero_username = serializers.CharField(source='cajero.username', read_only=True, default=None)
     cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     revisado_por_username = serializers.CharField(source='revisado_por.username', read_only=True, default=None)
@@ -201,7 +204,7 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecargaTarjeta
         fields = (
-            'id', 'tarjeta', 'tarjeta_serial', 'alumno_nombre', 'metodo_pago',
+            'id', 'tarjeta', 'tarjeta_serial', 'alumno_nombre', 'titular_nombre', 'metodo_pago',
             'monto_usd', 'tasa_aplicada', 'monto_ves', 'banco_receptor',
             'banco_procedencia', 'referencia', 'numero_lote', 'estatus',
             'comprobante', 'registrado_por_portal', 'cajero', 'cajero_username', 'cajero_nombre',
@@ -328,9 +331,11 @@ class VentaCantinaSerializer(serializers.ModelSerializer):
         return f'{obj.representante.nombre} {obj.representante.apellido}'
 
     def get_cliente_nombre(self, obj):
-        if not obj.cliente_id:
-            return None
-        return obj.cliente.nombre_completo
+        # Venta a crédito a un cliente, o venta con la tarjeta de una persona de CxC.
+        if obj.cliente_id:
+            return obj.cliente.nombre_completo
+        cliente = obj.tarjeta.cliente if obj.tarjeta_id else None
+        return cliente.nombre_completo if cliente else None
 
 
 # ─────────────────────────────────────────────
@@ -451,7 +456,8 @@ class TarjetaMorosaSerializer(serializers.Serializer):
     serial = serializers.CharField()
     codigo = serializers.CharField()
     alumno_id = serializers.IntegerField(allow_null=True)
-    alumno_nombre = serializers.CharField(allow_null=True)
+    alumno_nombre = serializers.CharField(allow_null=True)  # nombre del titular (alumno o persona de CxC)
+    titular_tipo = serializers.CharField(allow_null=True)
     grado_seccion = serializers.CharField(allow_null=True)
     representante_nombre = serializers.CharField(allow_null=True)
     representante_telefono = serializers.CharField(allow_null=True)

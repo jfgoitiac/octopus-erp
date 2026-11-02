@@ -25,6 +25,8 @@ TIPO_PUSH_CANTINA = 'factura'
 def notificar_recarga_aprobada(recarga):
     tarjeta = recarga.tarjeta
     alumno = tarjeta.alumno
+    if not alumno:  # tarjeta de personal u otra persona: sin portal de representante
+        return
     rep = alumno.representante
 
     ctx = {
@@ -54,26 +56,32 @@ def notificar_recarga_aprobada(recarga):
 
 
 def notificar_saldo_negativo(tarjeta, dias_mora):
-    alumno = tarjeta.alumno
-    rep = alumno.representante
+    """Al representante del alumno (email + push) o, si la tarjeta es de
+    una persona de CxC, a esa persona solo por email (no tiene portal)."""
+    rep = tarjeta.alumno.representante if tarjeta.alumno_id else None
+    cliente = tarjeta.cliente if not rep and tarjeta.cliente_id else None
+    if not (rep or cliente):
+        return
 
     ctx = {
-        'nombre_representante': f'{rep.nombre} {rep.apellido}',
-        'nombre_alumno': f'{alumno.nombre} {alumno.apellido}',
+        'nombre_representante': cliente.nombre_completo if cliente else f'{rep.nombre} {rep.apellido}',
+        'nombre_alumno': tarjeta.titular_nombre,
         'saldo': str(tarjeta.saldo),
         'dias_mora': dias_mora,
+        'es_cliente': bool(cliente),
     }
 
-    if rep.correo:
+    correo = cliente.email if cliente else rep.correo
+    if correo:
         html = _render_email('cantina_saldo_negativo.html', ctx)
         enviar_email(
-            rep.correo, f'Saldo de cantina en negativo -- {ctx["nombre_alumno"]}', html,
+            correo, f'Saldo de cantina en negativo -- {ctx["nombre_alumno"]}', html,
             tipo='cantina_saldo_negativo',
-            representante_cedula=rep.cedula,
+            representante_cedula=rep.cedula if rep else '',
             alumno_nombre=ctx['nombre_alumno'],
         )
 
-    usuario_portal = _usuario_portal_de(rep)
+    usuario_portal = _usuario_portal_de(rep) if rep else None
     if usuario_portal:
         _push_representante(
             usuario_portal, TIPO_PUSH_CANTINA, 'Saldo de cantina negativo',

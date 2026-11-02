@@ -17,7 +17,8 @@ from rest_framework.test import APIClient
 from cobranza.models import TasaCambio
 from secretaria.models import Alumno, Representante
 
-from .models import ParametroCantina, RecargaTarjeta, TarjetaPrepago
+from .models import ClienteCantina, ParametroCantina, RecargaTarjeta, TarjetaPrepago
+from .notificaciones_cantina import notificar_recarga_aprobada, notificar_saldo_negativo
 from .tasks import task_notificar_recarga_aprobada, verificar_saldos_negativos_cantina
 
 User = get_user_model()
@@ -168,3 +169,42 @@ class VerificarSaldosNegativosCantinaTests(NotificacionesCantinaTestsBase):
 
         # Ambas tarjetas debieron intentarse pese al error en la primera.
         self.assertEqual(mock_notificar.call_count, 2)
+
+
+class NotificacionesTarjetaDeClienteTests(NotificacionesCantinaTestsBase):
+    def setUp(self):
+        super().setUp()
+        self.cliente = ClienteCantina.objects.create(
+            nombre='Pedro', apellido='Lugo', tipo='personal', email='pedro@example.com',
+        )
+        self.tarjeta_cliente = TarjetaPrepago.objects.create(
+            cliente=self.cliente, serial='L009-0002', codigo='CANT-CLIENTE001',
+            estado='activa', saldo=Decimal('-3.00'), saldo_negativo_desde=date.today(),
+        )
+
+    def test_saldo_negativo_envia_correo_al_cliente_sin_push(self):
+        with patch('cantina.notificaciones_cantina.enviar_email') as mock_email, \
+                patch('cantina.notificaciones_cantina._push_representante') as mock_push:
+            notificar_saldo_negativo(self.tarjeta_cliente, 3)
+        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_args.args[0], 'pedro@example.com')
+        self.assertIn('Pedro Lugo', mock_email.call_args.args[1])
+        self.assertNotIn('Recargar Tarjeta', mock_email.call_args.args[2])
+        mock_push.assert_not_called()
+
+    def test_recarga_aprobada_de_cliente_no_notifica(self):
+        recarga = RecargaTarjeta.objects.create(
+            tarjeta=self.tarjeta_cliente, metodo_pago='pago_movil', monto_usd=Decimal('5.00'),
+            tasa_aplicada=Decimal('40'), monto_ves=Decimal('200.00'), referencia='999077', estatus='aprobado',
+        )
+        with patch('cantina.notificaciones_cantina.enviar_email') as mock_email:
+            notificar_recarga_aprobada(recarga)
+        mock_email.assert_not_called()
+
+    def test_morosidad_muestra_titular_y_contacto_del_cliente(self):
+        self.client.force_authenticate(user=self.admin_user)
+        resp = self.client.get('/api/cantina/reportes/morosos/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        fila = next(f for f in resp.data['resultados'] if f['serial'] == 'L009-0002')
+        self.assertEqual((fila['alumno_nombre'], fila['titular_tipo']), ('Pedro Lugo', 'personal'))
+        self.assertEqual(fila['representante_correo'], 'pedro@example.com')

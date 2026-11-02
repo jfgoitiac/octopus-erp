@@ -33,7 +33,7 @@ export default function HistorialVentasTable({ ventas = [], onVentaAnulada }) {
 
   const ventasFiltradas = useMemo(() => {
     if (!filtro.trim()) return ventas;
-    return ventas.filter(v => coincideBusqueda(`${v.id ?? ''} ${v.alumno_nombre ?? ''}`, filtro));
+    return ventas.filter(v => coincideBusqueda(`${v.id ?? ''} ${v.alumno_nombre ?? v.cliente_nombre ?? ''}`, filtro));
   }, [ventas, filtro]);
 
   const reimprimir = async (venta) => {
@@ -110,7 +110,7 @@ export default function HistorialVentasTable({ ventas = [], onVentaAnulada }) {
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{formatFechaHora(v.creado_en)}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{ETIQUETA_AREA[v.area] ?? '—'}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{v.cajero_username ?? '—'}</td>
-                  <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{v.alumno_nombre ?? '—'}</td>
+                  <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>{v.alumno_nombre ?? v.cliente_nombre ?? '—'}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--jet)' }}>
                     {etiquetaMetodo(v.metodo_pago)}
                   </td>

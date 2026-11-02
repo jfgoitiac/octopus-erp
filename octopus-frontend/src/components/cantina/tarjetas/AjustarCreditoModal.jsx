@@ -17,7 +17,7 @@ export default function AjustarCreditoModal({ tarjeta, onClose, onAjustado }) {
   const [guardando, setGuardando] = useState(false);
   const abortRef = useRef(null);
 
-  const nombreTarjeta = tarjeta?.alumno_nombre || `Tarjeta ${tarjeta?.serial || ''}`.trim();
+  const nombreTarjeta = tarjeta?.titular_nombre || tarjeta?.alumno_nombre || `Tarjeta ${tarjeta?.serial || ''}`.trim();
 
   const validar = () => {
     const n = parseFloat(limite);

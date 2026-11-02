@@ -42,7 +42,7 @@ def verificar_saldos_negativos_cantina():
 
     tarjetas = TarjetaPrepago.objects.filter(
         saldo__lt=0, saldo_negativo_desde__isnull=False,
-    ).select_related('alumno__representante')
+    ).select_related('alumno__representante', 'cliente')
 
     for tarjeta in tarjetas:
         try:

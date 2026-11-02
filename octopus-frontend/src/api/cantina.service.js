@@ -73,9 +73,9 @@ export const buscarTarjetaSinAsignar = (query, signal) =>
 export const buscarRepresentantePorCedula = (cedula, signal) =>
   cantinaApiClient.get('representantes/buscar/', { params: { cedula }, signal });
 
-// Paso 3 del wizard: vincula la tarjeta al alumno elegido.
-export const asignarTarjeta = (tarjetaId, alumnoId, signal) =>
-  cantinaApiClient.post(`tarjetas/${tarjetaId}/asignar/`, { alumno_id: alumnoId }, { signal });
+// Paso 3 del wizard: vincula la tarjeta al titular elegido — { alumno_id } o { cliente_id }.
+export const asignarTarjeta = (tarjetaId, titular, signal) =>
+  cantinaApiClient.post(`tarjetas/${tarjetaId}/asignar/`, titular, { signal });
 
 // Reposición por extravío/daño — regenera el código, mismo alumno y saldo.
 export const reponerTarjeta = (tarjetaId, motivo, signal) =>

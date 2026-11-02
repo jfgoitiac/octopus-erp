@@ -210,7 +210,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
           <div className="rounded-lg px-3 py-2.5 text-sm flex items-center justify-between gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
             <span className="flex items-center gap-2">
               <UserRound size={16} />
-              {tarjeta.alumno_nombre || `Tarjeta ${tarjeta.serial}`}
+              {tarjeta.titular_nombre || tarjeta.alumno_nombre || `Tarjeta ${tarjeta.serial}`}
             </span>
             <span className="font-semibold" style={{ color: tarjeta.saldo < 0 ? 'var(--red)' : 'var(--pb-mid)' }}>
               Saldo: ${Number(tarjeta.saldo ?? 0).toFixed(2)}
