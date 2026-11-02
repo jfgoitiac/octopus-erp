@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, AlertTriangle, Printer, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Printer, CheckCircle2, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Modal } from '../../ui/Modal';
 import DatePickerES from '../../DatePickerES';
 import MetodoPagoFields from '../MetodoPagoFields';
-import { getBancosCantina, registrarAbonoCxc } from '../../../api/cantina.service';
+import { getBancosCantina, getTasaVigenteCantina, registrarAbonoCxc } from '../../../api/cantina.service';
 import { useTasaPorFecha } from '../../../hooks/useTasaPorFecha';
 import { esBolivares } from '../../../utils/metodosPago';
 import { validarMetodoPago } from '../metodoPagoUtils';
@@ -48,6 +48,9 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
   const [intentado, setIntentado] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [tasaManual, setTasaManual] = useState(null);
+  const [tasaBcv, setTasaBcv] = useState(0);
+  const [errorTasa, setErrorTasa] = useState(false);
+  const [intentoTasa, setIntentoTasa] = useState(0);
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [imprimiendo, setImprimiendo] = useState(false);
@@ -64,10 +67,26 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
     return () => controller.abort();
   }, [open]);
 
+  // La BCV se pide al abrir: la página pudo quedar abierta desde antes de que
+  // cambiara. Si falla, se avisa y se ofrece reintentar.
+  useEffect(() => {
+    if (!open) return undefined;
+    const controller = new AbortController();
+    getTasaVigenteCantina(controller.signal)
+      .then(res => {
+        setTasaBcv(num(res.data?.valor_bs));
+        setErrorTasa(false);
+      })
+      .catch(err => {
+        if (!esCancelacion(err)) setErrorTasa(true);
+      });
+    return () => controller.abort();
+  }, [open, intentoTasa]);
+
   // Tasa histórica sugerida por la fecha (solo en modo retroactivo).
   const { valor: tasaSugerida, exacta, fechaReal, loading: cargandoTasa } = useTasaPorFecha(retro ? fecha : null);
   const tasaRetro = tasaManual ?? (tasaSugerida != null ? String(tasaSugerida) : '');
-  const tasaUsada = retro ? num(tasaRetro) : num(tasaVigente);
+  const tasaUsada = retro ? num(tasaRetro) : (tasaBcv || num(tasaVigente));
 
   const hayBolivares = lineas.some(l => esBolivares(l.metodo_pago));
   const totalUsd = useMemo(
@@ -120,7 +139,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
       if (hayBolivares && !(tasaUsada > 0)) return 'Indica la tasa aplicada para los pagos en bolívares.';
       if (motivo.trim().length < MOTIVO_MIN) return `Explica el motivo (mínimo ${MOTIVO_MIN} caracteres).`;
     } else if (hayBolivares && !(tasaUsada > 0)) {
-      return 'No hay tasa de cambio vigente para convertir bolívares.';
+      return 'No hay tasa BCV disponible para convertir bolívares.';
     }
     return null;
   };
@@ -270,6 +289,22 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
           <p className="text-xs flex items-center gap-1" style={{ color: 'var(--red)' }}>
             <AlertTriangle size={12} /> El total supera la deuda; no se admite saldo a favor.
           </p>
+        )}
+
+        {!retro && !(tasaUsada > 0) && errorTasa && (
+          <div className="flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3" style={{ background: 'var(--red-light)' }}>
+            <p className="text-sm font-medium" style={{ color: 'var(--red)' }}>
+              No se pudo cargar la tasa BCV. Sin ella no se pueden registrar abonos en bolívares.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIntentoTasa(n => n + 1)}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium min-h-[40px] w-full sm:w-auto shrink-0"
+              style={{ border: '0.5px solid var(--red)', color: 'var(--red)' }}
+            >
+              <RefreshCw size={15} /> Reintentar
+            </button>
+          </div>
         )}
 
         {/* Modo retroactivo (solo admin) */}

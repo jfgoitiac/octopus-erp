@@ -12,7 +12,7 @@ import {
 // Props fijas del contrato: { value, onChange, bancos, tasa, metodosPermitidos }
 //  - bancos: catálogo de GET cantina/bancos/ ([{ id, nombre, tipos }]); se
 //    filtra por los que aceptan el método elegido.
-//  - tasa: tasa de Cantina (número) para el equivalente USD⇄VES.
+//  - tasa: tasa BCV (número) para el equivalente USD⇄VES.
 //  - metodosPermitidos: lista de values; por defecto los 6 de cobranza.
 // Props opcionales (no cambian el contrato): `ocultarMonto` (POS: el monto es
 // el total del carrito), `ocultarSelector` (POS: el método ya se eligió en el
@@ -123,7 +123,7 @@ export default function MetodoPagoFields({
             />
           </div>
           {enVes && !(tasa > 0) ? (
-            <p className="text-xs mt-1" style={{ color: 'var(--amber-ink)' }}>No hay tasa vigente: no se puede convertir a USD.</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--amber-ink)' }}>No hay tasa BCV disponible: no se puede convertir a USD.</p>
           ) : equivalente && (
             <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>{equivalente} · tasa {Number(tasa).toFixed(2)}</p>
           )}

@@ -2,6 +2,19 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## Cantina opera con la tasa BCV: restos de la tasa propia (02/11/2026)
+
+Cantina y librería ya no usan una tasa propia. Quedan sin uso, a propósito, el
+modelo `TasaCantina` (su historial es auditoría de cambios pasados y está protegido
+contra borrado) y el campo `PerfilUsuario.puede_gestionar_tasa_cantina`. Quitarlos
+exige una migración que borra esos datos: decidir si se conservan fuera del sistema.
+
+La fuente de respaldo de la tasa (`_obtener_tasa_por_pydolar`, exchangerate.host)
+responde 401 porque ahora exige una clave de API: si `ve.dolarapi.com` cae, la
+sincronización no tiene respaldo real. `tasa-vigente/` de Cantina sincroniza si la
+tasa no es de hoy, pero la vía principal sigue siendo Celery: confirmar en producción
+que el worker y beat estén activos con `python manage.py verificar_celery`.
+
 ## Cantina/Librería: cuentas por cobrar y dos cajas (06/10/2026)
 
 Deuda detectada durante la revisión; solo se anota, no se implementa.

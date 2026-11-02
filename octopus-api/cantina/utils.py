@@ -18,31 +18,14 @@ from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_re
 logger = logging.getLogger(__name__)
 
 
-class TasaActiva:
-    """Tasa vigente de Cantina: valor, desde cuándo, de dónde viene y la BCV de referencia."""
-    def __init__(self, valor_bs, vigente_desde, fuente, bcv_referencia):
-        self.valor_bs = valor_bs
-        self.vigente_desde = vigente_desde
-        self.fuente = fuente
-        self.bcv_referencia = bcv_referencia
-
-
 def tasa_cantina_activa():
     """
-    Tasa que Cantina aplica a ventas, recargas y abonos. Devuelve la fila más
-    reciente de `TasaCantina`; si Cantina nunca configuró una, cae en la
-    última `cobranza.TasaCambio` (BCV). `None` si no existe ninguna.
+    Tasa que Cantina aplica a ventas, recargas y abonos: la BCV vigente, la
+    misma de cobranza (última `cobranza.TasaCambio`). `None` si no existe ninguna.
     """
     from cobranza.models import TasaCambio
-    from .models import TasaCantina
 
-    bcv = TasaCambio.objects.order_by('-fecha').first()
-    propia = TasaCantina.objects.order_by('-vigente_desde', '-id').first()
-    if propia is not None:
-        return TasaActiva(propia.valor_bs, propia.vigente_desde, propia.fuente, bcv.valor_bs if bcv else None)
-    if bcv is not None:
-        return TasaActiva(bcv.valor_bs, bcv.fecha, 'bcv', bcv.valor_bs)
-    return None
+    return TasaCambio.objects.order_by('-fecha').first()
 
 
 # Métodos que requieren número de referencia obligatorio (mismo criterio
