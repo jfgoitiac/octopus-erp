@@ -30,7 +30,7 @@ En la barra inferior del teléfono están las secciones principales:
 | **"Rendimiento"** | Notas y asistencia por lapso |
 | **"Mensajes"** | Conversaciones con los docentes |
 | **"Comunicaciones"** | Circulares y avisos del colegio |
-| **"Cantina"** | Saldo e historial de consumo de la tarjeta |
+| **"Cantina"** | Saldo de la tarjeta y estado de cuenta de consumos, con el detalle de cada compra |
 | **"Perfil"** | Datos personales y foto |
 | **"Ajustes"** | Cambiar contraseña, notificaciones y **"Salir"** |
 
@@ -134,8 +134,19 @@ dirá **"No hay circulares publicadas."**.
 
 ### Cantina
 
-Muestra el **"Saldo y consumo de la tarjeta de cantina"** y el **"Historial de
-consumo"**. Desde aquí también se recarga la tarjeta, con el mismo procedimiento
+Muestra el **"Saldo de la tarjeta y estado de cuenta de consumos"**.
+
+En **"Estado de cuenta de consumos"** verás cuánto consumió el alumno este mes y
+en total, y la lista de sus compras con los productos de cada una. Toca una
+compra para ver el detalle: productos, cantidades, precios, descuento, forma de
+pago y lo que quede por pagar. Las compras anuladas aparecen marcadas como
+**"Anulada"** y no suman en los totales. Solo aparecen las compras identificadas
+con el alumno: las pagadas con su tarjeta, las cargadas a tu cuenta a su nombre y
+las de efectivo o banco en las que el cajero indicó al alumno.
+En **"Consumos pendientes"** también puedes tocar cada cargo para ver qué se
+compró.
+
+Desde aquí también se recarga la tarjeta, con el mismo procedimiento
 del comprobante: **"Moneda"** (**"USD ($)"** o **"VES (Bs.)"**), **"Monto"**,
 **"Banco receptor (del colegio)"**, **"Banco de procedencia (tuyo)"**,
 referencia y comprobante. Al enviarla verás **"Recarga enviada, será revisada en

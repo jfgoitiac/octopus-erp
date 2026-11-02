@@ -1,4 +1,4 @@
-import { HandCoins, Receipt } from 'lucide-react';
+import { ChevronRight, HandCoins, Receipt } from 'lucide-react';
 import SkeletonCard, { SkeletonLine } from './SkeletonCard';
 import { fmtFecha as formatFecha } from '../utils/fechas';
 import { fmtMonto } from '../utils/montos';
@@ -11,8 +11,9 @@ const usd = (valor) => `REF. ${fmtMonto(valor)}`;
  * Props:
  *   cuenta: { saldo_usd, por_area, cargos, abonos } | null
  *   loading: boolean
+ *   onVerConsumo: (consumo) => void
  */
-const CuentaCantinaCard = ({ cuenta, loading }) => {
+const CuentaCantinaCard = ({ cuenta, loading, onVerConsumo }) => {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -67,22 +68,28 @@ const CuentaCantinaCard = ({ cuenta, loading }) => {
           <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Consumos pendientes</h2>
           <div className="bg-[var(--surface)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]">
             {cargos.map((c) => (
-              <div key={c.id} className="px-4 py-3 flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--jet)] truncate">
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onVerConsumo(c.consumo)}
+                className="w-full px-4 py-3 flex items-start gap-2 text-left min-h-[44px] hover:bg-[var(--surface-sunken)] transition-colors"
+              >
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium text-[var(--jet)] truncate">
                     {c.alumno_nombre || 'Sin alumno indicado'}
-                  </p>
-                  <p className="text-sm text-[var(--ash)] mt-0.5">
+                  </span>
+                  <span className="block text-sm text-[var(--ash)] mt-0.5">
                     {formatFecha(c.fecha)} · {c.area_display}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end flex-shrink-0">
-                  <p className="text-sm font-semibold text-[var(--red)]">{usd(c.saldo_usd)}</p>
+                  </span>
+                </span>
+                <span className="flex flex-col items-end flex-shrink-0">
+                  <span className="text-sm font-semibold text-[var(--red)]">{usd(c.saldo_usd)}</span>
                   {Number(c.monto_pagado) > 0 && (
-                    <p className="text-xs text-[var(--ash)]">de {usd(c.monto_usd)}</p>
+                    <span className="text-xs text-[var(--ash)]">de {usd(c.monto_usd)}</span>
                   )}
-                </div>
-              </div>
+                </span>
+                <ChevronRight size={16} className="text-[var(--ash)] mt-0.5 flex-shrink-0" aria-hidden="true" />
+              </button>
             ))}
           </div>
         </div>

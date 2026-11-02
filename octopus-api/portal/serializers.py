@@ -9,7 +9,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from secretaria.models import Representante
 from cobranza.models import Mensualidad, Pago
-from cantina.models import MovimientoTarjeta, RecargaTarjeta as RecargaTarjetaCantina
+from cantina.models import (
+    DetalleVentaCantina, RecargaTarjeta as RecargaTarjetaCantina, VentaCantina,
+)
 from .models import ComprobantePago, RepresentanteUser
 
 
@@ -354,16 +356,44 @@ class TarjetaCantinaPortalSerializer(serializers.Serializer):
     dias_en_negativo = serializers.IntegerField()
 
 
-class MovimientoTarjetaPortalSerializer(serializers.ModelSerializer):
-    """Consumo/recarga/ajuste de una tarjeta de cantina, para el historial del portal."""
-    tipo_display = serializers.SerializerMethodField()
+class DetalleConsumoPortalSerializer(serializers.ModelSerializer):
+    """Línea de una compra de cantina/librería: qué producto y cuántas unidades."""
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
 
     class Meta:
-        model = MovimientoTarjeta
-        fields = ['id', 'tipo', 'tipo_display', 'monto', 'saldo_antes', 'saldo_despues', 'creado_en']
+        model = DetalleVentaCantina
+        fields = ['id', 'producto_nombre', 'cantidad', 'precio_unitario', 'subtotal']
 
-    def get_tipo_display(self, obj):
-        return obj.get_tipo_display()
+
+class ConsumoCantinaPortalSerializer(serializers.ModelSerializer):
+    """
+    Compra de cantina/librería para el estado de cuenta del portal. Sin datos
+    del cajero ni motivos internos (descuento/anulación): el representante solo
+    ve qué se compró, cuánto costó y cómo se pagó.
+    """
+    alumno_nombre = serializers.SerializerMethodField()
+    area_display = serializers.CharField(source='get_area_display', read_only=True)
+    metodo_pago_display = serializers.CharField(source='get_metodo_pago_display', read_only=True)
+    subtotal_usd = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    saldo_pendiente_usd = serializers.SerializerMethodField()
+    items = DetalleConsumoPortalSerializer(source='detalles', many=True, read_only=True)
+
+    class Meta:
+        model = VentaCantina
+        fields = [
+            'id', 'creado_en', 'alumno_nombre', 'area', 'area_display',
+            'metodo_pago', 'metodo_pago_display', 'estado', 'subtotal_usd',
+            'descuento_usd', 'total_usd', 'saldo_tarjeta_despues',
+            'saldo_pendiente_usd', 'items',
+        ]
+
+    def get_alumno_nombre(self, obj):
+        return f'{obj.alumno.nombre} {obj.alumno.apellido}' if obj.alumno else None
+
+    def get_saldo_pendiente_usd(self, obj):
+        # Solo las ventas cargadas a la cuenta del representante tienen cargo.
+        cargo = getattr(obj, 'cargo', None)
+        return str(cargo.saldo_usd) if cargo and cargo.estado == 'pendiente' else None
 
 
 class RecargaTarjetaPortalSerializer(serializers.ModelSerializer):

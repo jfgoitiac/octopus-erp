@@ -68,7 +68,7 @@ from .views import (
     PortalMiPerfilView,
     PortalFotoPerfilView,
     PortalSaldoTarjetaView,
-    PortalHistorialConsumoCantinaView,
+    PortalConsumosCantinaView,
     PortalRecargarTarjetaView,
     PortalCuentaCantinaView,
 )
@@ -152,7 +152,7 @@ urlpatterns = [
 
     # Cantina — saldo/historial/recarga de la tarjeta prepago de los hijos (cantina.md §5.6/§7.5)
     path('cantina/saldo/', PortalSaldoTarjetaView.as_view(), name='portal_cantina_saldo'),
-    path('cantina/historial/', PortalHistorialConsumoCantinaView.as_view(), name='portal_cantina_historial'),
+    path('cantina/consumos/', PortalConsumosCantinaView.as_view(), name='portal_cantina_consumos'),
     path('cantina/recargar/', PortalRecargarTarjetaView.as_view(), name='portal_cantina_recargar'),
     # Cuenta por cobrar de cantina/librería del representante (solo lectura)
     path('cantina/cuenta/', PortalCuentaCantinaView.as_view(), name='portal_cantina_cuenta'),

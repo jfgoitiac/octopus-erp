@@ -13,8 +13,9 @@ const DEBOUNCE_MS = 300;
 // Buscador de representante por nombre, apellido, cédula o datos de su alumno
 // (GET cxc/buscar/). También devuelve clientes generales (personal/otro): cada
 // resultado trae `tipo`. Props: { onSelect, autoFocus, placeholder, paraVenta,
-// permitirAgregarCliente, soloClientes }. `paraVenta` oculta clientes inactivos;
-// `soloClientes` oculta representantes; con
+// permitirAgregarCliente, soloClientes, soloRepresentantes }. `paraVenta` oculta
+// clientes inactivos; `soloClientes` oculta representantes y `soloRepresentantes`
+// oculta clientes; con
 // `permitirAgregarCliente` se muestra "Agregar cliente" y el nuevo se selecciona solo.
 const BuscadorRepresentanteCxc = ({
   onSelect,
@@ -23,6 +24,7 @@ const BuscadorRepresentanteCxc = ({
   paraVenta = false,
   permitirAgregarCliente = false,
   soloClientes = false,
+  soloRepresentantes = false,
 }) => {
   const [texto, setTexto] = useState('');
   const [agregando, setAgregando] = useState(false);
@@ -46,8 +48,10 @@ const BuscadorRepresentanteCxc = ({
       setCargando(true);
       buscarRepresentantesCxc(consulta, controller.signal, { paraVenta })
         .then(res => {
-          const lista = listaDe(res.data);
-          setEncontrados({ para: consulta, lista: soloClientes ? lista.filter(esCliente) : lista });
+          let lista = listaDe(res.data);
+          if (soloClientes) lista = lista.filter(esCliente);
+          if (soloRepresentantes) lista = lista.filter(r => !esCliente(r));
+          setEncontrados({ para: consulta, lista });
           setActivo(-1);
           setAbierto(true);
         })
@@ -64,7 +68,7 @@ const BuscadorRepresentanteCxc = ({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [consulta, buscable, paraVenta, soloClientes]);
+  }, [consulta, buscable, paraVenta, soloClientes, soloRepresentantes]);
 
   // Cierra la lista al hacer click fuera del buscador.
   useEffect(() => {

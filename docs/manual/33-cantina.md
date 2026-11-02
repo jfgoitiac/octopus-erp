@@ -87,7 +87,11 @@ Para cambiarla: toca el lápiz, escribe la nueva tasa, un motivo (opcional) y
      después"**.
    - **Efectivo Divisas (USD)**
    - **Efectivo Bolívares (VES)**
-6. Cobra.
+6. En efectivo o banco, si el comprador es un alumno, búscalo en **"Alumno que
+   consume (opcional)"** por su nombre o el de su representante. Así la compra
+   aparece en el estado de cuenta del portal de su familia. Si no lo indicas, la
+   venta se cobra igual, pero la familia no la verá.
+7. Cobra.
 
 Verás **"Venta #482 cobrada correctamente."** y el ticket se genera solo.
 

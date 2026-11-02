@@ -1,29 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getSaldoTarjetaCantina, getHistorialConsumoCantina, getCuentaCantina } from '../api/portal.service';
+import { getSaldoTarjetaCantina, getConsumosCantina, getCuentaCantina } from '../api/portal.service';
 import { useAlumnoActivo } from '../context/AlumnoActivoContext';
 import EstudianteSelector from '../components/EstudianteSelector';
 import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
-import HistorialConsumoList from '../components/HistorialConsumoList';
+import EstadoCuentaConsumos from '../components/EstadoCuentaConsumos';
+import DetalleConsumoModal from '../components/DetalleConsumoModal';
 import RecargarTarjetaModal from '../components/RecargarTarjetaModal';
 import CuentaCantinaCard from '../components/CuentaCantinaCard';
 
 const PortalCantina = () => {
-  const [alumnos, setAlumnos] = useState([]);
+  // La lista ya fue solicitada por PortalLayout; compartirla evita repetir el
+  // endpoint de dashboard en cada pantalla.
   const { dashboardData, loadingDashboard } = useOutletContext() || {};
+  const alumnos = useMemo(() => dashboardData?.alumnos || [], [dashboardData]);
+  const loadingAlumnos = !dashboardData && Boolean(loadingDashboard);
   const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
-  const [loadingAlumnos, setLoadingAlumnos] = useState(true);
 
   const [saldoTarjeta, setSaldoTarjeta] = useState(null);
   const [loadingSaldo, setLoadingSaldo] = useState(false);
 
-  const [movimientos, setMovimientos] = useState([]);
+  const [estadoCuenta, setEstadoCuenta] = useState(null);
   const [pagina, setPagina] = useState(1);
-  const [totalPaginas, setTotalPaginas] = useState(1);
-  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [loadingConsumos, setLoadingConsumos] = useState(false);
+  const [consumoAbierto, setConsumoAbierto] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
+  // Se incrementa tras una recarga para volver a pedir saldo y consumos.
+  const [recargasEnviadas, setRecargasEnviadas] = useState(0);
 
   // Cuenta por cobrar de cantina/librería (es del representante, no de un alumno)
   const [cuenta, setCuenta] = useState(null);
@@ -47,65 +52,56 @@ const PortalCantina = () => {
     return () => controller.abort();
   }, []);
 
-  // La lista ya fue solicitada por PortalLayout; compartirla evita repetir el
-  // endpoint de dashboard en cada pantalla.
   useEffect(() => {
-    if (!dashboardData) {
-      setLoadingAlumnos(Boolean(loadingDashboard));
-      return;
-    }
-    const lista = dashboardData.alumnos || [];
-    setAlumnos(lista);
-    sincronizarConLista(lista);
-    setLoadingAlumnos(false);
-  }, [dashboardData, loadingDashboard, sincronizarConLista]);
+    if (dashboardData) sincronizarConLista(alumnos);
+  }, [dashboardData, alumnos, sincronizarConLista]);
 
-  // PortalSaldoTarjetaView SIEMPRE responde un arreglo (uno por alumno,
-  // filtrado a 1 elemento cuando se pasa alumno_id) — nunca un objeto suelto.
-  const cargarSaldo = useCallback(async (alumnoId, signal) => {
-    setLoadingSaldo(true);
-    try {
-      const res = await getSaldoTarjetaCantina(alumnoId, signal);
-      const lista = Array.isArray(res.data) ? res.data : [];
-      setSaldoTarjeta(lista.find((r) => String(r.alumno_id) === String(alumnoId)) || lista[0] || null);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error('No se pudo cargar el saldo de la tarjeta.');
-    } finally {
-      setLoadingSaldo(false);
-    }
-  }, []);
-
-  const cargarHistorial = useCallback(async (alumnoId, paginaActual, signal) => {
-    setLoadingHistorial(true);
-    try {
-      const res = await getHistorialConsumoCantina(alumnoId, paginaActual, 10, signal);
-      const data = res.data;
-      setMovimientos(data.results || []);
-      setTotalPaginas(data.total_pages || 1);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error('No se pudo cargar el historial de consumo.');
-    } finally {
-      setLoadingHistorial(false);
-    }
-  }, []);
-
-  // Cargar saldo cuando cambia el alumno activo
+  // Cargar saldo cuando cambia el alumno activo o tras una recarga
   useEffect(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
-    cargarSaldo(alumnoActivo.id, controller.signal);
-    return () => controller.abort();
-  }, [alumnoActivo, cargarSaldo]);
 
-  // Cargar historial cuando cambia el alumno activo o la página
+    const cargarSaldo = async () => {
+      setLoadingSaldo(true);
+      try {
+        // PortalSaldoTarjetaView SIEMPRE responde un arreglo (uno por alumno,
+        // filtrado a 1 elemento cuando se pasa alumno_id) — nunca un objeto suelto.
+        const res = await getSaldoTarjetaCantina(alumnoActivo.id, controller.signal);
+        const lista = Array.isArray(res.data) ? res.data : [];
+        setSaldoTarjeta(lista.find((r) => String(r.alumno_id) === String(alumnoActivo.id)) || lista[0] || null);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo cargar el saldo de la tarjeta.');
+      } finally {
+        if (!controller.signal.aborted) setLoadingSaldo(false);
+      }
+    };
+
+    cargarSaldo();
+    return () => controller.abort();
+  }, [alumnoActivo, recargasEnviadas]);
+
+  // Cargar consumos cuando cambia el alumno activo, la página o tras una recarga
   useEffect(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
-    cargarHistorial(alumnoActivo.id, pagina, controller.signal);
+
+    const cargarConsumos = async () => {
+      setLoadingConsumos(true);
+      try {
+        const res = await getConsumosCantina(alumnoActivo.id, pagina, 10, controller.signal);
+        setEstadoCuenta(res.data);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo cargar el estado de cuenta de consumos.');
+      } finally {
+        if (!controller.signal.aborted) setLoadingConsumos(false);
+      }
+    };
+
+    cargarConsumos();
     return () => controller.abort();
-  }, [alumnoActivo, pagina, cargarHistorial]);
+  }, [alumnoActivo, pagina, recargasEnviadas]);
 
   const handleSelectAlumno = (alumno) => {
     setAlumnoActivo(alumno);
@@ -114,10 +110,7 @@ const PortalCantina = () => {
 
   const handleRecargaExitosa = () => {
     setModalOpen(false);
-    if (alumnoActivo) {
-      cargarSaldo(alumnoActivo.id);
-      cargarHistorial(alumnoActivo.id, pagina);
-    }
+    setRecargasEnviadas((n) => n + 1);
   };
 
   return (
@@ -125,11 +118,11 @@ const PortalCantina = () => {
       {/* Encabezado */}
       <div>
         <h1 className="text-lg font-bold text-[var(--jet)]">Cantina</h1>
-        <p className="text-xs text-[var(--ash)] mt-0.5">Saldo y consumo de la tarjeta de cantina</p>
+        <p className="text-xs text-[var(--ash)] mt-0.5">Saldo de la tarjeta y estado de cuenta de consumos</p>
       </div>
 
       {/* Cuenta de cantina y librería (deuda del representante) */}
-      <CuentaCantinaCard cuenta={cuenta} loading={loadingCuenta} />
+      <CuentaCantinaCard cuenta={cuenta} loading={loadingCuenta} onVerConsumo={setConsumoAbierto} />
 
       {/* Selector de estudiante */}
       {loadingAlumnos ? (
@@ -160,19 +153,23 @@ const PortalCantina = () => {
         onRecargar={() => setModalOpen(true)}
       />
 
-      {/* Historial de consumo — solo si el alumno tiene tarjeta */}
-      {(loadingSaldo || saldoTarjeta?.tiene_tarjeta) && (
-        <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Historial de consumo</h2>
-          <HistorialConsumoList
-            movimientos={movimientos}
-            loading={loadingAlumnos || loadingHistorial}
-            pagina={pagina}
-            totalPaginas={totalPaginas}
-            onCambiarPagina={setPagina}
-          />
+      {/* Estado de cuenta de consumos — también para alumnos sin tarjeta, que
+          pueden tener compras cargadas a la cuenta del representante */}
+      <div className="space-y-2">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--jet-mid)]">Estado de cuenta de consumos</h2>
+          <p className="text-xs text-[var(--ash)] mt-0.5">Toca una compra para ver el detalle</p>
         </div>
-      )}
+        <EstadoCuentaConsumos
+          estado={estadoCuenta}
+          loading={loadingAlumnos || loadingConsumos}
+          pagina={pagina}
+          onCambiarPagina={setPagina}
+          onVerConsumo={setConsumoAbierto}
+        />
+      </div>
+
+      <DetalleConsumoModal consumo={consumoAbierto} onClose={() => setConsumoAbierto(null)} />
 
       {/* Modal de recarga */}
       <RecargarTarjetaModal
