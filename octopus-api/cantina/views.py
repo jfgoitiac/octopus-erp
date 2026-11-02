@@ -6,10 +6,10 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import qrcode
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Sum
-from django.core.paginator import Paginator
 from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -39,13 +39,10 @@ from .models import (
     ProductoCantina,
     RecargaTarjeta,
     TarjetaPrepago,
-    TasaCantina,
     VentaCantina,
 )
-from .permissions import EsAdminCantina, EsCajeroOAdmin, puede_gestionar_tasa
+from .permissions import EsAdminCantina, EsCajeroOAdmin
 from .serializers import (
-    CambiarTasaCantinaSerializer,
-    TasaCantinaSerializer,
     AjustarCreditoSerializer,
     AperturaCajaCantinaSerializer,
     CategoriaProductoSerializer,
@@ -736,73 +733,44 @@ class BuscarTarjetaView(APIView):
         return Response(TarjetaPrepagoSerializer(tarjeta, context={'request': request}).data)
 
 
-def _serializar_tasa_activa(tasa, user):
-    return {
-        'valor_bs': str(tasa.valor_bs),
-        'fecha': tasa.vigente_desde,  # compatibilidad con el cliente anterior
-        'vigente_desde': tasa.vigente_desde,
-        'fuente': tasa.fuente,
-        'bcv_referencia': str(tasa.bcv_referencia) if tasa.bcv_referencia is not None else None,
-        'puede_editar': puede_gestionar_tasa(user),
-    }
+def _tasa_sincronizada():
+    """
+    Última tasa BCV, sincronizándola si falta o no es de hoy: así no se queda
+    atrás aunque Celery esté caído. Si ya es de hoy no se consulta nada. Como un
+    fin de semana la BCV no cambia y no se crea fila nueva, se reintenta como
+    mucho una vez por hora para no demorar cada consulta.
+    """
+    from cobranza.tasks import sincronizar_tasa_con_blindaje
+
+    tasa = tasa_cantina_activa()
+    if tasa and timezone.localtime(tasa.fecha).date() >= timezone.localdate():
+        return tasa
+    if tasa is None or cache.add('cantina_tasa_bcv_sincronizada', True, 3600):
+        sincronizar_tasa_con_blindaje()
+        tasa = tasa_cantina_activa()
+    return tasa
 
 
 class TasaVigenteCantinaView(APIView):
     """
-    GET: tasa que Cantina aplica hoy (propia, o la BCV si nunca se configuró
-    una). El cajero de cantina no tiene el JWT del panel admin, así que se
-    expone un endpoint propio para que el POS y las recargas conviertan
-    montos. Incluye la BCV como referencia y `puede_editar` para el usuario.
+    GET: tasa BCV que Cantina aplica hoy, la misma de cobranza. Se expone en
+    Cantina para que el POS, las recargas y los abonos conviertan montos sin
+    depender de los permisos de cobranza.
     """
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        tasa = tasa_cantina_activa()
+        tasa = _tasa_sincronizada()
         if not tasa:
             return Response(
-                {'detail': 'No se ha registrado ninguna tasa de cambio.', 'puede_editar': puede_gestionar_tasa(request.user)},
+                {'detail': 'No se ha registrado ninguna tasa de cambio.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(_serializar_tasa_activa(tasa, request.user))
-
-
-class CambiarTasaCantinaView(APIView):
-    """POST: fija una nueva tasa de Cantina (agrega una fila al historial)."""
-    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
-
-    def post(self, request):
-        if not puede_gestionar_tasa(request.user):
-            return Response(
-                {'detail': 'No tiene permiso para cambiar la tasa de Cantina.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        serializer = CambiarTasaCantinaSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        TasaCantina.objects.create(
-            valor_bs=serializer.validated_data['valor_bs'],
-            motivo=serializer.validated_data['motivo'],
-            modificado_por=request.user,
-            fuente='manual',
-        )
-        return Response(_serializar_tasa_activa(tasa_cantina_activa(), request.user), status=status.HTTP_201_CREATED)
-
-
-class HistorialTasaCantinaView(APIView):
-    """GET: historial paginado de cambios de tasa (?page=, ?page_size= máx. 100)."""
-    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
-
-    def get(self, request):
-        try:
-            page_size = min(max(int(request.query_params.get('page_size', 20)), 1), 100)
-        except ValueError:
-            page_size = 20
-        paginator = Paginator(TasaCantina.objects.select_related('modificado_por'), page_size)
-        pagina = paginator.get_page(request.query_params.get('page', 1))
         return Response({
-            'count': paginator.count,
-            'page': pagina.number,
-            'num_pages': paginator.num_pages,
-            'results': TasaCantinaSerializer(pagina.object_list, many=True).data,
+            'valor_bs': str(tasa.valor_bs),
+            'fecha': tasa.fecha,
+            'vigente_desde': tasa.fecha,
+            'fuente': 'bcv',
         })
 
 

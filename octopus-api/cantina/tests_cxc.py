@@ -95,6 +95,23 @@ class CxcBase(TestCase):
         return client.post(BASE + 'abonos/', body, format='json')
 
 
+class AbonoEnBolivaresTasaBcvTests(CxcBase):
+    def test_abono_en_bolivares_convierte_con_la_tasa_bcv(self):
+        from .models import TasaCantina
+
+        # Una tasa propia que quedó en el historial ya no debe aplicarse.
+        TasaCantina.objects.create(valor_bs=Decimal('99.0000'), modificado_por=self.admin)
+        self.crear_cargo('20.00')
+
+        resp = self.post_abono(self.client_cajero, [{'metodo_pago': 'efectivo_ves', 'monto_ves': '400.00'}])
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        abono = AbonoCantina.objects.get()
+        self.assertEqual(abono.tasa_aplicada, Decimal('40.0000'))
+        self.assertEqual(abono.monto_usd, Decimal('10.00'))
+        self.assertEqual(abono.monto_ves, Decimal('400.00'))
+
+
 # ─────────────────────────────────────────────
 # Buscador
 # ─────────────────────────────────────────────

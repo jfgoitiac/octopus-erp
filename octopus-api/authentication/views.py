@@ -361,30 +361,8 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             )
             return Response({"mensaje": f"Rol de {user.username} cambiado a '{nuevo_rol}'."})
 
-        if accion == 'permiso_tasa_cantina':
-            valor = request.data.get('valor')
-            if not isinstance(valor, bool):
-                return Response(
-                    {"error": "Se requiere el campo 'valor' (true/false)."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if not hasattr(user, 'perfil'):
-                return Response(
-                    {"error": "El usuario no tiene perfil configurado."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            user.perfil.puede_gestionar_tasa_cantina = valor
-            user.perfil.save(update_fields=['puede_gestionar_tasa_cantina'])
-            LogAuditoria.objects.create(
-                usuario=request.user,
-                accion="PERMISO_TASA_CANTINA",
-                modulo="SEGURIDAD",
-                detalles=f"Permiso de gestionar la tasa de Cantina de {user.username} {'otorgado' if valor else 'retirado'} por {request.user.username}."
-            )
-            return Response({"mensaje": f"Permiso de tasa de Cantina {'otorgado a' if valor else 'retirado de'} {user.username}."})
-
         return Response(
-            {"error": "El campo 'accion' debe ser 'reactivar', 'cambiar_rol' o 'permiso_tasa_cantina'."},
+            {"error": "El campo 'accion' debe ser 'reactivar' o 'cambiar_rol'."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
