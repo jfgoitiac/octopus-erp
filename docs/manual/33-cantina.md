@@ -164,16 +164,28 @@ Aquí se define cuánto puede quedar a deber una tarjeta (*"Ej. 50"*) y en qué 
 Al terminar el turno:
 
 1. Entra a **"Cierre de caja"**.
-2. Revisa el resumen del día: **"Total USD"**, **"Total VES"**, **"Ventas"** y
-   **"Ventas por día"**.
-3. Escribe el **"Conteo físico"**: el efectivo que realmente tienes en la caja.
-4. El sistema calcula la **"Diferencia"** contra lo que registró.
-5. Escribe las **"Observaciones"** (*"Notas sobre el cierre, faltantes,
-   sobrantes, etc."*).
-6. Haz clic en **"Registrar cierre"**.
+2. Cuenta los billetes y escribe por separado **"Dólares en gaveta"** y
+   **"Bolívares en gaveta"**. Debajo de cada uno ves cuánto debes tener y, mientras
+   escribes, si está **"Cuadrado"**, hay **"Faltante"** o hay **"Sobrante"**. Si no
+   hay billetes de una moneda, escribe `0`.
+3. Si hay diferencia, explícala en **"Observaciones"**.
+4. Haz clic en **"Revisar y cerrar"**. El sistema vuelve a consultar las cifras y
+   te avisa si entró algún movimiento mientras contabas.
+5. Revisa lo contado frente a lo esperado y confirma con **"Cerrar caja"**. Después
+   de confirmar ya no podrás vender en esa caja.
 
-Verás **"Caja cerrada correctamente."** y la pantalla mostrará **"Caja
-cerrada"** con su **"Fecha de cierre"**.
+Verás **"Caja cerrada correctamente."**, el resultado del cierre y el reporte, que
+puedes imprimir con **"Imprimir cierre"**. Si sales de la pantalla, vuelve a verlo
+con **"Ver último cierre"**.
+
+Las tarjetas de la pantalla resumen el turno:
+
+- **"Dinero recibido"**: lo que entró por cada método de pago y si va a la gaveta o
+  al banco.
+- **"De dónde salió"**: ventas, recargas cobradas y abonos cobrados, además de
+  **"Consumido de recargas"** y **"Cargado a cuenta"**, que no traen dinero nuevo.
+  Las ventas anuladas y las recargas del portal que aprobaste aparecen solo como
+  información, si las hubo.
 
 ---
 
@@ -237,7 +249,8 @@ tarjetas con saldo negativo en este filtro"**.
 
 | Campo | Obligatorio | Formato | Qué significa |
 |-------|:-----------:|---------|---------------|
-| Conteo físico | Sí | Número | Efectivo real contado en la caja |
+| Dólares en gaveta | Sí | Número, ej. `1.234,50` | Dólares en billetes contados, con el fondo inicial |
+| Bolívares en gaveta | Sí | Número, ej. `1.234,50` | Bolívares en billetes contados |
 | Observaciones | No | Texto | Faltantes, sobrantes o notas del turno |
 
 ---
