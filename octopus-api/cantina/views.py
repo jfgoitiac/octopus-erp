@@ -71,6 +71,7 @@ TOPE_BUSQUEDA_TARJETAS = 20
 CAMPOS_BUSQUEDA_TITULAR = [
     'alumno__nombre', 'alumno__apellido', 'alumno__cedula_escolar',
     'alumno__representante__nombre', 'alumno__representante__apellido', 'alumno__representante__cedula',
+    'cliente__nombre', 'cliente__apellido', 'cliente__documento',
 ]
 AREAS_VALIDAS = dict(AREAS)
 # Métodos de cobranza en los que se guardan los datos bancarios de la venta.
@@ -565,9 +566,9 @@ class BuscarRepresentantePorCedulaView(APIView):
 
 class AsignarTarjetaView(APIView):
     """
-    POST <tarjeta_id>/asignar/ {alumno_id}: vincula una tarjeta
-    'sin_asignar' a un alumno. Verifica ANTES de guardar si el alumno ya
-    tiene una tarjeta (viola el OneToOneField) para responder 409 con un
+    POST <tarjeta_id>/asignar/ {alumno_id} o {cliente_id}: vincula una tarjeta
+    'sin_asignar' a un alumno o a una persona de CxC (personal u otro).
+    Verifica ANTES de guardar si el titular ya tiene una tarjeta (viola el OneToOneField) para responder 409 con un
     conflicto explícito en vez de dejar reventar un IntegrityError sin
     capturar — ver §5.1 punto 5 / §10 checklist de cantina.md.
     """
@@ -575,14 +576,25 @@ class AsignarTarjetaView(APIView):
 
     def post(self, request, tarjeta_id):
         alumno_id = request.data.get('alumno_id')
-        if not alumno_id:
+        cliente_id = request.data.get('cliente_id')
+        if bool(alumno_id) == bool(cliente_id):
             return Response(
-                {'detail': "El campo 'alumno_id' es obligatorio."},
+                {'detail': "Debe indicar 'alumno_id' o 'cliente_id' (solo uno)."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         get_object_or_404(TarjetaPrepago, pk=tarjeta_id)  # 404 temprano si el id no existe, antes de tomar el lock
-        alumno = get_object_or_404(Alumno, pk=alumno_id)
+        if alumno_id:
+            titular, campo = get_object_or_404(Alumno, pk=alumno_id), 'alumno'
+            nombre_titular = f'{titular.nombre} {titular.apellido}'
+        else:
+            titular, campo = get_object_or_404(ClienteCantina, pk=cliente_id), 'cliente'
+            nombre_titular = titular.nombre_completo
+            if not titular.activo:
+                return Response(
+                    {'detail': f'{nombre_titular} está inactivo; actívelo antes de asignarle una tarjeta.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         with transaction.atomic():
             # select_for_update() bloquea la fila de la tarjeta durante toda
@@ -598,22 +610,22 @@ class AsignarTarjetaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            tarjeta_existente = TarjetaPrepago.objects.filter(alumno_id=alumno.id).first()
+            tarjeta_existente = TarjetaPrepago.objects.filter(**{campo: titular}).first()
             if tarjeta_existente:
                 return Response(
                     {
                         'conflicto': True,
-                        'detail': f'{alumno.nombre} {alumno.apellido} ya tiene una tarjeta asignada ({tarjeta_existente.serial}). '
+                        'detail': f'{nombre_titular} ya tiene una tarjeta asignada ({tarjeta_existente.serial}). '
                                   'Si la tarjeta actual se extravió o dañó, use el flujo de reposición en vez de asignar una nueva.',
                         'tarjeta_existente_id': tarjeta_existente.id,
                     },
                     status=status.HTTP_409_CONFLICT,
                 )
 
-            tarjeta.alumno = alumno
+            setattr(tarjeta, campo, titular)
             tarjeta.estado = 'activa'
             tarjeta.asignada_en = timezone.now()
-            tarjeta.save(update_fields=['alumno', 'estado', 'asignada_en', 'actualizado_en'])
+            tarjeta.save(update_fields=[campo, 'estado', 'asignada_en', 'actualizado_en'])
 
         return Response(TarjetaPrepagoSerializer(tarjeta).data, status=status.HTTP_200_OK)
 
@@ -693,14 +705,14 @@ class BuscarTarjetaView(APIView):
         codigo = request.query_params.get('codigo')
         serial = request.query_params.get('serial')
         nombre = (request.query_params.get('nombre') or '').strip()
-        tarjetas = TarjetaPrepago.objects.select_related('alumno').filter(estado='activa')
+        tarjetas = TarjetaPrepago.objects.select_related('alumno', 'cliente').filter(estado='activa')
 
         # Búsqueda por nombre o cédula, sin distinguir tildes ni mayúsculas.
         # Siempre devuelve una lista para que el cajero elija.
         if nombre and not codigo and not serial:
             tarjetas = filtrar_busqueda(
-                tarjetas.select_related('alumno__representante'), nombre, CAMPOS_BUSQUEDA_TITULAR,
-            ).order_by('alumno__apellido', 'alumno__nombre', 'id')
+                tarjetas.select_related('alumno__representante', 'cliente'), nombre, CAMPOS_BUSQUEDA_TITULAR,
+            ).order_by('alumno__apellido', 'alumno__nombre', 'cliente__apellido', 'cliente__nombre', 'id')
             resultados = list(tarjetas[:TOPE_BUSQUEDA_TARJETAS + 1])
             return Response({
                 'resultados': TarjetaPrepagoSerializer(

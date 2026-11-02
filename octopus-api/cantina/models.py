@@ -113,6 +113,8 @@ class TarjetaPrepago(models.Model):
     # campo fuera NOT NULL, generar el lote de 50 tarjetas en blanco sería
     # imposible. Se asigna después vía el flujo de "Asignar tarjeta" (§5.1).
     alumno = models.OneToOneField(Alumno, null=True, blank=True, on_delete=models.CASCADE, related_name='tarjeta_cantina')
+    # Titular alternativo: personal u otras personas registradas en CxC.
+    cliente = models.OneToOneField('cantina.ClienteCantina', null=True, blank=True, on_delete=models.PROTECT, related_name='tarjeta_cantina')
     lote = models.ForeignKey(LoteTarjetas, null=True, blank=True, on_delete=models.SET_NULL, related_name='tarjetas')
     serial = models.CharField(max_length=20, unique=True, db_index=True)  # identificador humano, ej. 'L003-0007' — NUNCA es credencial de cobro
     codigo = models.CharField(max_length=50, unique=True, db_index=True)  # payload real del QR — CANT-XXXXXXXXXX, única credencial válida para vender
@@ -126,9 +128,19 @@ class TarjetaPrepago(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=['codigo']), models.Index(fields=['serial'])]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(alumno__isnull=False, cliente__isnull=False),
+                name='tarjeta_prepago_titular_unico',
+            ),
+        ]
+
+    @property
+    def titular(self):
+        return self.alumno or self.cliente
 
     def __str__(self):
-        return f'{self.serial} — {self.alumno or "sin asignar"}'
+        return f'{self.serial} — {self.titular or "sin asignar"}'
 
 
 class HistorialCodigoTarjeta(models.Model):

@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from secretaria.models import Alumno, Representante
 
-from .models import HistorialCodigoTarjeta, LoteTarjetas, TarjetaPrepago
+from .models import ClienteCantina, HistorialCodigoTarjeta, LoteTarjetas, TarjetaPrepago
 from .services_tarjeta import ALFABETO_CODIGO, PREFIJO_CODIGO, generar_codigo_tarjeta
 
 User = get_user_model()
@@ -270,10 +270,63 @@ class CantinaFase2ViewsTests(TestCase):
         self.assertFalse(TarjetaPrepago.objects.filter(codigo=codigo_viejo).exists())
 
     def test_reponer_tarjeta_motivo_invalido_rechazado(self):
-        tarjeta = TarjetaPrepago.objects.create(serial='L001-0008', codigo='CANT-HHHHHHHHHH')
+        tarjeta = TarjetaPrepago.objects.create(serial='L001-0008', codigo='CANT-KKKKKKKKKK')
         self.client.force_authenticate(user=self.admin_user)
         resp = self.client.post(
             f'/api/cantina/tarjetas/{tarjeta.id}/reponer/', {'motivo': 'otro'}, format='json',
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(HistorialCodigoTarjeta.objects.filter(tarjeta=tarjeta).count(), 0)
+
+
+class AsignarTarjetaClienteTests(TestCase):
+    """Tarjetas para personal u otras personas registradas en CxC."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.cajero_user = User.objects.create_user(username='cajero_clientes', password='password123')
+        self.cajero_user.perfil.rol = 'cajero'
+        self.cajero_user.perfil.esta_activo = True
+        self.cajero_user.perfil.save()
+        representante = Representante.objects.create(cedula='V-7777777', nombre='Ana', apellido='Mora')
+        self.alumno = Alumno.objects.create(nombre='Luis', apellido='Mora', representante=representante, grado_seccion='1ro A')
+        self.cliente = ClienteCantina.objects.create(nombre='Ramón', apellido='Pérez', tipo='personal', documento='V-123')
+        self.tarjeta = TarjetaPrepago.objects.create(serial='L002-0001', codigo='CANT-KKKKKKKKKK')
+        self.client.force_authenticate(user=self.cajero_user)
+
+    def _asignar(self, datos, tarjeta=None):
+        return self.client.post(f'/api/cantina/tarjetas/{(tarjeta or self.tarjeta).id}/asignar/', datos, format='json')
+
+    def test_asigna_a_cliente(self):
+        resp = self._asignar({'cliente_id': self.cliente.id})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.tarjeta.refresh_from_db()
+        self.assertEqual((self.tarjeta.estado, self.tarjeta.cliente_id, self.tarjeta.alumno_id), ('activa', self.cliente.id, None))
+        self.assertEqual(self.tarjeta.saldo, Decimal('0.00'))
+        self.assertEqual(self.tarjeta.limite_credito, Decimal('5.00'))
+
+    def test_exige_un_solo_titular(self):
+        self.assertEqual(self._asignar({}).status_code, status.HTTP_400_BAD_REQUEST)
+        resp = self._asignar({'cliente_id': self.cliente.id, 'alumno_id': self.alumno.id})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rechaza_cliente_inactivo(self):
+        ClienteCantina.objects.filter(pk=self.cliente.pk).update(activo=False)
+        self.assertEqual(self._asignar({'cliente_id': self.cliente.id}).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_conflicto_si_cliente_ya_tiene_tarjeta(self):
+        self._asignar({'cliente_id': self.cliente.id})
+        otra = TarjetaPrepago.objects.create(serial='L002-0002', codigo='CANT-IIIIIIIIII')
+        resp = self._asignar({'cliente_id': self.cliente.id}, otra)
+        self.assertEqual(resp.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(resp.data['tarjeta_existente_id'], self.tarjeta.id)
+
+    def test_constraint_impide_alumno_y_cliente_a_la_vez(self):
+        from django.db import IntegrityError, transaction
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            TarjetaPrepago.objects.create(serial='L002-0003', codigo='CANT-JJJJJJJJJJ', alumno=self.alumno, cliente=self.cliente)
+
+    def test_busqueda_por_nombre_encuentra_cliente_sin_tildes(self):
+        self._asignar({'cliente_id': self.cliente.id})
+        resp = self.client.get('/api/cantina/tarjetas/buscar/', {'nombre': 'ramon perez'})
+        self.assertEqual([t['serial'] for t in resp.data['resultados']], ['L002-0001'])
