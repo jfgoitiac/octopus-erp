@@ -21,6 +21,8 @@ import {
   esMetodoBancario, esMetodoVes, validarMetodoPago, valorInicialMetodo, camposMetodoVenta, etiquetaMetodo,
 } from '../../components/cantina/metodoPagoUtils';
 import CargoCuentaPanel from '../../components/cantina/pos/CargoCuentaPanel';
+import AlumnoVentaPanel from '../../components/cantina/pos/AlumnoVentaPanel';
+import { esCliente } from '../../components/cantina/cxc/utilsCxc';
 import { evaluarCredito } from '../../components/cantina/pos/evaluarCredito';
 import CarritoVenta from '../../components/cantina/pos/CarritoVenta';
 import ScannerProducto from '../../components/cantina/pos/ScannerProducto';
@@ -122,7 +124,8 @@ export default function CantinaPOS() {
   const [datosPago, setDatosPago] = useState(() => valorInicialMetodo('efectivo'));
   const [bancos, setBancos] = useState([]);
 
-  // "Cargar a cuenta" (CxC): representante elegido y alumno que consumió.
+  // Representante elegido y alumno que consumió: obligatorio el primero en
+  // "Cargar a cuenta" (CxC); ambos opcionales en efectivo y banco.
   const [representante, setRepresentante] = useState(null);
   const [alumnoId, setAlumnoId] = useState('');
 
@@ -398,7 +401,9 @@ export default function CantinaPOS() {
     // Los datos bancarios no se arrastran entre métodos (cada uno tiene su
     // formato de referencia).
     setDatosPago(valorInicialMetodo(m));
-    if (m !== 'credito_representante') {
+    // El alumno elegido se conserva al cambiar entre efectivo, banco y cuenta;
+    // la tarjeta ya lo identifica, y un cliente general no tiene alumnos.
+    if (m === 'tarjeta_prepago' || (m !== 'credito_representante' && esCliente(representante))) {
       setRepresentante(null);
       setAlumnoId('');
     }
@@ -506,12 +511,15 @@ export default function CantinaPOS() {
       descuento_usd: descuentoUsd.toFixed(2),
       origen_producto: origenProductos(carrito),
       // Solo la tarjeta prepago identifica alumno por escáner o búsqueda; en
-      // "Cargar a cuenta" el alumno sale del representante elegido (no aplica).
+      // los demás métodos el alumno sale del representante elegido (no aplica).
       origen_alumno: metodoPago === 'tarjeta_prepago' ? (origenTarjeta ?? 'manual') : 'no_aplica',
     };
     if (descuentoUsd > 0) payload.motivo_descuento = motivoDescuento.trim();
     if (metodoPago === 'tarjeta_prepago') payload.tarjeta_codigo = tarjeta.codigo;
     if (esMetodoBancario(metodoPago)) Object.assign(payload, camposMetodoVenta(valorPago));
+    if (metodoPago !== 'tarjeta_prepago' && metodoPago !== 'credito_representante' && alumnoId) {
+      payload.alumno_id = Number(alumnoId);
+    }
     if (metodoPago === 'credito_representante') {
       // Un cliente general (personal/otro) va por cliente_id; sin alumno.
       if (representante.tipo && representante.tipo !== 'representante') {
@@ -657,6 +665,17 @@ export default function CantinaPOS() {
           alumnoId={alumnoId}
           onCambiarAlumno={setAlumnoId}
           totalUsd={totalUsd}
+          disabled={cobrando}
+        />
+      )}
+
+      {metodoPago !== 'tarjeta_prepago' && metodoPago !== 'credito_representante' && (
+        <AlumnoVentaPanel
+          representante={representante}
+          onSeleccionar={seleccionarRepresentante}
+          onQuitar={cambiarRepresentante}
+          alumnoId={alumnoId}
+          onCambiarAlumno={setAlumnoId}
           disabled={cobrando}
         />
       )}

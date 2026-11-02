@@ -141,7 +141,8 @@ en total, y la lista de sus compras con los productos de cada una. Toca una
 compra para ver el detalle: productos, cantidades, precios, descuento, forma de
 pago y lo que quede por pagar. Las compras anuladas aparecen marcadas como
 **"Anulada"** y no suman en los totales. Solo aparecen las compras identificadas
-con el alumno: las pagadas con su tarjeta o cargadas a tu cuenta a su nombre.
+con el alumno: las pagadas con su tarjeta, las cargadas a tu cuenta a su nombre y
+las de efectivo o banco en las que el cajero indicó al alumno.
 En **"Consumos pendientes"** también puedes tocar cada cargo para ver qué se
 compró.
 

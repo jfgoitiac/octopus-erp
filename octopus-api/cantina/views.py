@@ -1068,7 +1068,8 @@ class RegistrarVentaView(APIView):
           "metodo_pago": "tarjeta_prepago" | <método de cobranza> | "credito_representante",
           "tarjeta_codigo": "CANT-XXXXXXXXXX",   # solo si metodo_pago == "tarjeta_prepago"
           "banco_receptor": id, "banco_procedencia", "referencia", "numero_lote",  # métodos bancarios
-          "representante_id": id, "alumno_id": id,  # solo si metodo_pago == "credito_representante"
+          "representante_id": id,  # solo si metodo_pago == "credito_representante"
+          "alumno_id": id,  # opcional: quién consumió (no aplica con tarjeta, que ya identifica al alumno)
           "descuento_usd": "0.50", "motivo_descuento": "...",  # opcional (D1); motivo obligatorio si > 0
           "origen_producto": "escaner" | "manual" | "mixto",    # opcional (D2), default 'escaner'
           "origen_alumno": "escaner" | "manual" | "no_aplica"   # opcional (D2), default 'no_aplica'
@@ -1312,6 +1313,22 @@ class RegistrarVentaView(APIView):
                 if not alumno:
                     return Response(
                         {'error': 'El alumno indicado no es hijo del representante seleccionado.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        # ── Alumno opcional en efectivo/banco: solo identifica quién consumió
+        # para el estado de cuenta del portal; no afecta el cobro ──────────
+        if metodo_pago in dict(Pago.METODOS):
+            alumno_id = request.data.get('alumno_id')
+            if alumno_id not in (None, ''):
+                alumno_pk = _entero_o_none(alumno_id)
+                alumno = (
+                    Alumno.objects.filter(pk=alumno_pk, activo=True).first()
+                    if alumno_pk is not None else None
+                )
+                if not alumno:
+                    return Response(
+                        {'error': f"No se encontró ningún alumno activo con id '{_texto_seguro(alumno_id)}'."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 

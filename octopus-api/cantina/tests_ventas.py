@@ -109,6 +109,34 @@ class RegistrarVentaViewTests(VentaCantinaTestsBase):
         self.assertEqual(self.jugo.stock_actual, 8)
         self.assertEqual(MovimientoInventario.objects.filter(producto=self.jugo, tipo='salida').count(), 1)
 
+    def test_venta_efectivo_puede_indicar_el_alumno_que_consume(self):
+        self.client.force_authenticate(user=self.cajero_user)
+        resp = self.client.post('/api/cantina/ventas/registrar/', {
+            'items': [{'producto_id': self.jugo.id, 'cantidad': 1}],
+            'metodo_pago': 'efectivo',
+            'alumno_id': self.alumno.id,
+        }, format='json')
+
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertEqual(resp.data['alumno'], self.alumno.id)
+        self.assertIsNone(resp.data['tarjeta'])
+        self.tarjeta.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('10.00'))
+
+    def test_venta_efectivo_rechaza_alumno_inexistente_o_inactivo(self):
+        inactivo = Alumno.objects.create(
+            nombre='Luis', apellido='Salas', representante=self.representante, grado_seccion='5to A', activo=False,
+        )
+        self.client.force_authenticate(user=self.cajero_user)
+        for alumno_id in (999999, inactivo.id, 'abc'):
+            resp = self.client.post('/api/cantina/ventas/registrar/', {
+                'items': [{'producto_id': self.jugo.id, 'cantidad': 1}],
+                'metodo_pago': 'efectivo',
+                'alumno_id': alumno_id,
+            }, format='json')
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.data)
+        self.assertEqual(VentaCantina.objects.count(), 0)
+
     def test_venta_efectivo_ves_tambien_sin_datos_de_cliente(self):
         self.client.force_authenticate(user=self.cajero_user)
         resp = self.client.post('/api/cantina/ventas/registrar/', {

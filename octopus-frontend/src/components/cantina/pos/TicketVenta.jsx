@@ -182,6 +182,12 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
             </span>
           </div>
         )}
+        {venta.alumno_nombre && !venta.representante_nombre && !venta.tarjeta_serial && (
+          <div className="flex justify-between gap-3 text-xs" style={{ color: 'var(--ash)' }}>
+            <span>Alumno</span>
+            <span className="text-right">{venta.alumno_nombre}</span>
+          </div>
+        )}
         {venta.tarjeta_serial && (
           <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
             <span>Tarjeta / Titular</span>
