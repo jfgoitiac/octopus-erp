@@ -48,23 +48,13 @@ La apertura es **por cajero**: cada persona abre la suya.
 
 ### Tasa de cambio de la cantina
 
-En la barra lateral verás **"Tasa Cantina: Bs. X · desde dd/MM HH:mm"**. Es la tasa
-que la cantina usa para convertir dólares a bolívares en ventas, recargas y
-abonos. Debajo, en gris, aparece la **tasa BCV de referencia**. Si nunca se ha
-configurado una tasa propia, la cantina usa la BCV.
+En la barra lateral verás **"Tasa BCV: Bs. X · desde dd/MM HH:mm"**. Es la misma
+tasa de Cobranza, y la cantina y la librería la usan para convertir dólares a
+bolívares en ventas, recargas y abonos. No se cambia desde la cantina: se
+actualiza sola con la sincronización del BCV.
 
-- **Cualquier cajero** puede ver la tasa y su **historial** (botón del reloj):
-  fecha, tasa anterior, tasa nueva, quién la cambió y el motivo.
-- **Solo quien tenga permiso** ve el lápiz para cambiarla: el director, el
-  superusuario y los usuarios a quienes Sistemas les otorgó el permiso
-  (**Sistemas > Usuarios**, botón de monedas).
-
-Para cambiarla: toca el lápiz, escribe la nueva tasa, un motivo (opcional) y
-**"Guardar tasa"**. Verás **"Tasa de Cantina actualizada."**.
-
-> **El cambio aplica solo a ventas desde ahora.** Las ventas, recargas y abonos
-> ya registrados conservan la tasa con la que se hicieron. El historial no se
-> puede editar ni borrar.
+> **Un cambio de tasa aplica solo a las operaciones nuevas.** Las ventas, recargas
+> y abonos ya registrados conservan la tasa con la que se hicieron.
 
 ---
 
@@ -401,7 +391,7 @@ mano.
    - **Transferencia, pago móvil, Zelle y punto de venta:** banco receptor y
      referencia. El punto de venta además pide el lote de 4 dígitos.
    - **Métodos en bolívares:** escribe el monto en bolívares; el sistema calcula
-     los dólares con la tasa vigente de la cantina.
+     los dólares con la tasa BCV vigente.
    - **Métodos en divisas:** escribe el monto en dólares; el sistema calcula los
      bolívares.
 4. Revisa el total contra la deuda. **"Pagar todo"** completa el saldo.
