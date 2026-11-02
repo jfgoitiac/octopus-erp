@@ -290,7 +290,7 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1793621146.1141672,
+    "mtime": 1793622592.6272647,
     "ast_hash": "ebd46b73eb67982bbc5e5fdb76f605ac",
     "semantic_hash": ""
   },
@@ -600,8 +600,8 @@
     "semantic_hash": ""
   },
   "octopus-api/portal/serializers.py": {
-    "mtime": 1792670130.1869676,
-    "ast_hash": "f8653c90723f09dc4715d5e645134459",
+    "mtime": 1793638867.2486613,
+    "ast_hash": "d5ddc37c34198c488e65dc3928b6d57e",
     "semantic_hash": ""
   },
   "octopus-api/portal/tasks.py": {
@@ -615,13 +615,13 @@
     "semantic_hash": ""
   },
   "octopus-api/portal/urls.py": {
-    "mtime": 1793304416.182294,
-    "ast_hash": "a50906b6893f44ffba8ebd70214337c4",
+    "mtime": 1793638956.9184318,
+    "ast_hash": "8407936448e566a52c1761e8ffe73984",
     "semantic_hash": ""
   },
   "octopus-api/portal/views.py": {
-    "mtime": 1793304416.182294,
-    "ast_hash": "9027ee27fc70950188abca8657a689ab",
+    "mtime": 1793638869.8163111,
+    "ast_hash": "056d9b030b6f73b33bc72b306587fee9",
     "semantic_hash": ""
   },
   "octopus-api/rrhh/__init__.py": {
@@ -1430,8 +1430,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/alumnos/ModalAjustarMensualidades.jsx": {
-    "mtime": 1793620448.7408426,
-    "ast_hash": "2a0470c451dbc330d19e5e87d754f748",
+    "mtime": 1793622592.6292715,
+    "ast_hash": "7b480117a90162ee6e92ecc1a466dc6b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/alumnos/ModalAsignarGrado.jsx": {
@@ -1825,8 +1825,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useMensualidadesAlumno.js": {
-    "mtime": 1793620447.0052366,
-    "ast_hash": "19544467817ee2aeca18432e8d20d7fd",
+    "mtime": 1793622592.6314998,
+    "ast_hash": "e9da10bf615dc193c3a06849ca618a4c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useMorosos.js": {
@@ -2040,8 +2040,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/api/portal.service.js": {
-    "mtime": 1793304416.213944,
-    "ast_hash": "3939685370e795b06995f477f730ff6b",
+    "mtime": 1793639488.8052042,
+    "ast_hash": "e97f687ae2fe42cc41379d0be833ab0a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/api/portalClient.js": {
@@ -2546,8 +2546,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1793621462.4920413,
-    "ast_hash": "b9947640096ad27458b5ae07a65c39e6",
+    "mtime": 1793639509.3523698,
+    "ast_hash": "df608af14454a85d28265d7d303dafaf",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -3800,8 +3800,8 @@
     "semantic_hash": ""
   },
   "octopus-api/portal/tests_cantina.py": {
-    "mtime": 1791296243.9816186,
-    "ast_hash": "7d12011a1b6379971e8fbf6e50acb188",
+    "mtime": 1793638874.7972803,
+    "ast_hash": "dd8e65b1c7aa0da97563bbcab1b049c1",
     "semantic_hash": ""
   },
   "octopus-api/rrhh/migrations/0008_alter_empleado_tipo_personal.py": {
@@ -4324,11 +4324,6 @@
     "ast_hash": "75ae35d42dc6c35c9e3e364ae8c83a5f",
     "semantic_hash": ""
   },
-  "octopus-frontend/src/portal/components/HistorialConsumoList.jsx": {
-    "mtime": 1792670130.1969857,
-    "ast_hash": "a3c8d536948a48efac010d883f0c66f0",
-    "semantic_hash": ""
-  },
   "octopus-frontend/src/portal/components/NotificacionesModal.jsx": {
     "mtime": 1791483300.469946,
     "ast_hash": "ef00124e30fe486b5403c3ada4230136",
@@ -4395,8 +4390,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/pages/PortalCantina.jsx": {
-    "mtime": 1793110830.0067334,
-    "ast_hash": "5decace02d23a6a9d80f361fc456ea94",
+    "mtime": 1793639493.2392516,
+    "ast_hash": "fa0e8d1418c751f83096d21be89141af",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/pages/PortalOlvideContrasena.jsx": {
@@ -5250,8 +5245,8 @@
     "semantic_hash": ""
   },
   "docs/manual/10-alumnos.md": {
-    "mtime": 1793621448.693172,
-    "ast_hash": "ef7c86584cd3908be21b2ef63a1b5225",
+    "mtime": 1793622592.5183673,
+    "ast_hash": "aa34a0a66dc8c294edc1456272de36a0",
     "semantic_hash": ""
   },
   "docs/manual/11-representantes.md": {
@@ -5355,8 +5350,8 @@
     "semantic_hash": ""
   },
   "docs/manual/31-portal-representantes.md": {
-    "mtime": 1791488329.4351077,
-    "ast_hash": "08dccf3191546ee040b7f2d8cd166673",
+    "mtime": 1793639495.7091355,
+    "ast_hash": "5a33cddde8b13f40b024aba26cd40607",
     "semantic_hash": ""
   },
   "docs/manual/32-portal-docente.md": {
@@ -6260,8 +6255,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/CuentaCantinaCard.jsx": {
-    "mtime": 1792670130.1949737,
-    "ast_hash": "d871a73e1c873aee4d6d2745f9ba952b",
+    "mtime": 1793639490.7985485,
+    "ast_hash": "df23d501b15e33f1a33eda66960d143b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/InstruccionesIOSModal.jsx": {
@@ -8131,18 +8126,28 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1793620449.2160387,
-    "ast_hash": "99669b8df7baeda4ee6fde27c51a59fd",
+    "mtime": 1793639493.9197488,
+    "ast_hash": "140ab72ba354c8edb36efeaca0ae973d",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_ajuste_mensualidades.py": {
-    "mtime": 1793619598.6521485,
-    "ast_hash": "624f4560ec2d300345691025ec223aa0",
+    "mtime": 1793622592.6265855,
+    "ast_hash": "a87b97ce9a8f057cc1acafa117e7257b",
     "semantic_hash": ""
   },
   "octopus-frontend/.impeccable/hook.cache.json": {
     "mtime": 1793192838.9115307,
     "ast_hash": "880c886f1af73afea814e6f39f00d072",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/DetalleConsumoModal.jsx": {
+    "mtime": 1793639485.1172376,
+    "ast_hash": "9d50928155f17bfb4726a219619eb3f6",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/EstadoCuentaConsumos.jsx": {
+    "mtime": 1793639487.1528606,
+    "ast_hash": "a9076b779465a47c13dc9354ecf26e70",
     "semantic_hash": ""
   }
 }
