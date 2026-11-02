@@ -1299,7 +1299,7 @@ class AdminComprobantesView(APIView):
 
     def _detalle(self, request, comprobante_id):
         from cobranza.deudas import saldo_deuda
-        from .services import advertencias_hash
+        from .services import advertencia_mensualidad_saldada, advertencias_hash
 
         c = ComprobantePago.objects.select_related(
             'mensualidad__alumno__representante', 'banco_receptor', 'revisado_por', 'pago',
@@ -1315,7 +1315,10 @@ class AdminComprobantesView(APIView):
             'monto_pagado_usd': _dinero(mensualidad.monto_pagado),
             'saldo_pendiente_usd': _dinero(saldo_deuda(mensualidad)),
             # Chequeo previo de solo lectura (mismo que se recalcula al aprobar).
-            'advertencias': advertencias_hash(c) if c.estatus == 'pendiente' else [],
+            'advertencias': (
+                advertencias_hash(c) + advertencia_mensualidad_saldada(c)
+                if c.estatus == 'pendiente' else []
+            ),
             'motivo_rechazo_id': c.motivo_rechazo_id,
             'alumno_id': mensualidad.alumno_id,
             'revisado_por': c.revisado_por.username if c.revisado_por_id else None,

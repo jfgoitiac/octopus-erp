@@ -99,6 +99,28 @@ def advertencias_hash(comprobante):
     ]
 
 
+def advertencia_mensualidad_saldada(comprobante):
+    """
+    Un comprobante pendiente cuya mensualidad ya quedó saldada por otra vía
+    (pago en caja sin enlazar el comprobante, saldo a favor, ajuste manual):
+    el portal solo bloquea subir comprobantes de mensualidades ya pagadas, no
+    que se paguen después. No se resuelve solo porque no se puede saber si el
+    archivo respalda ese pago o es un pago adicional; se avisa al revisor.
+    """
+    from cobranza.deudas import saldo_deuda
+    mensualidad = comprobante.mensualidad
+    if comprobante.estatus != 'pendiente' or saldo_deuda(mensualidad) > 0:
+        return []
+    fecha = (
+        f' el {timezone.localtime(mensualidad.fecha_pago):%d/%m/%Y}' if mensualidad.fecha_pago else ''
+    )
+    return [
+        f'La mensualidad ya está saldada por un pago registrado{fecha} sin enlazar '
+        'este comprobante. Verifica si el archivo corresponde a ese pago: si es así, '
+        'recházalo para cerrarlo; si no, revisa el estado de cuenta antes de procesarlo.'
+    ]
+
+
 def resolver_comprobante(comprobante_id, usuario, observaciones='', motivo_rechazo=None):
     """
     Rechaza un comprobante pendiente (panel). Aprobar se hace registrando el

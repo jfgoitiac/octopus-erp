@@ -257,6 +257,22 @@ class RechazoTests(RevisionBase):
 
 
 class DetalleListaTests(RevisionBase):
+    def test_detalle_advierte_mensualidad_saldada_por_otra_via(self):
+        # Pago registrado en caja sin comprobante_portal_id: el comprobante
+        # queda pendiente con saldo 0 (estado legítimo, pero se avisa).
+        self.mensualidad.monto_pagado = self.mensualidad.monto_usd
+        self.mensualidad.save()
+        self._auth_admin()
+        resp = self.client.get(f'{URL}{self.comprobante.id}/')
+        self.assertEqual(resp.data['saldo_pendiente_usd'], '0.00')
+        self.assertEqual(resp.data['estatus'], 'pendiente')
+        self.assertTrue(any('ya está saldada' in a for a in resp.data['advertencias']))
+
+    def test_detalle_sin_advertencia_si_hay_saldo(self):
+        self._auth_admin()
+        resp = self.client.get(f'{URL}{self.comprobante.id}/')
+        self.assertFalse(any('ya está saldada' in a for a in resp.data['advertencias']))
+
     def test_lista_trae_campos_nuevos(self):
         self._auth_admin()
         resp = self.client.get(f'{URL}?estatus=pendiente')
