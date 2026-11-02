@@ -267,6 +267,11 @@ class SuscripcionPushView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         tipos = request.data.get('tipos') or _tipos_push_default()
+        if not isinstance(tipos, list) or not set(tipos).issubset(TiposPushView.TIPOS_VALIDOS):
+            return Response(
+                {'error': f'`tipos` debe ser una lista dentro de {sorted(TiposPushView.TIPOS_VALIDOS)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         suscripcion, _creada = SuscripcionPush.objects.update_or_create(
             endpoint=endpoint,

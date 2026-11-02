@@ -63,6 +63,17 @@ class SuscripcionPushTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(SuscripcionPush.objects.exists())
 
+    def test_suscribir_con_tipos_invalidos_rechaza(self):
+        # Un string pasaría el `in` de _push_representante como subcadena.
+        self.client.force_authenticate(user=self.user)
+        for tipos in ('factura', ['factura', 'spam']):
+            resp = self.client.post(
+                '/api/portal/notificaciones/push/suscribir/',
+                {**self.payload, 'tipos': tipos}, format='json',
+            )
+            self.assertEqual(resp.status_code, 400, tipos)
+        self.assertFalse(SuscripcionPush.objects.exists())
+
     def test_resuscribir_mismo_endpoint_reactiva_en_vez_de_duplicar(self):
         self.client.force_authenticate(user=self.user)
         self.client.post('/api/portal/notificaciones/push/suscribir/', self.payload, format='json')
