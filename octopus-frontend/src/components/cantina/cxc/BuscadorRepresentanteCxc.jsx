@@ -3,7 +3,7 @@ import { Search, Users, UserPlus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { buscarRepresentantesCxc } from '../../../api/cantina.service';
 import {
-  fmtUsd, nombreCompleto, num, listaDe, esCancelacion, mensajeError, TIPO_LABELS, claveCuenta,
+  fmtUsd, nombreCompleto, num, listaDe, esCancelacion, mensajeError, TIPO_LABELS, claveCuenta, esCliente,
 } from './utilsCxc';
 import ClienteFormModal from './ClienteFormModal';
 
@@ -13,7 +13,8 @@ const DEBOUNCE_MS = 300;
 // Buscador de representante por nombre, apellido, cédula o datos de su alumno
 // (GET cxc/buscar/). También devuelve clientes generales (personal/otro): cada
 // resultado trae `tipo`. Props: { onSelect, autoFocus, placeholder, paraVenta,
-// permitirAgregarCliente }. `paraVenta` oculta clientes inactivos; con
+// permitirAgregarCliente, soloClientes }. `paraVenta` oculta clientes inactivos;
+// `soloClientes` oculta representantes; con
 // `permitirAgregarCliente` se muestra "Agregar cliente" y el nuevo se selecciona solo.
 const BuscadorRepresentanteCxc = ({
   onSelect,
@@ -21,6 +22,7 @@ const BuscadorRepresentanteCxc = ({
   placeholder = 'Buscar representante, cliente o alumno…',
   paraVenta = false,
   permitirAgregarCliente = false,
+  soloClientes = false,
 }) => {
   const [texto, setTexto] = useState('');
   const [agregando, setAgregando] = useState(false);
@@ -44,7 +46,8 @@ const BuscadorRepresentanteCxc = ({
       setCargando(true);
       buscarRepresentantesCxc(consulta, controller.signal, { paraVenta })
         .then(res => {
-          setEncontrados({ para: consulta, lista: listaDe(res.data) });
+          const lista = listaDe(res.data);
+          setEncontrados({ para: consulta, lista: soloClientes ? lista.filter(esCliente) : lista });
           setActivo(-1);
           setAbierto(true);
         })
@@ -61,7 +64,7 @@ const BuscadorRepresentanteCxc = ({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [consulta, buscable, paraVenta]);
+  }, [consulta, buscable, paraVenta, soloClientes]);
 
   // Cierra la lista al hacer click fuera del buscador.
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Search, Loader2 } from 'lucide-react';
 import { buscarTarjetaActiva } from '../../../api/cantina.service';
+import { TIPO_LABELS } from '../cxc/utilsCxc';
 
 // Serial impreso en la tarjeta: L003-0007. Todo lo demás que no sea código
 // CANT-... se interpreta como nombre del alumno.
@@ -127,9 +128,9 @@ export default function BuscadorAlumnoManual({ onTarjetaResuelta, disabled = fal
                 aria-current={i === activo}
                 className={`w-full text-left px-3 py-2.5 min-h-[44px] ${i === activo ? 'bg-black/5' : 'bg-white'}`}
               >
-                <span className="block text-sm font-medium" style={{ color: 'var(--jet)' }}>{t.alumno_nombre}</span>
+                <span className="block text-sm font-medium" style={{ color: 'var(--jet)' }}>{t.titular_nombre || t.alumno_nombre}</span>
                 <span className="block text-xs" style={{ color: 'var(--ash)' }}>
-                  {[t.alumno_grado_seccion, t.representante_nombre && `Repr.: ${t.representante_nombre}`, t.serial].filter(Boolean).join(' · ')}
+                  {[t.alumno_grado_seccion || TIPO_LABELS[t.titular_tipo], t.representante_nombre && `Repr.: ${t.representante_nombre}`, t.serial].filter(Boolean).join(' · ')}
                 </span>
               </button>
             </li>

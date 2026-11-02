@@ -1,18 +1,19 @@
 import { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { Loader2, ScanLine, Search, UserRound, AlertTriangle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Loader2, ScanLine, Search, UserRound, AlertTriangle, CheckCircle2, ArrowLeft, GraduationCap, BriefcaseBusiness } from 'lucide-react';
 import {
   buscarTarjetaSinAsignar, buscarRepresentantePorCedula, asignarTarjeta,
 } from '../../../api/cantina.service';
 import { Modal } from '../../ui/Modal';
+import BuscadorRepresentanteCxc from '../cxc/BuscadorRepresentanteCxc';
+import { nombreCompleto, TIPO_LABELS } from '../cxc/utilsCxc';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const LABEL_STYLE = { color: 'var(--ash)' };
 
-const PASOS = [
-  { n: 1, label: 'Tarjeta' },
-  { n: 2, label: 'Representante' },
-  { n: 3, label: 'Alumno' },
+const TIPOS_TITULAR = [
+  { value: 'alumno', label: 'Alumno', Icono: GraduationCap },
+  { value: 'cliente', label: 'Otra persona', Icono: BriefcaseBusiness },
 ];
 
 // El QR codifica siempre el `codigo` con prefijo CANT- (§5.1 cantina.md); el
@@ -31,7 +32,9 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
   const [tarjeta, setTarjeta] = useState(null);
   const [errorTarjeta, setErrorTarjeta] = useState('');
 
-  // Paso 2
+  // Paso 2 — alumno (vía cédula del representante) u otra persona de CxC
+  const [tipoTitular, setTipoTitular] = useState('alumno');
+  const [cliente, setCliente] = useState(null);
   const [cedula, setCedula] = useState('');
   const [buscandoRep, setBuscandoRep] = useState(false);
   const [representante, setRepresentante] = useState(null);
@@ -106,15 +109,31 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
     }
   };
 
+  const esCliente = tipoTitular === 'cliente';
+  const PASOS = [
+    { n: 1, label: 'Tarjeta' },
+    { n: 2, label: 'Titular' },
+    { n: 3, label: esCliente ? 'Confirmar' : 'Alumno' },
+  ];
+
+  const elegirCliente = (c) => {
+    if (c.activo === false) {
+      toast.warning(`${nombreCompleto(c)} está inactivo; actívalo en Cuentas por Cobrar antes de asignarle una tarjeta.`);
+      return;
+    }
+    setCliente(c);
+    setPaso(3);
+  };
+
   const handleConfirmarAsignacion = async () => {
-    if (!alumnoId) {
+    if (!esCliente && !alumnoId) {
       toast.warning('Selecciona el alumno al que se le entregará la tarjeta.');
       return;
     }
     setAsignando(true);
     setConflicto(null);
     try {
-      await asignarTarjeta(tarjeta.id, alumnoId);
+      await asignarTarjeta(tarjeta.id, esCliente ? { cliente_id: cliente.id } : { alumno_id: alumnoId });
       toast.success('Tarjeta asignada correctamente.');
       onAsignada?.();
       onClose();
@@ -123,7 +142,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       if (err.response?.status === 409) {
         const data = err.response.data || {};
         setConflicto({
-          detail: data.detail || 'Este alumno ya tiene una tarjeta activa.',
+          detail: data.detail || 'Esta persona ya tiene una tarjeta activa.',
           tarjeta_existente_id: data.tarjeta_existente_id,
         });
       } else {
@@ -135,6 +154,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
   };
 
   const alumnoSeleccionado = representante?.alumnos?.find(a => String(a.id) === String(alumnoId));
+  const nombreTitular = esCliente ? nombreCompleto(cliente) : (alumnoSeleccionado && nombreCompleto(alumnoSeleccionado));
 
   const footer = (
     <>
@@ -148,7 +168,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       {paso === 3 && (
         <button
           onClick={handleConfirmarAsignacion}
-          disabled={asignando || !alumnoId}
+          disabled={asignando || (!esCliente && !alumnoId)}
           className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
           style={{ background: 'var(--pb)' }}
         >
@@ -172,7 +192,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       size="md"
     >
       {/* Indicador de pasos */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-1.5 sm:gap-2 mb-4">
         {PASOS.map((p, i) => (
           <div key={p.n} className="flex items-center gap-2 flex-1">
             <div
@@ -185,7 +205,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
             >
               {p.n}
             </div>
-            <span className="text-xs font-medium" style={{ color: paso >= p.n ? 'var(--jet)' : 'var(--ash)' }}>
+            <span className="text-xs font-medium truncate" style={{ color: paso >= p.n ? 'var(--jet)' : 'var(--ash)' }}>
               {p.label}
             </span>
             {i < PASOS.length - 1 && <div className="flex-1 h-px" style={{ background: 'var(--border-md)' }} />}
@@ -235,6 +255,42 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
             Tarjeta {tarjeta?.serial} lista para asignar.
           </div>
 
+          <div role="radiogroup" aria-label="Tipo de titular" className="grid grid-cols-2 gap-2">
+            {TIPOS_TITULAR.map(({ value, label, Icono }) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={tipoTitular === value}
+                onClick={() => { setTipoTitular(value); setErrorRep(''); }}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium min-h-[44px]"
+                style={
+                  tipoTitular === value
+                    ? { border: '1.5px solid var(--pb)', background: 'var(--pb-light)', color: 'var(--pb)' }
+                    : { border: '0.5px solid var(--border-md)', color: 'var(--ash)' }
+                }
+              >
+                <Icono size={15} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {esCliente ? (
+            <>
+              <span className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
+                Personal u otra persona (Cuentas por Cobrar)
+              </span>
+              <BuscadorRepresentanteCxc
+                autoFocus
+                soloClientes
+                paraVenta
+                permitirAgregarCliente
+                placeholder="Buscar por nombre o cédula…"
+                onSelect={elegirCliente}
+              />
+            </>
+          ) : (
+          <>
           <label htmlFor="asignartarjetamodal-cedula-del-representante" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Cédula del representante
           </label>
@@ -263,6 +319,8 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
               <AlertTriangle size={14} /> {errorRep}
             </p>
           )}
+          </>
+          )}
 
           <button
             onClick={() => setPaso(1)}
@@ -277,9 +335,24 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
       {/* Paso 3 — seleccionar alumno y confirmar */}
       {paso === 3 && (
         <div className="space-y-3">
+          {esCliente ? (
+            <div className="rounded-lg px-3 py-3 text-sm flex items-start gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
+              <UserRound size={16} className="mt-0.5 shrink-0" />
+              <span className="min-w-0">
+                <span className="block font-medium break-words" style={{ color: 'var(--jet)' }}>{nombreTitular}</span>
+                <span className="block text-xs">
+                  {[TIPO_LABELS[cliente?.tipo], (cliente?.cedula || cliente?.documento) && `C.I. ${cliente.cedula || cliente.documento}`].filter(Boolean).join(' · ')}
+                  {' '}— recibirá la tarjeta {tarjeta?.serial}
+                </span>
+              </span>
+            </div>
+          ) : (
+          <>
           <div className="rounded-lg px-3 py-2 text-sm flex items-center gap-2" style={{ background: 'var(--pb-light)', color: 'var(--pb-mid)' }}>
-            <UserRound size={16} />
-            {representante?.nombre} {representante?.apellido} — {representante?.alumnos.length} alumno(s)
+            <UserRound size={16} className="shrink-0" />
+            <span className="min-w-0 break-words">
+              {nombreCompleto(representante?.representante)} — {representante?.alumnos.length} alumno(s)
+            </span>
           </div>
 
           <span id="asignar-alumno" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
@@ -305,11 +378,14 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
                 />
                 <span style={{ color: 'var(--jet)' }}>
                   {al.nombre} {al.apellido}
-                  {al.grado ? <span style={{ color: 'var(--ash)' }}> — {al.grado}</span> : null}
+                  {al.grado_seccion ? <span style={{ color: 'var(--ash)' }}> — {al.grado_seccion}</span> : null}
+                  {al.tiene_tarjeta ? <span style={{ color: 'var(--ash)' }}> · ya tiene tarjeta</span> : null}
                 </span>
               </label>
             ))}
           </div>
+          </>
+          )}
 
           {conflicto && (
             <div className="rounded-lg px-3 py-3 text-sm" style={{ background: 'var(--red-light)', border: '0.5px solid color-mix(in srgb, var(--red) 25%, white)', color: 'var(--red)' }}>
@@ -317,13 +393,13 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
                 <AlertTriangle size={14} /> {conflicto.detail}
               </p>
               <p className="mb-2" style={{ color: 'var(--red)' }}>
-                {alumnoSeleccionado?.nombre || 'Este alumno'} ya tiene una tarjeta activa. Si la tarjeta anterior se extravió o dañó, usa el flujo de reposición en vez de asignar una nueva.
+                {nombreTitular || 'Esta persona'} ya tiene una tarjeta activa. Si la tarjeta anterior se extravió o dañó, usa el flujo de reposición en vez de asignar una nueva.
               </p>
               <button
                 onClick={() => {
                   onSugerirReponer?.({
                     id: conflicto.tarjeta_existente_id,
-                    alumnoNombre: alumnoSeleccionado ? `${alumnoSeleccionado.nombre} ${alumnoSeleccionado.apellido}` : '',
+                    alumnoNombre: nombreTitular || '',
                   });
                   onClose();
                 }}
@@ -336,11 +412,11 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
           )}
 
           <button
-            onClick={() => { setPaso(2); setConflicto(null); }}
+            onClick={() => { setPaso(2); setConflicto(null); setCliente(null); }}
             className="text-xs flex items-center gap-1 mt-1"
             style={{ color: 'var(--ash)' }}
           >
-            <ArrowLeft size={12} /> Cambiar representante
+            <ArrowLeft size={12} /> {esCliente ? 'Cambiar persona' : 'Cambiar representante'}
           </button>
         </div>
       )}

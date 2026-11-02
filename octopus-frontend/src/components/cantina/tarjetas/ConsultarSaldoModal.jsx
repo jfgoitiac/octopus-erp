@@ -14,7 +14,7 @@ export default function ConsultarSaldoModal({ onClose }) {
 
   const saldo = Number(tarjeta?.saldo ?? 0);
   const limite = Number(tarjeta?.limite_credito ?? 0);
-  const nombre = tarjeta?.alumno_nombre || (tarjeta ? `Tarjeta ${tarjeta.serial}` : '');
+  const nombre = tarjeta?.titular_nombre || tarjeta?.alumno_nombre || (tarjeta ? `Tarjeta ${tarjeta.serial}` : '');
 
   return (
     <Modal open onClose={onClose} titulo="Consultar saldo de tarjeta" size="md">

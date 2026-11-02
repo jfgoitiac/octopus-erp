@@ -1,4 +1,5 @@
 import { UserRound, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { TIPO_LABELS } from '../cxc/utilsCxc';
 
 /**
  * Bloque de confirmación de identidad — solo aparece con pago por tarjeta
@@ -24,11 +25,13 @@ export default function ResumenCobro({
   confirmarSaldoNegativo,
   onCambiarConfirmarSaldoNegativo,
 }) {
-  const nombre = tarjeta.alumno_nombre
+  const nombre = tarjeta.titular_nombre || tarjeta.alumno_nombre
     || (tarjeta.alumno?.nombre ? `${tarjeta.alumno.nombre} ${tarjeta.alumno.apellido || ''}`.trim() : null)
     || `Tarjeta ${tarjeta.serial}`;
 
-  const grado = tarjeta.alumno_grado_seccion || tarjeta.alumno?.grado_seccion || tarjeta.alumno?.grado || tarjeta.grado_seccion || null;
+  // Personal u otra persona: en vez del grado se muestra el tipo de persona.
+  const tipoPersona = tarjeta.titular_tipo && tarjeta.titular_tipo !== 'alumno' ? TIPO_LABELS[tarjeta.titular_tipo] : null;
+  const grado = tipoPersona || tarjeta.alumno_grado_seccion || tarjeta.alumno?.grado_seccion || tarjeta.alumno?.grado || tarjeta.grado_seccion || null;
   const foto = tarjeta.alumno_foto || tarjeta.alumno?.foto || tarjeta.foto || null;
 
   const saldoActual = Number(tarjeta.saldo ?? 0);

@@ -184,8 +184,8 @@ export default function TicketVenta({ venta, onCerrar, onDescargarPdf, descargan
         )}
         {venta.tarjeta_serial && (
           <div className="flex justify-between text-xs" style={{ color: 'var(--ash)' }}>
-            <span>Tarjeta / Alumno</span>
-            <span>{venta.tarjeta_serial} — {venta.alumno_nombre || 'N/D'}</span>
+            <span>Tarjeta / Titular</span>
+            <span className="text-right">{venta.tarjeta_serial} — {venta.alumno_nombre || venta.cliente_nombre || 'N/D'}</span>
           </div>
         )}
         {venta.saldo_tarjeta_despues != null && (
