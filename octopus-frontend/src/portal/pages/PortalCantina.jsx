@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getSaldoTarjetaCantina, getConsumosCantina, getCuentaCantina } from '../api/portal.service';
@@ -11,10 +11,12 @@ import RecargarTarjetaModal from '../components/RecargarTarjetaModal';
 import CuentaCantinaCard from '../components/CuentaCantinaCard';
 
 const PortalCantina = () => {
-  const [alumnos, setAlumnos] = useState([]);
+  // La lista ya fue solicitada por PortalLayout; compartirla evita repetir el
+  // endpoint de dashboard en cada pantalla.
   const { dashboardData, loadingDashboard } = useOutletContext() || {};
+  const alumnos = useMemo(() => dashboardData?.alumnos || [], [dashboardData]);
+  const loadingAlumnos = !dashboardData && Boolean(loadingDashboard);
   const { alumnoActivo, setAlumnoActivo, sincronizarConLista } = useAlumnoActivo();
-  const [loadingAlumnos, setLoadingAlumnos] = useState(true);
 
   const [saldoTarjeta, setSaldoTarjeta] = useState(null);
   const [loadingSaldo, setLoadingSaldo] = useState(false);
@@ -25,6 +27,8 @@ const PortalCantina = () => {
   const [consumoAbierto, setConsumoAbierto] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
+  // Se incrementa tras una recarga para volver a pedir saldo y consumos.
+  const [recargasEnviadas, setRecargasEnviadas] = useState(0);
 
   // Cuenta por cobrar de cantina/librería (es del representante, no de un alumno)
   const [cuenta, setCuenta] = useState(null);
@@ -48,63 +52,56 @@ const PortalCantina = () => {
     return () => controller.abort();
   }, []);
 
-  // La lista ya fue solicitada por PortalLayout; compartirla evita repetir el
-  // endpoint de dashboard en cada pantalla.
   useEffect(() => {
-    if (!dashboardData) {
-      setLoadingAlumnos(Boolean(loadingDashboard));
-      return;
-    }
-    const lista = dashboardData.alumnos || [];
-    setAlumnos(lista);
-    sincronizarConLista(lista);
-    setLoadingAlumnos(false);
-  }, [dashboardData, loadingDashboard, sincronizarConLista]);
+    if (dashboardData) sincronizarConLista(alumnos);
+  }, [dashboardData, alumnos, sincronizarConLista]);
 
-  // PortalSaldoTarjetaView SIEMPRE responde un arreglo (uno por alumno,
-  // filtrado a 1 elemento cuando se pasa alumno_id) — nunca un objeto suelto.
-  const cargarSaldo = useCallback(async (alumnoId, signal) => {
-    setLoadingSaldo(true);
-    try {
-      const res = await getSaldoTarjetaCantina(alumnoId, signal);
-      const lista = Array.isArray(res.data) ? res.data : [];
-      setSaldoTarjeta(lista.find((r) => String(r.alumno_id) === String(alumnoId)) || lista[0] || null);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error('No se pudo cargar el saldo de la tarjeta.');
-    } finally {
-      setLoadingSaldo(false);
-    }
-  }, []);
-
-  const cargarConsumos = useCallback(async (alumnoId, paginaActual, signal) => {
-    setLoadingConsumos(true);
-    try {
-      const res = await getConsumosCantina(alumnoId, paginaActual, 10, signal);
-      setEstadoCuenta(res.data);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error('No se pudo cargar el estado de cuenta de consumos.');
-    } finally {
-      setLoadingConsumos(false);
-    }
-  }, []);
-
-  // Cargar saldo cuando cambia el alumno activo
+  // Cargar saldo cuando cambia el alumno activo o tras una recarga
   useEffect(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
-    cargarSaldo(alumnoActivo.id, controller.signal);
-    return () => controller.abort();
-  }, [alumnoActivo, cargarSaldo]);
 
-  // Cargar consumos cuando cambia el alumno activo o la página
+    const cargarSaldo = async () => {
+      setLoadingSaldo(true);
+      try {
+        // PortalSaldoTarjetaView SIEMPRE responde un arreglo (uno por alumno,
+        // filtrado a 1 elemento cuando se pasa alumno_id) — nunca un objeto suelto.
+        const res = await getSaldoTarjetaCantina(alumnoActivo.id, controller.signal);
+        const lista = Array.isArray(res.data) ? res.data : [];
+        setSaldoTarjeta(lista.find((r) => String(r.alumno_id) === String(alumnoActivo.id)) || lista[0] || null);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo cargar el saldo de la tarjeta.');
+      } finally {
+        if (!controller.signal.aborted) setLoadingSaldo(false);
+      }
+    };
+
+    cargarSaldo();
+    return () => controller.abort();
+  }, [alumnoActivo, recargasEnviadas]);
+
+  // Cargar consumos cuando cambia el alumno activo, la página o tras una recarga
   useEffect(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
-    cargarConsumos(alumnoActivo.id, pagina, controller.signal);
+
+    const cargarConsumos = async () => {
+      setLoadingConsumos(true);
+      try {
+        const res = await getConsumosCantina(alumnoActivo.id, pagina, 10, controller.signal);
+        setEstadoCuenta(res.data);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error('No se pudo cargar el estado de cuenta de consumos.');
+      } finally {
+        if (!controller.signal.aborted) setLoadingConsumos(false);
+      }
+    };
+
+    cargarConsumos();
     return () => controller.abort();
-  }, [alumnoActivo, pagina, cargarConsumos]);
+  }, [alumnoActivo, pagina, recargasEnviadas]);
 
   const handleSelectAlumno = (alumno) => {
     setAlumnoActivo(alumno);
@@ -113,10 +110,7 @@ const PortalCantina = () => {
 
   const handleRecargaExitosa = () => {
     setModalOpen(false);
-    if (alumnoActivo) {
-      cargarSaldo(alumnoActivo.id);
-      cargarConsumos(alumnoActivo.id, pagina);
-    }
+    setRecargasEnviadas((n) => n + 1);
   };
 
   return (
