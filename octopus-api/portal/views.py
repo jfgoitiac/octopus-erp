@@ -22,6 +22,7 @@ from cobranza.models import CuotaInscripcion, CuotaProyectoInversion, Mensualida
 from authentication.serializers import PerfilFotoSerializer
 
 from pagos_comunes.comprobantes import validar_comprobante
+from pagos_comunes.media_views import url_archivo_comprobante
 
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -1243,17 +1244,6 @@ def _tipo_archivo_comprobante(archivo):
     return None
 
 
-def _url_archivo_comprobante(request, comprobante):
-    # Ruta protegida (pagos_comunes.media_views.ComprobanteProtegidoView)
-    # en vez de la URL directa de /media/ — esa última no tiene control
-    # de acceso real si nginx la sirve estático en producción.
-    if not comprobante.archivo:
-        return None
-    return request.build_absolute_uri(
-        f'/media-protegido/comprobantes/{os.path.basename(comprobante.archivo.name)}/'
-    )
-
-
 def _dinero(valor):
     return None if valor is None else str(Decimal(valor).quantize(Decimal('0.01')))
 
@@ -1268,7 +1258,7 @@ def _datos_basicos_comprobante(request, c):
         'fecha_subida': c.fecha_subida,
         'estatus': c.estatus,
         'observaciones': c.observaciones,
-        'archivo_url': _url_archivo_comprobante(request, c),
+        'archivo_url': url_archivo_comprobante(request, c),
         'alumno': f'{alumno.nombre} {alumno.apellido}',
         'grado': alumno.grado_seccion,
         'representante': f'{rep.nombre} {rep.apellido}',

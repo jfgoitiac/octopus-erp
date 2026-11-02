@@ -36,6 +36,8 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from pagos_comunes.media_views import url_archivo_comprobante
+
 from .models import (
     BancoInstitucional, ConciliacionBancaria, LoteRevisionCaja, MovimientoBancarioConciliado, Pago,
     TasaCambio,
@@ -269,15 +271,6 @@ def listar_operaciones(user, banco_id, *, sufijo=None, desde=None, hasta=None, s
 VENTANA_COMPROBANTES_DIAS = 5
 
 
-def _url_archivo_comprobante(request, comprobante):
-    """Ruta protegida del archivo (misma que portal.views): /media/ no tiene
-    control de acceso real si nginx la sirve estático en producción."""
-    if not comprobante.archivo:
-        return None
-    ruta = f'/media-protegido/comprobantes/{os.path.basename(comprobante.archivo.name)}/'
-    return request.build_absolute_uri(ruta) if request is not None else ruta
-
-
 def _tipo_archivo(archivo):
     if not archivo:
         return None
@@ -379,7 +372,7 @@ def listar_comprobantes_por_procesar(user, banco_id, *, sufijo=None, desde=None,
                 'monto_usd': str(mensualidad.monto_usd),
                 'saldo_usd': str(saldo_usd),
             },
-            'archivo_url': _url_archivo_comprobante(request, c),
+            'archivo_url': url_archivo_comprobante(request, c),
             'archivo_tipo': _tipo_archivo(c.archivo),
             'pagos_ids': [],
             'conciliado': False,

@@ -686,7 +686,7 @@ class RegistrarPagoView(APIView):
                 # Carga retroactiva de un comprobante del portal sin adjunto
                 # propio: el respaldo es el MISMO archivo que subió el
                 # representante (se reutiliza el name; no se duplican bytes).
-                # Sigue servido por /media-protegido/comprobantes/<archivo>/
+                # Sigue servido por /api/media-protegido/comprobantes/<archivo>/
                 # (ComprobanteProtegidoView lo busca por ComprobantePago.archivo).
                 pago.comprobante_retroactivo.name = comprobante_portal.archivo.name
                 pago.comprobante_retroactivo_subido_en = timezone.now()

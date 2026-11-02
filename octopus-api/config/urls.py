@@ -31,7 +31,8 @@ urlpatterns = [
     path('api/notificaciones/', include('notificaciones.urls')),
     path('api/portal/notificaciones/', include('notificaciones.urls_portal')),
     path('api/cantina/', include('cantina.urls')),
-    path('media-protegido/comprobantes/<str:filename>/', ComprobanteProtegidoView.as_view()),
+    # Bajo /api/ para que nginx la reenvíe a Django (ver pagos_comunes.media_views).
+    path('api/media-protegido/comprobantes/<str:filename>/', ComprobanteProtegidoView.as_view()),
 ]
 
 if settings.DEBUG:
