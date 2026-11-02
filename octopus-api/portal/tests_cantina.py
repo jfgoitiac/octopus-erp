@@ -7,14 +7,19 @@ nunca el de cantina, y solo lee/crea sobre cantina.models.
 Sigue el mismo estilo que portal/tests.py (PortalTestBase, helpers
 crear_representante_con_portal / crear_alumno, APIClient).
 """
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
-from cantina.models import MovimientoTarjeta, RecargaTarjeta, TarjetaPrepago
+from cantina.models import (
+    CargoCantina, CategoriaProducto, DetalleVentaCantina, MovimientoTarjeta,
+    ProductoCantina, RecargaTarjeta, TarjetaPrepago, VentaCantina,
+)
 from cobranza.models import BancoInstitucional, Pago, TasaCambio
 from secretaria.models import Alumno, Representante
 
@@ -159,6 +164,110 @@ class PortalHistorialConsumoCantinaTests(PortalCantinaTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data['total'], 1)
         self.assertEqual(resp.data['results'][0]['tipo'], 'consumo')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ESTADO DE CUENTA DE CONSUMOS (qué compró el alumno)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PortalConsumosCantinaTests(PortalCantinaTestBase):
+    URL = '/api/portal/cantina/consumos/'
+
+    def setUp(self):
+        super().setUp()
+        categoria = CategoriaProducto.objects.create(nombre='Comida')
+        self.empanada = ProductoCantina.objects.create(nombre='Empanada', categoria=categoria, precio=Decimal('1.50'))
+        self.jugo = ProductoCantina.objects.create(nombre='Jugo', categoria=categoria, precio=Decimal('1.00'))
+
+    def _venta(self, alumno, lineas, metodo='tarjeta_prepago', **extra):
+        total = sum((p.precio * c for p, c in lineas), Decimal('0.00'))
+        venta = VentaCantina.objects.create(
+            alumno=alumno, cajero=self.user, metodo_pago=metodo, total_usd=total,
+            tasa_aplicada=Decimal('40.0000'), total_ves=total * 40, **extra,
+        )
+        for producto, cantidad in lineas:
+            DetalleVentaCantina.objects.create(
+                venta=venta, producto=producto, cantidad=cantidad,
+                precio_unitario=producto.precio, subtotal=producto.precio * cantidad,
+            )
+        return venta
+
+    def test_requiere_autenticacion(self):
+        self.assertEqual(self.client.get(f'{self.URL}?alumno_id={self.alumno.id}').status_code, 401)
+
+    def test_requiere_alumno_id(self):
+        self.auth_portal()
+        self.assertEqual(self.client.get(self.URL).status_code, 400)
+
+    def test_no_puede_ver_consumos_de_alumno_ajeno(self):
+        self._venta(self.alumno2, [(self.jugo, 1)])
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno2.id}')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_devuelve_lo_que_compro_el_alumno_sin_datos_del_cajero(self):
+        self._venta(self.alumno, [(self.empanada, 2), (self.jugo, 1)])
+        self._venta(self.alumno2, [(self.jugo, 3)])
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['total'], 1)
+        consumo = resp.data['results'][0]
+        self.assertEqual(Decimal(consumo['total_usd']), Decimal('4.00'))
+        self.assertEqual(
+            [(i['producto_nombre'], i['cantidad'], Decimal(i['subtotal'])) for i in consumo['items']],
+            [('Empanada', 2, Decimal('3.00')), ('Jugo', 1, Decimal('1.00'))],
+        )
+        self.assertNotIn('cajero', consumo)
+        self.assertNotIn('motivo_anulacion', consumo)
+
+    def test_anuladas_se_listan_pero_no_suman(self):
+        self._venta(self.alumno, [(self.empanada, 1)])
+        self._venta(self.alumno, [(self.jugo, 4)], estado='anulada')
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}')
+        self.assertEqual(resp.data['total'], 2)
+        self.assertEqual(Decimal(resp.data['total_consumido_usd']), Decimal('1.50'))
+        self.assertEqual(Decimal(resp.data['total_mes_usd']), Decimal('1.50'))
+
+    def test_total_del_mes_excluye_meses_anteriores(self):
+        vieja = self._venta(self.alumno, [(self.jugo, 2)])
+        VentaCantina.objects.filter(pk=vieja.pk).update(creado_en=timezone.now() - timedelta(days=70))
+        self._venta(self.alumno, [(self.empanada, 1)])
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}')
+        self.assertEqual(Decimal(resp.data['total_consumido_usd']), Decimal('3.50'))
+        self.assertEqual(Decimal(resp.data['total_mes_usd']), Decimal('1.50'))
+
+    def test_cargo_a_cuenta_informa_lo_pendiente(self):
+        venta = self._venta(self.alumno, [(self.empanada, 2)], metodo='credito_representante', representante=self.rep)
+        CargoCantina.objects.create(
+            representante=self.rep, alumno=self.alumno, venta=venta, area='cantina',
+            monto_usd=Decimal('3.00'), monto_pagado=Decimal('1.00'),
+        )
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}')
+        self.assertEqual(Decimal(resp.data['results'][0]['saldo_pendiente_usd']), Decimal('2.00'))
+
+    def test_paginacion(self):
+        for _ in range(3):
+            self._venta(self.alumno, [(self.jugo, 1)])
+        self.auth_portal()
+        resp = self.client.get(f'{self.URL}?alumno_id={self.alumno.id}&page=2&page_size=2')
+        self.assertEqual(resp.data['total_pages'], 2)
+        self.assertEqual(len(resp.data['results']), 1)
+        # Los totales cubren todo el historial, no solo la página pedida.
+        self.assertEqual(Decimal(resp.data['total_consumido_usd']), Decimal('3.00'))
+
+    def test_cuenta_incluye_el_detalle_de_cada_cargo_pendiente(self):
+        venta = self._venta(self.alumno, [(self.jugo, 2)], metodo='credito_representante', representante=self.rep)
+        CargoCantina.objects.create(
+            representante=self.rep, alumno=self.alumno, venta=venta, area='cantina', monto_usd=Decimal('2.00'),
+        )
+        self.auth_portal()
+        resp = self.client.get('/api/portal/cantina/cuenta/')
+        items = resp.data['cargos'][0]['consumo']['items']
+        self.assertEqual([(i['producto_nombre'], i['cantidad']) for i in items], [('Jugo', 2)])
 
 
 # ──────────────────────────────────────────────────────────────────────────────

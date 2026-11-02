@@ -33,6 +33,7 @@ from .serializers import (
     AlumnoDashboardSerializer,
     ComprobantePagoSerializer,
     MensualidadSerializer,
+    ConsumoCantinaPortalSerializer,
     MovimientoTarjetaPortalSerializer,
     PagoHistorialSerializer,
     PortalConfirmarResetSerializer,
@@ -843,6 +844,74 @@ class PortalHistorialConsumoCantinaView(APIView):
             'page_size': page_size,
             'total_pages': max(1, (total + page_size - 1) // page_size),
             'results': MovimientoTarjetaPortalSerializer(pagina, many=True).data,
+        })
+
+
+class PortalConsumosCantinaView(APIView):
+    """
+    GET /api/portal/cantina/consumos/?alumno_id=X&page=&page_size=
+    Estado de cuenta de consumos de un alumno del representante autenticado:
+    sus compras de cantina/librería con el detalle de productos.
+    Parte de VentaCantina y no de MovimientoTarjeta para incluir también las
+    compras cargadas a la cuenta del representante, que no mueven la tarjeta.
+    Las ventas anuladas se listan marcadas, pero no suman en los totales.
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum
+        from django.utils import timezone
+        from cantina.models import VentaCantina
+
+        representante = _get_representante(request)
+
+        alumno_id = request.query_params.get('alumno_id')
+        if not alumno_id:
+            return Response(
+                {'error': 'El parámetro alumno_id es requerido.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            alumno = Alumno.objects.get(id=alumno_id, representante=representante, activo=True)
+        except (Alumno.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {'error': 'Alumno no encontrado o no pertenece a este representante.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(50, max(1, int(request.query_params.get('page_size', 10))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 10
+
+        ventas_qs = VentaCantina.objects.filter(alumno=alumno)
+        completadas = ventas_qs.filter(estado='completada')
+        hoy = timezone.localdate()
+        total_mes = completadas.filter(
+            creado_en__year=hoy.year, creado_en__month=hoy.month
+        ).aggregate(total=Sum('total_usd'))['total']
+        total_consumido = completadas.aggregate(total=Sum('total_usd'))['total']
+
+        total = ventas_qs.count()
+        offset = (page - 1) * page_size
+        pagina = (
+            ventas_qs.select_related('alumno', 'cargo')
+            .prefetch_related('detalles__producto')
+            .order_by('-creado_en', '-id')[offset:offset + page_size]
+        )
+
+        return Response({
+            'alumno': f'{alumno.nombre} {alumno.apellido}',
+            'total_mes_usd': str(total_mes or Decimal('0.00')),
+            'total_consumido_usd': str(total_consumido or Decimal('0.00')),
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': max(1, (total + page_size - 1) // page_size),
+            'results': ConsumoCantinaPortalSerializer(pagina, many=True).data,
         })
 
 
@@ -1844,7 +1913,8 @@ class PortalCuentaCantinaView(APIView):
 
         pendientes = (
             cargos_qs.filter(estado='pendiente')
-            .select_related('alumno')
+            .select_related('alumno', 'venta__alumno')
+            .prefetch_related('venta__detalles__producto')
             .order_by('creado_en')[:self.MAX_CARGOS]
         )
         cargos = [{
@@ -1856,6 +1926,7 @@ class PortalCuentaCantinaView(APIView):
             'monto_usd': str(c.monto_usd),
             'monto_pagado': str(c.monto_pagado),
             'saldo_usd': str(c.saldo_usd),
+            'consumo': ConsumoCantinaPortalSerializer(c.venta).data,
         } for c in pendientes]
 
         # Abonos agrupados por operación (las líneas de un pago mixto comparten uuid).
