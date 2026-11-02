@@ -34,9 +34,11 @@ Detectado en la auditoría de notificaciones; solo se anota, no se implementa.
    recordatorios de mora llegan solo por push/email y no quedan en la campana.
 7. **`{{referencia}}` vacío en el aviso de aprobado** cuando el pago fue en
    efectivo: el texto por defecto queda "(referencia )".
-8. **Comprobantes HEIC**: el portal los acepta pero los navegadores de escritorio
-   no los decodifican; el visor ahora muestra un mensaje y "Abrir archivo", no una
-   vista previa.
+8. **Extensiones de imagen desalineadas**: el portal solo acepta jpg/png/webp/pdf
+   (`pagos_comunes/comprobantes.py`), pero el visor clasifica también heic/gif/bmp
+   como imagen (`_tipo_archivo_comprobante`, `_tipo_archivo`). Si alguno llega por
+   otra vía y el navegador no lo decodifica, el visor ya muestra un mensaje y
+   "Abrir archivo".
 
 ## Cantina opera con la tasa BCV: restos de la tasa propia (02/11/2026)
 
