@@ -37,8 +37,24 @@ function Linea({ l }) {
   }
 }
 
-export default function ReporteCierreTicket({ cierre }) {
+// `plano`: sin tarjeta ni botón propios, para cuando la pantalla ya ofrece
+// imprimir y el papel no debe quedar como tarjeta dentro de otra tarjeta.
+export default function ReporteCierreTicket({ cierre, plano = false }) {
   const lineas = lineasReporteCierre(cierre);
+
+  if (plano) {
+    return (
+      <section className="flex flex-col gap-3" aria-label="Reporte de cierre de caja">
+        <h2 className="text-base sm:text-lg font-semibold" style={{ color: 'var(--jet)' }}>Reporte de cierre</h2>
+        <div
+          className="w-full max-w-[340px] rounded-xl p-4 font-mono text-xs sm:text-[13px] leading-snug overflow-x-auto"
+          style={{ background: '#fff', color: '#111', border: '0.5px solid var(--border-md)' }}
+        >
+          {lineas.map((l, i) => <Linea key={i} l={l} />)}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
