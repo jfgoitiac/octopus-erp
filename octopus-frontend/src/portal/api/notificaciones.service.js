@@ -22,9 +22,13 @@ export const suscribirPush = (subscription, tipos) =>
 /**
  * Desactiva la suscripción del `endpoint` dado (soft — no se borra el registro).
  * @param {string} endpoint
+ * @param {string} [token] - access token explícito (logout: ya no está en localStorage)
  */
-export const desuscribirPush = (endpoint) =>
-  portalClient.delete('notificaciones/push/desuscribir/', { data: { endpoint } });
+export const desuscribirPush = (endpoint, token) =>
+  portalClient.delete('notificaciones/push/desuscribir/', {
+    data: { endpoint },
+    ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  });
 
 /**
  * Actualiza los tipos de notificación push activos (circular, nota, factura,
