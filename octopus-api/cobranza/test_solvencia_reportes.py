@@ -314,6 +314,25 @@ class EstadoPorConceptoDetalleTest(SolvenciaReportesBase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual({f['alumno_id'] for f in response.data['results']}, {activo.id})
 
+    def test_lo_pagado_por_retirados_y_becados_sigue_en_el_historial(self):
+        """La exclusión solo aplica a la deuda abierta: la recaudación
+        histórica no baja cuando un alumno se retira o se beca."""
+        retirado = _crear_alumno('E3100013', self.representante, activo=False)
+        becado = _crear_alumno('E3100014', self.representante, estatus_financiero='becado')
+        for alumno in (retirado, becado):
+            Mensualidad.objects.create(
+                alumno=alumno, mes=10, anio=2026, monto_usd=Decimal('100.00'),
+                monto_pagado=Decimal('100.00'), pagado=True,
+            )
+
+        response = self.client.get(
+            '/api/cobranza/estado-por-concepto/?concepto=mensualidad&mes=10&anio=2026&page_size=100'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({f['alumno_id'] for f in response.data['results']}, {retirado.id, becado.id})
+        self.assertEqual(response.data['resumen']['pagados'], 2)
+
     def test_resumen_cuadra_con_total_sin_paginar(self):
         for i in range(25):
             a = _crear_alumno(f'E32{i:05d}', self.representante)

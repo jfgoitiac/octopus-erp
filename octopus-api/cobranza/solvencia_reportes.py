@@ -371,10 +371,13 @@ def _resolver_y_filtrar(request):
     select_related = ('alumno', 'alumno__representante') if nivel == 'alumno' else ('representante',)
     qs = modelo.objects.filter(**filtro_extra).select_related(*select_related)
     if nivel == 'alumno':
-        # El detalle accionable de cobranza debe trabajar con el mismo universo
-        # que Morosos/WhatsApp. Las filas históricas de retirados se conservan
-        # en BD, pero no deben ofrecer acciones de cobro.
-        qs = qs.filter(alumno__activo=True).exclude(alumno__estatus_financiero='becado')
+        # La deuda abierta de retirados y becados no es cobrable (mismo universo
+        # que Morosos/WhatsApp), así que no se ofrece para cobro. Lo que ya
+        # pagaron sí se conserva: los resúmenes y Excel de recaudación son
+        # históricos y no deben bajar cuando un alumno se retira o se beca.
+        qs = qs.exclude(
+            Q(pagado=False) & (Q(alumno__activo=False) | Q(alumno__estatus_financiero='becado'))
+        )
     if nivel == 'representante':
         qs = qs.prefetch_related('representante__alumnos')
 
@@ -581,6 +584,10 @@ def _mensualidades_por_monto_qs(request):
         mes=mes_num, anio=anio_num, monto_usd__gt=0, alumno__activo=True,
     ).select_related(
         'alumno', 'alumno__representante'
+    ).exclude(
+        # Misma regla que _resolver_y_filtrar: la deuda abierta de un becado
+        # no es cobrable; lo que ya pagó se conserva como historial.
+        pagado=False, alumno__estatus_financiero='becado',
     )
     qs = filtrar_por_sede(request.user, qs, campo='alumno__sede')
     if sede := request.query_params.get('sede'):
